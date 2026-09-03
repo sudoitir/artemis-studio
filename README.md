@@ -67,127 +67,122 @@ See [`CLAUDE.md`](CLAUDE.md) and [`.claude/rules/`](.claude/rules/).
 
 ## TODO
 
-The development plan. Each item is scoped to stand on its own — goal, files in
-scope, and a concrete "done when". Full context in
-[`docs/roadmap.md`](docs/roadmap.md) and the ADRs.
+Every feature we intend to ship, grouped by phase. Each phase is a focused unit
+of work; the sub-tasks are the checklist. Context: [`docs/roadmap.md`](docs/roadmap.md)
+and the ADRs. Feature phases go through OpenSpec.
 
-### 0 · Broker management spike
+### Phase 0 · Broker management spike
 
-- **Goal**: prove the Artemis management surface this whole design rests on.
-  Boot the dev compose primary/backup pair; from a scratch Java main or test,
-  call `listNetworkTopology()`, `listQueues(filter, page, pageSize)`, read
-  `Active` and `ReplicaSync`, and subscribe to `activemq.notifications` to
-  capture real `_AMQ_NotifType` values. Record exact signatures and payload
-  shapes.
-- **In scope**: `deploy/compose/compose.dev.yaml`,
-  `deploy/compose/artemis/**/broker.xml`, a throwaway `spike/` or a
-  `@Disabled` integration test. No production code.
-- **Done when**: the pair boots, backup reports `Active=false` while primary
-  reports `true`, killing the primary triggers failover, and a short markdown
-  note in `docs/` lists the verified call signatures. Fix the broker XML as
-  needed.
+- [ ] Boot the dev compose primary/backup pair with replication working; fix
+      `deploy/compose/artemis/**/broker.xml`
+- [ ] Verify `listNetworkTopology()` shape (pairs, connectors)
+- [ ] Verify `listQueues(filter, page, pageSize)` shape, paging, attributes
+- [ ] Verify `Active` / `ReplicaSync` reads; confirm failover and failback
+- [ ] Capture real `_AMQ_NotifType` values + headers from `activemq.notifications`
+- [ ] Batched Jolokia POST verified; note what needs the Core client
+- [ ] `docs/broker-management-notes.md` with verified signatures and payloads
 
-### 1 · Jolokia client, capability probe, cluster registration, topology
+### Phase 1 · Connectivity and topology
 
-- **Goal**: register a cluster from one seed node; probe capabilities; discover
-  the rest of the topology; detect who is live and flag split-brain.
-- **In scope**: `broker/` (JolokiaBrokerClient, CapabilityProbe,
-  TopologyDiscovery), `domain/topology`, `web/` controllers for
-  `/api/v1/clusters`, `/capabilities`, `/topology`, `/discover`; Liquibase
-  changes only if a column is missing.
-- **Done when**: `POST /api/v1/clusters` with a seed URL persists the cluster,
-  discovers all nodes, and `GET /topology` returns pairs + replication state +
-  a split-brain flag; capabilities reflect what the connection actually allows;
-  integration test against the dev pair.
+- [ ] `JolokiaBrokerClient` — read attributes, invoke ops, batched POST
+- [ ] `CapabilityProbe` → `MANAGEMENT_READ/WRITE`, `NOTIFICATIONS`, `MESSAGE_IO`
+- [ ] Credential vaulting (AES-GCM at rest), TLS to brokers
+- [ ] Register a cluster from one seed node
+- [ ] Topology auto-discovery + rediscovery; manual URL overrides preserved
+- [ ] Live-node detection (`Active`), replication state, split-brain flag
+- [ ] `GET /api/v1/clusters/{id}/{capabilities,topology,health}`
+- [ ] "Feature unavailable" UI with the exact `broker.xml` snippet to enable it
 
-### 2 · Cross-node resource views, scrape scheduler, SSE, UI shell
+### Phase 2 · Cross-node resource views + live UI
 
-- **Goal**: the "whole cluster in one table" view, kept live.
-- **In scope**: `scheduler/` (tiered work, per-node token bucket, batched
-  Jolokia POST), `persist/` (`queue_snapshot` upserts), `web/` SSE hub +
-  `/api/v1/clusters/{id}/queues|addresses`, `web/src` routes, the topology
-  graph (React Flow), the queue grid (TanStack Table + Mantine).
-- **Done when**: queues and addresses across every node render in one sortable,
-  filterable grid; counters update over SSE; the topology graph shows
-  live/backup badges and replication state; brokers see batched, rate-limited
-  calls only.
+- [ ] Tiered scrape scheduler (A/B/C) with per-node token-bucket rate limit
+- [ ] `queue_snapshot` upserts; cross-node aggregation
+- [ ] Queues view — anycast/multicast, depth, consumers, delivering, scheduled
+- [ ] Addresses view
+- [ ] Consumers / sessions / connections / producers views
+- [ ] SSE hub (`GET /api/v1/stream`); polling fallback
+- [ ] React shell, routing, dark-first tokens wired
+- [ ] Topology graph (React Flow) — live/backup badges, replication, alert dots
+- [ ] Queue grid (TanStack Table + Mantine) — virtualized, sort, filter
+- [ ] ⌘K command palette (jump to cluster / queue / action)
 
-### 3 · Message operations + audit
+### Phase 3 · Message operations + audit
 
-- **Goal**: browse, send, move, retry, delete — safely.
-- **In scope**: `domain/messages`, `web/` message endpoints with `?dryRun`,
-  `security/` audit filter + `audit_event` write in the command transaction,
-  `web/src` message browser + typed-confirmation dialogs, audit log screen.
-- **Done when**: every mutation has a working dry-run returning an affected
-  count; purge/delete demand typed confirmation; every action writes an audit
-  row with outcome; the audit screen filters by user, action, cluster, time.
+- [ ] Browse messages (filter, paged); full headers, properties, body view
+- [ ] Send message
+- [ ] Move / retry (DLQ replay) / delete — by ids or filter
+- [ ] Purge queue with typed confirmation
+- [ ] `?dryRun=true` on every mutation → affected count, no action
+- [ ] Bulk actions with a safety cap and preview
+- [ ] `audit_event` written in the command transaction, updated with outcome
+- [ ] Audit log screen — filter by user, action, cluster, time
+- [ ] DLQ management view (what's dead, where it came from, redelivery count)
 
-### 4 · Core client and notifications
+### Phase 4 · Core client and push events
 
-- **Goal**: the push channel.
-- **In scope**: `broker/CoreEventClient` (artemis-jakarta-client), a
-  per-cluster `activemq.notifications` consumer, normalisation to domain
-  events, SSE fan-out, `NOTIFICATIONS` capability wiring.
-- **Done when**: consumer/session/connection/binding events from the dev pair
-  appear live in the UI; the capability turns on only when the Core acceptor is
-  reachable and `consume` on `activemq.notifications` is granted, with the
-  `broker.xml` hint shown when it is not.
+- [ ] `CoreEventClient` (artemis-jakarta-client), live/backup aware
+- [ ] Per-cluster `activemq.notifications` consumer → normalized domain events
+- [ ] SSE fan-out of consumer/session/connection/binding events
+- [ ] `NOTIFICATIONS` capability gating with `broker.xml` hint
+- [ ] Faithful message I/O over Core (real headers/properties) when available
 
-### 5 · Request-reply tracing
+### Phase 5 · Request-reply tracing (flagship)
 
-- **Goal**: the flagship. Trace request-reply end to end for both the
-  shared-reply-queue and temporary-reply-queue patterns; surface stuck and
-  orphaned requests.
-- **In scope**: `domain/requestreply` (correlator, state machine per
-  `docs/architecture.md`), `rr_expectation` / `rr_flow` / `rr_event`
-  persistence, `/api/v1/clusters/{id}/rr/*` endpoints, a "flows" screen with a
-  per-address latency panel and a "stuck requests" list.
-- **Done when**: a demo request-reply app run against the dev pair shows
-  `COMPLETED` flows with latency, a killed requester shows `ORPHANED`, and a
-  responder that acks without replying shows `RESPONDER_DROPPED`; correlation is
-  driven by the event stream, and payload capture is sampled/bounded.
+- [ ] Correlator + flow state machine (per `docs/architecture.md`)
+- [ ] Shared-reply-queue pattern — correlation-id join, latency
+- [ ] Temp-reply-queue pattern — lifecycle reconstruction from notifications
+- [ ] States: `AWAITING_REPLY`, `COMPLETED`, `TIMED_OUT`, `ORPHANED`,
+      `RESPONDER_DROPPED`, `ORPHANED_REPLY`
+- [ ] `rr_expectation` config — which addresses to trace, deadlines, sampling
+- [ ] Deadlines from `_AMQ_EXPIRE`/`JMSExpiration`, else per-address expectation
+- [ ] `/api/v1/clusters/{id}/rr/{flows,flows/{id},stats,expectations}`
+- [ ] Flows screen — in-flight list, per-address latency histogram/percentiles
+- [ ] "Stuck requests" panel
+- [ ] Bounded/sampled payload capture
 
-### 6 · Metrics and charts
+### Phase 6 · Metrics and charts
 
-- **Goal**: history.
-- **In scope**: `metric_sample` writes from the scheduler, a daily
-  partition-create + retention job, `/api/v1/clusters/{id}/metrics`, Mantine
-  charts dashboards.
-- **Done when**: queue depth / throughput / consumer count / RR latency chart
-  over selectable ranges; partitions are created ahead and dropped past
-  retention; a slow dashboard query is the trigger to add rollups, nothing
-  sooner.
+- [ ] `metric_sample` writes from the scheduler
+- [ ] Daily partition create-ahead + retention drop job
+- [ ] `GET /api/v1/clusters/{id}/metrics` (subject, metric, range, step)
+- [ ] Built-in charts — queue depth, throughput, consumers, RR latency
+- [ ] Rollup tables — only when a dashboard query is measurably slow
 
-### 7 · Alerting
+### Phase 7 · Alerting
 
-- **Goal**: tell someone before the operator has to look.
-- **In scope**: `alerting/` (rule eval loop over `metric_sample`,
-  `alert_state`), `notification_channel` delivery (webhook, Slack), rule CRUD +
-  alerts screen.
-- **Done when**: a threshold rule with a `for` duration transitions
-  OK → PENDING → FIRING, delivers to a channel once, and resolves; split-brain
-  raises a built-in critical alert.
+- [ ] Rule model + evaluation loop over `metric_sample` (`for` duration)
+- [ ] `alert_state` OK → PENDING → FIRING → resolved
+- [ ] Notification channels — webhook, Slack (email later)
+- [ ] Built-in critical alerts — split-brain, node down, replication desync
+- [ ] Rule CRUD + alerts screen
 
-### 8 · RBAC and SSO
+### Phase 8 · Governance
 
-- **Goal**: real governance.
-- **In scope**: `security/` local users → role/permission/scoped assignment,
-  per-environment grouping, read-only mode enforcement on every mutating path,
-  OIDC login.
-- **Done when**: a VIEWER cannot mutate anything, an OPERATOR scoped to one
-  environment cannot touch another, read-only clusters reject writes with a
-  clear error, and OIDC login maps claims to roles.
+- [ ] Local users in Postgres; first-run admin bootstrap
+- [ ] Roles → permissions; scoped assignment (global / environment / cluster)
+- [ ] Read-only mode enforced on every mutating path
+- [ ] Per-environment cluster grouping
+- [ ] OIDC / SSO login, claim → role mapping
+- [ ] Session handling, login/logout, `GET /api/v1/me`
 
 ### v1.0 · Hardening and reach
 
-- Multi-instance HA via Postgres advisory locks (one scraper per cluster, all
-  instances serve reads); Helm chart; docs site; slow-consumer detection;
-  message replay from a captured payload.
+- [ ] Multi-instance HA — Postgres advisory lock per cluster (one scraper, all
+      serve reads)
+- [ ] Helm chart
+- [ ] Docs site
+- [ ] Slow-consumer detection
+- [ ] Message replay from a captured payload
+- [ ] Message payload inspection helpers (pretty-print, type detection)
 
 ### Beyond
 
-- ArkMQ operator integration (read broker CRs to auto-register clusters); JMX
-  transport; saved views; scheduled reports; broker config diff across a pair.
+- [ ] ArkMQ operator integration — read broker CRs to auto-register clusters
+- [ ] JMX transport
+- [ ] Saved views / shareable filters
+- [ ] Scheduled reports
+- [ ] Broker config diff across a pair
+- [ ] Prometheus scrape ingestion option
 
 ---
 
