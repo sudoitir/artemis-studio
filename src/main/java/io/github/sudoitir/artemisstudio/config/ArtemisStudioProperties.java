@@ -10,10 +10,15 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * <p>Replaces the previously unread YAML block. The dead
  * {@code jolokia.origin-header} key is gone — Phase 0 proved {@code --relax-jolokia}
  * is on by default in the Artemis image, so no {@code Origin} header is needed.
+ *
+ * <p>These are the compile-time defaults. From Phase 2 on, the tiers, the
+ * per-node rate ceiling and the metric-retention window are overridable at
+ * runtime through {@code studio_setting} (see {@code SettingsService}); this
+ * record is the fallback the settings layer seeds from.
  */
 @ConfigurationProperties(prefix = "artemis-studio")
 public record ArtemisStudioProperties(
-        String secretKey, Branding branding, Scrape scrape, RateLimit rateLimit, Broker broker) {
+        String secretKey, Branding branding, Scrape scrape, RateLimit rateLimit, Broker broker, Metric metric) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -22,11 +27,16 @@ public record ArtemisStudioProperties(
                 : new Scrape(Duration.ofSeconds(5), Duration.ofSeconds(15), Duration.ofMinutes(5));
         rateLimit = rateLimit != null ? rateLimit : new RateLimit(20);
         broker = broker != null ? broker : new Broker(Duration.ofSeconds(3), Duration.ofSeconds(10));
+        metric = metric != null ? metric : new Metric(7);
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
 
-    /** Tiered polling cadence. Phase 1 only uses {@link #tierAInterval()}. */
+    /**
+     * Tiered polling cadence (ADR-0015). Tier A is HA + topology corroboration;
+     * tier B re-reads the queues that were busy last sweep; tier C walks the
+     * whole queue set one page per tick.
+     */
     public record Scrape(
             @DefaultValue("5s") Duration tierAInterval,
             @DefaultValue("15s") Duration tierBInterval,
@@ -38,4 +48,7 @@ public record ArtemisStudioProperties(
     public record Broker(
             @DefaultValue("3s") Duration connectTimeout,
             @DefaultValue("10s") Duration readTimeout) {}
+
+    /** Raw {@code metric_sample} retention (ADR-0006 — 7-day default). The nightly reaper trims older rows. */
+    public record Metric(@DefaultValue("7") int retentionDays) {}
 }

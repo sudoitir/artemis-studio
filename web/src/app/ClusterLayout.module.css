@@ -1,0 +1,26 @@
+.viewStrip {
+  display: flex;
+  gap: 2px;
+  border-block-end: 1px solid var(--as-border);
+  overflow-x: auto;
+}
+
+.viewTab {
+  padding-block: 8px;
+  padding-inline: 12px;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--as-text-dimmed);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.viewTab:hover {
+  color: var(--as-text);
+}
+
+.viewTab[data-active] {
+  color: var(--as-text);
+  font-weight: 600;
+  border-block-end-color: var(--mantine-primary-color-filled);
+}

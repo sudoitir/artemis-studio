@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.broker;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLException;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.HttpClientErrorException;
@@ -26,12 +28,30 @@ public class JolokiaBrokerClient {
     private final String jolokiaUrl;
     private final ObjectMapper mapper;
 
+    /**
+     * Resolved broker MBean names keyed by Jolokia URL, shared across every client
+     * instance the factory builds. Clients are rebuilt per call, so without this
+     * every scrape tick would pay an extra {@code search} POST just to re-learn a
+     * name that never changes. Populated once, then a tick is one POST.
+     */
+    private final Map<String, String> sharedBrokerObjectNames;
+
     private volatile String cachedBrokerObjectName;
 
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>());
+    }
+
+    public JolokiaBrokerClient(
+            RestClient restClient,
+            String jolokiaUrl,
+            ObjectMapper mapper,
+            Map<String, String> sharedBrokerObjectNames) {
         this.restClient = restClient;
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
+        this.sharedBrokerObjectNames = sharedBrokerObjectNames;
+        this.cachedBrokerObjectName = sharedBrokerObjectNames.get(jolokiaUrl);
     }
 
     public String jolokiaUrl() {
@@ -42,6 +62,21 @@ public class JolokiaBrokerClient {
     public List<JolokiaResponse> batch(List<JolokiaRequest> requests) {
         JolokiaResponse[] body = post(requests, JolokiaResponse[].class);
         return body == null ? List.of() : List.of(body);
+    }
+
+    /**
+     * The double-decoded value of one entry from a {@link #batch} response. Use
+     * for {@code listQueues} / {@code listNetworkTopology} entries, whose
+     * {@code value} is a JSON-encoded string (Phase 0). Throws if the entry
+     * itself failed.
+     */
+    public JsonNode parsed(JolokiaResponse entry) {
+        if (!entry.ok()) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE,
+                    "Batch entry failed: " + (entry.error() != null ? entry.error() : "status " + entry.status()));
+        }
+        return entry.valueParsed(mapper);
     }
 
     /** Send a single request. */
@@ -81,6 +116,7 @@ public class JolokiaBrokerClient {
             throw BrokerConnectionException.of(BrokerConnectionException.Kind.NOT_ARTEMIS);
         }
         cachedBrokerObjectName = matches.get(0);
+        sharedBrokerObjectNames.put(jolokiaUrl, cachedBrokerObjectName);
         return cachedBrokerObjectName;
     }
 

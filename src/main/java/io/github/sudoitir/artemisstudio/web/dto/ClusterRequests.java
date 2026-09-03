@@ -37,4 +37,13 @@ public final class ClusterRequests {
 
     /** {@code PATCH /clusters/{id}/nodes/{nodeId}} — give a discovered node a reachable management URL. */
     public record NodeOverrideRequest(@NotBlank String jolokiaUrl) {}
+
+    /**
+     * {@code PUT /clusters/{id}/credentials} — rotate the stored HTTP Basic
+     * credentials for every node of a cluster. The new secret is AES-GCM sealed
+     * (ADR-0009) and the change is audited in the same transaction; the response
+     * carries no secret. Typed cluster-name confirmation is enforced in the UI.
+     */
+    public record RotateCredentialsRequest(
+            @NotBlank String username, @NotBlank String password) {}
 }

@@ -1,0 +1,15 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "{\"sortColumn\": \"messageCount\", \"sortOrder\": \"desc\"}",
+      1,
+      10
+    ],
+    "type": "exec",
+    "operation": "listQueues(java.lang.String,int,int)"
+  },
+  "error_type": "java.lang.NullPointerException",
+  "error": "java.lang.NullPointerException : no mapping for field",
+  "status": 500
+}

@@ -39,6 +39,14 @@ class ApiExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail onIllegalArgument(IllegalArgumentException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "invalid-value"));
+        problem.setTitle("Invalid value");
+        return problem;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail onValidation(MethodArgumentNotValidException e) {
         ProblemDetail problem =

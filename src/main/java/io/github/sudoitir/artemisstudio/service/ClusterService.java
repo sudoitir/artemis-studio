@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.domain.topology.ClusterTopology;
 import io.github.sudoitir.artemisstudio.domain.topology.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.domain.topology.NodeEndpoint;
+import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.domain.topology.TopologyDiscovery;
 import io.github.sudoitir.artemisstudio.domain.topology.TopologyDiscovery.ProbedSeed;
 import io.github.sudoitir.artemisstudio.mapper.BrokerNodeMapper;
@@ -68,6 +69,7 @@ public class ClusterService {
     private final CapabilityProbe capabilityProbe;
     private final TopologyDiscovery topologyDiscovery;
     private final HaStateEvaluator evaluator;
+    private final SplitBrainRegistry splitBrainRegistry;
     private final SecretVault vault;
     private final AuditService audit;
 
@@ -177,7 +179,8 @@ public class ClusterService {
         List<ClusterSummary> out = new ArrayList<>();
         for (ClusterEntity c : clusters.findAllByOrderByNameAsc()) {
             List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(c.getId());
-            var logical = evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows));
+            var logical =
+                    evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), splitBrainRegistry.statusesFor(c.getId()));
             var health = evaluator.toHealth(c.getId(), logical);
             out.add(new ClusterSummary(
                     c.getId(), c.getName(), c.getDescription(), health.level(), rows.size(), c.getUpdatedAt()));
@@ -282,6 +285,30 @@ public class ClusterService {
         nodes.save(node);
         audit.succeed(event, 1);
         return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(node)));
+    }
+
+    /** Rotate the stored HTTP Basic credentials for a cluster; re-encrypts, audits in-transaction, returns nothing secret. */
+    @Transactional
+    public void rotateCredentials(UUID clusterId, String username, String password) {
+        ClusterEntity cluster = requireCluster(clusterId);
+        AuditEventEntity event = audit.begin(
+                "ROTATE_CREDENTIALS",
+                "CLUSTER",
+                cluster.getName(),
+                clusterId,
+                null,
+                Map.of("username", username),
+                false);
+
+        SecretVault.Sealed sealed = vault.encrypt(clusterId, JOLOKIA_BASIC, password);
+        credentials
+                .findByClusterIdAndKind(clusterId, JOLOKIA_BASIC)
+                .ifPresentOrElse(
+                        existing -> existing.replaceSecret(username, sealed.ciphertext(), sealed.nonce()),
+                        () -> credentials.save(new BrokerCredentialEntity(
+                                clusterId, JOLOKIA_BASIC, username, sealed.ciphertext(), sealed.nonce())));
+
+        audit.succeed(event, 1);
     }
 
     @Transactional

@@ -414,3 +414,54 @@ Nothing contradicts ADR-0002 or ADR-0004. Reinforcements:
   `/var/lib/artemis-instance` volume makes later `broker.xml` edits silently
   ineffective. The dev stack keeps that path ephemeral on purpose; `just down`
   (which is `down -v`) is the way to pick up fixture edits.
+
+---
+
+## 10. Phase 2 surface checks
+
+Verified against the same dev pair (image `2.44.0`, `:8161`) during Phase 2
+planning. Seeding: 602 queues created via one batched `createQueue(address,
+name, routingType)` POST across two addresses `SPIKE.A` / `SPIKE.B`; one
+long-lived `artemis producer` + `artemis consumer` on `queue://SPIKE.A.q000`
+for a live CORE connection/session/producer/consumer. Fixtures captured verbatim
+under `src/test/resources/jolokia/`.
+
+### The six list operations share one signature
+
+`listQueues`, `listAddresses`, `listConsumers`, `listConnections`,
+`listSessions`, `listProducers` all expose
+`(java.lang.String options, int page, int pageSize)` and return `value` as a
+JSON **string** wrapping `{"data":[…],"count":N}` — the same double-decode as
+`listQueues`. `""` options → unfiltered. `listSessions` and `listAddresses`
+also have a 1-arg overload; the GET URL form is ambiguous between them (400),
+so **always POST with the explicit `(java.lang.String,int,int)` signature**.
+
+Newly captured shapes (2.44.0), all scalars are JSON strings unless noted:
+
+| Op | `count` here | Fields |
+|---|---|---|
+| `listSessions` | 4 | `id, user, validatedUser, creationTime, consumerCount, producerCount, connectionID, clientID` |
+| `listConnections` | 5 | `connectionID, remoteAddress, users, creationTime, implementation, protocol, clientID, localAddress, sessionCount, proxyAddress, proxyProtocolVersion` |
+| `listProducers` | 1 | `id, name, session, clientID, user, validatedUser, protocol, address, localAddress, remoteAddress, creationTime` (epoch millis string), `msgSent, msgSizeSent, lastProducedMessageID` |
+| `listConsumers` (3-arg) | 1 | `id, session, clientID, user, validatedUser, protocol, queue, queueType, address, localAddress, remoteAddress, creationTime, status, filter, lastDeliveredTime, lastAcknowledgedTime, messagesDelivered, messagesDeliveredSize, messagesAcknowledged, messagesAcknowledgedAwaitingCommit, messagesInTransit, messagesInTransitSize` |
+
+Fixtures: `list-sessions.json`, `list-connections.json`, `list-producers.json`,
+`list-consumers.json`.
+
+### Verdicts
+
+| Check | Result | Consequence for Phase 2 |
+|---|---|---|
+| **`sortColumn` / `sortOrder` in the options doc** | **Not honoured.** `listQueues` with `{"sortColumn":"messageCount","sortOrder":"desc"}` returns `java.lang.NullPointerException: no mapping for field`, HTTP 500 (`list-queues-sorted.json`). | Studio must **not** sort at the broker. Tier B classifies hot vs idle queues Studio-side from the last `queue_snapshot`; grids sort in the aggregation/DB layer. ADR-0015's tier-B "hot page (sorted)" degrades to the fallback path as the primary path. |
+| **`GREATER_THAN` predicate** | **Unverified.** Host disk was at 98.5% so the broker blocked every producer (`AMQ229119` / `AMQ212054`); all queues stayed at `messageCount 0`, so a `GREATER_THAN 0` filter returning `count 0` (`list-queues-gt.json`) is indistinguishable from "predicate ignored". | Treat numeric predicates as unavailable; classify Studio-side. Re-verify opportunistically on a machine with disk headroom, but the design does not depend on it. |
+| **`field` / `operation` / `value` filter (`EQUALS`, `CONTAINS`)** | Works (Phase 0 §4, re-confirmed: `EQUALS` on `address` → `count 300`). | Safe to pass through for the grid text filter where a single-field predicate suffices. |
+| **Batch / large page ceiling** | `listQueues` `pageSize=500` on a 603-queue broker → HTTP 200, 500 rows, ~438 KB raw. No error, no truncation beyond the page size (`list-queues-page-500.json`, trimmed to 25 rows in the repo). | One `listQueues` page of 200–500 per node per tick is fine. Page large sets across successive tier-C ticks as planned. |
+| **Queue-name uniqueness per broker** | **Unique.** `createQueue("SPIKE.A","DUPQ",…)` succeeds; a second `createQueue("SPIKE.B","DUPQ",…)` fails with `IllegalStateException`. | `queue_snapshot` PK `(node_id, queue_name)` is safe — no changeset to widen the key with `address`. |
+
+### Environment note
+
+The host running this spike was disk-constrained (98.5% used), which
+`max-disk-usage=98` in the dev `broker.xml` tolerates for boot but which blocks
+all message production. Anything in Phase 2 that needs non-zero queue depths
+(the manual acceptance pass, a re-check of numeric predicates) needs disk
+headroom on the host. `./mvnw verify` (Testcontainers) also needs free disk.

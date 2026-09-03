@@ -1,0 +1,14 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "",
+      1,
+      50
+    ],
+    "type": "exec",
+    "operation": "listProducers(java.lang.String,int,int)"
+  },
+  "value": "{\"data\":[{\"id\":\"1\",\"name\":\"artemis:sender:ID:dbb9a4b5-a798-11f1-b2f3-0e2f3e17310e\",\"session\":\"dbaf4383-a798-11f1-9d9f-0e2f3e17310e\",\"clientID\":\"\",\"user\":\"artemis\",\"validatedUser\":\"artemis\",\"protocol\":\"CORE\",\"address\":\"SPIKE.A.q000\",\"localAddress\":\"tcp:///127.0.0.1:61616\",\"remoteAddress\":\"127.0.0.1:35920\",\"creationTime\":\"1788441038852\",\"msgSent\":0,\"msgSizeSent\":0,\"lastProducedMessageID\":\"\"}],\"count\":1}",
+  "status": 200
+}

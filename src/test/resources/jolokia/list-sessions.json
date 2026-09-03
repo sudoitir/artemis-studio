@@ -1,0 +1,14 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "",
+      1,
+      50
+    ],
+    "type": "exec",
+    "operation": "listSessions(java.lang.String,int,int)"
+  },
+  "value": "{\"data\":[{\"id\":\"dbae8032-a798-11f1-9d9f-0e2f3e17310e\",\"user\":\"artemis\",\"validatedUser\":\"artemis\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"consumerCount\":0,\"producerCount\":0,\"connectionID\":\"7762766a\",\"clientID\":\"\"},{\"id\":\"dbaf4383-a798-11f1-9d9f-0e2f3e17310e\",\"user\":\"artemis\",\"validatedUser\":\"artemis\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"consumerCount\":0,\"producerCount\":1,\"connectionID\":\"7762766a\",\"clientID\":\"\"},{\"id\":\"dbb2c648-a798-11f1-985f-0e2f3e17310e\",\"user\":\"artemis\",\"validatedUser\":\"artemis\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"consumerCount\":0,\"producerCount\":0,\"connectionID\":\"c1db1ea7\",\"clientID\":\"\"},{\"id\":\"dbb33b79-a798-11f1-985f-0e2f3e17310e\",\"user\":\"artemis\",\"validatedUser\":\"artemis\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"consumerCount\":1,\"producerCount\":0,\"connectionID\":\"c1db1ea7\",\"clientID\":\"\"}],\"count\":4}",
+  "status": 200
+}

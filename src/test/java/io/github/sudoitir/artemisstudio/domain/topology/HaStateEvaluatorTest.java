@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.artemisstudio.domain.topology.ClusterHealth.Level;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -92,54 +93,19 @@ class HaStateEvaluatorTest {
     }
 
     @Test
-    void splitBrainIsOnlySuspectedOnAFirstSameCycleSighting() {
+    void toLogicalNodesAppliesTheSuppliedSplitBrainVerdict() {
+        // The corroboration ratchet now lives in ScrapeCycle; the evaluator only
+        // reflects whatever verdict it is handed (ScrapeCycleTest covers the ratchet).
         List<NodeEndpoint> eps = List.of(
                 endpoint("primary", "PRIMARY", true, "STARTED", null, 7L),
                 endpoint("backup", "BACKUP", true, "STARTED", null, 7L));
 
-        SplitBrainStatus first = evaluator.evaluateSplitBrain(NODE_ID, eps);
+        List<LogicalNode> unknown = evaluator.toLogicalNodes(eps);
+        assertThat(unknown.get(0).splitBrain()).isEqualTo(SplitBrainStatus.NONE);
 
-        assertThat(first).isEqualTo(SplitBrainStatus.SUSPECTED);
-    }
-
-    @Test
-    void splitBrainEscalatesToCriticalOnTheNextCycle() {
-        List<NodeEndpoint> cycle7 = List.of(
-                endpoint("primary", "PRIMARY", true, "STARTED", null, 7L),
-                endpoint("backup", "BACKUP", true, "STARTED", null, 7L));
-        List<NodeEndpoint> cycle8 = List.of(
-                endpoint("primary", "PRIMARY", true, "STARTED", null, 8L),
-                endpoint("backup", "BACKUP", true, "STARTED", null, 8L));
-
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, cycle7)).isEqualTo(SplitBrainStatus.SUSPECTED);
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, cycle8)).isEqualTo(SplitBrainStatus.CRITICAL);
-    }
-
-    @Test
-    void plannedFailoverAcrossCyclesNeverEscalates() {
-        // The false-alarm ADR-0012 exists to kill: two non-simultaneous reads, one
-        // per cycle, both showing Active=true during a normal failover.
-        List<NodeEndpoint> skewed = List.of(
-                endpoint("primary", "PRIMARY", true, "STARTED", null, 7L),
-                endpoint("backup", "BACKUP", true, "STARTED", null, 8L));
-
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, skewed)).isEqualTo(SplitBrainStatus.NONE);
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, skewed)).isEqualTo(SplitBrainStatus.NONE);
-    }
-
-    @Test
-    void splitBrainClearsWhenOnlyOneNodeIsActiveAgain() {
-        List<NodeEndpoint> dual = List.of(
-                endpoint("primary", "PRIMARY", true, "STARTED", null, 7L),
-                endpoint("backup", "BACKUP", true, "STARTED", null, 7L));
-        List<NodeEndpoint> resolved = List.of(
-                endpoint("primary", "PRIMARY", true, "STARTED", null, 8L),
-                endpoint("backup", "BACKUP", false, "STARTED", true, 8L));
-
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, dual)).isEqualTo(SplitBrainStatus.SUSPECTED);
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, resolved)).isEqualTo(SplitBrainStatus.NONE);
-        // And a later re-sighting starts over at SUSPECTED, not CRITICAL.
-        assertThat(evaluator.evaluateSplitBrain(NODE_ID, dual)).isEqualTo(SplitBrainStatus.SUSPECTED);
+        List<LogicalNode> critical = evaluator.toLogicalNodes(eps, Map.of(NODE_ID, SplitBrainStatus.CRITICAL));
+        assertThat(critical.get(0).splitBrain()).isEqualTo(SplitBrainStatus.CRITICAL);
+        assertThat(evaluator.toHealth(UUID.randomUUID(), critical).level()).isEqualTo(Level.CRITICAL);
     }
 
     @Test
