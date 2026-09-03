@@ -67,122 +67,140 @@ See [`CLAUDE.md`](CLAUDE.md) and [`.claude/rules/`](.claude/rules/).
 
 ## TODO
 
-Every feature we intend to ship, grouped by phase. Each phase is a focused unit
-of work; the sub-tasks are the checklist. Context: [`docs/roadmap.md`](docs/roadmap.md)
-and the ADRs. Feature phases go through OpenSpec.
+Every feature we intend to ship, grouped by phase. Context:
+[`docs/roadmap.md`](docs/roadmap.md) and the ADRs. Feature phases go through OpenSpec.
 
 ### Phase 0 · Broker management spike
 
-- [ ] Boot the dev compose primary/backup pair with replication working; fix
-      `deploy/compose/artemis/**/broker.xml`
-- [ ] Verify `listNetworkTopology()` shape (pairs, connectors)
-- [ ] Verify `listQueues(filter, page, pageSize)` shape, paging, attributes
-- [ ] Verify `Active` / `ReplicaSync` reads; confirm failover and failback
-- [ ] Capture real `_AMQ_NotifType` values + headers from `activemq.notifications`
-- [ ] Batched Jolokia POST verified; note what needs the Core client
-- [ ] `docs/broker-management-notes.md` with verified signatures and payloads
+|  | Task |
+|--|------|
+| [ ] | Boot dev compose primary/backup pair with replication; fix broker XML |
+| [ ] | Verify `listNetworkTopology()` shape (pairs, connectors) |
+| [ ] | Verify `listQueues(filter, page, pageSize)` shape and paging |
+| [ ] | Verify `Active` / `ReplicaSync`; confirm failover and failback |
+| [ ] | Capture real `_AMQ_NotifType` values + headers from notifications |
+| [ ] | Batched Jolokia POST verified; note what needs the Core client |
+| [ ] | Write `docs/broker-management-notes.md` |
 
 ### Phase 1 · Connectivity and topology
 
-- [ ] `JolokiaBrokerClient` — read attributes, invoke ops, batched POST
-- [ ] `CapabilityProbe` → `MANAGEMENT_READ/WRITE`, `NOTIFICATIONS`, `MESSAGE_IO`
-- [ ] Credential vaulting (AES-GCM at rest), TLS to brokers
-- [ ] Register a cluster from one seed node
-- [ ] Topology auto-discovery + rediscovery; manual URL overrides preserved
-- [ ] Live-node detection (`Active`), replication state, split-brain flag
-- [ ] `GET /api/v1/clusters/{id}/{capabilities,topology,health}`
-- [ ] "Feature unavailable" UI with the exact `broker.xml` snippet to enable it
+|  | Task |
+|--|------|
+| [ ] | `JolokiaBrokerClient` — read attrs, invoke ops, batched POST |
+| [ ] | `CapabilityProbe` — MANAGEMENT_READ/WRITE, NOTIFICATIONS, MESSAGE_IO |
+| [ ] | Credential vaulting (AES-GCM at rest), TLS to brokers |
+| [ ] | Register a cluster from one seed node |
+| [ ] | Topology auto-discovery + rediscovery; manual URL overrides kept |
+| [ ] | Live-node detection, replication state, split-brain flag |
+| [ ] | `GET /clusters/{id}/{capabilities,topology,health}` |
+| [ ] | "Feature unavailable" UI with the `broker.xml` snippet to fix it |
 
-### Phase 2 · Cross-node resource views + live UI
+### Phase 2 · Cross-node views + live UI
 
-- [ ] Tiered scrape scheduler (A/B/C) with per-node token-bucket rate limit
-- [ ] `queue_snapshot` upserts; cross-node aggregation
-- [ ] Queues view — anycast/multicast, depth, consumers, delivering, scheduled
-- [ ] Addresses view
-- [ ] Consumers / sessions / connections / producers views
-- [ ] SSE hub (`GET /api/v1/stream`); polling fallback
-- [ ] React shell, routing, dark-first tokens wired
-- [ ] Topology graph (React Flow) — live/backup badges, replication, alert dots
-- [ ] Queue grid (TanStack Table + Mantine) — virtualized, sort, filter
-- [ ] ⌘K command palette (jump to cluster / queue / action)
+|  | Task |
+|--|------|
+| [ ] | Tiered scrape scheduler (A/B/C) + per-node rate limiter |
+| [ ] | `queue_snapshot` upserts, cross-node aggregation |
+| [ ] | Queues view (routing type, depth, consumers, delivering, scheduled) |
+| [ ] | Addresses view |
+| [ ] | Consumers / sessions / connections / producers views |
+| [ ] | SSE hub (`GET /stream`) + polling fallback |
+| [ ] | React shell, routing, dark-first tokens |
+| [ ] | Topology graph (React Flow) — badges, replication, alert dots |
+| [ ] | Queue grid (TanStack Table) — virtualized, sort, filter |
+| [ ] | ⌘K command palette |
 
 ### Phase 3 · Message operations + audit
 
-- [ ] Browse messages (filter, paged); full headers, properties, body view
-- [ ] Send message
-- [ ] Move / retry (DLQ replay) / delete — by ids or filter
-- [ ] Purge queue with typed confirmation
-- [ ] `?dryRun=true` on every mutation → affected count, no action
-- [ ] Bulk actions with a safety cap and preview
-- [ ] `audit_event` written in the command transaction, updated with outcome
-- [ ] Audit log screen — filter by user, action, cluster, time
-- [ ] DLQ management view (what's dead, where it came from, redelivery count)
+|  | Task |
+|--|------|
+| [ ] | Browse messages; full headers, properties, body |
+| [ ] | Send message |
+| [ ] | Move / retry (DLQ replay) / delete by ids or filter |
+| [ ] | Purge queue with typed confirmation |
+| [ ] | `?dryRun=true` on every mutation → affected count |
+| [ ] | Bulk actions with a safety cap and preview |
+| [ ] | `audit_event` in the command transaction, updated with outcome |
+| [ ] | Audit log screen (filter by user, action, cluster, time) |
+| [ ] | DLQ management view |
 
 ### Phase 4 · Core client and push events
 
-- [ ] `CoreEventClient` (artemis-jakarta-client), live/backup aware
-- [ ] Per-cluster `activemq.notifications` consumer → normalized domain events
-- [ ] SSE fan-out of consumer/session/connection/binding events
-- [ ] `NOTIFICATIONS` capability gating with `broker.xml` hint
-- [ ] Faithful message I/O over Core (real headers/properties) when available
+|  | Task |
+|--|------|
+| [ ] | `CoreEventClient` (artemis-jakarta-client), live/backup aware |
+| [ ] | `activemq.notifications` consumer → normalized domain events |
+| [ ] | SSE fan-out of consumer/session/connection/binding events |
+| [ ] | `NOTIFICATIONS` capability gating with `broker.xml` hint |
+| [ ] | Faithful message I/O over Core when available |
 
 ### Phase 5 · Request-reply tracing (flagship)
 
-- [ ] Correlator + flow state machine (per `docs/architecture.md`)
-- [ ] Shared-reply-queue pattern — correlation-id join, latency
-- [ ] Temp-reply-queue pattern — lifecycle reconstruction from notifications
-- [ ] States: `AWAITING_REPLY`, `COMPLETED`, `TIMED_OUT`, `ORPHANED`,
-      `RESPONDER_DROPPED`, `ORPHANED_REPLY`
-- [ ] `rr_expectation` config — which addresses to trace, deadlines, sampling
-- [ ] Deadlines from `_AMQ_EXPIRE`/`JMSExpiration`, else per-address expectation
-- [ ] `/api/v1/clusters/{id}/rr/{flows,flows/{id},stats,expectations}`
-- [ ] Flows screen — in-flight list, per-address latency histogram/percentiles
-- [ ] "Stuck requests" panel
-- [ ] Bounded/sampled payload capture
+|  | Task |
+|--|------|
+| [ ] | Correlator + flow state machine |
+| [ ] | Shared-reply-queue pattern (correlation-id join, latency) |
+| [ ] | Temp-reply-queue pattern (lifecycle from notifications) |
+| [ ] | States: AWAITING_REPLY, COMPLETED, TIMED_OUT, ORPHANED, RESPONDER_DROPPED, ORPHANED_REPLY |
+| [ ] | `rr_expectation` config — addresses, deadlines, sampling |
+| [ ] | Deadlines from `_AMQ_EXPIRE`/`JMSExpiration` else expectation |
+| [ ] | `/clusters/{id}/rr/{flows,flows/{id},stats,expectations}` |
+| [ ] | Flows screen — in-flight list, per-address latency percentiles |
+| [ ] | "Stuck requests" panel |
+| [ ] | Bounded/sampled payload capture |
 
 ### Phase 6 · Metrics and charts
 
-- [ ] `metric_sample` writes from the scheduler
-- [ ] Daily partition create-ahead + retention drop job
-- [ ] `GET /api/v1/clusters/{id}/metrics` (subject, metric, range, step)
-- [ ] Built-in charts — queue depth, throughput, consumers, RR latency
-- [ ] Rollup tables — only when a dashboard query is measurably slow
+|  | Task |
+|--|------|
+| [ ] | `metric_sample` writes from the scheduler |
+| [ ] | Daily partition create-ahead + retention drop job |
+| [ ] | `GET /clusters/{id}/metrics` (subject, metric, range, step) |
+| [ ] | Built-in charts — depth, throughput, consumers, RR latency |
+| [ ] | Rollup tables — only when a query is measurably slow |
 
 ### Phase 7 · Alerting
 
-- [ ] Rule model + evaluation loop over `metric_sample` (`for` duration)
-- [ ] `alert_state` OK → PENDING → FIRING → resolved
-- [ ] Notification channels — webhook, Slack (email later)
-- [ ] Built-in critical alerts — split-brain, node down, replication desync
-- [ ] Rule CRUD + alerts screen
+|  | Task |
+|--|------|
+| [ ] | Rule model + evaluation loop (`for` duration) |
+| [ ] | `alert_state` OK → PENDING → FIRING → resolved |
+| [ ] | Notification channels — webhook, Slack |
+| [ ] | Built-in critical alerts — split-brain, node down, replication desync |
+| [ ] | Rule CRUD + alerts screen |
 
 ### Phase 8 · Governance
 
-- [ ] Local users in Postgres; first-run admin bootstrap
-- [ ] Roles → permissions; scoped assignment (global / environment / cluster)
-- [ ] Read-only mode enforced on every mutating path
-- [ ] Per-environment cluster grouping
-- [ ] OIDC / SSO login, claim → role mapping
-- [ ] Session handling, login/logout, `GET /api/v1/me`
+|  | Task |
+|--|------|
+| [ ] | Local users in Postgres; first-run admin bootstrap |
+| [ ] | Roles → permissions; scoped (global / environment / cluster) |
+| [ ] | Read-only mode enforced on every mutating path |
+| [ ] | Per-environment cluster grouping |
+| [ ] | OIDC / SSO login, claim → role mapping |
+| [ ] | Sessions, login/logout, `GET /me` |
 
 ### v1.0 · Hardening and reach
 
-- [ ] Multi-instance HA — Postgres advisory lock per cluster (one scraper, all
-      serve reads)
-- [ ] Helm chart
-- [ ] Docs site
-- [ ] Slow-consumer detection
-- [ ] Message replay from a captured payload
-- [ ] Message payload inspection helpers (pretty-print, type detection)
+|  | Task |
+|--|------|
+| [ ] | Multi-instance HA — Postgres advisory lock per cluster |
+| [ ] | Helm chart |
+| [ ] | Docs site |
+| [ ] | Slow-consumer detection |
+| [ ] | Message replay from a captured payload |
+| [ ] | Payload inspection helpers (pretty-print, type detection) |
 
 ### Beyond
 
-- [ ] ArkMQ operator integration — read broker CRs to auto-register clusters
-- [ ] JMX transport
-- [ ] Saved views / shareable filters
-- [ ] Scheduled reports
-- [ ] Broker config diff across a pair
-- [ ] Prometheus scrape ingestion option
+|  | Task |
+|--|------|
+| [ ] | ArkMQ operator integration (read broker CRs to auto-register) |
+| [ ] | JMX transport |
+| [ ] | Saved / shareable views |
+| [ ] | Scheduled reports |
+| [ ] | Broker config diff across a pair |
+| [ ] | Prometheus scrape ingestion option |
 
 ---
 
