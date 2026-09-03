@@ -31,9 +31,10 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 1 complete
-(Jolokia client, capability probe, cluster registration and topology); Phase 2
-(cross-node views + live UI) next.
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 2 complete
+(tiered scrape scheduler, cross-node aggregation + resource views, SSE hub,
+routed React shell, topology graph, virtualized queue grid, ⌘K palette,
+operator settings); Phase 3 (message operations + audit) next.
 
 ## How to work a change
 

@@ -72,6 +72,12 @@ services:
 
   studio:
     image: ${STUDIO_IMAGE:-ghcr.io/sudoitir/artemis-studio:latest}
+    # The live UI stream is Server-Sent Events at GET /api/v1/stream. If you put a
+    # reverse proxy in front of Studio, it MUST NOT buffer that response:
+    #   nginx    -> proxy_buffering off;  (Studio also sends X-Accel-Buffering: no)
+    #   Apache   -> no output buffering on the /api/v1/stream location
+    #   Traefik  -> works out of the box
+    # Without this the topology graph and queue grid only update on the 5s poll.
     environment:
       ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
       ARTEMIS_STUDIO_DB_USER: ${DB_USER}

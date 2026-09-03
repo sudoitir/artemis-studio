@@ -1,6 +1,8 @@
 package io.github.sudoitir.artemisstudio.broker;
 
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.boot.ssl.NoSuchSslBundleException;
@@ -27,6 +29,9 @@ public class BrokerClientFactory {
     private final SslBundles sslBundles;
     private final HttpClientSettings baseSettings;
 
+    /** Resolved broker MBean names, shared across every client this factory builds (keyed by Jolokia URL). */
+    private final Map<String, String> brokerObjectNames = new ConcurrentHashMap<>();
+
     public BrokerClientFactory(ObjectMapper mapper, SslBundles sslBundles, ArtemisStudioProperties properties) {
         this.mapper = mapper;
         this.sslBundles = sslBundles;
@@ -43,7 +48,7 @@ public class BrokerClientFactory {
                 return execution.execute(request, body);
             });
         }
-        return new JolokiaBrokerClient(builder.build(), jolokiaUrl, mapper);
+        return new JolokiaBrokerClient(builder.build(), jolokiaUrl, mapper, brokerObjectNames);
     }
 
     private ClientHttpRequestFactory requestFactory(BrokerConnectionSettings settings) {

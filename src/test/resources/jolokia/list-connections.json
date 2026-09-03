@@ -1,0 +1,14 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "",
+      1,
+      50
+    ],
+    "type": "exec",
+    "operation": "listConnections(java.lang.String,int,int)"
+  },
+  "value": "{\"data\":[{\"connectionID\":\"8b321c8c\",\"remoteAddress\":\"172.21.0.5:53156\",\"users\":\"\",\"creationTime\":\"Thu Sep 03 13:09:06 UTC 2026\",\"implementation\":\"RemotingConnectionImpl\",\"protocol\":\"CORE\",\"clientID\":\"\",\"localAddress\":\"tcp:///172.21.0.3:61616\",\"sessionCount\":0,\"proxyAddress\":\"\",\"proxyProtocolVersion\":\"\"},{\"connectionID\":\"bc02527d\",\"remoteAddress\":\"172.21.0.5:53160\",\"users\":\"\",\"creationTime\":\"Thu Sep 03 13:09:06 UTC 2026\",\"implementation\":\"RemotingConnectionImpl\",\"protocol\":\"CORE\",\"clientID\":\"\",\"localAddress\":\"tcp:///172.21.0.3:61616\",\"sessionCount\":0,\"proxyAddress\":\"\",\"proxyProtocolVersion\":\"\"},{\"connectionID\":\"832a3761\",\"remoteAddress\":\"172.21.0.5:53168\",\"users\":\"\",\"creationTime\":\"Thu Sep 03 13:09:07 UTC 2026\",\"implementation\":\"RemotingConnectionImpl\",\"protocol\":\"CORE\",\"clientID\":\"\",\"localAddress\":\"tcp:///172.21.0.3:61616\",\"sessionCount\":0,\"proxyAddress\":\"\",\"proxyProtocolVersion\":\"\"},{\"connectionID\":\"7762766a\",\"remoteAddress\":\"127.0.0.1:35920\",\"users\":\"artemis\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"implementation\":\"RemotingConnectionImpl\",\"protocol\":\"CORE\",\"clientID\":\"\",\"localAddress\":\"tcp:///127.0.0.1:61616\",\"sessionCount\":2,\"proxyAddress\":\"\",\"proxyProtocolVersion\":\"\"},{\"connectionID\":\"c1db1ea7\",\"remoteAddress\":\"127.0.0.1:35926\",\"users\":\"artemis\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"implementation\":\"RemotingConnectionImpl\",\"protocol\":\"CORE\",\"clientID\":\"\",\"localAddress\":\"tcp:///127.0.0.1:61616\",\"sessionCount\":2,\"proxyAddress\":\"\",\"proxyProtocolVersion\":\"\"}],\"count\":5}",
+  "status": 200
+}

@@ -37,18 +37,40 @@ management endpoints.
 
 ### Scrape path (pull)
 
-A tiered scheduler emits work per node:
+A tiered scheduler emits work per node (ADR-0015). Cadences are runtime-tunable
+via `studio_setting`; the values below are the defaults.
 
 | Tier | Content | Interval |
 |---|---|---|
-| A | topology, HA state (`Active`, `ReplicaSync`), broker counters | 5s |
-| B | queues with consumers or non-zero depth | 15s |
-| C | idle queues | 5m |
+| A | HA state (`Active`, `Started`, `ReplicaSync`, …) + per-cluster split-brain corroboration | 5s |
+| B | the first `listQueues` page per node — a fast refresh of the busiest queues | 15s |
+| C | one `listQueues` page per node per tick, walking the whole set, then reaping removed queues | 5m |
 
-Each tick builds **one batched Jolokia POST per node** (an array of read
-requests), so a node with 3,000 queues costs a handful of HTTP calls. A per-node
-token bucket caps management calls/sec. Results upsert into `queue_snapshot`
-(latest) and append to `metric_sample` (history, daily-partitioned).
+Each tick is **one Jolokia POST per node** (the resolved broker MBean name is
+cached process-wide, so a tick no longer pays an extra `search`). Artemis 2.44's
+`sortColumn` / `GREATER_THAN` options both 500 with an NPE
+(`docs/broker-management-notes.md` §10), so there is no broker-sorted "hot page":
+tier B is best-effort speed on page 1, tier C is the coverage guarantee. A
+per-node permit bucket (`NodeScrapeLimiter`) caps management calls/sec. Network
+I/O runs on virtual threads, one slow node never blocks its siblings, and it
+never runs inside a DB transaction — each node's result is handed to a short
+`@Transactional` persist step. Queue rows upsert into `queue_snapshot` via a
+JDBC `INSERT … ON CONFLICT` batch (ADR-0016, a scoped exception to ADR-0011);
+metric points append to `metric_sample` and a nightly reaper trims past the
+retention window (daily partitioning is still Phase 6).
+
+### Cross-node aggregation (read)
+
+A primary and its synced backup share one `NodeID` and are **one logical node**
+(ADR-0017). The queue grid is built from `queue_snapshot`, grouped by
+`(address, queueName, routingType)`: each row carries a per-node cell, rolled-up
+cluster totals, and `nodesPresent / nodesTotal`. A node whose last sweep is stale
+keeps its last numbers, flagged — never dropped. The other five views
+(addresses, consumers, sessions, connections, producers) are **live-through**:
+one batched POST per serving node on demand, rows tagged with their logical node,
+merged / filtered / sorted / paged in memory. A node that errors contributes
+nothing; only when *every* node fails is the classified error surfaced (the
+capability ledger + `broker.xml` advice).
 
 ### Event path (push, Phase 4+)
 
@@ -59,16 +81,28 @@ request-reply correlator.
 ### Realtime to the browser
 
 One SSE endpoint, `GET /api/v1/stream?clusterId=&topics=…`, multiplexes named
-events. The client patches TanStack Query cache entries; components stay
-declarative. Failure degrades to polling. See ADR-0003.
+events on a Spring MVC `SseEmitter` (ADR-0018; ADR-0010 removed WebFlux). Events
+are change *signals* (`{topic,clusterId,ts}`), not data — the client refetches
+the matching TanStack Query key, so components stay declarative. The scheduler
+publishes a topic only when the persisted state for it actually changed; a 20s
+`:ping` comment keeps idle streams open and the response carries
+`X-Accel-Buffering: no` (**proxies must not buffer this stream** — set the
+equivalent on any reverse proxy in front of Studio). Two consecutive
+`EventSource` failures ⇒ the client stops streaming and relies on the 5s poll.
+See ADR-0003.
 
 ## State ownership
 
 - **PostgreSQL** — clusters, nodes, credentials (AES-GCM), users, roles, audit,
-  alert rules, request-reply expectations, and the metrics cache.
-- **URL** — navigable UI state (selected cluster, filters, sort, pagination).
-- **In-memory** — the SSE subscriber registry and the scrape scheduler's
-  leadership. For multi-instance HA (post-MVP) the scheduler takes a Postgres
+  alert rules, request-reply expectations, operator settings (`studio_setting`),
+  and the metrics cache.
+- **URL** — navigable UI state (selected cluster, view, filter, sort, page). The
+  frontend is file-tree-shaped routes over TanStack Router; every list view's
+  `q` / `sort` / `page` lives in the query string.
+- **In-memory** — the SSE subscriber registry, the split-brain corroboration
+  ratchet + per-cluster refresh-cycle counter (`ScrapeCycle`), and the scrape
+  scheduler's leadership. A restart re-derives all of it within ~one tier-A
+  cycle. For multi-instance HA (post-MVP) the scheduler takes a Postgres
   advisory lock per cluster: one instance scrapes a cluster, every instance
   serves reads and SSE. The schema assumes this from day one.
 

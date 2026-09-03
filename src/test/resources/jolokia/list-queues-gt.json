@@ -1,0 +1,14 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "{\"field\": \"messageCount\", \"operation\": \"GREATER_THAN\", \"value\": \"0\"}",
+      1,
+      100
+    ],
+    "type": "exec",
+    "operation": "listQueues(java.lang.String,int,int)"
+  },
+  "value": "{\"data\":[],\"count\":0}",
+  "status": 200
+}

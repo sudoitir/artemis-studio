@@ -1,0 +1,130 @@
+.wrapper {
+  position: relative;
+  block-size: 460px;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-graph-node-bg);
+  overflow: hidden;
+}
+
+/* The identity axis: a full-width rule at the pair's mid-line, carrying the
+   shared NodeID's state. Sits behind the graph nodes. */
+.axis {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: 0;
+  border-block-start: 2px solid var(--as-axis);
+  z-index: 0;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+}
+
+.axis[data-status='behind'],
+.axis[data-status='suspected'] {
+  border-block-start-style: dashed;
+  border-block-start-color: var(--as-axis-broken);
+}
+
+.axis[data-status='critical'] {
+  border-block-start-color: var(--as-node-split-brain);
+}
+
+.axisNote {
+  transform: translateY(-50%);
+  padding-inline: 8px;
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+  background: var(--as-graph-node-bg);
+}
+
+.axis[data-status='critical'] .axisNote {
+  color: var(--as-node-split-brain);
+}
+
+.node {
+  position: relative;
+  z-index: 1;
+  min-inline-size: 190px;
+  padding: 10px 12px;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-graph-node-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 240ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node {
+    transition: none;
+  }
+}
+
+.node[data-offset] {
+  transform: translateX(18px);
+}
+
+.node[data-kind='unmanaged'] {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name {
+  font-weight: 600;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.badge {
+  font-size: 10px;
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.word {
+  color: var(--as-text);
+}
+
+.mark {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--as-node-backup);
+}
+
+.mark[data-kind='live'] {
+  background: var(--as-node-live);
+}
+.mark[data-kind='down'] {
+  background: var(--as-node-down);
+}
+.mark[data-kind='unmanaged'] {
+  background: transparent;
+  border: 1px solid var(--as-node-unmanaged);
+}
+
+.addr {
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+  word-break: break-all;
+}
+
+.handle {
+  opacity: 0;
+}

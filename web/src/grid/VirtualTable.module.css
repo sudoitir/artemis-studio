@@ -1,0 +1,58 @@
+.scroll {
+  block-size: calc(100vh - 320px);
+  min-block-size: 320px;
+  overflow: auto;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+}
+
+.grid {
+  --table-border-color: var(--as-border);
+  width: 100%;
+  table-layout: fixed;
+}
+
+.grid thead th {
+  background: var(--as-grid-header-bg);
+  font-size: var(--mantine-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--as-text-dimmed);
+}
+
+.grid th[data-numeric],
+.grid td[data-numeric] {
+  text-align: end;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  color: var(--as-grid-num);
+}
+
+.sortButton {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover td {
+  background: var(--as-grid-row-hover);
+}
+
+.empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--as-text-dimmed);
+  border: 1px dashed var(--as-border);
+  border-radius: var(--mantine-radius-md);
+}

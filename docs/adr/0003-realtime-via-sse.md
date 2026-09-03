@@ -21,6 +21,10 @@ automatically.
 ## Consequences
 
 - Minimal server code: one `Flux<ServerSentEvent>` per subscriber.
+  *Annotated by [ADR-0018](0018-sse-hub.md): the transport is `SseEmitter` on
+  Spring MVC, not `Flux` — [ADR-0010](0010-jolokia-over-restclient.md) removed
+  WebFlux. The decision above (SSE, one endpoint, named events, two-failure
+  fallback to polling) stands unchanged.*
 - No STOMP, no socket lifecycle, no heartbeat protocol to hand-roll.
 - Proxies must not buffer the stream (`X-Accel-Buffering: no`, documented for
   deployment).

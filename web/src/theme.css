@@ -26,6 +26,34 @@
   /* The identity axis carrying a pair's shared NodeID, in its two states. */
   --as-axis: var(--as-border);
   --as-axis-broken: var(--mantine-color-yellow-5);
+
+  /* Cross-node grid (TanStack Table through Mantine Table). */
+  --as-grid-header-bg: var(--mantine-color-default);
+  --as-grid-row-hover: var(--mantine-color-default-hover);
+  --as-grid-num: var(--as-text);
+  --as-grid-stale: var(--as-text-dimmed);
+
+  /* Topology graph (React Flow). */
+  --as-graph-node-bg: var(--mantine-color-body);
+  --as-graph-edge: var(--as-border);
+  --as-graph-edge-behind: var(--mantine-color-yellow-5);
+
+  /* Misc chrome. */
+  --as-alert-dot: var(--mantine-color-red-6);
+  --as-palette-bg: var(--mantine-color-default);
+}
+
+/* Light overrides. Dark is the base above; only the values that must change for
+   a legible light theme are redefined here (non-negotiable #6 keeps colour out
+   of components, so this is the whole surface). */
+:root[data-mantine-color-scheme='light'] {
+  --as-warning: var(--mantine-color-yellow-7);
+  --as-danger: var(--mantine-color-red-7);
+  --as-node-split-brain: var(--mantine-color-red-7);
+  --as-node-down: var(--mantine-color-yellow-7);
+  --as-axis-broken: var(--mantine-color-yellow-7);
+  --as-graph-edge-behind: var(--mantine-color-yellow-7);
+  --as-alert-dot: var(--mantine-color-red-7);
 }
 
 html,

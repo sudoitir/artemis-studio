@@ -24,6 +24,16 @@ spring:
     virtual:
       enabled: true
 
+  task:
+    scheduling:
+      # The tiered scrape scheduler (ADR-0015) runs three overlapping tiers plus a
+      # limiter refill and an SSE heartbeat. Give it its own small pool so a slow
+      # tick never starves the others; per-node fan-out inside a tier is on
+      # virtual threads.
+      pool:
+        size: 4
+      thread-name-prefix: scrape-
+
 server:
   port: ${ARTEMIS_STUDIO_PORT:8080}
   forward-headers-strategy: framework
@@ -51,19 +61,22 @@ artemis-studio:
     # If the project is renamed, this string and Branding.java move together.
     product-name: "Artemis Studio"
   scrape:
-    # Tiered polling cadence (see docs/architecture.md). Only tier A is used in
-    # Phase 1 (HaRefreshTask); B and C arrive with the Phase 2 scheduler.
-    tier-a-interval: 5s      # topology, HA state, broker counters
-    tier-b-interval: 15s     # queues with consumers or non-zero depth
-    tier-c-interval: 5m      # idle queues
+    # Tiered polling cadence (ADR-0015). Runtime-overridable via studio_setting.
+    tier-a-interval: 5s      # HA state + topology + split-brain corroboration
+    tier-b-interval: 15s     # re-read the queues that were busy last sweep
+    tier-c-interval: 5m      # walk the whole queue set, one page per tick
   rate-limit:
     # Per broker node. Conservative default so Studio never becomes the load.
-    # Enforced by the Phase 2 scheduler's token bucket.
+    # Enforced by NodeScrapeLimiter (a per-node permit bucket refilled each second).
     management-calls-per-second: 20
   broker:
     # RestClient timeouts for every Jolokia call (ADR-0010).
     connect-timeout: 3s
     read-timeout: 10s
+  metric:
+    # Raw metric_sample retention in days (ADR-0006). MetricSampleReaper trims
+    # older rows nightly. Runtime-overridable via studio_setting.
+    retention-days: 7
 
 logging:
   level:

@@ -24,3 +24,8 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0012](0012-corroborated-split-brain.md) | Split-brain detection requires corroborated evidence (amends 0002) |
 | [0013](0013-seed-is-a-list.md) | A cluster is registered from a list of seed URLs (amends 0004) |
 | [0014](0014-lombok-and-mapstruct.md) | Lombok for boilerplate, MapStruct for layer-to-layer mapping |
+| [0015](0015-tiered-scrape-scheduler.md) | Tiered scrape scheduler; refresh-cycle counter scheduler-owned per cluster (retires `HaRefreshTask`) |
+| [0016](0016-queue-snapshot-bulk-upsert.md) | `queue_snapshot` written by JDBC batch upsert, not JPA (scoped exception to 0011) |
+| [0017](0017-cross-node-aggregation.md) | Cross-node aggregation — one logical node per NodeID, scrape the live endpoint only |
+| [0018](0018-sse-hub.md) | SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals (annotates 0003) |
+| [0019](0019-openapi-generated-frontend-types.md) | Frontend API types generated from the backend's OpenAPI document |

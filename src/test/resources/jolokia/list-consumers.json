@@ -1,0 +1,14 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "",
+      1,
+      50
+    ],
+    "type": "exec",
+    "operation": "listConsumers(java.lang.String,int,int)"
+  },
+  "value": "{\"data\":[{\"id\":\"1849\",\"session\":\"dbb33b79-a798-11f1-985f-0e2f3e17310e\",\"clientID\":\"\",\"user\":\"artemis\",\"validatedUser\":\"artemis\",\"protocol\":\"CORE\",\"queue\":\"SPIKE.A.q000\",\"queueType\":\"anycast\",\"filter\":\"\",\"address\":\"SPIKE.A\",\"localAddress\":\"tcp:///127.0.0.1:61616\",\"remoteAddress\":\"127.0.0.1:35926\",\"creationTime\":\"Thu Sep 03 13:10:38 UTC 2026\",\"messagesInTransit\":\"0\",\"messagesInTransitSize\":\"0\",\"messagesDelivered\":\"0\",\"messagesDeliveredSize\":\"0\",\"messagesAcknowledged\":\"0\",\"messagesAcknowledgedAwaitingCommit\":\"0\",\"lastDeliveredTime\":0,\"lastAcknowledgedTime\":0,\"status\":\"OK\"}],\"count\":1}",
+  "status": 200
+}

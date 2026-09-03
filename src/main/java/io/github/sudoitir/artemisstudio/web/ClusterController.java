@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.service.Attempt;
 import io.github.sudoitir.artemisstudio.service.ClusterService;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.RegisterClusterRequest;
+import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.RotateCredentialsRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.CapabilitiesView;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.ClusterDetail;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.ClusterSummary;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -86,6 +88,12 @@ public class ClusterController {
     @PostMapping("/{clusterId}/rediscover")
     public TopologyView rediscover(@PathVariable UUID clusterId) {
         return unwrap(service.rediscover(clusterId));
+    }
+
+    @PutMapping("/{clusterId}/credentials")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void rotateCredentials(@PathVariable UUID clusterId, @Valid @RequestBody RotateCredentialsRequest request) {
+        service.rotateCredentials(clusterId, request.username(), request.password());
     }
 
     @PatchMapping("/{clusterId}/nodes/{nodeId}")

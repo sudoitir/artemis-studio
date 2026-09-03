@@ -11,14 +11,15 @@ Kafka", for Artemis.
 It works against your **existing** brokers. No `broker.xml` rewrite beyond
 enabling the management endpoints you almost certainly already run.
 
-> _Screenshot goes here once Phase 2 renders the topology graph._
-
 ---
 
 ## Status
 
-**Pre-alpha — workspace scaffold.** The build is green and the app starts; there
-are no product features yet. The TODO list below is the plan, in order.
+**Alpha.** Phases 0–2 are done: connect to a live/backup pair, see the whole
+cluster in one place — the topology graph, every queue across every node in one
+virtualized grid, addresses / consumers / sessions / connections / producers,
+all updating live over SSE. Message operations (browse, move, purge) are Phase 3.
+The TODO list below is the plan, in order.
 
 ## Quick start (dev)
 
@@ -99,16 +100,16 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | Tiered scrape scheduler (A/B/C) + per-node rate limiter |
-| [ ] | `queue_snapshot` upserts, cross-node aggregation |
-| [ ] | Queues view (routing type, depth, consumers, delivering, scheduled) |
-| [ ] | Addresses view |
-| [ ] | Consumers / sessions / connections / producers views |
-| [ ] | SSE hub (`GET /stream`) + polling fallback |
-| [ ] | React shell, routing, dark-first tokens |
-| [ ] | Topology graph (React Flow) — badges, replication, alert dots |
-| [ ] | Queue grid (TanStack Table) — virtualized, sort, filter |
-| [ ] | ⌘K command palette |
+| [x] | Tiered scrape scheduler (A/B/C) + per-node rate limiter |
+| [x] | `queue_snapshot` upserts, cross-node aggregation |
+| [x] | Queues view (routing type, depth, consumers, delivering, scheduled) |
+| [x] | Addresses view |
+| [x] | Consumers / sessions / connections / producers views |
+| [x] | SSE hub (`GET /stream`) + polling fallback |
+| [x] | React shell, routing, dark-first tokens |
+| [x] | Topology graph (React Flow) — badges, replication, alert dots |
+| [x] | Queue grid (TanStack Table) — virtualized, sort, filter |
+| [x] | ⌘K command palette |
 
 ### Phase 3 · Message operations + audit
 

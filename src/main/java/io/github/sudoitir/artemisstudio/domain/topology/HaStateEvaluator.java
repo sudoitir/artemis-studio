@@ -5,26 +5,20 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * Derives HA role, node state, and corroborated split-brain from polled broker
- * attributes. Never reads broker <em>config</em> for HA facts (non-negotiable #4).
+ * Derives HA role, node state, and cluster health from polled broker attributes.
+ * Never reads broker <em>config</em> for HA facts (non-negotiable #4).
  *
- * <p>Split-brain corroboration (ADR-0012) keeps one small piece of state: per
- * NodeID, the refresh cycle at which a same-cycle dual-active was first seen. It
- * lives in memory only.
+ * <p>Pure. The split-brain corroboration ratchet used to live here; it now
+ * belongs to {@code ScrapeCycle}, which is the only thing allowed to advance it
+ * (ADR-0015). Callers pass the last evaluated status per NodeID into
+ * {@link #toLogicalNodes(List, Map)}; read paths therefore never corroborate.
  */
-// ponytail: in-memory corroboration ratchet; a restart resets the window, costing
-// at most one extra ~5s cycle before a real split-brain re-escalates to CRITICAL.
 @Component
 public class HaStateEvaluator {
-
-    private final Map<String, Long> firstSuspectedCycle = new ConcurrentHashMap<>();
 
     /** {@code Started} → node state. Health is gated on this, not on {@code Active}. */
     public String deriveState(Boolean started) {
@@ -45,37 +39,18 @@ public class HaStateEvaluator {
         return "STANDALONE";
     }
 
-    /**
-     * Corroborated split-brain for one logical node. Advances the ratchet and is
-     * safe to call between cycles — unchanged input never escalates.
-     */
-    public SplitBrainStatus evaluateSplitBrain(String nodeId, List<NodeEndpoint> endpoints) {
-        List<NodeEndpoint> active =
-                endpoints.stream().filter(NodeEndpoint::live).toList();
-
-        if (nodeId == null || active.size() < 2) {
-            firstSuspectedCycle.remove(nodeId);
-            return SplitBrainStatus.NONE;
-        }
-
-        Set<Long> cycles = active.stream().map(NodeEndpoint::observedCycle).collect(Collectors.toSet());
-        if (cycles.contains(null) || cycles.size() != 1) {
-            // Readings from different cycles are sampling skew, not evidence — this
-            // is the guard that stops a planned failover raising a false CRITICAL.
-            firstSuspectedCycle.remove(nodeId);
-            return SplitBrainStatus.NONE;
-        }
-
-        long cycle = cycles.iterator().next();
-        Long firstSeen = firstSuspectedCycle.putIfAbsent(nodeId, cycle);
-        if (firstSeen != null && cycle > firstSeen) {
-            return SplitBrainStatus.CRITICAL;
-        }
-        return SplitBrainStatus.SUSPECTED;
+    /** Group endpoints into logical nodes by NodeID; split-brain defaults to NONE (no corroboration supplied). */
+    public List<LogicalNode> toLogicalNodes(List<NodeEndpoint> endpoints) {
+        return toLogicalNodes(endpoints, Map.of());
     }
 
-    /** Group endpoints into logical nodes by NodeID and attach the derived HA signals. */
-    public List<LogicalNode> toLogicalNodes(List<NodeEndpoint> endpoints) {
+    /**
+     * Group endpoints into logical nodes by NodeID and attach the derived HA
+     * signals. {@code splitBrainByNodeId} is {@code ScrapeCycle}'s last verdict
+     * per NodeID; an absent entry is {@link SplitBrainStatus#NONE}.
+     */
+    public List<LogicalNode> toLogicalNodes(
+            List<NodeEndpoint> endpoints, Map<String, SplitBrainStatus> splitBrainByNodeId) {
         Map<String, List<NodeEndpoint>> byNode = new LinkedHashMap<>();
         for (NodeEndpoint e : endpoints) {
             String key = e.artemisNodeId() != null ? e.artemisNodeId() : "endpoint:" + e.id();
@@ -85,7 +60,7 @@ public class HaStateEvaluator {
         List<LogicalNode> nodes = new ArrayList<>();
         byNode.forEach((key, eps) -> {
             String nodeId = eps.get(0).artemisNodeId();
-            SplitBrainStatus splitBrain = evaluateSplitBrain(nodeId, eps);
+            SplitBrainStatus splitBrain = splitBrainByNodeId.getOrDefault(nodeId, SplitBrainStatus.NONE);
             boolean behind = eps.stream().anyMatch(e -> e.isBackup() && Boolean.FALSE.equals(e.replicaSync()));
             nodes.add(new LogicalNode(nodeId, List.copyOf(eps), splitBrain, behind));
         });
