@@ -71,7 +71,9 @@ services:
     environment:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
-      # extra-args feeds the create step; broker-*.xml overrides come from the mount
+      # The mounted broker.xml is a COMPLETE config — docker-run.sh copies it over
+      # the generated one, it does not merge. EXTRA_ARGS only affects the initial
+      # `artemis create`, whose output the copy then replaces.
       ANONYMOUS_LOGIN: "false"
     ports:
       - "8161:8161"     # web console + Jolokia
@@ -79,7 +81,8 @@ services:
     volumes:
       - ./artemis/primary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -H 'Origin: http://localhost' -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22primary%22/Started' || exit 1"]
+      # Started, not Active: a running node is Started even before it wins primary.
+      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22primary%22/Started' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -96,7 +99,14 @@ services:
     volumes:
       - ./artemis/backup/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
     depends_on:
-      - artemis-primary
+      artemis-primary:
+        condition: service_healthy
+    healthcheck:
+      # A healthy backup is Started=true and Active=false. Don't gate on Active.
+      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22backup%22/Started' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   studio:
     build:
