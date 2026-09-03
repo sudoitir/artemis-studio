@@ -30,7 +30,7 @@
     "recharts": "3.10.1"
   },
   "devDependencies": {
-    "@eslint/js": "9.37.0",
+    "@eslint/js": "10.0.1",
     "@tanstack/router-plugin": "1.168.35",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
