@@ -1,0 +1,54 @@
+{
+  "name": "Artemis Studio",
+  "image": "ubuntu:26.04",
+
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "username": "vscode",
+      "installZsh": "true",
+      "upgradePackages": "true"
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "25",
+      "distribution": "tem",
+      "installMaven": "true"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/guiyomh/features/just:0": {}
+  },
+
+  "forwardPorts": [8080, 5173, 5432, 8161],
+  "portsAttributes": {
+    "8080": { "label": "Studio API + SPA" },
+    "5173": { "label": "Vite dev server" },
+    "5432": { "label": "Postgres" },
+    "8161": { "label": "Artemis console / Jolokia" }
+  },
+
+  "onCreateCommand": "npm --prefix web ci && ./mvnw -q -B dependency:go-offline",
+  "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-xml",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "skellock.just"
+      ],
+      "settings": {
+        "java.configuration.runtimes": [
+          { "name": "JavaSE-25", "path": "/usr/local/sdkman/candidates/java/current", "default": true }
+        ]
+      }
+    }
+  },
+
+  "remoteUser": "vscode"
+}

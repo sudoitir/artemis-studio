@@ -1,0 +1,123 @@
+# Artemis Studio — DEV stack.
+#
+#   docker compose -f deploy/compose/compose.dev.yaml up      (or: just up)
+#
+# Brings up everything you need to see the product against a real cluster:
+# Postgres, an Artemis primary/backup replication pair, and Artemis Studio
+# pointed at them. Nothing here is hardened — plaintext credentials, no TLS,
+# ports published to localhost. Do not run this anywhere public.
+
+name: artemis-studio-dev
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: artemis_studio
+      POSTGRES_USER: artemis_studio
+      POSTGRES_PASSWORD: artemis_studio
+    # Tuning that matters, applied inline. Full reference (and the values Helm
+    # mounts as a file in prod) is deploy/postgres/postgresql.tuning.conf.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - min_wal_size=512MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - wal_compression=zstd
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - default_statistics_target=200
+      - -c
+      - autovacuum_naptime=15s
+      - -c
+      - autovacuum_max_workers=4
+      - -c
+      - autovacuum_vacuum_cost_limit=2000
+      - -c
+      - track_io_timing=on
+      - -c
+      - log_min_duration_statement=500ms
+      - -c
+      - log_autovacuum_min_duration=250ms
+      - -c
+      - timezone=UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artemis_studio -d artemis_studio"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  artemis-primary:
+    image: apache/activemq-artemis:2.44.0
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+      # extra-args feeds the create step; broker-*.xml overrides come from the mount
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "8161:8161"     # web console + Jolokia
+      - "61616:61616"   # Core / AMQP / OpenWire
+    volumes:
+      - ./artemis/primary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -H 'Origin: http://localhost' -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22primary%22/Started' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  artemis-backup:
+    image: apache/activemq-artemis:2.44.0
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "8261:8161"
+      - "61617:61616"
+    volumes:
+      - ./artemis/backup/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
+    depends_on:
+      - artemis-primary
+
+  studio:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/artemis_studio
+      ARTEMIS_STUDIO_DB_USER: artemis_studio
+      ARTEMIS_STUDIO_DB_PASSWORD: artemis_studio
+      # Encryption key for stored broker credentials (dev only — generate a real one for prod).
+      ARTEMIS_STUDIO_SECRET_KEY: "dev-insecure-key-change-me-0000000000000000"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pgdata:

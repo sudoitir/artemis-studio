@@ -1,0 +1,13 @@
+target/
+web/node_modules/
+web/dist/
+.git/
+.github/
+.idea/
+docs/
+deploy/
+*.md
+!README.md
+.claude/
+.mvn/wrapper/
+target/

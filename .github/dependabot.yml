@@ -1,0 +1,74 @@
+version: 2
+
+# Safe posture:
+#  * Weekly, grouped, so updates land as a few reviewable PRs, not a flood.
+#  * Minor + patch are grouped and auto-raised; every PR still runs full CI
+#    (Spotless check, Liquibase vs Testcontainers Postgres, tests, web build,
+#    image build) — nothing merges without that passing.
+#  * MAJOR bumps of the framework-defining dependencies are ignored here, so
+#    moving Spring Boot, React, Vite, Mantine, or the DB driver across a major
+#    is always a deliberate, human-authored change (and usually an ADR).
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.postgresql:postgresql"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.liquibase:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.apache.artemis:*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    versioning-strategy: increase
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@mantine/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "build(deps)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]

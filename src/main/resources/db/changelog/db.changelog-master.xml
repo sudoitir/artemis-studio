@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Master changelog. XML here, DDL in the .sql files it includes, in order.
+
+      Conventions for every changeset (see docs/adr/0008):
+        * One logical concern per file.
+        * Columns are ordered to minimise Postgres row padding: 8-byte-aligned
+          types first (timestamptz, bigint, double precision), then 4-byte
+          (integer, and the varlena types text/jsonb/bytea/inet), then the
+          1-byte-aligned uuid and boolean last. The readability cost (primary
+          key not first) is deliberate and worth it on the wide, high-row tables.
+        * High-churn tables carry per-table autovacuum and fillfactor storage
+          parameters, set in the same file as the table.
+        * Never edit a released changeset. Add a new one.
+    -->
+
+    <include file="db/changelog/changes/001-extensions.sql"     relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/002-estate.sql"         relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/003-identity.sql"       relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/004-audit.sql"          relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/005-broker-cache.sql"   relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/006-alerting.sql"       relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/007-request-reply.sql"  relativeToChangelogFile="false"/>
+
+</databaseChangeLog>

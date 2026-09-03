@@ -1,0 +1,98 @@
+# Artemis Studio — PROD reference stack.
+#
+#   docker compose -f deploy/compose/compose.prod.yaml --env-file .env up -d
+#
+# Runs Artemis Studio and its Postgres only. Your Artemis clusters already exist
+# and are registered through the UI — this file does not start any brokers.
+#
+# Everything sensitive comes from .env (see deploy/compose/.env.example). This is
+# a reference, not a turnkey deployment: put Postgres on managed infrastructure
+# and terminate TLS at your ingress for anything serious. Helm chart lands in v1.0.
+
+name: artemis-studio
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_NAME:?}
+      POSTGRES_USER: ${DB_USER:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+    # Postgres reads its generated base config, then applies these overrides.
+    # The canonical values live in deploy/postgres/postgresql.tuning.conf; keep
+    # the two in sync (or, better, put Postgres on managed infrastructure).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_wal_size=3GB
+      - -c
+      - min_wal_size=512MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - wal_compression=zstd
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - default_statistics_target=200
+      - -c
+      - autovacuum_naptime=15s
+      - -c
+      - autovacuum_max_workers=4
+      - -c
+      - autovacuum_vacuum_cost_limit=2000
+      - -c
+      - track_io_timing=on
+      - -c
+      - log_min_duration_statement=500ms
+      - -c
+      - timezone=UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  studio:
+    image: ${STUDIO_IMAGE:-ghcr.io/sudoitir/artemis-studio:latest}
+    environment:
+      ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      ARTEMIS_STUDIO_DB_USER: ${DB_USER}
+      ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
+      ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+    ports:
+      - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+volumes:
+  pgdata:
