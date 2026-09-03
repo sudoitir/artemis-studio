@@ -8,15 +8,24 @@
   --as-text: var(--mantine-color-text);
   --as-text-dimmed: var(--mantine-color-dimmed);
 
-  --as-ok: var(--mantine-color-pine-5);
+  /* Status semantics. Green is deliberately NOT here: in an ops console green
+     is a word, not a brand colour, and "health is the absence of colour"
+     (Phase 1 design, ADR-0005 kept for brand/chrome only). A healthy screen is
+     near-monochrome; colour enters only when something is wrong. */
+  --as-ok: var(--as-text);
   --as-warning: var(--mantine-color-yellow-5);
   --as-danger: var(--mantine-color-red-6);
 
-  /* HA / topology status colours — used by the React Flow node cards. */
-  --as-node-live: var(--mantine-color-pine-5);
-  --as-node-backup: var(--mantine-color-blue-5);
-  --as-node-split-brain: var(--mantine-color-red-6);
-  --as-node-down: var(--mantine-color-gray-6);
+  /* HA / topology status. */
+  --as-node-live: var(--as-text); /* serving — a bright neutral mark, never a green pill */
+  --as-node-backup: var(--as-text-dimmed); /* synced standby */
+  --as-node-split-brain: var(--mantine-color-red-6); /* two live in one pair */
+  --as-node-down: var(--mantine-color-yellow-5); /* not started / unreachable */
+  --as-node-unmanaged: var(--as-text-dimmed); /* known, never contacted — neutral, not an error */
+
+  /* The identity axis carrying a pair's shared NodeID, in its two states. */
+  --as-axis: var(--as-border);
+  --as-axis-broken: var(--mantine-color-yellow-5);
 }
 
 html,

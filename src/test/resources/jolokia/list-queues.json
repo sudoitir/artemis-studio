@@ -1,0 +1,10 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "type": "exec",
+    "operation": "listQueues(java.lang.String,int,int)",
+    "arguments": ["{\"field\":\"name\",\"operation\":\"EQUALS\",\"value\":\"DLQ\"}", 1, 10]
+  },
+  "value": "{\"data\":[{\"id\":\"3\",\"name\":\"DLQ\",\"address\":\"DLQ\",\"filter\":\"\",\"durable\":\"true\",\"routingType\":\"ANYCAST\",\"messagesAdded\":\"0\",\"messageCount\":\"0\",\"consumerCount\":\"0\",\"deliveringCount\":\"0\",\"scheduledCount\":\"0\",\"internalQueue\":\"false\"}],\"count\":1}",
+  "status": 200
+}

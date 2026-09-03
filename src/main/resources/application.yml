@@ -11,6 +11,15 @@ spring:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
 
+  jpa:
+    # Liquibase owns the schema; Hibernate only maps to it and checks the mapping
+    # on startup. Never let Hibernate touch DDL.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+
   threads:
     virtual:
       enabled: true
@@ -33,23 +42,28 @@ management:
     build:
       enabled: true
 
-# Application configuration. Nothing reads these yet — they document the shape
-# the scrape scheduler and broker client will consume from Phase 1 onward.
+# Application configuration, bound by ArtemisStudioProperties.
 artemis-studio:
+  # base64 of 32 bytes; encrypts stored broker credentials (ADR-0009).
+  # The app fails to start if this is missing or the wrong length.
+  secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
   branding:
     # If the project is renamed, this string and Branding.java move together.
     product-name: "Artemis Studio"
   scrape:
-    # Tiered polling cadence (see docs/architecture.md).
+    # Tiered polling cadence (see docs/architecture.md). Only tier A is used in
+    # Phase 1 (HaRefreshTask); B and C arrive with the Phase 2 scheduler.
     tier-a-interval: 5s      # topology, HA state, broker counters
     tier-b-interval: 15s     # queues with consumers or non-zero depth
     tier-c-interval: 5m      # idle queues
   rate-limit:
     # Per broker node. Conservative default so Studio never becomes the load.
+    # Enforced by the Phase 2 scheduler's token bucket.
     management-calls-per-second: 20
-  jolokia:
-    # Artemis requires an Origin header on Jolokia requests (default CORS policy).
-    origin-header: "http://localhost"
+  broker:
+    # RestClient timeouts for every Jolokia call (ADR-0010).
+    connect-timeout: 3s
+    read-timeout: 10s
 
 logging:
   level:

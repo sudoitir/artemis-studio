@@ -1,0 +1,9 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "type": "exec",
+    "operation": "listNetworkTopology()"
+  },
+  "value": "[{\"nodeID\":\"f7734597-a768-11f1-aa4c-ceae3fa2df1d\",\"live\":\"artemis-primary:61616\",\"primary\":\"artemis-primary:61616\",\"backup\":\"artemis-backup:61616\"}]",
+  "status": 200
+}

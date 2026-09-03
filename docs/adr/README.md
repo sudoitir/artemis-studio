@@ -18,3 +18,9 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0006](0006-metrics-in-postgres.md) | Own the metrics timeseries in PostgreSQL |
 | [0007](0007-packaging-single-image-compose-first.md) | One container image, Docker Compose first |
 | [0008](0008-schema-migrations-liquibase.md) | Liquibase migrations; schema physical tuning |
+| [0009](0009-secret-vaulting-and-broker-tls.md) | Secret vaulting with JDK AES-GCM; broker TLS via SSL bundles |
+| [0010](0010-jolokia-over-restclient.md) | Jolokia over a blocking `RestClient`; `spring-boot-starter-webflux` removed |
+| [0011](0011-jdbcclient-over-spring-data-jdbc.md) | Persistence via JPA (Hibernate) mapped to the Liquibase-owned schema |
+| [0012](0012-corroborated-split-brain.md) | Split-brain detection requires corroborated evidence (amends 0002) |
+| [0013](0013-seed-is-a-list.md) | A cluster is registered from a list of seed URLs (amends 0004) |
+| [0014](0014-lombok-and-mapstruct.md) | Lombok for boilerplate, MapStruct for layer-to-layer mapping |

@@ -1,0 +1,6 @@
+{
+  "request": { "type": "exec", "mbean": "org.apache.activemq.artemis:broker=\"primary\"", "operation": "listNetworkTopology()" },
+  "error_type": "java.lang.SecurityException",
+  "error": "java.lang.SecurityException : User is not authorized to invoke operation listNetworkTopology",
+  "status": 403
+}

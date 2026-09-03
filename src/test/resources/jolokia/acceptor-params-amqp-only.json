@@ -1,0 +1,5 @@
+{
+  "request": { "type": "read", "mbean": "org.apache.activemq.artemis:broker=\"primary\",component=acceptors,name=\"amqp\"", "attribute": "Parameters" },
+  "value": { "host": "0.0.0.0", "port": "5672", "protocols": "AMQP" },
+  "status": 200
+}

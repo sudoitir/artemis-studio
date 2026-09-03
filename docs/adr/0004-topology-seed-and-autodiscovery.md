@@ -19,6 +19,12 @@ topology change. Manual URL overrides (a node reachable only on a different
 host/port than it advertises) are honoured and never overwritten by discovery
 (`manual_override = true`).
 
+*Amended by [ADR-0013](0013-seed-is-a-list.md): registration accepts a **list**
+of seed URLs, not one. Phase 0 showed that discovered connectors are usually
+unreachable internal hostnames, so one seed leaves most of the cluster
+unmanageable; a list lets an operator register every node they can reach in one
+call. Discovery, `NodeID` keying, and the override rule are unchanged.*
+
 ## Consequences
 
 - One URL to set up a cluster; the model stays current on its own.

@@ -1,0 +1,72 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  block-size: 100%;
+}
+
+.item {
+  border: 0;
+  background: none;
+  color: var(--as-text-dimmed);
+  font: inherit;
+  text-align: start;
+  inline-size: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--mantine-radius-sm);
+  cursor: pointer;
+  border-inline-start: 2px solid transparent;
+}
+
+.item:hover {
+  background: var(--as-surface-raised);
+}
+
+.item[data-active='true'] {
+  color: var(--as-text);
+  background: var(--as-surface-raised);
+  border-inline-start-color: var(--as-text);
+  font-weight: 600;
+}
+
+.mark {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  flex: none;
+  background: var(--as-node-live);
+}
+
+.mark[data-health='DEGRADED'] {
+  background: var(--as-warning);
+}
+
+.mark[data-health='CRITICAL'] {
+  background: var(--as-danger);
+}
+
+.mark[data-health='UNKNOWN'] {
+  background: none;
+  border: 1px solid var(--as-text-dimmed);
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  font-size: 0.75rem;
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  margin-block-start: auto;
+  padding-block-start: 0.75rem;
+}

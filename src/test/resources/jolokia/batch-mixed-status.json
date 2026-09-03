@@ -1,0 +1,40 @@
+[
+  {
+    "request": {
+      "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+      "attribute": ["Active", "ReplicaSync", "NodeID"],
+      "type": "read"
+    },
+    "value": { "Active": true, "ReplicaSync": true, "NodeID": "f7734597-a768-11f1-aa4c-ceae3fa2df1d" },
+    "status": 200
+  },
+  {
+    "request": {
+      "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+      "type": "exec",
+      "operation": "listNetworkTopology()"
+    },
+    "value": "[{\"nodeID\":\"f7734597-a768-11f1-aa4c-ceae3fa2df1d\",\"live\":\"artemis-primary:61616\",\"primary\":\"artemis-primary:61616\",\"backup\":\"artemis-backup:61616\"}]",
+    "status": 200
+  },
+  {
+    "request": {
+      "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+      "type": "exec",
+      "operation": "listQueues(java.lang.String,int,int)",
+      "arguments": ["", 1, 50]
+    },
+    "value": "{\"data\":[{\"id\":\"3\",\"name\":\"DLQ\",\"address\":\"DLQ\",\"routingType\":\"ANYCAST\",\"messageCount\":\"0\",\"consumerCount\":\"0\"}],\"count\":1}",
+    "status": 200
+  },
+  {
+    "request": {
+      "mbean": "org.apache.activemq.artemis:broker=\"primary\",name=\"NOPE\",component=queue-that-does-not-exist",
+      "attribute": "X",
+      "type": "read"
+    },
+    "error_type": "javax.management.InstanceNotFoundException",
+    "error": "javax.management.InstanceNotFoundException : org.apache.activemq.artemis:broker=\"primary\",name=\"NOPE\",component=queue-that-does-not-exist",
+    "status": 404
+  }
+]

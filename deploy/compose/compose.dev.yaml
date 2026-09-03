@@ -116,10 +116,13 @@ services:
       ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/artemis_studio
       ARTEMIS_STUDIO_DB_USER: artemis_studio
       ARTEMIS_STUDIO_DB_PASSWORD: artemis_studio
-      # Encryption key for stored broker credentials (dev only — generate a real one for prod).
-      ARTEMIS_STUDIO_SECRET_KEY: "dev-insecure-key-change-me-0000000000000000"
+      # Encrypts stored broker credentials (ADR-0009). Must be base64 of exactly
+      # 32 bytes or the app refuses to start. DEV ONLY — for prod run
+      # `openssl rand -base64 32` and keep it out of source control.
+      ARTEMIS_STUDIO_SECRET_KEY: "YXJ0ZW1pcy1zdHVkaW8tZGV2LWluc2VjdXJlLWtleS0="
     ports:
-      - "8080:8080"
+      # Loopback only: the API is unauthenticated until Phase 8 (ADR-0002 area).
+      - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy

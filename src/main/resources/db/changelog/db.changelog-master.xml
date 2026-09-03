@@ -27,5 +27,6 @@
     <include file="db/changelog/changes/005-broker-cache.sql"   relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/006-alerting.sql"       relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/007-request-reply.sql"  relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/008-node-ha-state.sql"  relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

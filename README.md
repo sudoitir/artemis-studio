@@ -86,14 +86,14 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | `JolokiaBrokerClient` — read attrs, invoke ops, batched POST |
-| [ ] | `CapabilityProbe` — MANAGEMENT_READ/WRITE, NOTIFICATIONS, MESSAGE_IO |
-| [ ] | Credential vaulting (AES-GCM at rest), TLS to brokers |
-| [ ] | Register a cluster from one seed node |
-| [ ] | Topology auto-discovery + rediscovery; manual URL overrides kept |
-| [ ] | Live-node detection, replication state, split-brain flag |
-| [ ] | `GET /clusters/{id}/{capabilities,topology,health}` |
-| [ ] | "Feature unavailable" UI with the `broker.xml` snippet to fix it |
+| [x] | `JolokiaBrokerClient` — read attrs, invoke ops, batched POST |
+| [x] | `CapabilityProbe` — MANAGEMENT_READ/WRITE, NOTIFICATIONS, MESSAGE_IO |
+| [x] | Credential vaulting (AES-GCM at rest), TLS to brokers |
+| [x] | Register a cluster from a list of seed nodes ([ADR-0013](docs/adr/0013-seed-is-a-list.md)) |
+| [x] | Topology auto-discovery + rediscovery; manual URL overrides kept |
+| [x] | Live-node detection, replication state, corroborated split-brain ([ADR-0012](docs/adr/0012-corroborated-split-brain.md)) |
+| [x] | `GET /clusters/{id}/{capabilities,topology,health}` |
+| [x] | "Feature unavailable" UI with the `broker.xml` snippet to fix it |
 
 ### Phase 2 · Cross-node views + live UI
 
