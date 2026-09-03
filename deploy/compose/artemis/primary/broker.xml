@@ -1,39 +1,70 @@
 <?xml version="1.0"?>
 <!--
-  DEV primary broker — partial config, XML-merged by the apache/activemq-artemis
-  image over its generated broker.xml (files in etc-override/ are merged, not
-  replaced).
+  DEV primary broker — COMPLETE broker.xml, not a fragment.
 
-  Purpose: give Artemis Studio a real replication primary/backup pair to discover,
-  with Jolokia (:8161) and Core (:61616) reachable. Credentials artemis/artemis.
+  The apache/activemq-artemis image's docker-run.sh does `cp ./etc-override/* ./etc`,
+  a plain copy, NOT an XML merge. Whatever we mount here replaces the generated
+  broker.xml wholesale, so this file must be self-contained: acceptors, security
+  settings and address settings included.
 
-  UNVERIFIED in the setup session. Phase 0 boots this pair, confirms the backup
-  reports Active=false while the primary reports Active=true, kills the primary,
-  and confirms failover — fixing whatever the image needs here.
+  Baseline generated from `artemis create` in image tag 2.44.0, then edited for a
+  replication primary/backup pair reachable by Artemis Studio. Re-baseline when the
+  image tag in compose.dev.yaml changes. Credentials artemis/artemis; cluster
+  credentials cluster-admin/password-admin (must match ../backup/broker.xml).
 -->
 <configuration xmlns="urn:activemq"
-               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <core xmlns="urn:activemq:core">
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xi="http://www.w3.org/2001/XInclude"
+               xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+
+  <core xmlns="urn:activemq:core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="urn:activemq:core ">
 
     <name>primary</name>
 
     <persistence-enabled>true</persistence-enabled>
+    <max-redelivery-records>1</max-redelivery-records>
     <journal-type>ASYNCIO</journal-type>
 
-    <!-- Replication HA, primary side. check-for-active-server avoids a
-         double-primary on restart. -->
-    <ha-policy>
-      <replication>
-        <primary>
-          <check-for-active-server>true</check-for-active-server>
-        </primary>
-      </replication>
-    </ha-policy>
+    <paging-directory>data/paging</paging-directory>
+    <bindings-directory>data/bindings</bindings-directory>
+    <journal-directory>data/journal</journal-directory>
+    <large-messages-directory>data/large-messages</large-messages-directory>
 
+    <journal-datasync>true</journal-datasync>
+    <journal-min-files>2</journal-min-files>
+    <journal-pool-files>10</journal-pool-files>
+    <journal-device-block-size>4096</journal-device-block-size>
+    <journal-file-size>10M</journal-file-size>
+    <journal-buffer-timeout>24000</journal-buffer-timeout>
+    <journal-max-io>4096</journal-max-io>
+
+    <disk-scan-period>5000</disk-scan-period>
+    <!-- DEV ONLY: raised from the default 90. A dev laptop's disk is often past
+         90% and the broker blocks every producer (AMQ212054) when it is. Never
+         ship this value; a real deployment wants 90 and disk headroom. -->
+    <max-disk-usage>98</max-disk-usage>
+    <critical-analyzer>true</critical-analyzer>
+    <critical-analyzer-timeout>120000</critical-analyzer-timeout>
+    <critical-analyzer-check-period>60000</critical-analyzer-check-period>
+    <critical-analyzer-policy>HALT</critical-analyzer-policy>
+    <page-sync-timeout>348000</page-sync-timeout>
+    <global-max-messages>-1</global-max-messages>
+
+    <!-- Connectors are what listNetworkTopology() advertises to Artemis Studio,
+         so they must be reachable from other containers: compose service names,
+         not localhost. -->
     <connectors>
       <connector name="primary-connector">tcp://artemis-primary:61616</connector>
       <connector name="backup-connector">tcp://artemis-backup:61616</connector>
     </connectors>
+
+    <acceptors>
+      <acceptor name="artemis">tcp://0.0.0.0:61616?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;amqpMinLargeMessageSize=102400;protocols=CORE,AMQP,STOMP,HORNETQ,MQTT,OPENWIRE;useEpoll=true;amqpCredits=1000;amqpLowCredits=300;amqpDuplicateDetection=true;supportAdvisory=false;suppressInternalManagementObjects=false</acceptor>
+    </acceptors>
+
+    <cluster-user>cluster-admin</cluster-user>
+    <cluster-password>password-admin</cluster-password>
 
     <cluster-connections>
       <cluster-connection name="studio-dev">
@@ -46,20 +77,104 @@
       </cluster-connection>
     </cluster-connections>
 
-    <!-- Management over the wire (activemq.management) needs the manage
-         permission; the notifications address needs consume. -->
+    <!-- Replication HA, primary side. check-for-active-server stops this node
+         re-claiming primary if the backup already went active. -->
+    <ha-policy>
+      <replication>
+        <primary>
+          <check-for-active-server>true</check-for-active-server>
+        </primary>
+      </replication>
+    </ha-policy>
+
+    <!-- SEND_CONNECTION/SESSION_NOTIFICATIONS are off by default; the Phase 0
+         spike needs them to capture the full _AMQ_NotifType catalogue. -->
+    <broker-plugins>
+      <broker-plugin class-name="org.apache.activemq.artemis.core.server.plugin.impl.NotificationActiveMQServerPlugin">
+        <property key="SEND_CONNECTION_NOTIFICATIONS" value="true"/>
+        <property key="SEND_SESSION_NOTIFICATIONS" value="true"/>
+        <property key="SEND_ADDRESS_NOTIFICATIONS" value="true"/>
+        <property key="SEND_DELIVERED_NOTIFICATIONS" value="true"/>
+        <property key="SEND_EXPIRED_NOTIFICATIONS" value="true"/>
+      </broker-plugin>
+    </broker-plugins>
+
     <security-settings>
+      <security-setting match="#">
+        <permission type="createNonDurableQueue" roles="amq"/>
+        <permission type="deleteNonDurableQueue" roles="amq"/>
+        <permission type="createDurableQueue" roles="amq"/>
+        <permission type="deleteDurableQueue" roles="amq"/>
+        <permission type="createAddress" roles="amq"/>
+        <permission type="deleteAddress" roles="amq"/>
+        <permission type="consume" roles="amq"/>
+        <permission type="browse" roles="amq"/>
+        <permission type="send" roles="amq"/>
+        <permission type="manage" roles="amq"/>
+      </security-setting>
+      <!-- Explicit, so Phase 1's "here is the broker.xml you need" hint has a
+           real reference. The match="#" block above already covers these. -->
       <security-setting match="activemq.management.#">
         <permission type="manage" roles="amq"/>
-        <permission type="send"   roles="amq"/>
+        <permission type="send" roles="amq"/>
         <permission type="consume" roles="amq"/>
         <permission type="createNonDurableQueue" roles="amq"/>
         <permission type="createAddress" roles="amq"/>
       </security-setting>
+      <!-- consume alone is not enough: a JMS/Core subscriber to this multicast
+           address also needs createNonDurableQueue to bind its subscription
+           queue. Artemis matches the single most-specific security-setting, so
+           this block must repeat every permission the subscriber needs. -->
       <security-setting match="activemq.notifications">
         <permission type="consume" roles="amq"/>
+        <permission type="createNonDurableQueue" roles="amq"/>
+        <permission type="deleteNonDurableQueue" roles="amq"/>
       </security-setting>
     </security-settings>
+
+    <address-settings>
+      <address-setting match="activemq.management.#">
+        <dead-letter-address>DLQ</dead-letter-address>
+        <expiry-address>ExpiryQueue</expiry-address>
+        <redelivery-delay>0</redelivery-delay>
+        <max-size-bytes>-1</max-size-bytes>
+        <message-counter-history-day-limit>10</message-counter-history-day-limit>
+        <address-full-policy>PAGE</address-full-policy>
+        <auto-create-queues>true</auto-create-queues>
+        <auto-create-addresses>true</auto-create-addresses>
+      </address-setting>
+      <address-setting match="#">
+        <dead-letter-address>DLQ</dead-letter-address>
+        <expiry-address>ExpiryQueue</expiry-address>
+        <redelivery-delay>0</redelivery-delay>
+        <message-counter-history-day-limit>10</message-counter-history-day-limit>
+        <address-full-policy>PAGE</address-full-policy>
+        <auto-create-queues>true</auto-create-queues>
+        <auto-create-addresses>true</auto-create-addresses>
+        <auto-delete-queues>false</auto-delete-queues>
+        <auto-delete-addresses>false</auto-delete-addresses>
+        <page-size-bytes>10M</page-size-bytes>
+        <max-size-bytes>-1</max-size-bytes>
+        <max-size-messages>-1</max-size-messages>
+        <max-read-page-messages>-1</max-read-page-messages>
+        <max-read-page-bytes>20M</max-read-page-bytes>
+        <page-limit-bytes>-1</page-limit-bytes>
+        <page-limit-messages>-1</page-limit-messages>
+      </address-setting>
+    </address-settings>
+
+    <addresses>
+      <address name="DLQ">
+        <anycast>
+          <queue name="DLQ"/>
+        </anycast>
+      </address>
+      <address name="ExpiryQueue">
+        <anycast>
+          <queue name="ExpiryQueue"/>
+        </anycast>
+      </address>
+    </addresses>
 
   </core>
 </configuration>

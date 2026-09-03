@@ -74,13 +74,13 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | Boot dev compose primary/backup pair with replication; fix broker XML |
-| [ ] | Verify `listNetworkTopology()` shape (pairs, connectors) |
-| [ ] | Verify `listQueues(filter, page, pageSize)` shape and paging |
-| [ ] | Verify `Active` / `ReplicaSync`; confirm failover and failback |
-| [ ] | Capture real `_AMQ_NotifType` values + headers from notifications |
-| [ ] | Batched Jolokia POST verified; note what needs the Core client |
-| [ ] | Write `docs/broker-management-notes.md` |
+| [x] | Boot dev compose primary/backup pair with replication; fix broker XML |
+| [x] | Verify `listNetworkTopology()` shape (pairs, connectors) |
+| [x] | Verify `listQueues(options, page, pageSize)` shape and paging |
+| [x] | Verify `Active` / `ReplicaSync`; confirm failover and failback |
+| [x] | Capture real `_AMQ_NotifType` values + headers from notifications |
+| [x] | Batched Jolokia POST verified; note what needs the Core client |
+| [x] | Write `docs/broker-management-notes.md` |
 
 ### Phase 1 · Connectivity and topology
 
