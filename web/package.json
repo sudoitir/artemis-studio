@@ -25,8 +25,8 @@
     "@tanstack/react-table": "9.2.4",
     "@xyflow/react": "12.11.6",
     "dayjs": "^1.11.13",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "recharts": "3.10.1"
   },
   "devDependencies": {
@@ -37,7 +37,7 @@
     "@vitejs/plugin-react": "6.1.1",
     "eslint": "9.37.0",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
+    "eslint-plugin-react-refresh": "^0.5.5",
     "globals": "^15.15.0",
     "typescript": "5.9.3",
     "typescript-eslint": "8.69.0",
