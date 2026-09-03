@@ -102,6 +102,11 @@ condition is still true on the next consecutive refresh cycle. A first
 single-cycle observation SHALL be reported as suspected, not critical. Readings
 from two different refresh cycles SHALL NOT by themselves raise the flag.
 
+The refresh-cycle counter and the one-cycle corroboration state SHALL be
+maintained per cluster by the scrape schedule and advanced only by it. Reading
+the topology or health view SHALL NOT advance the counter or the corroboration
+state.
+
 #### Scenario: First sighting is suspected
 
 - **WHEN** two nodes with the same `NodeID` first both read `Active` true in one cycle
@@ -118,12 +123,27 @@ from two different refresh cycles SHALL NOT by themselves raise the flag.
   true only in cycle N+1 (sampling skew during failover)
 - **THEN** no split-brain flag is raised
 
+#### Scenario: Reading health does not corroborate
+
+- **WHEN** the health view is requested several times between two refresh cycles
+  while a split-brain is suspected
+- **THEN** the status stays suspected until the next refresh cycle confirms or clears it
+
+#### Scenario: Cycles are per cluster
+
+- **WHEN** two clusters are being scraped
+- **THEN** each advances its own refresh-cycle counter independently and a
+  split-brain in one has no effect on the other's corroboration state
+
 ### Requirement: Capabilities, topology, and health are separately readable
 
 The system SHALL expose, per cluster, a capabilities view, a topology view
 (logical nodes, their endpoints, addresses, roles, and whether each is
 manageable or overridden), and a health view (live endpoint per pair,
 replication state, and split-brain status).
+
+The topology and health views SHALL be served from the most recent persisted
+scrape results, not from a fresh broker probe performed on each read.
 
 #### Scenario: Health view content
 
@@ -136,3 +156,9 @@ replication state, and split-brain status).
 - **WHEN** the topology view for a cluster is requested
 - **THEN** each logical node lists its endpoints with role, address, manageable
   flag, and overridden flag
+
+#### Scenario: Reads do not probe the broker
+
+- **WHEN** the topology or health view is requested
+- **THEN** the response is built from persisted scrape data and no broker request
+  is issued to satisfy the read
