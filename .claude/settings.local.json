@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_cloudflare_cloudflare-api__execute",
+      "mcp__codebase-memory-mcp__list_projects",
+      "mcp__xcode__XcodeListWindows",
+      "mcp__codebase-memory-mcp__search_code",
+      "mcp__codebase-memory-mcp__get_architecture",
+      "Bash(kubectl get *)",
+      "Bash(kubectl scale deployment *)",
+      "Bash(docker exec docker-postgres-1 *)"
+    ]
+  },
+  "outputStyle": "Concise"
+}

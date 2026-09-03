@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: artemis-studio
+
+  datasource:
+    url: ${ARTEMIS_STUDIO_DB_URL:jdbc:postgresql://localhost:5432/artemis_studio}
+    username: ${ARTEMIS_STUDIO_DB_USER:artemis_studio}
+    password: ${ARTEMIS_STUDIO_DB_PASSWORD:artemis_studio}
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${ARTEMIS_STUDIO_PORT:8080}
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  info:
+    build:
+      enabled: true
+
+# Application configuration. Nothing reads these yet — they document the shape
+# the scrape scheduler and broker client will consume from Phase 1 onward.
+artemis-studio:
+  branding:
+    # If the project is renamed, this string and Branding.java move together.
+    product-name: "Artemis Studio"
+  scrape:
+    # Tiered polling cadence (see docs/architecture.md).
+    tier-a-interval: 5s      # topology, HA state, broker counters
+    tier-b-interval: 15s     # queues with consumers or non-zero depth
+    tier-c-interval: 5m      # idle queues
+  rate-limit:
+    # Per broker node. Conservative default so Studio never becomes the load.
+    management-calls-per-second: 20
+  jolokia:
+    # Artemis requires an Origin header on Jolokia requests (default CORS policy).
+    origin-header: "http://localhost"
+
+logging:
+  level:
+    io.github.sudoitir.artemisstudio: INFO

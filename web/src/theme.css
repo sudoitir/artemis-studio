@@ -1,0 +1,30 @@
+/* Semantic token layer. Components reference these, never raw values or
+   primitive scale steps directly. Dark is the base; light overrides. */
+
+:root {
+  --as-surface: var(--mantine-color-body);
+  --as-surface-raised: var(--mantine-color-default);
+  --as-border: var(--mantine-color-default-border);
+  --as-text: var(--mantine-color-text);
+  --as-text-dimmed: var(--mantine-color-dimmed);
+
+  --as-ok: var(--mantine-color-pine-5);
+  --as-warning: var(--mantine-color-yellow-5);
+  --as-danger: var(--mantine-color-red-6);
+
+  /* HA / topology status colours — used by the React Flow node cards. */
+  --as-node-live: var(--mantine-color-pine-5);
+  --as-node-backup: var(--mantine-color-blue-5);
+  --as-node-split-brain: var(--mantine-color-red-6);
+  --as-node-down: var(--mantine-color-gray-6);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
