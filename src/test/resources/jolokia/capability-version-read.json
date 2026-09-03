@@ -1,0 +1,5 @@
+{
+  "request": { "type": "read", "mbean": "org.apache.activemq.artemis:broker=\"primary\"", "attribute": "Version" },
+  "value": "2.44.0",
+  "status": 200
+}

@@ -31,8 +31,9 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 0 (workspace
-scaffold complete; broker management spike next).
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 1 complete
+(Jolokia client, capability probe, cluster registration and topology); Phase 2
+(cross-node views + live UI) next.
 
 ## How to work a change
 

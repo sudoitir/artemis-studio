@@ -12,6 +12,10 @@ self-contained session.
 
 - **Backend**: Java 25, Spring Boot 4.1.0, Maven. Package root
   `io.github.sudoitir.artemisstudio`. groupId `io.github.sudoitir`.
+- **Persistence**: JPA (Hibernate) entities mapped to the Liquibase-owned schema,
+  `spring.jpa.hibernate.ddl-auto=validate` (ADR-0011). **Lombok** for entity /
+  component boilerplate and **MapStruct** for entity↔domain↔DTO mapping
+  (ADR-0014) — needs the Lombok IDE plugin.
 - **Database**: PostgreSQL. Schema via **Liquibase** — XML master changelog
   (`src/main/resources/db/changelog/db.changelog-master.xml`), one SQL changeset
   file per concern under `changes/`. Boot runs migrations on startup; the

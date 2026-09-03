@@ -1,0 +1,11 @@
+{
+  "request": {
+    "type": "search",
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\",component=acceptors,name=*"
+  },
+  "value": [
+    "org.apache.activemq.artemis:broker=\"primary\",component=acceptors,name=\"artemis\"",
+    "org.apache.activemq.artemis:broker=\"primary\",component=acceptors,name=\"amqp\""
+  ],
+  "status": 200
+}

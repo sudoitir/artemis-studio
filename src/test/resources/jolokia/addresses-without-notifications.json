@@ -1,0 +1,8 @@
+{
+  "request": { "type": "search", "mbean": "org.apache.activemq.artemis:broker=\"primary\",component=addresses,address=*" },
+  "value": [
+    "org.apache.activemq.artemis:broker=\"primary\",component=addresses,address=\"DLQ\"",
+    "org.apache.activemq.artemis:broker=\"primary\",component=addresses,address=\"ExpiryQueue\""
+  ],
+  "status": 200
+}

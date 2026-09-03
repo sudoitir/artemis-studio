@@ -33,6 +33,9 @@ Operators variously have Jolokia only, the Core acceptor only, or control of bot
   to enable it — no silently missing controls.
 - **HA state is never read from configuration.** Poll `Active` on every node;
   two `true` in a pair raises a critical split-brain alert.
+  *Amended by [ADR-0012](0012-corroborated-split-brain.md): the alert now
+  requires corroborated evidence (same `NodeID`, same refresh cycle, confirmed
+  on the next) so a planned failover does not false-alarm.*
 
 ## Consequences
 
@@ -41,7 +44,7 @@ Operators variously have Jolokia only, the Core acceptor only, or control of bot
   the operator enables the Core acceptor and grants `consume` on
   `activemq.notifications` — surfaced honestly, not hidden.
 - Two client implementations to maintain from Phase 4.
-- Batched Jolokia POالسطs plus tiered scraping (ADR-0006 area) keep a
+- Batched Jolokia POSTs plus tiered scraping (ADR-0006 area) keep a
   thousands-of-queues broker from being overloaded.
 
 ## Alternatives considered

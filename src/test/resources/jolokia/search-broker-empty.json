@@ -1,0 +1,5 @@
+{
+  "request": { "type": "search", "mbean": "org.apache.activemq.artemis:broker=*" },
+  "value": [],
+  "status": 200
+}

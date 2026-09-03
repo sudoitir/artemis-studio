@@ -1,0 +1,66 @@
+/* A hanging ledger, not four alert cards. Status words hang on one
+   right-aligned column so the eye scans a single vertical line and stops at the
+   first thing that is not "Available". No rules, no boxes, no per-row icons —
+   the alignment does the work. */
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+  margin-block-start: 0.5rem;
+}
+
+.row {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  inline-size: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.55rem;
+  text-align: start;
+  cursor: default;
+}
+
+.row[data-expandable='true'] {
+  cursor: pointer;
+}
+
+.row[data-expandable='true']:hover .status,
+.row[data-expandable='true']:focus-visible .status {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.label {
+  color: var(--as-text);
+}
+
+.status {
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.status[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.status[data-tone='danger'] {
+  color: var(--as-danger);
+}
+
+.detail {
+  padding-block: 0.25rem 0.75rem;
+  padding-inline-end: 6rem;
+  color: var(--as-text-dimmed);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  max-inline-size: 68ch;
+}
+
+.snippet {
+  margin-block-start: 0.6rem;
+}

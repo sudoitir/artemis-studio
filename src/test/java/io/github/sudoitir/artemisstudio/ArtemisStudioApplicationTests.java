@@ -9,9 +9,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Smoke test: the Spring context loads and Flyway applies {@code V1__baseline.sql}
- * cleanly against a real PostgreSQL. If this stays green, the workspace skeleton
- * is sound.
+ * Smoke test: the Spring context loads and Liquibase applies the full changelog
+ * (through {@code 008-node-ha-state.sql}) cleanly against a real PostgreSQL. If
+ * this stays green, the schema and wiring are sound.
  */
 @SpringBootTest
 @Testcontainers
@@ -25,6 +25,8 @@ class ArtemisStudioApplicationTests {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // base64 of 32 bytes — SecretVault refuses to start without it.
+        registry.add("artemis-studio.secret-key", () -> "YXJ0ZW1pcy1zdHVkaW8tdGVzdC1rZXktMzJieXRlcyE=");
     }
 
     @Test

@@ -35,6 +35,11 @@
         <testcontainers.version>2.0.5</testcontainers.version>
         <spotless.version>3.10.1</spotless.version>
         <palantir-java-format.version>2.97.0</palantir-java-format.version>
+
+        <!-- Lombok version comes from the Spring Boot BOM. MapStruct and the
+             Lombok↔MapStruct binding are not BOM-managed (ADR-0014). -->
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
         <node.version>v22.14.0</node.version>
 
@@ -60,11 +65,15 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <!-- MVC + Tomcat + SseEmitter for SSE (ADR-0003, Phase 2).
+                 No WebFlux — nothing needs reactive. -->
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-            <!-- WebClient for Jolokia HTTP calls; SSE via Flux<ServerSentEvent>. -->
+            <artifactId>spring-boot-restclient</artifactId>
+            <!-- Blocking RestClient for Jolokia (ADR-0010). Boot 4 splits this
+                 out of starter-web; it brings HttpClientSettings +
+                 ClientHttpRequestFactoryBuilder and the RestClient.Builder bean. -->
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -72,7 +81,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -81,6 +90,20 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Boilerplate + mapping (ADR-0014). Lombok is compile-only; MapStruct's
+             runtime is tiny (annotations + a helper). Processors are wired in the
+             compiler plugin below. -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
         </dependency>
 
         <!-- Schema migrations: Liquibase, XML master changelog + SQL changesets.
@@ -145,6 +168,34 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Annotation processors, in order (ADR-0014): Lombok, then the
+                 Lombok↔MapStruct binding, then the MapStruct processor. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Amapstruct.unmappedTargetPolicy=ERROR</arg>
+                    </compilerArgs>
+                </configuration>
             </plugin>
 
             <!-- Palantir Java Format via Spotless, applied at compile time:
