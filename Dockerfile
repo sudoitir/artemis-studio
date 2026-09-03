@@ -11,7 +11,7 @@ RUN npm run build
 
 # ── 2. Build the jar (frontend copied in via the `frontend` profile is skipped;
 #      we pass the already-built dist straight through instead) ───────────────
-FROM maven:3.9-eclipse-temurin-25 AS app
+FROM maven:3-eclipse-temurin-26 AS app
 WORKDIR /src
 COPY pom.xml ./
 RUN mvn -q -e -B dependency:go-offline
