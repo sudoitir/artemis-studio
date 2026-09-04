@@ -19,11 +19,19 @@ export interface GridColumn<T> {
   numeric?: boolean;
   /** The `sort` query value this column sorts by, if sortable. */
   sortKey?: string;
+  /** Declared column width in px. Also its share of any space left over. */
   width?: number;
 }
 
 const ROW_HEIGHT = 34;
 const DEFAULT_WIDTH = 160;
+
+/** The hover title for a cell, when its value is something a tooltip can say. */
+function plainText(value: unknown): string | undefined {
+  if (typeof value === 'string') return value || undefined;
+  if (typeof value === 'number' || typeof value === 'bigint') return String(value);
+  return undefined;
+}
 
 interface VirtualTableProps<T> {
   columns: GridColumn<T>[];
@@ -75,13 +83,14 @@ export function VirtualTable<T>({
 
   /**
    * Every virtualized row is its own `display: table` box, so it cannot inherit
-   * the header's column widths — both sides have to be told the same thing.
-   * Declared widths become weights against a default so the two fixed layouts
-   * resolve identically.
+   * the header's column widths — both sides have to be told the same thing, in
+   * the same unit. Declared px widths are the floor: below their sum the grid
+   * stops shrinking and {@link styles.scroll} scrolls sideways instead of
+   * squeezing columns down to clipped stumps. Above it, both fixed layouts
+   * spread the slack the same way, so the header stays over its cells.
    */
-  const totalWeight = columns.reduce((sum, c) => sum + (c.width ?? DEFAULT_WIDTH), 0);
-  const widthOf = (c: GridColumn<T>) =>
-    `${(((c.width ?? DEFAULT_WIDTH) / totalWeight) * 100).toFixed(4)}%`;
+  const widthOf = (c: GridColumn<T>) => c.width ?? DEFAULT_WIDTH;
+  const minWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
 
   const sortField = sort?.replace(/^-/, '');
   const sortDesc = sort?.startsWith('-');
@@ -98,7 +107,7 @@ export function VirtualTable<T>({
 
   return (
     <div ref={scrollRef} className={styles.scroll}>
-      <Table stickyHeader className={styles.grid} role="grid">
+      <Table stickyHeader className={styles.grid} role="grid" style={{ minWidth }}>
         <Table.Thead>
           <Table.Tr>
             {columns.map((c) => {
@@ -153,16 +162,21 @@ export function VirtualTable<T>({
                   tableLayout: 'fixed',
                 }}
               >
-                {row.getAllCells().map((cell, i) => (
-                  <Table.Td
-                    key={cell.id}
-                    data-numeric={columns[i]?.numeric || undefined}
-                    className={columns[i]?.numeric ? styles.num : undefined}
-                    style={columns[i] ? { width: widthOf(columns[i]) } : undefined}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </Table.Td>
-                ))}
+                {row.getAllCells().map((cell, i) => {
+                  const column = columns[i];
+                  return (
+                    <Table.Td
+                      key={cell.id}
+                      data-numeric={column?.numeric || undefined}
+                      className={column?.numeric ? styles.num : undefined}
+                      style={column ? { width: widthOf(column) } : undefined}
+                      // An ellipsized cell still has to be readable in full.
+                      title={column ? plainText(column.accessor(original)) : undefined}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </Table.Td>
+                  );
+                })}
               </Table.Tr>
             );
           })}
