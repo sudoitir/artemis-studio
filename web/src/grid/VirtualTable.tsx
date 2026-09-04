@@ -1,9 +1,8 @@
-import { useRef } from 'react';
-import { Table } from '@mantine/core';
-import { flexRender, tableFeatures, useTable, type ColumnDef } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useRef } from "react";
+import { tableFeatures, useTable, type ColumnDef } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
-import styles from './VirtualTable.module.css';
+import styles from "./VirtualTable.module.css";
 
 /** No client-side row features — sorting / filtering / paging are all server-side (URL params). */
 const features = tableFeatures({});
@@ -19,17 +18,24 @@ export interface GridColumn<T> {
   numeric?: boolean;
   /** The `sort` query value this column sorts by, if sortable. */
   sortKey?: string;
-  /** Declared column width in px. Also its share of any space left over. */
+  /**
+   * Fixed track width in px, for a column whose values have a known shape — a
+   * count, a routing type, a yes/no. Omit it for a column carrying free text
+   * (an address, a queue name, a client id): those share whatever space the
+   * fixed columns leave over, which is where a wide window is worth having.
+   */
   width?: number;
 }
 
-const ROW_HEIGHT = 34;
-const DEFAULT_WIDTH = 160;
+const ROW_HEIGHT = 36;
+/** How narrow a free-text column may get before the grid scrolls instead. */
+const FLEX_MIN_WIDTH = 180;
 
 /** The hover title for a cell, when its value is something a tooltip can say. */
 function plainText(value: unknown): string | undefined {
-  if (typeof value === 'string') return value || undefined;
-  if (typeof value === 'number' || typeof value === 'bigint') return String(value);
+  if (typeof value === "string") return value || undefined;
+  if (typeof value === "number" || typeof value === "bigint")
+    return String(value);
   return undefined;
 }
 
@@ -44,10 +50,18 @@ interface VirtualTableProps<T> {
 }
 
 /**
- * A virtualized data grid: TanStack Table v9 headless model rendered through
- * Mantine `Table`, row-virtualized with `@tanstack/react-virtual`. Smooth at a
- * few thousand rows. Sorting is a URL round-trip, not local state — the header
- * carries `aria-sort` from the current `sort` param and clicking it navigates.
+ * A virtualized data grid: one CSS grid track list, declared once and shared by
+ * the header row and every body row, row-virtualized with
+ * `@tanstack/react-virtual`. Smooth at a few thousand rows.
+ *
+ * <p>Columns are either fixed or free. A fixed column gets exactly its declared
+ * px; a free column gets `minmax(floor, 1fr)`, so every pixel the window has
+ * over the fixed columns' needs goes to the values that actually vary in length.
+ * Below the floors the grid stops shrinking and its own container scrolls — the
+ * page never does.
+ *
+ * <p>Sorting is a URL round-trip, not local state: the header carries
+ * `aria-sort` from the current `sort` param and clicking it navigates.
  */
 export function VirtualTable<T>({
   columns,
@@ -61,9 +75,6 @@ export function VirtualTable<T>({
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
     accessorFn: (row: Row) => c.accessor(row as T),
-    header: c.header,
-    cell: (ctx) =>
-      c.cell ? c.cell(ctx.row.original as T) : String(ctx.getValue() ?? ''),
   }));
 
   const table = useTable<Features, Row>({
@@ -82,18 +93,23 @@ export function VirtualTable<T>({
   });
 
   /**
-   * Every virtualized row is its own `display: table` box, so it cannot inherit
-   * the header's column widths — both sides have to be told the same thing, in
-   * the same unit. Declared px widths are the floor: below their sum the grid
-   * stops shrinking and {@link styles.scroll} scrolls sideways instead of
-   * squeezing columns down to clipped stumps. Above it, both fixed layouts
-   * spread the slack the same way, so the header stays over its cells.
+   * The single source of truth for column geometry. Header and body rows are
+   * both grid containers over this one track list, so they cannot drift apart
+   * the way two independently laid-out tables can. The floors add up to the
+   * grid's `min-inline-size`, which is also the width body rows resolve
+   * against — without it the tracks would overflow a grid box still pinned to
+   * the viewport, and the rows would be laid out narrower than the header.
    */
-  const widthOf = (c: GridColumn<T>) => c.width ?? DEFAULT_WIDTH;
-  const minWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
+  const template = columns
+    .map((c) => (c.width ? `${c.width}px` : `minmax(${FLEX_MIN_WIDTH}px, 1fr)`))
+    .join(" ");
+  const minInline = columns.reduce(
+    (sum, c) => sum + (c.width ?? FLEX_MIN_WIDTH),
+    0,
+  );
 
-  const sortField = sort?.replace(/^-/, '');
-  const sortDesc = sort?.startsWith('-');
+  const sortField = sort?.replace(/^-/, "");
+  const sortDesc = sort?.startsWith("-");
 
   const nextSort = (key: string): string | undefined => {
     if (sortField !== key) return key;
@@ -107,81 +123,98 @@ export function VirtualTable<T>({
 
   return (
     <div ref={scrollRef} className={styles.scroll}>
-      <Table stickyHeader className={styles.grid} role="grid" style={{ minWidth }}>
-        <Table.Thead>
-          <Table.Tr>
-            {columns.map((c) => {
-              const sortable = Boolean(c.sortKey && onSortChange);
-              const ariaSort = !sortable
-                ? undefined
-                : sortField === c.sortKey
-                  ? sortDesc
-                    ? 'descending'
-                    : 'ascending'
-                  : 'none';
-              return (
-                <Table.Th
-                  key={c.id}
-                  aria-sort={ariaSort}
-                  data-numeric={c.numeric || undefined}
-                  style={{ width: widthOf(c) }}
-                >
-                  {sortable ? (
-                    <button
-                      type="button"
-                      className={styles.sortButton}
-                      onClick={() => onSortChange?.(nextSort(c.sortKey!))}
-                    >
-                      {c.header}
-                      <span aria-hidden="true">
-                        {sortField === c.sortKey ? (sortDesc ? ' ▾' : ' ▴') : ''}
-                      </span>
-                    </button>
-                  ) : (
-                    c.header
-                  )}
-                </Table.Th>
-              );
-            })}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-          {virtualizer.getVirtualItems().map((vi) => {
-            const row = rows[vi.index];
-            const original = row.original as T;
+      <div
+        className={styles.grid}
+        role="grid"
+        aria-rowcount={rows.length + 1}
+        style={
+          {
+            "--as-cols": template,
+            "--as-min-inline": `${minInline}px`,
+            "--as-row-h": `${ROW_HEIGHT}px`,
+          } as React.CSSProperties
+        }
+      >
+        {/* Directly under the grid, not wrapped in a `rowgroup`: a sticky element
+            can only travel inside its containing block, and a wrapper sized to the
+            header itself would leave it nothing to travel through. */}
+        <div
+          className={`${styles.row} ${styles.headRow}`}
+          role="row"
+          aria-rowindex={1}
+        >
+          {columns.map((c) => {
+            const sortable = Boolean(c.sortKey && onSortChange);
+            const ariaSort = !sortable
+              ? undefined
+              : sortField === c.sortKey
+                ? sortDesc
+                  ? "descending"
+                  : "ascending"
+                : "none";
             return (
-              <Table.Tr
-                key={rowKey(original)}
-                className={onRowClick ? styles.clickable : undefined}
-                onClick={onRowClick ? () => onRowClick(original) : undefined}
-                style={{
-                  position: 'absolute',
-                  transform: `translateY(${vi.start}px)`,
-                  width: '100%',
-                  display: 'table',
-                  tableLayout: 'fixed',
-                }}
+              <div
+                key={c.id}
+                role="columnheader"
+                aria-sort={ariaSort}
+                data-numeric={c.numeric || undefined}
+                className={`${styles.cell} ${styles.headCell}`}
               >
-                {row.getAllCells().map((cell, i) => {
-                  const column = columns[i];
-                  return (
-                    <Table.Td
-                      key={cell.id}
-                      data-numeric={column?.numeric || undefined}
-                      className={column?.numeric ? styles.num : undefined}
-                      style={column ? { width: widthOf(column) } : undefined}
-                      // An ellipsized cell still has to be readable in full.
-                      title={column ? plainText(column.accessor(original)) : undefined}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </Table.Td>
-                  );
-                })}
-              </Table.Tr>
+                {sortable ? (
+                  <button
+                    type="button"
+                    className={styles.sortButton}
+                    onClick={() => onSortChange?.(nextSort(c.sortKey!))}
+                  >
+                    {c.header}
+                    <span aria-hidden="true">
+                      {sortField === c.sortKey ? (sortDesc ? " ▾" : " ▴") : ""}
+                    </span>
+                  </button>
+                ) : (
+                  c.header
+                )}
+              </div>
             );
           })}
-        </Table.Tbody>
-      </Table>
+        </div>
+
+        <div
+          className={styles.body}
+          role="rowgroup"
+          style={{ height: virtualizer.getTotalSize() }}
+        >
+          {virtualizer.getVirtualItems().map((vi) => {
+            const original = rows[vi.index].original as T;
+            return (
+              <div
+                key={rowKey(original)}
+                role="row"
+                aria-rowindex={vi.index + 2}
+                className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ""}`}
+                onClick={onRowClick ? () => onRowClick(original) : undefined}
+                style={{ transform: `translateY(${vi.start}px)` }}
+              >
+                {columns.map((c) => {
+                  const value = c.accessor(original);
+                  return (
+                    <div
+                      key={c.id}
+                      role="gridcell"
+                      data-numeric={c.numeric || undefined}
+                      className={`${styles.cell} ${c.numeric ? styles.num : ""}`}
+                      // An ellipsized cell still has to be readable in full.
+                      title={plainText(value)}
+                    >
+                      {c.cell ? c.cell(original) : String(value ?? "")}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

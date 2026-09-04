@@ -29,3 +29,4 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0017](0017-cross-node-aggregation.md) | Cross-node aggregation — one logical node per NodeID, scrape the live endpoint only |
 | [0018](0018-sse-hub.md) | SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals (annotates 0003) |
 | [0019](0019-openapi-generated-frontend-types.md) | Frontend API types generated from the backend's OpenAPI document |
+| [0020](0020-grid-columns-as-css-grid-tracks.md) | The virtualized data grid lays out on shared CSS grid tracks, not `<table>` |
