@@ -7,8 +7,7 @@
 The bundled Hawtio console manages one broker at a time and has no idea a cluster
 exists. Artemis Studio is the other thing: one instance across many clusters —
 live/backup topology, cross-node queues and addresses in a single table, safe
-message operations, and first-class request-reply tracing. Think "Lenses for
-Kafka", for Artemis.
+message operations, and first-class request-reply tracing.
 
 It works against your **existing** brokers. No `broker.xml` rewrite beyond
 enabling the management endpoints you almost certainly already run.
