@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionFactory;
 import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionSettings;
+import io.github.sudoitir.artemisstudio.broker.core.CorePool;
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import jakarta.jms.BytesMessage;
@@ -44,8 +45,10 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         UUID clusterId = UUID.randomUUID();
         queueName = "core.tx.it." + System.nanoTime();
 
-        ArtemisStudioProperties props = new ArtemisStudioProperties(null, null, null, null, null, null, null, null);
+        ArtemisStudioProperties props =
+                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
+        CorePool corePool = new CorePool(connectionFactory);
 
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))
@@ -55,7 +58,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         when(jolokiaFallback.browse(any(), any(Integer.class), any(Integer.class), any()))
                 .thenReturn(new BrowseResult(new MessageBrowser.BrowsePage(List.of(), 0), Channel.JOLOKIA));
 
-        transport = new CoreMessageTransport(connections, connectionFactory, jolokiaFallback);
+        transport = new CoreMessageTransport(connections, corePool, jolokiaFallback);
 
         seed();
     }

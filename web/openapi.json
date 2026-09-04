@@ -56,6 +56,77 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/rr/expectations/{expectationId}" : {
+      "put" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "updateExpectation",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "expectationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateExpectationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExpectationView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "deleteExpectation",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "expectationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/credentials" : {
       "put" : {
         "tags" : [ "cluster-controller" ],
@@ -145,6 +216,71 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ClusterDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/rr/expectations" : {
+      "get" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "listExpectations",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ExpectationView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "createExpectation",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateExpectationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExpectationView"
                 }
               }
             }
@@ -659,6 +795,158 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/rr/stats" : {
+      "get" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "stats",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "window",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "PT15M"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/rr/flows" : {
+      "get" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "flows",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "state",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "address",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "correlationId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FlowPageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/rr/flows/{flowId}" : {
+      "get" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "flow",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "flowId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FlowView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/queues" : {
       "get" : {
         "tags" : [ "cluster-resource-controller" ],
@@ -1145,6 +1433,66 @@
         },
         "required" : [ "value" ]
       },
+      "UpdateExpectationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "replyAddress" : {
+            "type" : "string"
+          },
+          "correlationProperty" : {
+            "type" : "string"
+          },
+          "deadlineMs" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "samplePerMin" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "capturePayload" : {
+            "type" : "boolean"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "ExpectationView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "requestAddress" : {
+            "type" : "string"
+          },
+          "replyAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "correlationProperty" : {
+            "type" : [ "string", "null" ]
+          },
+          "deadlineMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "samplePerMin" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capturePayload" : {
+            "type" : "boolean"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "capturePayload", "enabled", "id", "requestAddress", "samplePerMin" ]
+      },
       "RotateCredentialsRequest" : {
         "type" : "object",
         "properties" : {
@@ -1407,6 +1755,35 @@
         },
         "required" : [ "clusterId", "nodes" ]
       },
+      "CreateExpectationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "requestAddress" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "replyAddress" : {
+            "type" : "string"
+          },
+          "correlationProperty" : {
+            "type" : "string"
+          },
+          "deadlineMs" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "samplePerMin" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "capturePayload" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "requestAddress" ]
+      },
       "SendMessageRequest" : {
         "type" : "object",
         "properties" : {
@@ -1640,6 +2017,178 @@
           }
         },
         "required" : [ "consumerCount", "nodeId", "nodeName", "producerCount" ]
+      },
+      "AddressStatsView" : {
+        "type" : "object",
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "inFlight" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "oldestInFlightMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "completed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "timedOut" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "orphaned" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "responderDropped" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p50Ms" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "p95Ms" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "p99Ms" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "sampled" : {
+            "type" : "boolean"
+          },
+          "coverageRatio" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "windowMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "address", "completed", "inFlight", "orphaned", "responderDropped", "sampled", "timedOut", "windowMs" ]
+      },
+      "StatsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "addresses" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AddressStatsView"
+            }
+          }
+        },
+        "required" : [ "addresses" ]
+      },
+      "FlowPageView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FlowView"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "FlowView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "requestAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "replyDestination" : {
+            "type" : [ "string", "null" ]
+          },
+          "replyKind" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "correlationId" : {
+            "type" : [ "string", "null" ]
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deadlineAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "repliedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "latencyMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "events" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "$ref" : "#/components/schemas/RrEventView"
+            }
+          }
+        },
+        "required" : [ "clusterId", "id", "replyKind", "requestedAt", "state" ]
+      },
+      "RrEventView" : {
+        "type" : "object",
+        "properties" : {
+          "seq" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "ts" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "nodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "detail" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : { }
+          }
+        },
+        "required" : [ "kind", "seq", "ts" ]
       },
       "PagedViewQueueView" : {
         "type" : "object",

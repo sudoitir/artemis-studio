@@ -21,7 +21,6 @@ import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ssl.SslBundles;
 
 /**
@@ -41,18 +40,17 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
         nodeId = UUID.randomUUID();
         received.clear();
 
-        ArtemisStudioProperties props = new ArtemisStudioProperties(null, null, null, null, null, null, null, null);
+        ArtemisStudioProperties props =
+                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
 
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))
                 .thenReturn(new CoreConnectionSettings(clusterId, BROKER_USER, BROKER_PASSWORD, null, true));
 
-        @SuppressWarnings("unchecked")
-        ObjectProvider<BrokerEventSink> sink = mock(ObjectProvider.class);
-        when(sink.getObject()).thenReturn((BrokerEventSink) received::add);
+        List<BrokerEventSink> sinks = List.of(received::add);
 
-        manager = new CoreSubscriptionManager(connections, connectionFactory, new NotificationMapper(), sink);
+        manager = new CoreSubscriptionManager(connections, connectionFactory, new NotificationMapper(), sinks);
     }
 
     @AfterEach

@@ -137,6 +137,21 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Phase 5: pools the Core connection the request-reply sampler and
+             CoreMessageTransport share, instead of opening one per call
+             (ADR-0031). Version managed by spring-boot-dependencies. -->
+        <dependency>
+            <groupId>org.messaginghub</groupId>
+            <artifactId>pooled-jms</artifactId>
+        </dependency>
+
+        <!-- Phase 5: the correlator's hot in-flight-flow lookup cache, in front
+             of rr_flow (design.md D5). Version managed by spring-boot-dependencies. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <!-- OpenAPI 3 document at /v3/api-docs (+ Swagger UI). The frontend's
              web/src/api/schema.d.ts is generated from a committed snapshot of
              this document (ADR-0019, primary path taken in Phase 3). The 3.x

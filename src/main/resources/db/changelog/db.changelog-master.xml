@@ -30,5 +30,6 @@
     <include file="db/changelog/changes/008-node-ha-state.sql"  relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/009-studio-settings.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/010-broker-events.sql"   relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/011-request-reply-keys.sql" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

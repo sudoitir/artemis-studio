@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/rr/expectations/{expectationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateExpectation"];
+        post?: never;
+        delete: operations["deleteExpectation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/credentials": {
         parameters: {
             query?: never;
@@ -46,6 +62,22 @@ export interface paths {
         get: operations["list"];
         put?: never;
         post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/rr/expectations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listExpectations"];
+        put?: never;
+        post: operations["createExpectation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -188,6 +220,54 @@ export interface paths {
             cookie?: never;
         };
         get: operations["sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/rr/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/rr/flows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["flows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/rr/flows/{flowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["flow"];
         put?: never;
         post?: never;
         delete?: never;
@@ -379,6 +459,29 @@ export interface components {
         UpdateSettingRequest: {
             value: string;
         };
+        UpdateExpectationRequest: {
+            replyAddress?: string;
+            correlationProperty?: string;
+            /** Format: int32 */
+            deadlineMs?: number;
+            /** Format: int32 */
+            samplePerMin?: number;
+            capturePayload?: boolean;
+            enabled?: boolean;
+        };
+        ExpectationView: {
+            /** Format: uuid */
+            id: string;
+            requestAddress: string;
+            replyAddress?: string | null;
+            correlationProperty?: string | null;
+            /** Format: int32 */
+            deadlineMs?: number | null;
+            /** Format: int32 */
+            samplePerMin: number;
+            capturePayload: boolean;
+            enabled: boolean;
+        };
         RotateCredentialsRequest: {
             username: string;
             password: string;
@@ -462,6 +565,16 @@ export interface components {
             /** Format: uuid */
             clusterId: string;
             nodes: components["schemas"]["LogicalNodeView"][];
+        };
+        CreateExpectationRequest: {
+            requestAddress: string;
+            replyAddress?: string;
+            correlationProperty?: string;
+            /** Format: int32 */
+            deadlineMs?: number;
+            /** Format: int32 */
+            samplePerMin?: number;
+            capturePayload?: boolean;
         };
         SendMessageRequest: {
             /** Format: int32 */
@@ -556,6 +669,78 @@ export interface components {
             /** Format: int64 */
             producerCount: number;
             creationTime?: string | null;
+        };
+        AddressStatsView: {
+            address: string;
+            /** Format: int64 */
+            inFlight: number;
+            /** Format: int64 */
+            oldestInFlightMs?: number | null;
+            /** Format: int64 */
+            completed: number;
+            /** Format: int64 */
+            timedOut: number;
+            /** Format: int64 */
+            orphaned: number;
+            /** Format: int64 */
+            responderDropped: number;
+            /** Format: double */
+            p50Ms?: number | null;
+            /** Format: double */
+            p95Ms?: number | null;
+            /** Format: double */
+            p99Ms?: number | null;
+            sampled: boolean;
+            /** Format: double */
+            coverageRatio?: number | null;
+            /** Format: int64 */
+            windowMs: number;
+        };
+        StatsResponse: {
+            addresses: components["schemas"]["AddressStatsView"][];
+        };
+        FlowPageView: {
+            data: components["schemas"]["FlowView"][];
+            /** Format: int64 */
+            count: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        FlowView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            clusterId: string;
+            /** Format: uuid */
+            nodeId?: string | null;
+            requestAddress?: string | null;
+            replyDestination?: string | null;
+            replyKind: string;
+            state: string;
+            correlationId?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            deadlineAt?: string | null;
+            /** Format: date-time */
+            repliedAt?: string | null;
+            /** Format: int64 */
+            latencyMs?: number | null;
+            events?: components["schemas"]["RrEventView"][] | null;
+        };
+        RrEventView: {
+            /** Format: int64 */
+            seq: number;
+            /** Format: date-time */
+            ts: string;
+            kind: string;
+            /** Format: uuid */
+            nodeId?: string | null;
+            detail?: {
+                [key: string]: unknown;
+            } | null;
         };
         PagedViewQueueView: {
             data: components["schemas"]["QueueView"][];
@@ -899,6 +1084,54 @@ export interface operations {
             };
         };
     };
+    updateExpectation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                expectationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExpectationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExpectationView"];
+                };
+            };
+        };
+    };
+    deleteExpectation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                expectationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     rotateCredentials: {
         parameters: {
             query?: never;
@@ -974,6 +1207,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ClusterDetail"];
+                };
+            };
+        };
+    };
+    listExpectations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExpectationView"][];
+                };
+            };
+        };
+    };
+    createExpectation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExpectationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExpectationView"];
                 };
             };
         };
@@ -1273,6 +1554,83 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewSessionView"];
+                };
+            };
+        };
+    };
+    stats: {
+        parameters: {
+            query?: {
+                window?: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StatsResponse"];
+                };
+            };
+        };
+    };
+    flows: {
+        parameters: {
+            query?: {
+                state?: string;
+                address?: string;
+                correlationId?: string;
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FlowPageView"];
+                };
+            };
+        };
+    };
+    flow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FlowView"];
                 };
             };
         };

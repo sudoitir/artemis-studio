@@ -9,8 +9,8 @@ import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
-import java.util.function.Consumer;
 import javax.net.ssl.SSLException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
@@ -20,7 +20,9 @@ import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
  * (ADR-0026). A virtual thread polls {@code consumer.receive(timeout)} — never a
  * {@link jakarta.jms.MessageListener}, which deadlocks against {@code close()} on
  * the pinned 2.56 client / 2.44 broker pairing — and hands each mapped
- * {@link BrokerEvent} to the sink.
+ * {@link BrokerEvent} to every registered {@link BrokerEventSink} (Phase 5:
+ * more than one consumer of the same stream). One sink's failure is caught and
+ * logged so it never prevents delivery to another sink or to later events.
  *
  * <p>On a receive failure the client records a {@link Failed} state and stops;
  * {@link CoreSubscriptionManager} owns retry with backoff.
@@ -51,7 +53,7 @@ public final class CoreEventClient implements AutoCloseable {
     private final UUID nodeId;
     private final ActiveMQConnectionFactory factory;
     private final NotificationMapper mapper;
-    private final Consumer<BrokerEvent> sink;
+    private final List<BrokerEventSink> sinks;
 
     private volatile boolean running;
     private volatile State state;
@@ -65,12 +67,12 @@ public final class CoreEventClient implements AutoCloseable {
             UUID nodeId,
             ActiveMQConnectionFactory factory,
             NotificationMapper mapper,
-            Consumer<BrokerEvent> sink) {
+            List<BrokerEventSink> sinks) {
         this.clusterId = clusterId;
         this.nodeId = nodeId;
         this.factory = factory;
         this.mapper = mapper;
-        this.sink = sink;
+        this.sinks = sinks;
     }
 
     public void start() throws JMSException {
@@ -94,7 +96,17 @@ public final class CoreEventClient implements AutoCloseable {
             try {
                 Message message = consumer.receive(RECEIVE_TIMEOUT_MILLIS);
                 if (message != null) {
-                    sink.accept(mapper.toEvent(clusterId, nodeId, message));
+                    BrokerEvent event = mapper.toEvent(clusterId, nodeId, message);
+                    for (BrokerEventSink sink : sinks) {
+                        try {
+                            sink.accept(event);
+                        } catch (RuntimeException e) {
+                            log.warn(
+                                    "Notification sink {} rejected an event: {}",
+                                    sink.getClass().getSimpleName(),
+                                    e.toString());
+                        }
+                    }
                 }
             } catch (JMSException e) {
                 if (running) {

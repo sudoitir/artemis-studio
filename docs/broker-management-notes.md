@@ -628,3 +628,41 @@ What actually shipped, against the plan in §8-§9:
   (`TopicCoalescer`) — those views are live per-node Jolokia fan-out reads, and
   an uncoalesced chatty broker would turn push into a self-inflicted load
   problem.
+
+## 13. Phase 5 slice 0 spike — request-reply correlation
+
+`RequestReplySpikeIT` (real broker via `ArtemisIntegrationTest`) ran both reply
+patterns and a stuck-request case, answering the seven questions design.md D1
+posed before slice 1 committed to a join strategy.
+
+### Verdict table
+
+| # | Question | Verdict |
+|---|---|---|
+| 1 | Does `BINDING_ADDED` fire for a JMS `TemporaryQueue`? | Not reliably observed in this run — see note below. A separate, unrelated `BINDING_ADDED` fires for the *notification subscriber's own* non-durable queue (see note). |
+| 2 | Is temporariness distinguishable from `_AMQ_Binding_Type` alone? | **No.** Every binding observed — the durable notification-subscriber queue and (by elimination) the temp reply queue — carries `_AMQ_Binding_Type=0` (`LOCAL_QUEUE`). The enum does not encode temporary vs. durable. **Moot for the design**: Studio already knows a destination is the temp reply queue because it read `JMSReplyTo` off the browsed request message — it never needs the binding notification to say so. |
+| 3 | Does `BINDING_REMOVED` fire on `TemporaryQueue.delete()`? | **Yes**, confirmed: `BINDING_REMOVED` then `ADDRESS_REMOVED` fired for the temp queue's routing name immediately after `TemporaryQueue.delete()`. |
+| 4 | Does `MESSAGE_EXPIRED` fire, with a matching `_AMQ_Message_ID`? | **Not observed** — not because the plugin is off, but because a message sent to an address with **no bound queue and no consumer ever created** appears to be dropped at send time; no `ADDRESS_ADDED`/`BINDING_ADDED` notification fired for the stuck-request queue at all, so nothing was ever queued to expire. This is an environment/config fact (auto-create-queues), not a client-side gap — `TIMED_OUT` for this case still resolves correctly via the deadline sweep (design.md D4), which does not depend on `MESSAGE_EXPIRED` firing. |
+| 5 | What does a `QueueBrowser`/consumer-received Core message expose for `JMSReplyTo`/`JMSCorrelationID`/`JMSMessageID`/`JMSExpiration`? | All four are populated exactly as expected on a message received via a plain consumer or a `QueueBrowser`: `getJMSMessageID()` returns a real `ID:...` value (unlike notifications, where it is null — confirmed still distinct), `getJMSCorrelationID()` and `getJMSReplyTo()` round-trip whatever the sender set. |
+| 6 | Does `getJMSReplyTo().toString()` match `_AMQ_RoutingName` from `BINDING_ADDED`/`CONSUMER_CREATED`? | **Yes, confirmed.** Requester-side: `ActiveMQTemporaryQueue[2324a578-fa95-471b-bd20-03bfd0da37d1]`. The `CONSUMER_CREATED`/`MESSAGE_DELIVERED`/`BINDING_REMOVED` notifications for that queue all carried `_AMQ_RoutingName=2324a578-fa95-471b-bd20-03bfd0da37d1` — the UUID inside the `toString()` wrapper, verbatim. The join key is: extract the substring between `[` and `]` (or match `Destination.toString()` by simple `contains`) and compare to `_AMQ_RoutingName`. |
+| 7 | Does a responder's `CONSUMER_CREATED` `_AMQ_SessionName` reappear on a later event tying a delivery to that session? | Not directly exercised as a distinct scenario; `MESSAGE_DELIVERED` in this broker version does **not** carry `_AMQ_SessionName` (only `_AMQ_ConsumerName`, `_AMQ_Message_ID`, `_AMQ_RoutingName`, `_AMQ_Routing_Type` — matching §7's catalogue exactly). Tying a delivery to a specific consumer session is not possible from notifications alone; not needed by the design, which only tracks *whether a responder is present*, not which session served a given reply. |
+
+### An unrelated finding worth recording
+
+Every test run showed a `BINDING_ADDED` + `CONSUMER_CREATED` pair for a
+short-lived UUID-named queue with no relation to any address in the test. This
+is **the spike's own `activemq.notifications` subscriber** — subscribing to a
+topic address auto-creates a non-durable queue bound to it (exactly what the
+`createNonDurableQueue` permission from §7 is for). `RrNotificationObserver`
+must filter these out: any binding/consumer event whose address is
+`activemq.notifications` itself is Studio's own plumbing, not a traced
+request-reply address, and must never be mistaken for a responder or a reply
+destination.
+
+### Net changes to the plan
+
+None to the join strategy, schema, or state machine — every design.md D2/D3
+assumption held or turned out not to matter (Q2, Q7). One clarification carried
+into `RrNotificationObserver`'s implementation (task 6.2): filter out
+notifications whose address is `activemq.notifications` itself, to avoid ever
+treating the observer's own subscription queue as request-reply traffic.

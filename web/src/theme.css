@@ -38,6 +38,11 @@
   --as-graph-edge: var(--as-border);
   --as-graph-edge-behind: var(--mantine-color-yellow-5);
 
+  /* Request-reply flow state (Phase 5). */
+  --as-rr-in-flight: var(--as-text-dimmed); /* awaiting reply — normal, not a warning */
+  --as-rr-resolved: var(--as-text); /* completed */
+  --as-rr-failed: var(--mantine-color-red-6); /* timed out / orphaned / responder dropped / orphaned reply */
+
   /* Misc chrome. */
   --as-alert-dot: var(--mantine-color-red-6);
   --as-palette-bg: var(--mantine-color-default);
@@ -54,6 +59,7 @@
   --as-axis-broken: var(--mantine-color-yellow-7);
   --as-graph-edge-behind: var(--mantine-color-yellow-7);
   --as-alert-dot: var(--mantine-color-red-7);
+  --as-rr-failed: var(--mantine-color-red-7);
 }
 
 html,

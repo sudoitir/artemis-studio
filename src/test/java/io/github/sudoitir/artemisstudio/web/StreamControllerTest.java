@@ -68,6 +68,20 @@ class StreamControllerTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void theRrTopicIsAccepted() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+
+        mvc.perform(get("/api/v1/stream")
+                        .param("clusterId", clusterId.toString())
+                        .param("topics", "rr"))
+                .andExpect(request().asyncStarted());
+
+        ArgumentCaptor<Subscriber> captor = ArgumentCaptor.forClass(Subscriber.class);
+        verify(hub).register(eq(clusterId), captor.capture());
+        assertThat(captor.getValue().topics()).containsExactly("rr");
+    }
+
+    @Test
     void unknownTopicsFallBackToTheFullDefaultSet() throws Exception {
         UUID clusterId = UUID.randomUUID();
 

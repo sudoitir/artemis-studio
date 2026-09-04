@@ -10,7 +10,8 @@ export type Topic =
   | 'events'
   | 'consumers'
   | 'sessions'
-  | 'connections';
+  | 'connections'
+  | 'rr';
 
 const DEFAULT_TOPICS: Topic[] = ['topology', 'health', 'queues'];
 
@@ -67,8 +68,12 @@ export function useClusterStream(
               /* malformed frame — ignore */
             }
           });
+        } else if (topic === 'rr') {
+          source.addEventListener('rr', () => {
+            qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr'] });
+          });
         } else if (SIGNAL_TOPICS.includes(topic)) {
-          const signalTopic = topic as Exclude<Topic, 'events'>;
+          const signalTopic = topic as Exclude<Topic, 'events' | 'rr'>;
           source.addEventListener(signalTopic, () => {
             qc.invalidateQueries({ queryKey: keys.topic(clusterId, signalTopic) });
           });

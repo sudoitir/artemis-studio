@@ -143,16 +143,16 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | Correlator + flow state machine |
-| [ ] | Shared-reply-queue pattern (correlation-id join, latency) |
-| [ ] | Temp-reply-queue pattern (lifecycle from notifications) |
-| [ ] | States: AWAITING_REPLY, COMPLETED, TIMED_OUT, ORPHANED, RESPONDER_DROPPED, ORPHANED_REPLY |
-| [ ] | `rr_expectation` config — addresses, deadlines, sampling |
-| [ ] | Deadlines from `_AMQ_EXPIRE`/`JMSExpiration` else expectation |
-| [ ] | `/clusters/{id}/rr/{flows,flows/{id},stats,expectations}` |
-| [ ] | Flows screen — in-flight list, per-address latency percentiles |
-| [ ] | "Stuck requests" panel |
-| [ ] | Bounded/sampled payload capture |
+| [x] | Correlator + flow state machine |
+| [x] | Shared-reply-queue pattern (correlation-id join, latency) |
+| [x] | Temp-reply-queue pattern (lifecycle from notifications) |
+| [x] | States: AWAITING_REPLY, COMPLETED, TIMED_OUT, ORPHANED, RESPONDER_DROPPED, ORPHANED_REPLY |
+| [x] | `rr_expectation` config — addresses, deadlines, sampling |
+| [x] | Deadlines from `_AMQ_EXPIRE`/`JMSExpiration` else expectation |
+| [x] | `/clusters/{id}/rr/{flows,flows/{id},stats,expectations}` |
+| [x] | Flows screen — in-flight list, per-address latency percentiles |
+| [x] | "Stuck requests" panel |
+| [x] | Bounded/sampled payload capture |
 
 ### Phase 6 · Metrics and charts
 

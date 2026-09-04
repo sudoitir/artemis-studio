@@ -84,7 +84,7 @@ class ScrapeSchedulerTest {
     @BeforeEach
     void setUp() {
         limiter = new NodeCallLimiter(
-                new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null, null));
+                new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null, null, null));
         scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(

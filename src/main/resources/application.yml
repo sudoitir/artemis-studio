@@ -90,6 +90,14 @@ artemis-studio:
     buffer-size: 10000        # bounded write buffer; overflow is dropped and counted
     flush: 1s                 # BrokerEventWriter batch-insert interval
     coalesce-window-millis: 1000  # derived resource-view SSE signal coalescing (slice 3)
+  rr:
+    # Request-reply tracing (Phase 5). Compile-time only — no runtime override
+    # via studio_setting for this phase.
+    default-deadline-ms: 30000     # used only when neither the message nor its expectation carries a deadline
+    sweep-interval: 5s             # RrDeadlineSweep cadence
+    percentile-window: 15m         # Micrometer Timer distributionStatisticExpiry
+    payload-capture-bytes: 4096    # captured request/reply body cap when an expectation enables capture
+    retention: 7d                 # RrFlowReaper trims older rr_flow/rr_event rows
 
 logging:
   level:

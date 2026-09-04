@@ -14,7 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,7 +35,7 @@ public class CoreSubscriptionManager {
     private final BrokerConnections connections;
     private final CoreConnectionFactory connectionFactory;
     private final NotificationMapper mapper;
-    private final ObjectProvider<BrokerEventSink> sink;
+    private final List<BrokerEventSink> sinks;
 
     /** nodeId -> its running client. */
     private final Map<UUID, CoreEventClient> active = new ConcurrentHashMap<>();
@@ -53,11 +52,11 @@ public class CoreSubscriptionManager {
             BrokerConnections connections,
             CoreConnectionFactory connectionFactory,
             NotificationMapper mapper,
-            ObjectProvider<BrokerEventSink> sink) {
+            List<BrokerEventSink> sinks) {
         this.connections = connections;
         this.connectionFactory = connectionFactory;
         this.mapper = mapper;
-        this.sink = sink;
+        this.sinks = sinks;
     }
 
     /** Reconcile subscriptions for one cluster against its current endpoints. */
@@ -97,8 +96,7 @@ public class CoreSubscriptionManager {
         try {
             CoreConnectionSettings settings = connections.coreSettingsFor(clusterId);
             ActiveMQConnectionFactory factory = connectionFactory.build(settings, CoreUrl.dialable(endpoint.coreUrl()));
-            CoreEventClient client = new CoreEventClient(
-                    clusterId, nodeId, factory, mapper, e -> sink.getObject().accept(e));
+            CoreEventClient client = new CoreEventClient(clusterId, nodeId, factory, mapper, sinks);
             client.start();
             active.put(nodeId, client);
             retry.remove(nodeId);
