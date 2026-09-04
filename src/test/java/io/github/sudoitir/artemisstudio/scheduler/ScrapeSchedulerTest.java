@@ -70,6 +70,9 @@ class ScrapeSchedulerTest {
     @Mock
     MetricSampleWriter metrics;
 
+    @Mock
+    io.github.sudoitir.artemisstudio.service.SettingsService settings;
+
     NodeCallLimiter limiter;
     ScrapeCycle scrapeCycle;
     SweepCursor sweepCursor;
@@ -82,6 +85,7 @@ class ScrapeSchedulerTest {
         scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
+                settings,
                 clusters,
                 nodes,
                 connections,
@@ -216,5 +220,38 @@ class ScrapeSchedulerTest {
         verify(upsert, times(1)).upsertBatch(any());
         verify(metrics, times(1)).appendQueueSamples(any());
         verify(upsert, times(1)).reapStale(any(), any());
+    }
+
+    @Test
+    void aShortenedIntervalSchedulesTheNextRunSoonerWithoutARestart() {
+        java.util.concurrent.atomic.AtomicReference<java.time.Duration> interval =
+                new java.util.concurrent.atomic.AtomicReference<>(java.time.Duration.ofSeconds(60));
+        org.springframework.scheduling.Trigger trigger = ScrapeScheduler.fixedDelay(interval::get);
+
+        java.time.Instant last = java.time.Instant.parse("2026-09-04T10:00:00Z");
+        org.springframework.scheduling.TriggerContext ctx = new org.springframework.scheduling.TriggerContext() {
+            @Override
+            public java.time.Instant lastScheduledExecution() {
+                return last;
+            }
+
+            @Override
+            public java.time.Instant lastActualExecution() {
+                return last;
+            }
+
+            @Override
+            public java.time.Instant lastCompletion() {
+                return last;
+            }
+        };
+
+        java.time.Instant before = trigger.nextExecution(ctx);
+        interval.set(java.time.Duration.ofSeconds(5)); // operator lowers the cadence in Settings
+        java.time.Instant after = trigger.nextExecution(ctx);
+
+        org.assertj.core.api.Assertions.assertThat(before).isEqualTo(last.plusSeconds(60));
+        org.assertj.core.api.Assertions.assertThat(after).isEqualTo(last.plusSeconds(5));
+        org.assertj.core.api.Assertions.assertThat(after).isBefore(before);
     }
 }

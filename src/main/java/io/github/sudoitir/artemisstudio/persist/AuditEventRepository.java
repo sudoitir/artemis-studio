@@ -15,8 +15,11 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
     List<AuditEventEntity> findByClusterIdOrderByTsDesc(UUID clusterId);
 
     /**
-     * Filtered, newest-first page for the audit-log screen. Every filter is
-     * optional — a {@code null} argument drops that predicate.
+     * Filtered, newest-first page for the audit-log screen. String filters are
+     * optional ({@code null} drops the predicate); the caller always passes a
+     * {@code from}/{@code to} window (widened to sentinels when unset) — Postgres
+     * cannot infer the type of a timestamp parameter used only in an {@code is null}
+     * test.
      */
     @Query("""
             select e from AuditEventEntity e
@@ -24,8 +27,8 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
               and (:username is null or e.username = :username)
               and (:action is null or e.action = :action)
               and (:outcome is null or e.outcome = :outcome)
-              and (:from is null or e.ts >= :from)
-              and (:to is null or e.ts <= :to)
+              and e.ts >= :from
+              and e.ts <= :to
             order by e.ts desc
             """)
     Page<AuditEventEntity> findPage(

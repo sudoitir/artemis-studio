@@ -31,10 +31,12 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 2 complete
-(tiered scrape scheduler, cross-node aggregation + resource views, SSE hub,
-routed React shell, topology graph, virtualized queue grid, ⌘K palette,
-operator settings); Phase 3 (message operations + audit) next.
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 3 complete
+(message browse / send / move / retry / delete / expire / purge over Jolokia,
+`?dryRun=true` + server-enforced bulk cap, audit trail with actor resolution,
+audit-log screen, DLQ view; plus the Phase 2 fast-follows — OpenAPI-generated
+frontend types, a Vitest DOM test harness, and a `SchedulingConfigurer` for live
+scrape cadence); Phase 4 (Core client and push events) next.
 
 ## How to work a change
 

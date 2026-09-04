@@ -79,7 +79,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
         registrar.addTriggerTask(this::tierC, fixedDelay(settings::tierC));
     }
 
-    private static Trigger fixedDelay(java.util.function.Supplier<Duration> interval) {
+    static Trigger fixedDelay(java.util.function.Supplier<Duration> interval) {
         return context -> {
             Instant last = context.lastCompletion() != null
                     ? context.lastCompletion()

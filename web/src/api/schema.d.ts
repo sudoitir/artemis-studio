@@ -260,6 +260,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/dlq": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/consumers": {
         parameters: {
             query?: never;
@@ -300,6 +316,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -641,6 +673,29 @@ export interface components {
             /** Format: int64 */
             messagesSent: number;
         };
+        DlqAddress: {
+            address: string;
+            kind: string;
+            queues: components["schemas"]["DlqQueue"][];
+        };
+        DlqQueue: {
+            queueName: string;
+            address: string;
+            /** Format: int64 */
+            totalDepth: number;
+            perNode: components["schemas"]["DlqQueueDepth"][];
+        };
+        DlqQueueDepth: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            /** Format: int64 */
+            depth: number;
+        };
+        DlqView: {
+            addresses: components["schemas"]["DlqAddress"][];
+            settingsAvailable: boolean;
+        };
         ConsumerView: {
             /** Format: uuid */
             nodeId: string;
@@ -679,6 +734,33 @@ export interface components {
         };
         PagedViewConnectionView: {
             data: components["schemas"]["ConnectionView"][];
+            /** Format: int64 */
+            count: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        AuditEventView: {
+            /** Format: date-time */
+            ts: string;
+            username?: string | null;
+            sourceIp?: string | null;
+            requestId?: string | null;
+            action: string;
+            targetType?: string | null;
+            targetName?: string | null;
+            /** Format: int64 */
+            affectedCount?: number | null;
+            outcome: string;
+            dryRun: boolean;
+            params?: string | null;
+            error?: string | null;
+            /** Format: uuid */
+            nodeId?: string | null;
+        };
+        AuditPageView: {
+            data: components["schemas"]["AuditEventView"][];
             /** Format: int64 */
             count: number;
             /** Format: int32 */
@@ -1232,6 +1314,28 @@ export interface operations {
             };
         };
     };
+    view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DlqView"];
+                };
+            };
+        };
+    };
     consumers: {
         parameters: {
             query: {
@@ -1298,6 +1402,36 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CapabilitiesView"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: {
+                user?: string;
+                action?: string;
+                outcome?: string;
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuditPageView"];
                 };
             };
         };

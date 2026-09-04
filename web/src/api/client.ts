@@ -48,6 +48,11 @@ export type DryRunView = Schemas['DryRunView'];
 export type SendMessageRequest = Schemas['SendMessageRequest'];
 export type MessageActionRequest = Schemas['MessageActionRequest'];
 export type MessageActionKind = 'move' | 'retry' | 'delete' | 'expire';
+export type AuditEventView = Schemas['AuditEventView'];
+export type AuditPageView = Schemas['AuditPageView'];
+export type DlqView = Schemas['DlqView'];
+export type DlqAddress = Schemas['DlqAddress'];
+export type DlqQueue = Schemas['DlqQueue'];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
 export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
@@ -454,6 +459,45 @@ export function usePurgeQueue(clusterId: string, queueName: string) {
       qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
       qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
     },
+  });
+}
+
+// ── audit log (non-negotiable #3) ──────────────────────────────────────────
+
+export interface AuditFilter {
+  user?: string;
+  action?: string;
+  outcome?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function useAudit(
+  clusterId: string,
+  filter: AuditFilter = {},
+): UseQueryResult<AuditPageView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'audit', filter],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(filter)) {
+        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
+      }
+      const qs = sp.toString();
+      return request<AuditPageView>(`/clusters/${clusterId}/audit${qs ? `?${qs}` : ''}`);
+    },
+    refetchInterval: 5_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'dlq'],
+    queryFn: () => request<DlqView>(`/clusters/${clusterId}/dlq`),
+    refetchInterval: 10_000,
   });
 }
 

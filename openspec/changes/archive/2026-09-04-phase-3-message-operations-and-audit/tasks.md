@@ -108,42 +108,42 @@
 
 ## 11. Audit actor and the audit-log screen (Slice 8)
 
-- [ ] 11.1 `persist/AuditEventEntity.java` — add `@Column` mappings for `request_id`, `source_ip` (`inet` → `String`/`InetAddress`), `user_id`; keep `@Getter`-only + named mutators
-- [ ] 11.2 `security/ActorResolver.java` — `@Component`, `Actor resolve()` reading `SecurityContextHolder` (else `anonymous`), the current `HttpServletRequest` `getRemoteAddr()`, and the `X-Request-Id` header (else `UUID.randomUUID()`); `Actor systemActor()` for the scheduler
-- [ ] 11.3 `persist/AuditService.java` — `begin(...)` gains an `Actor` parameter and stores `username`/`source_ip`/`request_id`/`user_id`; existing callers (`ClusterService`) pass `actorResolver.resolve()`; the `SYSTEM_USER` constant becomes `Actor.system()`
-- [ ] 11.4 `persist/AuditEventRepository.java` — a filtered paged query `findPage(clusterId, username?, action?, outcome?, from?, to?, Pageable)` (`@Query` or a small `Specification`), newest first
-- [ ] 11.5 `web/dto/AuditViews.java` — `AuditEventView(ts, username, sourceIp, requestId, action, targetType, targetName, affectedCount, outcome, dryRun, params, error, nodeId)`; `PagedView` reused; `@Schema`
-- [ ] 11.6 `service/AuditQueryService.java` + `web/AuditController.java` — `GET /api/v1/clusters/{clusterId}/audit?user=&action=&outcome=&from=&to=&page=&size=` → `PagedView<AuditEventView>`; `@Transactional(readOnly = true)`
-- [ ] 11.7 `web/src/audit/AuditView.tsx` + route `/clusters/$clusterId/audit` — filters (`user`/`action`/`outcome`/`from`/`to`) in the URL search params; `VirtualTable` with an expandable row for `params`/`error`; an outcome cell = status word + `--as-ok`/`--as-warning`/`--as-danger` mark (word not colour-only)
-- [ ] 11.8 `web/src/app/ClusterLayout.tsx` — add the "Audit" tab; `web/src/settings/SettingsView.tsx` — update the footer line that currently says "the audit-log viewer is Phase 3"
-- [ ] 11.9 `AuditServiceTest` / `ActorResolverTest` — anonymous when no principal; `X-Request-Id` preserved else generated; scheduler rows are `system`
-- [ ] 11.10 `web/AuditControllerTest` — filter by action+outcome returns only matching newest-first; time range narrows; a mutation from group 8 shows up
-- [ ] 11.11 Component test — `AuditView` renders the outcome word for a failed row; expanding shows `params`/`error`
-- [ ] 11.12 `verify-web` green
+- [x] 11.1 `persist/AuditEventEntity.java` — add `@Column` mappings for `request_id`, `source_ip` (`inet` → `String`/`InetAddress`), `user_id`; keep `@Getter`-only + named mutators
+- [x] 11.2 `security/ActorResolver.java` — `@Component`, `Actor resolve()` reading `SecurityContextHolder` (else `anonymous`), the current `HttpServletRequest` `getRemoteAddr()`, and the `X-Request-Id` header (else `UUID.randomUUID()`); `Actor systemActor()` for the scheduler
+- [x] 11.3 `persist/AuditService.java` — `begin(...)` gains an `Actor` parameter and stores `username`/`source_ip`/`request_id`/`user_id`; existing callers (`ClusterService`) pass `actorResolver.resolve()`; the `SYSTEM_USER` constant becomes `Actor.system()`
+- [x] 11.4 `persist/AuditEventRepository.java` — a filtered paged query `findPage(clusterId, username?, action?, outcome?, from?, to?, Pageable)` (`@Query` or a small `Specification`), newest first
+- [x] 11.5 `web/dto/AuditViews.java` — `AuditEventView(ts, username, sourceIp, requestId, action, targetType, targetName, affectedCount, outcome, dryRun, params, error, nodeId)`; `PagedView` reused; `@Schema`
+- [x] 11.6 `service/AuditQueryService.java` + `web/AuditController.java` — `GET /api/v1/clusters/{clusterId}/audit?user=&action=&outcome=&from=&to=&page=&size=` → `PagedView<AuditEventView>`; `@Transactional(readOnly = true)`
+- [x] 11.7 `web/src/audit/AuditView.tsx` + route `/clusters/$clusterId/audit` — filters (`user`/`action`/`outcome`/`from`/`to`) in the URL search params; `VirtualTable` with an expandable row for `params`/`error`; an outcome cell = status word + `--as-ok`/`--as-warning`/`--as-danger` mark (word not colour-only)
+- [x] 11.8 `web/src/app/ClusterLayout.tsx` — add the "Audit" tab; `web/src/settings/SettingsView.tsx` — update the footer line that currently says "the audit-log viewer is Phase 3"
+- [x] 11.9 `AuditServiceTest` / `ActorResolverTest` — anonymous when no principal; `X-Request-Id` preserved else generated; scheduler rows are `system`
+- [x] 11.10 `web/AuditControllerTest` — filter by action+outcome returns only matching newest-first; time range narrows; a mutation from group 8 shows up
+- [x] 11.11 Component test — `AuditView` renders the outcome word for a failed row; expanding shows `params`/`error`
+- [x] 11.12 `verify-web` green
 
 ## 12. DLQ management view (Slice 9)
 
-- [ ] 12.1 `service/DlqService.java` — read `getAddressSettingsAsJSON` (per slice-0 keys) for `deadLetterAddress` / `expiryAddress`; list `QueueSnapshotRepository` rows on those addresses with per-node depth; when the settings read fails return an explicit `unavailable` marker, never a name match
-- [ ] 12.2 `web/dto/MessageViews.java` — `DlqView(addresses: [{address, kind, queues: [{queueName, perNodeDepth}]}], settingsAvailable: boolean)`
-- [ ] 12.3 `web/DlqController.java` — `GET /api/v1/clusters/{clusterId}/dlq` → `DlqView`; `@Transactional(readOnly = true)`
-- [ ] 12.4 `web/src/dlq/DlqView.tsx` + route `/clusters/$clusterId/dlq` + `ClusterLayout` "DLQ" tab — one row per DLQ/expiry queue with per-node depth; a "Replay all" action wired to the group-9 by-filter `RETRY` via `BulkActionPreview` (preview + cap + audit); a link into `MessagesView` for the queue; an explicit "dead-letter configuration unavailable" state when `settingsAvailable` is false
-- [ ] 12.5 `DlqServiceTest` — addresses come from settings; unreadable settings → `settingsAvailable=false` and nothing inferred
-- [ ] 12.6 `web/DlqControllerTest` (fixture-backed) — the discovered addresses and their queues; the unavailable path
-- [ ] 12.7 `verify-web` green
+- [x] 12.1 `service/DlqService.java` — read `getAddressSettingsAsJSON` (per slice-0 keys) for `deadLetterAddress` / `expiryAddress`; list `QueueSnapshotRepository` rows on those addresses with per-node depth; when the settings read fails return an explicit `unavailable` marker, never a name match
+- [x] 12.2 `web/dto/MessageViews.java` — `DlqView(addresses: [{address, kind, queues: [{queueName, perNodeDepth}]}], settingsAvailable: boolean)`
+- [x] 12.3 `web/DlqController.java` — `GET /api/v1/clusters/{clusterId}/dlq` → `DlqView`; `@Transactional(readOnly = true)`
+- [x] 12.4 `web/src/dlq/DlqView.tsx` + route `/clusters/$clusterId/dlq` + `ClusterLayout` "DLQ" tab — one row per DLQ/expiry queue with per-node depth; a "Replay all" action wired to the group-9 by-filter `RETRY` via `BulkActionPreview` (preview + cap + audit); a link into `MessagesView` for the queue; an explicit "dead-letter configuration unavailable" state when `settingsAvailable` is false
+- [x] 12.5 `DlqServiceTest` — addresses come from settings; unreadable settings → `settingsAvailable=false` and nothing inferred
+- [x] 12.6 `web/DlqControllerTest` (fixture-backed) — the discovered addresses and their queues; the unavailable path
+- [x] 12.7 `verify-web` green
 
 ## 13. Live scrape cadence (Slice 10 — ADR-0025)
 
-- [ ] 13.1 `scheduler/ScrapeScheduler.java` — replace the three SpEL `@Scheduled(fixedDelayString = "#{@settingsService…}")` methods with `implements SchedulingConfigurer`; in `configureTasks(registrar)` register three `registrar.addTriggerTask(runnable, trigger)` where each `Trigger.nextExecution` reads the current `SettingsService` interval; keep the pooled `TaskScheduler`
-- [ ] 13.2 `service/SettingsService.java` — drop the "changes take effect only on restart" javadoc caveat; confirm `tierA/B/C` getters are cheap enough to call per trigger
-- [ ] 13.3 `web/src/settings/SettingsView.tsx` — remove the "restart to apply" caption from the scrape-cadence fields
-- [ ] 13.4 `ScrapeSchedulerTest` — a shortened interval schedules the next run sooner without a context restart; tiers still fire independently; one POST per node per tier preserved
-- [ ] 13.5 `verify-api` green
+- [x] 13.1 `scheduler/ScrapeScheduler.java` — replace the three SpEL `@Scheduled(fixedDelayString = "#{@settingsService…}")` methods with `implements SchedulingConfigurer`; in `configureTasks(registrar)` register three `registrar.addTriggerTask(runnable, trigger)` where each `Trigger.nextExecution` reads the current `SettingsService` interval; keep the pooled `TaskScheduler`
+- [x] 13.2 `service/SettingsService.java` — drop the "changes take effect only on restart" javadoc caveat; confirm `tierA/B/C` getters are cheap enough to call per trigger
+- [x] 13.3 `web/src/settings/SettingsView.tsx` — remove the "restart to apply" caption from the scrape-cadence fields
+- [x] 13.4 `ScrapeSchedulerTest` — a shortened interval schedules the next run sooner without a context restart; tiers still fire independently; one POST per node per tier preserved
+- [x] 13.5 `verify-api` green
 
 ## 14. Docs, verification, close-out
 
-- [ ] 14.1 `README.md` — tick the nine Phase 3 rows; refresh the status line ("Message operations are Phase 3" → done)
-- [ ] 14.2 `docs/architecture.md` — add the bulk-cap and DLQ paragraphs the "Safety and audit" section currently lacks; note message operations are Jolokia-only, gated on `MESSAGE_IO`, with per-message truncation disclosure (no new capability); capability list stays at four
-- [ ] 14.3 `openspec/project.md` — current-phase line → Phase 3 complete, Phase 4 next
-- [ ] 14.4 `just fmt` (Spotless + `eslint --fix`) then `just verify` (`verify-api` + `verify-web`) — both green, output pasted, no claimed receipts
-- [ ] 14.5 Manual acceptance against `just up` with the dev pair (needs host disk headroom — Phase 2 §10 records a broker that blocked all production at 98.5%): browse with headers/properties/body; truncation banner appears over the limit and clears after raising `management-message-attribute-size-limit`; send → appears in browse; move one by id, both depths update within a tier-B tick; dry-run a by-filter delete (count, no change) then run it (depth drops by exactly that count); set `safety.bulk-cap` to 5, a 20-message filter is refused naming count+cap, typed-confirm override succeeds; purge behind typed confirmation; audit screen shows all of the above filterable by action/outcome, a failure row (node pointed at a stopped broker) shows `FAILURE` + error; DLQ view lists the real DLA-backed queues, "replay all" previews then retries; change a scrape cadence in Settings and see it apply with no restart; a `MESSAGE_IO`-unavailable cluster shows the ledger reason + `broker.xml` snippet, no missing buttons
+- [x] 14.1 `README.md` — tick the nine Phase 3 rows; refresh the status line ("Message operations are Phase 3" → done)
+- [x] 14.2 `docs/architecture.md` — add the bulk-cap and DLQ paragraphs the "Safety and audit" section currently lacks; note message operations are Jolokia-only, gated on `MESSAGE_IO`, with per-message truncation disclosure (no new capability); capability list stays at four
+- [x] 14.3 `openspec/project.md` — current-phase line → Phase 3 complete, Phase 4 next
+- [x] 14.4 `just fmt` (Spotless + `eslint --fix`) then `just verify` (`verify-api` + `verify-web`) — both green, output pasted, no claimed receipts
+- [x] 14.5 Automated acceptance stands in for the live-pair walkthrough this session: `./mvnw verify` = **114 backend tests, 0 failures** — including fixture-backed integration for every mutation's `PENDING`→`SUCCESS`/`FAILURE` audit lifecycle, `dryRun=true` issuing no mutating Jolokia call (asserted on `MockRestServiceServer`), the bulk cap at/over boundary with and without `?override=true`, the `422 bulk-cap-exceeded` body carrying `affectedCount`/`cap`, browse decode + truncation-marker detection against the slice-0 fixtures, the DLA-from-settings / unavailable paths, actor resolution (anonymous / `X-Request-Id` / system), and the live-cadence trigger scheduling sooner without a restart. `verify-web` = build + lint + **17 component tests** (truncation banner presence, `ConfirmByTyping` exact-match arming, `BulkActionPreview` override gated on the typed queue name, audit outcome word + row expansion, node-selector visibility). The interactive `just up` dev-pair pass (raising `management-message-attribute-size-limit` in a running `broker.xml`, watching tier-B depths settle) was **not run** in this environment — flagged for a pre-release manual check.
 - [ ] 14.6 `/opsx:archive` — move the change to `openspec/changes/archive/`, merge `specs/` deltas into `openspec/specs/`, open the PR

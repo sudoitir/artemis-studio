@@ -13,6 +13,8 @@ import { HomeView } from './app/HomeView.tsx';
 import { TopologyView } from './topology/TopologyView.tsx';
 import { QueuesView } from './queues/QueuesView.tsx';
 import { MessagesView } from './messages/MessagesView.tsx';
+import { AuditView } from './audit/AuditView.tsx';
+import { DlqView } from './dlq/DlqView.tsx';
 import { ResourceView } from './resources/ResourceView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
 
@@ -94,6 +96,31 @@ const messagesRoute = createRoute({
   errorComponent: RouteError,
 });
 
+function validateAuditSearch(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of ['user', 'action', 'outcome', 'from', 'to'] as const) {
+    if (typeof raw[k] === 'string' && raw[k]) out[k] = raw[k];
+  }
+  const page = Number(raw.page);
+  if (Number.isFinite(page) && page > 1) out.page = Math.floor(page);
+  return out;
+}
+
+const auditRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'audit',
+  component: AuditView,
+  validateSearch: validateAuditSearch,
+  errorComponent: RouteError,
+});
+
+const dlqRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'dlq',
+  component: DlqView,
+  errorComponent: RouteError,
+});
+
 const resourceKinds = [
   'addresses',
   'consumers',
@@ -126,6 +153,8 @@ const routeTree = rootRoute.addChildren([
     topologyRoute,
     queuesRoute,
     messagesRoute,
+    auditRoute,
+    dlqRoute,
     ...resourceRoutes,
     settingsRoute,
   ]),

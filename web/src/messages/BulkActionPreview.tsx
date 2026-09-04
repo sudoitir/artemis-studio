@@ -90,13 +90,20 @@ export function BulkActionPreview({
       size="lg"
     >
       <Stack gap="sm">
-        <TextInput
-          label="Selector"
-          placeholder="region = 'eu' AND priority > 4"
-          value={filter}
-          onChange={(e) => setFilter(e.currentTarget.value)}
-          size="xs"
-        />
+        {action === 'retry' ? (
+          <Text size="sm" c="dimmed">
+            Artemis has no by-selector retry — this replays <strong>every</strong> message on the
+            queue. Preview to see how many.
+          </Text>
+        ) : (
+          <TextInput
+            label="Selector"
+            placeholder="region = 'eu' AND priority > 4"
+            value={filter}
+            onChange={(e) => setFilter(e.currentTarget.value)}
+            size="xs"
+          />
+        )}
         {action === 'move' ? (
           <TextInput
             label="Target queue"
@@ -111,7 +118,9 @@ export function BulkActionPreview({
             size="xs"
             variant="default"
             loading={run.isPending}
-            disabled={!filter || (action === 'move' && !target)}
+            disabled={
+              (action !== 'retry' && !filter) || (action === 'move' && !target)
+            }
             onClick={doPreview}
           >
             Preview

@@ -803,6 +803,33 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/dlq" : {
+      "get" : {
+        "tags" : [ "dlq-controller" ],
+        "operationId" : "view",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DlqView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/consumers" : {
       "get" : {
         "tags" : [ "cluster-resource-controller" ],
@@ -891,6 +918,88 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/CapabilitiesView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/audit" : {
+      "get" : {
+        "tags" : [ "audit-controller" ],
+        "operationId" : "list_2",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "user",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "action",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "outcome",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuditPageView"
                 }
               }
             }
@@ -1761,6 +1870,78 @@
         },
         "required" : [ "messagesSent", "nodeId", "nodeName" ]
       },
+      "DlqAddress" : {
+        "type" : "object",
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "queues" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DlqQueue"
+            }
+          }
+        },
+        "required" : [ "address", "kind", "queues" ]
+      },
+      "DlqQueue" : {
+        "type" : "object",
+        "properties" : {
+          "queueName" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "totalDepth" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "perNode" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DlqQueueDepth"
+            }
+          }
+        },
+        "required" : [ "address", "perNode", "queueName", "totalDepth" ]
+      },
+      "DlqQueueDepth" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "depth" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "depth", "nodeId", "nodeName" ]
+      },
+      "DlqView" : {
+        "type" : "object",
+        "properties" : {
+          "addresses" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DlqAddress"
+            }
+          },
+          "settingsAvailable" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "addresses", "settingsAvailable" ]
+      },
       "ConsumerView" : {
         "type" : "object",
         "properties" : {
@@ -1863,6 +2044,78 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/ConnectionView"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "AuditEventView" : {
+        "type" : "object",
+        "properties" : {
+          "ts" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "username" : {
+            "type" : [ "string", "null" ]
+          },
+          "sourceIp" : {
+            "type" : [ "string", "null" ]
+          },
+          "requestId" : {
+            "type" : [ "string", "null" ]
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "targetType" : {
+            "type" : [ "string", "null" ]
+          },
+          "targetName" : {
+            "type" : [ "string", "null" ]
+          },
+          "affectedCount" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "outcome" : {
+            "type" : "string"
+          },
+          "dryRun" : {
+            "type" : "boolean"
+          },
+          "params" : {
+            "type" : [ "string", "null" ]
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          },
+          "nodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "action", "dryRun", "outcome", "ts" ]
+      },
+      "AuditPageView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditEventView"
             }
           },
           "count" : {
