@@ -1,5 +1,4 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 
 import { layout, LIVE_Y, BACKUP_Y } from './layout.ts';
 import type { HealthView, NodeEndpointView, TopologyView } from '../api/client.ts';
@@ -39,90 +38,92 @@ function health(over: Partial<HealthView> = {}): HealthView {
   };
 }
 
-test('a healthy pair: live above the axis, standby below, solid edge', () => {
-  const model = layout(
-    topo({
-      artemisNodeId: 'NID',
-      splitBrain: 'NONE',
-      replicationBehind: false,
-      endpoints: [
-        endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
-        endpoint({ id: 'b', name: 'backup', haRole: 'BACKUP', active: false, replicaSync: true }),
-      ],
-    }),
-    health(),
-  );
+describe('topology layout', () => {
+  it('a healthy pair: live above the axis, standby below, solid edge', () => {
+    const model = layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain: 'NONE',
+        replicationBehind: false,
+        endpoints: [
+          endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
+          endpoint({ id: 'b', name: 'backup', haRole: 'BACKUP', active: false, replicaSync: true }),
+        ],
+      }),
+      health(),
+    );
 
-  const live = model.nodes.find((n) => n.id === 'p')!;
-  const standby = model.nodes.find((n) => n.id === 'b')!;
-  assert.equal(live.position.y, LIVE_Y);
-  assert.equal(standby.position.y, BACKUP_Y);
-  assert.equal(model.edges.length, 1);
-  assert.equal(model.edges[0].style?.strokeDasharray, undefined);
-  assert.equal(model.axisStatus, 'ok');
-});
+    const live = model.nodes.find((n) => n.id === 'p')!;
+    const standby = model.nodes.find((n) => n.id === 'b')!;
+    expect(live.position.y).toBe(LIVE_Y);
+    expect(standby.position.y).toBe(BACKUP_Y);
+    expect(model.edges).toHaveLength(1);
+    expect(model.edges[0].style?.strokeDasharray).toBeUndefined();
+    expect(model.axisStatus).toBe('ok');
+  });
 
-test('replication behind: dashed edge, offset standby, behind axis', () => {
-  const model = layout(
-    topo({
-      artemisNodeId: 'NID',
-      splitBrain: 'NONE',
-      replicationBehind: true,
-      endpoints: [
-        endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
-        endpoint({ id: 'b', name: 'backup', haRole: 'BACKUP', active: false, replicaSync: false }),
-      ],
-    }),
-    health({ level: 'DEGRADED', replicationBehind: true }),
-  );
+  it('replication behind: dashed edge, offset standby, behind axis', () => {
+    const model = layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain: 'NONE',
+        replicationBehind: true,
+        endpoints: [
+          endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
+          endpoint({ id: 'b', name: 'backup', haRole: 'BACKUP', active: false, replicaSync: false }),
+        ],
+      }),
+      health({ level: 'DEGRADED', replicationBehind: true }),
+    );
 
-  assert.equal(model.edges[0].style?.strokeDasharray, '6 4');
-  assert.equal(model.nodes.find((n) => n.id === 'b')!.data.offset, true);
-  assert.equal(model.axisStatus, 'behind');
-});
+    expect(model.edges[0].style?.strokeDasharray).toBe('6 4');
+    expect(model.nodes.find((n) => n.id === 'b')!.data.offset).toBe(true);
+    expect(model.axisStatus).toBe('behind');
+  });
 
-test('split-brain critical: both boxes above the axis, no edge', () => {
-  const model = layout(
-    topo({
-      artemisNodeId: 'NID',
-      splitBrain: 'CRITICAL',
-      replicationBehind: false,
-      endpoints: [
-        endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
-        endpoint({ id: 'b', name: 'backup', haRole: 'PRIMARY', active: true }),
-      ],
-    }),
-    health({ level: 'CRITICAL', splitBrain: 'CRITICAL' }),
-  );
+  it('split-brain critical: both boxes above the axis, no edge', () => {
+    const model = layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain: 'CRITICAL',
+        replicationBehind: false,
+        endpoints: [
+          endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
+          endpoint({ id: 'b', name: 'backup', haRole: 'PRIMARY', active: true }),
+        ],
+      }),
+      health({ level: 'CRITICAL', splitBrain: 'CRITICAL' }),
+    );
 
-  assert.equal(model.nodes.length, 2);
-  assert.ok(model.nodes.every((n) => n.position.y === LIVE_Y));
-  assert.equal(model.edges.length, 0);
-  assert.equal(model.axisStatus, 'critical');
-});
+    expect(model.nodes).toHaveLength(2);
+    expect(model.nodes.every((n) => n.position.y === LIVE_Y)).toBe(true);
+    expect(model.edges).toHaveLength(0);
+    expect(model.axisStatus).toBe('critical');
+  });
 
-test('unmanaged backup: rendered as an unmanaged node type', () => {
-  const model = layout(
-    topo({
-      artemisNodeId: 'NID',
-      splitBrain: 'NONE',
-      replicationBehind: false,
-      endpoints: [
-        endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
-        endpoint({
-          id: 'b',
-          name: 'backup:61616',
-          haRole: 'BACKUP',
-          active: false,
-          jolokiaUrl: null,
-          manageable: false,
-        }),
-      ],
-    }),
-    health(),
-  );
+  it('unmanaged backup: rendered as an unmanaged node type', () => {
+    const model = layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain: 'NONE',
+        replicationBehind: false,
+        endpoints: [
+          endpoint({ id: 'p', name: 'primary', haRole: 'PRIMARY', active: true }),
+          endpoint({
+            id: 'b',
+            name: 'backup:61616',
+            haRole: 'BACKUP',
+            active: false,
+            jolokiaUrl: null,
+            manageable: false,
+          }),
+        ],
+      }),
+      health(),
+    );
 
-  const backup = model.nodes.find((n) => n.id === 'b')!;
-  assert.equal(backup.type, 'unmanaged');
-  assert.equal(backup.data.kind, 'unmanaged');
+    const backup = model.nodes.find((n) => n.id === 'b')!;
+    expect(backup.type).toBe('unmanaged');
+    expect(backup.data.kind).toBe('unmanaged');
+  });
 });

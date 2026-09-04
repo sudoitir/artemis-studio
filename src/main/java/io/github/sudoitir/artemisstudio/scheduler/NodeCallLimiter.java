@@ -15,22 +15,23 @@ import org.springframework.stereotype.Component;
  * "Studio must never be the reason a broker falls over").
  *
  * <p>One {@link Semaphore} per broker node, sized to the configured
- * calls-per-second. {@link #acquire(UUID)} is taken before every scheduler POST;
- * {@link #refill()} tops every bucket back up to the ceiling once a second. This
- * is a coarse token bucket: it bounds sustained rate and absorbs a one-second
- * burst, which is all the scrape loop can produce (a handful of batched POSTs per
- * node per tier).
+ * calls-per-second. {@link #acquire(UUID)} is taken before <em>every</em>
+ * management POST — the scrape tiers and the on-demand paths alike (message
+ * browse / operations, the capability probe): an operator hammering the message
+ * grid is throttled the same as the scheduler. {@link #refill()} tops every
+ * bucket back up to the ceiling once a second. This is a coarse token bucket: it
+ * bounds sustained rate and absorbs a one-second burst.
  */
 // ponytail: per-node Semaphore + 1s refill. Swap for Bucket4j only if precise
 // sub-second burst shaping is ever needed — same call sites.
 @Component
 @Slf4j
-public class NodeScrapeLimiter {
+public class NodeCallLimiter {
 
     private final Map<UUID, Semaphore> perNode = new ConcurrentHashMap<>();
     private volatile int permitsPerSecond;
 
-    public NodeScrapeLimiter(ArtemisStudioProperties properties) {
+    public NodeCallLimiter(ArtemisStudioProperties properties) {
         this.permitsPerSecond = Math.max(1, properties.rateLimit().managementCallsPerSecond());
     }
 

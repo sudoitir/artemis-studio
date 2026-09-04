@@ -109,8 +109,19 @@ See ADR-0003.
 ## Broker transport and capabilities
 
 See ADR-0002. A `CapabilityProbe` classifies a connection into
-`MANAGEMENT_READ` / `MANAGEMENT_WRITE` / `NOTIFICATIONS` / `MESSAGE_IO`; the UI
-gates features on the result and shows the `broker.xml` needed to unlock the rest.
+`MANAGEMENT_READ` / `MANAGEMENT_WRITE` / `NOTIFICATIONS` / `MESSAGE_IO` — four
+classes, unchanged in Phase 3; the UI gates features on the result and shows the
+`broker.xml` needed to unlock the rest.
+
+Phase 3 message operations (browse, send, move / retry / delete / expire, purge)
+are **Jolokia-only** (ADR-0021): they run entirely through `MESSAGE_IO`, one
+batched POST per operation, no transport interface — that abstraction waits for
+Phase 4's Core client, which will be the second real implementation. Bodies are
+carried as text; the broker truncates oversized body / property values at
+`management-message-attribute-size-limit` and Studio discloses that **per
+message** (a `bodyTruncated` flag + the `broker.xml` snippet to raise the limit),
+rather than as a fifth capability — slice 0 proved the limit is not readable back
+over Jolokia. Faithful binary I/O is Phase 4.
 
 HA: never trust config for who is live. `Active` is polled on every node; two
 `true` in a pair → critical split-brain alert. Failover is followed, not
@@ -144,7 +155,27 @@ bounded so tracing never becomes the load.
 Every mutating endpoint accepts `?dryRun=true` and returns the affected count
 without acting. Purge/delete require typed confirmation in the UI. Every mutation
 writes an `audit_event` in the same transaction as the command — row created
-before the broker call, updated with the outcome.
+before the broker call, updated with the outcome; a dry run is audited too
+(`dry_run = true`). The actor is resolved before authentication exists
+(ADR-0023): the security principal or the literal `anonymous`, plus the source IP
+and an `X-Request-Id` (or a generated UUID); scheduler-originated rows are
+`system`. The audit-log screen reads these back filtered by user / action /
+outcome / time, newest first.
+
+**Bulk safety cap.** A destructive message operation whose dry-run count exceeds
+`safety.bulk-cap` (a `studio_setting`, default 1000) is rejected with a `422`
+(`bulk-cap-exceeded`, carrying `affectedCount` and `cap`) unless the caller passes
+`?override=true` — which the UI reaches only behind the dry-run preview plus a
+typed confirmation of the queue name (ADR-0022). A cap that lived only in the
+browser would not be a cap. The dry-run count itself is a broker-side estimate
+(`countMessages(filter)` for a selector, the id count for an id list, the queue's
+`MessageCount` for a purge or retry-all), labelled point-in-time.
+
+**DLQ view.** Dead-letter and expiry addresses are read from the broker's own
+`getAddressSettingsAsJSON` — never guessed from names (ADR-0022, D8). The view
+lists the `queue_snapshot` rows on those addresses with per-node depth and a
+"replay all" that runs a by-selector retry through the same preview + cap gate.
+If the settings read fails the view says exactly that and infers nothing.
 
 ## Persistence notes
 

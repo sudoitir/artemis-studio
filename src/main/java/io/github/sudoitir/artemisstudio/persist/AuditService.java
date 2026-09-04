@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.persist;
 
+import io.github.sudoitir.artemisstudio.security.Actor;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +20,11 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class AuditService {
 
-    private static final String SYSTEM_USER = "system";
-
     private final AuditEventRepository events;
     private final ObjectMapper mapper;
 
     public AuditEventEntity begin(
+            Actor actor,
             String action,
             String targetType,
             String targetName,
@@ -33,8 +33,19 @@ public class AuditService {
             Map<String, ?> params,
             boolean dryRun) {
         String paramsJson = (params == null || params.isEmpty()) ? null : mapper.writeValueAsString(params);
+        Actor a = actor == null ? Actor.system() : actor;
         return events.save(new AuditEventEntity(
-                action, targetType, targetName, SYSTEM_USER, clusterId, nodeId, paramsJson, dryRun));
+                action,
+                targetType,
+                targetName,
+                a.username(),
+                a.requestId(),
+                a.sourceIp(),
+                a.userId(),
+                clusterId,
+                nodeId,
+                paramsJson,
+                dryRun));
     }
 
     public void succeed(AuditEventEntity event, long affectedCount) {

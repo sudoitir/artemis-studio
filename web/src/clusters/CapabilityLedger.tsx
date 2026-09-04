@@ -80,7 +80,7 @@ function statusWord(
   cap: CapabilityView,
 ): { text: string; tone?: 'warning' | 'danger' } {
   if (cap.status === 'AVAILABLE') {
-    if (key === 'messageIo' && /degraded/i.test(cap.reason)) {
+    if (key === 'messageIo' && /degraded|truncat|Phase 4/i.test(cap.reason)) {
       return { text: 'Limited', tone: 'warning' };
     }
     return { text: 'Available' };

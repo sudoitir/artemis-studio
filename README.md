@@ -19,7 +19,10 @@ enabling the management endpoints you almost certainly already run.
 **Alpha.** Phases 0–2 are done: connect to a live/backup pair, see the whole
 cluster in one place — the topology graph, every queue across every node in one
 virtualized grid, addresses / consumers / sessions / connections / producers,
-all updating live over SSE. Message operations (browse, move, purge) are Phase 3.
+all updating live over SSE. Message operations — browse, send, move / retry / delete /
+expire / purge, every mutation with `?dryRun=true` and a server-enforced bulk cap, a full
+audit trail, and a DLQ view — landed in Phase 3 (message I/O is Jolokia-only until the
+Core client in Phase 4).
 The TODO list below is the plan, in order.
 
 ## Quick start (dev)
@@ -116,15 +119,15 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | Browse messages; full headers, properties, body |
-| [ ] | Send message |
-| [ ] | Move / retry (DLQ replay) / delete by ids or filter |
-| [ ] | Purge queue with typed confirmation |
-| [ ] | `?dryRun=true` on every mutation → affected count |
-| [ ] | Bulk actions with a safety cap and preview |
-| [ ] | `audit_event` in the command transaction, updated with outcome |
-| [ ] | Audit log screen (filter by user, action, cluster, time) |
-| [ ] | DLQ management view |
+| [x] | Browse messages; full headers, properties, body |
+| [x] | Send message |
+| [x] | Move / retry (DLQ replay) / delete by ids or filter |
+| [x] | Purge queue with typed confirmation |
+| [x] | `?dryRun=true` on every mutation → affected count |
+| [x] | Bulk actions with a safety cap and preview |
+| [x] | `audit_event` in the command transaction, updated with outcome |
+| [x] | Audit log screen (filter by user, action, cluster, time) |
+| [x] | DLQ management view |
 
 ### Phase 4 · Core client and push events
 

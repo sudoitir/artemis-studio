@@ -21,6 +21,7 @@ import {
   useUpdateSetting,
 } from '../api/client.ts';
 import { RegisterClusterButton } from '../clusters/RegisterCluster.tsx';
+import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
 
 const FIELDS: { key: string; label: string; hint: string }[] = [
   { key: 'scrape.tier-a-interval', label: 'Tier A interval', hint: 'HA state + topology (e.g. 5s). Takes effect on restart.' },
@@ -209,8 +210,19 @@ export function SettingsView() {
         ) : null}
       </div>
 
+      <Divider />
+
+      <div>
+        <Title order={3}>Connection capabilities</Title>
+        <Text size="sm" c="dimmed" mb="sm">
+          What this connection can and cannot do over Jolokia. Rows that are not plainly available
+          expand with the reason and the exact <code>broker.xml</code> change to close the gap.
+        </Text>
+        {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} /> : null}
+      </div>
+
       <Text size="xs" c="dimmed">
-        Users, roles and OIDC are Phase 8; the audit-log viewer is Phase 3.
+        Users, roles and OIDC are Phase 8.
       </Text>
     </Stack>
   );

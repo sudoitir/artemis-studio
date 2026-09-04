@@ -7,6 +7,7 @@ import styles from './ClusterLayout.module.css';
 import { useCluster, useRediscover, type NodeEndpointView } from '../api/client.ts';
 import { useClusterStream } from '../api/stream.ts';
 import { AddManagementUrl, RemoveCluster } from '../clusters/AddManagementUrl.tsx';
+import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
 
 const VIEWS = [
   'topology',
@@ -16,6 +17,8 @@ const VIEWS = [
   'sessions',
   'connections',
   'producers',
+  'dlq',
+  'audit',
   'settings',
 ] as const;
 
@@ -50,6 +53,10 @@ export function ClusterLayout() {
     data.health.level === 'UNKNOWN' ? 'not yet contacted' : 'reachable',
   ].join(' · ');
   const critical = data.health.splitBrain === 'CRITICAL';
+  // notifications is UNKNOWN until Phase 4 by design — don't nag about it here.
+  const capsNeedingSetup = (['managementRead', 'managementWrite', 'messageIo'] as const).some(
+    (k) => data.capabilities[k].status !== 'AVAILABLE',
+  );
 
   return (
     <Stack gap="lg">
@@ -92,6 +99,18 @@ export function ClusterLayout() {
         </Alert>
       ) : null}
 
+      {capsNeedingSetup ? (
+        <Alert color="gray" variant="light" title="Some broker capabilities need setup">
+          <Stack gap="xs">
+            <Text size="sm">
+              One or more features are limited by this connection. Each row below expands with the
+              reason and the <code>broker.xml</code> change that closes the gap.
+            </Text>
+            <CapabilityLedger capabilities={data.capabilities} />
+          </Stack>
+        </Alert>
+      ) : null}
+
       <nav className={styles.viewStrip} aria-label="Cluster views">
         {VIEWS.map((v) => (
           <Link
@@ -100,7 +119,7 @@ export function ClusterLayout() {
             className={styles.viewTab}
             activeProps={{ 'data-active': 'true' }}
           >
-            {v[0].toUpperCase() + v.slice(1)}
+            {v === 'dlq' ? 'DLQ' : v[0].toUpperCase() + v.slice(1)}
           </Link>
         ))}
       </nav>

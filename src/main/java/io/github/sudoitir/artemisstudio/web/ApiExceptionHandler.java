@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.web;
 
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException.Kind;
+import io.github.sudoitir.artemisstudio.service.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import java.net.URI;
 import java.util.List;
@@ -36,6 +37,16 @@ class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problem.setType(URI.create(TYPE_BASE + "not-found"));
         problem.setTitle("Resource not found");
+        return problem;
+    }
+
+    @ExceptionHandler(BulkCapExceededException.class)
+    ProblemDetail onBulkCap(BulkCapExceededException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "bulk-cap-exceeded"));
+        problem.setTitle("Safety cap exceeded");
+        problem.setProperty("affectedCount", e.affectedCount());
+        problem.setProperty("cap", e.cap());
         return problem;
     }
 

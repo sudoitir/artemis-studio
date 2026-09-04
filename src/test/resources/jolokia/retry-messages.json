@@ -1,0 +1,9 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:address=\"DLQ\",broker=\"primary\",component=addresses,queue=\"DLQ\",routing-type=\"anycast\",subcomponent=queues",
+        "type": "exec",
+        "operation": "retryMessages()"
+    },
+    "value": 0,
+    "status": 200
+}

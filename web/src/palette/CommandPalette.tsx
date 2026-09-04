@@ -12,6 +12,8 @@ const VIEWS = [
   'sessions',
   'connections',
   'producers',
+  'dlq',
+  'audit',
   'settings',
 ] as const;
 

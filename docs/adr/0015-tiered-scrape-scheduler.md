@@ -32,7 +32,7 @@ We will replace `HaRefreshTask` with a `scheduler/ScrapeScheduler` running three
 independent `@Scheduled` methods on a pooled `TaskScheduler` (virtual-thread
 executor; `spring.task.scheduling` pool config). The intervals stay
 `artemis-studio.scrape.tier-{a,b,c}-interval`, overridable at runtime via
-`studio_setting` (ADR-0020 area / `studio-settings` capability).
+`studio_setting` (ADR-0021 area / `studio-settings` capability).
 
 - **Tier A** — per manageable node, one `JolokiaBrokerClient.batch()` POST:
   HA attributes + `listNetworkTopology()` + broker counters. Reproduces

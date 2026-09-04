@@ -1,0 +1,41 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:address=\"PHASE3.SRC\",broker=\"primary\",component=addresses,queue=\"PHASE3.SRC\",routing-type=\"anycast\",subcomponent=queues",
+        "arguments": [
+            "orderId = 'BIG-1'"
+        ],
+        "type": "exec",
+        "operation": "browse(java.lang.String)"
+    },
+    "value": [
+        {
+            "address": "PHASE3.SRC::PHASE3.SRC",
+            "ShortProperties": null,
+            "messageID": "146",
+            "priority": 0,
+            "type": 3,
+            "userID": "",
+            "redelivered": false,
+            "ByteProperties": null,
+            "LongProperties": null,
+            "IntProperties": null,
+            "durable": true,
+            "protocol": "CORE",
+            "persistentSize": 8184,
+            "StringProperties": {
+                "note": "oversized",
+                "orderId": "BIG-1",
+                "region": "eu"
+            },
+            "DoubleProperties": null,
+            "expiration": 0,
+            "text": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP, + 3744 more",
+            "PropertiesText": "{note=oversized, orderId=BIG-1, region=eu}",
+            "largeMessage": false,
+            "BooleanProperties": null,
+            "FloatProperties": null,
+            "timestamp": 1788501365987
+        }
+    ],
+    "status": 200
+}

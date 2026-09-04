@@ -44,4 +44,25 @@ public final class BrokerXmlSnippets {
     public static String forNotifications() {
         return NOTIFICATION_PLUGIN + "\n" + NOTIFICATIONS_SECURITY_SETTING;
     }
+
+    /**
+     * Raises the per-message cap on management-returned body/property data.
+     * Artemis truncates anything past {@code management-message-attribute-size-limit}
+     * (256 bytes by default) and appends a literal {@code , + N more} marker;
+     * {@code -1} disables the cap so {@code browse()} returns the whole body.
+     * Shown in the message detail panel next to a truncated body — this is a
+     * per-message disclosure, not a capability gate (slice 0 proved the limit is
+     * not readable back over Jolokia).
+     */
+    public static final String MESSAGE_ATTRIBUTE_SIZE_LIMIT = """
+            <address-settings>
+              <address-setting match="#">
+                <management-message-attribute-size-limit>-1</management-message-attribute-size-limit>
+              </address-setting>
+            </address-settings>
+            """;
+
+    public static String forMessageBodyLimit() {
+        return MESSAGE_ATTRIBUTE_SIZE_LIMIT;
+    }
 }

@@ -51,6 +51,43 @@ types in `web/src/api/client.ts` for the new DTOs **plus** `assertShape` /
 recorded contingency below. `springdoc` + generation is filed as the first
 Phase 3 chore. The decision above stands; only its rollout slipped.
 
+## Status update (Phase 3 implementation)
+
+**The primary path is now in effect.**
+
+- `springdoc-openapi-starter-webmvc-ui:3.1.0` is on the backend, resolves and
+  compiles cleanly against Spring Boot 4.1, and serves `/v3/api-docs` + Swagger
+  UI. `config/OpenApiConfig` pins `info` and drops the generated server list so
+  the document is host-independent.
+- The Phase 2 snapshot problem — the generation chain needing a running server —
+  is solved without a build plugin: `OpenApiSnapshotTest` (MockMvc over the
+  existing `PostgresIntegrationTest`) fetches `/v3/api-docs`, key-sorts it, and
+  writes `web/openapi.json`, failing if the committed file differs. Green and
+  deterministic.
+- `openapi-typescript` is a dev dependency; `npm run gen:api` writes
+  `web/src/api/schema.d.ts` from the committed snapshot and runs inside
+  `npm run build`.
+- `web/src/api/client.ts` is rewritten onto `components["schemas"]` aliases;
+  every hand-written DTO interface and the `assertShape` / `assertPaged` guards
+  are deleted; `ApiError`, the query-key helpers, and a generic `PagedView<T>`
+  wrapper remain.
+- **`swagger-core` requiredness caveat.** swagger-core 2.2.52 marks a schema
+  property required only when its Java field carries a signal it recognises, so
+  the response DTOs (`ClusterViews`, `ResourceViews`, `SettingsViews`) now carry
+  `@Schema(requiredMode = REQUIRED)` on every always-present component and
+  `@Schema(nullable = true)` on the nullable ones. `ClusterController.register`
+  (a `ResponseEntity<Object>`) carries `@ApiResponse` so `RegisterPreview` and
+  `ClusterDetail` are emitted. Every DTO added from here — `MessageViews`,
+  `AuditViews`, `DlqView` — follows the same convention: annotate every response
+  field, `nullable = true` for the ones that can be null.
+- **Drift is caught two ways.** `mvn verify` runs `OpenApiSnapshotTest`, which
+  rewrites `web/openapi.json` on any contract change; CI's existing backend
+  `git diff --exit-code` then fails. The frontend job runs `npm run build`
+  (regenerating `schema.d.ts`) then `git diff --exit-code src/api/schema.d.ts`.
+
+The decision above is unchanged; this records that its rollout completed in
+Phase 3 and how the snapshot and the requiredness annotations work.
+
 ## Consequences
 
 - One source of truth for the wire contract: the Java controllers and DTOs.

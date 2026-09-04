@@ -53,6 +53,16 @@ public class AuditEventEntity {
     @Column(name = "username", updatable = false)
     private String username;
 
+    @Column(name = "request_id", updatable = false)
+    private String requestId;
+
+    @JdbcTypeCode(SqlTypes.INET)
+    @Column(name = "source_ip", updatable = false)
+    private String sourceIp;
+
+    @Column(name = "user_id", updatable = false)
+    private UUID userId;
+
     @Column(name = "outcome", nullable = false)
     private String outcome = "PENDING";
 
@@ -77,6 +87,9 @@ public class AuditEventEntity {
             String targetType,
             String targetName,
             String username,
+            String requestId,
+            String sourceIp,
+            UUID userId,
             UUID clusterId,
             UUID nodeId,
             String params,
@@ -85,6 +98,9 @@ public class AuditEventEntity {
         this.targetType = targetType;
         this.targetName = targetName;
         this.username = username;
+        this.requestId = requestId;
+        this.sourceIp = sourceIp;
+        this.userId = userId;
         this.clusterId = clusterId;
         this.nodeId = nodeId;
         this.params = params;

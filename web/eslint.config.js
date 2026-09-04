@@ -25,4 +25,11 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Test files and test helpers legitimately export non-components and use
+    // Node globals (MSW server lifecycle, jsdom shims).
+    files: ['src/test/**', '**/*.test.{ts,tsx}'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 );

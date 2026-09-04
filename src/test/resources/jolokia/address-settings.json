@@ -1,0 +1,12 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+        "arguments": [
+            "#"
+        ],
+        "type": "exec",
+        "operation": "getAddressSettingsAsJSON(java.lang.String)"
+    },
+    "value": "{\"addressFullMessagePolicy\":\"PAGE\",\"maxSizeBytes\":-1,\"maxReadPageBytes\":20971520,\"maxReadPageMessages\":-1,\"pageLimitBytes\":-1,\"pageLimitMessages\":-1,\"maxSizeMessages\":-1,\"pageSizeBytes\":10485760,\"messageCounterHistoryDayLimit\":10,\"redeliveryDelay\":0,\"deadLetterAddress\":\"DLQ\",\"expiryAddress\":\"ExpiryQueue\",\"slowConsumerThresholdMeasurementUnit\":\"MESSAGES_PER_SECOND\",\"autoCreateQueues\":true,\"autoDeleteQueues\":false,\"autoCreateAddresses\":true,\"autoDeleteAddresses\":false,\"managementBrowsePageSize\":200}",
+    "status": 200
+}

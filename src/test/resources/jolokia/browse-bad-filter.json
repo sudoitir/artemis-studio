@@ -1,0 +1,13 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:address=\"PHASE3.SRC\",broker=\"primary\",component=addresses,queue=\"PHASE3.SRC\",routing-type=\"anycast\",subcomponent=queues",
+        "arguments": [
+            "this is not a filter =="
+        ],
+        "type": "exec",
+        "operation": "browse(java.lang.String)"
+    },
+    "error_type": "java.lang.IllegalStateException",
+    "error": "java.lang.IllegalStateException : AMQ229020: Invalid filter: this is not a filter ==",
+    "status": 500
+}

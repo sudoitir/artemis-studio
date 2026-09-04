@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.mapper.ResourceViewMapper;
 import io.github.sudoitir.artemisstudio.mapper.ResourceViewMapper.NodeRef;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.AddressView;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.ConnectionView;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.ConsumerView;
@@ -47,6 +48,7 @@ public class PagedListService {
     private final BrokerConnections connections;
     private final BrokerListOps listOps;
     private final ResourceViewMapper mapper;
+    private final NodeCallLimiter limiter;
 
     @Transactional(readOnly = true)
     public PagedView<AddressView> addresses(UUID clusterId, ResourceQuery query) {
@@ -115,6 +117,7 @@ public class PagedListService {
         BrokerConnectionException firstError = null;
         for (BrokerNodeEntity node : servingNodes) {
             try {
+                limiter.acquire(node.getId());
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
                 ListPage page = listOps.fetch(client, kind.op(), "", -1, -1);
                 if (page.data() != null && page.data().isArray()) {
@@ -125,6 +128,10 @@ public class PagedListService {
                 if (firstError == null) {
                     firstError = e;
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new BrokerConnectionException(
+                        BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
             }
         }
         if (merged.isEmpty() && firstError != null) {

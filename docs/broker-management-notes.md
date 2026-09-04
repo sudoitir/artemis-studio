@@ -465,3 +465,110 @@ The host running this spike was disk-constrained (98.5% used), which
 all message production. Anything in Phase 2 that needs non-zero queue depths
 (the manual acceptance pass, a re-check of numeric predicates) needs disk
 headroom on the host. `./mvnw verify` (Testcontainers) also needs free disk.
+
+---
+
+## 11. Phase 3 surface checks — message operations
+
+Verified against the same dev pair (`apache/activemq-artemis:2.44.0`, primary
+`:8161`, Jolokia). Two anycast queues created for the run: `PHASE3.SRC` (source)
+and `PHASE3.DST` (move target). Messages sent via the queue MBean's
+`sendMessage(...)`. Fixtures captured verbatim under `src/test/resources/jolokia/`:
+`browse.json`, `browse-truncated.json`, `browse-bad-filter.json`,
+`count-messages.json`, `move-messages.json`, `remove-messages.json`,
+`remove-all-messages.json`, `retry-messages.json`, `send-message.json`,
+`address-settings.json`.
+
+Queue MBean object name (composite, `::`-free — the `address` *field* in a
+browsed row is `PHASE3.SRC::PHASE3.SRC`, the object name is not):
+
+```
+org.apache.activemq.artemis:address="PHASE3.SRC",broker="primary",component=addresses,queue="PHASE3.SRC",routing-type="anycast",subcomponent=queues
+```
+
+`BrokerMBeans.queue(brokerObjectName, address, queue, routingType)` already
+produces exactly this.
+
+### 11.1 Operation signatures (from the queue MBean's `list` metadata)
+
+| Operation | Signature | Returns |
+|---|---|---|
+| browse (all) | `browse()` | `CompositeData[]` |
+| browse (filter) | `browse(java.lang.String)` | `CompositeData[]` |
+| browse (page) | `browse(int page, int pageSize)` | `CompositeData[]` |
+| **browse (page + filter)** | `browse(int page, int pageSize, java.lang.String filter)` | `CompositeData[]` |
+| count | `countMessages()` / `countMessages(java.lang.String filter)` | `long` |
+| count grouped | `countMessages(java.lang.String filter, java.lang.String groupByProperty)` | JSON `String` |
+| move by id | `moveMessage(long id, java.lang.String targetQueue[, boolean rejectDuplicates])` | `boolean` |
+| move by filter | `moveMessages(java.lang.String filter, java.lang.String targetQueue[, boolean rejectDuplicates])` | `int` (count) |
+| delete one | `removeMessage(long id)` | `boolean` |
+| delete by filter | `removeMessages(java.lang.String filter)` | `int` (count) |
+| purge | `removeAllMessages()` | `int` (count) |
+| retry one | `retryMessage(long id)` | `boolean` |
+| retry all | `retryMessages()` | `int` (count) |
+| expire one | `expireMessage(long id)` | `boolean` |
+| expire by filter | `expireMessages(java.lang.String filter)` | `int` (count) |
+| send | `sendMessage(java.util.Map headers, int type, java.lang.String body, boolean durable, java.lang.String user, java.lang.String password)` | `String` (new message id) |
+
+`getAddressSettingsAsJSON(java.lang.String match)` is on the **broker** MBean.
+
+### 11.2 Verdict table
+
+| Question | Answer | Consequence for Phase 3 |
+|---|---|---|
+| Is `browse()`'s `value` a JSON string (double-decode) or a real array? | **Real JSON array.** Unlike the six `list*` ops, `browse*` returns a `CompositeData[]` that Jolokia serialises directly — no second `JSON.parse`. `BrokerListOps`' double-decode does **not** apply; `MessageBrowser` reads `entry.value()` as an array node. | `MessageBrowser.decodeBrowse` iterates `value` directly. |
+| Does `browse()` page server-side? | **Yes.** `browse(int page, int pageSize, String filter)` — **1-based** page, returns that slice. Verified: `browse(1,3,"")` → ids [78,84,90], `browse(2,3,"")` → [95,102,108]. There is also a hard server cap, `managementBrowsePageSize` (200 here, from `getAddressSettingsAsJSON`) — `browse()` never returns more than that regardless of `pageSize`. | Studio pages at the broker via `browse(page,size,filter)`; no Studio-side slicing needed. `artemis-studio.browse.max-rows` (task 2.5) is **not needed** — the broker already caps. Drop task 2.5 / the `browse.max-rows` setting. |
+| Browsed-message field set, and which key holds the body? | Per row: `messageID` (String), `address` (`"ADDR::QUEUE"`), `type` (int; 3 = TEXT), `priority` (int), `durable` (bool), `expiration` (long), `timestamp` (long), `userID` (String, `""` when unset), `redelivered` (bool), `protocol` (`"CORE"`), `persistentSize` (int), `largeMessage` (bool), `PropertiesText` (String rendering), and eight typed property maps — `StringProperties`, `IntProperties`, `LongProperties`, `DoubleProperties`, `FloatProperties`, `ShortProperties`, `ByteProperties`, `BooleanProperties` (each `null` when empty). **Body:** `text` for `type == 3` (TEXT). Non-text bodies are not exercised here — Jolokia has no faithful bytes path (Phase 4). | `MessageSummaryView` / `MessageDetailView` fields map straight from this. `bodyPreview` = `text`. There is **no richer "detail" call** than `browse` — a single-message read is `browse(1, N, filter)` scanned for the `messageID` in memory; detail returns the same (still-truncated) `text`, just isolated. |
+| How is body truncation signalled? | **A literal suffix `, + <N> more` appended to the truncated string value.** The oversized message (4000-char body) came back as `text` of length 269 ending `"…PPPP, + 3744 more"`. Visible prefix = `269 − len(", + 3744 more")` = **256** = the broker default `management-message-attribute-size-limit` on 2.44. Detection: the value matches `/, \+ \d+ more$/`. Approx original length = `visiblePrefix + N`. This applies to **any** attribute Jolokia returns (property values too), not just the body. | `MessageBrowser` sets `bodyTruncated = true` when `text` (or any property value) matches that suffix, and reports `truncationLimit ≈ text.length − suffix.length` from a truncated row. There is **no need to `- [ ]` a heuristic ceiling comment** — the `, + N more` marker is an explicit broker signal, not a guess. |
+| Does `getAddressSettingsAsJSON` expose `managementMessageAttributeSizeLimit`? | **No.** `getAddressSettingsAsJSON("#")` returns `addressFullMessagePolicy, maxSizeBytes, maxReadPageBytes, maxReadPageMessages, pageLimitBytes, pageLimitMessages, maxSizeMessages, pageSizeBytes, messageCounterHistoryDayLimit, redeliveryDelay, deadLetterAddress, expiryAddress, slowConsumerThresholdMeasurementUnit, autoCreateQueues, autoDeleteQueues, autoCreateAddresses, autoDeleteAddresses, managementBrowsePageSize` — and **nothing** for the attribute-size limit. No broker MBean attribute or operation exposes it either (checked the full `list`). Its `value` **is** a double-encoded JSON string (unlike `browse`). | **`MESSAGE_BODY_FULL` cannot be probed.** It becomes *observed*, not probed: `UNKNOWN` until a browse actually returns a `, + N more` row, then `UNAVAILABLE` with the observed approximate limit + the `broker.xml` snippet. It can never be asserted `AVAILABLE` over Jolokia (you can't prove no message is truncated without reading them all). **This changes ADR-0021 and the `broker-capabilities` delta** — see §11.3. |
+| Do `deadLetterAddress` / `expiryAddress` come from `getAddressSettingsAsJSON`? | **Yes** — `"DLQ"` and `"ExpiryQueue"` here, per-address (pass the address; `"#"` gives the default). | `DlqService` reads them from `getAddressSettingsAsJSON(address)` — no name heuristic, as designed (D9). |
+| Do `moveMessages` / `removeMessages` / `retryMessages` / `expireMessages` return the affected count? | **Yes, the by-filter and bulk forms return `int` = the count.** Verified: `moveMessages("region='us'","PHASE3.DST")` → `1`; `removeMessages("orderId='A-1'")` → `1`; `removeAllMessages()` → `3`; `retryMessages()` → `0`. The **by-id** forms (`moveMessage`, `removeMessage`, `retryMessage`, `expireMessage`) return `boolean` per call. | Audit `affected_count` for a by-filter op = the broker's returned `int`. For a by-id op = the number of `true` results. |
+| Does `sendMessage` return the new message id? | **Yes** — the id as a **String** (`"33"`, `"152"`, …). | `SendMessageResult` carries it; audit `affected_count = 1`. |
+| Do message **filter** expressions support numeric predicates? | **Yes.** `countMessages("AMQSize > 1000")` → `1` correctly. This is a real Artemis *core filter expression* (`AMQSize`, `AMQPriority`, `AMQTimestamp`, `AMQExpiration`, `AMQUserID`, `AMQDurable`, plus any property name) — **not** the broken `list*` options `sortColumn` / `GREATER_THAN` from §10. Message-op filters are a different, working code path. | The by-filter UI can safely offer `>`, `<`, `=` on `AMQSize` / `AMQPriority` / `AMQTimestamp` and on property names. |
+| Invalid filter behaviour? | `browse("this is not a filter ==")` → `status: 500`, `error_type: java.lang.IllegalStateException`, `error: "AMQ229020: Invalid filter: …"`. Per-entry status in a batch (§5) isolates it. | `MessageBrowser` maps an `AMQ229020` / `IllegalStateException` on a filter arg to a **400 `invalid-value`** problem (operator typo), not a 502 broker error. `ApiExceptionHandler` already maps `IllegalArgumentException` → 400 — throw that. |
+
+### 11.3 `MESSAGE_BODY_FULL` — probed → observed (ADR-0021 correction)
+
+The design assumed the broker's default `management-message-attribute-size-limit`
+could be read and the capability set from it. It cannot (verdict table above).
+The honest, implementable model:
+
+- **`UNKNOWN` by default** — reason: *"Studio learns whether message bodies are
+  truncated only by browsing; no message has been browsed yet."* Ships the
+  `broker.xml` snippet regardless so the operator can pre-emptively raise the
+  limit.
+- **`UNAVAILABLE` once observed** — the first browse (any queue on the
+  connection) that returns a `, + N more` value flips it, with reason *"the
+  broker truncated a message body/property at ≈256 bytes; raise
+  `management-message-attribute-size-limit`"* and the snippet. The observed limit
+  is remembered on the (in-memory) capability the same way other probe results
+  are.
+- **Never `AVAILABLE` over Jolokia** — absence of truncation in the messages seen
+  so far is not proof. When the Phase 4 Core client is connected,
+  `MESSAGE_BODY_FULL` reads `AVAILABLE` because the Core channel returns full
+  bodies irrespective of the management limit.
+- Per-message `bodyTruncated` on the browse response is the primary, always-present
+  signal; the capability row is the connection-level roll-up of "we have seen
+  truncation here".
+
+`broker/CapabilityProbe` therefore does **not** call `getAddressSettingsAsJSON`
+for this capability. `DlqService` still does, for `deadLetterAddress` /
+`expiryAddress`.
+
+### 11.4 Net changes to the plan from Slice 0
+
+1. `browse` returns a **plain array**, not a double-encoded string — simpler
+   `decodeBrowse`.
+2. `browse(int,int,String)` **pages at the broker** — drop task **2.5** and the
+   `artemis-studio.browse.max-rows` setting; the broker's `managementBrowsePageSize`
+   is the ceiling. `MessageService.browse` passes `(page, size, filter)` straight
+   through.
+3. Truncation has an **explicit marker** (`, + N more`) — no length-heuristic
+   ceiling comment needed.
+4. **`MESSAGE_BODY_FULL` is observed, not probed** — ADR-0021's Decision and the
+   `broker-capabilities` spec delta are corrected per §11.3 (three states:
+   `UNKNOWN` default, `UNAVAILABLE` once a truncated value is seen, `AVAILABLE`
+   only with the Phase 4 Core channel).
+5. Single-message **detail == a scoped browse** — there is no richer call; the
+   detail endpoint runs `browse(1, N, filter)` and picks the row by `messageID`.
+6. Invalid filter → map to **400**, not 502.

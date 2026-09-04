@@ -1,0 +1,124 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:address=\"PHASE3.SRC\",broker=\"primary\",component=addresses,queue=\"PHASE3.SRC\",routing-type=\"anycast\",subcomponent=queues",
+        "arguments": [
+            1,
+            50,
+            ""
+        ],
+        "type": "exec",
+        "operation": "browse(int,int,java.lang.String)"
+    },
+    "value": [
+        {
+            "address": "PHASE3.SRC::PHASE3.SRC",
+            "ShortProperties": null,
+            "messageID": "127",
+            "priority": 0,
+            "type": 3,
+            "userID": "",
+            "redelivered": false,
+            "ByteProperties": null,
+            "LongProperties": null,
+            "IntProperties": null,
+            "durable": true,
+            "protocol": "CORE",
+            "persistentSize": 169,
+            "StringProperties": {
+                "orderId": "A-1",
+                "region": "eu"
+            },
+            "DoubleProperties": null,
+            "expiration": 0,
+            "text": "order body 1",
+            "PropertiesText": "{orderId=A-1, region=eu}",
+            "largeMessage": false,
+            "BooleanProperties": null,
+            "FloatProperties": null,
+            "timestamp": 1788501365977
+        },
+        {
+            "address": "PHASE3.SRC::PHASE3.SRC",
+            "ShortProperties": null,
+            "messageID": "133",
+            "priority": 0,
+            "type": 3,
+            "userID": "",
+            "redelivered": false,
+            "ByteProperties": null,
+            "LongProperties": null,
+            "IntProperties": null,
+            "durable": true,
+            "protocol": "CORE",
+            "persistentSize": 169,
+            "StringProperties": {
+                "orderId": "A-2",
+                "region": "us"
+            },
+            "DoubleProperties": null,
+            "expiration": 0,
+            "text": "order body 2",
+            "PropertiesText": "{orderId=A-2, region=us}",
+            "largeMessage": false,
+            "BooleanProperties": null,
+            "FloatProperties": null,
+            "timestamp": 1788501365981
+        },
+        {
+            "address": "PHASE3.SRC::PHASE3.SRC",
+            "ShortProperties": null,
+            "messageID": "138",
+            "priority": 0,
+            "type": 3,
+            "userID": "",
+            "redelivered": false,
+            "ByteProperties": null,
+            "LongProperties": null,
+            "IntProperties": null,
+            "durable": true,
+            "protocol": "CORE",
+            "persistentSize": 169,
+            "StringProperties": {
+                "orderId": "A-3",
+                "region": "eu"
+            },
+            "DoubleProperties": null,
+            "expiration": 0,
+            "text": "order body 3",
+            "PropertiesText": "{orderId=A-3, region=eu}",
+            "largeMessage": false,
+            "BooleanProperties": null,
+            "FloatProperties": null,
+            "timestamp": 1788501365983
+        },
+        {
+            "address": "PHASE3.SRC::PHASE3.SRC",
+            "ShortProperties": null,
+            "messageID": "146",
+            "priority": 0,
+            "type": 3,
+            "userID": "",
+            "redelivered": false,
+            "ByteProperties": null,
+            "LongProperties": null,
+            "IntProperties": null,
+            "durable": true,
+            "protocol": "CORE",
+            "persistentSize": 8184,
+            "StringProperties": {
+                "note": "oversized",
+                "orderId": "BIG-1",
+                "region": "eu"
+            },
+            "DoubleProperties": null,
+            "expiration": 0,
+            "text": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP, + 3744 more",
+            "PropertiesText": "{note=oversized, orderId=BIG-1, region=eu}",
+            "largeMessage": false,
+            "BooleanProperties": null,
+            "FloatProperties": null,
+            "timestamp": 1788501365987
+        }
+    ],
+    "status": 200
+}

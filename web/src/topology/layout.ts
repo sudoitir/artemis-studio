@@ -96,9 +96,9 @@ function brokerNode(
       kind,
       statusWord,
       shortId: (logicalId ?? '—').slice(0, 8),
-      version: endpoint.version,
-      address: host(endpoint.jolokiaUrl) ?? endpoint.coreUrl,
-      lastError: endpoint.lastError,
+      version: endpoint.version ?? null,
+      address: host(endpoint.jolokiaUrl ?? null) ?? endpoint.coreUrl ?? null,
+      lastError: endpoint.lastError ?? null,
       offset,
       unmanaged: kind === 'unmanaged',
       srSentence: `${endpoint.name}: ${statusWord}${endpoint.version ? `, Artemis ${endpoint.version}` : ''}.`,
@@ -119,7 +119,7 @@ function layoutLogicalNode(
   if (logical.splitBrain === 'CRITICAL') {
     serving.forEach((e, i) => {
       nodes.push(
-        brokerNode(e.id, x + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId),
+        brokerNode(e.id, x + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId ?? null),
       );
     });
     return { nodes, edges };
@@ -128,7 +128,7 @@ function layoutLogicalNode(
   const top = serving[0] ?? null;
   const bottom = others[0] ?? null;
   if (top) {
-    nodes.push(brokerNode(top.id, x, LIVE_Y, top, true, false, logical.artemisNodeId));
+    nodes.push(brokerNode(top.id, x, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
   }
   if (bottom) {
     nodes.push(
@@ -139,7 +139,7 @@ function layoutLogicalNode(
         bottom,
         false,
         logical.replicationBehind,
-        logical.artemisNodeId,
+        logical.artemisNodeId ?? null,
       ),
     );
   }

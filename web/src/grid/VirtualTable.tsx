@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Checkbox } from "@mantine/core";
 import { tableFeatures, useTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -30,6 +31,8 @@ export interface GridColumn<T> {
 const ROW_HEIGHT = 36;
 /** How narrow a free-text column may get before the grid scrolls instead. */
 const FLEX_MIN_WIDTH = 180;
+/** The leading checkbox column's fixed track. */
+const SELECT_COL_WIDTH = 40;
 
 /** The hover title for a cell, when its value is something a tooltip can say. */
 function plainText(value: unknown): string | undefined {
@@ -47,6 +50,12 @@ interface VirtualTableProps<T> {
   onRowClick?: (row: T) => void;
   rowKey: (row: T) => string;
   emptyLabel?: React.ReactNode;
+  /** Opt-in leading checkbox column. Selection state is owned by the caller (ephemeral React state). */
+  selectable?: boolean;
+  selected?: ReadonlySet<string>;
+  onToggleRow?: (key: string) => void;
+  /** Header select-all across the loaded page. `allSelected` is the current state; the caller flips it. */
+  onToggleAll?: (keys: string[], allSelected: boolean) => void;
 }
 
 /**
@@ -61,7 +70,8 @@ interface VirtualTableProps<T> {
  * page never does.
  *
  * <p>Sorting is a URL round-trip, not local state: the header carries
- * `aria-sort` from the current `sort` param and clicking it navigates.
+ * `aria-sort` from the current `sort` param and clicking it navigates. Row
+ * selection is opt-in (`selectable`) and its state lives with the caller.
  */
 export function VirtualTable<T>({
   columns,
@@ -71,6 +81,10 @@ export function VirtualTable<T>({
   onRowClick,
   rowKey,
   emptyLabel,
+  selectable,
+  selected,
+  onToggleRow,
+  onToggleAll,
 }: VirtualTableProps<T>) {
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
@@ -100,13 +114,17 @@ export function VirtualTable<T>({
    * against — without it the tracks would overflow a grid box still pinned to
    * the viewport, and the rows would be laid out narrower than the header.
    */
-  const template = columns
-    .map((c) => (c.width ? `${c.width}px` : `minmax(${FLEX_MIN_WIDTH}px, 1fr)`))
+  const template = [
+    selectable ? `${SELECT_COL_WIDTH}px` : null,
+    ...columns.map((c) =>
+      c.width ? `${c.width}px` : `minmax(${FLEX_MIN_WIDTH}px, 1fr)`,
+    ),
+  ]
+    .filter(Boolean)
     .join(" ");
-  const minInline = columns.reduce(
-    (sum, c) => sum + (c.width ?? FLEX_MIN_WIDTH),
-    0,
-  );
+  const minInline =
+    (selectable ? SELECT_COL_WIDTH : 0) +
+    columns.reduce((sum, c) => sum + (c.width ?? FLEX_MIN_WIDTH), 0);
 
   const sortField = sort?.replace(/^-/, "");
   const sortDesc = sort?.startsWith("-");
@@ -120,6 +138,13 @@ export function VirtualTable<T>({
   if (rows.length === 0 && emptyLabel) {
     return <div className={styles.empty}>{emptyLabel}</div>;
   }
+
+  const loadedKeys = rows.map((r) => rowKey(r.original as T));
+  const selectedCount = selected
+    ? loadedKeys.filter((k) => selected.has(k)).length
+    : 0;
+  const allSelected =
+    loadedKeys.length > 0 && selectedCount === loadedKeys.length;
 
   return (
     <div ref={scrollRef} className={styles.scroll}>
@@ -143,6 +168,19 @@ export function VirtualTable<T>({
           role="row"
           aria-rowindex={1}
         >
+          {selectable ? (
+            <div role="columnheader" className={`${styles.cell} ${styles.headCell}`}>
+              <Checkbox
+                size="xs"
+                aria-label={
+                  allSelected ? "Deselect all on this page" : "Select all on this page"
+                }
+                checked={allSelected}
+                indeterminate={selectedCount > 0 && !allSelected}
+                onChange={() => onToggleAll?.(loadedKeys, allSelected)}
+              />
+            </div>
+          ) : null}
           {columns.map((c) => {
             const sortable = Boolean(c.sortKey && onSortChange);
             const ariaSort = !sortable
@@ -186,15 +224,31 @@ export function VirtualTable<T>({
         >
           {virtualizer.getVirtualItems().map((vi) => {
             const original = rows[vi.index].original as T;
+            const key = rowKey(original);
             return (
               <div
-                key={rowKey(original)}
+                key={key}
                 role="row"
                 aria-rowindex={vi.index + 2}
+                data-selected={selected?.has(key) || undefined}
                 className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ""}`}
                 onClick={onRowClick ? () => onRowClick(original) : undefined}
                 style={{ transform: `translateY(${vi.start}px)` }}
               >
+                {selectable ? (
+                  <div
+                    role="gridcell"
+                    className={styles.cell}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      size="xs"
+                      aria-label={`Select row ${key}`}
+                      checked={selected?.has(key) ?? false}
+                      onChange={() => onToggleRow?.(key)}
+                    />
+                  </div>
+                ) : null}
                 {columns.map((c) => {
                   const value = c.accessor(original);
                   return (

@@ -4,7 +4,7 @@ import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.persist.StudioSettingRepository;
-import io.github.sudoitir.artemisstudio.scheduler.NodeScrapeLimiter;
+import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.web.dto.SettingsViews.SettingValue;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -38,10 +38,11 @@ public class SettingsService {
     public static final String TIER_C = "scrape.tier-c-interval";
     public static final String RATE_LIMIT = "rate-limit.calls-per-second";
     public static final String RETENTION_DAYS = "metric.retention-days";
+    public static final String BULK_CAP = "safety.bulk-cap";
 
     private final StudioSettingRepository repo;
     private final ArtemisStudioProperties defaults;
-    private final NodeScrapeLimiter limiter;
+    private final NodeCallLimiter limiter;
     private final MetricSampleReaper reaper;
 
     // ---- typed getters (defaults from application.yml) --------------------
@@ -79,6 +80,11 @@ public class SettingsService {
         return intValue(RETENTION_DAYS, defaults.metric().retentionDays());
     }
 
+    /** Server-enforced ceiling on one destructive message operation (ADR-0022). */
+    public int bulkCap() {
+        return intValue(BULK_CAP, defaults.safety().bulkCap());
+    }
+
     // ---- read / write -----------------------------------------------------
 
     /** Every operator-tunable key: its effective value and whether it is a stored override. */
@@ -94,6 +100,7 @@ public class SettingsService {
         out.put(
                 RETENTION_DAYS,
                 entry(RETENTION_DAYS, Integer.toString(defaults.metric().retentionDays())));
+        out.put(BULK_CAP, entry(BULK_CAP, Integer.toString(defaults.safety().bulkCap())));
         return out;
     }
 
@@ -155,7 +162,7 @@ public class SettingsService {
                     throw new IllegalArgumentException(key + " must be a positive duration");
                 }
             }
-            case RATE_LIMIT, RETENTION_DAYS -> {
+            case RATE_LIMIT, RETENTION_DAYS, BULK_CAP -> {
                 int n = Integer.parseInt(value.trim());
                 if (n < 1) {
                     throw new IllegalArgumentException(key + " must be at least 1");

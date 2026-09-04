@@ -18,7 +18,13 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "artemis-studio")
 public record ArtemisStudioProperties(
-        String secretKey, Branding branding, Scrape scrape, RateLimit rateLimit, Broker broker, Metric metric) {
+        String secretKey,
+        Branding branding,
+        Scrape scrape,
+        RateLimit rateLimit,
+        Broker broker,
+        Metric metric,
+        Safety safety) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -28,6 +34,7 @@ public record ArtemisStudioProperties(
         rateLimit = rateLimit != null ? rateLimit : new RateLimit(20);
         broker = broker != null ? broker : new Broker(Duration.ofSeconds(3), Duration.ofSeconds(10));
         metric = metric != null ? metric : new Metric(7);
+        safety = safety != null ? safety : new Safety(1000);
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -51,4 +58,11 @@ public record ArtemisStudioProperties(
 
     /** Raw {@code metric_sample} retention (ADR-0006 — 7-day default). The nightly reaper trims older rows. */
     public record Metric(@DefaultValue("7") int retentionDays) {}
+
+    /**
+     * Server-enforced ceiling on a single destructive message operation (ADR-0022).
+     * A dry-run count above this is a {@code 422} unless the caller passes
+     * {@code ?override=true} behind the UI's typed confirmation.
+     */
+    public record Safety(@DefaultValue("1000") int bulkCap) {}
 }
