@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Browse and act on one queue's messages (ADR-0020, ADR-0021). Every mutation
+ * Browse and act on one queue's messages (ADR-0021, ADR-0022). Every mutation
  * takes {@code ?dryRun=true} and returns a point-in-time {@link DryRunView}
  * without touching the broker; over the {@code safety.bulk-cap} a real run is a
  * {@code 422 bulk-cap-exceeded} unless {@code ?override=true}. Message I/O is

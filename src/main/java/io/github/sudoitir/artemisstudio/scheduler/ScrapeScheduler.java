@@ -59,7 +59,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
 
     /**
      * Registers the three tiers as trigger tasks whose {@code nextExecution}
-     * re-reads {@link SettingsService} every fire (ADR-0024), so a cadence change
+     * re-reads {@link SettingsService} every fire (ADR-0025), so a cadence change
      * in Settings applies without a restart. Replaces the SpEL-bound
      * {@code @Scheduled(fixedDelayString = "#{@settingsService…}")} that resolved
      * once at wiring time. Fixed-delay semantics are preserved: the trigger reads

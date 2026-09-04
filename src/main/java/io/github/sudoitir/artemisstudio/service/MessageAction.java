@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.service;
 
-/** The four id/selector message operations (ADR-0020). */
+/** The four id/selector message operations (ADR-0021). */
 public enum MessageAction {
     MOVE("MOVE_MESSAGES"),
     RETRY("RETRY_MESSAGES"),

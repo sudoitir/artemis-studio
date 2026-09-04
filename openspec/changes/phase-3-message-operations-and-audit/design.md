@@ -107,7 +107,7 @@ before each broker POST. Same per-node `Semaphore`, same 1s refill, same
 against one broker defeats the point; the ceiling is per node, not per caller
 class.
 
-### D3 — Dry-run count is a broker-side estimate, and it is audited (ADR-0021)
+### D3 — Dry-run count is a broker-side estimate, and it is audited (ADR-0022)
 
 Artemis has no dry-run. By-filter → `countMessages(filter)`; by-id → the id
 count (optionally verified against a browse); purge → the queue's `MessageCount`;
@@ -118,7 +118,7 @@ column exists for exactly this and "who probed what, when" is worth keeping.
 *Alternatives:* browse-and-count the exact ids — rejected, expensive on deep
 queues and it hits the attribute-size limit, i.e. worse for the broker (#1).
 
-### D4 — The bulk cap is server-enforced with an explicit override (ADR-0021, non-negotiable #2)
+### D4 — The bulk cap is server-enforced with an explicit override (ADR-0022, non-negotiable #2)
 
 `studio_setting` key `safety.bulk-cap`, default `1000`, via
 `SettingsService.bulkCap()` and an `ArtemisStudioProperties` default. In the
@@ -147,7 +147,7 @@ as `ClusterController.unwrap` does.
 crash between the two commits would leave a `PENDING` row with no resolution and
 break "one unit" (#3).
 
-### D6 — Truncation is disclosed per message, not as a capability (ADR-0020, non-negotiable #5)
+### D6 — Truncation is disclosed per message, not as a capability (ADR-0021, non-negotiable #5)
 
 The slice-0 spike (broker notes §11) proved the
 `management-message-attribute-size-limit` is not exposed anywhere over Jolokia —
@@ -223,7 +223,7 @@ lifecycle in the build, the exact thing that failed before; `openapi-fetch` /
 `orval` — rejected (ADR-0019 already did), they replace the working `fetch`
 wrappers and hooks.
 
-### D11 — DOM test harness: Vitest + Testing Library + MSW (ADR-0023)
+### D11 — DOM test harness: Vitest + Testing Library + MSW (ADR-0024)
 
 `vitest` (reuses the installed Vite/esbuild), `@testing-library/react` +
 `user-event` + `@testing-library/jest-dom`, `jsdom`, `msw`. `vitest.config.ts`
@@ -258,7 +258,7 @@ detail panel in a 480px drawer is cramped and fails the four-second-purpose test
   notes §11. `browse` returns a plain array (no double-decode);
   `browse(page, size, filter)` pages at the broker, capped at 200; truncation is
   the explicit `, + N more` marker; `MESSAGE_BODY_FULL` dropped (not probeable —
-  ADR-0020, D6); by-filter ops return the affected count; `sendMessage` returns
+  ADR-0021, D6); by-filter ops return the affected count; `sendMessage` returns
   the new id; message filter numeric predicates (`AMQSize > 1000`) work; an
   invalid filter → 500 `AMQ229020`, mapped to a 400 by the service.
 - **A queue deeper than `managementBrowsePageSize` (200)** cannot be *inspected*
@@ -270,7 +270,7 @@ detail panel in a 480px drawer is cramped and fails the four-second-purpose test
   than fight it — slices 3+ are unblocked either way.
 - **Vitest/esbuild postinstall under the env's allow-scripts policy** → Vite 8 is
   already installed and working so esbuild is present; fallback to `happy-dom` or
-  keep `node:test`, recorded in ADR-0023. Bounded to slice 2.
+  keep `node:test`, recorded in ADR-0024. Bounded to slice 2.
 - **Dry-run count races the real operation** (messages arrive/leave between the
   count and the act) → the number is labelled an estimate in the API and UI; the
   audit row records the broker's actual affected count on execution, which is the

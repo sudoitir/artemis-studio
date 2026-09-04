@@ -70,7 +70,7 @@ const columns: GridColumn<MessageSummaryView>[] = [
 ];
 
 /**
- * Browse one queue's messages (ADR-0020). Reached from a queue row, not a
+ * Browse one queue's messages (ADR-0021). Reached from a queue row, not a
  * top-level tab. Node, filter and page are URL-owned (non-negotiable #9);
  * message selection is ephemeral (added in a later slice). The whole view is
  * gated on the `messageIo` capability — when it is not available the ledger

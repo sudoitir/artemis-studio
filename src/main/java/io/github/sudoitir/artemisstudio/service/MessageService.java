@@ -37,7 +37,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * Message browse and the destructive message operations for one queue on one
- * node (ADR-0020, ADR-0021). {@code address} / {@code routingType} come from the
+ * node (ADR-0021, ADR-0022). {@code address} / {@code routingType} come from the
  * cached {@code queue_snapshot} row, never the client. Every broker call takes a
  * {@link NodeCallLimiter} permit first (non-negotiable #1); every mutation writes
  * an {@code audit_event} in its own transaction, before the broker call, updated

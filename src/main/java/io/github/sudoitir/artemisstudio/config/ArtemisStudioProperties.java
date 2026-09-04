@@ -60,7 +60,7 @@ public record ArtemisStudioProperties(
     public record Metric(@DefaultValue("7") int retentionDays) {}
 
     /**
-     * Server-enforced ceiling on a single destructive message operation (ADR-0021).
+     * Server-enforced ceiling on a single destructive message operation (ADR-0022).
      * A dry-run count above this is a {@code 422} unless the caller passes
      * {@code ?override=true} behind the UI's typed confirmation.
      */

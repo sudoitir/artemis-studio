@@ -1,7 +1,7 @@
-import { Badge, Button, Drawer, Group, Stack, Table, Text } from '@mantine/core';
-import { Link, useParams } from '@tanstack/react-router';
+import { Badge, Button, Drawer, Group, Stack, Table, Text } from "@mantine/core";
+import { Link, useParams } from "@tanstack/react-router";
 
-import type { QueueView } from '../api/client.ts';
+import type { QueueView } from "../api/client.ts";
 
 /** Read-only per-node breakdown for one queue row, plus a jump into the message browser. */
 export function QueueDetailDrawer({
@@ -18,7 +18,7 @@ export function QueueDetailDrawer({
       onClose={onClose}
       position="right"
       size="lg"
-      title={queue ? `${queue.address} / ${queue.queueName}` : ''}
+      title={queue ? `${queue.address} / ${queue.queueName}` : ""}
     >
       {queue ? (
         <Stack gap="md">
@@ -26,7 +26,7 @@ export function QueueDetailDrawer({
             <Group gap="xs">
               <Badge variant="light">{queue.routingType}</Badge>
               <Badge variant="light" color="gray">
-                {queue.durable ? 'durable' : 'non-durable'}
+                {queue.durable ? "durable" : "non-durable"}
               </Badge>
               <Badge variant="light" color="gray">
                 {queue.nodesPresent}/{queue.nodesTotal} nodes
@@ -43,36 +43,40 @@ export function QueueDetailDrawer({
             </Button>
           </Group>
 
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Node</Table.Th>
-                <Table.Th ta="end">Depth</Table.Th>
-                <Table.Th ta="end">Consumers</Table.Th>
-                <Table.Th ta="end">Delivering</Table.Th>
-                <Table.Th ta="end">Scheduled</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {queue.perNode.map((cell) => (
-                <Table.Tr key={cell.nodeId}>
-                  <Table.Td>
-                    {cell.nodeName}
-                    {cell.stale ? (
-                      <Text span size="xs" c="dimmed">
-                        {' '}
-                        · stale
-                      </Text>
-                    ) : null}
-                  </Table.Td>
-                  <Table.Td ta="end">{cell.messageCount}</Table.Td>
-                  <Table.Td ta="end">{cell.consumerCount}</Table.Td>
-                  <Table.Td ta="end">{cell.deliveringCount}</Table.Td>
-                  <Table.Td ta="end">{cell.scheduledCount}</Table.Td>
+          {/* A node name is broker-supplied and can be long; the library's own
+              container keeps the overflow in the table rather than the drawer. */}
+          <Table.ScrollContainer minWidth={420} type="native">
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Node</Table.Th>
+                  <Table.Th ta="end">Depth</Table.Th>
+                  <Table.Th ta="end">Consumers</Table.Th>
+                  <Table.Th ta="end">Delivering</Table.Th>
+                  <Table.Th ta="end">Scheduled</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {queue.perNode.map((cell) => (
+                  <Table.Tr key={cell.nodeId}>
+                    <Table.Td>
+                      {cell.nodeName}
+                      {cell.stale ? (
+                        <Text span size="xs" c="dimmed">
+                          {" "}
+                          · stale
+                        </Text>
+                      ) : null}
+                    </Table.Td>
+                    <Table.Td ta="end">{cell.messageCount}</Table.Td>
+                    <Table.Td ta="end">{cell.consumerCount}</Table.Td>
+                    <Table.Td ta="end">{cell.deliveringCount}</Table.Td>
+                    <Table.Td ta="end">{cell.scheduledCount}</Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         </Stack>
       ) : null}
     </Drawer>

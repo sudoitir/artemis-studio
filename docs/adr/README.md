@@ -29,8 +29,9 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0017](0017-cross-node-aggregation.md) | Cross-node aggregation — one logical node per NodeID, scrape the live endpoint only |
 | [0018](0018-sse-hub.md) | SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals (annotates 0003) |
 | [0019](0019-openapi-generated-frontend-types.md) | Frontend API types generated from the backend's OpenAPI document |
-| [0020](0020-message-operations-jolokia-only.md) | Phase 3 message operations are Jolokia-only; body truncation disclosed per message |
-| [0021](0021-dry-run-estimate-and-server-enforced-bulk-cap.md) | Dry-run is a broker-side estimate; the bulk safety cap is server-enforced |
-| [0022](0022-audit-actor-before-authentication.md) | Audit actor resolution before authentication exists (`anonymous` + request context) |
-| [0023](0023-frontend-dom-test-harness.md) | Frontend DOM test harness is Vitest + Testing Library + MSW |
-| [0024](0024-live-scrape-cadence-scheduling-configurer.md) | Scrape cadence applies without a restart, via `SchedulingConfigurer` |
+| [0020](0020-grid-columns-as-css-grid-tracks.md) | The virtualized data grid lays out on shared CSS grid tracks, not `<table>` |
+| [0021](0021-message-operations-jolokia-only.md) | Phase 3 message operations are Jolokia-only; body truncation disclosed per message |
+| [0022](0022-dry-run-estimate-and-server-enforced-bulk-cap.md) | Dry-run is a broker-side estimate; the bulk safety cap is server-enforced |
+| [0023](0023-audit-actor-before-authentication.md) | Audit actor resolution before authentication exists (`anonymous` + request context) |
+| [0024](0024-frontend-dom-test-harness.md) | Frontend DOM test harness is Vitest + Testing Library + MSW |
+| [0025](0025-live-scrape-cadence-scheduling-configurer.md) | Scrape cadence applies without a restart, via `SchedulingConfigurer` |

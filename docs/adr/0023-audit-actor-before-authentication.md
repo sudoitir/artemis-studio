@@ -1,4 +1,4 @@
-# ADR-0022: Audit actor resolution before authentication exists
+# ADR-0023: Audit actor resolution before authentication exists
 
 - **Status**: accepted
 - **Date**: 2026-09-04

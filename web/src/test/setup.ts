@@ -4,7 +4,7 @@ import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 
 /**
- * Shared MSW network mock (ADR-0023). Tests add per-case handlers with
+ * Shared MSW network mock (ADR-0024). Tests add per-case handlers with
  * `server.use(http.get(...))`; anything unhandled is a hard error so a missing
  * mock fails loudly instead of hanging on a real fetch.
  */

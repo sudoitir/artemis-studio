@@ -17,7 +17,7 @@ const LABEL: Record<MessageActionKind, string> = {
 };
 
 /**
- * By-selector destructive action with a mandatory preview (ADR-0021). "Preview"
+ * By-selector destructive action with a mandatory preview (ADR-0022). "Preview"
  * runs `dryRun=true` and shows the broker's point-in-time estimate and the cap.
  * Over the cap, a typed confirmation of the queue name gates "Run anyway", which
  * resends with `override=true`.

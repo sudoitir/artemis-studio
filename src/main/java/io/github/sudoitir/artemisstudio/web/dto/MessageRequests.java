@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 
-/** Request bodies for the Phase 3 message API (ADR-0020). */
+/** Request bodies for the Phase 3 message API (ADR-0021). */
 public final class MessageRequests {
 
     private MessageRequests() {}

@@ -2,7 +2,7 @@ package io.github.sudoitir.artemisstudio.service;
 
 /**
  * A destructive message operation whose dry-run count exceeds the server-enforced
- * {@code safety.bulk-cap} (ADR-0021). Mapped to {@code 422} with problem type
+ * {@code safety.bulk-cap} (ADR-0022). Mapped to {@code 422} with problem type
  * {@code bulk-cap-exceeded} and properties {@code affectedCount} / {@code cap}.
  * The caller can retry with {@code ?override=true} behind the UI's typed
  * confirmation.

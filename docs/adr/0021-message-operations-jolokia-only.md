@@ -1,4 +1,4 @@
-# ADR-0020: Phase 3 message operations are Jolokia-only; truncation is disclosed per message
+# ADR-0021: Phase 3 message operations are Jolokia-only; truncation is disclosed per message
 
 - **Status**: accepted
 - **Date**: 2026-09-04

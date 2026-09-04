@@ -312,7 +312,7 @@ export function useResetSetting() {
   });
 }
 
-// ── messages (ADR-0020) ────────────────────────────────────────────────────
+// ── messages (ADR-0021) ────────────────────────────────────────────────────
 
 export interface MessageBrowseParams {
   node?: string;

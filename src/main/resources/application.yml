@@ -78,7 +78,7 @@ artemis-studio:
     # older rows nightly. Runtime-overridable via studio_setting.
     retention-days: 7
   safety:
-    # Server-enforced ceiling on one destructive message operation (ADR-0021).
+    # Server-enforced ceiling on one destructive message operation (ADR-0022).
     # A dry-run count above this is a 422 unless ?override=true (behind the UI's
     # typed confirmation). Runtime-overridable via studio_setting.
     bulk-cap: 1000

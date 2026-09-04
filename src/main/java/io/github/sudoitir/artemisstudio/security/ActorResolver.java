@@ -9,7 +9,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Resolves the {@link Actor} for a mutating action (ADR-0022). Works today with
+ * Resolves the {@link Actor} for a mutating action (ADR-0023). Works today with
  * no authentication configured: the principal is {@code "anonymous"}, the source
  * IP comes from {@code getRemoteAddr()}, and the request id is the inbound
  * {@code X-Request-Id} header or a fresh UUID. When Phase 8 wires Spring

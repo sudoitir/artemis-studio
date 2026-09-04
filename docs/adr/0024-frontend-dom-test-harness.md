@@ -1,4 +1,4 @@
-# ADR-0023: Frontend DOM test harness is Vitest + Testing Library + MSW
+# ADR-0024: Frontend DOM test harness is Vitest + Testing Library + MSW
 
 - **Status**: accepted
 - **Date**: 2026-09-04

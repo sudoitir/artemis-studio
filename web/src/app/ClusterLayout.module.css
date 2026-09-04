@@ -1,3 +1,11 @@
+/* A cluster's name is broker-supplied and can be a long unbroken host string.
+   The flex item has to be allowed to shrink, and the name to break, or it
+   widens the page and slides the routed column under the fixed rail. */
+.identity {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
 .viewStrip {
   display: flex;
   gap: 2px;

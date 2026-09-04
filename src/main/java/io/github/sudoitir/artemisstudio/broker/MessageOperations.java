@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
 /**
- * The Phase 3 mutating message operations over Jolokia (ADR-0020). Each method is
+ * The Phase 3 mutating message operations over Jolokia (ADR-0021). Each method is
  * exactly one {@code exec} — never a dry-run and an act in the same POST
  * (non-negotiable #1). Results are the broker's own affected counts, not
  * estimates. Invalid selectors ({@code AMQ229020}) surface as

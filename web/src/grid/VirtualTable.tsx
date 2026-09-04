@@ -1,9 +1,9 @@
-import { useRef } from 'react';
-import { Checkbox, Table } from '@mantine/core';
-import { flexRender, tableFeatures, useTable, type ColumnDef } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useRef } from "react";
+import { Checkbox } from "@mantine/core";
+import { tableFeatures, useTable, type ColumnDef } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
-import styles from './VirtualTable.module.css';
+import styles from "./VirtualTable.module.css";
 
 /** No client-side row features — sorting / filtering / paging are all server-side (URL params). */
 const features = tableFeatures({});
@@ -19,11 +19,28 @@ export interface GridColumn<T> {
   numeric?: boolean;
   /** The `sort` query value this column sorts by, if sortable. */
   sortKey?: string;
+  /**
+   * Fixed track width in px, for a column whose values have a known shape — a
+   * count, a routing type, a yes/no. Omit it for a column carrying free text
+   * (an address, a queue name, a client id): those share whatever space the
+   * fixed columns leave over, which is where a wide window is worth having.
+   */
   width?: number;
 }
 
-const ROW_HEIGHT = 34;
-const DEFAULT_WIDTH = 160;
+const ROW_HEIGHT = 36;
+/** How narrow a free-text column may get before the grid scrolls instead. */
+const FLEX_MIN_WIDTH = 180;
+/** The leading checkbox column's fixed track. */
+const SELECT_COL_WIDTH = 40;
+
+/** The hover title for a cell, when its value is something a tooltip can say. */
+function plainText(value: unknown): string | undefined {
+  if (typeof value === "string") return value || undefined;
+  if (typeof value === "number" || typeof value === "bigint")
+    return String(value);
+  return undefined;
+}
 
 interface VirtualTableProps<T> {
   columns: GridColumn<T>[];
@@ -41,13 +58,20 @@ interface VirtualTableProps<T> {
   onToggleAll?: (keys: string[], allSelected: boolean) => void;
 }
 
-const SELECT_COL_WIDTH = 40;
-
 /**
- * A virtualized data grid: TanStack Table v9 headless model rendered through
- * Mantine `Table`, row-virtualized with `@tanstack/react-virtual`. Smooth at a
- * few thousand rows. Sorting is a URL round-trip, not local state — the header
- * carries `aria-sort` from the current `sort` param and clicking it navigates.
+ * A virtualized data grid: one CSS grid track list, declared once and shared by
+ * the header row and every body row, row-virtualized with
+ * `@tanstack/react-virtual`. Smooth at a few thousand rows.
+ *
+ * <p>Columns are either fixed or free. A fixed column gets exactly its declared
+ * px; a free column gets `minmax(floor, 1fr)`, so every pixel the window has
+ * over the fixed columns' needs goes to the values that actually vary in length.
+ * Below the floors the grid stops shrinking and its own container scrolls — the
+ * page never does.
+ *
+ * <p>Sorting is a URL round-trip, not local state: the header carries
+ * `aria-sort` from the current `sort` param and clicking it navigates. Row
+ * selection is opt-in (`selectable`) and its state lives with the caller.
  */
 export function VirtualTable<T>({
   columns,
@@ -65,9 +89,6 @@ export function VirtualTable<T>({
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
     accessorFn: (row: Row) => c.accessor(row as T),
-    header: c.header,
-    cell: (ctx) =>
-      c.cell ? c.cell(ctx.row.original as T) : String(ctx.getValue() ?? ''),
   }));
 
   const table = useTable<Features, Row>({
@@ -86,17 +107,27 @@ export function VirtualTable<T>({
   });
 
   /**
-   * Every virtualized row is its own `display: table` box, so it cannot inherit
-   * the header's column widths — both sides have to be told the same thing.
-   * Declared widths become weights against a default so the two fixed layouts
-   * resolve identically.
+   * The single source of truth for column geometry. Header and body rows are
+   * both grid containers over this one track list, so they cannot drift apart
+   * the way two independently laid-out tables can. The floors add up to the
+   * grid's `min-inline-size`, which is also the width body rows resolve
+   * against — without it the tracks would overflow a grid box still pinned to
+   * the viewport, and the rows would be laid out narrower than the header.
    */
-  const totalWeight = columns.reduce((sum, c) => sum + (c.width ?? DEFAULT_WIDTH), 0);
-  const widthOf = (c: GridColumn<T>) =>
-    `${(((c.width ?? DEFAULT_WIDTH) / totalWeight) * 100).toFixed(4)}%`;
+  const template = [
+    selectable ? `${SELECT_COL_WIDTH}px` : null,
+    ...columns.map((c) =>
+      c.width ? `${c.width}px` : `minmax(${FLEX_MIN_WIDTH}px, 1fr)`,
+    ),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const minInline =
+    (selectable ? SELECT_COL_WIDTH : 0) +
+    columns.reduce((sum, c) => sum + (c.width ?? FLEX_MIN_WIDTH), 0);
 
-  const sortField = sort?.replace(/^-/, '');
-  const sortDesc = sort?.startsWith('-');
+  const sortField = sort?.replace(/^-/, "");
+  const sortDesc = sort?.startsWith("-");
 
   const nextSort = (key: string): string | undefined => {
     if (sortField !== key) return key;
@@ -109,104 +140,135 @@ export function VirtualTable<T>({
   }
 
   const loadedKeys = rows.map((r) => rowKey(r.original as T));
-  const selectedCount = selected ? loadedKeys.filter((k) => selected.has(k)).length : 0;
-  const allSelected = loadedKeys.length > 0 && selectedCount === loadedKeys.length;
+  const selectedCount = selected
+    ? loadedKeys.filter((k) => selected.has(k)).length
+    : 0;
+  const allSelected =
+    loadedKeys.length > 0 && selectedCount === loadedKeys.length;
 
   return (
     <div ref={scrollRef} className={styles.scroll}>
-      <Table stickyHeader className={styles.grid} role="grid">
-        <Table.Thead>
-          <Table.Tr>
-            {selectable ? (
-              <Table.Th style={{ width: SELECT_COL_WIDTH }}>
-                <Checkbox
-                  size="xs"
-                  aria-label={allSelected ? 'Deselect all on this page' : 'Select all on this page'}
-                  checked={allSelected}
-                  indeterminate={selectedCount > 0 && !allSelected}
-                  onChange={() => onToggleAll?.(loadedKeys, allSelected)}
-                />
-              </Table.Th>
-            ) : null}
-            {columns.map((c) => {
-              const sortable = Boolean(c.sortKey && onSortChange);
-              const ariaSort = !sortable
-                ? undefined
-                : sortField === c.sortKey
-                  ? sortDesc
-                    ? 'descending'
-                    : 'ascending'
-                  : 'none';
-              return (
-                <Table.Th
-                  key={c.id}
-                  aria-sort={ariaSort}
-                  data-numeric={c.numeric || undefined}
-                  style={{ width: widthOf(c) }}
-                >
-                  {sortable ? (
-                    <button
-                      type="button"
-                      className={styles.sortButton}
-                      onClick={() => onSortChange?.(nextSort(c.sortKey!))}
-                    >
-                      {c.header}
-                      <span aria-hidden="true">
-                        {sortField === c.sortKey ? (sortDesc ? ' ▾' : ' ▴') : ''}
-                      </span>
-                    </button>
-                  ) : (
-                    c.header
-                  )}
-                </Table.Th>
-              );
-            })}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+      <div
+        className={styles.grid}
+        role="grid"
+        aria-rowcount={rows.length + 1}
+        style={
+          {
+            "--as-cols": template,
+            "--as-min-inline": `${minInline}px`,
+            "--as-row-h": `${ROW_HEIGHT}px`,
+          } as React.CSSProperties
+        }
+      >
+        {/* Directly under the grid, not wrapped in a `rowgroup`: a sticky element
+            can only travel inside its containing block, and a wrapper sized to the
+            header itself would leave it nothing to travel through. */}
+        <div
+          className={`${styles.row} ${styles.headRow}`}
+          role="row"
+          aria-rowindex={1}
+        >
+          {selectable ? (
+            <div role="columnheader" className={`${styles.cell} ${styles.headCell}`}>
+              <Checkbox
+                size="xs"
+                aria-label={
+                  allSelected ? "Deselect all on this page" : "Select all on this page"
+                }
+                checked={allSelected}
+                indeterminate={selectedCount > 0 && !allSelected}
+                onChange={() => onToggleAll?.(loadedKeys, allSelected)}
+              />
+            </div>
+          ) : null}
+          {columns.map((c) => {
+            const sortable = Boolean(c.sortKey && onSortChange);
+            const ariaSort = !sortable
+              ? undefined
+              : sortField === c.sortKey
+                ? sortDesc
+                  ? "descending"
+                  : "ascending"
+                : "none";
+            return (
+              <div
+                key={c.id}
+                role="columnheader"
+                aria-sort={ariaSort}
+                data-numeric={c.numeric || undefined}
+                className={`${styles.cell} ${styles.headCell}`}
+              >
+                {sortable ? (
+                  <button
+                    type="button"
+                    className={styles.sortButton}
+                    onClick={() => onSortChange?.(nextSort(c.sortKey!))}
+                  >
+                    {c.header}
+                    <span aria-hidden="true">
+                      {sortField === c.sortKey ? (sortDesc ? " ▾" : " ▴") : ""}
+                    </span>
+                  </button>
+                ) : (
+                  c.header
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div
+          className={styles.body}
+          role="rowgroup"
+          style={{ height: virtualizer.getTotalSize() }}
+        >
           {virtualizer.getVirtualItems().map((vi) => {
-            const row = rows[vi.index];
-            const original = row.original as T;
+            const original = rows[vi.index].original as T;
             const key = rowKey(original);
             return (
-              <Table.Tr
+              <div
                 key={key}
-                className={onRowClick ? styles.clickable : undefined}
+                role="row"
+                aria-rowindex={vi.index + 2}
                 data-selected={selected?.has(key) || undefined}
+                className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ""}`}
                 onClick={onRowClick ? () => onRowClick(original) : undefined}
-                style={{
-                  position: 'absolute',
-                  transform: `translateY(${vi.start}px)`,
-                  width: '100%',
-                  display: 'table',
-                  tableLayout: 'fixed',
-                }}
+                style={{ transform: `translateY(${vi.start}px)` }}
               >
                 {selectable ? (
-                  <Table.Td style={{ width: SELECT_COL_WIDTH }} onClick={(e) => e.stopPropagation()}>
+                  <div
+                    role="gridcell"
+                    className={styles.cell}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Checkbox
                       size="xs"
                       aria-label={`Select row ${key}`}
                       checked={selected?.has(key) ?? false}
                       onChange={() => onToggleRow?.(key)}
                     />
-                  </Table.Td>
+                  </div>
                 ) : null}
-                {row.getAllCells().map((cell, i) => (
-                  <Table.Td
-                    key={cell.id}
-                    data-numeric={columns[i]?.numeric || undefined}
-                    className={columns[i]?.numeric ? styles.num : undefined}
-                    style={columns[i] ? { width: widthOf(columns[i]) } : undefined}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </Table.Td>
-                ))}
-              </Table.Tr>
+                {columns.map((c) => {
+                  const value = c.accessor(original);
+                  return (
+                    <div
+                      key={c.id}
+                      role="gridcell"
+                      data-numeric={c.numeric || undefined}
+                      className={`${styles.cell} ${c.numeric ? styles.num : ""}`}
+                      // An ellipsized cell still has to be readable in full.
+                      title={plainText(value)}
+                    >
+                      {c.cell ? c.cell(original) : String(value ?? "")}
+                    </div>
+                  );
+                })}
+              </div>
             );
           })}
-        </Table.Tbody>
-      </Table>
+        </div>
+      </div>
     </div>
   );
 }

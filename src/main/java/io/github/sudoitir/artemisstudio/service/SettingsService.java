@@ -80,7 +80,7 @@ public class SettingsService {
         return intValue(RETENTION_DAYS, defaults.metric().retentionDays());
     }
 
-    /** Server-enforced ceiling on one destructive message operation (ADR-0021). */
+    /** Server-enforced ceiling on one destructive message operation (ADR-0022). */
     public int bulkCap() {
         return intValue(BULK_CAP, defaults.safety().bulkCap());
     }

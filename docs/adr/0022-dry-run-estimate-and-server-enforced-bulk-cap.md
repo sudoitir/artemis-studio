@@ -1,4 +1,4 @@
-# ADR-0021: Dry-run is a broker-side estimate; the bulk safety cap is server-enforced
+# ADR-0022: Dry-run is a broker-side estimate; the bulk safety cap is server-enforced
 
 - **Status**: accepted
 - **Date**: 2026-09-04

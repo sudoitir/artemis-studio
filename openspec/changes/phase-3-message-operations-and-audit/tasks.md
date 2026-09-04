@@ -1,10 +1,10 @@
 ## 1. ADRs and conventions
 
-- [x] 1.1 Write `docs/adr/0020-message-operations-jolokia-only.md` — Phase 3 message I/O is the one concrete Jolokia path, no transport interface (ADR-0002 extracts it in Phase 4 from two real impls); truncation disclosed **per message** via the broker's `, + N more` marker + a `broker.xml` snippet in the detail panel — **no `MESSAGE_BODY_FULL` capability** (slice 0 proved the limit is unreadable over Jolokia); `MESSAGE_IO` stays Jolokia-degraded, faithful binary deferred. *(Revised after slice 0.)*
-- [x] 1.2 Write `docs/adr/0021-dry-run-estimate-and-server-enforced-bulk-cap.md` — dry-run affected count is a broker-side estimate (`countMessages(filter)` / id count / `MessageCount`), labelled point-in-time, and is itself audited (`dry_run = true`); `safety.bulk-cap` in `studio_setting` (default 1000), enforced server-side, `422 bulk-cap-exceeded` with `affectedCount`/`cap` unless `?override=true`; UI reaches override only behind preview + typed confirmation
-- [x] 1.3 Write `docs/adr/0022-audit-actor-before-authentication.md` — `security/ActorResolver` returns `Actor(username, sourceIp, requestId)`: principal from `SecurityContextHolder` else literal `anonymous`; `sourceIp` from `getRemoteAddr()`; `requestId` from `X-Request-Id` else generated; scheduler rows stay `system`; `AuditEventEntity` maps the three already-migrated columns, no changeset
-- [x] 1.4 Write `docs/adr/0023-frontend-dom-test-harness.md` — Vitest + `@testing-library/react` + `user-event` + `jest-dom` + `jsdom` + `msw`; reuses the installed Vite/esbuild; `npm test` joins `verify-web` and CI; recorded fallback to `happy-dom` or `node:test` if `jsdom` won't install under the env allow-scripts policy
-- [x] 1.5 Write `docs/adr/0024-live-scrape-cadence-scheduling-configurer.md` — replace the SpEL-bound `@Scheduled` cadences with a `SchedulingConfigurer` registering three `Trigger`s that re-read `SettingsService` on every `nextExecution`; removes the "restart to apply" caveat
+- [x] 1.1 Write `docs/adr/0021-message-operations-jolokia-only.md` — Phase 3 message I/O is the one concrete Jolokia path, no transport interface (ADR-0002 extracts it in Phase 4 from two real impls); truncation disclosed **per message** via the broker's `, + N more` marker + a `broker.xml` snippet in the detail panel — **no `MESSAGE_BODY_FULL` capability** (slice 0 proved the limit is unreadable over Jolokia); `MESSAGE_IO` stays Jolokia-degraded, faithful binary deferred. *(Revised after slice 0.)*
+- [x] 1.2 Write `docs/adr/0022-dry-run-estimate-and-server-enforced-bulk-cap.md` — dry-run affected count is a broker-side estimate (`countMessages(filter)` / id count / `MessageCount`), labelled point-in-time, and is itself audited (`dry_run = true`); `safety.bulk-cap` in `studio_setting` (default 1000), enforced server-side, `422 bulk-cap-exceeded` with `affectedCount`/`cap` unless `?override=true`; UI reaches override only behind preview + typed confirmation
+- [x] 1.3 Write `docs/adr/0023-audit-actor-before-authentication.md` — `security/ActorResolver` returns `Actor(username, sourceIp, requestId)`: principal from `SecurityContextHolder` else literal `anonymous`; `sourceIp` from `getRemoteAddr()`; `requestId` from `X-Request-Id` else generated; scheduler rows stay `system`; `AuditEventEntity` maps the three already-migrated columns, no changeset
+- [x] 1.4 Write `docs/adr/0024-frontend-dom-test-harness.md` — Vitest + `@testing-library/react` + `user-event` + `jest-dom` + `jsdom` + `msw`; reuses the installed Vite/esbuild; `npm test` joins `verify-web` and CI; recorded fallback to `happy-dom` or `node:test` if `jsdom` won't install under the env allow-scripts policy
+- [x] 1.5 Write `docs/adr/0025-live-scrape-cadence-scheduling-configurer.md` — replace the SpEL-bound `@Scheduled` cadences with a `SchedulingConfigurer` registering three `Trigger`s that re-read `SettingsService` on every `nextExecution`; removes the "restart to apply" caveat
 - [x] 1.6 Append a second "## Status update (Phase 3 implementation)" to `docs/adr/0019-openapi-generated-frontend-types.md` — primary path now taken; the snapshot is produced by an integration test (`GET /v3/api-docs` → committed `web/openapi.json`), not a build plugin needing a running server; CI's existing `git diff --exit-code` catches drift. Decision unchanged
 - [x] 1.7 `openspec/project.md` — leave the current-phase line to group 14; touch here only if a convention bullet needs adding
 
@@ -26,14 +26,14 @@
 - [x] 3.5 `.github/workflows/ci.yml` — frontend job: `npm run build` (runs `gen:api`) then `git diff --exit-code src/api/schema.d.ts`; backend job's existing `git diff --exit-code` now also guards `web/openapi.json` (rewritten by `OpenApiSnapshotTest` in `mvn verify`)
 - [x] 3.6 `verify-web` green (`gen:api` → `tsc -b` → `vite build` + lint); backend web/service tests green; `gen:api` no-diff on a clean tree
 
-## 4. Frontend DOM test harness (Slice 2 — ADR-0023)
+## 4. Frontend DOM test harness (Slice 2 — ADR-0024)
 
 - [x] 4.1 `web/package.json` — dev-deps pinned exact: `vitest@4.1.11`, `jsdom@30.0.1`, `@testing-library/react@16.3.3`, `@testing-library/user-event@14.6.7`, `@testing-library/jest-dom@6.9.1`, `msw@2.15.0` (coverage-v8 skipped — not needed yet). Versions checked via `ctx7`
 - [x] 4.2 `web/vitest.config.ts` (standalone, `@vitejs/plugin-react`, `environment: 'jsdom'`, `globals`, `setupFiles`) + `web/src/test/setup.ts` (`@testing-library/jest-dom/vitest` matchers, MSW `server` with `beforeAll`/`afterEach`/`afterAll` + `onUnhandledRequest: 'error'`, `cleanup()`, and jsdom shims: `matchMedia`, one-shot `ResizeObserver`, non-zero `offset{Width,Height}` for `react-virtual`) + `web/src/test/render.tsx` (Mantine + Query providers); `"test": "vitest run"`
 - [x] 4.3 Migrated `web/src/topology/layout.test.ts` to Vitest (`describe`/`it`/`expect`); `test` script no longer uses `--experimental-strip-types`
 - [x] 4.4 Un-parked: `web/src/grid/VirtualTable.test.tsx` — rows render, `aria-sort` cycles none→ascending→descending on header click (asserts the emitted next-sort values too), empty label, `onRowClick`; `web/src/palette/CommandPalette.test.tsx` — opens on `{Control>}k`, filters, an invoked cluster/queue action calls `navigate` with the right args (`@tanstack/react-router` mocked, API via MSW). Queried by role + accessible name
 - [x] 4.5 `justfile` `verify-web` = `build` + `lint` + `test`; `.github/workflows/ci.yml` frontend job runs `npm test` after lint; `tsconfig.node.json` includes `vitest.config.ts`; eslint override for `src/test/**` + `*.test.*` (node globals, allow non-component exports)
-- [x] 4.6 `verify-web` green: `npm run build` (gen:api no drift, `tsc -b`, `vite build`), `npm run lint` clean, `npm test` = 10 passing (3 files). `jsdom` installed fine — no fallback; recorded in ADR-0023's status update
+- [x] 4.6 `verify-web` green: `npm run build` (gen:api no drift, `tsc -b`, `vite build`), `npm run lint` clean, `npm test` = 10 passing (3 files). `jsdom` installed fine — no fallback; recorded in ADR-0024's status update
 
 ## 5. Message browse — backend (Slice 3a)
 
@@ -131,7 +131,7 @@
 - [ ] 12.6 `web/DlqControllerTest` (fixture-backed) — the discovered addresses and their queues; the unavailable path
 - [ ] 12.7 `verify-web` green
 
-## 13. Live scrape cadence (Slice 10 — ADR-0024)
+## 13. Live scrape cadence (Slice 10 — ADR-0025)
 
 - [ ] 13.1 `scheduler/ScrapeScheduler.java` — replace the three SpEL `@Scheduled(fixedDelayString = "#{@settingsService…}")` methods with `implements SchedulingConfigurer`; in `configureTasks(registrar)` register three `registrar.addTriggerTask(runnable, trigger)` where each `Trigger.nextExecution` reads the current `SettingsService` interval; keep the pooled `TaskScheduler`
 - [ ] 13.2 `service/SettingsService.java` — drop the "changes take effect only on restart" javadoc caveat; confirm `tierA/B/C` getters are cheap enough to call per trigger

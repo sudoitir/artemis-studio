@@ -1,4 +1,4 @@
-# ADR-0024: Scrape cadence applies without a restart, via `SchedulingConfigurer`
+# ADR-0025: Scrape cadence applies without a restart, via `SchedulingConfigurer`
 
 - **Status**: accepted
 - **Date**: 2026-09-04

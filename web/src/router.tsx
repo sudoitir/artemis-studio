@@ -32,7 +32,7 @@ function validateResourceSearch(raw: Record<string, unknown>): ResourceSearch {
   return out;
 }
 
-/** Message-browse navigable state (ADR-0020). Selection stays ephemeral (D10), not in the URL. */
+/** Message-browse navigable state (ADR-0021). Selection stays ephemeral (D10), not in the URL. */
 export interface MessagesSearch {
   node?: string;
   filter?: string;

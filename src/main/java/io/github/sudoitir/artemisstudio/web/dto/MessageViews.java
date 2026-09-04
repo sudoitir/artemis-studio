@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The Phase 3 message API (ADR-0020). Message I/O is Jolokia-only: bodies are
+ * The Phase 3 message API (ADR-0021). Message I/O is Jolokia-only: bodies are
  * carried as text and the broker truncates oversized values, disclosed per
  * message via {@code bodyTruncated} + {@code observedLimitBytes}. Nothing secret
  * appears here.

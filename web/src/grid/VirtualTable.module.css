@@ -1,27 +1,79 @@
 .scroll {
   block-size: calc(100vh - 320px);
   min-block-size: 320px;
+  /* The grid's own viewport: it scrolls in both axes so the page never has to.
+     `max-inline-size` keeps it inside the routed column whatever the grid's
+     min-width is, and `overscroll-behavior` stops a sideways trackpad flick
+     from chaining out to the document once the grid hits its edge. */
+  max-inline-size: 100%;
   overflow: auto;
+  overscroll-behavior-x: contain;
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
 }
 
+/* One track list, declared once as `--as-cols` and consumed by the header row
+   and every body row. Both are grid containers over the same tracks, so the
+   columns line up by construction — there is no second layout pass to drift
+   from. `--as-min-inline` is the sum of the tracks' floors: it grows the grid
+   box past the viewport so `.scroll` scrolls sideways instead of squeezing
+   columns down to clipped stumps, and it is what body rows resolve against. */
 .grid {
-  --table-border-color: var(--as-border);
-  width: 100%;
-  table-layout: fixed;
+  min-inline-size: var(--as-min-inline);
+  font-size: var(--mantine-font-size-sm);
 }
 
-.grid thead th {
+.row {
+  display: grid;
+  grid-template-columns: var(--as-cols);
+  box-sizing: border-box;
+  border-block-end: 1px solid var(--as-border);
+}
+
+.headRow {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.body {
+  position: relative;
+}
+
+/* Virtualized rows are taken out of flow and placed by `translateY`, so their
+   height has to be exactly the step the virtualizer measures with — hence
+   `--as-row-h`, set from the one constant in the component. */
+.bodyRow {
+  position: absolute;
+  inset-inline: 0;
+  block-size: var(--as-row-h);
+}
+
+/* One line per cell: the rows are virtualized against a fixed height, so a
+   wrapping value would push its neighbours out of the row box. `min-inline-size`
+   defeats the grid item's auto minimum, without which a long unbroken value
+   widens its own track and pushes the columns out of alignment. Values too long
+   for their column ellipsize and carry the full text as a hover title. */
+.cell {
+  min-inline-size: 0;
+  padding-inline: 10px;
+  line-height: var(--as-row-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headCell {
   background: var(--as-grid-header-bg);
+  padding-block: 7px;
+  line-height: 1.55;
   font-size: var(--mantine-font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--as-text-dimmed);
 }
 
-.grid th[data-numeric],
-.grid td[data-numeric] {
+.cell[data-numeric] {
   text-align: end;
 }
 
@@ -31,6 +83,11 @@
 }
 
 .sortButton {
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   border: 0;
   background: none;
   font: inherit;
@@ -45,7 +102,7 @@
   cursor: pointer;
 }
 
-.clickable:hover td {
+.clickable:hover {
   background: var(--as-grid-row-hover);
 }
 

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Reads messages off a queue over Jolokia (ADR-0020 — Phase 3 message I/O is
+ * Reads messages off a queue over Jolokia (ADR-0021 — Phase 3 message I/O is
  * Jolokia-only). One batched POST per browse: {@code browse(int,int,String)} for
  * the page plus a {@code MessageCount} read for the total, so the broker pages
  * and Studio never pulls a whole deep queue through its heap (non-negotiable #1).
