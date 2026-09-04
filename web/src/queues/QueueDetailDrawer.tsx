@@ -1,8 +1,9 @@
-import { Badge, Drawer, Group, Stack, Table, Text } from '@mantine/core';
+import { Badge, Button, Drawer, Group, Stack, Table, Text } from '@mantine/core';
+import { Link, useParams } from '@tanstack/react-router';
 
 import type { QueueView } from '../api/client.ts';
 
-/** Read-only per-node breakdown for one queue row. Message ops are Phase 3. */
+/** Read-only per-node breakdown for one queue row, plus a jump into the message browser. */
 export function QueueDetailDrawer({
   queue,
   onClose,
@@ -10,6 +11,7 @@ export function QueueDetailDrawer({
   queue: QueueView | null;
   onClose: () => void;
 }) {
+  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   return (
     <Drawer
       opened={queue !== null}
@@ -20,14 +22,25 @@ export function QueueDetailDrawer({
     >
       {queue ? (
         <Stack gap="md">
-          <Group gap="xs">
-            <Badge variant="light">{queue.routingType}</Badge>
-            <Badge variant="light" color="gray">
-              {queue.durable ? 'durable' : 'non-durable'}
-            </Badge>
-            <Badge variant="light" color="gray">
-              {queue.nodesPresent}/{queue.nodesTotal} nodes
-            </Badge>
+          <Group gap="xs" justify="space-between">
+            <Group gap="xs">
+              <Badge variant="light">{queue.routingType}</Badge>
+              <Badge variant="light" color="gray">
+                {queue.durable ? 'durable' : 'non-durable'}
+              </Badge>
+              <Badge variant="light" color="gray">
+                {queue.nodesPresent}/{queue.nodesTotal} nodes
+              </Badge>
+            </Group>
+            <Button
+              size="xs"
+              variant="light"
+              component={Link}
+              to={`/clusters/${clusterId}/queues/${encodeURIComponent(queue.queueName)}/messages`}
+              onClick={onClose}
+            >
+              Browse messages
+            </Button>
           </Group>
 
           <Table>

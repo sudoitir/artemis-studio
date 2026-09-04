@@ -24,7 +24,7 @@ jobs:
           cache: maven
       - name: Verify (Spotless check, Liquibase vs Testcontainers Postgres, tests)
         run: ./mvnw -B verify
-      - name: Fail on unformatted sources
+      - name: Fail on unformatted sources or a stale OpenAPI snapshot
         run: git diff --exit-code
 
   frontend:
@@ -41,7 +41,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - name: Fail on a stale generated API schema
+        run: git diff --exit-code src/api/schema.d.ts
       - run: npm run lint
+      - run: npm test
 
   image:
     runs-on: ubuntu-latest

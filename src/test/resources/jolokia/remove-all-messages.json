@@ -1,0 +1,9 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:address=\"PHASE3.SRC\",broker=\"primary\",component=addresses,queue=\"PHASE3.SRC\",routing-type=\"anycast\",subcomponent=queues",
+        "type": "exec",
+        "operation": "removeAllMessages()"
+    },
+    "value": 3,
+    "status": 200
+}

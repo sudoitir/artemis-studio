@@ -86,7 +86,7 @@ class CapabilityProbeTest {
         assertThat(caps.notifications().reason()).contains("CORE acceptor present");
         assertThat(caps.notifications().reason()).contains("activemq.notifications address present");
         assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.AVAILABLE);
-        assertThat(caps.messageIo().reason()).contains("degraded");
+        assertThat(caps.messageIo().reason()).contains("truncates").contains("Phase 4");
         f.server().verify();
     }
 

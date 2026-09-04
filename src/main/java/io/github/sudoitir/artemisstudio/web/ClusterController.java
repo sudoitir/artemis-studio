@@ -11,7 +11,11 @@ import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.ClusterDetail;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.ClusterSummary;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.HealthView;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.NodeEndpointView;
+import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.RegisterPreview;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.TopologyView;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +48,14 @@ public class ClusterController {
     private final ClusterService service;
 
     /** Register from a list of seed URLs (ADR-0013). {@code ?dryRun=true} probes and returns without persisting. */
+    @ApiResponse(
+            responseCode = "200",
+            description = "dryRun=true: connection probe result, nothing persisted",
+            content = @Content(schema = @Schema(implementation = RegisterPreview.class)))
+    @ApiResponse(
+            responseCode = "201",
+            description = "cluster registered",
+            content = @Content(schema = @Schema(implementation = ClusterDetail.class)))
     @PostMapping
     public ResponseEntity<Object> register(
             @Valid @RequestBody RegisterClusterRequest request, @RequestParam(defaultValue = "false") boolean dryRun) {

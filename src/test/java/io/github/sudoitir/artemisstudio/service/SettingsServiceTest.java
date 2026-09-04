@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.StudioSettingRepository;
-import io.github.sudoitir.artemisstudio.scheduler.NodeScrapeLimiter;
+import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
@@ -22,7 +22,7 @@ class SettingsServiceTest extends PostgresIntegrationTest {
     StudioSettingRepository repo;
 
     @Autowired
-    NodeScrapeLimiter limiter;
+    NodeCallLimiter limiter;
 
     @Autowired
     MetricSampleReaper reaper;

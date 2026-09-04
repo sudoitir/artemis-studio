@@ -11,9 +11,12 @@ import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
+import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.RateLimit;
 import io.github.sudoitir.artemisstudio.mapper.ResourceViewMapper;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.ConsumerView;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.PagedView;
 import java.io.IOException;
@@ -53,7 +56,9 @@ class PagedListServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PagedListService(nodes, connections, new BrokerListOps(), new ResourceViewMapper());
+        NodeCallLimiter limiter =
+                new NodeCallLimiter(new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null));
+        service = new PagedListService(nodes, connections, new BrokerListOps(), new ResourceViewMapper(), limiter);
     }
 
     private JolokiaBrokerClient client(String url, String... fixtures) {

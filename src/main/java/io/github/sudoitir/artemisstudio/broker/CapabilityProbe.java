@@ -87,8 +87,9 @@ public class CapabilityProbe {
     private CapabilityAssessment assessMessageIo(CapabilityAssessment write) {
         if (write.status() == BrokerCapabilities.CapabilityStatus.AVAILABLE) {
             return CapabilityAssessment.available(
-                    "Available through Jolokia, but degraded: browse() and sendMessage() stringify message"
-                            + " bodies. Faithful binary message I/O needs the Core client (a later release).");
+                    "Available through Jolokia: browse, send, move/retry/delete/expire and purge all work."
+                            + " Bodies are carried as text and the broker truncates oversized body/property"
+                            + " values (disclosed per message); faithful binary message I/O is Phase 4 (Core client).");
         }
         return CapabilityAssessment.unavailable("Needs management-write access, which this connection does not have.");
     }

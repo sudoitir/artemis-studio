@@ -9,16 +9,16 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
-class NodeScrapeLimiterTest {
+class NodeCallLimiterTest {
 
-    private static NodeScrapeLimiter limiter(int perSecond) {
-        return new NodeScrapeLimiter(
-                new ArtemisStudioProperties(null, null, null, new RateLimit(perSecond), null, null));
+    private static NodeCallLimiter limiter(int perSecond) {
+        return new NodeCallLimiter(
+                new ArtemisStudioProperties(null, null, null, new RateLimit(perSecond), null, null, null));
     }
 
     @Test
     void allowsUpToTheCeilingThenBlocksUntilTheNextRefill() throws Exception {
-        NodeScrapeLimiter limiter = limiter(2);
+        NodeCallLimiter limiter = limiter(2);
         UUID node = UUID.randomUUID();
 
         limiter.acquire(node);
@@ -44,7 +44,7 @@ class NodeScrapeLimiterTest {
 
     @Test
     void oneExhaustedNodeDoesNotStallAnother() throws Exception {
-        NodeScrapeLimiter limiter = limiter(1);
+        NodeCallLimiter limiter = limiter(1);
         UUID busy = UUID.randomUUID();
         UUID other = UUID.randomUUID();
 
@@ -57,7 +57,7 @@ class NodeScrapeLimiterTest {
 
     @Test
     void refillToppingUpNeverExceedsTheCeiling() throws Exception {
-        NodeScrapeLimiter limiter = limiter(3);
+        NodeCallLimiter limiter = limiter(3);
         UUID node = UUID.randomUUID();
         limiter.acquire(node); // materialise the bucket
 

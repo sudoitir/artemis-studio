@@ -67,7 +67,7 @@ artemis-studio:
     tier-c-interval: 5m      # walk the whole queue set, one page per tick
   rate-limit:
     # Per broker node. Conservative default so Studio never becomes the load.
-    # Enforced by NodeScrapeLimiter (a per-node permit bucket refilled each second).
+    # Enforced by NodeCallLimiter (a per-node permit bucket refilled each second).
     management-calls-per-second: 20
   broker:
     # RestClient timeouts for every Jolokia call (ADR-0010).
@@ -77,6 +77,11 @@ artemis-studio:
     # Raw metric_sample retention in days (ADR-0006). MetricSampleReaper trims
     # older rows nightly. Runtime-overridable via studio_setting.
     retention-days: 7
+  safety:
+    # Server-enforced ceiling on one destructive message operation (ADR-0021).
+    # A dry-run count above this is a 422 unless ?override=true (behind the UI's
+    # typed confirmation). Runtime-overridable via studio_setting.
+    bulk-cap: 1000
 
 logging:
   level:

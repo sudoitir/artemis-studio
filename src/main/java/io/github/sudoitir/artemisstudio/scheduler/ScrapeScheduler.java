@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleWriter;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.sse.StreamSignals;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +23,10 @@ import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.Trigger;
+import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -48,10 +52,41 @@ import tools.jackson.databind.JsonNode;
 // GREATER_THAN both 500 with an NPE (Slice 0), so a broker-sorted "hot page" is
 // not fetchable — tier C is the coverage guarantee, tier B is best-effort speed.
 @Component
-@DependsOn("settingsService") // the @Scheduled fixed delays resolve #{@settingsService...} at wiring time
+@DependsOn("settingsService")
 @RequiredArgsConstructor
 @Slf4j
-public class ScrapeScheduler {
+public class ScrapeScheduler implements SchedulingConfigurer {
+
+    /**
+     * Registers the three tiers as trigger tasks whose {@code nextExecution}
+     * re-reads {@link SettingsService} every fire (ADR-0024), so a cadence change
+     * in Settings applies without a restart. Replaces the SpEL-bound
+     * {@code @Scheduled(fixedDelayString = "#{@settingsService…}")} that resolved
+     * once at wiring time. Fixed-delay semantics are preserved: the trigger reads
+     * {@code lastCompletion} (falling back to {@code lastActualExecution}, then
+     * "now") and adds the current interval.
+     */
+    @Override
+    public void configureTasks(ScheduledTaskRegistrar registrar) {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(3);
+        scheduler.setThreadNamePrefix("scrape-");
+        scheduler.initialize();
+        registrar.setTaskScheduler(scheduler);
+
+        registrar.addTriggerTask(this::tierA, fixedDelay(settings::tierA));
+        registrar.addTriggerTask(this::tierB, fixedDelay(settings::tierB));
+        registrar.addTriggerTask(this::tierC, fixedDelay(settings::tierC));
+    }
+
+    private static Trigger fixedDelay(java.util.function.Supplier<Duration> interval) {
+        return context -> {
+            Instant last = context.lastCompletion() != null
+                    ? context.lastCompletion()
+                    : context.lastActualExecution() != null ? context.lastActualExecution() : Instant.now();
+            return last.plus(interval.get());
+        };
+    }
 
     private static final String[] HA_ATTRS = {
         "Active", "Started", "Backup", "ReplicaSync", "NodeID", "Clustered", "Version"
@@ -59,10 +94,11 @@ public class ScrapeScheduler {
     private static final String LIST_QUEUES = "listQueues(java.lang.String,int,int)";
     private static final int PAGE_SIZE = 200;
 
+    private final io.github.sudoitir.artemisstudio.service.SettingsService settings;
     private final ClusterRepository clusters;
     private final BrokerNodeRepository nodes;
     private final BrokerConnections connections;
-    private final NodeScrapeLimiter limiter;
+    private final NodeCallLimiter limiter;
     private final ScrapeCycle scrapeCycle;
     private final ScrapePersistence persist;
     private final SweepCursor sweepCursor;
@@ -74,9 +110,6 @@ public class ScrapeScheduler {
 
     // ---- tiers -------------------------------------------------------------
 
-    @Scheduled(
-            fixedDelayString = "#{@settingsService.tierAMillis()}",
-            initialDelayString = "#{@settingsService.tierAMillis()}")
     public void tierA() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (ClusterEntity cluster : clusters.findAll()) {
@@ -94,9 +127,6 @@ public class ScrapeScheduler {
         }
     }
 
-    @Scheduled(
-            fixedDelayString = "#{@settingsService.tierBMillis()}",
-            initialDelayString = "#{@settingsService.tierBMillis()}")
     public void tierB() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (ClusterEntity cluster : clusters.findAll()) {
@@ -106,9 +136,6 @@ public class ScrapeScheduler {
         }
     }
 
-    @Scheduled(
-            fixedDelayString = "#{@settingsService.tierCMillis()}",
-            initialDelayString = "#{@settingsService.tierCMillis()}")
     public void tierC() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (ClusterEntity cluster : clusters.findAll()) {

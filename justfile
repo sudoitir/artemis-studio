@@ -92,11 +92,12 @@ verify: verify-api verify-web
 verify-api:
     {{mvn}} verify
 
-# Frontend: type-check, build, lint.
+# Frontend: type-check, build, lint, DOM tests.
 [group('quality')]
 verify-web:
     {{npm}} run build
     {{npm}} run lint
+    {{npm}} test
 
 # Format Java (Palantir, via Spotless) and the web sources.
 [group('quality')]

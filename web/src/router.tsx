@@ -12,6 +12,7 @@ import { ClusterLayout } from './app/ClusterLayout.tsx';
 import { HomeView } from './app/HomeView.tsx';
 import { TopologyView } from './topology/TopologyView.tsx';
 import { QueuesView } from './queues/QueuesView.tsx';
+import { MessagesView } from './messages/MessagesView.tsx';
 import { ResourceView } from './resources/ResourceView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
 
@@ -26,6 +27,22 @@ function validateResourceSearch(raw: Record<string, unknown>): ResourceSearch {
   const out: ResourceSearch = {};
   if (typeof raw.q === 'string' && raw.q) out.q = raw.q;
   if (typeof raw.sort === 'string' && raw.sort) out.sort = raw.sort;
+  const page = Number(raw.page);
+  if (Number.isFinite(page) && page > 1) out.page = Math.floor(page);
+  return out;
+}
+
+/** Message-browse navigable state (ADR-0020). Selection stays ephemeral (D10), not in the URL. */
+export interface MessagesSearch {
+  node?: string;
+  filter?: string;
+  page?: number;
+}
+
+function validateMessagesSearch(raw: Record<string, unknown>): MessagesSearch {
+  const out: MessagesSearch = {};
+  if (typeof raw.node === 'string' && raw.node) out.node = raw.node;
+  if (typeof raw.filter === 'string' && raw.filter) out.filter = raw.filter;
   const page = Number(raw.page);
   if (Number.isFinite(page) && page > 1) out.page = Math.floor(page);
   return out;
@@ -69,6 +86,14 @@ const queuesRoute = createRoute({
   errorComponent: RouteError,
 });
 
+const messagesRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'queues/$queueName/messages',
+  component: MessagesView,
+  validateSearch: validateMessagesSearch,
+  errorComponent: RouteError,
+});
+
 const resourceKinds = [
   'addresses',
   'consumers',
@@ -100,6 +125,7 @@ const routeTree = rootRoute.addChildren([
     clusterIndexRoute,
     topologyRoute,
     queuesRoute,
+    messagesRoute,
     ...resourceRoutes,
     settingsRoute,
   ]),

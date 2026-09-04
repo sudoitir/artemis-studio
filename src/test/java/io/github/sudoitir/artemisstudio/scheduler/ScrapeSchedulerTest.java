@@ -70,14 +70,15 @@ class ScrapeSchedulerTest {
     @Mock
     MetricSampleWriter metrics;
 
-    NodeScrapeLimiter limiter;
+    NodeCallLimiter limiter;
     ScrapeCycle scrapeCycle;
     SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
 
     @BeforeEach
     void setUp() {
-        limiter = new NodeScrapeLimiter(new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null));
+        limiter =
+                new NodeCallLimiter(new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null));
         scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(

@@ -72,6 +72,7 @@ public class ClusterService {
     private final SplitBrainRegistry splitBrainRegistry;
     private final SecretVault vault;
     private final AuditService audit;
+    private final io.github.sudoitir.artemisstudio.security.ActorResolver actorResolver;
 
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
@@ -91,6 +92,7 @@ public class ClusterService {
     @Transactional
     public Attempt<RegisterPreview> checkConnection(RegisterClusterRequest request) {
         AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
                 "REGISTER_CLUSTER",
                 "CLUSTER",
                 request.name(),
@@ -126,8 +128,15 @@ public class ClusterService {
         List<Probe> probes = connectAll(request);
         List<Probe> reachable = probes.stream().filter(Probe::ok).toList();
         if (reachable.isEmpty()) {
-            AuditEventEntity event =
-                    audit.begin("REGISTER_CLUSTER", "CLUSTER", request.name(), null, null, Map.of(), false);
+            AuditEventEntity event = audit.begin(
+                    actorResolver.resolve(),
+                    "REGISTER_CLUSTER",
+                    "CLUSTER",
+                    request.name(),
+                    null,
+                    null,
+                    Map.of(),
+                    false);
             return failed(event, probes.get(0).error());
         }
 
@@ -140,6 +149,7 @@ public class ClusterService {
         UUID clusterId = cluster.getId();
 
         AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
                 "REGISTER_CLUSTER",
                 "CLUSTER",
                 cluster.getName(),
@@ -233,8 +243,15 @@ public class ClusterService {
     @Transactional
     public Attempt<TopologyView> rediscover(UUID clusterId) {
         ClusterEntity cluster = requireCluster(clusterId);
-        AuditEventEntity event =
-                audit.begin("REDISCOVER_CLUSTER", "CLUSTER", cluster.getName(), clusterId, null, Map.of(), false);
+        AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
+                "REDISCOVER_CLUSTER",
+                "CLUSTER",
+                cluster.getName(),
+                clusterId,
+                null,
+                Map.of(),
+                false);
 
         List<ProbedSeed> seeds = new ArrayList<>();
         for (BrokerNodeEntity node : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
@@ -267,6 +284,7 @@ public class ClusterService {
                 .orElseThrow(() -> new NotFoundException("Node", nodeId));
 
         AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
                 "OVERRIDE_NODE_URL",
                 "NODE",
                 node.getName(),
@@ -292,6 +310,7 @@ public class ClusterService {
     public void rotateCredentials(UUID clusterId, String username, String password) {
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
                 "ROTATE_CREDENTIALS",
                 "CLUSTER",
                 cluster.getName(),
@@ -314,8 +333,15 @@ public class ClusterService {
     @Transactional
     public void delete(UUID clusterId) {
         ClusterEntity cluster = requireCluster(clusterId);
-        AuditEventEntity event =
-                audit.begin("DELETE_CLUSTER", "CLUSTER", cluster.getName(), clusterId, null, Map.of(), false);
+        AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
+                "DELETE_CLUSTER",
+                "CLUSTER",
+                cluster.getName(),
+                clusterId,
+                null,
+                Map.of(),
+                false);
         clusters.delete(cluster);
         audit.succeed(event, 1);
     }
