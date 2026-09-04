@@ -25,7 +25,8 @@ public record ArtemisStudioProperties(
         Broker broker,
         Metric metric,
         Safety safety,
-        Events events) {
+        Events events,
+        Rr rr) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -37,6 +38,7 @@ public record ArtemisStudioProperties(
         metric = metric != null ? metric : new Metric(7);
         safety = safety != null ? safety : new Safety(1000);
         events = events != null ? events : new Events(Duration.ofHours(72), 10_000, Duration.ofSeconds(1), 1000);
+        rr = rr != null ? rr : new Rr(30_000, Duration.ofSeconds(5), Duration.ofMinutes(15), 4096, Duration.ofDays(7));
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -78,4 +80,16 @@ public record ArtemisStudioProperties(
             @DefaultValue("10000") int bufferSize,
             @DefaultValue("1s") Duration flush,
             @DefaultValue("1000") int coalesceWindowMillis) {}
+
+    /**
+     * Request-reply tracing (Phase 5). {@code defaultDeadlineMs} applies only
+     * when neither the message nor its expectation carries one; the sweep and
+     * percentile window are compile-time only, matching {@link Events}.
+     */
+    public record Rr(
+            @DefaultValue("30000") int defaultDeadlineMs,
+            @DefaultValue("5s") Duration sweepInterval,
+            @DefaultValue("15m") Duration percentileWindow,
+            @DefaultValue("4096") int payloadCaptureBytes,
+            @DefaultValue("7d") Duration retention) {}
 }

@@ -31,14 +31,14 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 4 complete
-(Core protocol client subscribed to `activemq.notifications` on every live
-node, failover-following via `CoreSubscriptionManager`; `broker_event`
-persistence with a buffered writer and retention reaper; a data-bearing SSE
-`events` topic with `Last-Event-ID` replay and coalesced derived signals;
-faithful Core-backed message browse/send with Jolokia fallback past the deep-page
-cap and for all mutations; honest `NOTIFICATIONS` capability off a cached
-subscription verdict); Phase 5 (request-reply tracing) next.
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 5 complete
+(request-reply flows reconstructed from a notification-anchored,
+browse-sampled correlator — `RrSampler` over a pooled Core connection plus
+`RrNotificationObserver` on the existing notification stream feed
+`RrCorrelator`'s six-state `FlowStateMachine`; a deadline sweep splits
+`ORPHANED` from `TIMED_OUT`; Micrometer latency percentiles never reported
+without a coverage-ratio disclosure; the flows/stuck/latency/expectations
+screen at `clusters/{id}/rr`); Phase 6 (metrics and charts) next.
 
 ## How to work a change
 

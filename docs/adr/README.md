@@ -35,7 +35,10 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0023](0023-audit-actor-before-authentication.md) | Audit actor resolution before authentication exists (`anonymous` + request context) |
 | [0024](0024-frontend-dom-test-harness.md) | Frontend DOM test harness is Vitest + Testing Library + MSW |
 | [0025](0025-live-scrape-cadence-scheduling-configurer.md) | Scrape cadence applies without a restart, via `SchedulingConfigurer` |
-| [0026](0026-core-client-connection-model.md) | Core client — one subscription per live node, poll loop, Studio-driven reconnect, cached capability verdict |
+| [0026](0026-core-client-connection-model.md) | Core client — one subscription per live node, poll loop, Studio-driven reconnect, cached capability verdict (extended by 0031) |
 | [0027](0027-sse-events-topic-carries-data.md) | The SSE `events` topic carries data, with `Last-Event-ID` replay and coalesced derived signals (extends 0018) |
 | [0028](0028-broker-event-persistence.md) | `broker_event` — buffered batch insert, bounded queue with a visible drop counter, `seq` PK |
 | [0029](0029-message-transport-two-implementations.md) | `MessageTransport` — Core for read/write fidelity, Jolokia for mutations and deep pages (supersedes 0021) |
+| [0030](0030-request-reply-correlation-strategy.md) | Request-reply correlation is notification-anchored and browse-sampled, with a disclosed coverage ceiling |
+| [0031](0031-pooled-core-connections.md) | Pooled Core connections via `pooled-jms`, superseding connect-per-call |
+| [0032](0032-rr-latency-micrometer-percentiles.md) | Request-reply latency via Micrometer time-windowed percentiles, no persisted history in Phase 5 |

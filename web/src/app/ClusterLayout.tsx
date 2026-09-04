@@ -18,6 +18,7 @@ const VIEWS = [
   'connections',
   'producers',
   'events',
+  'rr',
   'dlq',
   'audit',
   'settings',
@@ -123,7 +124,7 @@ export function ClusterLayout() {
             className={styles.viewTab}
             activeProps={{ 'data-active': 'true' }}
           >
-            {v === 'dlq' ? 'DLQ' : v[0].toUpperCase() + v.slice(1)}
+            {v === 'dlq' ? 'DLQ' : v === 'rr' ? 'Requests' : v[0].toUpperCase() + v.slice(1)}
           </Link>
         ))}
       </nav>

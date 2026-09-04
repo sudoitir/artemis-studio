@@ -16,6 +16,7 @@ import { MessagesView } from './messages/MessagesView.tsx';
 import { AuditView } from './audit/AuditView.tsx';
 import { DlqView } from './dlq/DlqView.tsx';
 import { EventsView } from './events/EventsView.tsx';
+import { FlowsView } from './rr/FlowsView.tsx';
 import { ResourceView } from './resources/ResourceView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
 
@@ -115,6 +116,22 @@ const auditRoute = createRoute({
   errorComponent: RouteError,
 });
 
+function validateRrSearch(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of ['tab', 'state', 'address'] as const) {
+    if (typeof raw[k] === 'string' && raw[k]) out[k] = raw[k];
+  }
+  return out;
+}
+
+const rrRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'rr',
+  component: FlowsView,
+  validateSearch: validateRrSearch,
+  errorComponent: RouteError,
+});
+
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
@@ -164,6 +181,7 @@ const routeTree = rootRoute.addChildren([
     auditRoute,
     dlqRoute,
     eventsRoute,
+    rrRoute,
     ...resourceRoutes,
     settingsRoute,
   ]),

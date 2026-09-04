@@ -16,7 +16,15 @@ class TopicCoalescerTest {
 
     private final SseHub hub = mock(SseHub.class);
     private final ArtemisStudioProperties props = new ArtemisStudioProperties(
-            null, null, null, null, null, null, null, new Events(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50));
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new Events(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50),
+            null);
     private final TopicCoalescer coalescer = new TopicCoalescer(hub, props);
 
     @Test

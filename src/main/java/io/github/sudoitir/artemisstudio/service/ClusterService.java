@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.broker.core.CorePool;
 import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.domain.topology.ClusterTopology;
@@ -75,6 +76,7 @@ public class ClusterService {
     private final HaStateEvaluator evaluator;
     private final SplitBrainRegistry splitBrainRegistry;
     private final CoreSubscriptionManager coreSubscriptions;
+    private final CorePool corePool;
     private final SecretVault vault;
     private final AuditService audit;
     private final io.github.sudoitir.artemisstudio.security.ActorResolver actorResolver;
@@ -365,6 +367,7 @@ public class ClusterService {
         // Release Core connections and drop the in-memory subscription state so a
         // removed cluster is not retried.
         coreSubscriptions.forget(clusterId);
+        corePool.forget(clusterId);
         audit.succeed(event, 1);
     }
 

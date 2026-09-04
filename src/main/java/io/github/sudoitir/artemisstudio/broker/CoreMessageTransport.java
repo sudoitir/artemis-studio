@@ -3,11 +3,11 @@ package io.github.sudoitir.artemisstudio.broker;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsePage;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsedMessage;
-import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionFactory;
 import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionSettings;
+import io.github.sudoitir.artemisstudio.broker.core.CorePool;
+import io.github.sudoitir.artemisstudio.broker.core.CorePool.PooledSession;
 import io.github.sudoitir.artemisstudio.broker.core.CoreUrl;
 import jakarta.jms.BytesMessage;
-import jakarta.jms.Connection;
 import jakarta.jms.DeliveryMode;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.apache.activemq.artemis.jms.client.ActiveMQMessage;
 import org.springframework.stereotype.Component;
 
@@ -51,7 +50,7 @@ public class CoreMessageTransport implements MessageTransport {
     private static final int MAX_CORE_DEPTH = MessageBrowser.BROKER_PAGE_CAP;
 
     private final BrokerConnections connections;
-    private final CoreConnectionFactory connectionFactory;
+    private final CorePool corePool;
     private final JolokiaMessageTransport jolokiaFallback;
 
     @Override
@@ -67,11 +66,12 @@ public class CoreMessageTransport implements MessageTransport {
             return new BrowseResult(
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
-        try (JmsSession jms = open(target.clusterId(), target.coreUrl())) {
-            Queue queue = jms.session.createQueue(target.queueName());
+        try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
+            Session session = jms.session();
+            Queue queue = session.createQueue(target.queueName());
             QueueBrowser browser = (filter == null || filter.isBlank())
-                    ? jms.session.createBrowser(queue)
-                    : jms.session.createBrowser(queue, filter);
+                    ? session.createBrowser(queue)
+                    : session.createBrowser(queue, filter);
 
             List<BrowsedMessage> rows = new ArrayList<>();
             long index = 0;
@@ -95,15 +95,15 @@ public class CoreMessageTransport implements MessageTransport {
 
     @Override
     public void send(TransportTarget target, SendSpec spec) {
-        try (JmsSession jms = open(target.clusterId(), target.coreUrl())) {
-            Queue queue = jms.session.createQueue(target.address());
-            Message message = spec.bodyBase64()
-                    ? bytesMessage(jms.session, spec.body())
-                    : jms.session.createTextMessage(spec.body());
+        try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
+            Session session = jms.session();
+            Queue queue = session.createQueue(target.address());
+            Message message =
+                    spec.bodyBase64() ? bytesMessage(session, spec.body()) : session.createTextMessage(spec.body());
             applyProperties(message, spec.headers());
             applyProperties(message, spec.properties());
             int deliveryMode = spec.durable() ? DeliveryMode.PERSISTENT : DeliveryMode.NON_PERSISTENT;
-            jms.session.createProducer(queue).send(message, deliveryMode, Message.DEFAULT_PRIORITY, 0L);
+            session.createProducer(queue).send(message, deliveryMode, Message.DEFAULT_PRIORITY, 0L);
         } catch (JMSException ex) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE, "Core send failed: " + ex.getMessage());
@@ -190,6 +190,7 @@ public class CoreMessageTransport implements MessageTransport {
                 bodyByteLength(body, encoding),
                 m.getStringProperty("_AMQ_GROUP_ID"),
                 m.getJMSCorrelationID(),
+                m.getJMSReplyTo() != null ? m.getJMSReplyTo().toString() : null,
                 blankToNull(stringProp(m, "_AMQ_VALIDATED_USER")),
                 body,
                 encoding,
@@ -245,43 +246,18 @@ public class CoreMessageTransport implements MessageTransport {
         return v == null || v.isBlank() ? null : v;
     }
 
-    private JmsSession open(UUID clusterId, String coreUrl) {
+    private PooledSession open(UUID clusterId, String coreUrl) {
         String dialable = CoreUrl.dialable(coreUrl);
         if (dialable == null) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE, "No Core URL for this node.");
         }
         CoreConnectionSettings settings = connections.coreSettingsFor(clusterId);
-        ActiveMQConnectionFactory factory = connectionFactory.build(settings, dialable);
         try {
-            Connection connection = settings.hasCredentials()
-                    ? factory.createConnection(settings.username(), settings.password())
-                    : factory.createConnection();
-            connection.start();
-            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            return new JmsSession(factory, connection, session);
+            return corePool.borrow(clusterId, dialable, settings);
         } catch (JMSException e) {
-            factory.close();
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE, "Could not open a Core session: " + e.getMessage());
-        }
-    }
-
-    private record JmsSession(ActiveMQConnectionFactory factory, Connection connection, Session session)
-            implements AutoCloseable {
-        @Override
-        public void close() {
-            try {
-                session.close();
-            } catch (JMSException ignored) {
-                // teardown
-            }
-            try {
-                connection.close();
-            } catch (JMSException ignored) {
-                // teardown
-            }
-            factory.close();
         }
     }
 }

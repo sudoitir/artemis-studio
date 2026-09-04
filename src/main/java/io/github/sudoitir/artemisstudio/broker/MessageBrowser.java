@@ -50,6 +50,7 @@ public class MessageBrowser {
             long size,
             String groupId,
             String correlationId,
+            String replyTo,
             String userId,
             String body,
             BodyEncoding bodyEncoding,
@@ -147,6 +148,7 @@ public class MessageBrowser {
                 asLong(row, "persistentSize"),
                 text(row, "groupID"),
                 text(row, "correlationID"),
+                null, // Jolokia's browse() row carries no reply-to field (§11.2) — Core-only (ADR-0029)
                 blankToNull(text(row, "userID")),
                 body,
                 BodyEncoding.TEXT, // Jolokia browse() always stringifies

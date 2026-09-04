@@ -55,6 +55,14 @@ export type DlqAddress = Schemas['DlqAddress'];
 export type DlqQueue = Schemas['DlqQueue'];
 export type BrokerEventView = Schemas['BrokerEventView'];
 export type BrokerEventPageView = Schemas['BrokerEventPageView'];
+export type ExpectationView = Schemas['ExpectationView'];
+export type CreateExpectationRequest = Schemas['CreateExpectationRequest'];
+export type UpdateExpectationRequest = Schemas['UpdateExpectationRequest'];
+export type FlowView = Schemas['FlowView'];
+export type FlowPageView = Schemas['FlowPageView'];
+export type RrEventView = Schemas['RrEventView'];
+export type AddressStatsView = Schemas['AddressStatsView'];
+export type StatsResponse = Schemas['StatsResponse'];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
 export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
@@ -531,6 +539,101 @@ export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
   return useQuery({
     queryKey: ['clusters', clusterId, 'dlq'],
     queryFn: () => request<DlqView>(`/clusters/${clusterId}/dlq`),
+    refetchInterval: 10_000,
+  });
+}
+
+// ── request-reply tracing ──────────────────────────────────────────────────
+
+export function useRrExpectations(
+  clusterId: string,
+): UseQueryResult<ExpectationView[], ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'rr', 'expectations'],
+    queryFn: () => request<ExpectationView[]>(`/clusters/${clusterId}/rr/expectations`),
+  });
+}
+
+export function useCreateRrExpectation(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateExpectationRequest) =>
+      request<ExpectationView>(`/clusters/${clusterId}/rr/expectations`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr', 'expectations'] }),
+  });
+}
+
+export function useUpdateRrExpectation(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateExpectationRequest }) =>
+      request<ExpectationView>(`/clusters/${clusterId}/rr/expectations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr', 'expectations'] }),
+  });
+}
+
+export function useDeleteRrExpectation(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      request<void>(`/clusters/${clusterId}/rr/expectations/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr', 'expectations'] }),
+  });
+}
+
+export interface RrFlowFilter {
+  state?: string;
+  address?: string;
+  correlationId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function useRrFlows(
+  clusterId: string,
+  filter: RrFlowFilter = {},
+): UseQueryResult<FlowPageView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'rr', 'flows', filter],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(filter)) {
+        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
+      }
+      const qs = sp.toString();
+      return request<FlowPageView>(`/clusters/${clusterId}/rr/flows${qs ? `?${qs}` : ''}`);
+    },
+    refetchInterval: 5_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useRrFlow(
+  clusterId: string,
+  flowId: string | undefined,
+): UseQueryResult<FlowView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'rr', 'flows', flowId],
+    queryFn: () => request<FlowView>(`/clusters/${clusterId}/rr/flows/${flowId}`),
+    enabled: !!flowId,
+  });
+}
+
+export function useRrStats(
+  clusterId: string,
+  window = 'PT15M',
+): UseQueryResult<StatsResponse, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'rr', 'stats', window],
+    queryFn: () => request<StatsResponse>(`/clusters/${clusterId}/rr/stats?window=${window}`),
     refetchInterval: 10_000,
   });
 }
