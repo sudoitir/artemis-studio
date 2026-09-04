@@ -71,6 +71,9 @@ class ScrapeSchedulerTest {
     MetricSampleWriter metrics;
 
     @Mock
+    io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager coreSubscriptions;
+
+    @Mock
     io.github.sudoitir.artemisstudio.service.SettingsService settings;
 
     NodeCallLimiter limiter;
@@ -80,8 +83,8 @@ class ScrapeSchedulerTest {
 
     @BeforeEach
     void setUp() {
-        limiter =
-                new NodeCallLimiter(new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null));
+        limiter = new NodeCallLimiter(
+                new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null, null));
         scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
@@ -95,7 +98,8 @@ class ScrapeSchedulerTest {
                 sweepCursor,
                 upsert,
                 metrics,
-                new StreamSignals(new SseHub()));
+                new StreamSignals(new SseHub()),
+                coreSubscriptions);
     }
 
     private JolokiaBrokerClient client(String... fixtures) {

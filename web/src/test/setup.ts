@@ -54,6 +54,54 @@ window.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 
 window.HTMLElement.prototype.scrollIntoView ??= () => {};
 
+// jsdom has no EventSource. This stub records every open instance and lets a test
+// push a named frame with `EventSourceStub.emit('events', data)`.
+type Listener = (e: MessageEvent) => void;
+class EventSourceStub {
+  static instances: EventSourceStub[] = [];
+  url: string;
+  readyState = 1;
+  onopen: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  listeners = new Map<string, Set<Listener>>();
+  constructor(url: string) {
+    this.url = url;
+    EventSourceStub.instances.push(this);
+    queueMicrotask(() => this.onopen?.());
+  }
+  addEventListener(type: string, cb: Listener) {
+    let set = this.listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(type, set);
+    }
+    set.add(cb);
+  }
+  removeEventListener(type: string, cb: Listener) {
+    this.listeners.get(type)?.delete(cb);
+  }
+  close() {
+    this.readyState = 2;
+  }
+  /** Test helper: deliver a named frame to every open stub (or one, by index). */
+  static emit(type: string, data: unknown, index?: number) {
+    const targets =
+      index === undefined ? EventSourceStub.instances : [EventSourceStub.instances[index]];
+    for (const es of targets) {
+      const frame = {
+        data: typeof data === 'string' ? data : JSON.stringify(data),
+      } as MessageEvent;
+      es?.listeners.get(type)?.forEach((cb) => cb(frame));
+    }
+  }
+  static reset() {
+    EventSourceStub.instances = [];
+  }
+}
+window.EventSource = EventSourceStub as unknown as typeof EventSource;
+afterEach(() => EventSourceStub.reset());
+export { EventSourceStub };
+
 // @tanstack/react-virtual sizes the scroll element from offsetWidth/offsetHeight,
 // which jsdom always reports as 0 — leaving the virtualizer with no rows. Give
 // every element a viewport-sized box so getVirtualItems() yields rows.

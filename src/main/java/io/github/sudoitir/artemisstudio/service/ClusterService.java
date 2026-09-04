@@ -7,6 +7,8 @@ import io.github.sudoitir.artemisstudio.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager;
+import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.domain.topology.ClusterTopology;
 import io.github.sudoitir.artemisstudio.domain.topology.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.domain.topology.NodeEndpoint;
@@ -37,6 +39,7 @@ import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.RegisterPreview;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.TopologyView;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,6 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClusterService {
 
     private static final String JOLOKIA_BASIC = "JOLOKIA_BASIC";
+    private static final String CORE = "CORE";
     private static final UUID UNBOUND = new UUID(0L, 0L);
 
     private final ClusterRepository clusters;
@@ -70,6 +74,7 @@ public class ClusterService {
     private final TopologyDiscovery topologyDiscovery;
     private final HaStateEvaluator evaluator;
     private final SplitBrainRegistry splitBrainRegistry;
+    private final CoreSubscriptionManager coreSubscriptions;
     private final SecretVault vault;
     private final AuditService audit;
     private final io.github.sudoitir.artemisstudio.security.ActorResolver actorResolver;
@@ -107,7 +112,8 @@ public class ClusterService {
             return failed(event, probes.get(0).error());
         }
 
-        BrokerCapabilities capabilities = capabilityProbe.probe(reachable.get(0).client());
+        BrokerCapabilities capabilities =
+                capabilityProbe.probe(reachable.get(0).client(), new SubscriptionVerdict.NotAttempted());
         ClusterTopology preview =
                 topologyDiscovery.preview(reachable.stream().map(Probe::asSeed).toList());
         List<String> names = preview.nodes().stream()
@@ -164,13 +170,22 @@ public class ClusterService {
             credentials.save(new BrokerCredentialEntity(
                     clusterId, JOLOKIA_BASIC, request.credentials().username(), sealed.ciphertext(), sealed.nonce()));
         }
+        if (request.hasCoreCredentials()) {
+            // A CORE row is a genuinely separate sealed secret — AAD is clusterId|CORE
+            // (ADR-0026). When absent, coreSettingsFor falls back to the Jolokia credential.
+            SecretVault.Sealed sealed =
+                    vault.encrypt(clusterId, CORE, request.coreCredentials().password());
+            credentials.save(new BrokerCredentialEntity(
+                    clusterId, CORE, request.coreCredentials().username(), sealed.ciphertext(), sealed.nonce()));
+        }
         if (request.tlsBundle() != null) {
             tlsRepository.save(new BrokerTlsEntity(clusterId, request.tlsBundle(), null, true));
         }
 
         ClusterTopology topology = topologyDiscovery.discover(
                 clusterId, reachable.stream().map(Probe::asSeed).toList());
-        BrokerCapabilities capabilities = capabilityProbe.probe(reachable.get(0).client());
+        BrokerCapabilities capabilities =
+                capabilityProbe.probe(reachable.get(0).client(), coreSubscriptions.verdictFor(clusterId));
 
         audit.succeed(event, endpointCount(topology));
         return new Attempt.Ok<>(new ClusterDetail(
@@ -235,7 +250,7 @@ public class ClusterService {
                         BrokerConnectionException.Kind.UNREACHABLE,
                         "This cluster has no node with a management URL yet."));
         JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-        return viewMapper.capabilities(capabilityProbe.probe(client));
+        return viewMapper.capabilities(capabilityProbe.probe(client, coreSubscriptions.verdictFor(clusterId)));
     }
 
     // ---- mutations ------------------------------------------------------------
@@ -283,31 +298,35 @@ public class ClusterService {
                 .filter(n -> n.getClusterId().equals(clusterId))
                 .orElseThrow(() -> new NotFoundException("Node", nodeId));
 
-        AuditEventEntity event = audit.begin(
-                actorResolver.resolve(),
-                "OVERRIDE_NODE_URL",
-                "NODE",
-                node.getName(),
-                clusterId,
-                nodeId,
-                Map.of("jolokiaUrl", request.jolokiaUrl()),
-                false);
-
-        try {
-            connections.forCluster(clusterId, request.jolokiaUrl()).resolveBrokerObjectName();
-        } catch (BrokerConnectionException e) {
-            return failed(event, e);
+        Map<String, Object> params = new HashMap<>();
+        if (request.hasJolokiaUrl()) {
+            params.put("jolokiaUrl", request.jolokiaUrl());
         }
+        if (request.hasCoreUrl()) {
+            params.put("coreUrl", request.coreUrl());
+        }
+        AuditEventEntity event = audit.begin(
+                actorResolver.resolve(), "OVERRIDE_NODE_URL", "NODE", node.getName(), clusterId, nodeId, params, false);
 
-        node.applyManualUrl(request.jolokiaUrl());
+        if (request.hasJolokiaUrl()) {
+            try {
+                connections.forCluster(clusterId, request.jolokiaUrl()).resolveBrokerObjectName();
+            } catch (BrokerConnectionException e) {
+                return failed(event, e);
+            }
+            node.applyManualUrl(request.jolokiaUrl());
+        }
+        if (request.hasCoreUrl()) {
+            node.applyManualCoreUrl(request.coreUrl());
+        }
         nodes.save(node);
         audit.succeed(event, 1);
         return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(node)));
     }
 
-    /** Rotate the stored HTTP Basic credentials for a cluster; re-encrypts, audits in-transaction, returns nothing secret. */
+    /** Rotate a stored credential (JOLOKIA_BASIC or CORE) for a cluster; re-encrypts, audits in-transaction, returns nothing secret. */
     @Transactional
-    public void rotateCredentials(UUID clusterId, String username, String password) {
+    public void rotateCredentials(UUID clusterId, String username, String password, String kind) {
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -316,16 +335,16 @@ public class ClusterService {
                 cluster.getName(),
                 clusterId,
                 null,
-                Map.of("username", username),
+                Map.of("username", username, "kind", kind),
                 false);
 
-        SecretVault.Sealed sealed = vault.encrypt(clusterId, JOLOKIA_BASIC, password);
+        SecretVault.Sealed sealed = vault.encrypt(clusterId, kind, password);
         credentials
-                .findByClusterIdAndKind(clusterId, JOLOKIA_BASIC)
+                .findByClusterIdAndKind(clusterId, kind)
                 .ifPresentOrElse(
                         existing -> existing.replaceSecret(username, sealed.ciphertext(), sealed.nonce()),
                         () -> credentials.save(new BrokerCredentialEntity(
-                                clusterId, JOLOKIA_BASIC, username, sealed.ciphertext(), sealed.nonce())));
+                                clusterId, kind, username, sealed.ciphertext(), sealed.nonce())));
 
         audit.succeed(event, 1);
     }
@@ -343,6 +362,9 @@ public class ClusterService {
                 Map.of(),
                 false);
         clusters.delete(cluster);
+        // Release Core connections and drop the in-memory subscription state so a
+        // removed cluster is not retried.
+        coreSubscriptions.forget(clusterId);
         audit.succeed(event, 1);
     }
 

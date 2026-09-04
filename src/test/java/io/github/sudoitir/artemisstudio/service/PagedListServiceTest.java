@@ -56,8 +56,8 @@ class PagedListServiceTest {
 
     @BeforeEach
     void setUp() {
-        NodeCallLimiter limiter =
-                new NodeCallLimiter(new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null));
+        NodeCallLimiter limiter = new NodeCallLimiter(
+                new ArtemisStudioProperties(null, null, null, new RateLimit(50), null, null, null, null));
         service = new PagedListService(nodes, connections, new BrokerListOps(), new ResourceViewMapper(), limiter);
     }
 

@@ -131,6 +131,16 @@ public class BrokerNodeEntity {
         this.discovered = false;
     }
 
+    /**
+     * The {@code PATCH} override for the Core URL: discovery stores the
+     * broker-advertised connector, which is often unreachable from where Studio
+     * runs (ADR-0026). Marks the row overridden so rediscovery leaves it alone.
+     */
+    public void applyManualCoreUrl(String coreUrl) {
+        this.coreUrl = coreUrl;
+        this.manualOverride = true;
+    }
+
     /** The refresh loop's write: HA state tagged with the cycle it was observed in (ADR-0012). */
     public void applyHaState(
             Boolean active,

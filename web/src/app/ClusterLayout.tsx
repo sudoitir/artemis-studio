@@ -17,6 +17,7 @@ const VIEWS = [
   'sessions',
   'connections',
   'producers',
+  'events',
   'dlq',
   'audit',
   'settings',
@@ -53,10 +54,13 @@ export function ClusterLayout() {
     data.health.level === 'UNKNOWN' ? 'not yet contacted' : 'reachable',
   ].join(' · ');
   const critical = data.health.splitBrain === 'CRITICAL';
-  // notifications is UNKNOWN until Phase 4 by design — don't nag about it here.
-  const capsNeedingSetup = (['managementRead', 'managementWrite', 'messageIo'] as const).some(
-    (k) => data.capabilities[k].status !== 'AVAILABLE',
-  );
+  const capsNeedingSetup =
+    (['managementRead', 'managementWrite', 'messageIo'] as const).some(
+      (k) => data.capabilities[k].status !== 'AVAILABLE',
+    ) ||
+    // notifications: nag only on a real, actionable gap — not while it is still
+    // UNKNOWN because the first scrape cycle has not run.
+    data.capabilities.notifications.status === 'UNAVAILABLE';
 
   return (
     <Stack gap="lg">

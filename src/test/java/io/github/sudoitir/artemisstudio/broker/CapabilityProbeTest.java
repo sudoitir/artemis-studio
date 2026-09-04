@@ -6,8 +6,11 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import io.github.sudoitir.artemisstudio.broker.BrokerCapabilities.CapabilityStatus;
+import io.github.sudoitir.artemisstudio.broker.core.CoreEventClient;
+import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpMethod;
@@ -74,15 +77,14 @@ class CapabilityProbeTest {
                 "acceptor-params-core.json",
                 "addresses-with-notifications.json");
 
-        BrokerCapabilities caps = probe.probe(f.client());
+        BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
         assertThat(caps.managementRead().status()).isEqualTo(CapabilityStatus.AVAILABLE);
         assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.AVAILABLE);
         assertThat(caps.managementWrite().reason()).contains("jolokia-access.xml");
+        // No scrape cycle has produced a subscription outcome yet.
         assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNKNOWN);
-        assertThat(caps.notifications().brokerXmlSnippet())
-                .contains("NotificationActiveMQServerPlugin")
-                .contains("activemq.notifications");
+        assertThat(caps.notifications().reason()).contains("first scrape cycle has not completed");
         assertThat(caps.notifications().reason()).contains("CORE acceptor present");
         assertThat(caps.notifications().reason()).contains("activemq.notifications address present");
         assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.AVAILABLE);
@@ -100,7 +102,7 @@ class CapabilityProbeTest {
                 "acceptor-params-core.json",
                 "addresses-with-notifications.json");
 
-        BrokerCapabilities caps = probe.probe(f.client());
+        BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
         assertThat(caps.managementRead().status()).isEqualTo(CapabilityStatus.AVAILABLE);
         assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
@@ -119,13 +121,11 @@ class CapabilityProbeTest {
                 "acceptors-empty.json",
                 "addresses-without-notifications.json");
 
-        BrokerCapabilities caps = probe.probe(f.client());
+        BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
         assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNKNOWN);
         assertThat(caps.notifications().reason()).contains("CORE acceptor not found");
         assertThat(caps.notifications().reason()).contains("activemq.notifications address not found");
-        // The snippet is still offered so the operator can prepare the broker.
-        assertThat(caps.notifications().brokerXmlSnippet()).isNotBlank();
         f.server().verify();
     }
 
@@ -134,12 +134,65 @@ class CapabilityProbeTest {
         // search resolves the broker, but the attribute read comes back non-200.
         Fixture f = fixture("search-broker.json", "exec-forbidden.json");
 
-        BrokerCapabilities caps = probe.probe(f.client());
+        BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
         assertThat(caps.managementRead().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
         assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.UNKNOWN);
         assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNKNOWN);
         assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.UNKNOWN);
+        f.server().verify();
+    }
+
+    @Test
+    void notificationsAvailableWhenSubscribed() {
+        Fixture f = fixture(
+                "search-broker.json",
+                "capability-version-read.json",
+                "topology.json",
+                "acceptors.json",
+                "acceptor-params-core.json",
+                "addresses-with-notifications.json");
+
+        BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.Connected(1, Instant.now()));
+
+        assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.AVAILABLE);
+        assertThat(caps.notifications().reason()).contains("Subscribed to activemq.notifications");
+        assertThat(caps.notifications().brokerXmlSnippet()).contains("NotificationActiveMQServerPlugin");
+        f.server().verify();
+    }
+
+    @Test
+    void notificationsUnavailableWhenSubscriptionRefusedForPermission() {
+        Fixture f = fixture(
+                "search-broker.json",
+                "capability-version-read.json",
+                "topology.json",
+                "acceptors.json",
+                "acceptor-params-core.json",
+                "addresses-with-notifications.json");
+
+        BrokerCapabilities caps = probe.probe(
+                f.client(), new SubscriptionVerdict.Failed(CoreEventClient.Kind.PERMISSION_DENIED, "AMQ229213"));
+
+        assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
+        assertThat(caps.notifications().brokerXmlSnippet()).contains("consume").contains("createNonDurableQueue");
+        f.server().verify();
+    }
+
+    @Test
+    void notificationsUnavailableWhenNoCoreUrl() {
+        Fixture f = fixture(
+                "search-broker.json",
+                "capability-version-read.json",
+                "topology.json",
+                "acceptors-empty.json",
+                "addresses-without-notifications.json");
+
+        BrokerCapabilities caps =
+                probe.probe(f.client(), new SubscriptionVerdict.Failed(CoreEventClient.Kind.NO_CORE_URL, "no url"));
+
+        assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
+        assertThat(caps.notifications().brokerXmlSnippet()).contains("acceptor");
         f.server().verify();
     }
 }
