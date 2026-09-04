@@ -1,7 +1,13 @@
 .scroll {
   block-size: calc(100vh - 320px);
   min-block-size: 320px;
+  /* The grid's own viewport: it scrolls in both axes so the page never has to.
+     `max-inline-size` keeps it inside the routed column whatever the grid's
+     min-width is, and `overscroll-behavior` stops a sideways trackpad flick
+     from chaining out to the document once the grid hits its edge. */
+  max-inline-size: 100%;
   overflow: auto;
+  overscroll-behavior-x: contain;
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
 }
@@ -10,6 +16,16 @@
   --table-border-color: var(--as-border);
   width: 100%;
   table-layout: fixed;
+}
+
+/* One line per row, always: the rows are virtualized against a fixed height, so
+   a wrapping cell would push its neighbours out of the row box. Values too long
+   for their column ellipsize and carry the full text as a hover title. */
+.grid th,
+.grid td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .grid thead th {
@@ -31,6 +47,11 @@
 }
 
 .sortButton {
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   border: 0;
   background: none;
   font: inherit;
