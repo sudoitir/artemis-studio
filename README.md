@@ -1,5 +1,7 @@
 # Artemis Studio
 
+> **⚠️ Work in progress — Artemis Studio is under active development and is not yet feature-complete. Expect breaking changes and incomplete functionality.**
+
 **Cluster-wide management and observability for Apache ActiveMQ Artemis.**
 
 The bundled Hawtio console manages one broker at a time and has no idea a cluster
