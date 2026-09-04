@@ -82,8 +82,10 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   function field(key: keyof Fields) {
     return {
       value: f[key],
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setF((s) => ({ ...s, [key]: e.currentTarget.value })),
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const v = e.currentTarget.value;
+        setF((s) => ({ ...s, [key]: v }));
+      },
       onBlur: () => setTouched((s) => ({ ...s, [key]: true })),
     };
   }

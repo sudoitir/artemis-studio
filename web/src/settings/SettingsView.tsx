@@ -67,7 +67,10 @@ function OperationalConfig() {
                 label={f.label}
                 description={f.hint}
                 value={value}
-                onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.currentTarget.value }))}
+                onChange={(e) => {
+                  const v = e.currentTarget.value;
+                  setDraft((d) => ({ ...d, [f.key]: v }));
+                }}
                 w={280}
                 size="xs"
               />

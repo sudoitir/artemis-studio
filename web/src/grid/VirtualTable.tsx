@@ -23,6 +23,7 @@ export interface GridColumn<T> {
 }
 
 const ROW_HEIGHT = 34;
+const DEFAULT_WIDTH = 160;
 
 interface VirtualTableProps<T> {
   columns: GridColumn<T>[];
@@ -72,6 +73,16 @@ export function VirtualTable<T>({
     overscan: 14,
   });
 
+  /**
+   * Every virtualized row is its own `display: table` box, so it cannot inherit
+   * the header's column widths — both sides have to be told the same thing.
+   * Declared widths become weights against a default so the two fixed layouts
+   * resolve identically.
+   */
+  const totalWeight = columns.reduce((sum, c) => sum + (c.width ?? DEFAULT_WIDTH), 0);
+  const widthOf = (c: GridColumn<T>) =>
+    `${(((c.width ?? DEFAULT_WIDTH) / totalWeight) * 100).toFixed(4)}%`;
+
   const sortField = sort?.replace(/^-/, '');
   const sortDesc = sort?.startsWith('-');
 
@@ -104,7 +115,7 @@ export function VirtualTable<T>({
                   key={c.id}
                   aria-sort={ariaSort}
                   data-numeric={c.numeric || undefined}
-                  style={c.width ? { width: c.width } : undefined}
+                  style={{ width: widthOf(c) }}
                 >
                   {sortable ? (
                     <button
@@ -147,6 +158,7 @@ export function VirtualTable<T>({
                     key={cell.id}
                     data-numeric={columns[i]?.numeric || undefined}
                     className={columns[i]?.numeric ? styles.num : undefined}
+                    style={columns[i] ? { width: widthOf(columns[i]) } : undefined}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </Table.Td>
