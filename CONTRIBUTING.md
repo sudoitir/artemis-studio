@@ -10,7 +10,7 @@ Thanks for looking. The project is pre-alpha; the shape of things can still move
 - One logical change per PR. Reference the issue and any ADR/[OpenSpec](https://openspec.dev) change.
 2. **Check the ADRs** (`docs/adr/`). They're binding. A change that departs from
    one needs a new ADR in the same PR.
-3. **Library questions** go through `ctx7`, not memory — versions and APIs in
+3. **Library questions** go through [**ctx7**](https://context7.com), not memory — versions and APIs in
    this space move, and we've been bitten.
 
 ## Development
