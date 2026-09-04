@@ -202,6 +202,8 @@ Every feature we intend to ship, grouped by phase. Context:
 | [ ] | Scheduled reports |
 | [ ] | Broker config diff across a pair |
 | [ ] | Prometheus scrape ingestion option |
+| [ ] | Artemis MCP |
+
 
 ---
 
