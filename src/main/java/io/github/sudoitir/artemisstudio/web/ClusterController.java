@@ -105,7 +105,7 @@ public class ClusterController {
     @PutMapping("/{clusterId}/credentials")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void rotateCredentials(@PathVariable UUID clusterId, @Valid @RequestBody RotateCredentialsRequest request) {
-        service.rotateCredentials(clusterId, request.username(), request.password());
+        service.rotateCredentials(clusterId, request.username(), request.password(), request.kindOrDefault());
     }
 
     @PatchMapping("/{clusterId}/nodes/{nodeId}")

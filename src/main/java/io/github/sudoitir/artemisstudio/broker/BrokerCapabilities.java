@@ -48,6 +48,10 @@ public record BrokerCapabilities(
             return new CapabilityAssessment(CapabilityStatus.AVAILABLE, reason, null);
         }
 
+        public static CapabilityAssessment available(String reason, String brokerXmlSnippet) {
+            return new CapabilityAssessment(CapabilityStatus.AVAILABLE, reason, brokerXmlSnippet);
+        }
+
         public static CapabilityAssessment unavailable(String reason) {
             return new CapabilityAssessment(CapabilityStatus.UNAVAILABLE, reason, null);
         }

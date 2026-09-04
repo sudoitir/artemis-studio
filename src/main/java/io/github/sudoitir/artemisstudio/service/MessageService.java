@@ -3,11 +3,16 @@ package io.github.sudoitir.artemisstudio.service;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.BrokerMBeans;
+import io.github.sudoitir.artemisstudio.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.broker.MessageBrowser;
-import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsePage;
+import io.github.sudoitir.artemisstudio.broker.JolokiaMessageTransport;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.broker.MessageOperations;
+import io.github.sudoitir.artemisstudio.broker.MessageTransport;
+import io.github.sudoitir.artemisstudio.broker.MessageTransport.BrowseResult;
+import io.github.sudoitir.artemisstudio.broker.MessageTransport.SendSpec;
+import io.github.sudoitir.artemisstudio.broker.MessageTransport.TransportTarget;
+import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
@@ -55,8 +60,10 @@ public class MessageService {
     private final QueueSnapshotRepository queueSnapshots;
     private final BrokerNodeRepository brokerNodes;
     private final BrokerConnections connections;
-    private final MessageBrowser messageBrowser;
     private final MessageOperations messageOps;
+    private final JolokiaMessageTransport jolokiaTransport;
+    private final CoreMessageTransport coreTransport;
+    private final CoreSubscriptionManager subscriptions;
     private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
@@ -80,21 +87,26 @@ public class MessageService {
     @Transactional(readOnly = true)
     public MessagePageView browse(UUID clusterId, String queueName, UUID nodeId, String filter, int page, int size) {
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
-        BrowsePage result = browseAt(clusterId, queueName, resolved, page, Math.min(size, BROKER_PAGE_CAP), filter);
+        BrowseResult result = browseAt(clusterId, queueName, resolved, page, Math.min(size, BROKER_PAGE_CAP), filter);
         List<MessageSummaryView> rows =
-                result.messages().stream().map(MessageService::toSummary).toList();
+                result.page().messages().stream().map(MessageService::toSummary).toList();
         return new MessagePageView(
-                rows, result.total(), page, size, resolved.node().getId());
+                rows,
+                result.page().total(),
+                page,
+                size,
+                resolved.node().getId(),
+                result.servedBy().name());
     }
 
     @Transactional(readOnly = true)
     public MessageDetailView detail(UUID clusterId, String queueName, long messageId, UUID nodeId, String filter) {
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
-        BrowsePage result = browseAt(clusterId, queueName, resolved, 1, BROKER_PAGE_CAP, filter);
-        return result.messages().stream()
+        BrowseResult result = browseAt(clusterId, queueName, resolved, 1, BROKER_PAGE_CAP, filter);
+        return result.page().messages().stream()
                 .filter(m -> m.messageId() == messageId)
                 .findFirst()
-                .map(m -> toDetail(m, resolved.node().getId()))
+                .map(m -> toDetail(m, resolved.node().getId(), result.servedBy().name()))
                 .orElseThrow(() -> new NotFoundException("message", messageId));
     }
 
@@ -112,9 +124,17 @@ public class MessageService {
                     1, settings.bulkCap(), false, resolved.node().getId()));
         }
         try {
-            JolokiaBrokerClient client = clientFor(clusterId, resolved);
-            String addressMbean = BrokerMBeans.address(client.resolveBrokerObjectName(), resolved.address());
-            messageOps.send(client, addressMbean, mergeProps(req), req.type(), req.body(), req.durable());
+            acquire(resolved.node().getId());
+            transportFor(clusterId)
+                    .send(
+                            targetOf(clusterId, queueName, resolved),
+                            new SendSpec(
+                                    req.type(),
+                                    req.durable(),
+                                    req.body(),
+                                    req.bodyBase64(),
+                                    req.headers(),
+                                    req.properties()));
             audit.succeed(event, 1);
             publishQueuesAfterCommit(clusterId);
             return new Attempt.Ok<>(new Outcome.Affected(1, resolved.node().getId()));
@@ -260,10 +280,27 @@ public class MessageService {
 
     // ---- resolution + plumbing ------------------------------------
 
-    private BrowsePage browseAt(
+    private BrowseResult browseAt(
             UUID clusterId, String queueName, ResolvedQueue resolved, int page, int size, String filter) {
-        JolokiaBrokerClient client = clientFor(clusterId, resolved);
-        return messageBrowser.browse(client, queueMbean(client, resolved, queueName), page, size, filter);
+        acquire(resolved.node().getId());
+        return transportFor(clusterId).browse(targetOf(clusterId, queueName, resolved), page, size, filter);
+    }
+
+    /** Core when the cluster has a live Core subscription (ADR-0029, D-honesty); Jolokia otherwise. */
+    private MessageTransport transportFor(UUID clusterId) {
+        return subscriptions.verdictFor(clusterId).isConnected() ? coreTransport : jolokiaTransport;
+    }
+
+    private static TransportTarget targetOf(UUID clusterId, String queueName, ResolvedQueue resolved) {
+        BrokerNodeEntity node = resolved.node();
+        return new TransportTarget(
+                clusterId,
+                node.getId(),
+                queueName,
+                resolved.address(),
+                resolved.routingType(),
+                node.getJolokiaUrl(),
+                node.getCoreUrl());
     }
 
     private JolokiaBrokerClient clientFor(UUID clusterId, ResolvedQueue resolved) {
@@ -293,12 +330,6 @@ public class MessageService {
         } else {
             sseHub.publish(clusterId, "queues");
         }
-    }
-
-    private static Map<String, Object> mergeProps(SendMessageRequest req) {
-        Map<String, Object> merged = new HashMap<>(req.headers());
-        merged.putAll(req.properties());
-        return merged;
     }
 
     ResolvedQueue resolve(UUID clusterId, String queueName, UUID nodeId) {
@@ -362,7 +393,7 @@ public class MessageService {
                 m.propertyCount());
     }
 
-    private static MessageDetailView toDetail(BrowsedMessage m, UUID node) {
+    private static MessageDetailView toDetail(BrowsedMessage m, UUID node, String transport) {
         return new MessageDetailView(
                 m.messageId(),
                 m.type(),
@@ -375,8 +406,11 @@ public class MessageService {
                 m.correlationId(),
                 m.userId(),
                 m.body(),
+                m.bodyEncoding().name(),
+                m.contentType(),
                 m.bodyTruncated(),
                 m.observedLimitBytes(),
+                transport,
                 node,
                 m.stringProperties(),
                 m.intProperties(),

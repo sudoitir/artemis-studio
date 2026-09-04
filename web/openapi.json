@@ -512,6 +512,14 @@
             "type" : "string",
             "default" : "topology,health,queues"
           }
+        }, {
+          "name" : "Last-Event-ID",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -803,6 +811,89 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/events" : {
+      "get" : {
+        "tags" : [ "event-controller" ],
+        "operationId" : "list_2",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "type",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "address",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BrokerEventPageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/dlq" : {
       "get" : {
         "tags" : [ "dlq-controller" ],
@@ -928,7 +1019,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1064,6 +1155,9 @@
           "password" : {
             "type" : "string",
             "minLength" : 1
+          },
+          "kind" : {
+            "type" : "string"
           }
         },
         "required" : [ "password", "username" ]
@@ -1100,6 +1194,9 @@
             "type" : "string"
           },
           "credentials" : {
+            "$ref" : "#/components/schemas/Credentials"
+          },
+          "coreCredentials" : {
             "$ref" : "#/components/schemas/Credentials"
           },
           "tlsBundle" : {
@@ -1323,6 +1420,9 @@
           "body" : {
             "type" : "string"
           },
+          "bodyBase64" : {
+            "type" : "boolean"
+          },
           "headers" : {
             "type" : "object",
             "additionalProperties" : { }
@@ -1394,11 +1494,12 @@
         "type" : "object",
         "properties" : {
           "jolokiaUrl" : {
-            "type" : "string",
-            "minLength" : 1
+            "type" : "string"
+          },
+          "coreUrl" : {
+            "type" : "string"
           }
-        },
-        "required" : [ "jolokiaUrl" ]
+        }
       },
       "SseEmitter" : {
         "type" : "object",
@@ -1672,9 +1773,12 @@
           "node" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "transport" : {
+            "type" : "string"
           }
         },
-        "required" : [ "count", "data", "node", "page", "pageSize" ]
+        "required" : [ "count", "data", "node", "page", "pageSize", "transport" ]
       },
       "MessageSummaryView" : {
         "type" : "object",
@@ -1767,12 +1871,21 @@
           "body" : {
             "type" : [ "string", "null" ]
           },
+          "bodyEncoding" : {
+            "type" : "string"
+          },
+          "contentType" : {
+            "type" : [ "string", "null" ]
+          },
           "bodyTruncated" : {
             "type" : "boolean"
           },
           "observedLimitBytes" : {
             "type" : [ "integer", "null" ],
             "format" : "int32"
+          },
+          "transport" : {
+            "type" : "string"
           },
           "node" : {
             "type" : "string",
@@ -1812,7 +1925,7 @@
             }
           }
         },
-        "required" : [ "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "size", "stringProperties", "timestamp", "type" ]
+        "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "size", "stringProperties", "timestamp", "transport", "type" ]
       },
       "PagedViewProducerView" : {
         "type" : "object",
@@ -1869,6 +1982,88 @@
           }
         },
         "required" : [ "messagesSent", "nodeId", "nodeName" ]
+      },
+      "BrokerEventPageView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerEventView"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "dropped" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "oldestRetained" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "count", "data", "dropped", "page", "pageSize" ]
+      },
+      "BrokerEventView" : {
+        "type" : "object",
+        "properties" : {
+          "seq" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "receivedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : [ "string", "null" ]
+          },
+          "routingName" : {
+            "type" : [ "string", "null" ]
+          },
+          "consumerName" : {
+            "type" : [ "string", "null" ]
+          },
+          "sessionName" : {
+            "type" : [ "string", "null" ]
+          },
+          "connectionName" : {
+            "type" : [ "string", "null" ]
+          },
+          "remoteAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "username" : {
+            "type" : [ "string", "null" ]
+          },
+          "nodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "props" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : { }
+          }
+        },
+        "required" : [ "occurredAt", "receivedAt", "seq", "type" ]
       },
       "DlqAddress" : {
         "type" : "object",

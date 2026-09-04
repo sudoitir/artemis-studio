@@ -10,15 +10,17 @@ public final class MessageRequests {
     private MessageRequests() {}
 
     /**
-     * A message to enqueue. Over Jolokia the {@code body} is text (non-negotiable
-     * #5 — binary is Phase 4). {@code type} is the Artemis message type int
-     * (3 = text); {@code headers} are the well-known JMS headers, {@code properties}
-     * the arbitrary application properties.
+     * A message to enqueue. {@code type} is the Artemis message type int
+     * (3 = text, 4 = bytes); {@code headers} are the well-known JMS headers,
+     * {@code properties} the arbitrary application properties. When
+     * {@code bodyBase64} is true and the cluster has a Core connection, the body
+     * is base64-decoded and sent as a bytes message; otherwise the body is text.
      */
     public record SendMessageRequest(
             @NotNull Integer type,
             boolean durable,
             String body,
+            Boolean bodyBase64,
             Map<String, Object> headers,
             Map<String, Object> properties) {
 
@@ -26,6 +28,7 @@ public final class MessageRequests {
             headers = headers == null ? Map.of() : headers;
             properties = properties == null ? Map.of() : properties;
             body = body == null ? "" : body;
+            bodyBase64 = Boolean.TRUE.equals(bodyBase64);
         }
     }
 

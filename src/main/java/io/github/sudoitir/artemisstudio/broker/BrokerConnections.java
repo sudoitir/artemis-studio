@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.broker;
 
+import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionSettings;
+import io.github.sudoitir.artemisstudio.persist.BrokerCredentialEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerTlsEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerTlsRepository;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Component;
 public class BrokerConnections {
 
     private static final String JOLOKIA_BASIC = "JOLOKIA_BASIC";
+    private static final String CORE = "CORE";
 
     private final BrokerClientFactory factory;
     private final BrokerCredentialRepository credentials;
@@ -50,5 +53,29 @@ public class BrokerConnections {
         boolean verifyHostname = tls == null || tls.isVerifyHostname();
 
         return new BrokerConnectionSettings(clusterId, username, password, bundle, verifyHostname);
+    }
+
+    /**
+     * Core-connection settings for a cluster: the stored {@code CORE} credential
+     * if there is one, otherwise the {@code JOLOKIA_BASIC} credential, otherwise
+     * anonymous (ADR-0026, D6). Each row is decrypted with the kind it was sealed
+     * under — the {@link SecretVault} AAD is {@code clusterId|kind}.
+     */
+    public CoreConnectionSettings coreSettingsFor(UUID clusterId) {
+        BrokerCredentialEntity credential = credentials
+                .findByClusterIdAndKind(clusterId, CORE)
+                .or(() -> credentials.findByClusterIdAndKind(clusterId, JOLOKIA_BASIC))
+                .orElse(null);
+
+        BrokerTlsEntity tls = tlsRepository.findByClusterId(clusterId).orElse(null);
+        String bundle = tls != null ? tls.getTruststoreRef() : null;
+        boolean verifyHostname = tls == null || tls.isVerifyHostname();
+
+        if (credential == null) {
+            return new CoreConnectionSettings(clusterId, null, null, bundle, verifyHostname);
+        }
+        String password =
+                vault.decrypt(clusterId, credential.getKind(), credential.getSecretCt(), credential.getSecretNonce());
+        return new CoreConnectionSettings(clusterId, credential.getUsername(), password, bundle, verifyHostname);
     }
 }

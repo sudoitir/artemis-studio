@@ -32,6 +32,7 @@ export function AddManagementUrl({
   onClose: () => void;
 }) {
   const [url, setUrl] = useState('');
+  const [coreUrl, setCoreUrl] = useState('');
   const override = useOverrideNodeUrl(clusterId);
 
   return (
@@ -53,6 +54,13 @@ export function AddManagementUrl({
           value={url}
           onChange={(e) => setUrl(e.currentTarget.value)}
         />
+        <TextInput
+          label="Core URL"
+          description="Optional. Set this when the advertised connector is not reachable from Studio (needed for live events)."
+          placeholder="tcp://broker-2:61617"
+          value={coreUrl}
+          onChange={(e) => setCoreUrl(e.currentTarget.value)}
+        />
         <div aria-live="polite">
           {override.isError ? (
             <Alert color="red" variant="light" title={override.error.title}>
@@ -66,26 +74,31 @@ export function AddManagementUrl({
           </Button>
           <Button
             loading={override.isPending}
-            disabled={!url || !endpoint}
+            disabled={(!url && !coreUrl) || !endpoint}
             onClick={() =>
               endpoint &&
               override.mutate(
-                { nodeId: endpoint.id, jolokiaUrl: url },
+                {
+                  nodeId: endpoint.id,
+                  jolokiaUrl: url || undefined,
+                  coreUrl: coreUrl || undefined,
+                },
                 {
                   onSuccess: () => {
                     notifications.show({
                       color: 'pine',
-                      title: 'Management URL added',
+                      title: 'Node URL updated',
                       message: endpoint.coreUrl ?? endpoint.name,
                     });
                     setUrl('');
+                    setCoreUrl('');
                     onClose();
                   },
                 },
               )
             }
           >
-            Add management URL
+            Save
           </Button>
         </Group>
       </Stack>

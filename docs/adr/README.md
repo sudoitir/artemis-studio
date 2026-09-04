@@ -27,11 +27,15 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0015](0015-tiered-scrape-scheduler.md) | Tiered scrape scheduler; refresh-cycle counter scheduler-owned per cluster (retires `HaRefreshTask`) |
 | [0016](0016-queue-snapshot-bulk-upsert.md) | `queue_snapshot` written by JDBC batch upsert, not JPA (scoped exception to 0011) |
 | [0017](0017-cross-node-aggregation.md) | Cross-node aggregation — one logical node per NodeID, scrape the live endpoint only |
-| [0018](0018-sse-hub.md) | SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals (annotates 0003) |
+| [0018](0018-sse-hub.md) | SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals (annotates 0003; extended by 0027) |
 | [0019](0019-openapi-generated-frontend-types.md) | Frontend API types generated from the backend's OpenAPI document |
 | [0020](0020-grid-columns-as-css-grid-tracks.md) | The virtualized data grid lays out on shared CSS grid tracks, not `<table>` |
-| [0021](0021-message-operations-jolokia-only.md) | Phase 3 message operations are Jolokia-only; body truncation disclosed per message |
+| [0021](0021-message-operations-jolokia-only.md) | ~~Phase 3 message operations are Jolokia-only~~ — superseded by 0029 |
 | [0022](0022-dry-run-estimate-and-server-enforced-bulk-cap.md) | Dry-run is a broker-side estimate; the bulk safety cap is server-enforced |
 | [0023](0023-audit-actor-before-authentication.md) | Audit actor resolution before authentication exists (`anonymous` + request context) |
 | [0024](0024-frontend-dom-test-harness.md) | Frontend DOM test harness is Vitest + Testing Library + MSW |
 | [0025](0025-live-scrape-cadence-scheduling-configurer.md) | Scrape cadence applies without a restart, via `SchedulingConfigurer` |
+| [0026](0026-core-client-connection-model.md) | Core client — one subscription per live node, poll loop, Studio-driven reconnect, cached capability verdict |
+| [0027](0027-sse-events-topic-carries-data.md) | The SSE `events` topic carries data, with `Last-Event-ID` replay and coalesced derived signals (extends 0018) |
+| [0028](0028-broker-event-persistence.md) | `broker_event` — buffered batch insert, bounded queue with a visible drop counter, `seq` PK |
+| [0029](0029-message-transport-two-implementations.md) | `MessageTransport` — Core for read/write fidelity, Jolokia for mutations and deep pages (supersedes 0021) |

@@ -31,12 +31,14 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 3 complete
-(message browse / send / move / retry / delete / expire / purge over Jolokia,
-`?dryRun=true` + server-enforced bulk cap, audit trail with actor resolution,
-audit-log screen, DLQ view; plus the Phase 2 fast-follows — OpenAPI-generated
-frontend types, a Vitest DOM test harness, and a `SchedulingConfigurer` for live
-scrape cadence); Phase 4 (Core client and push events) next.
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 4 complete
+(Core protocol client subscribed to `activemq.notifications` on every live
+node, failover-following via `CoreSubscriptionManager`; `broker_event`
+persistence with a buffered writer and retention reaper; a data-bearing SSE
+`events` topic with `Last-Event-ID` replay and coalesced derived signals;
+faithful Core-backed message browse/send with Jolokia fallback past the deep-page
+cap and for all mutations; honest `NOTIFICATIONS` capability off a cached
+subscription verdict); Phase 5 (request-reply tracing) next.
 
 ## How to work a change
 

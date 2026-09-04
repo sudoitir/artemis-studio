@@ -19,8 +19,11 @@ function detail(over: Record<string, unknown> = {}) {
     correlationId: null,
     userId: null,
     body: 'PPPPP',
+    bodyEncoding: 'TEXT',
+    contentType: null,
     bodyTruncated: false,
     observedLimitBytes: null,
+    transport: 'JOLOKIA',
     node: '11111111-1111-1111-1111-111111111111',
     stringProperties: { orderId: 'BIG-1' },
     intProperties: {},
@@ -50,7 +53,15 @@ describe('MessageDetailPanel', () => {
 
     expect(await screen.findByText('This message is truncated')).toBeInTheDocument();
     expect(screen.getAllByText(/management-message-attribute-size-limit/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Core client in Phase 4/)).toBeInTheDocument();
+    expect(screen.getByText(/connect the Core client/)).toBeInTheDocument();
+  });
+
+  it('shows the transport badge and a binary body notice when read over Core', async () => {
+    mockDetail(detail({ transport: 'CORE', bodyEncoding: 'BASE64', body: 'AQIDBA==' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByText('via Core')).toBeInTheDocument();
+    expect(screen.getByText(/binary · base64/)).toBeInTheDocument();
   });
 
   it('does not show the truncation banner for a whole message', async () => {

@@ -15,6 +15,7 @@ import { QueuesView } from './queues/QueuesView.tsx';
 import { MessagesView } from './messages/MessagesView.tsx';
 import { AuditView } from './audit/AuditView.tsx';
 import { DlqView } from './dlq/DlqView.tsx';
+import { EventsView } from './events/EventsView.tsx';
 import { ResourceView } from './resources/ResourceView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
 
@@ -121,6 +122,13 @@ const dlqRoute = createRoute({
   errorComponent: RouteError,
 });
 
+const eventsRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'events',
+  component: EventsView,
+  errorComponent: RouteError,
+});
+
 const resourceKinds = [
   'addresses',
   'consumers',
@@ -155,6 +163,7 @@ const routeTree = rootRoute.addChildren([
     messagesRoute,
     auditRoute,
     dlqRoute,
+    eventsRoute,
     ...resourceRoutes,
     settingsRoute,
   ]),

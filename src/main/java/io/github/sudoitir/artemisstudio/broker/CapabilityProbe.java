@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.broker;
 
 import io.github.sudoitir.artemisstudio.broker.BrokerCapabilities.CapabilityAssessment;
+import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import java.util.List;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -18,7 +19,7 @@ public class CapabilityProbe {
 
     private static final String NOTIFICATIONS_ADDRESS = "activemq.notifications";
 
-    public BrokerCapabilities probe(JolokiaBrokerClient client) {
+    public BrokerCapabilities probe(JolokiaBrokerClient client, SubscriptionVerdict notificationVerdict) {
         CapabilityAssessment read = probeManagementRead(client);
         if (read.status() != BrokerCapabilities.CapabilityStatus.AVAILABLE) {
             // No read means nothing else can be judged; report the rest as unknown.
@@ -28,7 +29,7 @@ public class CapabilityProbe {
         }
 
         CapabilityAssessment write = probeManagementWrite(client);
-        CapabilityAssessment notifications = assessNotifications(client);
+        CapabilityAssessment notifications = assessNotifications(client, notificationVerdict);
         CapabilityAssessment messageIo = assessMessageIo(write);
         return new BrokerCapabilities(read, write, notifications, messageIo);
     }
@@ -70,18 +71,62 @@ public class CapabilityProbe {
         }
     }
 
-    private CapabilityAssessment assessNotifications(JolokiaBrokerClient client) {
+    /**
+     * NOTIFICATIONS is the outcome of the cluster's Core subscription (ADR-0026,
+     * D5), read from a cached {@link SubscriptionVerdict} — this method opens no
+     * connection. The Jolokia-visible preconditions are still reported in the
+     * reason text.
+     */
+    private CapabilityAssessment assessNotifications(JolokiaBrokerClient client, SubscriptionVerdict verdict) {
         boolean coreAcceptor = hasCoreAcceptor(client);
         boolean notificationsAddress = hasNotificationsAddress(client);
-
         String preconditions = "Preconditions visible over Jolokia: CORE acceptor "
                 + (coreAcceptor ? "present" : "not found") + "; " + NOTIFICATIONS_ADDRESS + " address "
                 + (notificationsAddress ? "present" : "not found") + ".";
 
-        return CapabilityAssessment.unknown(
-                "Live events need the Core protocol client (a later release) plus two broker.xml changes;"
-                        + " Studio cannot confirm them over Jolokia. " + preconditions,
-                BrokerXmlSnippets.forNotifications());
+        return switch (verdict) {
+            case SubscriptionVerdict.Connected connected ->
+                CapabilityAssessment.available(
+                        "Subscribed to " + NOTIFICATIONS_ADDRESS + " on " + connected.nodeCount()
+                                + " node(s) since " + connected.since()
+                                + ". Connection, session, delivered and expired events additionally require"
+                                + " NotificationActiveMQServerPlugin; Studio cannot tell a broker without the"
+                                + " plugin from an idle one, so the snippet is shown either way. " + preconditions,
+                        BrokerXmlSnippets.NOTIFICATION_PLUGIN);
+            case SubscriptionVerdict.Failed failed -> assessFailedSubscription(failed, preconditions);
+            case SubscriptionVerdict.NotAttempted ignored ->
+                CapabilityAssessment.unknown(
+                        "No live node has been probed yet — the first scrape cycle has not completed. " + preconditions,
+                        null);
+        };
+    }
+
+    private CapabilityAssessment assessFailedSubscription(SubscriptionVerdict.Failed failed, String preconditions) {
+        return switch (failed.kind()) {
+            case PERMISSION_DENIED ->
+                CapabilityAssessment.unavailable(
+                        "The broker refused the subscription: " + failed.reason()
+                                + ". A Core subscriber needs both consume AND createNonDurableQueue on "
+                                + NOTIFICATIONS_ADDRESS + "; Artemis matches the single most-specific"
+                                + " security-setting, so that block must restate every permission. " + preconditions,
+                        BrokerXmlSnippets.NOTIFICATIONS_SECURITY_SETTING);
+            case NO_CORE_URL, UNREACHABLE ->
+                CapabilityAssessment.unavailable(
+                        "No reachable Core URL for a live node. Discovery stores the broker-advertised"
+                                + " connector, which is often unresolvable from where Studio runs; set a manual"
+                                + " Core URL on the node. " + preconditions,
+                        BrokerXmlSnippets.CORE_ACCEPTOR);
+            case UNAUTHORIZED ->
+                CapabilityAssessment.unavailable(
+                        "The broker rejected the Core credentials for the notification subscription. " + preconditions,
+                        null);
+            case TLS_FAILED ->
+                CapabilityAssessment.unavailable(
+                        "TLS to the broker's Core acceptor failed: " + failed.reason() + ". " + preconditions, null);
+            case UNKNOWN ->
+                CapabilityAssessment.unavailable(
+                        "The Core subscription failed: " + failed.reason() + ". " + preconditions, null);
+        };
     }
 
     private CapabilityAssessment assessMessageIo(CapabilityAssessment write) {

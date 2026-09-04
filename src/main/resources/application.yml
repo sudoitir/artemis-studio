@@ -82,6 +82,14 @@ artemis-studio:
     # A dry-run count above this is a 422 unless ?override=true (behind the UI's
     # typed confirmation). Runtime-overridable via studio_setting.
     bulk-cap: 1000
+  events:
+    # Broker-event history (ADR-0028). retention and buffer-size are
+    # runtime-overridable via studio_setting; flush and coalesce-window-millis
+    # are compile-time only.
+    retention: 72h            # BrokerEventReaper trims older rows hourly
+    buffer-size: 10000        # bounded write buffer; overflow is dropped and counted
+    flush: 1s                 # BrokerEventWriter batch-insert interval
+    coalesce-window-millis: 1000  # derived resource-view SSE signal coalescing (slice 3)
 
 logging:
   level:

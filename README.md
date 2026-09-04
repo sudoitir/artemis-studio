@@ -133,11 +133,11 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | `CoreEventClient` (artemis-jakarta-client), live/backup aware |
-| [ ] | `activemq.notifications` consumer → normalized domain events |
-| [ ] | SSE fan-out of consumer/session/connection/binding events |
-| [ ] | `NOTIFICATIONS` capability gating with `broker.xml` hint |
-| [ ] | Faithful message I/O over Core when available |
+| [x] | `CoreEventClient` (artemis-jakarta-client), live/backup aware |
+| [x] | `activemq.notifications` consumer → normalized domain events |
+| [x] | SSE fan-out of consumer/session/connection/binding events |
+| [x] | `NOTIFICATIONS` capability gating with `broker.xml` hint |
+| [x] | Faithful message I/O over Core when available |
 
 ### Phase 5 · Request-reply tracing (flagship)
 

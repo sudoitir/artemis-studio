@@ -65,4 +65,16 @@ public final class BrokerXmlSnippets {
     public static String forMessageBodyLimit() {
         return MESSAGE_ATTRIBUTE_SIZE_LIMIT;
     }
+
+    /**
+     * A CORE-protocol acceptor. Shown when no live node has a reachable Core URL:
+     * either the broker exposes no CORE acceptor, or discovery only knows an
+     * internal connector hostname and the operator must set a manual Core URL on
+     * the node.
+     */
+    public static final String CORE_ACCEPTOR = """
+            <acceptors>
+              <acceptor name="artemis">tcp://0.0.0.0:61616?protocols=CORE,AMQP,STOMP,MQTT,OPENWIRE</acceptor>
+            </acceptors>
+            """;
 }

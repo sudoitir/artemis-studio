@@ -72,24 +72,51 @@ merged / filtered / sorted / paged in memory. A node that errors contributes
 nothing; only when *every* node fails is the classified error surfaced (the
 capability ledger + `broker.xml` advice).
 
-### Event path (push, Phase 4+)
+### Event path (push, Phase 4)
 
-The Core client subscribes to `activemq.notifications` per cluster. Notifications
-are normalised to domain events, fanned out to the SSE hub, and fed to the
-request-reply correlator.
+The Core client (`artemis-jakarta-client`) subscribes to `activemq.notifications`
+on every *serving* node of a cluster (ADR-0026). `CoreSubscriptionManager`
+reconciles the subscription set against the live topology at the end of each
+tier-A scrape, so a failover is followed — a subscription moves to the survivor,
+not to a configured node. The subscriber polls `receive(timeout)` on a virtual
+thread (a `MessageListener` deadlocks against `close()` on the pinned client),
+and Studio drives its own reconnect with backoff (the broker advertises
+connector hosts a client often cannot resolve). Each notification is normalised
+to a `BrokerEvent` — a typed event with the address, consumer/session/connection
+identity, timestamp, and the full `_AMQ_*` map — and handed to a buffered writer
+(`BrokerEventWriter`, ADR-0028) that batch-inserts into `broker_event`. The
+buffer is bounded; overflow increments a per-cluster `dropped` counter surfaced
+by the events API rather than being silent. A reaper trims past a retention
+window (default 72h, a `studio_setting`).
+
+`NOTIFICATIONS` is no longer a fixed `UNKNOWN`: `CapabilityProbe` reads the
+cached subscription verdict (`AVAILABLE` on ≥1 subscribed node; `UNAVAILABLE`
+with the exact `broker.xml` security-setting or acceptor snippet when refused or
+unreachable; `UNKNOWN` only until the first scrape). It opens no connection.
+
+Message browse and send are served over the Core client when a subscription is
+live (`MessageTransport`, ADR-0029): a `QueueBrowser` returns real byte bodies
+(base64 with an encoding indicator), real typed properties, and does not
+truncate. By-id / by-filter mutations stay on Jolokia. A page past the broker
+page size falls back to Jolokia and every response says which channel served it.
 
 ### Realtime to the browser
 
 One SSE endpoint, `GET /api/v1/stream?clusterId=&topics=…`, multiplexes named
-events on a Spring MVC `SseEmitter` (ADR-0018; ADR-0010 removed WebFlux). Events
-are change *signals* (`{topic,clusterId,ts}`), not data — the client refetches
-the matching TanStack Query key, so components stay declarative. The scheduler
-publishes a topic only when the persisted state for it actually changed; a 20s
-`:ping` comment keeps idle streams open and the response carries
-`X-Accel-Buffering: no` (**proxies must not buffer this stream** — set the
-equivalent on any reverse proxy in front of Studio). Two consecutive
-`EventSource` failures ⇒ the client stops streaming and relies on the 5s poll.
-See ADR-0003.
+events on a Spring MVC `SseEmitter` (ADR-0018; ADR-0010 removed WebFlux). The
+signal topics (`topology`, `health`, `queues`, `consumers`, `sessions`,
+`connections`) carry change *signals* (`{topic,clusterId,ts}`), not data — the
+client refetches the matching TanStack Query key. The `events` topic is the
+exception (ADR-0027): it carries the `BrokerEvent` payload and an `id:` line
+(the `broker_event.seq`), and a reconnecting client replays what it missed via
+`Last-Event-ID` (bounded to 500). Notification-driven staleness of the resource
+views is fanned out as those signal topics, **coalesced to at most one per topic
+per second per cluster** (`TopicCoalescer`) because each such refetch costs one
+Jolokia call per node. A topic is published only when its state actually
+changed; a 20s `:ping` comment keeps idle streams open and the response carries
+`X-Accel-Buffering: no` (**proxies must not buffer this stream**). Two
+consecutive `EventSource` failures ⇒ the client stops streaming and relies on
+the 5s poll. See ADR-0003.
 
 ## State ownership
 

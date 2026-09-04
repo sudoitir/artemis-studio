@@ -53,6 +53,8 @@ export type AuditPageView = Schemas['AuditPageView'];
 export type DlqView = Schemas['DlqView'];
 export type DlqAddress = Schemas['DlqAddress'];
 export type DlqQueue = Schemas['DlqQueue'];
+export type BrokerEventView = Schemas['BrokerEventView'];
+export type BrokerEventPageView = Schemas['BrokerEventPageView'];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
 export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
@@ -139,12 +141,11 @@ export const keys = {
   health: (id: string) => ['clusters', id, 'health'] as const,
   resource: (id: string, kind: ResourceKind, params: ResourceParams = {}) =>
     ['clusters', id, kind, params] as const,
-  /** The TanStack Query key a stream topic invalidates. */
-  topic: (id: string, topic: 'topology' | 'health' | 'queues') => {
-    if (topic === 'topology') return ['clusters', id, 'topology'] as const;
-    if (topic === 'health') return ['clusters', id, 'health'] as const;
-    return ['clusters', id, 'queues'] as const;
-  },
+  /** The TanStack Query key a signal stream topic invalidates (the `events` topic carries data, not a signal). */
+  topic: (
+    id: string,
+    topic: 'topology' | 'health' | 'queues' | 'consumers' | 'sessions' | 'connections',
+  ) => ['clusters', id, topic] as const,
   messages: (
     id: string,
     queueName: string,
@@ -266,12 +267,12 @@ export function useOverrideNodeUrl(clusterId: string) {
   return useMutation<
     NodeEndpointView,
     ApiError,
-    { nodeId: string; jolokiaUrl: string }
+    { nodeId: string; jolokiaUrl?: string; coreUrl?: string }
   >({
-    mutationFn: ({ nodeId, jolokiaUrl }) =>
+    mutationFn: ({ nodeId, jolokiaUrl, coreUrl }) =>
       request(`/clusters/${clusterId}/nodes/${nodeId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ jolokiaUrl }),
+        body: JSON.stringify({ jolokiaUrl, coreUrl }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
   });
@@ -493,6 +494,39 @@ export function useAudit(
   });
 }
 
+// ── broker events (ADR-0026) ──────────────────────────────────────────────
+
+export interface EventFilter {
+  type?: string;
+  nodeId?: string;
+  address?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function useEvents(
+  clusterId: string,
+  filter: EventFilter = {},
+): UseQueryResult<BrokerEventPageView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'events', filter],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(filter)) {
+        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
+      }
+      const qs = sp.toString();
+      return request<BrokerEventPageView>(
+        `/clusters/${clusterId}/events${qs ? `?${qs}` : ''}`,
+      );
+    },
+    refetchInterval: 5_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
   return useQuery({
     queryKey: ['clusters', clusterId, 'dlq'],
@@ -503,7 +537,11 @@ export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
 
 export function useRotateCredentials(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<void, ApiError, { username: string; password: string }>({
+  return useMutation<
+    void,
+    ApiError,
+    { username: string; password: string; kind?: 'JOLOKIA_BASIC' | 'CORE' }
+  >({
     mutationFn: (body) =>
       request(`/clusters/${clusterId}/credentials`, {
         method: 'PUT',

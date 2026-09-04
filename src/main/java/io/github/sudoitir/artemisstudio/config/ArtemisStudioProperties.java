@@ -24,7 +24,8 @@ public record ArtemisStudioProperties(
         RateLimit rateLimit,
         Broker broker,
         Metric metric,
-        Safety safety) {
+        Safety safety,
+        Events events) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -35,6 +36,7 @@ public record ArtemisStudioProperties(
         broker = broker != null ? broker : new Broker(Duration.ofSeconds(3), Duration.ofSeconds(10));
         metric = metric != null ? metric : new Metric(7);
         safety = safety != null ? safety : new Safety(1000);
+        events = events != null ? events : new Events(Duration.ofHours(72), 10_000, Duration.ofSeconds(1), 1000);
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -65,4 +67,15 @@ public record ArtemisStudioProperties(
      * {@code ?override=true} behind the UI's typed confirmation.
      */
     public record Safety(@DefaultValue("1000") int bulkCap) {}
+
+    /**
+     * Broker-event history (ADR-0028). {@code retention} and {@code bufferSize}
+     * are overridable at runtime through {@code studio_setting}; {@code flush}
+     * and {@code coalesceWindow} are compile-time only.
+     */
+    public record Events(
+            @DefaultValue("72h") Duration retention,
+            @DefaultValue("10000") int bufferSize,
+            @DefaultValue("1s") Duration flush,
+            @DefaultValue("1000") int coalesceWindowMillis) {}
 }

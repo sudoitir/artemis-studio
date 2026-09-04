@@ -260,6 +260,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/dlq": {
         parameters: {
             query?: never;
@@ -331,7 +347,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -366,6 +382,7 @@ export interface components {
         RotateCredentialsRequest: {
             username: string;
             password: string;
+            kind?: string;
         };
         Credentials: {
             username: string;
@@ -376,6 +393,7 @@ export interface components {
             name?: string;
             description?: string;
             credentials?: components["schemas"]["Credentials"];
+            coreCredentials?: components["schemas"]["Credentials"];
             tlsBundle?: string;
         };
         CapabilitiesView: {
@@ -450,6 +468,7 @@ export interface components {
             type: number;
             durable?: boolean;
             body?: string;
+            bodyBase64?: boolean;
             headers?: {
                 [key: string]: unknown;
             };
@@ -479,7 +498,8 @@ export interface components {
             targetQueue?: string;
         };
         NodeOverrideRequest: {
-            jolokiaUrl: string;
+            jolokiaUrl?: string;
+            coreUrl?: string;
         };
         SseEmitter: {
             /** Format: int64 */
@@ -591,6 +611,7 @@ export interface components {
             pageSize: number;
             /** Format: uuid */
             node: string;
+            transport: string;
         };
         MessageSummaryView: {
             /** Format: int64 */
@@ -631,9 +652,12 @@ export interface components {
             correlationId?: string | null;
             userId?: string | null;
             body?: string | null;
+            bodyEncoding: string;
+            contentType?: string | null;
             bodyTruncated: boolean;
             /** Format: int32 */
             observedLimitBytes?: number | null;
+            transport: string;
             /** Format: uuid */
             node: string;
             stringProperties: {
@@ -672,6 +696,40 @@ export interface components {
             protocol?: string | null;
             /** Format: int64 */
             messagesSent: number;
+        };
+        BrokerEventPageView: {
+            data: components["schemas"]["BrokerEventView"][];
+            /** Format: int64 */
+            count: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int64 */
+            dropped: number;
+            /** Format: date-time */
+            oldestRetained?: string | null;
+        };
+        BrokerEventView: {
+            /** Format: int64 */
+            seq: number;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            receivedAt: string;
+            type: string;
+            address?: string | null;
+            routingName?: string | null;
+            consumerName?: string | null;
+            sessionName?: string | null;
+            connectionName?: string | null;
+            remoteAddress?: string | null;
+            username?: string | null;
+            /** Format: uuid */
+            nodeId?: string | null;
+            props?: {
+                [key: string]: unknown;
+            } | null;
         };
         DlqAddress: {
             address: string;
@@ -1092,7 +1150,9 @@ export interface operations {
                 clusterId: string;
                 topics?: string;
             };
-            header?: never;
+            header?: {
+                "Last-Event-ID"?: number;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1314,6 +1374,36 @@ export interface operations {
             };
         };
     };
+    list_2: {
+        parameters: {
+            query?: {
+                type?: string;
+                nodeId?: string;
+                address?: string;
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BrokerEventPageView"];
+                };
+            };
+        };
+    };
     view: {
         parameters: {
             query?: never;
@@ -1406,7 +1496,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query?: {
                 user?: string;

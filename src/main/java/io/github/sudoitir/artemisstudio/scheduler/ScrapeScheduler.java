@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.scheduler;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.broker.QueueRow;
+import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.domain.topology.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
@@ -105,6 +106,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
     private final QueueSnapshotUpsert upsert;
     private final MetricSampleWriter metrics;
     private final StreamSignals streamSignals;
+    private final CoreSubscriptionManager coreSubscriptions;
 
     private record QueuesPage(List<QueueRow> rows, long count) {}
 
@@ -120,6 +122,9 @@ public class ScrapeScheduler implements SchedulingConfigurer {
                     List<NodeEndpoint> endpoints = persist.endpoints(clusterId);
                     scrapeCycle.corroborate(clusterId, endpoints);
                     streamSignals.afterTierA(clusterId, endpoints);
+                    // Follow failover: reconcile Core notification subscriptions against
+                    // who is live now. Never in a transaction, on this virtual-thread pool.
+                    coreSubscriptions.reconcile(clusterId, endpoints);
                 } catch (RuntimeException e) {
                     log.warn("Split-brain corroboration failed for cluster {}: {}", clusterId, e.toString());
                 }

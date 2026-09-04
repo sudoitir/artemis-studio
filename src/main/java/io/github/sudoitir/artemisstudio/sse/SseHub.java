@@ -39,21 +39,49 @@ public class SseHub {
 
     /** Send a `{topic,clusterId,ts}` signal to every subscriber of {@code topic} on this cluster. */
     public void publish(UUID clusterId, String topic) {
+        publish(clusterId, topic, null, null);
+    }
+
+    /**
+     * Fan out {@code topic} to every subscriber of this cluster. Signal topics
+     * pass {@code data == null} and get the {@code {topic,clusterId,ts}} envelope;
+     * the {@code events} topic passes the real payload and an {@code eventId}
+     * (the {@code broker_event.seq}), which becomes the SSE {@code id:} line and
+     * powers {@code Last-Event-ID} replay (ADR-0027).
+     */
+    public void publish(UUID clusterId, String topic, Object data, String eventId) {
         Set<Subscriber> set = byCluster.get(clusterId);
         if (set == null || set.isEmpty()) {
             return;
         }
-        Map<String, Object> payload = Map.of(
-                "topic",
-                topic,
-                "clusterId",
-                clusterId.toString(),
-                "ts",
-                Instant.now().toEpochMilli());
+        Object payload = data != null
+                ? data
+                : Map.of(
+                        "topic",
+                        topic,
+                        "clusterId",
+                        clusterId.toString(),
+                        "ts",
+                        Instant.now().toEpochMilli());
         for (Subscriber s : set) {
             if (s.wants(topic)) {
-                trySend(clusterId, s, topic, payload);
+                sendTo(clusterId, s, topic, payload, eventId);
             }
+        }
+    }
+
+    /** Send one event to one subscriber — used for {@code Last-Event-ID} replay on connect. */
+    public void sendTo(Subscriber subscriber, String topic, Object data, String eventId) {
+        // clusterId is only needed to deregister a dead emitter; on the replay path the
+        // controller owns registration, so a failure here just aborts the replay.
+        try {
+            SseEmitter.SseEventBuilder event = SseEmitter.event().name(topic).data(data);
+            if (eventId != null) {
+                event.id(eventId);
+            }
+            subscriber.emitter().send(event);
+        } catch (IOException | RuntimeException e) {
+            subscriber.emitter().completeWithError(e);
         }
     }
 
@@ -69,9 +97,13 @@ public class SseHub {
         }));
     }
 
-    private void trySend(UUID clusterId, Subscriber s, String event, Object data) {
+    private void sendTo(UUID clusterId, Subscriber s, String event, Object data, String eventId) {
         try {
-            s.emitter().send(SseEmitter.event().name(event).data(data));
+            SseEmitter.SseEventBuilder builder = SseEmitter.event().name(event).data(data);
+            if (eventId != null) {
+                builder.id(eventId);
+            }
+            s.emitter().send(builder);
         } catch (IOException | RuntimeException e) {
             drop(clusterId, s, e);
         }

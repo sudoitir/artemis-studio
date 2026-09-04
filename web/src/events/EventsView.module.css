@@ -1,0 +1,5 @@
+.props {
+  max-block-size: 20rem;
+  overflow: auto;
+  font-size: var(--mantine-font-size-xs);
+}

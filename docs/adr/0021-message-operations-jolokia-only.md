@@ -1,8 +1,16 @@
 # ADR-0021: Phase 3 message operations are Jolokia-only; truncation is disclosed per message
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0029](0029-message-transport-two-implementations.md)
 - **Date**: 2026-09-04
 - **Deciders**: Mahdi Amirabdollahi
+
+> **Superseded (Phase 4).** The Core client now exists (ADR-0026).
+> [ADR-0029](0029-message-transport-two-implementations.md) extracts
+> `MessageTransport` with a Jolokia and a Core implementation: browse and send
+> get a faithful Core path (real typed properties, binary bodies, no
+> truncation), by-id / by-filter mutations stay on Jolokia, and every response
+> declares which channel served it. The per-message truncation disclosure below
+> still applies whenever the Jolokia channel serves a browse.
 
 ## Context
 

@@ -24,6 +24,8 @@ interface Fields {
   name: string;
   username: string;
   password: string;
+  coreUsername: string;
+  corePassword: string;
   tlsBundle: string;
 }
 
@@ -32,6 +34,8 @@ const EMPTY: Fields = {
   name: '',
   username: '',
   password: '',
+  coreUsername: '',
+  corePassword: '',
   tlsBundle: '',
 };
 
@@ -43,6 +47,8 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
     name: false,
     username: false,
     password: false,
+    coreUsername: false,
+    corePassword: false,
     tlsBundle: false,
   });
 
@@ -66,7 +72,14 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
       ? 'Provide both a username and a password, or neither.'
       : null;
 
-  const valid = seedList.length > 0 && !seedsError && !credError;
+  const coreCredError =
+    (touched.coreUsername || touched.corePassword) &&
+    Boolean(f.coreUsername) !== Boolean(f.corePassword)
+      ? 'Provide both a Core username and password, or neither.'
+      : null;
+
+  const valid =
+    seedList.length > 0 && !seedsError && !credError && !coreCredError;
 
   function payload(): RegisterClusterRequest {
     return {
@@ -74,6 +87,9 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
       name: f.name || undefined,
       credentials: f.username
         ? { username: f.username, password: f.password }
+        : undefined,
+      coreCredentials: f.coreUsername
+        ? { username: f.coreUsername, password: f.corePassword }
         : undefined,
       tlsBundle: f.tlsBundle || undefined,
     };
@@ -115,6 +131,20 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
           {...field('username')}
         />
         <PasswordInput label="Password" autoComplete="off" {...field('password')} />
+      </Group>
+      <Group grow align="flex-start">
+        <TextInput
+          label="Core username"
+          description="Optional. Defaults to the Jolokia credentials above."
+          autoComplete="off"
+          error={coreCredError}
+          {...field('coreUsername')}
+        />
+        <PasswordInput
+          label="Core password"
+          autoComplete="off"
+          {...field('corePassword')}
+        />
       </Group>
       <TextInput
         label="TLS bundle"
