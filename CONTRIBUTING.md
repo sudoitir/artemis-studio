@@ -5,8 +5,9 @@ Thanks for looking. The project is pre-alpha; the shape of things can still move
 ## Before you write code
 
 1. **Open an issue** describing the change. For anything that alters what the
-   product does, we work it through **OpenSpec** first
+   product does, we work it through [**OpenSpec**](https://openspec.dev) first
    (`openspec/`, `/opsx:propose`). Bug fixes and refactors don't need a proposal.
+- One logical change per PR. Reference the issue and any ADR/[OpenSpec](https://openspec.dev) change.
 2. **Check the ADRs** (`docs/adr/`). They're binding. A change that departs from
    one needs a new ADR in the same PR.
 3. **Library questions** go through `ctx7`, not memory — versions and APIs in
