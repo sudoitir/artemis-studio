@@ -24,11 +24,20 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class MessageBrowser {
 
+    /** {@code managementBrowsePageSize} default — the broker will not return more per page. */
+    public static final int BROKER_PAGE_CAP = 200;
+
     /** Artemis' verbatim truncation suffix, e.g. {@code ", + 3744 more"}. */
     static final Pattern TRUNCATION_MARKER = Pattern.compile(", \\+ \\d+ more$");
 
     private static final String OP_BROWSE = "browse(int,int,java.lang.String)";
     private static final String ATTR_MESSAGE_COUNT = "MessageCount";
+
+    /** How to read {@link BrowsedMessage#body()}: as UTF-8 text, or as base64-encoded bytes. */
+    public enum BodyEncoding {
+        TEXT,
+        BASE64
+    }
 
     /** One decoded message: the header set plus five typed property maps and the body. */
     public record BrowsedMessage(
@@ -43,6 +52,8 @@ public class MessageBrowser {
             String correlationId,
             String userId,
             String body,
+            BodyEncoding bodyEncoding,
+            String contentType,
             boolean bodyTruncated,
             Integer observedLimitBytes,
             Map<String, String> stringProperties,
@@ -138,6 +149,8 @@ public class MessageBrowser {
                 text(row, "correlationID"),
                 blankToNull(text(row, "userID")),
                 body,
+                BodyEncoding.TEXT, // Jolokia browse() always stringifies
+                null,
                 truncated,
                 observedLimit,
                 strings,

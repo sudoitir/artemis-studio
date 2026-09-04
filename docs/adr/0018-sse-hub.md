@@ -1,8 +1,15 @@
 # ADR-0018: The SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals
 
-- **Status**: accepted
+- **Status**: accepted (extended by [ADR-0027](0027-sse-events-topic-carries-data.md))
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
+
+> **Extended (Phase 4).** [ADR-0027](0027-sse-events-topic-carries-data.md) adds
+> one data-bearing topic, `events`, which carries the `BrokerEvent` payload and
+> an `id:` line for `Last-Event-ID` replay. The "events are change signals, not
+> data" decision below stays binding for every other topic; ADR-0027 also adds
+> `consumers` / `sessions` / `connections` signal topics and a coalescer for the
+> notification-driven ones.
 
 ## Context
 

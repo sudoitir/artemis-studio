@@ -1420,6 +1420,9 @@
           "body" : {
             "type" : "string"
           },
+          "bodyBase64" : {
+            "type" : "boolean"
+          },
           "headers" : {
             "type" : "object",
             "additionalProperties" : { }
@@ -1770,9 +1773,12 @@
           "node" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "transport" : {
+            "type" : "string"
           }
         },
-        "required" : [ "count", "data", "node", "page", "pageSize" ]
+        "required" : [ "count", "data", "node", "page", "pageSize", "transport" ]
       },
       "MessageSummaryView" : {
         "type" : "object",
@@ -1865,12 +1871,21 @@
           "body" : {
             "type" : [ "string", "null" ]
           },
+          "bodyEncoding" : {
+            "type" : "string"
+          },
+          "contentType" : {
+            "type" : [ "string", "null" ]
+          },
           "bodyTruncated" : {
             "type" : "boolean"
           },
           "observedLimitBytes" : {
             "type" : [ "integer", "null" ],
             "format" : "int32"
+          },
+          "transport" : {
+            "type" : "string"
           },
           "node" : {
             "type" : "string",
@@ -1910,7 +1925,7 @@
             }
           }
         },
-        "required" : [ "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "size", "stringProperties", "timestamp", "type" ]
+        "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "size", "stringProperties", "timestamp", "transport", "type" ]
       },
       "PagedViewProducerView" : {
         "type" : "object",

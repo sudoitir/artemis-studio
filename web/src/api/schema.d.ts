@@ -468,6 +468,7 @@ export interface components {
             type: number;
             durable?: boolean;
             body?: string;
+            bodyBase64?: boolean;
             headers?: {
                 [key: string]: unknown;
             };
@@ -610,6 +611,7 @@ export interface components {
             pageSize: number;
             /** Format: uuid */
             node: string;
+            transport: string;
         };
         MessageSummaryView: {
             /** Format: int64 */
@@ -650,9 +652,12 @@ export interface components {
             correlationId?: string | null;
             userId?: string | null;
             body?: string | null;
+            bodyEncoding: string;
+            contentType?: string | null;
             bodyTruncated: boolean;
             /** Format: int32 */
             observedLimitBytes?: number | null;
+            transport: string;
             /** Format: uuid */
             node: string;
             stringProperties: {

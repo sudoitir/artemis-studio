@@ -49,8 +49,11 @@ public final class MessageViews {
             @Schema(nullable = true) String correlationId,
             @Schema(nullable = true) String userId,
             @Schema(nullable = true) String body,
+            @Schema(requiredMode = REQUIRED) String bodyEncoding,
+            @Schema(nullable = true) String contentType,
             @Schema(requiredMode = REQUIRED) boolean bodyTruncated,
             @Schema(nullable = true) Integer observedLimitBytes,
+            @Schema(requiredMode = REQUIRED) String transport,
             @Schema(requiredMode = REQUIRED) UUID node,
             @Schema(requiredMode = REQUIRED) Map<String, String> stringProperties,
             @Schema(requiredMode = REQUIRED) Map<String, Long> intProperties,
@@ -58,13 +61,19 @@ public final class MessageViews {
             @Schema(requiredMode = REQUIRED) Map<String, Double> doubleProperties,
             @Schema(requiredMode = REQUIRED) Map<String, Boolean> booleanProperties) {}
 
-    /** A page of messages. {@code node} echoes the endpoint the page was read from. */
+    /**
+     * A page of messages. {@code node} echoes the endpoint the page was read
+     * from; {@code transport} is {@code CORE} or {@code JOLOKIA} — the channel
+     * that actually served this page (a Core browse falls back to Jolokia on a
+     * deep page).
+     */
     public record MessagePageView(
             @Schema(requiredMode = REQUIRED) List<MessageSummaryView> data,
             @Schema(requiredMode = REQUIRED) long count,
             @Schema(requiredMode = REQUIRED) int page,
             @Schema(requiredMode = REQUIRED) int pageSize,
-            @Schema(requiredMode = REQUIRED) UUID node) {}
+            @Schema(requiredMode = REQUIRED) UUID node,
+            @Schema(requiredMode = REQUIRED) String transport) {}
 
     /** The result of a mutation: the broker's own affected count (not a dry-run estimate). */
     public record AffectedView(

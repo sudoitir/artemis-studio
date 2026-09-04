@@ -572,3 +572,59 @@ for this capability. `DlqService` still does, for `deadLetterAddress` /
 5. Single-message **detail == a scoped browse** — there is no richer call; the
    detail endpoint runs `browse(1, N, filter)` and picks the row by `messageID`.
 6. Invalid filter → map to **400**, not 502.
+
+## 12. Phase 4 surface checks — Core client, push events, faithful I/O
+
+What actually shipped, against the plan in §8-§9:
+
+- **Subscription, not polling.** `CoreEventClient` opens one Core connection per
+  *live* node, `session.createConsumer(session.createTopic("activemq.notifications"))`,
+  and drains it with `consumer.receive(250)` on a virtual thread — never a
+  `MessageListener`. §8's warning was correct: a listener deadlocks against
+  `close()` on the pinned `artemis-jakarta-client:2.56.0` / broker 2.44 pairing.
+  The poll loop is the workaround, not a style choice.
+- **Failover is followed.** `CoreSubscriptionManager.reconcile(clusterId, endpoints)`
+  runs at the end of every tier-A tick, off the same liveness list the HA alert
+  uses. Stopping the primary container moves the subscription to the survivor
+  within one tier-A cycle (≤5s) — no separate failover detector.
+  `verdictFor(clusterId)` stays `Connected` throughout, backed by whichever node
+  is currently subscribed.
+  `NOTIFICATIONS` reads this cached verdict; `CapabilityProbe` never opens a
+  Core connection on a request path (that would cost a TCP handshake per
+  `GET /clusters/{id}` call).
+- **Topology-resolution trap confirmed.** §8's prediction held: the broker
+  advertises `<connector>` hosts (`artemis-primary:61616`) that resolve inside
+  the compose network but not from wherever Studio's process runs against a real
+  deployment. `useTopologyForLoadBalancing=false` plus
+  `initialConnectAttempts(1)` / `reconnectAttempts(0)` stop the client from
+  chasing that advertised topology; a manual Core URL override
+  (`broker_node.core_url`, `PATCH .../nodes/{id}`) is the escape hatch when the
+  advertised host is genuinely unreachable.
+- **Faithful bodies, no truncation.** `CoreMessageTransport.browse()` uses a
+  `QueueBrowser` — real typed properties, real `byte[]` bodies, no
+  `management-message-attribute-size-limit` in the path at all. §11's
+  `MESSAGE_BODY_FULL`-as-observed-capability idea (§11.3/§11.4) did **not**
+  ship; ADR-0021/ADR-0029 instead disclose truncation per message
+  (`bodyTruncated`) and add a `transport: "CORE" | "JOLOKIA"` field to every
+  message response — simpler than a fifth capability, and it says exactly which
+  channel served *this* call rather than a connection-wide roll-up.
+- **Deep-page fallback.** A `QueueBrowser` has no server-side offset — page *N*
+  costs a local walk of `N × pageSize`. Past `BROKER_PAGE_CAP` (200) messages
+  deep, `CoreMessageTransport` falls back to the Jolokia transport for that call
+  and the response says so (`transport: "JOLOKIA"`). Silently taking the slow
+  path would be as dishonest as silently truncating a body.
+- **Mutations stay Jolokia-only.** move/retry/delete/expire/purge are addressed
+  by id or selector and carry no payload — no fidelity dimension, so
+  `CoreMessageTransport` delegates them straight to the Jolokia transport
+  (ADR-0029, D9). Only browse and send got a second implementation.
+- **Event history and push.** Every notification is normalised to a
+  `BrokerEvent` and buffered into `broker_event` (`BrokerEventWriter`, bounded
+  queue, JDBC batch insert, visible `dropped` counter on overflow — no silent
+  loss). The SSE `events` topic carries the row itself plus an `id:` line
+  (`broker_event.seq`), so a reconnecting client replays what it missed via
+  `Last-Event-ID` (capped at 500) instead of refetching a whole page.
+  Notification-derived `consumers`/`sessions`/`connections` staleness signals
+  are coalesced to at most one publish per topic per second per cluster
+  (`TopicCoalescer`) — those views are live per-node Jolokia fan-out reads, and
+  an uncoalesced chatty broker would turn push into a self-inflicted load
+  problem.

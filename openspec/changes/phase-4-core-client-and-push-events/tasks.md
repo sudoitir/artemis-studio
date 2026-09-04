@@ -54,21 +54,21 @@ Do not start a slice until the previous one's gate passes.
 
 ## 4. Slice 4 — faithful message I/O over Core
 
-- [ ] 4.1 Extract `broker/MessageTransport` interface mirroring what `MessageService` calls today. `broker/JolokiaMessageTransport` wraps the existing `MessageBrowser` + `MessageOperations` unchanged. A `Channel` enum (`CORE` | `JOLOKIA`).
-- [ ] 4.2 Widen `broker/MessageBrowser.BrowsedMessage.body` from `String` to `byte[]` + `BodyEncoding (TEXT | BYTES)` + `contentType`. `bodyTruncated` / `observedLimitBytes` stay Jolokia-only. Do this as its own commit. Update `MessageService` and `web/dto/MessageViews` (`bodyEncoding: "TEXT" | "BASE64"`, base64 for bytes). Regenerate `web/openapi.json` + `schema.d.ts`.
-- [ ] 4.3 `broker/CoreMessageTransport` — `browse` via `QueueBrowser` (local skip/take, real bytes + typed props, no truncation; page past `BROKER_PAGE_CAP` delegates to the Jolokia transport); `detail`; `send` with typed `setXProperty` + `BytesMessage` for `spec.bytes()`. Every by-id / by-filter mutation delegates to the injected Jolokia transport.
-- [ ] 4.4 `MessageService.clientFor` → `transportFor(clusterId, resolved)` choosing Core when `subscriptions.verdictFor(clusterId).isConnected()` else Jolokia. Audit / limiter / dry-run / bulk cap / `publishQueuesAfterCommit` untouched. Every message response carries `transport`.
-- [ ] 4.5 `web/src/messages/MessageDetailPanel.tsx` — show the serving channel; hex/base64 view when `bodyEncoding === 'BASE64'`; drop the truncation notice when `transport === 'CORE'`.
-- [ ] 4.6 Tests: Core-vs-Jolokia browse IT — send a `BytesMessage` with a property longer than the management size limit; Jolokia reports `bodyTruncated: true`, Core returns exact bytes with `transport: "CORE"`. Existing `MessageMutations` / `MessagesView` tests pass untouched. Frontend `MessageDetailPanel.test.tsx` binary path.
-- [ ] 4.7 Gate: `just verify` green.
+- [x] 4.1 Extract `broker/MessageTransport` interface mirroring what `MessageService` calls today. `broker/JolokiaMessageTransport` wraps the existing `MessageBrowser` + `MessageOperations` unchanged. A `Channel` enum (`CORE` | `JOLOKIA`).
+- [x] 4.2 Widen `broker/MessageBrowser.BrowsedMessage.body` from `String` to `byte[]` + `BodyEncoding (TEXT | BYTES)` + `contentType`. `bodyTruncated` / `observedLimitBytes` stay Jolokia-only. Do this as its own commit. Update `MessageService` and `web/dto/MessageViews` (`bodyEncoding: "TEXT" | "BASE64"`, base64 for bytes). Regenerate `web/openapi.json` + `schema.d.ts`.
+- [x] 4.3 `broker/CoreMessageTransport` — `browse` via `QueueBrowser` (local skip/take, real bytes + typed props, no truncation; page past `BROKER_PAGE_CAP` delegates to the Jolokia transport); `detail`; `send` with typed `setXProperty` + `BytesMessage` for `spec.bytes()`. Every by-id / by-filter mutation delegates to the injected Jolokia transport.
+- [x] 4.4 `MessageService.clientFor` → `transportFor(clusterId, resolved)` choosing Core when `subscriptions.verdictFor(clusterId).isConnected()` else Jolokia. Audit / limiter / dry-run / bulk cap / `publishQueuesAfterCommit` untouched. Every message response carries `transport`.
+- [x] 4.5 `web/src/messages/MessageDetailPanel.tsx` — show the serving channel; hex/base64 view when `bodyEncoding === 'BASE64'`; drop the truncation notice when `transport === 'CORE'`.
+- [x] 4.6 Tests: Core-vs-Jolokia browse IT — send a `BytesMessage` with a property longer than the management size limit; Jolokia reports `bodyTruncated: true`, Core returns exact bytes with `transport: "CORE"`. Existing `MessageMutations` / `MessagesView` tests pass untouched. Frontend `MessageDetailPanel.test.tsx` binary path.
+- [x] 4.7 Gate: `just verify` green.
 
 ## 5. ADRs and docs
 
-- [ ] 5.1 ADR-0026 — Core client connection model (D1–D4, D13).
-- [ ] 5.2 ADR-0027 — data-bearing SSE `events` topic + `Last-Event-ID` replay + coalescing; **extends** ADR-0018 (annotate 0018, do not edit its decision).
-- [ ] 5.3 ADR-0028 — `broker_event` persistence, `seq` PK exception, bounded buffer + visible drop counter, reaper (D7, D8).
-- [ ] 5.4 ADR-0029 — `MessageTransport`, two implementations, Core for read/write fidelity only (D9, D10). Mark ADR-0021 `superseded` with a link; do not edit its decision text.
-- [ ] 5.5 `docs/architecture.md` — make the "Event path (push, Phase 4+)" section real; `docs/broker-management-notes.md` — add a Phase 4 section (what shipped, the failover-follow behaviour, the deep-page fallback). README Phase 4 rows ticked. `openspec/project.md` current-phase line updated.
+- [x] 5.1 ADR-0026 — Core client connection model (D1–D4, D13).
+- [x] 5.2 ADR-0027 — data-bearing SSE `events` topic + `Last-Event-ID` replay + coalescing; **extends** ADR-0018 (annotate 0018, do not edit its decision).
+- [x] 5.3 ADR-0028 — `broker_event` persistence, `seq` PK exception, bounded buffer + visible drop counter, reaper (D7, D8).
+- [x] 5.4 ADR-0029 — `MessageTransport`, two implementations, Core for read/write fidelity only (D9, D10). Mark ADR-0021 `superseded` with a link; do not edit its decision text.
+- [x] 5.5 `docs/architecture.md` — make the "Event path (push, Phase 4+)" section real; `docs/broker-management-notes.md` — add a Phase 4 section (what shipped, the failover-follow behaviour, the deep-page fallback). README Phase 4 rows ticked. `openspec/project.md` current-phase line updated.
 
 ## 6. Verify end to end
 

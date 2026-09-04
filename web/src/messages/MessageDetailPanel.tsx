@@ -89,6 +89,17 @@ export function MessageDetailPanel({
             <Badge variant="light" color="gray">
               {m.size} bytes
             </Badge>
+            <Badge
+              variant="light"
+              color={m.transport === 'CORE' ? 'teal' : 'blue'}
+              title={
+                m.transport === 'CORE'
+                  ? 'Read faithfully over the Core protocol client'
+                  : 'Read over the Jolokia management channel'
+              }
+            >
+              via {m.transport === 'CORE' ? 'Core' : 'Jolokia'}
+            </Badge>
           </Group>
 
           <Table withRowBorders={false} verticalSpacing={2}>
@@ -163,10 +174,24 @@ export function MessageDetailPanel({
           <PropertyTable title="Boolean properties" entries={Object.entries(m.booleanProperties)} />
 
           <Stack gap={4}>
-            <Text size="xs" fw={600} c="dimmed">
-              Body
-            </Text>
+            <Group gap="xs" justify="space-between">
+              <Text size="xs" fw={600} c="dimmed">
+                Body
+              </Text>
+              {m.bodyEncoding === 'BASE64' ? (
+                <Badge size="xs" variant="light" color="teal">
+                  binary · base64
+                  {m.contentType ? ` · ${m.contentType}` : ''}
+                </Badge>
+              ) : null}
+            </Group>
             <CodeHighlight code={m.body ?? '(empty)'} language="text" />
+            {m.bodyEncoding === 'BASE64' ? (
+              <Text size="xs" c="dimmed">
+                Shown base64-encoded — the Core client returned the exact bytes, not a
+                stringified copy.
+              </Text>
+            ) : null}
           </Stack>
 
           {m.bodyTruncated ? (
@@ -176,12 +201,10 @@ export function MessageDetailPanel({
                   The broker clipped this message's body and property values at{' '}
                   {m.observedLimitBytes ?? 'its'} bytes
                   (<code>management-message-attribute-size-limit</code>). To see the whole message,
-                  raise the limit in <code>broker.xml</code> and re-browse:
+                  raise the limit in <code>broker.xml</code> and re-browse, or connect the Core
+                  client so Studio can read it faithfully:
                 </Text>
                 <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
-                <Text size="xs" c="dimmed">
-                  Faithful binary bodies arrive with the Core client in Phase 4.
-                </Text>
               </Stack>
             </Alert>
           ) : null}
