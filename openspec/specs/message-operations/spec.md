@@ -16,7 +16,8 @@ audit record written in the command's own transaction.
 The system SHALL expose a paged read of the messages on one queue of one node,
 accepting an optional Artemis filter expression. Each returned message SHALL
 carry its message id, type, durability, priority, timestamp, expiration, size,
-and the count of application properties. A single-message read SHALL additionally
+the count of application properties, its correlation id, and its reply-to
+destination when the message has one. A single-message read SHALL additionally
 return the full header set and the string, integer, long, and boolean property
 maps, and the message body.
 
@@ -61,6 +62,11 @@ instead, and the response SHALL state that it was.
 
 - **WHEN** a browse request omits the node
 - **THEN** the message-holding live node of the logical node serving that queue is used, and the response states which node answered
+
+#### Scenario: A message's reply-to destination is exposed
+
+- **WHEN** a browsed message carries a JMS reply-to destination
+- **THEN** the browse response includes that destination for the message
 
 ### Requirement: Truncated message content is detected and disclosed
 
