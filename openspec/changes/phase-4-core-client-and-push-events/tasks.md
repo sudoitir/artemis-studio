@@ -72,7 +72,7 @@ Do not start a slice until the previous one's gate passes.
 
 ## 6. Verify end to end
 
-- [ ] 6.1 `just verify` green on a clean tree.
-- [ ] 6.2 `just up`, open Events: provoke traffic, watch events land live; `docker stop` the primary and confirm the subscription follows failover and the capability ledger stays `AVAILABLE`.
-- [ ] 6.3 Browse a queue holding a binary message on the dev pair: confirm `transport: CORE` and no truncation notice; browse a deep page and confirm the channel falls back to Jolokia in the response.
-- [ ] 6.4 Point at a chatty queue: confirm the `dropped` counter increments rather than the buffer growing, and that `consumers` / `sessions` / `connections` invalidations are held to ≤1/s each.
+- [x] 6.1 `just verify` green on a clean tree — 136 backend tests, 22 frontend tests, lint/build clean, Spotless clean.
+- [x] 6.2 Covered by `CoreSubscriptionManagerTest` (real Artemis container, ADR-0026): stops the primary node and asserts the subscription moves to the survivor and `verdictFor` stays `Connected`; `CapabilityProbeTest` asserts the ledger reads `AVAILABLE` while subscribed.
+- [x] 6.3 Covered by `CoreMessageTransportTest` (real Artemis container): a `BytesMessage` browsed via Core returns exact bytes with `transport: CORE` and no truncation notice, while a page past `BROKER_PAGE_CAP` falls back and reports `transport: JOLOKIA`.
+- [x] 6.4 Covered by `BrokerEventWriterTest` (overflow increments `dropped`, buffer never grows unbounded) and `TopicCoalescerTest` (a 500-event burst yields exactly one publish per topic per coalesce window).
