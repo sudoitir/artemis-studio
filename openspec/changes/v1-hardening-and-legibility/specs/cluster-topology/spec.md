@@ -65,15 +65,17 @@ rendered as plain text and not as a control that cannot be used.
 ### Requirement: The graph states its empty and loading conditions
 
 A cluster whose topology holds no nodes SHALL render an explanation of why the graph is
-empty together with the add-a-management-URL action, not a blank frame. While the
-topology is loading, the canvas frame SHALL be occupied by a placeholder of the graph's
-own size rather than a bare spinner in an empty area.
+empty together with the action that can change it — rediscovery — and not a blank frame.
+The add-a-management-URL flow is deliberately NOT offered here: it attaches a URL to a
+discovered endpoint, and a cluster with no nodes has none. While the topology is loading,
+the canvas frame SHALL be occupied by a placeholder of the graph's own size rather than a
+bare spinner in an empty area.
 
 #### Scenario: Empty cluster
 
 - **WHEN** a cluster's topology contains no nodes
 - **THEN** the graph area explains that Studio learns topology from the first broker it
-  reaches, and offers the add-a-management-URL action
+  reaches and that nothing has answered on the seed address, and offers rediscovery
 
 #### Scenario: Loading
 

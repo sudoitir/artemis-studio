@@ -12,23 +12,23 @@
 
 ## 2. Slice 1 — topology view
 
-- [ ] 2.1 `layout.ts`: emit a `pair` group node per `LogicalNodeView` with the two endpoints as children (`parentId`, `extent: 'parent'`), geometry derived from the existing `COL_W` / `LIVE_Y` / `BACKUP_Y`; keep the function pure
-- [ ] 2.2 `layout.ts`: move `axisStatus` off the canvas-level `TopologyLayout` onto each group's data; keep a cluster-level roll-up for the screen-reader summary
-- [ ] 2.3 `layout.ts`: export the mark vocabulary (or a legend shape) so the legend and the node marks cannot drift apart
-- [ ] 2.4 Extend `layout.test.ts`: one group per logical node; children carry `parentId`; split-brain puts both endpoints above the group axis; a lone unmanaged endpoint still produces a group
-- [ ] 2.5 `TopologyGraph.module.css`: delete `.axis` / `.axisNote`; add `.group`, `.groupAxis`, `.groupId`
-- [ ] 2.6 `TopologyGraph.module.css`: marks by shape at 9–10px — `live` filled disc, `standby` hollow ring (1.5px), `behind` half-filled, `unmanaged` dashed ring; `down` and `split-brain` keep amber/red
-- [ ] 2.7 `TopologyGraph.module.css`: `:focus-visible` outline on `.node`; `var(--mantine-font-family-monospace)` on `.badge` and the NodeID; `block-size: clamp(420px, 60vh, 720px)` replacing the fixed 460px
-- [ ] 2.8 `TopologyCanvas.tsx`: register the `pair` node type; `fitViewOptions={{ padding: 0.15, maxZoom: 1 }}`; `<Controls showInteractive={false} />`
-- [ ] 2.9 `TopologyCanvas.tsx`: re-fit via `useReactFlow().fitView()` keyed on the logical-node ids, so a failover does not leave a stale viewport
-- [ ] 2.10 `TopologyCanvas.tsx`: static legend row beneath the canvas (four marks, two edge styles, the axis) — not a floating `<Panel>`
-- [ ] 2.11 `TopologyCanvas.tsx`: empty state for a cluster with no nodes — "No nodes yet. Studio learns the topology from the first broker it reaches." plus the add-a-URL action
-- [ ] 2.12 React context carrying the optional `onAddManagementUrl(endpointId)` handler; `RegisterCanvas` passes none and the CTA renders as plain text there
-- [ ] 2.13 `TopologyGraph.tsx`: wire the real `AddManagementUrl` modal (`web/src/clusters/AddManagementUrl.tsx`, currently imported nowhere) to the unmanaged card's button; copy becomes "Add a management URL"
-- [ ] 2.14 `TopologyView.tsx`: replace the bare `<Loader size="sm">` with a skeleton occupying the canvas frame
-- [ ] 2.15 Update `RegisterCanvas.tsx` and `examples.ts` for the group change (shared canvas)
-- [ ] 2.16 Verify the failover-animation claim in the browser (`docker compose -f deploy/compose/compose.dev.yaml stop artemis-primary`); then either move the `transition: transform` to `.react-flow__node` or delete the claim at `TopologyGraph.tsx:13`
-- [ ] 2.17 `npm --prefix web test -- layout` and `npm --prefix web run lint` pass
+- [x] 2.1 `layout.ts`: emit a `pair` group node per `LogicalNodeView` with the two endpoints as children (`parentId`, `extent: 'parent'`), geometry derived from the existing `COL_W` / `LIVE_Y` / `BACKUP_Y`; keep the function pure
+- [x] 2.2 `layout.ts`: move `axisStatus` off the canvas-level `TopologyLayout` onto each group's data; keep a cluster-level roll-up for the screen-reader summary
+- [x] 2.3 `layout.ts`: export the mark vocabulary (or a legend shape) so the legend and the node marks cannot drift apart
+- [x] 2.4 Extend `layout.test.ts`: one group per logical node; children carry `parentId`; split-brain puts both endpoints above the group axis; a lone unmanaged endpoint still produces a group
+- [x] 2.5 `TopologyGraph.module.css`: delete `.axis` / `.axisNote`; add `.group`, `.groupAxis`, `.groupId`
+- [x] 2.6 `TopologyGraph.module.css`: marks by shape at 9–10px — `live` filled disc, `standby` hollow ring (1.5px), `behind` half-filled, `unmanaged` dashed ring; `down` and `split-brain` keep amber/red
+- [x] 2.7 `TopologyGraph.module.css`: `:focus-visible` outline on `.node`; `var(--mantine-font-family-monospace)` on `.badge` and the NodeID; `block-size: clamp(420px, 60vh, 720px)` replacing the fixed 460px
+- [x] 2.8 `TopologyCanvas.tsx`: register the `pair` node type; `fitViewOptions={{ padding: 0.15, maxZoom: 1 }}`; `<Controls showInteractive={false} />`
+- [x] 2.9 `TopologyCanvas.tsx`: re-fit via `useReactFlow().fitView()` keyed on the logical-node ids, so a failover does not leave a stale viewport
+- [x] 2.10 `TopologyCanvas.tsx`: static legend row beneath the canvas (four marks, two edge styles, the axis) — not a floating `<Panel>`
+- [x] 2.11 `TopologyCanvas.tsx`: empty state for a cluster with no nodes — "No nodes yet. Studio learns the topology from the first broker it reaches." plus the add-a-URL action
+- [x] 2.12 React context carrying the optional `onAddManagementUrl(endpointId)` handler; `RegisterCanvas` passes none and the CTA renders as plain text there
+- [x] 2.13 `TopologyGraph.tsx`: wire the real `AddManagementUrl` modal (`web/src/clusters/AddManagementUrl.tsx`, currently imported nowhere) to the unmanaged card's button; copy becomes "Add a management URL"
+- [x] 2.14 `TopologyView.tsx`: replace the bare `<Loader size="sm">` with a skeleton occupying the canvas frame
+- [x] 2.15 Update `RegisterCanvas.tsx` and `examples.ts` for the group change (shared canvas)
+- [x] 2.16 Verify the failover-animation claim in the browser (`docker compose -f deploy/compose/compose.dev.yaml stop artemis-primary`); then either move the `transition: transform` to `.react-flow__node` or delete the claim at `TopologyGraph.tsx:13`
+- [x] 2.17 `npm --prefix web test -- layout` and `npm --prefix web run lint` pass
 
 ## 3. Slice 2 — payload inspection helpers
 
