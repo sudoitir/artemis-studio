@@ -20,6 +20,14 @@ public record JolokiaRequest(
         return new JolokiaRequest("read", mbean, List.of(attributes), null, null);
     }
 
+    /**
+     * Read <em>every</em> attribute of an MBean. Jolokia treats an omitted
+     * {@code attribute} as "all"; an empty array is not the same thing.
+     */
+    public static JolokiaRequest readAll(String mbean) {
+        return new JolokiaRequest("read", mbean, null, null, null);
+    }
+
     /** Invoke a management operation. {@code operation} includes the signature, e.g. {@code listQueues(java.lang.String,int,int)}. */
     public static JolokiaRequest exec(String mbean, String operation, Object... arguments) {
         return new JolokiaRequest("exec", mbean, null, operation, List.of(arguments));

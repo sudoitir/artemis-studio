@@ -62,21 +62,21 @@
 
 ## 5. Slice 4 — broker config diff across a node pair
 
-- [ ] 5.1 Write **ADR-0043** (broker configuration comparison: what counts as configuration, why a hand-rolled pointer diff over a diff library, how an expected difference is distinguished from drift) and **ADR-0044** (slow-consumer detection: the two authorities, and why the broker wins when configured)
-- [ ] 5.2 `broker/ConfigReader.java`: one batched Jolokia POST per node through `NodeCallLimiter.acquire(nodeId)`, following `DlqService`; sections per the spike Q4 verdict
-- [ ] 5.3 `domain/config/ConfigDiff.java`: Jackson pointer-flatten each side to `Map<String,String>`, three-way key comparison → `SAME` / `DIFFERENT` / `ONLY_IN_LEFT` / `ONLY_IN_RIGHT`
-- [ ] 5.4 `ConfigDiff`: key address settings by their `match` string, never by array index
-- [ ] 5.5 `ConfigDiff`: allowlist drives the **Configuration** section; every other key lands in a collapsed **Unclassified** section, marked as such — nothing is dropped
-- [ ] 5.6 `ConfigDiff`: an **Expected** class for `<name>`, node-local paths, NodeID and acceptor host names, distinct from **Drift**
-- [ ] 5.7 `service/ConfigDiffService.java`: `left` omitted defaults to the two endpoints of the selected node's `LogicalNodeView`; either side's `BrokerConnectionException` marks that side unavailable with the classified reason — never a half-diff
-- [ ] 5.8 `ConfigDiffService`: detect a passive backup (`Active: false`) with a reduced surface and say so instead of rendering the diff; cap compared `match` patterns, always compare `#`, and report "compared N of M address settings"
-- [ ] 5.9 `web/ConfigDiffController.java` + `web/dto/ConfigViews.java`: `GET /api/v1/clusters/{id}/config-diff?left=&right=`, permission `CLUSTER_READ`, no audit event
-- [ ] 5.10 `ConfigDiffTest`: `SAME` / `DIFFERENT` / `ONLY_IN_*`; address-settings reordering is not drift; `<name>` classifies as Expected; an unknown attribute lands in Unclassified
-- [ ] 5.11 Regenerate `web/openapi.json` and `web/src/api/schema.d.ts` (`npm run gen:api`)
-- [ ] 5.12 `web/src/config/ConfigDiffView.tsx`: two node pickers, section accordions, three-column rows (key · left · right) with the status as a word, not colour alone; unavailable-side and passive-backup states rendered as statements
-- [ ] 5.13 New route `clusters/$clusterId/config-diff` in `web/src/router.tsx` following the existing `createRoute` pattern, plus a `NAV_ITEMS` entry in `web/src/app/navItems.ts`
-- [ ] 5.14 `./mvnw test -Dtest=ConfigDiffTest` passes
-- [ ] 5.15 Live check against the dev stack with a session cookie: `GET /api/v1/clusters/{id}/config-diff` for a pair, and with one side stopped
+- [x] 5.1 Write **ADR-0043** (broker configuration comparison: what counts as configuration, why a hand-rolled pointer diff over a diff library, how an expected difference is distinguished from drift) and **ADR-0044** (slow-consumer detection: the two authorities, and why the broker wins when configured)
+- [x] 5.2 `broker/ConfigReader.java`: one batched Jolokia POST per node through `NodeCallLimiter.acquire(nodeId)`, following `DlqService`; sections per the spike Q4 verdict
+- [x] 5.3 `domain/config/ConfigDiff.java`: Jackson pointer-flatten each side to `Map<String,String>`, three-way key comparison → `SAME` / `DIFFERENT` / `ONLY_IN_LEFT` / `ONLY_IN_RIGHT`
+- [x] 5.4 `ConfigDiff`: key address settings by their `match` string, never by array index
+- [x] 5.5 `ConfigDiff`: allowlist drives the **Configuration** section; every other key lands in a collapsed **Unclassified** section, marked as such — nothing is dropped
+- [x] 5.6 `ConfigDiff`: an **Expected** class for `<name>`, node-local paths, NodeID and acceptor host names, distinct from **Drift**
+- [x] 5.7 `service/ConfigDiffService.java`: `left` omitted defaults to the two endpoints of the selected node's `LogicalNodeView`; either side's `BrokerConnectionException` marks that side unavailable with the classified reason — never a half-diff
+- [x] 5.8 `ConfigDiffService`: detect a passive backup (`Active: false`) with a reduced surface and say so instead of rendering the diff; cap compared `match` patterns, always compare `#`, and report "compared N of M address settings"
+- [x] 5.9 `web/ConfigDiffController.java` + `web/dto/ConfigViews.java`: `GET /api/v1/clusters/{id}/config-diff?left=&right=`, permission `CLUSTER_READ`, no audit event
+- [x] 5.10 `ConfigDiffTest`: `SAME` / `DIFFERENT` / `ONLY_IN_*`; address-settings reordering is not drift; `<name>` classifies as Expected; an unknown attribute lands in Unclassified
+- [x] 5.11 Regenerate `web/openapi.json` and `web/src/api/schema.d.ts` (`npm run gen:api`)
+- [x] 5.12 `web/src/config/ConfigDiffView.tsx`: two node pickers, section accordions, three-column rows (key · left · right) with the status as a word, not colour alone; unavailable-side and passive-backup states rendered as statements
+- [x] 5.13 New route `clusters/$clusterId/config-diff` in `web/src/router.tsx` following the existing `createRoute` pattern, plus a `NAV_ITEMS` entry in `web/src/app/navItems.ts`
+- [x] 5.14 `./mvnw test -Dtest=ConfigDiffTest` passes
+- [x] 5.15 Live check against the dev stack with a session cookie: `GET /api/v1/clusters/{id}/config-diff` for a pair, and with one side stopped
 
 ## 6. Close-out
 

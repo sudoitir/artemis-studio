@@ -724,6 +724,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config-diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["compare"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/capabilities": {
         parameters: {
             query?: never;
@@ -1651,6 +1667,50 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
+        };
+        /** @description Broker configuration compared across two nodes */
+        ConfigDiffView: {
+            /** Format: uuid */
+            clusterId: string;
+            left: components["schemas"]["ConfigSideView"];
+            right: components["schemas"]["ConfigSideView"];
+            comparable: boolean;
+            sections: components["schemas"]["ConfigSectionView"][];
+            /** Format: int32 */
+            driftCount: number;
+            /** Format: int32 */
+            matchesCompared: number;
+            /** Format: int32 */
+            matchesAvailable: number;
+            note?: string | null;
+        };
+        /** @description One configuration key, compared across both nodes */
+        ConfigEntryView: {
+            key: string;
+            left?: string | null;
+            right?: string | null;
+            status: string;
+            statusWord: string;
+            classification: string;
+            drift: boolean;
+        };
+        /** @description One section of the comparison */
+        ConfigSectionView: {
+            section: string;
+            label: string;
+            entries: components["schemas"]["ConfigEntryView"][];
+            /** Format: int32 */
+            driftCount: number;
+        };
+        /** @description One node in a configuration comparison */
+        ConfigSideView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            available: boolean;
+            active: boolean;
+            reducedSurface: boolean;
+            unavailableReason?: string | null;
         };
         AuditEventView: {
             /** Format: date-time */
@@ -3236,6 +3296,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewConnectionView"];
+                };
+            };
+        };
+    };
+    compare: {
+        parameters: {
+            query?: {
+                left?: string;
+                right?: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDiffView"];
                 };
             };
         };

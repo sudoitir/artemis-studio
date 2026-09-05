@@ -51,6 +51,9 @@ export type MessageActionKind = 'move' | 'retry' | 'delete' | 'expire';
 export type AuditEventView = Schemas['AuditEventView'];
 export type AuditPageView = Schemas['AuditPageView'];
 export type DlqView = Schemas['DlqView'];
+export type ConfigDiffView = Schemas['ConfigDiffView'];
+export type ConfigSectionView = Schemas['ConfigSectionView'];
+export type ConfigEntryView = Schemas['ConfigEntryView'];
 export type DlqAddress = Schemas['DlqAddress'];
 export type DlqQueue = Schemas['DlqQueue'];
 export type BrokerEventView = Schemas['BrokerEventView'];
@@ -609,6 +612,27 @@ export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
     queryKey: ['clusters', clusterId, 'dlq'],
     queryFn: () => request<DlqView>(`/clusters/${clusterId}/dlq`),
     refetchInterval: 10_000,
+  });
+}
+
+/**
+ * Compare two nodes' broker configuration (ADR-0043). Read-only, so no mutation
+ * hook — and no polling: configuration does not change under the operator, and a
+ * comparison costs one batched broker call per node.
+ */
+export function useConfigDiff(
+  clusterId: string,
+  left: string | null,
+  right: string | null,
+): UseQueryResult<ConfigDiffView, ApiError> {
+  const params = new URLSearchParams();
+  if (left) params.set('left', left);
+  if (right) params.set('right', right);
+  const query = params.toString();
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'config-diff', left, right],
+    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${query ? `?${query}` : ''}`),
+    staleTime: 30_000,
   });
 }
 
