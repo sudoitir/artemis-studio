@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  Collapse,
+  Grid,
   Group,
   Modal,
   PasswordInput,
@@ -9,13 +11,20 @@ import {
   Text,
   Textarea,
   TextInput,
+  UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { useNavigate } from '@tanstack/react-router';
+
 import {
   useCheckConnection,
   useRegisterCluster,
   type RegisterClusterRequest,
 } from '../api/client.ts';
+import { CapabilityLedger } from './CapabilityLedger.tsx';
+import { normaliseSeeds } from './normaliseSeeds.ts';
+import { RegisterCanvas } from './RegisterCanvas.tsx';
+import type { ExampleShape } from './examples.ts';
 
 const EXAMPLE = 'http://broker-1:8161/console/jolokia';
 
@@ -51,20 +60,24 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
     corePassword: false,
     tlsBundle: false,
   });
+  const [shape, setShape] = useState<ExampleShape | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [checkedSeeds, setCheckedSeeds] = useState<string | null>(null);
 
   const check = useCheckConnection();
   const register = useRegisterCluster();
+  const navigate = useNavigate();
 
-  const seedList = f.seeds
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const normalised = normaliseSeeds(f.seeds);
+  const seedList = normalised.map((s) => s.url).filter((u): u is string => u !== null);
+  const rewritten = normalised.filter((s) => s.url !== null && s.url !== s.original);
+  const unparseable = normalised.filter((s) => s.url === null);
 
   const seedsError =
-    touched.seeds && seedList.length === 0
+    touched.seeds && normalised.length === 0
       ? 'Add at least one management URL.'
-      : touched.seeds && seedList.some((s) => !isUrl(s))
-        ? 'Each line must be a full URL.'
+      : touched.seeds && unparseable.length > 0
+        ? `Couldn't make sense of: ${unparseable.map((s) => s.original).join(', ')}`
         : null;
   const credError =
     (touched.username || touched.password) &&
@@ -80,6 +93,18 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
 
   const valid =
     seedList.length > 0 && !seedsError && !credError && !coreCredError;
+
+  const stale = check.isSuccess && checkedSeeds !== null && checkedSeeds !== JSON.stringify(seedList);
+
+  // Open the advanced fields on their own once a check reveals they'd matter —
+  // the operator never has to know they exist until the ledger says so.
+  useEffect(() => {
+    if (!check.data) return;
+    const gap =
+      check.data.capabilities.messageIo.status !== 'AVAILABLE' ||
+      check.data.capabilities.notifications.status !== 'AVAILABLE';
+    if (gap) setAdvancedOpen(true);
+  }, [check.data]);
 
   function payload(): RegisterClusterRequest {
     return {
@@ -107,110 +132,152 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   }
 
   return (
-    <Stack gap="sm">
-      <Textarea
-        label="Broker management URLs"
-        description={`One per line. For example: ${EXAMPLE}`}
-        placeholder={EXAMPLE}
-        autosize
-        minRows={2}
-        error={seedsError}
-        {...field('seeds')}
-      />
-      <TextInput
-        label="Name"
-        description="Optional. Defaults to the first broker's host."
-        placeholder="prod-emea"
-        {...field('name')}
-      />
-      <Group grow align="flex-start">
-        <TextInput
-          label="Username"
-          autoComplete="off"
-          error={credError}
-          {...field('username')}
-        />
-        <PasswordInput label="Password" autoComplete="off" {...field('password')} />
-      </Group>
-      <Group grow align="flex-start">
-        <TextInput
-          label="Core username"
-          description="Optional. Defaults to the Jolokia credentials above."
-          autoComplete="off"
-          error={coreCredError}
-          {...field('coreUsername')}
-        />
-        <PasswordInput
-          label="Core password"
-          autoComplete="off"
-          {...field('corePassword')}
-        />
-      </Group>
-      <TextInput
-        label="TLS bundle"
-        description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
-        {...field('tlsBundle')}
-      />
+    <Grid gap="lg">
+      <Grid.Col span={{ base: 12, md: 6 }}>
+        <Stack gap="sm">
+          <Textarea
+            label="Broker management URLs"
+            description={`One per line. For example: ${EXAMPLE}`}
+            placeholder={EXAMPLE}
+            autosize
+            minRows={2}
+            error={seedsError}
+            {...field('seeds')}
+          />
+          {rewritten.length > 0 ? (
+            <Text size="xs" c="dimmed">
+              Normalised to:{' '}
+              {rewritten.map((s, i) => (
+                <Text key={s.original} span size="xs" ff="monospace">
+                  {i > 0 ? ', ' : ''}
+                  {s.url}
+                </Text>
+              ))}
+            </Text>
+          ) : null}
+          <TextInput
+            label="Name"
+            description="Optional. Defaults to the first broker's host."
+            placeholder="prod-emea"
+            {...field('name')}
+          />
+          <Group grow align="flex-start">
+            <TextInput
+              label="Username"
+              autoComplete="off"
+              error={credError}
+              {...field('username')}
+            />
+            <PasswordInput label="Password" autoComplete="off" {...field('password')} />
+          </Group>
 
-      <div aria-live="polite">
-        {check.isSuccess ? (
-          <Alert color="pine" variant="light" title="Reached this broker">
-            {`Found ${check.data.discoveredNodes} node${
-              check.data.discoveredNodes === 1 ? '' : 's'
-            } across ${check.data.reachableSeeds} address${
-              check.data.reachableSeeds === 1 ? '' : 'es'
-            }. Nothing saved yet.`}
-          </Alert>
-        ) : null}
-        {check.isError ? (
-          <Alert color="red" variant="light" title={check.error.title}>
-            {check.error.message}
-          </Alert>
-        ) : null}
-        {register.isError ? (
-          <Alert color="red" variant="light" title={register.error.title}>
-            {register.error.message}
-          </Alert>
-        ) : null}
-      </div>
+          <UnstyledButton
+            onClick={() => setAdvancedOpen((o) => !o)}
+            aria-expanded={advancedOpen}
+            c="dimmed"
+            fz="xs"
+          >
+            {advancedOpen ? '⌄' : '›'} Advanced — Core protocol and TLS
+          </UnstyledButton>
+          <Collapse expanded={advancedOpen}>
+            <Stack gap="sm">
+              <Group grow align="flex-start">
+                <TextInput
+                  label="Core username"
+                  description="Optional. Defaults to the Jolokia credentials above."
+                  autoComplete="off"
+                  error={coreCredError}
+                  {...field('coreUsername')}
+                />
+                <PasswordInput
+                  label="Core password"
+                  autoComplete="off"
+                  {...field('corePassword')}
+                />
+              </Group>
+              <TextInput
+                label="TLS bundle"
+                description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
+                {...field('tlsBundle')}
+              />
+            </Stack>
+          </Collapse>
 
-      <Group justify="flex-end" gap="sm">
-        <Button
-          variant="default"
-          loading={check.isPending}
-          disabled={!valid}
-          onClick={() => check.mutate(payload())}
-        >
-          Check connection
-        </Button>
-        <Button
-          loading={register.isPending}
-          disabled={!valid}
-          onClick={() =>
-            register.mutate(payload(), {
-              onSuccess: (detail) => {
-                notifications.show({
-                  color: 'pine',
-                  title: 'Cluster registered',
-                  message: detail.name,
-                });
-                setF(EMPTY);
-                onRegistered?.();
-              },
-            })
-          }
-        >
-          Register cluster
-        </Button>
-      </Group>
-    </Stack>
+          <div aria-live="polite">
+            {check.isSuccess ? (
+              <Text size="sm" c="dimmed">
+                {`Found ${check.data.discoveredNodes} node${
+                  check.data.discoveredNodes === 1 ? '' : 's'
+                } across ${check.data.reachableSeeds} address${
+                  check.data.reachableSeeds === 1 ? '' : 'es'
+                }. Nothing saved yet.`}
+              </Text>
+            ) : null}
+            {check.isError ? (
+              <Alert color="red" variant="light" title={check.error.title}>
+                {check.error.message}
+              </Alert>
+            ) : null}
+            {register.isError ? (
+              <Alert color="red" variant="light" title={register.error.title}>
+                {register.error.message}
+              </Alert>
+            ) : null}
+          </div>
+
+          {check.isSuccess ? <CapabilityLedger capabilities={check.data.capabilities} /> : null}
+
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              loading={check.isPending}
+              disabled={!valid}
+              onClick={() => {
+                setCheckedSeeds(JSON.stringify(seedList));
+                check.mutate(payload());
+              }}
+            >
+              Check connection
+            </Button>
+            <Button
+              loading={register.isPending}
+              disabled={!valid}
+              onClick={() =>
+                register.mutate(payload(), {
+                  onSuccess: (detail) => {
+                    notifications.show({
+                      color: 'pine',
+                      title: 'Cluster registered',
+                      message: detail.name,
+                    });
+                    setF(EMPTY);
+                    onRegistered?.();
+                    navigate({ to: `/clusters/${detail.id}/topology` });
+                  },
+                })
+              }
+            >
+              Register cluster
+            </Button>
+          </Group>
+        </Stack>
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, md: 6 }}>
+        <RegisterCanvas
+          preview={check.data}
+          stale={stale}
+          shape={shape}
+          onSelectShape={setShape}
+        />
+      </Grid.Col>
+    </Grid>
   );
 }
 
 /** The empty state: one thing to do, rendered inline at zero clicks. */
 export function EmptyState() {
   return (
-    <Stack gap="xs" maw={560}>
+    <Stack gap="xs">
       <Text fw={600}>No clusters yet.</Text>
       <Text size="sm" c="dimmed">
         Point Studio at one broker and it will find the rest of the cluster from
@@ -233,19 +300,10 @@ export function RegisterClusterButton() {
         opened={open}
         onClose={() => setOpen(false)}
         title="Register cluster"
-        size="lg"
+        size="xl"
       >
         <RegisterClusterForm onRegistered={() => setOpen(false)} />
       </Modal>
     </>
   );
-}
-
-function isUrl(value: string): boolean {
-  try {
-    const u = new URL(value);
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }

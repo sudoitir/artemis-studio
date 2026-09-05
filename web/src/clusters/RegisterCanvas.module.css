@@ -1,0 +1,49 @@
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-block: 8px;
+  padding-inline: 10px;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--as-text);
+}
+
+.card:hover {
+  background: var(--as-surface-raised);
+}
+
+.card[data-selected] {
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.cardCanvas {
+  block-size: 120px;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.previewCanvas {
+  block-size: 260px;
+  transition: opacity 180ms ease;
+}
+
+.previewCanvas[data-stale] {
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .previewCanvas {
+    transition: none;
+  }
+}

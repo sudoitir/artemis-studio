@@ -118,15 +118,15 @@ public class ClusterService {
                 capabilityProbe.probe(reachable.get(0).client(), new SubscriptionVerdict.NotAttempted());
         ClusterTopology preview =
                 topologyDiscovery.preview(reachable.stream().map(Probe::asSeed).toList());
-        List<String> names = preview.nodes().stream()
+        int nodeCount = (int) preview.nodes().stream()
                 .flatMap(n -> n.endpoints().stream())
                 .map(NodeEndpoint::name)
                 .distinct()
-                .toList();
+                .count();
 
-        audit.succeed(event, names.size());
-        return new Attempt.Ok<>(
-                new RegisterPreview(viewMapper.capabilities(capabilities), reachable.size(), names.size(), names));
+        audit.succeed(event, nodeCount);
+        return new Attempt.Ok<>(new RegisterPreview(
+                viewMapper.capabilities(capabilities), reachable.size(), nodeCount, viewMapper.topology(preview)));
     }
 
     // ---- registration -------------------------------------------------------

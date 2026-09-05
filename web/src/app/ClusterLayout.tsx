@@ -1,39 +1,24 @@
 import { useState } from 'react';
 import { Alert, Button, Group, Loader, Stack, Text, Title } from '@mantine/core';
-import { Link, Outlet, useParams } from '@tanstack/react-router';
+import { Outlet, useParams } from '@tanstack/react-router';
 
 import styles from './ClusterLayout.module.css';
 
-import { useCluster, useRediscover, type NodeEndpointView } from '../api/client.ts';
+import { useCluster, useRediscover } from '../api/client.ts';
 import { useClusterStream } from '../api/stream.ts';
-import { AddManagementUrl, RemoveCluster } from '../clusters/AddManagementUrl.tsx';
+import { RemoveCluster } from '../clusters/AddManagementUrl.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
 
-const VIEWS = [
-  'topology',
-  'queues',
-  'addresses',
-  'consumers',
-  'sessions',
-  'connections',
-  'producers',
-  'events',
-  'rr',
-  'dlq',
-  'audit',
-  'settings',
-] as const;
-
 /**
- * One cluster's screen: identity header, the health banner, a view strip, and
- * the routed view. Mounts the SSE stream for this cluster so the topology graph
- * and queue grid patch live (falls back to the 5s poll on two failures).
+ * One cluster's screen: identity header, the health banner, and the routed
+ * view. The per-cluster view nav lives in the sidebar now (ADR-0034), not a
+ * strip here. Mounts the SSE stream for this cluster so the topology graph and
+ * queue grid patch live (falls back to the 5s poll on two failures).
  */
 export function ClusterLayout() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const { data, isPending, isError, error } = useCluster(clusterId);
   const rediscover = useRediscover(clusterId);
-  const [addTarget, setAddTarget] = useState<NodeEndpointView | null>(null);
   const [removing, setRemoving] = useState(false);
 
   useClusterStream(clusterId);
@@ -116,27 +101,8 @@ export function ClusterLayout() {
         </Alert>
       ) : null}
 
-      <nav className={styles.viewStrip} aria-label="Cluster views">
-        {VIEWS.map((v) => (
-          <Link
-            key={v}
-            to={`/clusters/${clusterId}/${v}`}
-            className={styles.viewTab}
-            activeProps={{ 'data-active': 'true' }}
-          >
-            {v === 'dlq' ? 'DLQ' : v === 'rr' ? 'Requests' : v[0].toUpperCase() + v.slice(1)}
-          </Link>
-        ))}
-      </nav>
-
       <Outlet />
 
-      <AddManagementUrl
-        clusterId={clusterId}
-        endpoint={addTarget}
-        opened={addTarget !== null}
-        onClose={() => setAddTarget(null)}
-      />
       <RemoveCluster
         clusterId={clusterId}
         clusterName={data.name}
@@ -147,5 +113,3 @@ export function ClusterLayout() {
     </Stack>
   );
 }
-
-export { VIEWS };

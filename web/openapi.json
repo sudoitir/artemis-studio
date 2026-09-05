@@ -1072,6 +1072,81 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/metrics" : {
+      "get" : {
+        "tags" : [ "metrics-controller" ],
+        "operationId" : "metrics",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "metric",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "subjectType",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "CLUSTER"
+          }
+        }, {
+          "name" : "subject",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "step",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MetricSeriesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/health" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
@@ -1586,85 +1661,6 @@
         },
         "required" : [ "reason", "status" ]
       },
-      "RegisterPreview" : {
-        "type" : "object",
-        "properties" : {
-          "capabilities" : {
-            "$ref" : "#/components/schemas/CapabilitiesView"
-          },
-          "reachableSeeds" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "discoveredNodes" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "nodeNames" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        },
-        "required" : [ "capabilities", "discoveredNodes", "nodeNames", "reachableSeeds" ]
-      },
-      "ClusterDetail" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "description" : {
-            "type" : [ "string", "null" ]
-          },
-          "topology" : {
-            "$ref" : "#/components/schemas/TopologyView"
-          },
-          "capabilities" : {
-            "$ref" : "#/components/schemas/CapabilitiesView"
-          },
-          "health" : {
-            "$ref" : "#/components/schemas/HealthView"
-          }
-        },
-        "required" : [ "capabilities", "health", "id", "name", "topology" ]
-      },
-      "HealthView" : {
-        "type" : "object",
-        "properties" : {
-          "clusterId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "level" : {
-            "type" : "string"
-          },
-          "liveEndpointNames" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          },
-          "splitBrain" : {
-            "type" : "string"
-          },
-          "replicationBehind" : {
-            "type" : "boolean"
-          },
-          "notes" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        },
-        "required" : [ "clusterId", "level", "liveEndpointNames", "notes", "replicationBehind", "splitBrain" ]
-      },
       "LogicalNodeView" : {
         "type" : "object",
         "properties" : {
@@ -1739,6 +1735,26 @@
         },
         "required" : [ "active", "discovered", "haRole", "id", "manageable", "manualOverride", "name", "state" ]
       },
+      "RegisterPreview" : {
+        "type" : "object",
+        "properties" : {
+          "capabilities" : {
+            "$ref" : "#/components/schemas/CapabilitiesView"
+          },
+          "reachableSeeds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "discoveredNodes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "topology" : {
+            "$ref" : "#/components/schemas/TopologyView"
+          }
+        },
+        "required" : [ "capabilities", "discoveredNodes", "reachableSeeds", "topology" ]
+      },
       "TopologyView" : {
         "type" : "object",
         "properties" : {
@@ -1754,6 +1770,62 @@
           }
         },
         "required" : [ "clusterId", "nodes" ]
+      },
+      "ClusterDetail" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "topology" : {
+            "$ref" : "#/components/schemas/TopologyView"
+          },
+          "capabilities" : {
+            "$ref" : "#/components/schemas/CapabilitiesView"
+          },
+          "health" : {
+            "$ref" : "#/components/schemas/HealthView"
+          }
+        },
+        "required" : [ "capabilities", "health", "id", "name", "topology" ]
+      },
+      "HealthView" : {
+        "type" : "object",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "level" : {
+            "type" : "string"
+          },
+          "liveEndpointNames" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "splitBrain" : {
+            "type" : "string"
+          },
+          "replicationBehind" : {
+            "type" : "boolean"
+          },
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "clusterId", "level", "liveEndpointNames", "notes", "replicationBehind", "splitBrain" ]
       },
       "CreateExpectationRequest" : {
         "type" : "object",
@@ -2531,6 +2603,71 @@
           }
         },
         "required" : [ "messagesSent", "nodeId", "nodeName" ]
+      },
+      "MetricPoint" : {
+        "type" : "object",
+        "properties" : {
+          "ts" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "value" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "peak" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          }
+        },
+        "required" : [ "ts", "value" ]
+      },
+      "MetricSeries" : {
+        "type" : "object",
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "unit" : {
+            "type" : "string"
+          },
+          "points" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MetricPoint"
+            }
+          }
+        },
+        "required" : [ "kind", "metric", "points", "unit" ]
+      },
+      "MetricSeriesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "step" : {
+            "type" : "string"
+          },
+          "truncated" : {
+            "type" : "boolean"
+          },
+          "series" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MetricSeries"
+            }
+          }
+        },
+        "required" : [ "from", "series", "step", "to", "truncated" ]
       },
       "BrokerEventPageView" : {
         "type" : "object",

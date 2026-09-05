@@ -96,5 +96,5 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) CapabilitiesView capabilities,
             @Schema(requiredMode = REQUIRED) int reachableSeeds,
             @Schema(requiredMode = REQUIRED) int discoveredNodes,
-            @Schema(requiredMode = REQUIRED) List<String> nodeNames) {}
+            @Schema(requiredMode = REQUIRED) TopologyView topology) {}
 }

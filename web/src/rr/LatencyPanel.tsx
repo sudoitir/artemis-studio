@@ -57,9 +57,9 @@ export function LatencyPanel({ clusterId }: { clusterId: string }) {
         data={data}
         dataKey="address"
         series={[
-          { name: 'p50', color: 'blue.6' },
-          { name: 'p95', color: 'yellow.6' },
-          { name: 'p99', color: 'red.6' },
+          { name: 'p50', color: 'var(--as-chart-1)' },
+          { name: 'p95', color: 'var(--as-chart-4)' },
+          { name: 'p99', color: 'var(--as-chart-threshold)' },
         ]}
         valueFormatter={(v) => `${v}ms`}
         withLegend

@@ -1,39 +1,6 @@
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  block-size: 100%;
-}
-
-.item {
-  display: grid;
-  grid-template-columns: 10px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding-block: 8px;
-  padding-inline: 10px;
-  border: 0;
-  border-inline-start: 2px solid transparent;
-  background: transparent;
-  color: var(--as-text-dimmed);
-  font: inherit;
-  text-align: start;
-  text-decoration: none;
-  cursor: pointer;
-  border-radius: var(--mantine-radius-sm);
-}
-
-.item:hover {
-  color: var(--as-text);
-  background: var(--as-surface-raised);
-}
-
-.item[data-active] {
-  color: var(--as-text);
-  font-weight: 600;
-  border-inline-start-color: var(--mantine-primary-color-filled);
-  background: var(--as-surface-raised);
-}
+/* Row grammar (grid, active state, hover) now lives in app/NavItem.module.css —
+   this file keeps only the health mark/monogram, which the view nav has no
+   equivalent of. */
 
 .mark {
   inline-size: 8px;
@@ -53,16 +20,23 @@
   border: 1px solid var(--as-node-unmanaged);
 }
 
-.name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Collapsed-rail identity: the mark's color encoding, carried by text instead
+   of a dot so two letters can still name the cluster at 64px (health is a
+   colour, never the only signal — the full label is one tooltip away). */
+.monogram {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--as-node-backup);
 }
 
-.count {
-  font-size: var(--mantine-font-size-xs);
-  color: var(--as-text-dimmed);
-  font-variant-numeric: tabular-nums;
+.monogram[data-health='DEGRADED'] {
+  color: var(--as-warning);
+}
+.monogram[data-health='CRITICAL'] {
+  color: var(--as-danger);
+}
+.monogram[data-health='UNKNOWN'] {
+  color: var(--as-node-unmanaged);
 }
 
 .footer {

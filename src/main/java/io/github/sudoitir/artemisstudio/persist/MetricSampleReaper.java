@@ -10,16 +10,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Nightly trim of raw {@code metric_sample} rows past the retention window
- * (ADR-0006 — 7-day default). Daily partitioning is still Phase 6; until then a
- * bounded {@code DELETE} against the default partition keeps the cache from
- * growing without limit.
+ * (ADR-0006 — 7-day default, ADR-0033). Since {@link MetricPartitionMaintainer}
+ * (Phase 6) drops whole daily partitions once they age out, this bounded
+ * {@code DELETE} is narrowed to the {@code metric_sample_default} partition only
+ * — the catch-all for rows written before the first maintainer run, which the
+ * partition-drop path can never reach by date range.
  */
 @Component
 @Slf4j
 public class MetricSampleReaper {
 
     private static final String DELETE_OLD =
-            "DELETE FROM metric_sample WHERE ts < now() - make_interval(days => :days)";
+            "DELETE FROM metric_sample_default WHERE ts < now() - make_interval(days => :days)";
 
     private final NamedParameterJdbcTemplate jdbc;
     private volatile int retentionDays;
