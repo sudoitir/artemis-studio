@@ -47,18 +47,18 @@
 
 ## 4. Slice 3 — slow-consumer detection
 
-- [ ] 4.1 `CapabilityProbe`: read the slow-consumer fields from `getAddressSettingsAsJSON` and report native detection three-state — configured / off / **UNKNOWN** when the threshold is not exposed (per spike Q3)
-- [ ] 4.2 `BrokerXmlSnippets.forSlowConsumerDetection()`, following the existing `NOTIFICATIONS_SECURITY_SETTING` / `NOTIFICATION_PLUGIN` pattern
-- [ ] 4.3 `EventStreamPublisher.topicFor`: `case "CONSUMER_SLOW" -> "consumers"`, preserving `_AMQ_ConsumerName` attribution
-- [ ] 4.4 If spike Q5 showed the CHECK rejects `CONSUMER_SLOW`: add a **new** changeset (never edit `010-broker-events.sql`)
-- [ ] 4.5 Resolve the paused-queue scope explicitly — either add `paused` to `queue_snapshot` (new changeset + scrape field) or state in the rule UI that paused queues fire; do not leave it silent
-- [ ] 4.6 `domain/alerting/SlowConsumerCondition.java`: metric `ackRatePerConsumer`; universe = `(node, queue)` with `consumerCount > 0` **and** `messageCount > 0` from `QueueSnapshotRepository`
-- [ ] 4.7 `SlowConsumerCondition`: value = `messagesAcked` rate ÷ `consumerCount`, taking the rate from `MetricSeriesRepository.latestRateBySubject` over the existing 2 × tier-B window — reuse, do not reimplement; fewer than two samples → absent, not zero
-- [ ] 4.8 `SlowConsumerCondition`: subject keys follow `GaugeCondition`'s convention (`queue:<name>`, `node:<id>/queue:<name>` when node-scoped)
-- [ ] 4.9 `AlertEvaluator.conditionFor`: select `SlowConsumerCondition` ahead of the gauge and rate checks; evaluate in the same tier-B scheduler pass as `RateCondition`
-- [ ] 4.10 `SlowConsumerConditionTest`: consumers but no backlog → not in universe; backlog but no consumers → not in universe; both + low rate → active; both + high rate → in universe, not active; counter reset → clamped, no firing; one sample in window → absent
-- [ ] 4.11 `web/src/alerts/*`: metric label, a prefilled "New slow-consumer rule" template (no seeded rule), and the `(node, queue)` attribution limit stated in the firing view
-- [ ] 4.12 `./mvnw test -Dtest=SlowConsumerConditionTest` passes
+- [x] 4.1 `CapabilityProbe`: read the slow-consumer fields from `getAddressSettingsAsJSON` and report native detection three-state — configured / off / **UNKNOWN** when the threshold is not exposed (per spike Q3)
+- [x] 4.2 `BrokerXmlSnippets.forSlowConsumerDetection()`, following the existing `NOTIFICATIONS_SECURITY_SETTING` / `NOTIFICATION_PLUGIN` pattern
+- [x] 4.3 `EventStreamPublisher.topicFor`: `case "CONSUMER_SLOW" -> "consumers"`, preserving `_AMQ_ConsumerName` attribution
+- [x] 4.4 If spike Q5 showed the CHECK rejects `CONSUMER_SLOW`: add a **new** changeset (never edit `010-broker-events.sql`)
+- [x] 4.5 Resolve the paused-queue scope explicitly — either add `paused` to `queue_snapshot` (new changeset + scrape field) or state in the rule UI that paused queues fire; do not leave it silent
+- [x] 4.6 `domain/alerting/SlowConsumerCondition.java`: metric `ackRatePerConsumer`; universe = `(node, queue)` with `consumerCount > 0` **and** `messageCount > 0` from `QueueSnapshotRepository`
+- [x] 4.7 `SlowConsumerCondition`: value = `messagesAcked` rate ÷ `consumerCount`, taking the rate from `MetricSeriesRepository.latestRateBySubject` over the existing 2 × tier-B window — reuse, do not reimplement; fewer than two samples → absent, not zero
+- [x] 4.8 `SlowConsumerCondition`: subject keys follow `GaugeCondition`'s convention (`queue:<name>`, `node:<id>/queue:<name>` when node-scoped)
+- [x] 4.9 `AlertEvaluator.conditionFor`: select `SlowConsumerCondition` ahead of the gauge and rate checks; evaluate in the same tier-B scheduler pass as `RateCondition`
+- [x] 4.10 `SlowConsumerConditionTest`: consumers but no backlog → not in universe; backlog but no consumers → not in universe; both + low rate → active; both + high rate → in universe, not active; counter reset → clamped, no firing; one sample in window → absent
+- [x] 4.11 `web/src/alerts/*`: metric label, a prefilled "New slow-consumer rule" template (no seeded rule), and the `(node, queue)` attribution limit stated in the firing view
+- [x] 4.12 `./mvnw test -Dtest=SlowConsumerConditionTest` passes
 
 ## 5. Slice 4 — broker config diff across a node pair
 

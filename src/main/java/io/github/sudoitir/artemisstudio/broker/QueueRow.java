@@ -27,7 +27,8 @@ public record QueueRow(
         long scheduledCount,
         long messagesAdded,
         long messagesAcked,
-        long messagesExpired) {
+        long messagesExpired,
+        boolean paused) {
 
     /** Parse a {@code {"data":[...],"count":N}} page's {@code data} array, skipping internal queues. */
     public static List<QueueRow> parsePage(JsonNode dataArray, UUID clusterId, UUID nodeId) {
@@ -53,7 +54,8 @@ public record QueueRow(
                     num(row, "scheduledCount"),
                     num(row, "messagesAdded"),
                     num(row, "messagesAcked"),
-                    num(row, "messagesExpired")));
+                    num(row, "messagesExpired"),
+                    flag(row, "paused")));
         }
         return rows;
     }

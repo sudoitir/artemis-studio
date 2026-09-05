@@ -1119,6 +1119,7 @@ export interface components {
             managementWrite: components["schemas"]["CapabilityView"];
             notifications: components["schemas"]["CapabilityView"];
             messageIo: components["schemas"]["CapabilityView"];
+            slowConsumerDetection: components["schemas"]["CapabilityView"];
         };
         CapabilityView: {
             status: string;

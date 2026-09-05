@@ -28,11 +28,11 @@ public class QueueSnapshotUpsert {
             INSERT INTO queue_snapshot
               (ts, message_count, consumer_count, delivering_count, scheduled_count,
                messages_added, messages_acked, messages_expired,
-               address, queue_name, routing_type, cluster_id, node_id, durable)
+               address, queue_name, routing_type, cluster_id, node_id, durable, paused)
             VALUES
               (now(), :messageCount, :consumerCount, :deliveringCount, :scheduledCount,
                :messagesAdded, :messagesAcked, :messagesExpired,
-               :address, :queueName, :routingType, :clusterId, :nodeId, :durable)
+               :address, :queueName, :routingType, :clusterId, :nodeId, :durable, :paused)
             ON CONFLICT (node_id, queue_name) DO UPDATE SET
                ts               = now(),
                message_count    = EXCLUDED.message_count,
@@ -45,7 +45,8 @@ public class QueueSnapshotUpsert {
                address          = EXCLUDED.address,
                routing_type     = EXCLUDED.routing_type,
                cluster_id       = EXCLUDED.cluster_id,
-               durable          = EXCLUDED.durable
+               durable          = EXCLUDED.durable,
+               paused           = EXCLUDED.paused
             """;
 
     private static final String REAP_STALE = "DELETE FROM queue_snapshot WHERE node_id = :nodeId AND ts < :sweepStart";
@@ -87,6 +88,7 @@ public class QueueSnapshotUpsert {
                 .addValue("routingType", r.routingType())
                 .addValue("clusterId", r.clusterId())
                 .addValue("nodeId", r.nodeId())
-                .addValue("durable", r.durable());
+                .addValue("durable", r.durable())
+                .addValue("paused", r.paused());
     }
 }

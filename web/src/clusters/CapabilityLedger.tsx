@@ -11,6 +11,7 @@ const LABELS: Record<Key, string> = {
   managementWrite: 'Change broker state',
   notifications: 'Live events',
   messageIo: 'Message browse and send',
+  slowConsumerDetection: 'Slow-consumer detection',
 };
 
 const ORDER: Key[] = [
@@ -18,6 +19,7 @@ const ORDER: Key[] = [
   'managementWrite',
   'notifications',
   'messageIo',
+  'slowConsumerDetection',
 ];
 
 /**

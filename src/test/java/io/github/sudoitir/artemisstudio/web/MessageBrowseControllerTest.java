@@ -76,8 +76,8 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
         a.attachManagementUrl(URL_A);
         nodeAId = nodes.save(a).getId();
-        upsert.upsertBatch(List.of(
-                new QueueRow(clusterId, nodeAId, "PHASE3.SRC", "PHASE3.SRC", "ANYCAST", true, 4, 0, 0, 0, 0, 0, 0)));
+        upsert.upsertBatch(List.of(new QueueRow(
+                clusterId, nodeAId, "PHASE3.SRC", "PHASE3.SRC", "ANYCAST", true, 4, 0, 0, 0, 0, 0, 0, false)));
     }
 
     @AfterEach

@@ -67,6 +67,42 @@ public final class BrokerXmlSnippets {
     }
 
     /**
+     * Native slow-consumer detection (ADR-0044). The broker sees every consumer's
+     * own delivery rate, which Studio cannot: {@code listAllConsumersAsJSON} carries
+     * no per-consumer acknowledgement counter, so Studio's derived rule resolves to
+     * a queue on a node and never to a named consumer. When this is configured, the
+     * broker emits {@code CONSUMER_SLOW} on {@code activemq.notifications} carrying
+     * {@code _AMQ_ConsumerName}, and that is the authoritative verdict.
+     *
+     * <p>Shown whenever native detection is not reported as configured — including
+     * when it is UNKNOWN, which is the usual answer: the slice-0 spike confirmed
+     * {@code getAddressSettingsAsJSON} returns only
+     * {@code slowConsumerThresholdMeasurementUnit}, never the threshold itself, so
+     * Studio cannot observe whether it is set (non-negotiable #5).
+     */
+    public static final String SLOW_CONSUMER_DETECTION = """
+            <address-settings>
+              <address-setting match="#">
+                <!-- messages/second below which a consumer is considered slow; -1 disables -->
+                <slow-consumer-threshold>1</slow-consumer-threshold>
+                <slow-consumer-threshold-measurement-unit>MESSAGES_PER_SECOND</slow-consumer-threshold-measurement-unit>
+                <slow-consumer-check-period>5</slow-consumer-check-period>
+                <!-- NOTIFY emits CONSUMER_SLOW; KILL also disconnects the consumer -->
+                <slow-consumer-policy>NOTIFY</slow-consumer-policy>
+              </address-setting>
+            </address-settings>
+            """;
+
+    /**
+     * The snippet plus the notification plumbing that carries its verdict: without
+     * the plugin and the {@code activemq.notifications} permissions, a configured
+     * threshold produces a broker-side log line Studio never sees.
+     */
+    public static String forSlowConsumerDetection() {
+        return SLOW_CONSUMER_DETECTION + "\n" + forNotifications();
+    }
+
+    /**
      * A CORE-protocol acceptor. Shown when no live node has a reachable Core URL:
      * either the broker exposes no CORE acceptor, or discovery only knows an
      * internal connector hostname and the operator must set a manual Core URL on

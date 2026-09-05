@@ -46,6 +46,10 @@ public class QueueSnapshotEntity {
     @Column(name = "durable", nullable = false)
     private boolean durable;
 
+    /** The broker's own pause flag. A paused queue is correctly slow, and expected. */
+    @Column(name = "paused", nullable = false)
+    private boolean paused;
+
     @Column(name = "ts", nullable = false)
     private Instant ts;
 

@@ -116,7 +116,8 @@ class ClusterControllerTest extends PostgresIntegrationTest {
             "topology.json", // probe -> MANAGEMENT_WRITE (listNetworkTopology)
             "acceptors.json", // probe -> CORE acceptor search
             "acceptor-params-core.json", // probe -> acceptor Parameters
-            "addresses-with-notifications.json" // probe -> notifications address search
+            "addresses-with-notifications.json", // probe -> notifications address search
+            "address-settings.json" // probe -> slow-consumer detection (ADR-0044)
         };
     }
 
@@ -166,6 +167,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         "acceptors.json",
                         "acceptor-params-core.json",
                         "addresses-with-notifications.json",
+                        "address-settings.json",
                         "ha-read-primary.json",
                         "topology.json"));
 

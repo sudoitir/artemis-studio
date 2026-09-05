@@ -93,7 +93,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
         a.attachManagementUrl(URL);
         nodeId = nodes.save(a).getId();
-        upsert.upsertBatch(List.of(new QueueRow(clusterId, nodeId, Q, Q, "ANYCAST", true, 3, 0, 0, 0, 0, 0, 0)));
+        upsert.upsertBatch(List.of(new QueueRow(clusterId, nodeId, Q, Q, "ANYCAST", true, 3, 0, 0, 0, 0, 0, 0, false)));
         settings.reset(SettingsService.BULK_CAP);
     }
 

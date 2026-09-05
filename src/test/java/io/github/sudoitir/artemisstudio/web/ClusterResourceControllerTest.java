@@ -113,7 +113,7 @@ class ClusterResourceControllerTest extends PostgresIntegrationTest {
     }
 
     private QueueRow row(UUID node, String queue, long messageCount) {
-        return new QueueRow(clusterId, node, queue, queue, "ANYCAST", true, messageCount, 1, 0, 0, 0, 0, 0);
+        return new QueueRow(clusterId, node, queue, queue, "ANYCAST", true, messageCount, 1, 0, 0, 0, 0, 0, false);
     }
 
     @Test

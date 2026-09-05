@@ -3113,9 +3113,12 @@
           },
           "messageIo" : {
             "$ref" : "#/components/schemas/CapabilityView"
+          },
+          "slowConsumerDetection" : {
+            "$ref" : "#/components/schemas/CapabilityView"
           }
         },
-        "required" : [ "managementRead", "managementWrite", "messageIo", "notifications" ]
+        "required" : [ "managementRead", "managementWrite", "messageIo", "notifications", "slowConsumerDetection" ]
       },
       "CapabilityView" : {
         "type" : "object",

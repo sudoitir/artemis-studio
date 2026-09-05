@@ -30,7 +30,12 @@ class CapabilityProbeTest {
 
     private record Fixture(JolokiaBrokerClient client, MockRestServiceServer server) {}
 
-    /** Every request the probe sends must be read-only: search / read, or exec of listNetworkTopology only. */
+    /**
+     * Every request the probe sends must be read-only (ADR-0002): search / read, or an
+     * exec of one of the named read-only operations. {@code getAddressSettingsAsJSON}
+     * joins {@code listNetworkTopology} here for the slow-consumer assessment — a
+     * getter, like the name says. Anything else is a probe that mutates the broker.
+     */
     private RequestMatcher readOnly() {
         return request -> {
             String body = ((org.springframework.mock.http.client.MockClientHttpRequest) request).getBodyAsString();
@@ -40,7 +45,10 @@ class CapabilityProbeTest {
                 String type = entry.get("type").asText();
                 assertThat(type).isIn("search", "read", "exec");
                 if (type.equals("exec")) {
-                    assertThat(entry.get("operation").asText()).startsWith("listNetworkTopology");
+                    assertThat(entry.get("operation").asText())
+                            .satisfiesAnyOf(
+                                    op -> assertThat(op).startsWith("listNetworkTopology"),
+                                    op -> assertThat(op).startsWith("getAddressSettingsAsJSON"));
                 }
             }
         };
@@ -75,7 +83,8 @@ class CapabilityProbeTest {
                 "topology.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
-                "addresses-with-notifications.json");
+                "addresses-with-notifications.json",
+                "address-settings.json");
 
         BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
@@ -100,7 +109,8 @@ class CapabilityProbeTest {
                 "exec-forbidden.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
-                "addresses-with-notifications.json");
+                "addresses-with-notifications.json",
+                "address-settings.json");
 
         BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
@@ -119,7 +129,8 @@ class CapabilityProbeTest {
                 "capability-version-read.json",
                 "topology.json",
                 "acceptors-empty.json",
-                "addresses-without-notifications.json");
+                "addresses-without-notifications.json",
+                "address-settings.json");
 
         BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
@@ -151,7 +162,8 @@ class CapabilityProbeTest {
                 "topology.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
-                "addresses-with-notifications.json");
+                "addresses-with-notifications.json",
+                "address-settings.json");
 
         BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.Connected(1, Instant.now()));
 
@@ -169,7 +181,8 @@ class CapabilityProbeTest {
                 "topology.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
-                "addresses-with-notifications.json");
+                "addresses-with-notifications.json",
+                "address-settings.json");
 
         BrokerCapabilities caps = probe.probe(
                 f.client(), new SubscriptionVerdict.Failed(CoreEventClient.Kind.PERMISSION_DENIED, "AMQ229213"));
@@ -186,7 +199,8 @@ class CapabilityProbeTest {
                 "capability-version-read.json",
                 "topology.json",
                 "acceptors-empty.json",
-                "addresses-without-notifications.json");
+                "addresses-without-notifications.json",
+                "address-settings.json");
 
         BrokerCapabilities caps =
                 probe.probe(f.client(), new SubscriptionVerdict.Failed(CoreEventClient.Kind.NO_CORE_URL, "no url"));
