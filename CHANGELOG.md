@@ -11,6 +11,8 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+## [2026.09.0] — 2026-09-05
+
 ### Added
 
 - Automated release pipeline. Every push to `main` builds a multi-arch
