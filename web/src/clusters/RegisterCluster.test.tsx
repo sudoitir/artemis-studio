@@ -11,7 +11,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateSpy,
 }));
 
-const { RegisterClusterForm } = await import('./RegisterCluster.tsx');
+const { RegisterClusterForm, RegisterClusterButton } = await import('./RegisterCluster.tsx');
 
 function preview() {
   return {
@@ -85,5 +85,36 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), '\nbroker-2');
     expect(await screen.findByText('Changed since you checked')).toBeInTheDocument();
+  });
+});
+
+describe('RegisterClusterButton', () => {
+  it('tells the operator this is an add when a cluster already exists', async () => {
+    server.use(
+      http.get('*/api/v1/clusters', () =>
+        HttpResponse.json([
+          { id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 2, updatedAt: '2026-01-01T00:00:00Z' },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterButton />);
+
+    await user.click(screen.getByRole('button', { name: 'Register cluster' }));
+
+    expect(
+      await screen.findByText(/one cluster is already registered\. this adds another\./i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders an icon-only trigger with an accessible name when the rail is collapsed', () => {
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json([])));
+    renderWithProviders(<RegisterClusterButton collapsed />);
+
+    const trigger = screen.getByRole('button', { name: 'Register cluster' });
+    // The collapsed trigger is an ActionIcon: its accessible name comes from
+    // aria-label, not visible text.
+    expect(trigger).toHaveAttribute('aria-label', 'Register cluster');
+    expect(trigger).not.toHaveTextContent('Register cluster');
   });
 });

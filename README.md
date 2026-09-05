@@ -18,6 +18,14 @@ message operations, and first-class request-reply tracing.
 It works against your **existing** brokers. No `broker.xml` rewrite beyond
 enabling the management endpoints you almost certainly already run.
 
+## Screenshots
+
+| Cluster topology | Cross-node queues |
+|---|---|
+| [![Live/backup topology with replication and shared-NodeID axis](docs/img/topology.png)](docs/img/topology.png) | [![Every queue across every node in one virtualized grid](docs/img/queues.png)](docs/img/queues.png) |
+| **Metrics and charts** | **Governance (RBAC, environments, tokens, SSO)** |
+| [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
+
 ---
 
 ## Status
@@ -29,8 +37,7 @@ charts, alerting, and — as of Phase 8 — governance: every endpoint requires
 authentication (session cookie for the browser, API tokens for automation,
 optional OIDC/SSO), a dynamic role/permission model scoped to global /
 environment / cluster, and per-environment cluster grouping. v1.0 (hardening
-and reach) is next.
-The TODO list below is the plan, in order.
+and reach) is next — see the [Roadmap](#roadmap).
 
 ## Quick start (dev)
 
@@ -89,122 +96,13 @@ See [`CLAUDE.md`](CLAUDE.md) and [`.claude/rules/`](.claude/rules/).
 
 ---
 
-## TODO
+## Roadmap
 
-Every feature we intend to ship, grouped by phase. Context:
-[`docs/roadmap.md`](docs/roadmap.md) and the ADRs. Feature phases go through OpenSpec.
-
-### Phase 0 · Broker management spike
-
-|  | Task |
-|--|------|
-| [x] | Boot dev compose primary/backup pair with replication; fix broker XML |
-| [x] | Verify `listNetworkTopology()` shape (pairs, connectors) |
-| [x] | Verify `listQueues(options, page, pageSize)` shape and paging |
-| [x] | Verify `Active` / `ReplicaSync`; confirm failover and failback |
-| [x] | Capture real `_AMQ_NotifType` values + headers from notifications |
-| [x] | Batched Jolokia POST verified; note what needs the Core client |
-| [x] | Write `docs/broker-management-notes.md` |
-
-### Phase 1 · Connectivity and topology
-
-|  | Task |
-|--|------|
-| [x] | `JolokiaBrokerClient` — read attrs, invoke ops, batched POST |
-| [x] | `CapabilityProbe` — MANAGEMENT_READ/WRITE, NOTIFICATIONS, MESSAGE_IO |
-| [x] | Credential vaulting (AES-GCM at rest), TLS to brokers |
-| [x] | Register a cluster from a list of seed nodes ([ADR-0013](docs/adr/0013-seed-is-a-list.md)) |
-| [x] | Topology auto-discovery + rediscovery; manual URL overrides kept |
-| [x] | Live-node detection, replication state, corroborated split-brain ([ADR-0012](docs/adr/0012-corroborated-split-brain.md)) |
-| [x] | `GET /clusters/{id}/{capabilities,topology,health}` |
-| [x] | "Feature unavailable" UI with the `broker.xml` snippet to fix it |
-
-### Phase 2 · Cross-node views + live UI
-
-|  | Task |
-|--|------|
-| [x] | Tiered scrape scheduler (A/B/C) + per-node rate limiter |
-| [x] | `queue_snapshot` upserts, cross-node aggregation |
-| [x] | Queues view (routing type, depth, consumers, delivering, scheduled) |
-| [x] | Addresses view |
-| [x] | Consumers / sessions / connections / producers views |
-| [x] | SSE hub (`GET /stream`) + polling fallback |
-| [x] | React shell, routing, dark-first tokens |
-| [x] | Topology graph (React Flow) — badges, replication, alert dots |
-| [x] | Queue grid (TanStack Table) — virtualized, sort, filter |
-| [x] | ⌘K command palette |
-
-### Phase 3 · Message operations + audit
-
-|  | Task |
-|--|------|
-| [x] | Browse messages; full headers, properties, body |
-| [x] | Send message |
-| [x] | Move / retry (DLQ replay) / delete by ids or filter |
-| [x] | Purge queue with typed confirmation |
-| [x] | `?dryRun=true` on every mutation → affected count |
-| [x] | Bulk actions with a safety cap and preview |
-| [x] | `audit_event` in the command transaction, updated with outcome |
-| [x] | Audit log screen (filter by user, action, cluster, time) |
-| [x] | DLQ management view |
-
-### Phase 4 · Core client and push events
-
-|  | Task |
-|--|------|
-| [x] | `CoreEventClient` (artemis-jakarta-client), live/backup aware |
-| [x] | `activemq.notifications` consumer → normalized domain events |
-| [x] | SSE fan-out of consumer/session/connection/binding events |
-| [x] | `NOTIFICATIONS` capability gating with `broker.xml` hint |
-| [x] | Faithful message I/O over Core when available |
-
-### Phase 5 · Request-reply tracing (flagship)
-
-|  | Task |
-|--|------|
-| [x] | Correlator + flow state machine |
-| [x] | Shared-reply-queue pattern (correlation-id join, latency) |
-| [x] | Temp-reply-queue pattern (lifecycle from notifications) |
-| [x] | States: AWAITING_REPLY, COMPLETED, TIMED_OUT, ORPHANED, RESPONDER_DROPPED, ORPHANED_REPLY |
-| [x] | `rr_expectation` config — addresses, deadlines, sampling |
-| [x] | Deadlines from `_AMQ_EXPIRE`/`JMSExpiration` else expectation |
-| [x] | `/clusters/{id}/rr/{flows,flows/{id},stats,expectations}` |
-| [x] | Flows screen — in-flight list, per-address latency percentiles |
-| [x] | "Stuck requests" panel |
-| [x] | Bounded/sampled payload capture |
-
-### Phase 6 · Metrics and charts
-
-|  | Task |
-|--|------|
-| [x] | `metric_sample` writes from the scheduler |
-| [x] | Daily partition create-ahead + retention drop job |
-| [x] | `GET /clusters/{id}/metrics` (subject, metric, range, step) |
-| [x] | Built-in charts — depth, throughput, consumers, RR latency |
-| [ ] | Rollup tables — only when a query is measurably slow |
-| [x] | Frictionless cluster registration — example topology cards, live discovered-topology preview |
-| [x] | Advanced collapsible sidebar — icon rail, tooltips, persisted state |
-
-### Phase 7 · Alerting
-
-|  | Task |
-|--|------|
-| [x] | Rule model + evaluation loop (`for` duration) |
-| [x] | `alert_state` OK → PENDING → FIRING → resolved |
-| [x] | Notification channels — webhook, Slack |
-| [x] | Built-in critical alerts — split-brain, node down, replication desync |
-| [x] | Rule CRUD + alerts screen |
-
-### Phase 8 · Governance
-
-|  | Task |
-|--|------|
-| [x] | Local users in Postgres; first-run admin bootstrap |
-| [x] | Roles → permissions; scoped (global / environment / cluster) |
-| [x] | Read-only mode enforced on every mutating path |
-| [x] | Per-environment cluster grouping |
-| [x] | OIDC / SSO login, claim → role mapping |
-| [x] | Sessions, login/logout, `GET /me` |
+Phases 0–8 are **done** — everything in [Status](#status), from topology and
+cross-node views through request-reply tracing, metrics, alerting, and
+governance. What's left, roughly in order. Every feature phase goes through
+OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get an
+[ADR](docs/adr/).
 
 ### v1.0 · Hardening and reach
 
@@ -216,6 +114,7 @@ Every feature we intend to ship, grouped by phase. Context:
 | [ ] | Slow-consumer detection |
 | [ ] | Message replay from a captured payload |
 | [ ] | Payload inspection helpers (pretty-print, type detection) |
+| [ ] | Metric rollup tables — only when a query is measurably slow |
 
 ### Beyond
 
@@ -234,8 +133,7 @@ Every feature we intend to ship, grouped by phase. Context:
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and PRs welcome once Phase 1
-lands something to build on.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and PRs welcome.
 
 ## Licence
 

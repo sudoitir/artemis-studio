@@ -4,9 +4,8 @@ Cluster-wide management and observability for Apache ActiveMQ Artemis. One insta
 many clusters: topology, cross-node resource views, safe message operations, and
 first-class request-reply tracing. Open source, Apache-2.0.
 
-The full design rationale is in `docs/architecture.md` and the ADRs. The development
-plan is `docs/roadmap.md` and the TODO list in `README.md` — each TODO is a
-self-contained session.
+The full design rationale is in `docs/architecture.md` and the ADRs. The remaining
+work is the Roadmap in `README.md` — each item is a self-contained session.
 
 ## Stack (fixed — changing any of these needs an ADR)
 

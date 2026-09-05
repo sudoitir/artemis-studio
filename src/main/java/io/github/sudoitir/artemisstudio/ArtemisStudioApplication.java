@@ -9,10 +9,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Entry point for Artemis Studio — a cluster-wide management and observability
  * console for Apache ActiveMQ Artemis.
  *
- * <p>Phase 1 wires the first product layer: the Jolokia broker client, the
- * capability probe, cluster registration from seed URLs, topology discovery, and
- * HA / split-brain detection. See {@code docs/roadmap.md} and the
- * {@code openspec/} change {@code phase-1-connectivity-and-topology}.
+ * <p>Product layers 0–8 are in place: the Jolokia broker client and capability
+ * probe, cluster registration and topology discovery, HA / split-brain
+ * detection, cross-node views over SSE, message operations with audit, the Core
+ * client and request-reply tracing, metrics and charts, alerting, and
+ * governance (auth, RBAC, environments). Remaining work is the Roadmap in
+ * {@code README.md}; the living specs are under {@code openspec/}.
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan

@@ -18,4 +18,4 @@ labels: enhancement
 
 **Roadmap fit**
 
-<!-- Does this belong to an existing phase in docs/roadmap.md, or is it new? -->
+<!-- Does this fit the Roadmap in README.md (v1.0 / Beyond), or is it new? -->

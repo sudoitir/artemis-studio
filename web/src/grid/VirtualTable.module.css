@@ -77,6 +77,54 @@
   text-align: end;
 }
 
+.cell:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+/* Shared full-value panel, portalled to <body> and pinned under the hovered or
+   focused cell. One instance for the whole grid. */
+.reveal {
+  position: fixed;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-inline-size: 340px;
+  padding: 6px 8px;
+  background: var(--as-surface-raised);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  box-shadow: var(--mantine-shadow-md);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.revealText {
+  overflow-wrap: anywhere;
+  color: var(--as-text);
+  user-select: all;
+}
+
+.revealCopy {
+  flex-shrink: 0;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface);
+  color: var(--as-text-dimmed);
+  font: inherit;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.revealCopy:hover {
+  color: var(--as-text);
+}
+
+.revealCopy:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}
+
 .num {
   font-variant-numeric: tabular-nums;
   color: var(--as-grid-num);

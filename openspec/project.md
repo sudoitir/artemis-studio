@@ -31,7 +31,7 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 8 complete
+The Roadmap in `README.md`. Current phase: 8 complete
 (governance — session-cookie auth for the browser and API tokens for
 automation, both landing on one `StudioPrincipal` shape; a fully dynamic
 `resource:verb` permission model resolved once per request via a
