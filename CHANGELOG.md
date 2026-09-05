@@ -11,6 +11,8 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+## [2026.09.1] — 2026-09-05
+
 ### Added
 
 - **Slow-consumer detection.** A consumer that is attached but not draining is now
