@@ -35,6 +35,7 @@ export interface BrokerNodeData extends Record<string, unknown> {
   lastError: string | null;
   offset: boolean;
   unmanaged: boolean;
+  firing: boolean;
   srSentence: string;
 }
 
@@ -82,6 +83,7 @@ function brokerNode(
   serving: boolean,
   offset: boolean,
   logicalId: string | null,
+  firing: boolean,
 ): Node<BrokerNodeData> {
   const kind = kindOf(endpoint, serving);
   const statusWord = statusWordOf(kind, endpoint);
@@ -101,7 +103,8 @@ function brokerNode(
       lastError: endpoint.lastError ?? null,
       offset,
       unmanaged: kind === 'unmanaged',
-      srSentence: `${endpoint.name}: ${statusWord}${endpoint.version ? `, Artemis ${endpoint.version}` : ''}.`,
+      firing,
+      srSentence: `${endpoint.name}: ${statusWord}${endpoint.version ? `, Artemis ${endpoint.version}` : ''}${firing ? ', alert firing' : ''}.`,
     },
   };
 }
@@ -109,6 +112,7 @@ function brokerNode(
 function layoutLogicalNode(
   logical: LogicalNodeView,
   column: number,
+  firingNodeIds: ReadonlySet<string>,
 ): { nodes: Node<BrokerNodeData>[]; edges: Edge[] } {
   const x = column * COL_W;
   const serving = logical.endpoints.filter((e) => e.active && !e.lastError);
@@ -119,7 +123,16 @@ function layoutLogicalNode(
   if (logical.splitBrain === 'CRITICAL') {
     serving.forEach((e, i) => {
       nodes.push(
-        brokerNode(e.id, x + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId ?? null),
+        brokerNode(
+          e.id,
+          x + i * SPLIT_BRAIN_DX,
+          LIVE_Y,
+          e,
+          true,
+          false,
+          logical.artemisNodeId ?? null,
+          firingNodeIds.has(e.id),
+        ),
       );
     });
     return { nodes, edges };
@@ -128,7 +141,9 @@ function layoutLogicalNode(
   const top = serving[0] ?? null;
   const bottom = others[0] ?? null;
   if (top) {
-    nodes.push(brokerNode(top.id, x, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
+    nodes.push(
+      brokerNode(top.id, x, LIVE_Y, top, true, false, logical.artemisNodeId ?? null, firingNodeIds.has(top.id)),
+    );
   }
   if (bottom) {
     nodes.push(
@@ -140,6 +155,7 @@ function layoutLogicalNode(
         false,
         logical.replicationBehind,
         logical.artemisNodeId ?? null,
+        firingNodeIds.has(bottom.id),
       ),
     );
   }
@@ -159,7 +175,11 @@ function layoutLogicalNode(
   return { nodes, edges };
 }
 
-export function layout(topology: TopologyView, health: HealthView): TopologyLayout {
+export function layout(
+  topology: TopologyView,
+  health: HealthView,
+  firingNodeIds: ReadonlySet<string> = new Set(),
+): TopologyLayout {
   const ordered = [...topology.nodes].sort((a, b) =>
     (a.artemisNodeId ?? '').localeCompare(b.artemisNodeId ?? ''),
   );
@@ -167,7 +187,7 @@ export function layout(topology: TopologyView, health: HealthView): TopologyLayo
   const nodes: Node<BrokerNodeData>[] = [];
   const edges: Edge[] = [];
   ordered.forEach((logical, i) => {
-    const part = layoutLogicalNode(logical, i);
+    const part = layoutLogicalNode(logical, i, firingNodeIds);
     nodes.push(...part.nodes);
     edges.push(...part.edges);
   });

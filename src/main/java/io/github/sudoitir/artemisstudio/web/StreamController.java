@@ -34,7 +34,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class StreamController {
 
     private static final Set<String> KNOWN_TOPICS =
-            Set.of("topology", "health", "queues", "events", "consumers", "sessions", "connections", "rr");
+            Set.of("topology", "health", "queues", "events", "consumers", "sessions", "connections", "rr", "alerts");
     private static final Set<String> DEFAULT_TOPIC_SET = Set.of("topology", "health", "queues");
     private static final String DEFAULT_TOPICS = "topology,health,queues";
     private static final int REPLAY_CAP = 500;

@@ -72,6 +72,43 @@ public class MetricSeriesRepository {
                 (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
     }
 
+    /**
+     * The current rate per subject over one window (metrics spec) — used by
+     * alert rate-threshold rules, one query per {@code (cluster, metric)} per
+     * tick regardless of rule count, not one query per rule. Same restart-safe
+     * {@code GREATEST(...,0)} clamp as {@link #rateSeries}, but grouped over one
+     * window instead of {@code date_bin} buckets. A subject with fewer than two
+     * samples in the window has no computable rate and is omitted, never
+     * reported as zero — reporting zero would read as "throughput dropped" for
+     * a queue simply not sampled twice yet.
+     */
+    public Map<String, Double> latestRateBySubject(UUID clusterId, String metric, Instant from, Instant to) {
+        String sql = """
+                SELECT subject_name, GREATEST(max(value) - min(value), 0) / :windowSeconds AS rate
+                  FROM metric_sample
+                 WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                   AND ts >= :from AND ts < :to
+                 GROUP BY subject_name
+                HAVING count(*) >= 2
+                """;
+        double windowSeconds = Math.max(1, Duration.between(from, to).getSeconds());
+        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
+                        "clusterId",
+                        clusterId,
+                        "metric",
+                        metric,
+                        "from",
+                        Timestamp.from(from),
+                        "to",
+                        Timestamp.from(to)))
+                .addValue("windowSeconds", windowSeconds);
+        Map<String, Double> out = new java.util.HashMap<>();
+        jdbc.query(sql, p, rs -> {
+            out.put(rs.getString("subject_name"), rs.getDouble("rate"));
+        });
+        return out;
+    }
+
     private MapSqlParameterSource params(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
         // pgjdbc cannot infer a SQL type for a bare java.time.Instant parameter

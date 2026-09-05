@@ -61,17 +61,7 @@ public class SecretVault {
     public record Sealed(byte[] ciphertext, byte[] nonce) {}
 
     public Sealed encrypt(UUID clusterId, String kind, String plaintext) {
-        byte[] nonce = new byte[NONCE_BYTES];
-        random.nextBytes(nonce);
-        try {
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, nonce));
-            cipher.updateAAD(aad(clusterId, kind));
-            byte[] ct = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
-            return new Sealed(ct, nonce);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to encrypt broker secret", e);
-        }
+        return encrypt(aad(clusterId, kind), plaintext);
     }
 
     /**
@@ -80,19 +70,48 @@ public class SecretVault {
      *     the ciphertext was sealed with.
      */
     public String decrypt(UUID clusterId, String kind, byte[] ciphertext, byte[] nonce) {
+        return decrypt(aad(clusterId, kind), ciphertext, nonce, "cluster " + clusterId + " kind " + kind);
+    }
+
+    /**
+     * For secrets that do not belong to a cluster row — a notification channel's
+     * webhook URL or signing secret (ADR-0036). {@code aad} should be a stable
+     * identifier of the owning row plus a kind, e.g. {@code channelId + "|" +
+     * kind}, following the same "AAD binds ciphertext to its row" principle as
+     * the cluster-scoped overload; only the shape of the identifier generalizes.
+     */
+    public Sealed encrypt(String aad, String plaintext) {
+        byte[] nonce = new byte[NONCE_BYTES];
+        random.nextBytes(nonce);
         try {
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, nonce));
-            cipher.updateAAD(aad(clusterId, kind));
-            return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
+            cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, nonce));
+            cipher.updateAAD(aad.getBytes(StandardCharsets.UTF_8));
+            byte[] ct = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+            return new Sealed(ct, nonce);
         } catch (Exception e) {
-            throw new SecretDecryptException(
-                    "Failed to decrypt broker secret for cluster " + clusterId + " kind " + kind, e);
+            throw new IllegalStateException("Failed to encrypt secret", e);
         }
     }
 
-    private static byte[] aad(UUID clusterId, String kind) {
-        return (clusterId + "|" + kind).getBytes(StandardCharsets.UTF_8);
+    /** @throws SecretDecryptException if the key is wrong, the ciphertext was tampered with, or {@code aad} does not match. */
+    public String decrypt(String aad, byte[] ciphertext, byte[] nonce) {
+        return decrypt(aad, ciphertext, nonce, aad);
+    }
+
+    private String decrypt(String aad, byte[] ciphertext, byte[] nonce, String context) {
+        try {
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, nonce));
+            cipher.updateAAD(aad.getBytes(StandardCharsets.UTF_8));
+            return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new SecretDecryptException("Failed to decrypt secret for " + context, e);
+        }
+    }
+
+    private static String aad(UUID clusterId, String kind) {
+        return clusterId + "|" + kind;
     }
 
     public static final class SecretDecryptException extends RuntimeException {

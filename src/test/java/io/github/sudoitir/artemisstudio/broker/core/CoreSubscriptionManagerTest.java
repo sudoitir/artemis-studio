@@ -41,7 +41,7 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
         received.clear();
 
         ArtemisStudioProperties props =
-                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null);
+                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
 
         BrokerConnections connections = mock(BrokerConnections.class);

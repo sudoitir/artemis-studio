@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleWriter;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
+import io.github.sudoitir.artemisstudio.service.AlertEvaluator;
 import io.github.sudoitir.artemisstudio.sse.StreamSignals;
 import java.time.Duration;
 import java.time.Instant;
@@ -107,6 +108,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
     private final MetricSampleWriter metrics;
     private final StreamSignals streamSignals;
     private final CoreSubscriptionManager coreSubscriptions;
+    private final AlertEvaluator alertEvaluator;
 
     private record QueuesPage(List<QueueRow> rows, long count) {}
 
@@ -128,6 +130,14 @@ public class ScrapeScheduler implements SchedulingConfigurer {
                 } catch (RuntimeException e) {
                     log.warn("Split-brain corroboration failed for cluster {}: {}", clusterId, e.toString());
                 }
+                try {
+                    // State-condition alert rules (split-brain, node down, replication
+                    // behind, cluster degraded) evaluate right after the HA state their
+                    // condition reads was just persisted (ADR-0035) — no independent timer.
+                    alertEvaluator.evaluate(clusterId, "STATE");
+                } catch (RuntimeException e) {
+                    log.warn("State-condition alert evaluation failed for cluster {}: {}", clusterId, e.toString());
+                }
             }
         }
     }
@@ -137,6 +147,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
             for (ClusterEntity cluster : clusters.findAll()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeHotQueues(clusterId, node));
+                evaluateThresholdRules(clusterId);
             }
         }
     }
@@ -146,7 +157,17 @@ public class ScrapeScheduler implements SchedulingConfigurer {
             for (ClusterEntity cluster : clusters.findAll()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeSweepPage(clusterId, node));
+                evaluateThresholdRules(clusterId);
             }
+        }
+    }
+
+    /** Metric-threshold rules evaluate after the tier that persisted the data they read (ADR-0035). */
+    private void evaluateThresholdRules(UUID clusterId) {
+        try {
+            alertEvaluator.evaluate(clusterId, "METRIC_THRESHOLD");
+        } catch (RuntimeException e) {
+            log.warn("Metric-threshold alert evaluation failed for cluster {}: {}", clusterId, e.toString());
         }
     }
 

@@ -1,8 +1,9 @@
-import { AppShell, Group, ScrollArea, Text } from '@mantine/core';
+import { AppShell, Badge, Group, ScrollArea, Text } from '@mantine/core';
 import { useHotkeys, useReducedMotion } from '@mantine/hooks';
 import { Outlet, useParams } from '@tanstack/react-router';
 
 import { branding } from '../branding.ts';
+import { useFiringCounts } from '../api/client.ts';
 import { ClusterRailNav } from './ClusterRailNav.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
 import { CommandPalette } from '../palette/CommandPalette.tsx';
@@ -26,6 +27,8 @@ export function RootLayout() {
   const { collapsed, toggle } = useNavCollapsed();
   const reducedMotion = useReducedMotion();
   const { clusterId } = useParams({ strict: false }) as { clusterId?: string };
+  const firingCounts = useFiringCounts();
+  const totalFiring = (firingCounts.data ?? []).reduce((sum, c) => sum + c.firing, 0);
 
   useHotkeys([['mod+B', toggle]]);
 
@@ -39,7 +42,19 @@ export function RootLayout() {
     >
       <AppShell.Header>
         <Group h="100%" px="md" gap="xs" justify="space-between">
-          <Text fw={600}>{branding.productName}</Text>
+          <Group gap="xs">
+            <Text fw={600}>{branding.productName}</Text>
+            {totalFiring > 0 ? (
+              <Badge
+                size="sm"
+                variant="light"
+                color="red"
+                aria-label={`${totalFiring} alert${totalFiring === 1 ? '' : 's'} firing`}
+              >
+                {totalFiring} firing
+              </Badge>
+            ) : null}
+          </Group>
           <Text size="xs" c="dimmed">
             <kbd>⌘</kbd> <kbd>K</kbd> search · <kbd>⌘</kbd> <kbd>B</kbd> sidebar
           </Text>

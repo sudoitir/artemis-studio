@@ -157,6 +157,132 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/alerts/rules/{ruleId}" : {
+      "put" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "updateRule",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "ruleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AlertRuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AlertRuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "deleteRule",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "ruleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/channels/{channelId}" : {
+      "put" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "update",
+        "parameters" : [ {
+          "name" : "channelId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NotificationChannelRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationChannelView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "delete",
+        "parameters" : [ {
+          "name" : "channelId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/clusters" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
@@ -583,6 +709,138 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/alerts/rules" : {
+      "get" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "rules",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AlertRuleView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "createRule",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AlertRuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AlertRuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels" : {
+      "get" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "list_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/NotificationChannelView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NotificationChannelRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationChannelView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/{channelId}/test" : {
+      "post" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "test",
+        "parameters" : [ {
+          "name" : "channelId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/nodes/{nodeId}" : {
       "patch" : {
         "tags" : [ "cluster-controller" ],
@@ -674,7 +932,7 @@
     "/api/v1/settings" : {
       "get" : {
         "tags" : [ "settings-controller" ],
-        "operationId" : "list_1",
+        "operationId" : "list_2",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -717,7 +975,7 @@
       },
       "delete" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "delete",
+        "operationId" : "delete_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1177,7 +1435,7 @@
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1382,7 +1640,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_3",
+        "operationId" : "list_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1461,6 +1719,81 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/alerts/history" : {
+      "get" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "history",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AlertFiringPageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/alerts/firing" : {
+      "get" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "firing",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AlertFiringView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/addresses" : {
       "get" : {
         "tags" : [ "cluster-resource-controller" ],
@@ -1488,6 +1821,27 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PagedViewAddressView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts/firing" : {
+      "get" : {
+        "tags" : [ "alert-summary-controller" ],
+        "operationId" : "firing_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ClusterFiringCountView"
+                  }
                 }
               }
             }
@@ -1584,6 +1938,163 @@
           }
         },
         "required" : [ "password", "username" ]
+      },
+      "AlertRuleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "kind" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "metric" : {
+            "type" : "string"
+          },
+          "comparator" : {
+            "type" : "string"
+          },
+          "threshold" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "stateCondition" : {
+            "type" : "string"
+          },
+          "forSeconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "severity" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "channelIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        },
+        "required" : [ "kind", "name", "severity" ]
+      },
+      "AlertRuleView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "metric" : {
+            "type" : [ "string", "null" ]
+          },
+          "comparator" : {
+            "type" : [ "string", "null" ]
+          },
+          "threshold" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "stateCondition" : {
+            "type" : [ "string", "null" ]
+          },
+          "forSeconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : [ "string", "null" ]
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "channelIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "channelIds", "clusterId", "createdAt", "enabled", "forSeconds", "id", "kind", "name", "severity", "updatedAt" ]
+      },
+      "NotificationChannelRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "kind" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "config" : {
+            "type" : "string"
+          },
+          "secret" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "kind", "name" ]
+      },
+      "NotificationChannelView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "config" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "hasSecret" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "config", "enabled", "hasSecret", "id", "kind", "name" ]
       },
       "Credentials" : {
         "type" : "object",
@@ -3014,6 +3525,65 @@
         },
         "required" : [ "count", "data", "page", "pageSize" ]
       },
+      "AlertFiringPageView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AlertFiringView"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements" ]
+      },
+      "AlertFiringView" : {
+        "type" : "object",
+        "properties" : {
+          "seq" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "ruleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ruleName" : {
+            "type" : "string"
+          },
+          "subjectKey" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "resolvedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "ruleId", "ruleName", "seq", "severity", "startedAt", "subjectKey" ]
+      },
       "AddressView" : {
         "type" : "object",
         "properties" : {
@@ -3064,6 +3634,20 @@
           }
         },
         "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "ClusterFiringCountView" : {
+        "type" : "object",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "firing" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "clusterId", "firing" ]
       }
     }
   }

@@ -98,6 +98,14 @@ artemis-studio:
     percentile-window: 15m         # Micrometer Timer distributionStatisticExpiry
     payload-capture-bytes: 4096    # captured request/reply body cap when an expectation enables capture
     retention: 7d                 # RrFlowReaper trims older rr_flow/rr_event rows
+  alerting:
+    # Notification delivery (Phase 7, ADR-0036). A separate RestClient from the
+    # broker one — never shares the per-node rate limiter or a broker TLS bundle.
+    dispatch-interval: 5s        # AlertDispatcher claim cadence
+    max-attempts: 5              # a delivery goes DEAD after this many failures
+    connect-timeout: 10s         # notificationRestClient connect + read timeout
+    initial-backoff: 5s          # first retry delay (exponential with jitter)
+    max-backoff: 10m             # backoff ceiling
 
 logging:
   level:

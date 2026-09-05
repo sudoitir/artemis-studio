@@ -18,7 +18,7 @@ class CorePoolTest extends ArtemisIntegrationTest {
 
     private CorePool pool() {
         ArtemisStudioProperties props =
-                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null);
+                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null);
         return new CorePool(new CoreConnectionFactory(props, Mockito.mock(SslBundles.class)));
     }
 

@@ -37,16 +37,22 @@ class MetricSeriesRepositoryTest extends PostgresIntegrationTest {
     }
 
     private void sample(String metric, Instant ts, double value) {
+        sample(metric, "Q", ts, value);
+    }
+
+    private void sample(String metric, String subjectName, Instant ts, double value) {
         jdbc.update(
                 """
                 INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
-                VALUES (:ts, :value, 'QUEUE', 'Q', :metric, :c, :n)
+                VALUES (:ts, :value, 'QUEUE', :subject, :metric, :c, :n)
                 """,
                 Map.of(
                         "ts",
                         java.sql.Timestamp.from(ts),
                         "value",
                         value,
+                        "subject",
+                        subjectName,
                         "metric",
                         metric,
                         "c",
@@ -81,5 +87,32 @@ class MetricSeriesRepositoryTest extends PostgresIntegrationTest {
         assertThat(buckets).hasSize(1);
         // (130 - 100) / 60s
         assertThat(buckets.get(0).value()).isEqualTo(30.0 / 60.0);
+    }
+
+    @Test
+    void latestRateBySubjectNeverProducesANegativeRate() {
+        // max(value) - min(value) is never negative by construction — the same
+        // GREATEST(...,0) formula rateSeries uses — so a broker restart mid-window
+        // (100 then 40) still yields a non-negative, if imprecise, rate rather than
+        // a negative spike.
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sample("messagesAdded", "orders", base, 100.0);
+        sample("messagesAdded", "orders", base.plusSeconds(30), 40.0);
+
+        Map<String, Double> rates =
+                repository.latestRateBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60));
+
+        assertThat(rates.get("orders")).isNotNegative();
+    }
+
+    @Test
+    void latestRateBySubjectOmitsAnUnderSampledSubject() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sample("messagesAdded", "fresh-queue", base, 5.0); // only one sample in the window
+
+        Map<String, Double> rates =
+                repository.latestRateBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60));
+
+        assertThat(rates).doesNotContainKey("fresh-queue");
     }
 }

@@ -11,7 +11,8 @@ export type Topic =
   | 'consumers'
   | 'sessions'
   | 'connections'
-  | 'rr';
+  | 'rr'
+  | 'alerts';
 
 const DEFAULT_TOPICS: Topic[] = ['topology', 'health', 'queues'];
 
@@ -72,8 +73,13 @@ export function useClusterStream(
           source.addEventListener('rr', () => {
             qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr'] });
           });
+        } else if (topic === 'alerts') {
+          source.addEventListener('alerts', () => {
+            qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'alerts'] });
+            qc.invalidateQueries({ queryKey: ['alerts', 'firing'] });
+          });
         } else if (SIGNAL_TOPICS.includes(topic)) {
-          const signalTopic = topic as Exclude<Topic, 'events' | 'rr'>;
+          const signalTopic = topic as Exclude<Topic, 'events' | 'rr' | 'alerts'>;
           source.addEventListener(signalTopic, () => {
             qc.invalidateQueries({ queryKey: keys.topic(clusterId, signalTopic) });
           });

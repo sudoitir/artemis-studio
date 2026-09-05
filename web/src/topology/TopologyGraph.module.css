@@ -119,6 +119,15 @@
   border: 1px solid var(--as-node-unmanaged);
 }
 
+/* A firing alert on this node (alerting spec). Reserved since Phase 2. */
+.alertDot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--as-alert-dot);
+  flex-shrink: 0;
+}
+
 .addr {
   font-size: 11px;
   color: var(--as-text-dimmed);
