@@ -1,7 +1,11 @@
+import { useMemo } from "react";
 import { Badge, Button, Drawer, Group, Stack, Table, Text } from "@mantine/core";
 import { Link, useParams } from "@tanstack/react-router";
+import dayjs from "dayjs";
 
-import type { QueueView } from "../api/client.ts";
+import { useMetrics, type QueueView } from "../api/client.ts";
+import { DepthChart } from "../metrics/DepthChart.tsx";
+import { ThroughputChart } from "../metrics/ThroughputChart.tsx";
 
 /** Read-only per-node breakdown for one queue row, plus a jump into the message browser. */
 export function QueueDetailDrawer({
@@ -12,6 +16,25 @@ export function QueueDetailDrawer({
   onClose: () => void;
 }) {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
+  const { from, to } = useMemo(() => {
+    const now = dayjs();
+    return { from: now.subtract(1, "hour").toISOString(), to: now.toISOString() };
+  }, []);
+  const metrics = useMetrics(
+    clusterId,
+    {
+      metrics: ["messageCount", "messagesAdded", "messagesAcked"],
+      subjectType: "QUEUE",
+      subject: queue?.queueName,
+      from,
+      to,
+    },
+    false,
+    queue !== null,
+  );
+  const byName = (name: string) => metrics.data?.series.find((s) => s.metric === name);
+  const syncId = `queue-drawer-${queue?.queueName ?? "none"}`;
+
   return (
     <Drawer
       opened={queue !== null}
@@ -77,6 +100,19 @@ export function QueueDetailDrawer({
               </Table.Tbody>
             </Table>
           </Table.ScrollContainer>
+
+          <Stack gap={4}>
+            <Text size="xs" fw={600} c="dimmed">
+              Depth · last hour
+            </Text>
+            <DepthChart series={byName("messageCount")} syncId={syncId} />
+          </Stack>
+          <Stack gap={4}>
+            <Text size="xs" fw={600} c="dimmed">
+              Throughput · last hour
+            </Text>
+            <ThroughputChart added={byName("messagesAdded")} acked={byName("messagesAcked")} syncId={syncId} />
+          </Stack>
         </Stack>
       ) : null}
     </Drawer>

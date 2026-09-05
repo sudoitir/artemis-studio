@@ -63,6 +63,9 @@ export type FlowPageView = Schemas['FlowPageView'];
 export type RrEventView = Schemas['RrEventView'];
 export type AddressStatsView = Schemas['AddressStatsView'];
 export type StatsResponse = Schemas['StatsResponse'];
+export type MetricPoint = Schemas['MetricPoint'];
+export type MetricSeries = Schemas['MetricSeries'];
+export type MetricSeriesResponse = Schemas['MetricSeriesResponse'];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
 export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
@@ -161,6 +164,7 @@ export const keys = {
   ) => ['clusters', id, 'queues', queueName, 'messages', params] as const,
   message: (id: string, queueName: string, messageId: string, node?: string, filter?: string) =>
     ['clusters', id, 'queues', queueName, 'messages', messageId, { node, filter }] as const,
+  metrics: (id: string, params: MetricsParams) => ['clusters', id, 'metrics', params] as const,
 };
 
 // ── queries ────────────────────────────────────────────────────────────────
@@ -635,6 +639,46 @@ export function useRrStats(
     queryKey: ['clusters', clusterId, 'rr', 'stats', window],
     queryFn: () => request<StatsResponse>(`/clusters/${clusterId}/rr/stats?window=${window}`),
     refetchInterval: 10_000,
+  });
+}
+
+// ── metrics (metrics spec, ADR-0033) ───────────────────────────────────────
+
+export interface MetricsParams {
+  metrics: string[];
+  subjectType?: 'CLUSTER' | 'QUEUE';
+  subject?: string;
+  from: string;
+  to: string;
+  step?: string;
+}
+
+/**
+ * `refetchMs` is passed explicitly by the caller rather than defaulting to the
+ * global 5s poll every other hook uses — a 7-day chart must not refetch every
+ * 5 seconds, and an absolute (non-live) range must never poll at all.
+ */
+export function useMetrics(
+  clusterId: string,
+  params: MetricsParams,
+  refetchMs: number | false = false,
+  enabled = true,
+): UseQueryResult<MetricSeriesResponse, ApiError> {
+  return useQuery({
+    queryKey: keys.metrics(clusterId, params),
+    enabled,
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      for (const m of params.metrics) sp.append('metric', m);
+      if (params.subjectType) sp.set('subjectType', params.subjectType);
+      if (params.subject) sp.set('subject', params.subject);
+      sp.set('from', params.from);
+      sp.set('to', params.to);
+      if (params.step) sp.set('step', params.step);
+      return request<MetricSeriesResponse>(`/clusters/${clusterId}/metrics?${sp.toString()}`);
+    },
+    refetchInterval: refetchMs,
+    placeholderData: (prev) => prev,
   });
 }
 

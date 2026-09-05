@@ -19,6 +19,8 @@ import { EventsView } from './events/EventsView.tsx';
 import { FlowsView } from './rr/FlowsView.tsx';
 import { ResourceView } from './resources/ResourceView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
+import { MetricsView } from './metrics/MetricsView.tsx';
+import { METRIC_RANGES, type MetricRange } from './metrics/ranges.ts';
 
 /** Navigable state that belongs in the URL, not local state (non-negotiable #9). */
 export interface ResourceSearch {
@@ -132,6 +134,33 @@ const rrRoute = createRoute({
   errorComponent: RouteError,
 });
 
+export interface MetricsSearch {
+  range?: MetricRange;
+  from?: string;
+  to?: string;
+}
+
+function validateMetricsSearch(raw: Record<string, unknown>): MetricsSearch {
+  const out: MetricsSearch = {};
+  if (typeof raw.from === 'string' && raw.from && typeof raw.to === 'string' && raw.to) {
+    out.from = raw.from;
+    out.to = raw.to;
+    return out;
+  }
+  if (typeof raw.range === 'string' && (METRIC_RANGES as readonly string[]).includes(raw.range)) {
+    out.range = raw.range as MetricRange;
+  }
+  return out;
+}
+
+const metricsRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'metrics',
+  component: MetricsView,
+  validateSearch: validateMetricsSearch,
+  errorComponent: RouteError,
+});
+
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
@@ -178,6 +207,7 @@ const routeTree = rootRoute.addChildren([
     topologyRoute,
     queuesRoute,
     messagesRoute,
+    metricsRoute,
     auditRoute,
     dlqRoute,
     eventsRoute,

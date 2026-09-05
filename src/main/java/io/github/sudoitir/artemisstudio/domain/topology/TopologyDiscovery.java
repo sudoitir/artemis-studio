@@ -128,7 +128,7 @@ public class TopologyDiscovery {
             byName.put(
                     key,
                     new NodeEndpoint(
-                            null,
+                            UUID.randomUUID(),
                             key,
                             r.nodeId(),
                             r.jolokiaUrl(),
@@ -145,12 +145,29 @@ public class TopologyDiscovery {
                             false,
                             true));
         }
-        return new ClusterTopology(null, scratch.toLogicalNodes(List.copyOf(byName.values())));
+        // Nothing is persisted for a preview, so there is no real cluster id yet; a
+        // fresh one only gives every rendered node a stable React key (ADR-0014's
+        // domain records are not otherwise nullable-aware).
+        return new ClusterTopology(UUID.randomUUID(), scratch.toLogicalNodes(List.copyOf(byName.values())));
     }
 
     private static NodeEndpoint previewEndpoint(String name, String haRole, String nodeId) {
         return new NodeEndpoint(
-                null, name, nodeId, null, name, haRole, "UNKNOWN", false, null, null, null, null, null, true, false,
+                UUID.randomUUID(),
+                name,
+                nodeId,
+                null,
+                name,
+                haRole,
+                "UNKNOWN",
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                true,
+                false,
                 false);
     }
 

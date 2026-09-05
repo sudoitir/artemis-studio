@@ -158,11 +158,13 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | `metric_sample` writes from the scheduler |
-| [ ] | Daily partition create-ahead + retention drop job |
-| [ ] | `GET /clusters/{id}/metrics` (subject, metric, range, step) |
-| [ ] | Built-in charts — depth, throughput, consumers, RR latency |
+| [x] | `metric_sample` writes from the scheduler |
+| [x] | Daily partition create-ahead + retention drop job |
+| [x] | `GET /clusters/{id}/metrics` (subject, metric, range, step) |
+| [x] | Built-in charts — depth, throughput, consumers, RR latency |
 | [ ] | Rollup tables — only when a query is measurably slow |
+| [x] | Frictionless cluster registration — example topology cards, live discovered-topology preview |
+| [x] | Advanced collapsible sidebar — icon rail, tooltips, persisted state |
 
 ### Phase 7 · Alerting
 

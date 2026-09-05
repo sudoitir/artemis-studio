@@ -21,7 +21,7 @@ one table.
 | **3** | Message browse / send / move / retry / delete · `?dryRun` · typed confirmation · audit log UI | safety non-negotiables |
 | **4** | Core protocol client · `activemq.notifications` consumer · live consumer/session/connection events | unlocks `NOTIFICATIONS` capability |
 | **5** | **Request-reply tracing** — correlator, both reply patterns, stuck/orphan detection, per-address latency panel | the flagship |
-| **6** | Metrics into partitioned Postgres · Mantine charts dashboards · retention + partition job | ADR-0006 |
+| **6** | Metrics into partitioned Postgres · Mantine charts dashboards · retention + partition job · frictionless cluster registration · collapsible sidebar | ADR-0006, ADR-0033, ADR-0034 |
 | **7** | Alert rules · evaluation loop · webhook / Slack channels | |
 | **8** | Local users → full RBAC · per-environment grouping · read-only enforcement · OIDC/SSO | |
 | **v1.0** | Multi-instance HA (advisory locks) · Helm chart · docs site · slow-consumer detection · message replay | |

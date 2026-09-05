@@ -46,6 +46,17 @@
   /* Misc chrome. */
   --as-alert-dot: var(--mantine-color-red-6);
   --as-palette-bg: var(--mantine-color-default);
+
+  /* Charts (Phase 6, ADR-0033). Order encodes the house rule: the healthy
+     series is the neutral one — colour enters only at --as-chart-4, "look
+     here". Never a raw hex/Mantine shade literal in a chart component. */
+  --as-chart-grid: var(--as-border);
+  --as-chart-axis: var(--as-text-dimmed);
+  --as-chart-1: var(--as-text);
+  --as-chart-2: var(--mantine-color-blue-4);
+  --as-chart-3: var(--as-text-dimmed);
+  --as-chart-4: var(--as-warning);
+  --as-chart-threshold: var(--as-danger);
 }
 
 /* Light overrides. Dark is the base above; only the values that must change for
@@ -60,6 +71,7 @@
   --as-graph-edge-behind: var(--mantine-color-yellow-7);
   --as-alert-dot: var(--mantine-color-red-7);
   --as-rr-failed: var(--mantine-color-red-7);
+  --as-chart-2: var(--mantine-color-blue-7);
 }
 
 html,

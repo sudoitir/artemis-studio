@@ -54,6 +54,16 @@ window.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 
 window.HTMLElement.prototype.scrollIntoView ??= () => {};
 
+// jsdom has no CSS Font Loading API; Mantine's autosizing Textarea
+// (react-textarea-autosize) reaches for `document.fonts.addEventListener` to
+// re-measure once a web font finishes loading.
+if (!document.fonts) {
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: { addEventListener: () => {}, removeEventListener: () => {} },
+  });
+}
+
 // jsdom has no EventSource. This stub records every open instance and lets a test
 // push a named frame with `EventSourceStub.emit('events', data)`.
 type Listener = (e: MessageEvent) => void;
@@ -116,3 +126,21 @@ for (const [prop, value] of [
     },
   });
 }
+
+// jsdom's getBoundingClientRect always reports a zero-size box. Recharts'
+// ResponsiveContainer (via @mantine/charts) sizes itself from the
+// ResizeObserver entry's contentRect, not offsetWidth/offsetHeight, so a
+// chart renders nothing under jsdom without this — matching the same
+// viewport-sized stub above.
+window.HTMLElement.prototype.getBoundingClientRect = () =>
+  ({
+    width: 1000,
+    height: 800,
+    top: 0,
+    left: 0,
+    right: 1000,
+    bottom: 800,
+    x: 0,
+    y: 0,
+    toJSON() {},
+  }) as DOMRect;

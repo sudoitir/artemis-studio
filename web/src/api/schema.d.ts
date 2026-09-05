@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/health": {
         parameters: {
             query?: never;
@@ -510,32 +526,6 @@ export interface components {
             reason: string;
             brokerXmlSnippet?: string | null;
         };
-        RegisterPreview: {
-            capabilities: components["schemas"]["CapabilitiesView"];
-            /** Format: int32 */
-            reachableSeeds: number;
-            /** Format: int32 */
-            discoveredNodes: number;
-            nodeNames: string[];
-        };
-        ClusterDetail: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            description?: string | null;
-            topology: components["schemas"]["TopologyView"];
-            capabilities: components["schemas"]["CapabilitiesView"];
-            health: components["schemas"]["HealthView"];
-        };
-        HealthView: {
-            /** Format: uuid */
-            clusterId: string;
-            level: string;
-            liveEndpointNames: string[];
-            splitBrain: string;
-            replicationBehind: boolean;
-            notes: string[];
-        };
         LogicalNodeView: {
             artemisNodeId?: string | null;
             splitBrain: string;
@@ -561,10 +551,36 @@ export interface components {
             manualOverride: boolean;
             manageable: boolean;
         };
+        RegisterPreview: {
+            capabilities: components["schemas"]["CapabilitiesView"];
+            /** Format: int32 */
+            reachableSeeds: number;
+            /** Format: int32 */
+            discoveredNodes: number;
+            topology: components["schemas"]["TopologyView"];
+        };
         TopologyView: {
             /** Format: uuid */
             clusterId: string;
             nodes: components["schemas"]["LogicalNodeView"][];
+        };
+        ClusterDetail: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string | null;
+            topology: components["schemas"]["TopologyView"];
+            capabilities: components["schemas"]["CapabilitiesView"];
+            health: components["schemas"]["HealthView"];
+        };
+        HealthView: {
+            /** Format: uuid */
+            clusterId: string;
+            level: string;
+            liveEndpointNames: string[];
+            splitBrain: string;
+            replicationBehind: boolean;
+            notes: string[];
         };
         CreateExpectationRequest: {
             requestAddress: string;
@@ -881,6 +897,29 @@ export interface components {
             protocol?: string | null;
             /** Format: int64 */
             messagesSent: number;
+        };
+        MetricPoint: {
+            /** Format: date-time */
+            ts: string;
+            /** Format: double */
+            value: number;
+            /** Format: double */
+            peak?: number | null;
+        };
+        MetricSeries: {
+            metric: string;
+            kind: string;
+            unit: string;
+            points: components["schemas"]["MetricPoint"][];
+        };
+        MetricSeriesResponse: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            step: string;
+            truncated: boolean;
+            series: components["schemas"]["MetricSeries"][];
         };
         BrokerEventPageView: {
             data: components["schemas"]["BrokerEventView"][];
@@ -1706,6 +1745,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewProducerView"];
+                };
+            };
+        };
+    };
+    metrics: {
+        parameters: {
+            query: {
+                metric: string[];
+                subjectType?: string;
+                subject?: string;
+                from?: string;
+                to?: string;
+                step?: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MetricSeriesResponse"];
                 };
             };
         };
