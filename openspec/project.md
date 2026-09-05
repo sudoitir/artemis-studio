@@ -31,14 +31,15 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 7 complete
-(alert rules as a discriminated union — metric threshold or cluster state,
-sharing one OK→PENDING→FIRING debounce and evaluator, riding scrape-tier
-completion rather than an independent timer; durable Postgres-queued delivery
-to Slack and signed generic webhooks, batched per rule per tick; built-in
-split-brain/node-down/replication-behind rules seeded per cluster; the
-firing/history/rules screen at `clusters/{id}/alerts`, topology alert dots, and
-a shell firing badge — ADR-0035, ADR-0036); Phase 8 (governance) next.
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 8 complete
+(governance — session-cookie auth for the browser and API tokens for
+automation, both landing on one `StudioPrincipal` shape; a fully dynamic
+`resource:verb` permission model resolved once per request via a
+cluster→environment→global scope walk; environments as a first-class
+grouping; optional OIDC/SSO with JIT provisioning and claim→role mapping
+re-applied every login; a reworked audit actor carrying real identity and
+token attribution — ADR-0037 through ADR-0041, superseding ADR-0023);
+v1.0 (hardening and reach) next.
 
 ## How to work a change
 

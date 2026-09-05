@@ -932,8 +932,8 @@ export function useChangePassword() {
 
 // ── authorization: users, roles, permissions (ADR-0038) ─────────────────────
 
-export function useUsers(): UseQueryResult<UserView[], ApiError> {
-  return useQuery({ queryKey: keys.users, queryFn: () => request<UserView[]>('/users') });
+export function useUsers(enabled = true): UseQueryResult<UserView[], ApiError> {
+  return useQuery({ queryKey: keys.users, queryFn: () => request<UserView[]>('/users'), enabled });
 }
 
 export function useCreateUser() {

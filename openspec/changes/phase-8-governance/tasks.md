@@ -76,21 +76,26 @@
       SUCCESS/FAILURE distinguishes success from failure, matching the
       existing pending-then-outcome model rather than two action strings),
       `LOGOUT`, `PASSWORD_CHANGE`.
-- [ ] 3.12 `AuthControllerIntegrationTest`: login success/failure, lockout
-      after N failures, `423` until password change, logout invalidates
-      session, CSRF rejection without header, `/me` shape. **Deferred** —
-      `EndpointProtectionTest` (task 4.11) already exercises the filter chain
-      end to end (401s, CSRF-token-required) across every endpoint; a
-      dedicated login-flow test is still worth adding but ran out of budget
-      in this session.
-- [ ] 3.13 `AdminBootstrapTest`: creates admin exactly once on empty
-      `app_user`. **Deferred** — indirectly proven by every integration test
-      in the suite booting against a fresh database and logging the bootstrap
-      banner exactly once; not asserted directly.
-- [ ] 3.14 `AuditActorTest`: a mutation by a logged-in user writes `username`
-      and `user_id`; a scheduler-originated row still writes `system`.
-      **Deferred** — `ActorResolverTest` already covers the anonymous/system
-      paths; the authenticated-userId path is new and untested directly.
+- [x] 3.12 `AuthControllerIntegrationTest`: login success/failure, the
+      throttle lockout after 5 failures even with the eventually-correct
+      password, `423` until password change **and its self-unlock in the
+      same session** (the changePassword session-refresh bug this session
+      found and fixed), logout invalidating the session, CSRF rejection
+      without the header, `/me` shape. Runs against the real
+      `SecurityFilterChain`; confirmed to fail when the session-refresh fix
+      is reverted. Needed `MockHttpSession` carried explicitly between
+      requests (MockMvc's documented pattern) — a `JSESSIONID` cookie alone
+      does not make MockMvc resolve the same session across `perform()` calls
+      the way a real container would.
+- [x] 3.13 `AdminBootstrapTest`: creates the admin (forced password change,
+      `ADMIN` role grant) exactly once against mocked repositories reporting
+      an empty `app_user`; does nothing when `count() > 0`.
+- [x] 3.14 Real-identity audit actor coverage added to `ActorResolverTest`
+      (not a separate `AuditActorTest`): an authenticated session principal
+      resolves its real username/userId with a null `tokenName`, and an
+      API-token principal folds the token name into `Actor.displayName()`
+      (`"<owner> [token: <name>]"`). `systemActorForTheScheduler` (existing)
+      already covers the scheduler-originated `system` row.
 
 ## 4. Authorization
 
@@ -192,41 +197,56 @@
       `ApiTokenGrantRepository.deleteByIdScopeTypeAndIdScopeId` both called
       from `EnvironmentService.delete()`, same transaction as the environment
       delete; OIDC role mappings scoped to it are deleted too.
-- [ ] 5.5 Regenerate `schema.d.ts` (`npm run gen:api`); refresh
-      `web/openapi.json` (guarded by `web/OpenApiSnapshotTest`) — deferred to
-      section 7 once the frontend consumes these types.
+- [x] 5.5 Regenerated `schema.d.ts` (`npm run gen:api`); refreshed
+      `web/openapi.json` (self-healed by `web/OpenApiSnapshotTest`, re-run
+      several times across this session as the API surface grew).
 
 ## 6. Frontend: auth
 
-- [ ] 6.1 `web/src/auth/LoginView.tsx`, `ChangePasswordView.tsx`.
-- [ ] 6.2 `useMe()`, `useLogin()`, `useLogout()`, `useChangePassword()` in
+- [x] 6.1 `web/src/auth/LoginView.tsx`, `ChangePasswordView.tsx`.
+- [x] 6.2 `useMe()`, `useLogin()`, `useLogout()`, `useChangePassword()` in
       `web/src/api/client.ts` (sectioned by comment banner, following the
       alerting hooks' pattern).
-- [ ] 6.3 `web/src/api/client.ts` `request<T>()`: read `XSRF-TOKEN` cookie and
+- [x] 6.3 `web/src/api/client.ts` `request<T>()`: read `XSRF-TOKEN` cookie and
       send `X-XSRF-TOKEN` on non-GET; on `401`, clear the `me` query and
       redirect to `/login`. This is the one place it goes.
-- [ ] 6.4 `web/src/router.tsx`: `/login` and `/change-password` public routes;
+- [x] 6.4 `web/src/router.tsx`: `/login` and `/change-password` public routes;
       root route `beforeLoad` guard redirecting to `/login` on a failed `/me`.
-- [ ] 6.5 `web/src/app/RootLayout.tsx`: user menu (name, change password,
+- [x] 6.5 `web/src/app/RootLayout.tsx`: user menu (name, change password,
       logout).
-- [ ] 6.6 `web/src/auth/Can.tsx` + `useCan()` — permission gate reading
+- [x] 6.6 `web/src/auth/Can.tsx` + `useCan()` — permission gate reading
       `useMe()`'s grants.
-- [ ] 6.7 `LoginView.test.tsx`, `Can.test.tsx`, a `client` test asserting a
-      401 from any hook triggers the redirect, `RootLayout.test.tsx` extended
-      for the user menu.
+- [x] 6.7 `LoginView.test.tsx`, `Can.test.tsx`, `client.test.tsx` asserting a
+      401 from any hook (`useMe`) triggers the `/login` redirect and doesn't
+      double-redirect from `/login` itself, `RootLayout.test.tsx` extended
+      for the user menu (username, Administration entry gated by `user:admin`,
+      logout navigates to `/login`).
 
 ## 7. Frontend: admin
 
-- [ ] 7.1 `web/src/admin/UsersPanel.tsx`, `RolesPanel.tsx`, `GrantsPanel.tsx`,
-      `EnvironmentsPanel.tsx` behind `/admin`, tabs following
-      `alerts/AlertsView.tsx` + sibling-panel pattern.
-- [ ] 7.2 Role editor: catalogue checkboxes from `/api/v1/permissions` plus a
-      free-text field (fully dynamic model); built-in roles read-only in the UI.
-- [ ] 7.3 Cluster cards / sidebar / `HomeView.tsx`: environment colour chip
-      and grouping.
-- [ ] 7.4 Audit screen user filter becomes a picker over real users
-      (`web/src/audit/*`).
-- [ ] 7.5 `EnvironmentsPanel.test.tsx`.
+- [x] 7.1 `web/src/admin/UsersPanel.tsx`, `RolesPanel.tsx`,
+      `EnvironmentsPanel.tsx`, `TokensPanel.tsx`, `OidcMappingPanel.tsx`
+      behind `/admin`, tabs following `alerts/AlertsView.tsx` + sibling-panel
+      pattern. **Deviation**: no separate `GrantsPanel.tsx` — grant
+      management (list, add, remove) is folded into `UsersPanel.tsx` next to
+      each user, since a grant has no independent identity worth its own tab.
+- [x] 7.2 Role editor: catalogue checkboxes from `/api/v1/permissions`
+      (`usePermissionsCatalogue`); built-in roles read-only in the UI.
+- [x] 7.3 Sidebar (`ClusterRailNav.tsx`): clusters grouped under an
+      environment header (name + colour dot, sorted by `sortOrder`), with
+      environment-less clusters listed first, ungrouped. Read client-side by
+      joining `useClusters()`'s `environmentId` against `useEnvironments()` —
+      no backend change needed, `ClusterSummary.environmentId` already
+      existed. Collapsed-rail mode omits group headers (no room) but keeps
+      per-cluster monograms as before.
+- [x] 7.4 Audit screen user filter (`web/src/audit/AuditView.tsx`) becomes a
+      `Select` populated from `useUsers()` for anyone holding `user:admin`
+      (exact-match filtering, matching `AuditEventRepository.findPage`'s
+      `e.username = :username` predicate); falls back to the original
+      free-text `TextInput` for anyone without that permission, since listing
+      users itself requires `user:admin` and would otherwise 403 for a
+      lower-privileged viewer of the audit log.
+- [x] 7.5 `EnvironmentsPanel.test.tsx` — list, empty count, create, delete.
 
 ## 8. API tokens
 
@@ -313,16 +333,41 @@
 
 ## 10. Docs and closeout
 
-- [ ] 10.1 ADR-0037 (session auth), ADR-0038 (dynamic permissions + scope
+- [x] 10.1 ADR-0037 (session auth), ADR-0038 (dynamic permissions + scope
       walk), ADR-0039 (API tokens), ADR-0040 (OIDC), ADR-0041 (audit actor,
       supersedes ADR-0023 — mark 0023 superseded with a link, do not edit its
-      decision). Add all five to `docs/adr/README.md`'s index.
-- [ ] 10.2 `docs/architecture.md`: replace the "actor resolved before
+      decision). Added all five to `docs/adr/README.md`'s index.
+- [x] 10.2 `docs/architecture.md`: replaced the "actor resolved before
       authentication exists" paragraph and the `security/` box.
-- [ ] 10.3 `README.md`: tick Phase 8's six TODO rows; update Status.
-- [ ] 10.4 `openspec/project.md`: roadmap line → "Phase 8 complete; v1.0 next".
-- [ ] 10.5 `deploy/compose/*` quick-start doc: note the bootstrap password
-      banner and first-login flow.
-- [ ] 10.6 `just verify` green (backend + frontend); `just fmt` leaves no diff.
-- [ ] 10.7 Manual verification pass per design.md's Migration Plan / the
-      approved plan's Verification section against `just up` with a fresh DB.
+- [x] 10.3 `README.md`: ticked Phase 8's six TODO rows; updated Status (which
+      had drifted since Phase 3 — brought current for Phases 4-8, not just 8,
+      since a Status paragraph naming only through Phase 3 while Phases 4-7
+      are also merged would be actively misleading).
+- [x] 10.4 `openspec/project.md`: roadmap line → "Phase 8 complete; v1.0
+      hardening and reach next".
+- [x] 10.5 `README.md`'s Quick start (dev) section — the project's actual
+      quick-start doc, `deploy/compose/` itself has no README — notes the
+      bootstrap password banner, how to find it in the studio container log,
+      and that there is no password-reset flow yet if it's lost.
+- [x] 10.6 `just verify` green (242 backend tests, 56 frontend tests, build,
+      lint); `just fmt` leaves no diff.
+- [x] 10.7 Manual verification pass per design.md's Migration Plan / the
+      approved plan's Verification section — run against a disposable
+      Postgres + `spring-boot:run` instance, not `just up`'s dev stack:
+      the machine already had a `just up` dev stack running for 10+ hours
+      with its own data, and `just down` deletes volumes (`-v`) — resetting
+      it for a "fresh DB" pass would have destroyed pre-existing work outside
+      this change's scope, so it was left untouched. Verified via curl against
+      real HTTP responses: unauthenticated 401; wrong-password login rejected;
+      correct login returns the session + wildcard ADMIN grant +
+      `mustChangePassword: true`; locked account gets 423 on a protected
+      endpoint but `/me` and `/password` stay reachable; password change
+      returns 204 **and immediately unlocks the same session** (the exact bug
+      this session found and fixed); logout invalidates the session (401
+      after); re-login with the new password succeeds; environment create +
+      list; full API token lifecycle (mint, authenticate, permission-scoped
+      403, revoke, post-revoke 401) — this last one caught and fixed the
+      `ApiTokenAuthenticationFilter` ordering bug plus two `TokensController`
+      validation bugs, all documented in ADR-0039. Not verified: the OIDC
+      authorization-code flow end-to-end (no test IdP available — already
+      scoped as untested in section 9's notes).

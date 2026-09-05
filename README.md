@@ -2,6 +2,12 @@
 
 > **⚠️ Work in progress — Artemis Studio is under active development and is not yet feature-complete. Expect breaking changes and incomplete functionality.**
 
+> **🔐 Default login.** Username `admin`. There is no fixed default password —
+> the first run against an empty database generates one and prints it **once**
+> to the studio container's log (`docker compose -f deploy/compose/compose.dev.yaml
+> logs studio | grep -A4 'Created administrator'`). You'll be forced to set a
+> new password on first login. See [Quick start](#quick-start-dev) below.
+
 **Cluster-wide management and observability for Apache ActiveMQ Artemis.**
 
 The bundled Hawtio console manages one broker at a time and has no idea a cluster
@@ -16,13 +22,14 @@ enabling the management endpoints you almost certainly already run.
 
 ## Status
 
-**Alpha.** Phases 0–2 are done: connect to a live/backup pair, see the whole
-cluster in one place — the topology graph, every queue across every node in one
-virtualized grid, addresses / consumers / sessions / connections / producers,
-all updating live over SSE. Message operations — browse, send, move / retry / delete /
-expire / purge, every mutation with `?dryRun=true` and a server-enforced bulk cap, a full
-audit trail, and a DLQ view — landed in Phase 3 (message I/O is Jolokia-only until the
-Core client in Phase 4).
+**Alpha.** Phases 0–8 are done: topology, cross-node queue/address/consumer views
+over live SSE, message operations with dry-run and a server-enforced bulk cap,
+a full audit trail, the Core client and request-reply tracing, metrics and
+charts, alerting, and — as of Phase 8 — governance: every endpoint requires
+authentication (session cookie for the browser, API tokens for automation,
+optional OIDC/SSO), a dynamic role/permission model scoped to global /
+environment / cluster, and per-environment cluster grouping. v1.0 (hardening
+and reach) is next.
 The TODO list below is the plan, in order.
 
 ## Quick start (dev)
@@ -31,6 +38,18 @@ The TODO list below is the plan, in order.
 just up          # Postgres + a real Artemis primary/backup pair + Artemis Studio
 open http://localhost:8080
 ```
+
+First run against an empty database creates an `admin` account and prints its
+generated password **once**, in the studio container's log:
+
+```bash
+docker compose -f deploy/compose/compose.dev.yaml logs studio | grep -A4 'Created administrator'
+```
+
+Log in with it and you'll be forced to set a new password before doing
+anything else (`must_change_password`, ADR-0037). Losing that first password
+before changing it means resetting the account directly in Postgres — there
+is no password-reset flow yet.
 
 `just` on its own lists every task, grouped. Without `just`:
 
@@ -180,12 +199,12 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | Local users in Postgres; first-run admin bootstrap |
-| [ ] | Roles → permissions; scoped (global / environment / cluster) |
-| [ ] | Read-only mode enforced on every mutating path |
-| [ ] | Per-environment cluster grouping |
-| [ ] | OIDC / SSO login, claim → role mapping |
-| [ ] | Sessions, login/logout, `GET /me` |
+| [x] | Local users in Postgres; first-run admin bootstrap |
+| [x] | Roles → permissions; scoped (global / environment / cluster) |
+| [x] | Read-only mode enforced on every mutating path |
+| [x] | Per-environment cluster grouping |
+| [x] | OIDC / SSO login, claim → role mapping |
+| [x] | Sessions, login/logout, `GET /me` |
 
 ### v1.0 · Hardening and reach
 

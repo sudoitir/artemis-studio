@@ -17,7 +17,8 @@ import {
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
-import { useAudit, type AuditEventView } from '../api/client.ts';
+import { useAudit, useUsers, type AuditEventView } from '../api/client.ts';
+import { useCan } from '../auth/Can.tsx';
 
 const PAGE_SIZE = 100;
 
@@ -102,6 +103,9 @@ export function AuditView() {
     page?: number;
   };
   const navigate = useNavigate();
+  const { can } = useCan();
+  const canListUsers = can('user:admin');
+  const users = useUsers(canListUsers);
 
   const [user, setUser] = useState(search.user ?? '');
   const [debouncedUser] = useDebouncedValue(user, 250);
@@ -113,8 +117,11 @@ export function AuditView() {
       search: (prev: Record<string, unknown>) => ({ ...prev, ...patch, page: undefined }),
     });
 
+  // The Select commits to the URL immediately (a discrete choice needs no debounce);
+  // the free-text fallback commits its own debounced value the same way on blur —
+  // either way, the URL's `search.user` is the single source of truth for the query.
   const query = useAudit(clusterId, {
-    user: debouncedUser || undefined,
+    user: search.user,
     action: search.action,
     outcome: search.outcome,
     page,
@@ -135,14 +142,27 @@ export function AuditView() {
       </Group>
 
       <Group gap="xs">
-        <TextInput
-          placeholder="Filter by user"
-          value={user}
-          onChange={(e) => setUser(e.currentTarget.value)}
-          onBlur={() => setParam({ user: debouncedUser || undefined })}
-          size="xs"
-          w={180}
-        />
+        {canListUsers ? (
+          <Select
+            placeholder="Any user"
+            size="xs"
+            w={180}
+            clearable
+            searchable
+            value={search.user ?? null}
+            onChange={(v) => setParam({ user: v || undefined })}
+            data={(users.data ?? []).map((u) => u.username)}
+          />
+        ) : (
+          <TextInput
+            placeholder="Filter by user"
+            value={user}
+            onChange={(e) => setUser(e.currentTarget.value)}
+            onBlur={() => setParam({ user: debouncedUser || undefined })}
+            size="xs"
+            w={180}
+          />
+        )}
         <Select
           placeholder="Any action"
           size="xs"

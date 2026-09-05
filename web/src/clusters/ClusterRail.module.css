@@ -39,6 +39,16 @@
   color: var(--as-node-unmanaged);
 }
 
+/* Environment group header dot — an admin-chosen colour read from the record
+   itself, not a semantic token (see ClusterRailNav's doc comment). */
+.envDot {
+  display: inline-block;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .footer {
   margin-block-start: auto;
   padding-block-start: 12px;

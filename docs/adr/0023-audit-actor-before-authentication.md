@@ -1,6 +1,6 @@
 # ADR-0023: Audit actor resolution before authentication exists
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0041](0041-audit-actor-tokens-and-real-identity.md)
 - **Date**: 2026-09-04
 - **Deciders**: Mahdi Amirabdollahi
 

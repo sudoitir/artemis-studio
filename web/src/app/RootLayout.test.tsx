@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,9 +7,11 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../test/render.tsx';
 import { server } from '../test/setup.ts';
 
+const navigate = vi.fn();
+
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({}),
-  useNavigate: () => () => {},
+  useNavigate: () => navigate,
   useLocation: () => ({ pathname: '/' }),
   Outlet: () => null,
   Link: ({
@@ -39,6 +41,8 @@ function mockEmptyQueues() {
       HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 }),
     ),
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+    // ClusterRailNav groups clusters by environment (authorization spec).
+    http.get('*/api/v1/environments', () => HttpResponse.json([])),
   );
 }
 
@@ -57,6 +61,8 @@ function mockAuthenticated() {
 }
 
 describe('RootLayout sidebar collapse', () => {
+  afterEach(() => navigate.mockClear());
+
   it('persists the collapse toggle to localStorage and restores it on remount without a flash', async () => {
     mockAuthenticated();
     mockEmptyQueues();
@@ -87,5 +93,49 @@ describe('RootLayout sidebar collapse', () => {
     renderWithProviders(<RootLayout />);
 
     expect(await screen.findByRole('link', { name: /prod-emea/ })).toBeInTheDocument();
+  });
+});
+
+describe('RootLayout user menu', () => {
+  afterEach(() => navigate.mockClear());
+
+  it('shows the username, an Administration link for an admin, and logs out', async () => {
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(
+      http.get('*/api/v1/clusters', () => HttpResponse.json([])),
+      http.post('*/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RootLayout />);
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+    expect(await screen.findByText('test-user')).toBeInTheDocument();
+    expect(await screen.findByText('Administration')).toBeInTheDocument();
+
+    await user.click(await screen.findByText('Log out'));
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/login' }));
+  });
+
+  it('hides the Administration entry for a non-admin user', async () => {
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({
+          id: 'u2',
+          username: 'viewer',
+          mustChangePassword: false,
+          grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
+        }),
+      ),
+    );
+    mockEmptyQueues();
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json([])));
+    const user = userEvent.setup();
+    renderWithProviders(<RootLayout />);
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+    expect(await screen.findByText('viewer')).toBeInTheDocument();
+    expect(screen.queryByText('Administration')).not.toBeInTheDocument();
   });
 });
