@@ -134,7 +134,7 @@ public class CapabilityProbe {
             return CapabilityAssessment.available(
                     "Available through Jolokia: browse, send, move/retry/delete/expire and purge all work."
                             + " Bodies are carried as text and the broker truncates oversized body/property"
-                            + " values (disclosed per message); faithful binary message I/O is Phase 4 (Core client).");
+                            + " values (disclosed per message); faithful binary message I/O needs the Core client.");
         }
         return CapabilityAssessment.unavailable("Needs management-write access, which this connection does not have.");
     }

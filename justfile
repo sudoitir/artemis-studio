@@ -53,10 +53,13 @@ setup:
             deploy/compose/.env.example > "$env"
         echo "→ wrote $env with generated secrets"
     fi
-    latest=$(git ls-remote --tags --refs origin 2>/dev/null | sed 's;.*/;;' \
-        | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | tail -1 || true)
+    # BSD- and GNU-portable: no `sed -i`, no `sort -V`.
+    latest=$(git ls-remote --tags --refs origin 2>/dev/null | sed 's;.*refs/tags/;;' \
+        | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1 || true)
     if [ -n "$latest" ]; then
-        sed -i "s|^STUDIO_IMAGE=.*|STUDIO_IMAGE=sudoit1/artemis-studio:$latest|" "$env"
+        tmp=$(mktemp)
+        sed "s|^STUDIO_IMAGE=.*|STUDIO_IMAGE=sudoit1/artemis-studio:$latest|" "$env" > "$tmp"
+        mv "$tmp" "$env"
         echo "→ pinned STUDIO_IMAGE to :$latest"
     else
         echo "→ no release tag found; STUDIO_IMAGE stays :dev"

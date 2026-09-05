@@ -132,6 +132,11 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
+          # No SBOM/provenance attestations: they add `unknown/unknown` manifest
+          # entries that clutter the Docker Hub tag view and hide the real arches.
+          # ADR-0042 defers supply-chain attestation until there are verifiers.
+          provenance: false
+          sbom: false
           # Registry cache: not size-capped like GHA, shared across every run and
           # readable by PR builds. mode=max caches the web/maven build stages too.
           cache-from: |
