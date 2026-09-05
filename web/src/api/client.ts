@@ -74,6 +74,29 @@ export type NotificationChannelView = Schemas['NotificationChannelView'];
 export type NotificationChannelRequest = Schemas['NotificationChannelRequest'];
 export type ClusterFiringCountView = Schemas['ClusterFiringCountView'];
 
+// ── identity-and-sessions / authorization / environments / api-tokens / oidc-sso ──
+
+export type LoginRequest = Schemas['LoginRequest'];
+export type ChangePasswordRequest = Schemas['ChangePasswordRequest'];
+export type MeView = Schemas['MeView'];
+export type GrantView = Schemas['GrantView'];
+export type UserView = Schemas['UserView'];
+export type CreateUserRequest = Schemas['CreateUserRequest'];
+export type SetDisabledRequest = Schemas['SetDisabledRequest'];
+export type GrantRequest = Schemas['GrantRequest'];
+export type GrantSummary = Schemas['GrantSummary'];
+export type RoleView = Schemas['RoleView'];
+export type RoleRequest = Schemas['RoleRequest'];
+export type PermissionView = Schemas['PermissionView'];
+export type EnvironmentView = Schemas['EnvironmentView'];
+export type EnvironmentRequest = Schemas['EnvironmentRequest'];
+export type TokenView = Schemas['TokenView'];
+export type CreatedTokenView = Schemas['CreatedTokenView'];
+export type CreateTokenRequest = Schemas['CreateTokenRequest'];
+export type TokenGrantRequest = Schemas['TokenGrantRequest'];
+export type OidcMappingView = Schemas['OidcMappingView'];
+export type OidcMappingRequest = Schemas['OidcMappingRequest'];
+
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
 export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
 export type SplitBrain = 'NONE' | 'SUSPECTED' | 'CRITICAL';
@@ -113,11 +136,31 @@ export class ApiError extends Error {
   }
 }
 
+/** Reads the `XSRF-TOKEN` cookie Spring Security's `CookieCsrfTokenRepository` sets (identity-and-sessions spec). */
+function csrfToken(): string | undefined {
+  return document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('XSRF-TOKEN='))
+    ?.split('=')[1];
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (method !== 'GET' && method !== 'HEAD') {
+    const token = csrfToken();
+    if (token) headers['X-XSRF-TOKEN'] = token;
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'content-type': 'application/json', ...init?.headers },
+    credentials: 'same-origin',
+    headers: { ...headers, ...init?.headers },
     ...init,
   });
+  if (res.status === 401 && !window.location.pathname.startsWith('/login')) {
+    // The session expired or was never established — bounce to the login screen.
+    // A full navigation (not client-side) so every in-flight query state resets.
+    window.location.assign('/login');
+  }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
@@ -178,6 +221,13 @@ export const keys = {
     ['clusters', id, 'alerts', 'history', page, size] as const,
   channels: ['channels'] as const,
   firingCounts: ['alerts', 'firing'] as const,
+  me: ['auth', 'me'] as const,
+  users: ['users'] as const,
+  roles: ['roles'] as const,
+  permissions: ['permissions'] as const,
+  environments: ['environments'] as const,
+  tokens: ['tokens'] as const,
+  oidcMappings: ['oidc', 'mappings'] as const,
 };
 
 // ── queries ────────────────────────────────────────────────────────────────
@@ -761,11 +811,12 @@ export function useAlertHistory(
 }
 
 /** Cross-cluster open-firing counts for the shell badge — polled, since the SSE stream is per-cluster. */
-export function useFiringCounts(): UseQueryResult<ClusterFiringCountView[], ApiError> {
+export function useFiringCounts(enabled = true): UseQueryResult<ClusterFiringCountView[], ApiError> {
   return useQuery({
     queryKey: keys.firingCounts,
     queryFn: () => request<ClusterFiringCountView[]>('/alerts/firing'),
     refetchInterval: 30_000,
+    enabled,
   });
 }
 
@@ -832,5 +883,205 @@ export function useRotateCredentials(clusterId: string) {
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
+  });
+}
+
+// ── identity-and-sessions (ADR-0037) ────────────────────────────────────────
+
+/** `retry: false` — a 401 here means "not logged in," which retrying cannot fix. */
+export function useMe(): UseQueryResult<MeView, ApiError> {
+  return useQuery({
+    queryKey: keys.me,
+    queryFn: () => request<MeView>('/auth/me'),
+    retry: false,
+  });
+}
+
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation<MeView, ApiError, LoginRequest>({
+    mutationFn: (body) => request<MeView>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: (me) => qc.setQueryData(keys.me, me),
+  });
+}
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, void>({
+    mutationFn: () => request<void>('/auth/logout', { method: 'POST' }),
+    onSuccess: () => qc.setQueryData(keys.me, undefined),
+  });
+}
+
+export function useChangePassword() {
+  return useMutation<void, ApiError, ChangePasswordRequest>({
+    mutationFn: (body) => request<void>('/auth/password', { method: 'POST', body: JSON.stringify(body) }),
+  });
+}
+
+// ── authorization: users, roles, permissions (ADR-0038) ─────────────────────
+
+export function useUsers(): UseQueryResult<UserView[], ApiError> {
+  return useQuery({ queryKey: keys.users, queryFn: () => request<UserView[]>('/users') });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation<UserView, ApiError, CreateUserRequest>({
+    mutationFn: (body) => request<UserView>('/users', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
+export function useSetUserDisabled() {
+  const qc = useQueryClient();
+  return useMutation<UserView, ApiError, { userId: string; disabled: boolean }>({
+    mutationFn: ({ userId, disabled }) =>
+      request<UserView>(`/users/${userId}/disabled`, {
+        method: 'PUT',
+        body: JSON.stringify({ disabled } satisfies SetDisabledRequest),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
+export function useAddGrant() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, { userId: string; body: GrantRequest }>({
+    mutationFn: ({ userId, body }) =>
+      request<void>(`/users/${userId}/grants`, { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
+export function useRemoveGrant() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, { userId: string; roleId: string; scopeType: string; scopeId?: string }>({
+    mutationFn: ({ userId, roleId, scopeType, scopeId }) => {
+      const qs = new URLSearchParams({ scopeType, ...(scopeId ? { scopeId } : {}) });
+      return request<void>(`/users/${userId}/grants/${roleId}?${qs}`, { method: 'DELETE' });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
+export function useRoles(): UseQueryResult<RoleView[], ApiError> {
+  return useQuery({ queryKey: keys.roles, queryFn: () => request<RoleView[]>('/roles') });
+}
+
+export function usePermissionsCatalogue(): UseQueryResult<PermissionView[], ApiError> {
+  return useQuery({ queryKey: keys.permissions, queryFn: () => request<PermissionView[]>('/permissions') });
+}
+
+export function useCreateRole() {
+  const qc = useQueryClient();
+  return useMutation<RoleView, ApiError, RoleRequest>({
+    mutationFn: (body) => request<RoleView>('/roles', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
+  });
+}
+
+export function useUpdateRole() {
+  const qc = useQueryClient();
+  return useMutation<RoleView, ApiError, { roleId: string; body: RoleRequest }>({
+    mutationFn: ({ roleId, body }) =>
+      request<RoleView>(`/roles/${roleId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
+  });
+}
+
+export function useDeleteRole() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (roleId) => request<void>(`/roles/${roleId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
+  });
+}
+
+// ── environments ─────────────────────────────────────────────────────────────
+
+export function useEnvironments(): UseQueryResult<EnvironmentView[], ApiError> {
+  return useQuery({ queryKey: keys.environments, queryFn: () => request<EnvironmentView[]>('/environments') });
+}
+
+export function useCreateEnvironment() {
+  const qc = useQueryClient();
+  return useMutation<EnvironmentView, ApiError, EnvironmentRequest>({
+    mutationFn: (body) => request<EnvironmentView>('/environments', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
+  });
+}
+
+export function useUpdateEnvironment() {
+  const qc = useQueryClient();
+  return useMutation<EnvironmentView, ApiError, { environmentId: string; body: EnvironmentRequest }>({
+    mutationFn: ({ environmentId, body }) =>
+      request<EnvironmentView>(`/environments/${environmentId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
+  });
+}
+
+export function useDeleteEnvironment() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (environmentId) => request<void>(`/environments/${environmentId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
+  });
+}
+
+export function useAssignClusterEnvironment(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string | null>({
+    mutationFn: (environmentId) =>
+      request<void>(`/clusters/${clusterId}/environment`, {
+        method: 'PUT',
+        body: JSON.stringify({ environmentId }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
+// ── API tokens ───────────────────────────────────────────────────────────────
+
+export function useTokens(): UseQueryResult<TokenView[], ApiError> {
+  return useQuery({ queryKey: keys.tokens, queryFn: () => request<TokenView[]>('/tokens') });
+}
+
+export function useCreateToken() {
+  const qc = useQueryClient();
+  return useMutation<CreatedTokenView, ApiError, CreateTokenRequest>({
+    mutationFn: (body) => request<CreatedTokenView>('/tokens', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tokens }),
+  });
+}
+
+export function useRevokeToken() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (tokenId) => request<void>(`/tokens/${tokenId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tokens }),
+  });
+}
+
+// ── OIDC role mappings (oidc-sso spec) ──────────────────────────────────────
+
+export function useOidcMappings(): UseQueryResult<OidcMappingView[], ApiError> {
+  return useQuery({ queryKey: keys.oidcMappings, queryFn: () => request<OidcMappingView[]>('/oidc/mappings') });
+}
+
+export function useCreateOidcMapping() {
+  const qc = useQueryClient();
+  return useMutation<OidcMappingView, ApiError, OidcMappingRequest>({
+    mutationFn: (body) =>
+      request<OidcMappingView>('/oidc/mappings', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
+  });
+}
+
+export function useDeleteOidcMapping() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (mappingId) => request<void>(`/oidc/mappings/${mappingId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
   });
 }

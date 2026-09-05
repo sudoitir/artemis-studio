@@ -13,9 +13,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Authenticates a {@code Authorization: Bearer as_...} request independently of
- * any session cookie (api-tokens spec, design.md decision 5). Placed ahead of
- * the session-context filter so a request carrying a valid token never needs a
- * session at all.
+ * any session cookie (api-tokens spec, design.md decision 5). Placed after
+ * {@code SecurityContextHolderFilter}, which would otherwise overwrite this
+ * filter's authentication with the (session-less) empty context it loads from
+ * the repository.
  */
 @RequiredArgsConstructor
 public class ApiTokenAuthenticationFilter extends OncePerRequestFilter {

@@ -88,7 +88,11 @@ public class AuthService {
 
     @Transactional
     public void changePassword(
-            StudioPrincipal principal, String currentPassword, String newPassword, HttpServletRequest request) {
+            StudioPrincipal principal,
+            String currentPassword,
+            String newPassword,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         AppUserEntity user =
                 users.findById(principal.userId()).orElseThrow(() -> new NotFoundException("user", principal.userId()));
         if (user.getPasswordHash() == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
@@ -108,6 +112,12 @@ public class AuthService {
                         null,
                         false),
                 1);
+        // The session's principal still carries the old mustChangePassword=true —
+        // re-authenticate with a fresh one so MustChangePasswordFilter unlocks
+        // immediately, without forcing a separate login.
+        StudioPrincipal refreshed =
+                new StudioPrincipal(user.getId(), user.getUsername(), grantLoader.loadFor(user.getId()), false);
+        authenticate(refreshed, request, response);
     }
 
     private void authenticate(StudioPrincipal principal, HttpServletRequest request, HttpServletResponse response) {

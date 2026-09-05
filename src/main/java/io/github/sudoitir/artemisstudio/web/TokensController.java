@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.web;
 import io.github.sudoitir.artemisstudio.persist.ApiTokenEntity;
 import io.github.sudoitir.artemisstudio.security.ApiTokenService;
 import io.github.sudoitir.artemisstudio.security.Grant;
+import io.github.sudoitir.artemisstudio.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.web.dto.TokenViews.CreateTokenRequest;
 import io.github.sudoitir.artemisstudio.web.dto.TokenViews.CreatedTokenView;
@@ -47,7 +48,10 @@ public class TokensController {
     public CreatedTokenView create(
             @AuthenticationPrincipal StudioPrincipal principal, @Valid @RequestBody CreateTokenRequest request) {
         List<Grant> requested = request.grants().stream()
-                .map(g -> new Grant(Grant.ScopeType.valueOf(g.scopeType()), g.scopeId(), Set.of(g.action())))
+                .map(g -> new Grant(
+                        Grant.ScopeType.valueOf(g.scopeType()),
+                        g.scopeId() != null ? g.scopeId() : ScopeIds.GLOBAL,
+                        Set.of(g.action())))
                 .toList();
         var minted = tokens.mint(principal.userId(), request.name(), request.expiresAt(), requested);
         return new CreatedTokenView(toView(minted.entity()), minted.plaintext());

@@ -3,7 +3,9 @@ package io.github.sudoitir.artemisstudio.web.dto;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -14,14 +16,14 @@ public final class TokenViews {
     private TokenViews() {}
 
     public record TokenGrantRequest(
-            @Schema(requiredMode = REQUIRED) String action,
-            @Schema(requiredMode = REQUIRED) String scopeType,
+            @NotBlank @Schema(requiredMode = REQUIRED) String action,
+            @NotBlank @Schema(requiredMode = REQUIRED) String scopeType,
             @Schema(nullable = true) UUID scopeId) {}
 
     public record CreateTokenRequest(
             @NotBlank String name,
             @Schema(nullable = true) Instant expiresAt,
-            @Schema(requiredMode = REQUIRED) List<TokenGrantRequest> grants) {}
+            @NotEmpty @Schema(requiredMode = REQUIRED) List<@Valid TokenGrantRequest> grants) {}
 
     public record TokenView(
             @Schema(requiredMode = REQUIRED) UUID id,

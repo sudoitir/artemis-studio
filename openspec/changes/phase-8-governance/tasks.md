@@ -244,14 +244,29 @@
       once a minute (`@Scheduled(fixedRate = 60_000)`), not on every call.
 - [x] 8.5 `web/TokensController.java` (`/api/v1/tokens`), `web/dto/TokenViews.java`.
       `web/src/admin/TokensPanel.tsx` deferred to section 7 (frontend admin).
+      Manual verification found two bugs, both fixed: a blank/missing
+      `TokenGrantRequest.action` threw an unhandled NPE (500) instead of a 400
+      — fixed with `@NotBlank`/`@NotEmpty`/`@Valid` on the nested list; and a
+      `GLOBAL`-scoped grant with `scopeId: null` (the natural request shape,
+      matching `UserService.addGrant`'s convention) violated `api_token_grant`'s
+      NOT NULL `scope_id` column — fixed by defaulting to `ScopeIds.GLOBAL` in
+      `TokensController.create`, same as `UserService.addGrant` already does.
 - [x] 8.6 Audit rows for token-authenticated actions record owner + token
       name: `Actor` gained a `tokenName` field, folded into the stored
       `username` as `"<owner> [token: <name>]"` by `Actor.displayName()` —
       no new `audit_event` column needed. `TOKEN_CREATE`/`TOKEN_REVOKE`
       audited in `ApiTokenService`.
-- [ ] 8.7 `ApiTokenAuthenticationFilterTest` — valid, expired, revoked,
+- [x] 8.7 `ApiTokenAuthenticationFilterTest` — valid, expired, revoked,
       wrong-prefix, narrowed-below-owner, owner-demoted-narrows-token,
-      owner-disabled-disables-token.
+      owner-disabled-disables-token. Written against the real
+      `SecurityFilterChain` (not a unit test on the filter alone), which is
+      what caught a real filter-ordering bug: `ApiTokenAuthenticationFilter`
+      was registered `addFilterBefore(SecurityContextHolderFilter)`, so
+      `SecurityContextHolderFilter` ran immediately after it and overwrote the
+      bearer authentication with the empty session-less context it loads from
+      the repository — every bearer-token request was silently falling back to
+      401. Fixed to `addFilterAfter`; confirmed the new test fails on the old
+      ordering and passes on the fix.
 
 ## 9. OIDC
 

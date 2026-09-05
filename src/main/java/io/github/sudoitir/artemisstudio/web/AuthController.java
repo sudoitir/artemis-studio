@@ -52,8 +52,9 @@ public class AuthController {
     public void changePassword(
             @AuthenticationPrincipal StudioPrincipal principal,
             @Valid @RequestBody ChangePasswordRequest request,
-            HttpServletRequest req) {
-        authService.changePassword(principal, request.currentPassword(), request.newPassword(), req);
+            HttpServletRequest req,
+            HttpServletResponse resp) {
+        authService.changePassword(principal, request.currentPassword(), request.newPassword(), req, resp);
     }
 
     private static MeView toView(StudioPrincipal principal) {

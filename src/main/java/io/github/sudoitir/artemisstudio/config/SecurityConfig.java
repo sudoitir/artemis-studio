@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.config;
 
 import io.github.sudoitir.artemisstudio.security.ApiTokenAuthenticationFilter;
 import io.github.sudoitir.artemisstudio.security.ApiTokenService;
+import io.github.sudoitir.artemisstudio.security.CsrfCookieFilter;
 import io.github.sudoitir.artemisstudio.security.MustChangePasswordFilter;
 import io.github.sudoitir.artemisstudio.security.oidc.OidcAuthenticationSuccessHandler;
 import org.springframework.beans.factory.ObjectProvider;
@@ -67,9 +68,13 @@ public class SecurityConfig {
                                 // reachable unauthenticated, or the login page itself cannot load.
                                 .anyRequest()
                                 .permitAll())
-                .addFilterBefore(new ApiTokenAuthenticationFilter(apiTokenService), SecurityContextHolderFilter.class)
+                // SecurityContextHolderFilter loads (empty, session-less) context from the
+                // repository and would overwrite a bearer authentication set before it runs —
+                // this filter must come after, not before.
+                .addFilterAfter(new ApiTokenAuthenticationFilter(apiTokenService), SecurityContextHolderFilter.class)
                 .addFilterAfter(
-                        new MustChangePasswordFilter(handlerExceptionResolver), SecurityContextHolderFilter.class);
+                        new MustChangePasswordFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
+                .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
 
         // OIDC/SSO (ADR-0040) is opt-in: with no spring.security.oauth2.client.registration.*
         // configured, Boot creates no ClientRegistrationRepository bean at all, and

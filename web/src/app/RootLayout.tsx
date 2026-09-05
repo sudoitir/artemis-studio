@@ -1,16 +1,19 @@
-import { AppShell, Badge, Group, ScrollArea, Text } from '@mantine/core';
+import { useEffect } from 'react';
+import { AppShell, Badge, Center, Group, Loader, ScrollArea, Text } from '@mantine/core';
 import { useHotkeys, useReducedMotion } from '@mantine/hooks';
-import { Outlet, useParams } from '@tanstack/react-router';
+import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 
 import { branding } from '../branding.ts';
-import { useFiringCounts } from '../api/client.ts';
+import { useFiringCounts, useMe } from '../api/client.ts';
 import { ClusterRailNav } from './ClusterRailNav.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
 import { CommandPalette } from '../palette/CommandPalette.tsx';
 import { NavToggle } from './NavToggle.tsx';
+import { UserMenu } from './UserMenu.tsx';
 import { useNavCollapsed } from './useNavCollapsed.ts';
 
 const NAVBAR_ID = 'as-navbar';
+const PUBLIC_PATHS = ['/login', '/change-password'];
 
 /**
  * The desktop workspace chrome: a fixed header, the collapsible sidebar (cluster
@@ -27,10 +30,42 @@ export function RootLayout() {
   const { collapsed, toggle } = useNavCollapsed();
   const reducedMotion = useReducedMotion();
   const { clusterId } = useParams({ strict: false }) as { clusterId?: string };
-  const firingCounts = useFiringCounts();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isPublicRoute = PUBLIC_PATHS.includes(location.pathname);
+  const me = useMe();
+
+  useEffect(() => {
+    if (isPublicRoute) return;
+    if (me.isError && me.error.status === 401) {
+      navigate({ to: '/login' });
+    } else if (me.data?.mustChangePassword && location.pathname !== '/change-password') {
+      navigate({ to: '/change-password' });
+    }
+  }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
+
+  // Every hook above runs unconditionally on every render; only the JSX branches.
+  const firingCounts = useFiringCounts(!isPublicRoute);
   const totalFiring = (firingCounts.data ?? []).reduce((sum, c) => sum + c.firing, 0);
 
   useHotkeys([['mod+B', toggle]]);
+
+  if (isPublicRoute) {
+    return <Outlet />;
+  }
+
+  if (me.isLoading) {
+    return (
+      <Center mih="100vh">
+        <Loader />
+      </Center>
+    );
+  }
+
+  if (me.isError || me.data?.mustChangePassword) {
+    // The effect above is already navigating away; render nothing in the meantime.
+    return null;
+  }
 
   return (
     <AppShell
@@ -55,9 +90,12 @@ export function RootLayout() {
               </Badge>
             ) : null}
           </Group>
-          <Text size="xs" c="dimmed">
-            <kbd>⌘</kbd> <kbd>K</kbd> search · <kbd>⌘</kbd> <kbd>B</kbd> sidebar
-          </Text>
+          <Group gap="md">
+            <Text size="xs" c="dimmed">
+              <kbd>⌘</kbd> <kbd>K</kbd> search · <kbd>⌘</kbd> <kbd>B</kbd> sidebar
+            </Text>
+            <UserMenu me={me.data} />
+          </Group>
         </Group>
       </AppShell.Header>
 

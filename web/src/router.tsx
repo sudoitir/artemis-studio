@@ -22,6 +22,9 @@ import { SettingsView } from './settings/SettingsView.tsx';
 import { MetricsView } from './metrics/MetricsView.tsx';
 import { METRIC_RANGES, type MetricRange } from './metrics/ranges.ts';
 import { AlertsView } from './alerts/AlertsView.tsx';
+import { LoginView } from './auth/LoginView.tsx';
+import { ChangePasswordView } from './auth/ChangePasswordView.tsx';
+import { AdminView } from './admin/AdminView.tsx';
 
 /** Navigable state that belongs in the URL, not local state (non-negotiable #9). */
 export interface ResourceSearch {
@@ -61,6 +64,37 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: HomeView,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'login',
+  component: LoginView,
+});
+
+const changePasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'change-password',
+  component: ChangePasswordView,
+});
+
+function validateAdminSearch(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (
+    typeof raw.tab === 'string' &&
+    ['users', 'roles', 'environments', 'tokens', 'oidc'].includes(raw.tab)
+  ) {
+    out.tab = raw.tab;
+  }
+  return out;
+}
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin',
+  component: AdminView,
+  validateSearch: validateAdminSearch,
+  errorComponent: RouteError,
 });
 
 const clusterRoute = createRoute({
@@ -219,6 +253,9 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  loginRoute,
+  changePasswordRoute,
+  adminRoute,
   clusterRoute.addChildren([
     clusterIndexRoute,
     topologyRoute,

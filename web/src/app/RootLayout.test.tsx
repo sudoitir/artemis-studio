@@ -10,6 +10,7 @@ import { server } from '../test/setup.ts';
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({}),
   useNavigate: () => () => {},
+  useLocation: () => ({ pathname: '/' }),
   Outlet: () => null,
   Link: ({
     to,
@@ -37,18 +38,34 @@ function mockEmptyQueues() {
     http.get(/\/api\/v1\/clusters\/.*\/queues/, () =>
       HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 }),
     ),
+    http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+  );
+}
+
+// RootLayout gates its shell behind `/auth/me` (identity-and-sessions spec).
+function mockAuthenticated() {
+  server.use(
+    http.get('*/api/v1/auth/me', () =>
+      HttpResponse.json({
+        id: 'u1',
+        username: 'test-user',
+        mustChangePassword: false,
+        grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
+      }),
+    ),
   );
 }
 
 describe('RootLayout sidebar collapse', () => {
   it('persists the collapse toggle to localStorage and restores it on remount without a flash', async () => {
+    mockAuthenticated();
     mockEmptyQueues();
     server.use(http.get('*/api/v1/clusters', () => HttpResponse.json([])));
     const user = userEvent.setup();
     localStorage.removeItem('as:nav:collapsed');
 
     const { unmount } = renderWithProviders(<RootLayout />);
-    const toggle = screen.getByRole('button', { name: 'Collapse sidebar' });
+    const toggle = await screen.findByRole('button', { name: 'Collapse sidebar' });
     await user.click(toggle);
 
     expect(localStorage.getItem('as:nav:collapsed')).toBe('true');
@@ -59,6 +76,7 @@ describe('RootLayout sidebar collapse', () => {
   });
 
   it('keeps collapsed cluster rows reachable by name for a screen reader', async () => {
+    mockAuthenticated();
     mockEmptyQueues();
     server.use(
       http.get('*/api/v1/clusters', () =>
