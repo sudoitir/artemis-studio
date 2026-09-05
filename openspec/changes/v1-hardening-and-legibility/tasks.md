@@ -1,14 +1,14 @@
 ## 1. Slice 0 — clean base and broker surface spike
 
-- [ ] 1.1 Branch `v1-hardening` and commit the existing 9-file working tree, so the four slices start from a clean base
-- [ ] 1.2 Bring up the dev stack (`just dev-up`): primary `:8161` broker="primary", backup `:8261` broker="backup"
-- [ ] 1.3 **Q1** — read the broker MBean on both sides; record whether a passive backup answers management reads at all and how much of the surface it exposes
-- [ ] 1.4 **Q2** — capture the full attribute list and operation catalogue from both sides (`/list`)
-- [ ] 1.5 **Q3** — exec `getAddressSettingsAsJSON("#")` and record whether `slowConsumerThreshold`, `-CheckPeriod` and `-Policy` are actually returned, or only `slowConsumerThresholdMeasurementUnit` as the Phase-0 capture suggests
-- [ ] 1.6 **Q4** — record whether `getRolesAsJSON` and the acceptor MBeans (`component=acceptors,*`) exist and answer
-- [ ] 1.7 **Q5** — check `010-broker-events.sql`'s type CHECK constraint against `CONSUMER_SLOW`
-- [ ] 1.8 Write `## 14. v1.0 surface checks` in `docs/broker-management-notes.md` with a verdict table, in the style of the existing "Phase N surface checks" sections
-- [ ] 1.9 Record the consequences of the verdicts: whether native slow-consumer state is UNKNOWN (Q3), whether the `securitySettings` / `acceptors` diff sections exist (Q4), whether a new changeset is needed (Q5), and whether the pair diff degrades to a stated-limitation mode (Q1)
+- [x] 1.1 Branch `v1-hardening` and commit the existing 9-file working tree, so the four slices start from a clean base
+- [x] 1.2 Bring up the dev stack (`just dev-up`): primary `:8161` broker="primary", backup `:8261` broker="backup"
+- [x] 1.3 **Q1** — read the broker MBean on both sides; record whether a passive backup answers management reads at all and how much of the surface it exposes
+- [x] 1.4 **Q2** — capture the full attribute list and operation catalogue from both sides (`/list`)
+- [x] 1.5 **Q3** — exec `getAddressSettingsAsJSON("#")` and record whether `slowConsumerThreshold`, `-CheckPeriod` and `-Policy` are actually returned, or only `slowConsumerThresholdMeasurementUnit` as the Phase-0 capture suggests
+- [x] 1.6 **Q4** — record whether `getRolesAsJSON` and the acceptor MBeans (`component=acceptors,*`) exist and answer
+- [x] 1.7 **Q5** — check `010-broker-events.sql`'s type CHECK constraint against `CONSUMER_SLOW`
+- [x] 1.8 Write `## 14. v1.0 surface checks` in `docs/broker-management-notes.md` with a verdict table, in the style of the existing "Phase N surface checks" sections
+- [x] 1.9 Record the consequences of the verdicts: whether native slow-consumer state is UNKNOWN (Q3), whether the `securitySettings` / `acceptors` diff sections exist (Q4), whether a new changeset is needed (Q5), and whether the pair diff degrades to a stated-limitation mode (Q1)
 
 ## 2. Slice 1 — topology view
 
