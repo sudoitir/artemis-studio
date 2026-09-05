@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -15,6 +15,9 @@ vi.mock('@tanstack/react-router', () => ({
 const { LoginView } = await import('./LoginView.tsx');
 
 describe('LoginView', () => {
+  beforeEach(() => {
+    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([])));
+  });
   afterEach(() => navigate.mockClear());
 
   it('submits credentials and navigates home on success', async () => {
@@ -67,5 +70,19 @@ describe('LoginView', () => {
 
     expect(await screen.findByText('Invalid username or password.')).toBeInTheDocument();
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('shows an SSO entry point when a provider is configured', async () => {
+    server.use(
+      http.get('*/api/v1/auth/providers', () =>
+        HttpResponse.json([
+          { registrationId: 'okta', label: 'Okta', authorizationUrl: '/oauth2/authorization/okta' },
+        ]),
+      ),
+    );
+    renderWithProviders(<LoginView />);
+
+    const link = await screen.findByRole('link', { name: 'Sign in with Okta' });
+    expect(link).toHaveAttribute('href', '/oauth2/authorization/okta');
   });
 });

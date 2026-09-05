@@ -1,19 +1,20 @@
 import { useState } from 'react';
-import { Alert, Button, Center, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Button, Center, Divider, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { branding } from '../branding.ts';
-import { ApiError, useLogin } from '../api/client.ts';
+import { ApiError, useAuthProviders, useLogin } from '../api/client.ts';
 
 /**
- * Local username/password login (identity-and-sessions spec). An OIDC entry
- * point is added here once a provider is configured — see
- * `ArtemisStudioProperties.security` and ADR-0040.
+ * Local username/password login (identity-and-sessions spec), plus an SSO
+ * entry point per configured OIDC provider (ADR-0040) — `/auth/providers` is
+ * empty when none is configured, so the divider and buttons simply don't render.
  */
 export function LoginView() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const login = useLogin();
+  const providers = useAuthProviders();
   const navigate = useNavigate();
 
   function onSubmit(e: React.FormEvent) {
@@ -62,6 +63,19 @@ export function LoginView() {
               </Button>
             </Stack>
           </form>
+
+          {providers.data && providers.data.length > 0 ? (
+            <>
+              <Divider label="or" labelPosition="center" />
+              <Stack gap="xs">
+                {providers.data.map((p) => (
+                  <Button key={p.registrationId} component="a" href={p.authorizationUrl} variant="default" fullWidth>
+                    Sign in with {p.label}
+                  </Button>
+                ))}
+              </Stack>
+            </>
+          ) : null}
         </Stack>
       </Paper>
     </Center>

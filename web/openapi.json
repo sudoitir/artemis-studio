@@ -2351,6 +2351,27 @@
         }
       }
     },
+    "/api/v1/auth/providers" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "providers",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProviderView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/me" : {
       "get" : {
         "tags" : [ "auth-controller" ],
@@ -4662,6 +4683,21 @@
           }
         },
         "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "ProviderView" : {
+        "type" : "object",
+        "properties" : {
+          "registrationId" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "authorizationUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "authorizationUrl", "label", "registrationId" ]
       },
       "ClusterFiringCountView" : {
         "type" : "object",

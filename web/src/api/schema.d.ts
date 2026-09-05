@@ -804,6 +804,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["providers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -1705,6 +1721,11 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
+        };
+        ProviderView: {
+            registrationId: string;
+            label: string;
+            authorizationUrl: string;
         };
         ClusterFiringCountView: {
             /** Format: uuid */
@@ -3337,6 +3358,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewAddressView"];
+                };
+            };
+        };
+    };
+    providers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProviderView"][];
                 };
             };
         };

@@ -28,4 +28,9 @@ public final class AuthViews {
             @Schema(requiredMode = REQUIRED) String username,
             @Schema(requiredMode = REQUIRED) boolean mustChangePassword,
             @Schema(requiredMode = REQUIRED) List<GrantView> grants) {}
+
+    public record ProviderView(
+            @Schema(requiredMode = REQUIRED) String registrationId,
+            @Schema(requiredMode = REQUIRED) String label,
+            @Schema(requiredMode = REQUIRED) String authorizationUrl) {}
 }

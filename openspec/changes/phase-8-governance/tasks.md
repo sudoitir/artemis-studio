@@ -298,12 +298,18 @@
 - [x] 9.5 `service/OidcMappingService.java` + `web/OidcMappingController.java`
       (`/api/v1/oidc/mappings`, CRUD). `web/src/admin/OidcMappingPanel.tsx`
       deferred to section 7.
-- [ ] 9.6 `LoginView.tsx`: show the SSO entry point alongside local login when
-      a provider is configured.
-- [ ] 9.7 `ClaimRoleMapperTest`, `StudioOidcUserServiceTest` — JIT
+- [x] 9.6 `LoginView.tsx`: show the SSO entry point alongside local login when
+      a provider is configured. Needed a new public endpoint,
+      `GET /api/v1/auth/providers` (`AuthController`, allow-listed in
+      `SecurityConfig`), since the login screen has to know before any session
+      exists — `ClientRegistrationRepository`'s base interface has no listing
+      method, so it reads via the `Iterable` the Boot auto-configured
+      in-memory implementation also happens to implement.
+- [x] 9.7 `ClaimRoleMapperTest`, `StudioOidcUserServiceTest` — JIT
       provisioning, mapping re-application, refusal with no default role,
-      using a stubbed `ClientRegistrationRepository` (full authorization-code
-      flow is not end-to-end tested — note this explicitly, don't overclaim).
+      using a stubbed `OidcUser` (full authorization-code flow is not
+      end-to-end tested — no test IdP is practical in this suite; noted
+      explicitly rather than overclaiming coverage).
 
 ## 10. Docs and closeout
 

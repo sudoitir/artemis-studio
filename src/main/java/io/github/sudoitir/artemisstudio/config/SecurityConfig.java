@@ -59,15 +59,18 @@ public class SecurityConfig {
                         .ignoringRequestMatchers(request -> request.getHeader("Authorization") != null))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
-                .authorizeHttpRequests(
-                        auth -> auth.requestMatchers("/api/v1/auth/login", "/actuator/health", "/actuator/health/**")
-                                .permitAll()
-                                .requestMatchers("/api/**")
-                                .authenticated()
-                                // The SPA shell and its static assets (SpaRoutingConfig) must stay
-                                // reachable unauthenticated, or the login page itself cannot load.
-                                .anyRequest()
-                                .permitAll())
+                .authorizeHttpRequests(auth -> auth.requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/providers",
+                                "/actuator/health",
+                                "/actuator/health/**")
+                        .permitAll()
+                        .requestMatchers("/api/**")
+                        .authenticated()
+                        // The SPA shell and its static assets (SpaRoutingConfig) must stay
+                        // reachable unauthenticated, or the login page itself cannot load.
+                        .anyRequest()
+                        .permitAll())
                 // SecurityContextHolderFilter loads (empty, session-less) context from the
                 // repository and would overwrite a bearer authentication set before it runs —
                 // this filter must come after, not before.

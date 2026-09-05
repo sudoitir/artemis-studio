@@ -38,7 +38,7 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
      * {@code /api/**} must require authentication.
      */
     private static final Set<String> ALLOWED_UNAUTHENTICATED =
-            Set.of("/api/v1/auth/login", "/actuator/health", "/actuator/health/**");
+            Set.of("/api/v1/auth/login", "/api/v1/auth/providers", "/actuator/health", "/actuator/health/**");
 
     @Autowired
     WebApplicationContext webContext;

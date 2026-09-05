@@ -79,6 +79,7 @@ export type ClusterFiringCountView = Schemas['ClusterFiringCountView'];
 export type LoginRequest = Schemas['LoginRequest'];
 export type ChangePasswordRequest = Schemas['ChangePasswordRequest'];
 export type MeView = Schemas['MeView'];
+export type ProviderView = Schemas['ProviderView'];
 export type GrantView = Schemas['GrantView'];
 export type UserView = Schemas['UserView'];
 export type CreateUserRequest = Schemas['CreateUserRequest'];
@@ -222,6 +223,7 @@ export const keys = {
   channels: ['channels'] as const,
   firingCounts: ['alerts', 'firing'] as const,
   me: ['auth', 'me'] as const,
+  authProviders: ['auth', 'providers'] as const,
   users: ['users'] as const,
   roles: ['roles'] as const,
   permissions: ['permissions'] as const,
@@ -893,6 +895,15 @@ export function useMe(): UseQueryResult<MeView, ApiError> {
   return useQuery({
     queryKey: keys.me,
     queryFn: () => request<MeView>('/auth/me'),
+    retry: false,
+  });
+}
+
+/** Public, unauthenticated — the login screen needs this before any session exists. */
+export function useAuthProviders(): UseQueryResult<ProviderView[], ApiError> {
+  return useQuery({
+    queryKey: keys.authProviders,
+    queryFn: () => request<ProviderView[]>('/auth/providers'),
     retry: false,
   });
 }
