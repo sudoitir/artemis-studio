@@ -46,7 +46,9 @@ jobs:
       - run: npm run lint
       - run: npm test
 
+  # Pull requests: prove the Dockerfile still builds. Single-arch, no push.
   image:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     steps:
@@ -57,6 +59,123 @@ jobs:
         with:
           context: .
           push: false
-          tags: ghcr.io/sudoitir/artemis-studio:ci
+          tags: artemis-studio:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Pushes to main: cut a CalVer release. See .claude/rules/10-release.md.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute CalVer version
+        id: ver
+        run: |
+          BASE=$(date -u +%Y.%m)
+          LAST=$(git tag -l "$BASE.*" | sort -V | tail -1)
+          if [ -z "$LAST" ]; then PATCH=0; else PATCH=$(( ${LAST##*.} + 1 )); fi
+          VERSION="$BASE.$PATCH"
+          {
+            echo "version=$VERSION"
+            echo "month=$BASE"
+            echo "date=$(date -u +%Y-%m-%d)"
+          } >> "$GITHUB_OUTPUT"
+          echo "→ releasing $VERSION"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Set project version and build the jar
+        run: |
+          ./mvnw -B versions:set -DnewVersion="${{ steps.ver.outputs.version }}" -DgenerateBackupPoms=false
+          ./mvnw -B -Pfrontend -DskipTests package
+
+      - name: Stage release assets
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          cp target/artemis-studio.jar "artemis-studio-$V.jar"
+          sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:${{ steps.ver.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:${{ steps.ver.outputs.month }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:dev
+          labels: |
+            org.opencontainers.image.title=Artemis Studio
+            org.opencontainers.image.description=Cluster-wide management and observability for Apache ActiveMQ Artemis
+            org.opencontainers.image.version=${{ steps.ver.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.ver.outputs.date }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Promote changelog section
+        id: notes
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          D=${{ steps.ver.outputs.date }}
+          sed -i "0,/^## \[Unreleased\]/s//## [Unreleased]\n\n## [$V] — $D/" CHANGELOG.md
+          awk -v ver="$V" '
+            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+            flag && /^## \[/ { exit }
+            flag { print }
+          ' CHANGELOG.md > release-notes.md
+          echo "→ release body:"; cat release-notes.md
+
+      - name: Commit and tag
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "Release $V [skip ci]"
+          git tag -a "$V" -m "Release $V"
+          git push origin HEAD:main
+          git push origin "$V"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.version }}
+          name: ${{ steps.ver.outputs.version }}
+          body_path: release-notes.md
+          prerelease: true
+          files: |
+            artemis-studio-${{ steps.ver.outputs.version }}.jar
+            artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
+
+      - name: Push README to Docker Hub
+        continue-on-error: true
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio

@@ -16,42 +16,68 @@ default:
 
 # ── stack ────────────────────────────────────────────────────────────────────
 
-# Dev stack: Postgres + Artemis primary/backup + Studio. Builds Studio first.
+# Run Artemis Studio + Postgres from the published image. Register your brokers in the UI.
 [group('stack')]
-up:
+up: _env
+    {{compose_prod}} --env-file deploy/compose/.env up -d
+    @echo "→ http://localhost:8080"
+    @echo "→ waiting for Studio to be ready…"
+    @timeout 120 bash -c 'until {{compose_prod}} --env-file deploy/compose/.env logs studio 2>/dev/null | grep -q "Started ArtemisStudioApplication\|Created administrator"; do sleep 2; done' || true
+    @{{compose_prod}} --env-file deploy/compose/.env logs studio 2>/dev/null | grep -A4 'Created administrator' \
+        || echo "→ admin account already exists (its password was shown on first boot)"
+
+# Stop the stack (keeps the Postgres volume).
+[group('stack')]
+down:
+    {{compose_prod}} --env-file deploy/compose/.env down
+
+# Tail logs (all services, or `just logs studio`).
+[group('stack')]
+logs *service:
+    {{compose_prod}} --env-file deploy/compose/.env logs -f {{service}}
+
+# Show stack status.
+[group('stack')]
+ps:
+    {{compose_prod}} --env-file deploy/compose/.env ps
+
+# Create deploy/compose/.env from the template with generated secrets, once.
+_env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    env=deploy/compose/.env
+    [ -f "$env" ] && exit 0
+    sed -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
+        -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" \
+        deploy/compose/.env.example > "$env"
+    echo "→ wrote $env with generated secrets"
+
+# ── develop ──────────────────────────────────────────────────────────────────
+
+# Full dev stack: Postgres + a real Artemis primary/backup pair + Studio, built locally.
+[group('develop')]
+dev-up:
     {{compose_dev}} up --build -d
     @echo "→ http://localhost:8080   (Artemis console: http://localhost:8161)"
     @echo "→ waiting for Studio to be ready…"
     @timeout 90 bash -c 'until {{compose_dev}} logs studio 2>/dev/null | grep -q "Started ArtemisStudioApplication\|Created administrator"; do sleep 2; done' || true
     @{{compose_dev}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
-        || echo "→ admin account already exists (credentials were shown on first boot; reset with 'just down' then 'just up')"
+        || echo "→ admin account already exists (reset with 'just dev-down' then 'just dev-up')"
 
 # Stop the dev stack and delete its volumes.
-[group('stack')]
-down:
+[group('develop')]
+dev-down:
     {{compose_dev}} down -v
 
-# Tail logs from the dev stack (all services, or `just logs studio`).
-[group('stack')]
-logs *service:
+# Tail dev stack logs (all services, or `just dev-logs studio`).
+[group('develop')]
+dev-logs *service:
     {{compose_dev}} logs -f {{service}}
 
 # Show dev stack status.
-[group('stack')]
-ps:
+[group('develop')]
+dev-ps:
     {{compose_dev}} ps
-
-# Bring up the prod reference stack (needs deploy/compose/.env).
-[group('stack')]
-prod-up:
-    {{compose_prod}} --env-file deploy/compose/.env up -d
-
-# Stop the prod reference stack (keeps volumes).
-[group('stack')]
-prod-down:
-    {{compose_prod}} down
-
-# ── develop ──────────────────────────────────────────────────────────────────
 
 # Run backend (:8080) and Vite (:5173) together; Ctrl-C stops both.
 [group('develop')]
@@ -80,9 +106,9 @@ dev-web:
 build:
     {{mvn}} -Pfrontend clean package
 
-# Build the container image.
+# Build the container image locally.
 [group('build')]
-image tag="artemis-studio:dev":
+image tag="artemis-studio:local":
     docker build -t {{tag}} .
 
 # ── quality ──────────────────────────────────────────────────────────────────
@@ -126,7 +152,7 @@ db-status:
 db-rollback count="1":
     {{mvn}} liquibase:rollback -Dliquibase.rollbackCount={{count}}
 
-# psql into the dev database.
+# psql into the dev-stack database.
 [group('database')]
 db-shell:
     {{compose_dev}} exec postgres psql -U artemis_studio -d artemis_studio

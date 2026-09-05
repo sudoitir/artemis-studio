@@ -51,3 +51,4 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0039](0039-api-tokens-sha256-intersected-grants.md) | API tokens — SHA-256 hash, prefix lookup, grants intersected with the live owner |
 | [0040](0040-oidc-jit-provisioning-and-claim-mapping.md) | OIDC — JIT provisioning, principal swap after the exchange, claim mapping re-applied every login |
 | [0041](0041-audit-actor-tokens-and-real-identity.md) | Audit actor carries real identity and token attribution (supersedes 0023) |
+| [0042](0042-calver-releases-on-docker-hub.md) | CalVer releases published to Docker Hub on every push to main (complements 0007) |
