@@ -12,6 +12,12 @@ concurrency:
 permissions:
   contents: read
 
+# Persistent build cache, stored as a separate tag in the public Docker Hub repo.
+# Anonymous pull works, so PR builds (no login) can still warm from it; only the
+# release job writes it. Survives across runs without GHA's 10 GB eviction.
+env:
+  BUILDCACHE: sudoit1/artemis-studio:buildcache
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -60,7 +66,11 @@ jobs:
           context: .
           push: false
           tags: artemis-studio:ci
-          cache-from: type=gha
+          # Warm from the release job's registry cache (anonymous pull); keep a
+          # per-branch GHA layer so successive PR pushes stay incremental.
+          cache-from: |
+            type=registry,ref=${{ env.BUILDCACHE }}
+            type=gha
           cache-to: type=gha,mode=max
 
   # Pushes to main: cut a CalVer release. See .claude/rules/10-release.md.
@@ -122,8 +132,12 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Registry cache: not size-capped like GHA, shared across every run and
+          # readable by PR builds. mode=max caches the web/maven build stages too.
+          cache-from: |
+            type=registry,ref=${{ env.BUILDCACHE }}
+            type=gha
+          cache-to: type=registry,ref=${{ env.BUILDCACHE }},mode=max,image-manifest=true,oci-mediatypes=true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:${{ steps.ver.outputs.version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:${{ steps.ver.outputs.month }}
