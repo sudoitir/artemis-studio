@@ -19,12 +19,24 @@ public class StudioPrincipal extends User {
     private final UUID userId;
     private final Set<Grant> grants;
     private final boolean mustChangePassword;
+    private final String tokenName;
 
     public StudioPrincipal(UUID userId, String username, Set<Grant> grants, boolean mustChangePassword) {
+        this(userId, username, grants, mustChangePassword, null);
+    }
+
+    /** {@code tokenName} is non-null only when authenticated via an API token (api-tokens spec). */
+    public StudioPrincipal(
+            UUID userId, String username, Set<Grant> grants, boolean mustChangePassword, String tokenName) {
         super(username, "", authorities(grants));
         this.userId = userId;
         this.grants = grants;
         this.mustChangePassword = mustChangePassword;
+        this.tokenName = tokenName;
+    }
+
+    public String tokenName() {
+        return tokenName;
     }
 
     private static Collection<? extends GrantedAuthority> authorities(Set<Grant> grants) {

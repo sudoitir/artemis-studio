@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.persist.ApiTokenGrantEntity;
 import io.github.sudoitir.artemisstudio.persist.ApiTokenGrantRepository;
 import io.github.sudoitir.artemisstudio.persist.ApiTokenRepository;
 import io.github.sudoitir.artemisstudio.persist.AppUserRepository;
+import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -42,6 +43,8 @@ public class ApiTokenService {
     private final ApiTokenGrantRepository tokenGrants;
     private final AppUserRepository users;
     private final GrantLoader grantLoader;
+    private final AuditService audit;
+    private final ActorResolver actorResolver;
     private final SecureRandom random = new SecureRandom();
 
     /** token id -> last-flushed instant, batched at most once a minute (design.md decision 5, task 8.4). */
@@ -61,6 +64,9 @@ public class ApiTokenService {
                         entity.getId(), action, g.scopeType().name(), g.scopeId()));
             }
         }
+        io.github.sudoitir.artemisstudio.persist.AuditEventEntity event = audit.begin(
+                actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, java.util.Map.of(), false);
+        audit.succeed(event, 1);
         return new Minted(entity, plaintext);
     }
 
@@ -76,6 +82,16 @@ public class ApiTokenService {
         }
         token.setRevokedAt(Instant.now());
         tokens.save(token);
+        io.github.sudoitir.artemisstudio.persist.AuditEventEntity event = audit.begin(
+                actorResolver.resolve(),
+                "TOKEN_REVOKE",
+                "token",
+                token.getName(),
+                null,
+                null,
+                java.util.Map.of(),
+                false);
+        audit.succeed(event, 1);
     }
 
     /**
@@ -111,7 +127,7 @@ public class ApiTokenService {
         }
         Set<Grant> intersected = intersect(tokenGrantSet, ownerGrants);
         pendingLastUsed.put(token.getId(), Instant.now());
-        return new StudioPrincipal(owner.getId(), owner.getUsername(), intersected, false);
+        return new StudioPrincipal(owner.getId(), owner.getUsername(), intersected, false, token.getName());
     }
 
     /** At most one row-write per token per minute, however many requests it authenticates in that window. */

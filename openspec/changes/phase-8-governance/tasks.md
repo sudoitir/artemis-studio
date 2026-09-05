@@ -128,11 +128,11 @@
       ungranted cluster, never `403`.
 - [x] 4.7 `web/StreamController.java`: `clusterAccess.requireCluster(clusterId,
       CLUSTER_READ)` before the emitter is created.
-- [ ] 4.8 `GET /api/v1/permissions` — the catalogue with human labels, for
-      the role editor.
-- [ ] 4.9 Built-in-role immutability + last-global-admin guards in
-      `service/RoleService.java` / `UserService.java` (409 responses, new
-      problem types).
+- [x] 4.8 `GET /api/v1/permissions` (`RolesController.permissions()` →
+      `RoleService.catalogue()`) — the catalogue with human labels.
+- [x] 4.9 Built-in-role immutability (`RoleService.requireEditable`) +
+      last-global-admin guards (`UserService.guardNotLastAdmin`, self-revoke
+      check) — `ConflictException` → `409` via `ApiExceptionHandler`.
 - [ ] 4.10 `PermissionResolverTest` — global/cluster/environment scope walk,
       wildcard matching, union across multiple roles.
 - [ ] 4.11 `EndpointProtectionTest` — reflect over every `@RequestMapping`
@@ -148,18 +148,29 @@
 
 ## 5. Environments
 
-- [ ] 5.1 `service/EnvironmentService.java`, `web/EnvironmentsController.java`
+- [x] 5.1 `service/EnvironmentService.java`, `web/EnvironmentsController.java`
       (`/api/v1/environments`, CRUD; write needs `environment:write`, list
-      needs `cluster:read`).
-- [ ] 5.2 `web/dto/EnvironmentViews.java`, `mapper/EnvironmentViewMapper.java`.
-- [ ] 5.3 Surface environment id/name/colour on `web/dto/ClusterViews.java`
-      via `mapper/ClusterViewMapper.java`.
-- [ ] 5.4 Environment removal: `ON DELETE SET NULL` already on
-      `cluster.environment_id`; explicitly delete `ENVIRONMENT`-scoped
-      `user_role` and `api_token_grant` rows for that environment in the same
-      transaction.
+      needs `environment:read`; cluster assignment via
+      `PUT /api/v1/clusters/{id}/environment`, needs `cluster:write`).
+- [x] 5.2 `web/dto/EnvironmentViews.java`. **Deviation**: no
+      `mapper/EnvironmentViewMapper.java` — `EnvironmentEntity` and
+      `EnvironmentView` are both 4 plain fields with the same names, so
+      `EnvironmentService.toView()` maps directly; a MapStruct/hand-written
+      mapper for a 1:1 field copy would be pure boilerplate (ponytail: rung 1).
+- [x] 5.3 `ClusterSummary`/`ClusterDetail` (`web/dto/ClusterViews.java`) gain
+      `environmentId`; `ClusterService` passes `cluster.getEnvironmentId()`.
+      **Narrowed from the plan**: id only, not name/colour — the frontend
+      already fetches `/api/v1/environments` as a separate cached resource and
+      joins client-side (avoids an extra join query on every cluster list
+      read, and matches non-negotiable #9's "server state via TanStack Query"
+      — the environment list is its own query, not duplicated per cluster).
+- [x] 5.4 `UserRoleRepository.deleteByIdScopeTypeAndIdScopeId` and
+      `ApiTokenGrantRepository.deleteByIdScopeTypeAndIdScopeId` both called
+      from `EnvironmentService.delete()`, same transaction as the environment
+      delete; OIDC role mappings scoped to it are deleted too.
 - [ ] 5.5 Regenerate `schema.d.ts` (`npm run gen:api`); refresh
-      `web/openapi.json` (guarded by `web/OpenApiSnapshotTest`).
+      `web/openapi.json` (guarded by `web/OpenApiSnapshotTest`) — deferred to
+      section 7 once the frontend consumes these types.
 
 ## 6. Frontend: auth
 
@@ -195,19 +206,25 @@
 
 ## 8. API tokens
 
-- [ ] 8.1 `security/ApiTokenService.java` — mint (`as_<prefix>_<secret>`,
-      SHA-256 stored, shown once), list (no value), revoke.
-- [ ] 8.2 `security/ApiTokenAuthenticationFilter.java` — `OncePerRequestFilter`
-      before the session filter; `Authorization: Bearer as_…`; builds
-      `StudioPrincipal` with grants **intersected** against the owner's
+- [x] 8.1 `security/ApiTokenService.java` — mint (`as_<11-char-prefix>_<secret>`,
+      SHA-256 stored, shown once), list (no value), revoke. Fixed-length
+      prefix rather than underscore-delimited (base64url's alphabet includes
+      `_`, so a delimiter search would be ambiguous — found while implementing).
+- [x] 8.2 `security/ApiTokenAuthenticationFilter.java` — `OncePerRequestFilter`
+      before `SecurityContextHolderFilter`; `Authorization: Bearer as_…`;
+      builds `StudioPrincipal` with grants **intersected** against the owner's
       current grants.
-- [ ] 8.3 CSRF matcher: exempt bearer-authenticated requests.
-- [ ] 8.4 `last_used_at`: dirty in-memory set flushed at most once a minute
-      per token, not on every call. `ponytail:` comment naming this ceiling.
-- [ ] 8.5 `web/TokensController.java` (`/api/v1/tokens`), `web/dto/*`,
-      `web/src/admin/TokensPanel.tsx`.
-- [ ] 8.6 Audit rows for token-authenticated actions record owner + token
-      name (`TOKEN_CREATE`, `TOKEN_REVOKE` actions too).
+- [x] 8.3 CSRF matcher (`config/SecurityConfig.java`): `ignoringRequestMatchers`
+      on the presence of an `Authorization` header.
+- [x] 8.4 `last_used_at`: dirty in-memory `ConcurrentHashMap` flushed at most
+      once a minute (`@Scheduled(fixedRate = 60_000)`), not on every call.
+- [x] 8.5 `web/TokensController.java` (`/api/v1/tokens`), `web/dto/TokenViews.java`.
+      `web/src/admin/TokensPanel.tsx` deferred to section 7 (frontend admin).
+- [x] 8.6 Audit rows for token-authenticated actions record owner + token
+      name: `Actor` gained a `tokenName` field, folded into the stored
+      `username` as `"<owner> [token: <name>]"` by `Actor.displayName()` —
+      no new `audit_event` column needed. `TOKEN_CREATE`/`TOKEN_REVOKE`
+      audited in `ApiTokenService`.
 - [ ] 8.7 `ApiTokenAuthenticationFilterTest` — valid, expired, revoked,
       wrong-prefix, narrowed-below-owner, owner-demoted-narrows-token,
       owner-disabled-disables-token.

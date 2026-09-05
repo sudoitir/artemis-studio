@@ -209,7 +209,8 @@ public class ClusterService {
                 cluster.getDescription(),
                 viewMapper.topology(topology),
                 viewMapper.capabilities(capabilities),
-                viewMapper.health(evaluator.toHealth(clusterId, topology.nodes()))));
+                viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
+                cluster.getEnvironmentId()));
     }
 
     // ---- reads ------------------------------------------------------------
@@ -224,7 +225,13 @@ public class ClusterService {
                     evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), splitBrainRegistry.statusesFor(c.getId()));
             var health = evaluator.toHealth(c.getId(), logical);
             out.add(new ClusterSummary(
-                    c.getId(), c.getName(), c.getDescription(), health.level(), rows.size(), c.getUpdatedAt()));
+                    c.getId(),
+                    c.getName(),
+                    c.getDescription(),
+                    health.level(),
+                    rows.size(),
+                    c.getUpdatedAt(),
+                    c.getEnvironmentId()));
         }
         return out;
     }
@@ -240,7 +247,8 @@ public class ClusterService {
                 cluster.getDescription(),
                 viewMapper.topology(topology),
                 capabilities(clusterId),
-                viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())));
+                viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
+                cluster.getEnvironmentId());
     }
 
     @Transactional(readOnly = true)

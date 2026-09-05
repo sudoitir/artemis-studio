@@ -26,7 +26,8 @@ public class ActorResolver {
         StudioPrincipal principal = currentPrincipal();
         String username = principal != null ? principal.getUsername() : Actor.ANONYMOUS;
         UUID userId = principal != null ? principal.userId() : null;
-        return new Actor(username, sourceIp(request), requestId(request), userId);
+        String tokenName = principal != null ? principal.tokenName() : null;
+        return new Actor(username, sourceIp(request), requestId(request), userId, tokenName);
     }
 
     /** For scheduler-originated audit rows. */

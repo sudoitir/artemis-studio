@@ -38,7 +38,7 @@ public class AuditService {
                 action,
                 targetType,
                 targetName,
-                a.username(),
+                a.displayName(),
                 a.requestId(),
                 a.sourceIp(),
                 a.userId(),
