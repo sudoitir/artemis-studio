@@ -1,22 +1,22 @@
 ## 1. Schema
 
-- [ ] 1.1 Add Liquibase changeset `014-identity.sql` (`--changeset artemis-studio:014-...`,
+- [x] 1.1 Add Liquibase changeset `014-identity.sql` (`--changeset artemis-studio:014-...`,
       column order by alignment, `pk_`/`fk_`/`uq_`/`ck_`/`ix_` naming, a
       `--rollback` per statement). Do not edit `003-identity.sql` or
       `002-estate.sql`. `<include>` it in `db.changelog-master.xml`.
-- [ ] 1.2 `app_user`: add `issuer`, `subject` (unique together, nullable),
+- [x] 1.2 `app_user`: add `issuer`, `subject` (unique together, nullable),
       `auth_source` (`LOCAL`|`OIDC`), `must_change_password boolean default false`.
-- [ ] 1.3 `role`: add `builtin boolean not null default false`.
-- [ ] 1.4 `api_token(id, user_id fk, name, prefix unique, token_hash bytea,
+- [x] 1.3 `role`: add `builtin boolean not null default false`.
+- [x] 1.4 `api_token(id, user_id fk, name, prefix unique, token_hash bytea,
       expires_at, last_used_at, revoked_at, created_at)`.
-- [ ] 1.5 `api_token_grant(token_id fk, scope_type, scope_id, action)` mirroring
+- [x] 1.5 `api_token_grant(token_id fk, scope_type, scope_id, action)` mirroring
       `user_role`'s scope shape.
-- [ ] 1.6 `oidc_role_mapping(id, claim, claim_value, role_id fk, scope_type, scope_id)`.
-- [ ] 1.7 Data backfill changeset: seed `role` rows `ADMIN` (`builtin=true`,
+- [x] 1.6 `oidc_role_mapping(id, claim, claim_value, role_id fk, scope_type, scope_id)`.
+- [x] 1.7 Data backfill changeset: seed `role` rows `ADMIN` (`builtin=true`,
       permission `*`), `OPERATOR` (`builtin=true`, operate-level permissions),
       `VIEWER` (`builtin=true`, `*:read`-shaped permissions), and their
       `role_permission` rows.
-- [ ] 1.8 Spring Session JDBC schema: verify exact table DDL and Boot 4.1
+- [x] 1.8 Spring Session JDBC schema: verify exact table DDL and Boot 4.1
       property names via `ctx7` (`npx ctx7@latest library "Spring Session"
       ...`), add its tables to the same changeset,
       `spring.session.jdbc.initialize-schema=never`.
@@ -26,51 +26,56 @@
 
 ## 2. Persistence
 
-- [ ] 2.1 `persist/AppUserEntity.java` + `AppUserRepository` (find by username,
+- [x] 2.1 `persist/AppUserEntity.java` + `AppUserRepository` (find by username,
       find by issuer+subject, exists-any for bootstrap check).
-- [ ] 2.2 `persist/RoleEntity.java`, `RolePermissionEntity.java`,
+- [x] 2.2 `persist/RoleEntity.java`, `RolePermissionEntity.java`,
       `UserRoleEntity.java` + repositories (Lombok/JPA conventions from
       `AlertRuleEntity.java` — protected no-args ctor, id-only equals/hashCode,
       explicit `@Column`).
-- [ ] 2.3 `persist/EnvironmentEntity.java` + `EnvironmentRepository`.
-- [ ] 2.4 `persist/ApiTokenEntity.java`, `ApiTokenGrantEntity.java` +
+- [x] 2.3 `persist/EnvironmentEntity.java` + `EnvironmentRepository`.
+- [x] 2.4 `persist/ApiTokenEntity.java`, `ApiTokenGrantEntity.java` +
       repositories (lookup by `prefix`).
-- [ ] 2.5 `persist/OidcRoleMappingEntity.java` + `OidcRoleMappingRepository`.
-- [ ] 2.6 Hibernate `ddl-auto=validate` passes for every new entity against `014`.
+- [x] 2.5 `persist/OidcRoleMappingEntity.java` + `OidcRoleMappingRepository`.
+- [x] 2.6 Hibernate `ddl-auto=validate` passes for every new entity against `014`.
 
 ## 3. Authentication
 
-- [ ] 3.1 Add `spring-session-jdbc` to `pom.xml` (verified coordinates from 1.8).
-- [ ] 3.2 `security/StudioUserDetailsService.java` — loads `AppUserEntity` by
-      username, builds a `StudioPrincipal`.
-- [ ] 3.3 `security/StudioPrincipal.java` (`userId, username, Set<Grant>`),
+- [x] 3.1 Add `spring-session-jdbc` to `pom.xml` (verified coordinates from 1.8).
+- [x] 3.2 ~~`security/StudioUserDetailsService.java`~~ — implemented instead as
+      `service/AuthService.login()` checking `AppUserEntity`/`PasswordEncoder`
+      directly and building a `StudioPrincipal`, since the login body is JSON
+      and there is no `UsernamePasswordAuthenticationFilter` in the chain to
+      hand a `UserDetailsService` to (see design.md decision 1's revision).
+- [x] 3.3 `security/StudioPrincipal.java` (`userId, username, Set<Grant>`),
       `security/Grant.java` (`scopeType, scopeId, Set<String> permissions`).
-- [ ] 3.4 Rewrite `config/SecurityConfig.java`: session management,
+- [x] 3.4 Rewrite `config/SecurityConfig.java`: session management,
       `PasswordEncoderFactories.createDelegatingPasswordEncoder()`, CSRF via
       `CookieCsrfTokenRepository.withHttpOnlyFalse()` +
       `CsrfTokenRequestAttributeHandler`, `authorizeHttpRequests` denying by
       default with an explicit allow-list (`/api/v1/auth/login`,
       `/actuator/health`, static SPA assets). Delete `warnIfExposed`.
-- [ ] 3.5 Small `OncePerRequestFilter` on `/api/v1/auth/**` that touches
-      `CsrfToken.getToken()` so login/logout responses re-issue a fresh
-      CSRF cookie (documented SPA gotcha).
-- [ ] 3.6 `web/AuthController.java`: `POST /api/v1/auth/login` (JSON body),
+- [x] 3.5 Implemented as `AuthService.reissueCsrfToken()`, called from both
+      `login()` and `logout()` — simpler than a separate filter since both
+      paths already run through `AuthService`.
+- [x] 3.6 `web/AuthController.java`: `POST /api/v1/auth/login` (JSON body),
       `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`,
       `POST /api/v1/auth/password` (current + new password).
-- [ ] 3.7 `security/LoginAttemptLimiter.java` modelled on
+- [x] 3.7 `security/LoginAttemptLimiter.java` modelled on
       `scheduler/NodeCallLimiter.java` — per (username, source IP) failure
       counter, exponential lockout, cleared on success. `ponytail:` comment:
       in-memory only, revisit at multi-instance HA.
-- [ ] 3.8 `security/AdminBootstrap.java` — `ApplicationReadyEvent` listener;
+- [x] 3.8 `security/AdminBootstrap.java` — `ApplicationReadyEvent` listener;
       if `app_user` is empty, create `admin` with a random 24-char password,
       log it once at WARN in a boxed banner, `must_change_password=true`.
-- [ ] 3.9 `423 Locked` + `must-change-password` problem type from
+- [x] 3.9 `423 Locked` + `must-change-password` problem type from
       `web/ApiExceptionHandler.java` until the password is changed.
-- [ ] 3.10 `security/Actor.java` / `ActorResolver.java`: resolve `userId` from
+- [x] 3.10 `security/Actor.java` / `ActorResolver.java`: resolve `userId` from
       `StudioPrincipal` instead of hardcoded `null`; `Actor.ANONYMOUS` stays
       only for failed-login rows.
-- [ ] 3.11 New audited actions: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`,
-      `PASSWORD_CHANGE` (wire through `persist/AuditService.java`).
+- [x] 3.11 New audited actions: `LOGIN` (one row per attempt; outcome
+      SUCCESS/FAILURE distinguishes success from failure, matching the
+      existing pending-then-outcome model rather than two action strings),
+      `LOGOUT`, `PASSWORD_CHANGE`.
 - [ ] 3.12 `AuthControllerIntegrationTest`: login success/failure, lockout
       after N failures, `423` until password change, logout invalidates
       session, CSRF rejection without header, `/me` shape.
@@ -81,31 +86,48 @@
 
 ## 4. Authorization
 
-- [ ] 4.1 **Caller audit** (must precede 4.3): for every method in
-      `service/ClusterService.java`, `MessageService.java`,
-      `AlertRuleService.java`, `NotificationChannelService.java`,
-      `RequestReplyService.java`, the settings service, and the DLQ service,
-      list every caller (controller vs. `scheduler/*`). Record the
-      classification inline as a short comment above each method before 4.3
-      touches it.
-- [ ] 4.2 `security/Permissions.java` — `public static final String` catalogue
-      (`cluster:read`, `cluster:write`, `message:send`, `message:delete`,
-      `message:move`, `queue:purge`, `alert:write`, `settings:write`,
-      `user:admin`, `token:admin`, `environment:write`, …), matching every
-      spec requirement's named permission.
-- [ ] 4.3 `security/PermissionResolver.java` (`@Component("perm")`) —
-      `can(UUID clusterId, String permission)`, scope walk (global →
-      environment via a cached `clusterId → environmentId` map, invalidated
-      on cluster write → cluster), wildcard matching (`*`, `resource:*`).
-- [ ] 4.4 `@EnableMethodSecurity`; add `@PreAuthorize` to every web-facing
-      method identified in 4.1, using `Permissions` constants — never a raw
-      string literal in the annotation.
-- [ ] 4.5 `ClusterService.list()` and `AlertSummaryController`'s cross-cluster
-      read: filter to `cluster:read`-granted clusters only.
-- [ ] 4.6 `ClusterResourceController` paths: an ungranted cluster returns
-      `404`, not `403`.
-- [ ] 4.7 `web/StreamController.java`: reject a stream subscription whose
-      `clusterId` the caller cannot read.
+- [x] 4.1 **Caller audit** (done): grepped every service under
+      consideration for callers under `scheduler/`, `sse/`, `broker/`,
+      `domain/`. None of `ClusterService`, `MessageService`, `DlqService`,
+      `AlertRuleService`, `NotificationChannelService`, `RequestReplyService`,
+      `RrMetrics`, `AlertService` are scheduler-reached — every public method
+      is web-facing. `SettingsService` is the one mixed case: its typed
+      getters (`tierA()`, `bulkCap()`, …) and `applyRuntime()` are read by the
+      scheduler and by its own `@EventListener(ApplicationReadyEvent)` and are
+      left unannotated; only `effective()`/`put()`/`reset()` are guarded.
+      Also found and closed a gap the original plan missed: `RequestReplyService`
+      and `RrMetrics.stats()` had no spec coverage for permission checks —
+      added `specs/request-reply-tracing/spec.md` (ADDED requirement) and a
+      `proposal.md` line, then implemented the same as the others.
+- [x] 4.2 `security/Permissions.java` — catalogue implemented (`cluster:read`,
+      `cluster:write`, `environment:read/write`, `message:read/send/move/delete`,
+      `queue:purge`, `alert:read/write`, `settings:read/write`, `user:admin`,
+      `token:admin`), plus `Permissions.catalogue()` for the human-labelled read.
+- [x] 4.3 `security/PermissionResolver.java` (`@Component("perm")`) —
+      implemented, backed by `security/GrantLoader.java` (resolves a user's
+      `user_role` rows once at auth time) and `security/ClusterEnvironmentIndex.java`
+      (the cached `clusterId → environmentId` map, invalidated on cluster
+      register/delete).
+- [x] 4.4 **Design deviation from the literal sketch, made deliberately**:
+      per-cluster methods use `service/ClusterAccessGuard.java`
+      (`requireCluster(clusterId, permission)`, throwing `NotFoundException`)
+      instead of `@PreAuthorize` — see task 4.6's requirement that an
+      ungranted cluster be `404`, not `403`; `@PreAuthorize`'s default
+      `AccessDeniedException` maps to `403` with no easy per-call override.
+      `@PreAuthorize` (via `@perm.can(permission)`, the global overload) is
+      used for operations with no cluster id to hide: `ClusterService.register/
+      checkConnection`, `NotificationChannelService.*`, `SettingsService.effective/
+      put/reset`. `@PostFilter` is used for the two list-shaped reads
+      (`ClusterService.list()`, `AlertService.firingCounts()`).
+- [x] 4.5 `ClusterService.list()` (`@PostFilter`) and `AlertService.firingCounts()`
+      (`@PostFilter`, backing `AlertSummaryController`): filtered to
+      `cluster:read`/`alert:read`-granted clusters only.
+- [x] 4.6 Every per-cluster method (`ClusterService`, `MessageService`,
+      `DlqService`, `AlertRuleService`, `RequestReplyService`, `RrMetrics`,
+      `StreamController`) returns `404` via `ClusterAccessGuard` for an
+      ungranted cluster, never `403`.
+- [x] 4.7 `web/StreamController.java`: `clusterAccess.requireCluster(clusterId,
+      CLUSTER_READ)` before the emitter is created.
 - [ ] 4.8 `GET /api/v1/permissions` — the catalogue with human labels, for
       the role editor.
 - [ ] 4.9 Built-in-role immutability + last-global-admin guards in

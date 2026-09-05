@@ -11,6 +11,19 @@ spring:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
 
+  session:
+    store-type: jdbc
+    jdbc:
+      # Liquibase owns this schema (014-identity.sql), not the library's own
+      # initializer (ADR-0011).
+      initialize-schema: never
+      table-name: spring_session
+
+  # OIDC/SSO (ADR-0040) is opt-in: with no `spring.security.oauth2.client.registration.*`
+  # entry configured, Spring Boot's OAuth2 client auto-configuration backs off
+  # entirely and only local login is available. Add a registration (client id,
+  # secret from the environment, provider issuer-uri) to enable it.
+
   jpa:
     # Liquibase owns the schema; Hibernate only maps to it and checks the mapping
     # on startup. Never let Hibernate touch DDL.
@@ -37,6 +50,9 @@ spring:
 server:
   port: ${ARTEMIS_STUDIO_PORT:8080}
   forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 8h
 
 management:
   endpoints:

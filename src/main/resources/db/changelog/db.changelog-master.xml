@@ -33,5 +33,6 @@
     <include file="db/changelog/changes/011-request-reply-keys.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/012-metric-partitions.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/013-alerting.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/014-identity.sql" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

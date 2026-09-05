@@ -77,6 +77,9 @@ pending this phase. `003-identity.sql` already shipped the `app_user` / `role` /
 - `studio-settings`: settings writes require `settings:write` (global) —
   closes the hole where an unauthenticated caller could raise the bulk
   safety cap.
+- `request-reply-tracing`: reading expectations/flows requires `cluster:read`;
+  creating, updating, or deleting an expectation requires `cluster:write`, at
+  the target cluster's scope.
 
 ## Impact
 

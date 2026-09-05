@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.persist.RrExpectationRepository;
 import io.github.sudoitir.artemisstudio.persist.RrFlowEntity;
 import io.github.sudoitir.artemisstudio.persist.RrFlowRepository;
 import io.github.sudoitir.artemisstudio.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.CreateExpectationRequest;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.ExpectationView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.FlowPageView;
@@ -45,11 +46,13 @@ public class RequestReplyService {
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final ObjectMapper mapper;
+    private final ClusterAccessGuard clusterAccess;
 
     // ---- expectations -------------------------------------------------
 
     @Transactional(readOnly = true)
     public List<ExpectationView> list(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         return expectations.findByClusterIdOrderByRequestAddress(clusterId).stream()
                 .map(this::toView)
                 .toList();
@@ -57,6 +60,7 @@ public class RequestReplyService {
 
     @Transactional
     public ExpectationView create(UUID clusterId, CreateExpectationRequest request) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
         AuditEventEntity audited = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_RR_EXPECTATION",
@@ -80,6 +84,7 @@ public class RequestReplyService {
 
     @Transactional
     public ExpectationView update(UUID clusterId, UUID expectationId, UpdateExpectationRequest request) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
         RrExpectationEntity entity = expectations
                 .findById(expectationId)
                 .filter(e -> e.getClusterId().equals(clusterId))
@@ -108,6 +113,7 @@ public class RequestReplyService {
 
     @Transactional
     public void delete(UUID clusterId, UUID expectationId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
         RrExpectationEntity entity = expectations
                 .findById(expectationId)
                 .filter(e -> e.getClusterId().equals(clusterId))
@@ -150,6 +156,7 @@ public class RequestReplyService {
             Instant to,
             int page,
             int size) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         int p = Math.max(page, 1);
         int s = Math.min(Math.max(size, 1), 500);
         Page<RrFlowEntity> result = flows.findPage(
@@ -166,6 +173,7 @@ public class RequestReplyService {
 
     @Transactional(readOnly = true)
     public FlowView flow(UUID clusterId, UUID flowId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         RrFlowEntity entity = flows.findById(flowId)
                 .filter(f -> f.getClusterId().equals(clusterId))
                 .orElseThrow(() -> new NotFoundException("Request-reply flow", flowId));

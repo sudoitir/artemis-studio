@@ -3,12 +3,17 @@ package io.github.sudoitir.artemisstudio.web;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException.Kind;
 import io.github.sudoitir.artemisstudio.service.BulkCapExceededException;
+import io.github.sudoitir.artemisstudio.service.ConflictException;
+import io.github.sudoitir.artemisstudio.service.LoginThrottledException;
+import io.github.sudoitir.artemisstudio.service.MustChangePasswordException;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -63,6 +68,39 @@ class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
         problem.setType(URI.create(TYPE_BASE + "invalid-value"));
         problem.setTitle("Invalid value");
+        return problem;
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    ProblemDetail onConflict(ConflictException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + e.slug()));
+        problem.setTitle("Conflict");
+        return problem;
+    }
+
+    @ExceptionHandler(MustChangePasswordException.class)
+    ProblemDetail onMustChangePassword(MustChangePasswordException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.LOCKED, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "must-change-password"));
+        problem.setTitle("Password change required");
+        return problem;
+    }
+
+    @ExceptionHandler(LoginThrottledException.class)
+    ProblemDetail onLoginThrottled(LoginThrottledException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "login-throttled"));
+        problem.setTitle("Too many attempts");
+        return problem;
+    }
+
+    @ExceptionHandler({BadCredentialsException.class, DisabledException.class})
+    ProblemDetail onBadCredentials(Exception e) {
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Invalid username or password.");
+        problem.setType(URI.create(TYPE_BASE + "invalid-credentials"));
+        problem.setTitle("Authentication failed");
         return problem;
     }
 

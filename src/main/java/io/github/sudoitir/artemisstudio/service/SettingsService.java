@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,6 +104,7 @@ public class SettingsService {
     // ---- read / write -----------------------------------------------------
 
     /** Every operator-tunable key: its effective value and whether it is a stored override. */
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.security.Permissions).SETTINGS_READ)")
     @Transactional(readOnly = true)
     public Map<String, SettingValue> effective() {
         Map<String, SettingValue> out = new LinkedHashMap<>();
@@ -127,6 +129,7 @@ public class SettingsService {
         return out;
     }
 
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.security.Permissions).SETTINGS_WRITE)")
     @Transactional
     public void put(String key, String rawValue) {
         validate(key, rawValue);
@@ -135,6 +138,7 @@ public class SettingsService {
         applyRuntime();
     }
 
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.security.Permissions).SETTINGS_WRITE)")
     @Transactional
     public void reset(String key) {
         requireKnown(key);

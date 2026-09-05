@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotRepository;
 import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.MessageViews.DlqAddress;
 import io.github.sudoitir.artemisstudio.web.dto.MessageViews.DlqQueue;
 import io.github.sudoitir.artemisstudio.web.dto.MessageViews.DlqQueueDepth;
@@ -37,9 +38,11 @@ public class DlqService {
     private final BrokerNodeRepository brokerNodes;
     private final BrokerConnections connections;
     private final NodeCallLimiter limiter;
+    private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
     public DlqView view(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
         BrokerNodeEntity manageable = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
                 .filter(n -> n.getJolokiaUrl() != null)
                 .findFirst()

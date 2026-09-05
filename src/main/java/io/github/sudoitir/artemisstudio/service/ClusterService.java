@@ -30,6 +30,8 @@ import io.github.sudoitir.artemisstudio.persist.BrokerTlsEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerTlsRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
+import io.github.sudoitir.artemisstudio.security.ClusterEnvironmentIndex;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.security.SecretVault;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.RegisterClusterRequest;
@@ -47,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PostFilter;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +87,8 @@ public class ClusterService {
     private final AuditService audit;
     private final AlertRuleRepository alertRules;
     private final io.github.sudoitir.artemisstudio.security.ActorResolver actorResolver;
+    private final ClusterEnvironmentIndex environmentIndex;
+    private final ClusterAccessGuard clusterAccess;
 
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
@@ -99,6 +105,7 @@ public class ClusterService {
 
     // ---- connection check (?dryRun=true) -------------------------------------
 
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.security.Permissions).CLUSTER_WRITE)")
     @Transactional
     public Attempt<RegisterPreview> checkConnection(RegisterClusterRequest request) {
         AuditEventEntity event = audit.begin(
@@ -134,6 +141,7 @@ public class ClusterService {
 
     // ---- registration -------------------------------------------------------
 
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.security.Permissions).CLUSTER_WRITE)")
     @Transactional
     public Attempt<ClusterDetail> register(RegisterClusterRequest request) {
         List<Probe> probes = connectAll(request);
@@ -192,6 +200,7 @@ public class ClusterService {
         BrokerCapabilities capabilities =
                 capabilityProbe.probe(reachable.get(0).client(), coreSubscriptions.verdictFor(clusterId));
         seedBuiltinAlertRules(clusterId);
+        environmentIndex.invalidate();
 
         audit.succeed(event, endpointCount(topology));
         return new Attempt.Ok<>(new ClusterDetail(
@@ -205,6 +214,7 @@ public class ClusterService {
 
     // ---- reads ------------------------------------------------------------
 
+    @PostFilter("@perm.can(filterObject.id(), T(io.github.sudoitir.artemisstudio.security.Permissions).CLUSTER_READ)")
     @Transactional(readOnly = true)
     public List<ClusterSummary> list() {
         List<ClusterSummary> out = new ArrayList<>();
@@ -221,6 +231,7 @@ public class ClusterService {
 
     @Transactional(readOnly = true)
     public ClusterDetail get(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         ClusterEntity cluster = requireCluster(clusterId);
         ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
         return new ClusterDetail(
@@ -234,12 +245,14 @@ public class ClusterService {
 
     @Transactional(readOnly = true)
     public TopologyView topology(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
         return viewMapper.topology(topologyDiscovery.currentTopology(clusterId));
     }
 
     @Transactional(readOnly = true)
     public HealthView health(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
         ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
         return viewMapper.health(evaluator.toHealth(clusterId, topology.nodes()));
@@ -248,6 +261,7 @@ public class ClusterService {
     /** A live probe of the first manageable node (ADR: no capability cache in Phase 1). */
     @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
         BrokerNodeEntity manageable = nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
                 .filter(n -> n.getJolokiaUrl() != null)
@@ -263,6 +277,7 @@ public class ClusterService {
 
     @Transactional
     public Attempt<TopologyView> rediscover(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -299,6 +314,7 @@ public class ClusterService {
 
     @Transactional
     public Attempt<NodeEndpointView> overrideNodeUrl(UUID clusterId, UUID nodeId, NodeOverrideRequest request) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
         requireCluster(clusterId);
         BrokerNodeEntity node = nodes.findById(nodeId)
                 .filter(n -> n.getClusterId().equals(clusterId))
@@ -333,6 +349,7 @@ public class ClusterService {
     /** Rotate a stored credential (JOLOKIA_BASIC or CORE) for a cluster; re-encrypts, audits in-transaction, returns nothing secret. */
     @Transactional
     public void rotateCredentials(UUID clusterId, String username, String password, String kind) {
+        clusterAccess.requireCluster(clusterId, Permissions.SETTINGS_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -357,6 +374,7 @@ public class ClusterService {
 
     @Transactional
     public void delete(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -372,6 +390,7 @@ public class ClusterService {
         // removed cluster is not retried.
         coreSubscriptions.forget(clusterId);
         corePool.forget(clusterId);
+        environmentIndex.invalidate();
         audit.succeed(event, 1);
     }
 
