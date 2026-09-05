@@ -3,19 +3,7 @@ import { Spotlight, type SpotlightActionGroupData } from '@mantine/spotlight';
 import { useNavigate, useParams } from '@tanstack/react-router';
 
 import { useClusters, useQueues } from '../api/client.ts';
-
-const VIEWS = [
-  'topology',
-  'queues',
-  'addresses',
-  'consumers',
-  'sessions',
-  'connections',
-  'producers',
-  'dlq',
-  'audit',
-  'settings',
-] as const;
+import { NAV_ITEMS } from '../app/navItems.ts';
 
 /**
  * ⌘K navigation across the console: jump to a cluster, a view, or a queue by
@@ -35,10 +23,10 @@ export function CommandPalette() {
     if (clusterId) {
       out.push({
         group: 'Go to view',
-        actions: VIEWS.map((v) => ({
-          id: `view-${v}`,
-          label: v[0].toUpperCase() + v.slice(1),
-          onClick: () => navigate({ to: `/clusters/${clusterId}/${v}` }),
+        actions: NAV_ITEMS.map((item) => ({
+          id: `view-${item.path}`,
+          label: item.label,
+          onClick: () => navigate({ to: `/clusters/${clusterId}/${item.path}` }),
         })),
       });
     }

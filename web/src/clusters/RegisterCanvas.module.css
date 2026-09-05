@@ -1,6 +1,6 @@
 .cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
 }
 
@@ -29,6 +29,7 @@
 
 .cardCanvas {
   block-size: 120px;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0.85;
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../test/render.tsx';
@@ -16,6 +16,12 @@ const rows: Q[] = [
   { name: 'SHIPMENTS', depth: 0 },
   { name: 'DLQ', depth: 431 },
 ];
+
+/** Force a cell to report itself as ellipsized (jsdom does no layout). */
+function markClipped(el: HTMLElement) {
+  Object.defineProperty(el, 'scrollWidth', { configurable: true, value: 800 });
+  Object.defineProperty(el, 'clientWidth', { configurable: true, value: 120 });
+}
 
 const columns: GridColumn<Q>[] = [
   { id: 'name', header: 'Queue', accessor: (r) => r.name, sortKey: 'name' },
@@ -79,6 +85,37 @@ describe('VirtualTable', () => {
     expect(depthHeader()).toHaveAttribute('aria-sort', 'none');
 
     expect(seen).toEqual(['depth', '-depth', undefined]);
+  });
+
+  it('makes free-text cells focusable for the truncation reveal, but not numeric cells', () => {
+    renderWithProviders(
+      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />,
+    );
+    const nameCell = screen.getByText('ORDERS').closest('[role="gridcell"]')!;
+    const depthCell = screen.getByText('12').closest('[role="gridcell"]')!;
+    expect(nameCell).toHaveAttribute('tabindex', '0');
+    expect(nameCell).toHaveAttribute('data-full', 'ORDERS');
+    expect(depthCell).not.toHaveAttribute('tabindex');
+  });
+
+  it('reveals the full value with a copy control when a cell is actually clipped', async () => {
+    renderWithProviders(
+      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />,
+    );
+    const cell = screen.getByText('SHIPMENTS').closest('[role="gridcell"]') as HTMLElement;
+
+    // Not clipped yet → focusing it shows nothing.
+    fireEvent.focus(cell);
+    expect(screen.queryByRole('dialog', { name: /full value/i })).not.toBeInTheDocument();
+
+    markClipped(cell);
+    fireEvent.focus(cell);
+    const panel = screen.getByRole('dialog', { name: /full value/i });
+    expect(within(panel).getByText('SHIPMENTS')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: /copy/i })).toBeInTheDocument();
+
+    fireEvent.blur(cell);
+    expect(screen.queryByRole('dialog', { name: /full value/i })).not.toBeInTheDocument();
   });
 
   it('calls onRowClick with the row', async () => {

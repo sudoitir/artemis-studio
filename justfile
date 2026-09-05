@@ -21,6 +21,10 @@ default:
 up:
     {{compose_dev}} up --build -d
     @echo "→ http://localhost:8080   (Artemis console: http://localhost:8161)"
+    @echo "→ waiting for Studio to be ready…"
+    @timeout 90 bash -c 'until {{compose_dev}} logs studio 2>/dev/null | grep -q "Started ArtemisStudioApplication\|Created administrator"; do sleep 2; done' || true
+    @{{compose_dev}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
+        || echo "→ admin account already exists (credentials were shown on first boot; reset with 'just down' then 'just up')"
 
 # Stop the dev stack and delete its volumes.
 [group('stack')]

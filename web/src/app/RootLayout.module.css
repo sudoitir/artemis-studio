@@ -1,0 +1,25 @@
+/* Skip link (WCAG 2.4.1): off-screen until it takes focus, then pinned to the
+   inline-start of the header band so a keyboard user's first Tab lands on it. */
+.skipLink {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 1000;
+  padding: 8px 12px;
+  background: var(--as-surface-raised);
+  color: var(--as-text);
+  border: 1px solid var(--as-border);
+  border-radius: 0 0 var(--mantine-radius-sm) 0;
+  transform: translateY(-110%);
+  transition: transform 150ms ease;
+}
+
+.skipLink:focus-visible {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skipLink {
+    transition: none;
+  }
+}

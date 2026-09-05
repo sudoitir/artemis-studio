@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Center, Paper, PasswordInput, Stack, Text, Title } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
-import { useChangePassword, useMe } from '../api/client.ts';
+import { useChangePassword, useLogout, useMe } from '../api/client.ts';
 
 /**
  * Forced password change for the bootstrap admin, or a voluntary change from
@@ -15,8 +15,10 @@ export function ChangePasswordView() {
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const changePassword = useChangePassword();
+  const logout = useLogout();
   const me = useMe();
   const navigate = useNavigate();
+  const forced = me.data?.mustChangePassword ?? false;
 
   const mismatch = confirm.length > 0 && newPassword !== confirm;
 
@@ -25,7 +27,18 @@ export function ChangePasswordView() {
     if (mismatch || newPassword.length === 0) return;
     changePassword.mutate(
       { currentPassword, newPassword },
-      { onSuccess: () => navigate({ to: '/' }) },
+      {
+        onSuccess: () => {
+          // First-setup: end the bootstrap session and make the operator sign in
+          // with the password they just chose. A voluntary change keeps the
+          // session and drops back into the app.
+          if (forced) {
+            logout.mutate(undefined, { onSettled: () => navigate({ to: '/login' }) });
+          } else {
+            navigate({ to: '/' });
+          }
+        },
+      },
     );
   }
 
@@ -67,7 +80,13 @@ export function ChangePasswordView() {
                 required
               />
               {changePassword.isError ? <Alert color="red">Current password is incorrect.</Alert> : null}
-              <Button type="submit" loading={changePassword.isPending} fullWidth mt="xs" disabled={mismatch}>
+              <Button
+                type="submit"
+                loading={changePassword.isPending || logout.isPending}
+                fullWidth
+                mt="xs"
+                disabled={mismatch}
+              >
                 Change password
               </Button>
             </Stack>

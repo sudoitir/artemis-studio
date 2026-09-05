@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  ActionIcon,
   Alert,
   Button,
   Collapse,
@@ -7,17 +8,21 @@ import {
   Group,
   Modal,
   PasswordInput,
+  ScrollArea,
   Stack,
   Text,
   Textarea,
   TextInput,
+  Tooltip,
   UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { IconPlus } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
 import {
   useCheckConnection,
+  useClusters,
   useRegisterCluster,
   type RegisterClusterRequest,
 } from '../api/client.ts';
@@ -289,20 +294,47 @@ export function EmptyState() {
 }
 
 /** The post-empty affordance: a button that opens the form in a modal. */
-export function RegisterClusterButton() {
+export function RegisterClusterButton({ collapsed }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false);
+  const clusters = useClusters();
+  const existing = clusters.data?.length ?? 0;
+
   return (
     <>
-      <Button variant="default" size="xs" onClick={() => setOpen(true)}>
-        Register cluster
-      </Button>
+      {collapsed ? (
+        <Tooltip label="Register cluster" position="right" withArrow openDelay={350}>
+          <ActionIcon
+            variant="default"
+            size="md"
+            aria-label="Register cluster"
+            onClick={() => setOpen(true)}
+          >
+            <IconPlus size={18} stroke={1.5} />
+          </ActionIcon>
+        </Tooltip>
+      ) : (
+        <Button variant="default" size="xs" onClick={() => setOpen(true)}>
+          Register cluster
+        </Button>
+      )}
       <Modal
         opened={open}
         onClose={() => setOpen(false)}
         title="Register cluster"
         size="xl"
+        centered
+        scrollAreaComponent={ScrollArea.Autosize}
       >
-        <RegisterClusterForm onRegistered={() => setOpen(false)} />
+        <Stack gap="md">
+          {existing > 0 ? (
+            <Text size="sm" c="dimmed">
+              {existing === 1
+                ? 'One cluster is already registered. This adds another.'
+                : `${existing} clusters are already registered. This adds another.`}
+            </Text>
+          ) : null}
+          <RegisterClusterForm onRegistered={() => setOpen(false)} />
+        </Stack>
       </Modal>
     </>
   );

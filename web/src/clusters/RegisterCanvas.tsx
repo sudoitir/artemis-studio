@@ -57,7 +57,7 @@ function ExampleCards({
   return (
     <Stack gap="xs">
       <Text size="sm" c="dimmed">
-        Which of these looks like your setup? Picking one only adjusts the hint below —
+        Which of these looks like your setup? These are examples for orientation —
         nothing is registered until you press Register cluster.
       </Text>
       <div className={styles.cards}>

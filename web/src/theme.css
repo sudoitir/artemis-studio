@@ -1,6 +1,23 @@
 /* Semantic token layer. Components reference these, never raw values or
    primitive scale steps directly. Dark is the base; light overrides. */
 
+/* Mantine's stock `dimmed` (dark-2 #828282 on the dark-7 body, gray-6 on the
+   light body) lands at ~4.0:1 and ~3.6:1 — under the WCAG 2.2 AA 4.5:1 floor for
+   body text. Every `<Text c="dimmed">` and, through the semantic layer,
+   --as-text-dimmed / --as-grid-stale / --as-node-backup / --as-chart-axis /
+   --as-rr-in-flight inherit that. Nudge it up to ~5:1 in both schemes, staying
+   on the existing gray ramp (no new literal). Specificity here matches
+   Mantine's scheme selectors, so import order (theme.css last) wins. */
+:root[data-mantine-color-scheme='dark'],
+:host([data-mantine-color-scheme='dark']) {
+  --mantine-color-dimmed: color-mix(in srgb, var(--mantine-color-dark-0) 45%, var(--mantine-color-dark-2));
+}
+
+:root[data-mantine-color-scheme='light'],
+:host([data-mantine-color-scheme='light']) {
+  --mantine-color-dimmed: color-mix(in srgb, var(--mantine-color-gray-7), var(--mantine-color-gray-6));
+}
+
 :root {
   --as-surface: var(--mantine-color-body);
   --as-surface-raised: var(--mantine-color-default);

@@ -3,6 +3,7 @@ import { AppShell, Badge, Center, Group, Loader, ScrollArea, Text } from '@manti
 import { useHotkeys, useReducedMotion } from '@mantine/hooks';
 import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 
+import styles from './RootLayout.module.css';
 import { branding } from '../branding.ts';
 import { useFiringCounts, useMe } from '../api/client.ts';
 import { ClusterRailNav } from './ClusterRailNav.tsx';
@@ -13,6 +14,7 @@ import { UserMenu } from './UserMenu.tsx';
 import { useNavCollapsed } from './useNavCollapsed.ts';
 
 const NAVBAR_ID = 'as-navbar';
+const MAIN_ID = 'as-main';
 const PUBLIC_PATHS = ['/login', '/change-password'];
 
 /**
@@ -75,6 +77,9 @@ export function RootLayout() {
       transitionDuration={reducedMotion ? 0 : 180}
       transitionTimingFunction="cubic-bezier(0.2, 0, 0, 1)"
     >
+      <a href={`#${MAIN_ID}`} className={styles.skipLink}>
+        Skip to content
+      </a>
       <AppShell.Header>
         <Group h="100%" px="md" gap="xs" justify="space-between">
           <Group gap="xs">
@@ -109,7 +114,7 @@ export function RootLayout() {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main>
+      <AppShell.Main id={MAIN_ID}>
         <Outlet />
       </AppShell.Main>
 

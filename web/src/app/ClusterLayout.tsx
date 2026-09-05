@@ -52,7 +52,9 @@ export function ClusterLayout() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <div className={styles.identity}>
-          <Title order={2}>{data.name}</Title>
+          <Title order={1} fz="h2">
+            {data.name}
+          </Title>
           <Text size="sm" c="dimmed">
             {meta}
           </Text>

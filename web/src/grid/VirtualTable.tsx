@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Checkbox } from "@mantine/core";
+import { useCallback, useRef, useState } from "react";
+import { Checkbox, CopyButton, Portal } from "@mantine/core";
 import { tableFeatures, useTable, type ColumnDef } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -40,6 +40,12 @@ function plainText(value: unknown): string | undefined {
   if (typeof value === "number" || typeof value === "bigint")
     return String(value);
   return undefined;
+}
+
+interface Reveal {
+  text: string;
+  /** Viewport rect of the cell the panel is anchored to. */
+  rect: DOMRect;
 }
 
 interface VirtualTableProps<T> {
@@ -99,6 +105,26 @@ export function VirtualTable<T>({
   const rows = table.getRowModel().rows;
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // One shared reveal for the whole grid: an ellipsized cell has no way to show
+  // its full value or let you copy it, so on hover/focus of a cell that is
+  // actually clipped (`scrollWidth > clientWidth`) we anchor a small panel to it.
+  // A single instance, not one per cell — safe against the virtualized row count.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [reveal, setReveal] = useState<Reveal | null>(null);
+  const openReveal = useCallback((el: HTMLElement) => {
+    if (el.scrollWidth <= el.clientWidth) return;
+    const text = el.dataset.full;
+    if (!text) return;
+    setReveal({ text, rect: el.getBoundingClientRect() });
+  }, []);
+  const closeReveal = useCallback((e: React.SyntheticEvent) => {
+    // Keep the panel while focus/pointer moves into it (the copy button lives there).
+    const next = (e as React.FocusEvent).relatedTarget as Node | null;
+    if (next instanceof Node && panelRef.current?.contains(next)) return;
+    setReveal(null);
+  }, []);
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -147,7 +173,11 @@ export function VirtualTable<T>({
     loadedKeys.length > 0 && selectedCount === loadedKeys.length;
 
   return (
-    <div ref={scrollRef} className={styles.scroll}>
+    <div
+      ref={scrollRef}
+      className={styles.scroll}
+      onScroll={reveal ? () => setReveal(null) : undefined}
+    >
       <div
         className={styles.grid}
         role="grid"
@@ -251,14 +281,24 @@ export function VirtualTable<T>({
                 ) : null}
                 {columns.map((c) => {
                   const value = c.accessor(original);
+                  const full = plainText(value);
                   return (
                     <div
                       key={c.id}
                       role="gridcell"
                       data-numeric={c.numeric || undefined}
+                      data-full={full}
                       className={`${styles.cell} ${c.numeric ? styles.num : ""}`}
-                      // An ellipsized cell still has to be readable in full.
-                      title={plainText(value)}
+                      // An ellipsized cell still has to be readable in full: the
+                      // title is the always-there fallback; the shared panel
+                      // (hover / keyboard focus) adds copy. Only free-text cells
+                      // opt into the tab stop — numeric counts never truncate.
+                      title={full}
+                      tabIndex={!c.numeric && full ? 0 : undefined}
+                      onPointerEnter={(e) => openReveal(e.currentTarget)}
+                      onPointerLeave={closeReveal}
+                      onFocus={(e) => openReveal(e.currentTarget)}
+                      onBlur={closeReveal}
                     >
                       {c.cell ? c.cell(original) : String(value ?? "")}
                     </div>
@@ -269,6 +309,39 @@ export function VirtualTable<T>({
           })}
         </div>
       </div>
+
+      {reveal ? (
+        <Portal>
+          <div
+            ref={panelRef}
+            className={styles.reveal}
+            role="dialog"
+            aria-label="Full value"
+            style={{
+              insetInlineStart: Math.min(
+                reveal.rect.left,
+                window.innerWidth - 360,
+              ),
+              insetBlockStart: reveal.rect.bottom + 4,
+            }}
+            onPointerLeave={closeReveal}
+          >
+            <span className={styles.revealText}>{reveal.text}</span>
+            <CopyButton value={reveal.text} timeout={1500}>
+              {({ copied, copy }) => (
+                <button
+                  type="button"
+                  className={styles.revealCopy}
+                  onClick={copy}
+                  onBlur={closeReveal}
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              )}
+            </CopyButton>
+          </div>
+        </Portal>
+      ) : null}
     </div>
   );
 }

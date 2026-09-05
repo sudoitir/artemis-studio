@@ -76,7 +76,7 @@ export function ClusterRailNav({ collapsed }: { collapsed: boolean }) {
         </div>
       ))}
       <div className={styles.footer}>
-        <RegisterClusterButton />
+        <RegisterClusterButton collapsed={collapsed} />
       </div>
     </nav>
   );
