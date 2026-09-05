@@ -231,17 +231,34 @@
 
 ## 9. OIDC
 
-- [ ] 9.1 `npx ctx7@latest library "Spring Security" "OAuth2 client OIDC login
-      configuration Boot 4.1"` — verify starter coordinates and property
-      namespace before adding the dependency.
-- [ ] 9.2 Add `spring-boot-starter-oauth2-client`; `spring.security.oauth2.client.*`
-      config in `application.yml`, client secret from environment.
-- [ ] 9.3 `security/oidc/StudioOidcUserService.java` — JIT provisioning by
-      issuer+subject, `password_hash=NULL`, `auth_source=OIDC`.
-- [ ] 9.4 `security/oidc/ClaimRoleMapper.java` — reads `oidc_role_mapping`,
-      re-applies on every login; configured default role or refusal.
-- [ ] 9.5 `web/OidcMappingController.java` (`/api/v1/oidc/mappings`, CRUD),
-      `web/src/admin/OidcMappingPanel.tsx`.
+- [x] 9.1 Verified via `ctx7` (Spring Security 7.0/7.1 reference docs):
+      `oauth2Login()` DSL, `userInfoEndpoint().oidcUserService(...)` hook
+      shape, `spring.security.oauth2.client.registration.*` properties.
+- [x] 9.2 Added `spring-boot-starter-oauth2-client`; `application.yml` documents
+      the opt-in registration block (commented, since none is configured by
+      default) — client secret is expected from the environment when a
+      deployer adds one, never committed.
+- [x] 9.3 **Design deviation from the literal sketch**: no custom
+      `OAuth2UserService`/`OidcUserService`. `security/oidc/StudioOidcUserService.java`
+      is a plain `@Component` doing JIT provisioning
+      (issuer+subject, `password_hash=NULL`, `auth_source=OIDC`), called from
+      `security/oidc/OidcAuthenticationSuccessHandler.java` *after* Spring
+      Security finishes the OIDC exchange — that handler then replaces the
+      `OidcUser` principal in the `SecurityContext` with a `StudioPrincipal`,
+      so every downstream check (`@PreAuthorize`, `ActorResolver`) sees the
+      same principal shape regardless of how the caller authenticated.
+      `config/SecurityConfig.java` only calls `.oauth2Login()` when a
+      `ClientRegistrationRepository` bean actually exists
+      (`ObjectProvider.getIfAvailable()`), since Boot creates none at all
+      with no registration configured and the DSL would otherwise fail to wire.
+- [x] 9.4 `security/oidc/ClaimRoleMapper.java` — reads `oidc_role_mapping`,
+      reconciles the user's mapped grants to the current claim values on
+      every login (adds newly-matched, removes no-longer-matched — see its
+      `ponytail:` comment on how "OIDC-derived" is inferred without a new
+      column); configured default role or refusal.
+- [x] 9.5 `service/OidcMappingService.java` + `web/OidcMappingController.java`
+      (`/api/v1/oidc/mappings`, CRUD). `web/src/admin/OidcMappingPanel.tsx`
+      deferred to section 7.
 - [ ] 9.6 `LoginView.tsx`: show the SSO entry point alongside local login when
       a provider is configured.
 - [ ] 9.7 `ClaimRoleMapperTest`, `StudioOidcUserServiceTest` — JIT

@@ -21,8 +21,20 @@ spring:
 
   # OIDC/SSO (ADR-0040) is opt-in: with no `spring.security.oauth2.client.registration.*`
   # entry configured, Spring Boot's OAuth2 client auto-configuration backs off
-  # entirely and only local login is available. Add a registration (client id,
-  # secret from the environment, provider issuer-uri) to enable it.
+  # entirely and only local login is available. Uncomment and fill in to enable
+  # it — never commit a real client-secret; source it from the environment.
+  #
+  # security:
+  #   oauth2:
+  #     client:
+  #       registration:
+  #         studio:
+  #           client-id: ${ARTEMIS_STUDIO_OIDC_CLIENT_ID:}
+  #           client-secret: ${ARTEMIS_STUDIO_OIDC_CLIENT_SECRET:}
+  #           scope: openid,profile,email,groups
+  #       provider:
+  #         studio:
+  #           issuer-uri: ${ARTEMIS_STUDIO_OIDC_ISSUER_URI:}
 
   jpa:
     # Liquibase owns the schema; Hibernate only maps to it and checks the mapping
@@ -122,6 +134,11 @@ artemis-studio:
     connect-timeout: 10s         # notificationRestClient connect + read timeout
     initial-backoff: 5s          # first retry delay (exponential with jitter)
     max-backoff: 10m             # backoff ceiling
+  security:
+    # Governance (Phase 8, ADR-0037, ADR-0040).
+    session-timeout: 8h
+    oidc-claim: groups            # the token/userinfo claim mapped by oidc_role_mapping
+    # oidc-default-role: VIEWER   # role granted when no mapping matches; unset refuses the login
 
 logging:
   level:

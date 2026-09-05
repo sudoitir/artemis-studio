@@ -3,12 +3,15 @@ package io.github.sudoitir.artemisstudio.config;
 import io.github.sudoitir.artemisstudio.security.ApiTokenAuthenticationFilter;
 import io.github.sudoitir.artemisstudio.security.ApiTokenService;
 import io.github.sudoitir.artemisstudio.security.MustChangePasswordFilter;
+import io.github.sudoitir.artemisstudio.security.oidc.OidcAuthenticationSuccessHandler;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
@@ -41,7 +44,9 @@ public class SecurityConfig {
             HttpSecurity http,
             ApiTokenService apiTokenService,
             HandlerExceptionResolver handlerExceptionResolver,
-            CsrfTokenRepository csrfTokenRepository)
+            CsrfTokenRepository csrfTokenRepository,
+            ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+            OidcAuthenticationSuccessHandler oidcSuccessHandler)
             throws Exception {
         http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
                 .sessionManagement(session -> session.sessionCreationPolicy(
@@ -65,6 +70,13 @@ public class SecurityConfig {
                 .addFilterBefore(new ApiTokenAuthenticationFilter(apiTokenService), SecurityContextHolderFilter.class)
                 .addFilterAfter(
                         new MustChangePasswordFilter(handlerExceptionResolver), SecurityContextHolderFilter.class);
+
+        // OIDC/SSO (ADR-0040) is opt-in: with no spring.security.oauth2.client.registration.*
+        // configured, Boot creates no ClientRegistrationRepository bean at all, and
+        // .oauth2Login() must not be called in that case (it would fail to wire).
+        if (clientRegistrations.getIfAvailable() != null) {
+            http.oauth2Login(oauth2 -> oauth2.successHandler(oidcSuccessHandler));
+        }
         return http.build();
     }
 
