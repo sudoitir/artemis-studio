@@ -24,6 +24,7 @@ import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.service.SettingsService;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -48,6 +50,7 @@ import tools.jackson.databind.json.JsonMapper;
  * dry-run issues no mutating call, and the server-enforced bulk cap. Consolidates
  * tasks 7.6 / 8.7 / 9.10 / 10.5.
  */
+@ExtendWith(AdminAuthenticationExtension.class)
 class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     private static final String URL = "http://a:8161/console/jolokia";

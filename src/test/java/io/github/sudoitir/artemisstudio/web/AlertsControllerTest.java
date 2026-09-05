@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import io.github.sudoitir.artemisstudio.persist.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
 /** Rule CRUD + audit trail (alerting spec, audit-log spec). */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class AlertsControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;

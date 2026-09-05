@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.CreateExpectationRequest;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.ExpectationView;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /** Expectation CRUD and its audit trail (request-reply-tracing spec). */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Autowired

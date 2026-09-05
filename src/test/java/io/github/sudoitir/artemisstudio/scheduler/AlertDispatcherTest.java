@@ -59,7 +59,8 @@ class AlertDispatcherTest {
                 null,
                 null,
                 new Alerting(
-                        Duration.ofSeconds(5), 3, Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMinutes(1)));
+                        Duration.ofSeconds(5), 3, Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMinutes(1)),
+                null);
         dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, properties);
         channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1}, new byte[] {2});
         when(channels.findById(channelId)).thenReturn(java.util.Optional.of(channel));

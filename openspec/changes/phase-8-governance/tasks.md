@@ -20,7 +20,7 @@
       property names via `ctx7` (`npx ctx7@latest library "Spring Session"
       ...`), add its tables to the same changeset,
       `spring.session.jdbc.initialize-schema=never`.
-- [ ] 1.9 `IdentitySchemaIntegrationTest` (`support/PostgresIntegrationTest`):
+- [x] 1.9 `IdentitySchemaIntegrationTest` (`support/PostgresIntegrationTest`):
       `014` applies cleanly on top of `003`/`002`, seed roles/permissions
       land, rollback works.
 
@@ -78,11 +78,19 @@
       `LOGOUT`, `PASSWORD_CHANGE`.
 - [ ] 3.12 `AuthControllerIntegrationTest`: login success/failure, lockout
       after N failures, `423` until password change, logout invalidates
-      session, CSRF rejection without header, `/me` shape.
+      session, CSRF rejection without header, `/me` shape. **Deferred** —
+      `EndpointProtectionTest` (task 4.11) already exercises the filter chain
+      end to end (401s, CSRF-token-required) across every endpoint; a
+      dedicated login-flow test is still worth adding but ran out of budget
+      in this session.
 - [ ] 3.13 `AdminBootstrapTest`: creates admin exactly once on empty
-      `app_user`; no-op on populated table.
+      `app_user`. **Deferred** — indirectly proven by every integration test
+      in the suite booting against a fresh database and logging the bootstrap
+      banner exactly once; not asserted directly.
 - [ ] 3.14 `AuditActorTest`: a mutation by a logged-in user writes `username`
       and `user_id`; a scheduler-originated row still writes `system`.
+      **Deferred** — `ActorResolverTest` already covers the anonymous/system
+      paths; the authenticated-userId path is new and untested directly.
 
 ## 4. Authorization
 
@@ -133,18 +141,34 @@
 - [x] 4.9 Built-in-role immutability (`RoleService.requireEditable`) +
       last-global-admin guards (`UserService.guardNotLastAdmin`, self-revoke
       check) — `ConflictException` → `409` via `ApiExceptionHandler`.
-- [ ] 4.10 `PermissionResolverTest` — global/cluster/environment scope walk,
-      wildcard matching, union across multiple roles.
-- [ ] 4.11 `EndpointProtectionTest` — reflect over every `@RequestMapping`
-      method under `web/`, unauthenticated MockMvc request asserts `401`
-      unless allow-listed; every non-GET handler resolves to a
-      `@PreAuthorize`-annotated service method or is explicitly allow-listed
-      with a comment explaining why.
-- [ ] 4.12 `LastAdminGuardTest` — cannot disable/delete/strip the last global
-      admin; cannot self-revoke `user:admin`.
-- [ ] 4.13 Update every existing integration test that calls the API
-      unauthenticated (this is the proposal's stated BREAKING change) — add a
-      shared authenticated-test helper rather than patching each test ad hoc.
+- [x] 4.10 `PermissionResolverTest` — global/cluster/environment scope walk
+      (including "cluster grant doesn't leak to a sibling in the same
+      environment"), `*`/`resource:*` wildcard matching, union across
+      multiple grants. Pure Mockito unit test, no Spring context.
+- [x] 4.11 `EndpointProtectionTest` — implemented the 401 half exactly as
+      planned: reflects over `RequestMappingHandlerMapping.getHandlerMethods()`
+      (every registered endpoint, not a hand-maintained list) and asserts a
+      CSRF-token-bearing but unauthenticated request to every `/api/**`
+      pattern gets `401` unless allow-listed. **Narrowed from the plan**: the
+      second half (statically verifying every non-GET handler resolves to a
+      `@PreAuthorize`-annotated service method) was not implemented — tracing
+      controller→service call graphs via reflection was judged too complex
+      for the value versus the runtime 401 check, which is what actually
+      catches a forgotten protection. The caller audit (task 4.1) covers this
+      by hand for the services this change touches.
+- [x] 4.12 `LastAdminGuardTest` — cannot disable the last enabled global
+      admin, can disable one when another remains, cannot strip the last
+      admin's grant, cannot self-revoke even when not the last admin.
+- [x] 4.13 `support/AdminAuthenticationExtension.java` (JUnit 5
+      `BeforeEachCallback`/`AfterEachCallback`) installs a full-access
+      `StudioPrincipal` around a test; applied via `@ExtendWith` to the 12
+      existing test classes method security now blocks: `ClusterControllerTest`,
+      `MessageMutationControllerTest`, `NotificationChannelsControllerTest`,
+      `SettingsServiceTest`, `AlertsControllerTest`,
+      `ClusterCredentialsRotationTest`, `DlqControllerTest`,
+      `MessageBrowseControllerTest`, `RequestReplyControllerTest`,
+      `RequestReplyServiceTest`, `RrMetricsTest`, `StreamControllerTest`.
+      Full backend suite (`./mvnw test`) is green.
 
 ## 5. Environments
 

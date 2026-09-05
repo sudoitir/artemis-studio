@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import io.github.sudoitir.artemisstudio.service.BrokerEventService;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import io.github.sudoitir.artemisstudio.sse.Subscriber;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.github.sudoitir.artemisstudio.web.dto.EventViews.BrokerEventView;
 import java.time.Instant;
@@ -35,6 +36,7 @@ import org.springframework.web.context.WebApplicationContext;
  * async result to dispatch — the assertions here are all on what the controller
  * does synchronously before it returns the emitter.
  */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class StreamControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;

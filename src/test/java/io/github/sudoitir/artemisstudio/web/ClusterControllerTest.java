@@ -23,12 +23,14 @@ import io.github.sudoitir.artemisstudio.persist.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -40,6 +42,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
+@ExtendWith(AdminAuthenticationExtension.class)
 class ClusterControllerTest extends PostgresIntegrationTest {
 
     private static final String SEED = "http://broker-1:8161/console/jolokia";

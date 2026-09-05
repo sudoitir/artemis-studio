@@ -25,6 +25,7 @@ class TopicCoalescerTest {
             null,
             new Events(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50),
             null,
+            null,
             null);
     private final TopicCoalescer coalescer = new TopicCoalescer(hub, props);
 

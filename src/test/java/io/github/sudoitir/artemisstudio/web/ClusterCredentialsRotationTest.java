@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.security.SecretVault;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
 /** {@code PUT /api/v1/clusters/{id}/credentials}: re-encrypts, audits in-transaction, leaks no secret. */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class ClusterCredentialsRotationTest extends PostgresIntegrationTest {
 
     private static final String JOLOKIA_BASIC = "JOLOKIA_BASIC";
