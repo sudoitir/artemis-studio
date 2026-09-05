@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.web;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,15 +11,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.github.sudoitir.artemisstudio.persist.AppUserEntity;
 import io.github.sudoitir.artemisstudio.persist.AppUserRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
-import jakarta.servlet.http.Cookie;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -26,7 +23,14 @@ import org.springframework.web.context.WebApplicationContext;
  * The login/logout/me/password-change flow against the real
  * {@code SecurityFilterChain} (task 3.12) — login success/failure, the
  * throttle lockout, {@code 423} until password change and its self-unlock,
- * logout invalidating the session, and CSRF rejection without the header.
+ * logout invalidating the session, and CSRF rejection without a token.
+ *
+ * <p>CSRF is exercised with {@link
+ * org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors#csrf()
+ * csrf()} — the same repository-agnostic pattern as {@code EndpointProtectionTest}
+ * — rather than by round-tripping the {@code XSRF-TOKEN} response cookie through
+ * MockMvc, which {@code CsrfFilter} does not re-issue reliably once a request is
+ * short-circuited (401) before the token is read.
  */
 class AuthControllerIntegrationTest extends PostgresIntegrationTest {
 
@@ -52,59 +56,20 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
         users.save(user);
     }
 
-    /**
-     * Tracks CSRF cookies and the servlet session across requests, the way a
-     * browser would. MockMvc does not resolve a session from a JSESSIONID
-     * cookie the way a real container does — the documented pattern is to
-     * carry the {@link MockHttpSession} object itself between requests.
-     */
-    private static final class Session {
-        private final Map<String, Cookie> cookies = new LinkedHashMap<>();
-        private MockHttpSession session = new MockHttpSession();
-
-        Cookie[] jar() {
-            return cookies.values().toArray(new Cookie[0]);
-        }
-
-        String csrf() {
-            Cookie c = cookies.get("XSRF-TOKEN");
-            if (c == null) throw new IllegalStateException("no XSRF-TOKEN cookie captured yet");
-            return c.getValue();
-        }
-
-        MockHttpSession httpSession() {
-            return session;
-        }
-
-        void capture(MvcResult result) {
-            Cookie[] fresh = result.getResponse().getCookies();
-            if (fresh != null) {
-                for (Cookie c : fresh) cookies.put(c.getName(), c);
-            }
-            if (result.getRequest().getSession(false) instanceof MockHttpSession s) {
-                session = s;
-            }
-        }
-    }
-
     @Test
     void loginSucceedsAndMeReflectsThePrincipal() throws Exception {
         newUser("auth-ok", "correct-horse-battery");
         MockMvc mvc = mvc();
-        Session session = new Session();
-        session.capture(mvc.perform(get("/api/v1/clusters").session(session.httpSession()))
-                .andReturn());
+        MockHttpSession session = new MockHttpSession();
 
-        session.capture(mvc.perform(post("/api/v1/auth/login")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf())
+        mvc.perform(post("/api/v1/auth/login")
+                        .session(session)
+                        .with(csrf())
                         .contentType("application/json")
                         .content("{\"username\":\"auth-ok\",\"password\":\"correct-horse-battery\"}"))
-                .andExpect(status().isOk())
-                .andReturn());
+                .andExpect(status().isOk());
 
-        mvc.perform(get("/api/v1/auth/me").session(session.httpSession()))
+        mvc.perform(get("/api/v1/auth/me").session(session))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("auth-ok")));
     }
@@ -112,31 +77,21 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
     @Test
     void loginFailsWithWrongPassword() throws Exception {
         newUser("auth-bad", "correct-horse-battery");
-        MockMvc mvc = mvc();
-        Session session = new Session();
-        session.capture(mvc.perform(get("/api/v1/clusters").session(session.httpSession()))
-                .andReturn());
 
-        mvc.perform(post("/api/v1/auth/login")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf())
+        mvc().perform(post("/api/v1/auth/login")
+                        .session(new MockHttpSession())
+                        .with(csrf())
                         .contentType("application/json")
                         .content("{\"username\":\"auth-bad\",\"password\":\"wrong\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void loginWithNoCsrfHeaderIsRejected() throws Exception {
+    void loginWithNoCsrfTokenIsRejected() throws Exception {
         newUser("auth-csrf", "correct-horse-battery");
-        MockMvc mvc = mvc();
-        Session session = new Session();
-        session.capture(mvc.perform(get("/api/v1/clusters").session(session.httpSession()))
-                .andReturn());
 
-        mvc.perform(post("/api/v1/auth/login")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
+        mvc().perform(post("/api/v1/auth/login")
+                        .session(new MockHttpSession())
                         .contentType("application/json")
                         .content("{\"username\":\"auth-csrf\",\"password\":\"correct-horse-battery\"}"))
                 .andExpect(status().isForbidden());
@@ -146,24 +101,20 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
     void locksOutAfterRepeatedFailuresEvenWithTheCorrectPassword() throws Exception {
         newUser("auth-lockout", "correct-horse-battery");
         MockMvc mvc = mvc();
-        Session session = new Session();
-        session.capture(mvc.perform(get("/api/v1/clusters").session(session.httpSession()))
-                .andReturn());
+        MockHttpSession session = new MockHttpSession();
 
         for (int i = 0; i < 5; i++) {
             mvc.perform(post("/api/v1/auth/login")
-                            .session(session.httpSession())
-                            .cookie(session.jar())
-                            .header("X-XSRF-TOKEN", session.csrf())
+                            .session(session)
+                            .with(csrf())
                             .contentType("application/json")
                             .content("{\"username\":\"auth-lockout\",\"password\":\"wrong\"}"))
                     .andExpect(status().isUnauthorized());
         }
 
         mvc.perform(post("/api/v1/auth/login")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf())
+                        .session(session)
+                        .with(csrf())
                         .contentType("application/json")
                         .content("{\"username\":\"auth-lockout\",\"password\":\"correct-horse-battery\"}"))
                 .andExpect(status().isTooManyRequests());
@@ -178,59 +129,45 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
         users.save(user);
 
         MockMvc mvc = mvc();
-        Session session = new Session();
-        session.capture(mvc.perform(get("/api/v1/clusters").session(session.httpSession()))
-                .andReturn());
+        MockHttpSession session = new MockHttpSession();
 
-        session.capture(mvc.perform(post("/api/v1/auth/login")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf())
+        mvc.perform(post("/api/v1/auth/login")
+                        .session(session)
+                        .with(csrf())
                         .contentType("application/json")
                         .content("{\"username\":\"auth-locked-pwd\",\"password\":\"temp-password-1\"}"))
-                .andExpect(status().isOk())
-                .andReturn());
+                .andExpect(status().isOk());
 
-        mvc.perform(get("/api/v1/clusters").session(session.httpSession())).andExpect(status().isLocked());
-        mvc.perform(get("/api/v1/auth/me").session(session.httpSession())).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/clusters").session(session)).andExpect(status().isLocked());
+        mvc.perform(get("/api/v1/auth/me").session(session)).andExpect(status().isOk());
 
-        session.capture(mvc.perform(post("/api/v1/auth/password")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf())
+        mvc.perform(post("/api/v1/auth/password")
+                        .session(session)
+                        .with(csrf())
                         .contentType("application/json")
                         .content("{\"currentPassword\":\"temp-password-1\",\"newPassword\":\"new-real-password-2\"}"))
-                .andExpect(status().isNoContent())
-                .andReturn());
+                .andExpect(status().isNoContent());
 
         // The same session, immediately, with no fresh login — the exact bug this
         // session found and fixed (AuthService.changePassword re-authenticates).
-        mvc.perform(get("/api/v1/clusters").session(session.httpSession())).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/clusters").session(session)).andExpect(status().isOk());
     }
 
     @Test
     void logoutInvalidatesTheSession() throws Exception {
         newUser("auth-logout", "correct-horse-battery");
         MockMvc mvc = mvc();
-        Session session = new Session();
-        session.capture(mvc.perform(get("/api/v1/clusters").session(session.httpSession()))
-                .andReturn());
+        MockHttpSession session = new MockHttpSession();
 
-        session.capture(mvc.perform(post("/api/v1/auth/login")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf())
+        mvc.perform(post("/api/v1/auth/login")
+                        .session(session)
+                        .with(csrf())
                         .contentType("application/json")
                         .content("{\"username\":\"auth-logout\",\"password\":\"correct-horse-battery\"}"))
-                .andExpect(status().isOk())
-                .andReturn());
+                .andExpect(status().isOk());
 
-        mvc.perform(post("/api/v1/auth/logout")
-                        .session(session.httpSession())
-                        .cookie(session.jar())
-                        .header("X-XSRF-TOKEN", session.csrf()))
-                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/v1/auth/logout").session(session).with(csrf())).andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/clusters").session(session.httpSession())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/clusters").session(session)).andExpect(status().isUnauthorized());
     }
 }

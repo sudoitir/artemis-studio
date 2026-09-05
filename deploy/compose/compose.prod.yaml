@@ -8,6 +8,9 @@
 # Everything sensitive comes from .env (see deploy/compose/.env.example). This is
 # a reference, not a turnkey deployment: put Postgres on managed infrastructure
 # and terminate TLS at your ingress for anything serious. Helm chart lands in v1.0.
+#
+# The default image is a pre-stable dev build (tag :dev). There is no stable
+# release yet — pin a CalVer tag (e.g. :2026.09.0) once you depend on it.
 
 name: artemis-studio
 
@@ -71,7 +74,7 @@ services:
           memory: 2g
 
   studio:
-    image: ${STUDIO_IMAGE:-ghcr.io/sudoitir/artemis-studio:latest}
+    image: ${STUDIO_IMAGE:-sudoit1/artemis-studio:dev}
     # The live UI stream is Server-Sent Events at GET /api/v1/stream. If you put a
     # reverse proxy in front of Studio, it MUST NOT buffer that response:
     #   nginx    -> proxy_buffering off;  (Studio also sends X-Accel-Buffering: no)

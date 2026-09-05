@@ -82,12 +82,12 @@ work is the Roadmap in `README.md` — each item is a self-contained session.
 
 ```bash
 just                 # menu of all tasks, grouped
-just up / just down  # dev stack: postgres + artemis primary/backup + studio
+just up / just down  # Studio + Postgres from the published image (runs `just setup`: .env + version pin)
+just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + studio, built locally
 just dev             # backend :8080 + vite :5173 (proxied), together
 just verify          # everything CI runs: verify-api + verify-web
 just fmt             # Palantir (Spotless) + eslint --fix
 just db-status / db-sql / db-rollback [n] / db-shell
-just prod-up         # prod reference stack (needs deploy/compose/.env)
 
 ./mvnw verify                  # backend: format-check, Liquibase vs Testcontainers PG, tests
 ./mvnw -Pfrontend package      # full jar with the SPA baked in
@@ -96,6 +96,10 @@ just prod-up         # prod reference stack (needs deploy/compose/.env)
 `./mvnw verify` needs Docker (Testcontainers). The frontend build is behind the
 `frontend` Maven profile so day-to-day `./mvnw test` stays fast. Compose files
 live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
+
+Every push to `main` cuts a CalVer release to Docker Hub (image, git tag, GitHub
+pre-release). See `.claude/rules/10-release.md` for the versioning and
+`CHANGELOG.md` conventions — user-visible changes add a `## [Unreleased]` entry.
 
 ## Trademark
 
