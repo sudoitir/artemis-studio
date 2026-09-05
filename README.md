@@ -177,9 +177,7 @@ OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get 
 | [ ] | Multi-instance HA — Postgres advisory lock per cluster |
 | [ ] | Helm chart |
 | [ ] | Docs site |
-| [ ] | Slow-consumer detection |
 | [ ] | Message replay from a captured payload |
-| [ ] | Payload inspection helpers (pretty-print, type detection) |
 | [ ] | Metric rollup tables — only when a query is measurably slow |
 
 ### Beyond
@@ -190,7 +188,6 @@ OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get 
 | [ ] | JMX transport |
 | [ ] | Saved / shareable views |
 | [ ] | Scheduled reports |
-| [ ] | Broker config diff across a pair |
 | [ ] | Prometheus scrape ingestion option |
 | [ ] | Artemis MCP |
 

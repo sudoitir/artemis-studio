@@ -80,8 +80,8 @@
 
 ## 6. Close-out
 
-- [ ] 6.1 Remove the three completed rows from the README Roadmap tables — Slow-consumer detection, Payload inspection helpers, Broker config diff across a pair
-- [ ] 6.2 `CHANGELOG.md` `## [Unreleased]`: `Added` bullets for the three features and a `Fixed` bullet for the topology work, written for someone upgrading
-- [ ] 6.3 `just fmt` clean
-- [ ] 6.4 `just verify` (= verify-api + verify-web) passes, output pasted
-- [ ] 6.5 `./mvnw verify` passes with Docker (Testcontainers + Liquibase), output pasted
+- [x] 6.1 Remove the three completed rows from the README Roadmap tables — Slow-consumer detection, Payload inspection helpers, Broker config diff across a pair
+- [x] 6.2 `CHANGELOG.md` `## [Unreleased]`: `Added` bullets for the three features and a `Fixed` bullet for the topology work, written for someone upgrading
+- [x] 6.3 `just fmt` clean
+- [x] 6.4 `just verify` (= verify-api + verify-web) passes, output pasted
+- [x] 6.5 `./mvnw verify` passes with Docker (Testcontainers + Liquibase), output pasted
