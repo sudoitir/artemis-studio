@@ -49,7 +49,8 @@ class QueueSnapshotUpsertTest extends PostgresIntegrationTest {
     }
 
     private QueueRow row(String queue, long messageCount) {
-        return new QueueRow(clusterId, nodeId, "addr." + queue, queue, "ANYCAST", true, messageCount, 0, 0, 0, 0, 0, 0);
+        return new QueueRow(
+                clusterId, nodeId, "addr." + queue, queue, "ANYCAST", true, messageCount, 0, 0, 0, 0, 0, 0, false);
     }
 
     @Test

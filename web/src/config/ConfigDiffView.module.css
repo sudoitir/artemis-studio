@@ -1,0 +1,21 @@
+/* Wide key/value rows scroll inside their own container; the page never scrolls
+   horizontally. */
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  min-inline-size: 640px;
+}
+
+.table td {
+  vertical-align: top;
+  word-break: break-all;
+}
+
+/* A drift row is marked by a rule on its inline start, not by a colour fill —
+   the status word in the last column is the primary signal. */
+.table tr[data-drift] td:first-child {
+  border-inline-start: 2px solid var(--as-warning);
+  padding-inline-start: 6px;
+}

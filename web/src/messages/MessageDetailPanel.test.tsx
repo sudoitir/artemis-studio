@@ -56,12 +56,38 @@ describe('MessageDetailPanel', () => {
     expect(screen.getByText(/connect the Core client/)).toBeInTheDocument();
   });
 
-  it('shows the transport badge and a binary body notice when read over Core', async () => {
+  it('shows the transport badge and dumps a binary body as bytes, never as text', async () => {
     mockDetail(detail({ transport: 'CORE', bodyEncoding: 'BASE64', body: 'AQIDBA==' }));
     renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
 
     expect(await screen.findByText('via Core')).toBeInTheDocument();
-    expect(screen.getByText(/binary · base64/)).toBeInTheDocument();
+    expect(screen.getByText('binary')).toBeInTheDocument();
+    // A hex + ASCII dump of the four bytes, not a TextDecoder'd rendering of them.
+    expect(screen.getByText(/00000000 01 02 03 04/)).toBeInTheDocument();
+  });
+
+  it('names a recognised binary container rather than calling it plain binary', async () => {
+    // gzip magic bytes 1f 8b, base64-encoded.
+    mockDetail(detail({ transport: 'CORE', bodyEncoding: 'BASE64', body: 'H4sIAAAAAAAA' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByText('binary · gzip')).toBeInTheDocument();
+  });
+
+  it('a truncated JSON body reports truncation, not a malformed payload', async () => {
+    mockDetail(detail({ bodyTruncated: true, body: '{"orders":[{"id":1},{"id":2' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByText(/the broker truncated this body/i)).toBeInTheDocument();
+  });
+
+  it('formats a JSON body and offers the raw view', async () => {
+    mockDetail(detail({ body: '{"b":2,"a":1}' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByText('JSON')).toBeInTheDocument();
+    expect(screen.getByText('Formatted')).toBeInTheDocument();
+    expect(screen.getByText('Raw')).toBeInTheDocument();
   });
 
   it('does not show the truncation banner for a whole message', async () => {

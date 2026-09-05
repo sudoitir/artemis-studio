@@ -82,7 +82,8 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) CapabilityView managementRead,
             @Schema(requiredMode = REQUIRED) CapabilityView managementWrite,
             @Schema(requiredMode = REQUIRED) CapabilityView notifications,
-            @Schema(requiredMode = REQUIRED) CapabilityView messageIo) {}
+            @Schema(requiredMode = REQUIRED) CapabilityView messageIo,
+            @Schema(requiredMode = REQUIRED) CapabilityView slowConsumerDetection) {}
 
     /** {@code GET /clusters/{id}/health}. */
     public record HealthView(

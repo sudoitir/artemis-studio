@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Anchor,
   Button,
   Checkbox,
   Group,
@@ -7,15 +8,26 @@ import {
   NumberInput,
   Select,
   Stack,
+  Text,
   TextInput,
 } from '@mantine/core';
 
 import type { AlertRuleRequest, AlertRuleView, NotificationChannelView } from '../api/client.ts';
-import { COMPARATORS, GAUGE_METRICS, RATE_METRICS, STATE_CONDITIONS, metricKind } from './severity.ts';
+import {
+  COMPARATORS,
+  DERIVED_METRICS,
+  GAUGE_METRICS,
+  METRIC_NOTES,
+  RATE_METRICS,
+  SLOW_CONSUMER_TEMPLATE,
+  STATE_CONDITIONS,
+  metricKind,
+  metricLabel,
+} from './severity.ts';
 
-const METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS].map((m) => ({
+const METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_METRICS].map((m) => ({
   value: m,
-  label: `${m} (${metricKind(m)})`,
+  label: `${metricLabel(m)} (${metricKind(m)})`,
 }));
 const STATE_OPTIONS = STATE_CONDITIONS.map((c) => ({ value: c, label: c.replace(/_/g, ' ').toLowerCase() }));
 const SEVERITY_OPTIONS = ['INFO', 'WARNING', 'CRITICAL'];
@@ -50,6 +62,20 @@ export function RuleForm({
   const [severity, setSeverity] = useState<string | null>(initial?.severity ?? 'WARNING');
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   const [channelIds, setChannelIds] = useState<string[]>(initial?.channelIds ?? []);
+
+  /**
+   * A prefilled starting point, not a seeded rule (ADR-0044): no slow-consumer rule
+   * is created on cluster registration, because a meaningful threshold is
+   * workload-specific and any shipped value would be wrong for most deployments.
+   */
+  const applySlowConsumerTemplate = () => {
+    setName(SLOW_CONSUMER_TEMPLATE.name);
+    setMetric(SLOW_CONSUMER_TEMPLATE.metric);
+    setComparator(SLOW_CONSUMER_TEMPLATE.comparator);
+    setThreshold(SLOW_CONSUMER_TEMPLATE.threshold);
+    setForSeconds(SLOW_CONSUMER_TEMPLATE.forSeconds);
+    setSeverity(SLOW_CONSUMER_TEMPLATE.severity);
+  };
 
   const valid =
     name.trim() &&
@@ -95,6 +121,18 @@ export function RuleForm({
           onChange={(e) => setName(e.currentTarget.value)}
           w={200}
         />
+
+        {kind === 'METRIC_THRESHOLD' && !initial ? (
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            onClick={applySlowConsumerTemplate}
+            style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
+          >
+            Start from the slow-consumer template
+          </Anchor>
+        ) : null}
 
         {kind === 'METRIC_THRESHOLD' ? (
           <>
@@ -149,6 +187,12 @@ export function RuleForm({
           allowDeselect={false}
         />
       </Group>
+
+      {metric && METRIC_NOTES[metric] ? (
+        <Text size="xs" c="dimmed" maw={720}>
+          {METRIC_NOTES[metric]}
+        </Text>
+      ) : null}
 
       <Group align="flex-end" gap="xs" wrap="wrap">
         <MultiSelect

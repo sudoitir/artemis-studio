@@ -144,3 +144,16 @@ window.HTMLElement.prototype.getBoundingClientRect = () =>
     y: 0,
     toJSON() {},
   }) as DOMRect;
+
+// jsdom has no CSSOM View matrix API. React Flow (via d3-zoom) constructs a
+// DOMMatrixReadOnly from the pane's transform to read the current scale; without
+// this, any test that renders a topology canvas throws
+// "window.DOMMatrixReadOnly is not a constructor".
+class DOMMatrixReadOnlyStub {
+  m22: number;
+  constructor(transform?: string) {
+    const scale = transform?.match(/scale\(([\d.]+)\)/)?.[1];
+    this.m22 = scale === undefined ? 1 : Number(scale);
+  }
+}
+window.DOMMatrixReadOnly ??= DOMMatrixReadOnlyStub as unknown as typeof DOMMatrixReadOnly;

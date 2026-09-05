@@ -22,13 +22,20 @@ package io.github.sudoitir.artemisstudio.broker;
  *   <li>{@code messageIo} — available but degraded whenever {@code managementWrite}
  *       holds: Jolokia {@code browse()} / {@code sendMessage()} stringify bodies;
  *       faithful message I/O needs the Core client.
+ *   <li>{@code slowConsumerDetection} — whether the broker does its own
+ *       slow-consumer detection (ADR-0044). Usually {@link CapabilityStatus#UNKNOWN}:
+ *       {@code getAddressSettingsAsJSON} returns
+ *       {@code slowConsumerThresholdMeasurementUnit} but not the threshold itself, so
+ *       Studio cannot see whether one is set. UNKNOWN, never "off" — reporting a
+ *       difference Studio cannot observe would be a guess (non-negotiable #5).
  * </ul>
  */
 public record BrokerCapabilities(
         CapabilityAssessment managementRead,
         CapabilityAssessment managementWrite,
         CapabilityAssessment notifications,
-        CapabilityAssessment messageIo) {
+        CapabilityAssessment messageIo,
+        CapabilityAssessment slowConsumerDetection) {
 
     public enum CapabilityStatus {
         AVAILABLE,

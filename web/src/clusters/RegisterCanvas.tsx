@@ -41,7 +41,7 @@ function PreviewCanvas({ topology, stale }: { topology: TopologyView; stale: boo
         </Text>
       </Alert>
       <div className={styles.previewCanvas} data-stale={stale || undefined}>
-        <TopologyCanvas model={model} interactive={!stale} />
+        <TopologyCanvas model={model} interactive={!stale} height="100%" />
       </div>
     </Stack>
   );
@@ -79,7 +79,7 @@ function ExampleCards({
                 Example — not your cluster
               </Text>
               <div className={styles.cardCanvas} aria-hidden="true">
-                <TopologyCanvas model={model} interactive={false} />
+                <TopologyCanvas model={model} interactive={false} height="100%" />
               </div>
             </button>
           );

@@ -232,10 +232,6 @@ export function SettingsView() {
         </Text>
         <NotificationChannels />
       </div>
-
-      <Text size="xs" c="dimmed">
-        Users, roles and OIDC are Phase 8.
-      </Text>
     </Stack>
   );
 }

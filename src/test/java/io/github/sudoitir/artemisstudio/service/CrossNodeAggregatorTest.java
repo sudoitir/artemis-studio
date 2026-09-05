@@ -63,7 +63,7 @@ class CrossNodeAggregatorTest extends PostgresIntegrationTest {
     }
 
     private QueueRow row(UUID node, String address, String queue, long messageCount) {
-        return new QueueRow(clusterId, node, address, queue, "ANYCAST", true, messageCount, 1, 0, 0, 0, 0, 0);
+        return new QueueRow(clusterId, node, address, queue, "ANYCAST", true, messageCount, 1, 0, 0, 0, 0, 0, false);
     }
 
     @Test

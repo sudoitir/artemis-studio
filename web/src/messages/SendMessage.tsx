@@ -117,8 +117,7 @@ export function SendMessage({
           ))}
         </Stack>
         <Text size="xs" c="dimmed">
-          Over Jolokia the body is a string. Faithful binary bodies arrive with the Core client in
-          Phase 4.
+          Over Jolokia the body is a string. Faithful binary bodies need the Core client.
         </Text>
         <Group justify="flex-end">
           <Button variant="default" size="xs" onClick={onClose}>

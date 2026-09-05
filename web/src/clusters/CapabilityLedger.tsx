@@ -11,6 +11,7 @@ const LABELS: Record<Key, string> = {
   managementWrite: 'Change broker state',
   notifications: 'Live events',
   messageIo: 'Message browse and send',
+  slowConsumerDetection: 'Slow-consumer detection',
 };
 
 const ORDER: Key[] = [
@@ -18,6 +19,7 @@ const ORDER: Key[] = [
   'managementWrite',
   'notifications',
   'messageIo',
+  'slowConsumerDetection',
 ];
 
 /**
@@ -80,7 +82,7 @@ function statusWord(
   cap: CapabilityView,
 ): { text: string; tone?: 'warning' | 'danger' } {
   if (cap.status === 'AVAILABLE') {
-    if (key === 'messageIo' && /degraded|truncat|Phase 4/i.test(cap.reason)) {
+    if (key === 'messageIo' && /degraded|truncat|Core client/i.test(cap.reason)) {
       return { text: 'Limited', tone: 'warning' };
     }
     return { text: 'Available' };

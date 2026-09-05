@@ -14,6 +14,7 @@ import { TopologyView } from './topology/TopologyView.tsx';
 import { QueuesView } from './queues/QueuesView.tsx';
 import { MessagesView } from './messages/MessagesView.tsx';
 import { AuditView } from './audit/AuditView.tsx';
+import { ConfigDiffView } from './config/ConfigDiffView.tsx';
 import { DlqView } from './dlq/DlqView.tsx';
 import { EventsView } from './events/EventsView.tsx';
 import { FlowsView } from './rr/FlowsView.tsx';
@@ -212,6 +213,13 @@ const alertsRoute = createRoute({
   errorComponent: RouteError,
 });
 
+const configDiffRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'config-diff',
+  component: ConfigDiffView,
+  errorComponent: RouteError,
+});
+
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
@@ -264,6 +272,7 @@ const routeTree = rootRoute.addChildren([
     metricsRoute,
     alertsRoute,
     auditRoute,
+    configDiffRoute,
     dlqRoute,
     eventsRoute,
     rrRoute,

@@ -20,6 +20,7 @@ function preview() {
       managementWrite: { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null },
       notifications: { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null },
       messageIo: { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null },
+      slowConsumerDetection: { status: 'UNKNOWN', reason: 'not exposed', brokerXmlSnippet: '<x/>' },
     },
     reachableSeeds: 1,
     discoveredNodes: 2,

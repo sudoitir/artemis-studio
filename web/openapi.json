@@ -2133,6 +2133,49 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config-diff" : {
+      "get" : {
+        "tags" : [ "config-diff-controller" ],
+        "operationId" : "compare",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "left",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "right",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDiffView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/capabilities" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
@@ -3113,9 +3156,12 @@
           },
           "messageIo" : {
             "$ref" : "#/components/schemas/CapabilityView"
+          },
+          "slowConsumerDetection" : {
+            "$ref" : "#/components/schemas/CapabilityView"
           }
         },
-        "required" : [ "managementRead", "managementWrite", "messageIo", "notifications" ]
+        "required" : [ "managementRead", "managementWrite", "messageIo", "notifications", "slowConsumerDetection" ]
       },
       "CapabilityView" : {
         "type" : "object",
@@ -4501,6 +4547,124 @@
           }
         },
         "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "ConfigDiffView" : {
+        "type" : "object",
+        "description" : "Broker configuration compared across two nodes",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "left" : {
+            "$ref" : "#/components/schemas/ConfigSideView"
+          },
+          "right" : {
+            "$ref" : "#/components/schemas/ConfigSideView"
+          },
+          "comparable" : {
+            "type" : "boolean"
+          },
+          "sections" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigSectionView"
+            }
+          },
+          "driftCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "matchesCompared" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "matchesAvailable" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "clusterId", "comparable", "driftCount", "left", "matchesAvailable", "matchesCompared", "right", "sections" ]
+      },
+      "ConfigEntryView" : {
+        "type" : "object",
+        "description" : "One configuration key, compared across both nodes",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "left" : {
+            "type" : [ "string", "null" ]
+          },
+          "right" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "statusWord" : {
+            "type" : "string"
+          },
+          "classification" : {
+            "type" : "string"
+          },
+          "drift" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "classification", "drift", "key", "status", "statusWord" ]
+      },
+      "ConfigSectionView" : {
+        "type" : "object",
+        "description" : "One section of the comparison",
+        "properties" : {
+          "section" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "entries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigEntryView"
+            }
+          },
+          "driftCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "driftCount", "entries", "label", "section" ]
+      },
+      "ConfigSideView" : {
+        "type" : "object",
+        "description" : "One node in a configuration comparison",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "reducedSurface" : {
+            "type" : "boolean"
+          },
+          "unavailableReason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "active", "available", "nodeId", "nodeName", "reducedSurface" ]
       },
       "AuditEventView" : {
         "type" : "object",

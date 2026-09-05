@@ -42,6 +42,12 @@ one HTTP call per attribute, operation, or queue.
   `NodeID`, `Clustered`, `Version` and `listNetworkTopology()` from a node
 - **THEN** Studio sends a single POST whose body is a JSON array of those requests
 
+#### Scenario: A configuration read is one call per node
+
+- **WHEN** a node's configuration is read for comparison against another node —
+  broker attributes, address settings, security settings and acceptors
+- **THEN** Studio sends a single POST to that node containing all of those requests
+
 #### Scenario: Per-entry errors are isolated
 
 - **WHEN** a batched response array contains one entry with `status` 404 and an

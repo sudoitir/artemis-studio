@@ -276,7 +276,7 @@ export function MessagesView() {
               <Text fw={600}>No messages match</Text>
               <Text size="sm">
                 This queue is empty, or your selector excluded every message. Messages here are read
-                over Jolokia as text — faithful binary bodies arrive with the Core client in Phase 4.
+                over Jolokia as text — faithful binary bodies need the Core client.
               </Text>
             </Stack>
           }

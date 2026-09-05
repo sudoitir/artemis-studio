@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.domain.alerting.AlertStateMachine.Transi
 import io.github.sudoitir.artemisstudio.domain.alerting.AlertStateMachine.TransitionKind;
 import io.github.sudoitir.artemisstudio.domain.alerting.GaugeCondition;
 import io.github.sudoitir.artemisstudio.domain.alerting.RateCondition;
+import io.github.sudoitir.artemisstudio.domain.alerting.SlowConsumerCondition;
 import io.github.sudoitir.artemisstudio.domain.alerting.StateCondition;
 import io.github.sudoitir.artemisstudio.persist.AlertDeliveryEntity;
 import io.github.sudoitir.artemisstudio.persist.AlertDeliveryRepository;
@@ -51,6 +52,7 @@ public class AlertEvaluator {
     private final AlertRuleChannelRepository ruleChannels;
     private final GaugeCondition gaugeCondition;
     private final RateCondition rateCondition;
+    private final SlowConsumerCondition slowConsumerCondition;
     private final StateCondition stateCondition;
     private final SseHub hub;
     private final ObjectMapper mapper;
@@ -79,6 +81,10 @@ public class AlertEvaluator {
     private AlertCondition conditionFor(AlertRuleEntity rule) {
         if (!rule.isThreshold()) {
             return stateCondition;
+        }
+        // Ahead of the gauge and rate checks: a derived metric, not a raw one.
+        if (SlowConsumerCondition.supports(rule.getMetric())) {
+            return slowConsumerCondition;
         }
         if (GaugeCondition.supports(rule.getMetric())) {
             return gaugeCondition;

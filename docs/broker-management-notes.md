@@ -666,3 +666,52 @@ assumption held or turned out not to matter (Q2, Q7). One clarification carried
 into `RrNotificationObserver`'s implementation (task 6.2): filter out
 notifications whose address is `activemq.notifications` itself, to avoid ever
 treating the observer's own subscription queue as request-reply traffic.
+
+---
+
+## 14. v1.0 surface checks — config diff, slow consumers
+
+Run against `just dev-up` (Artemis 2.44.0, replication pair, primary `:8161`
+broker=`"primary"`, backup `:8261` broker=`"backup"`) before designing the
+config-diff and slow-consumer slices. Four of the five questions were assumptions
+those slices rested on; two of them could have changed the shape of the feature.
+
+| # | Question | Verdict |
+|---|---|---|
+| 1 | Does a **passive backup** answer management reads, and how much surface does it expose? | **Full surface.** The backup's broker MBean returns the *same 90 attributes* as the primary — set difference in both directions is empty. It is `Started=true`, `Active=false`, `Backup=true`, `ReplicaSync=true`, and reports the same `NodeID`. No capability gating is needed: the pair diff works against a passive backup exactly as against a primary. |
+| 2 | Full attribute list and operation catalogue, both sides? | **Identical.** 90 attributes and **78 operations** on each side; no operation exists on one and not the other. Of the 25 attributes that differ, 22 are runtime counters that read 0 on the passive side (`AddressCount`, `QueueCount`, `ConnectionCount`, `Total*`, `SessionCount`, `DiskStoreUsage`, `AddressNames`, `QueueNames`, `AuthenticationSuccessCount`, `Uptime*`, `CurrentTimeMillis`, `Status`) and 3 are HA-role attributes (`Active`, `Backup`, `HAPolicy`) plus `Name`. |
+| 3 | Is `slowConsumerThreshold` returned by `getAddressSettingsAsJSON`? | **No — the Phase-0 capture was right.** The operation returns exactly 18 fields and the only slow-consumer field among them is `slowConsumerThresholdMeasurementUnit` (`MESSAGES_PER_SECOND`). Neither `slowConsumerThreshold`, `slowConsumerCheckPeriod` nor `slowConsumerPolicy` is exposed. **Native slow-consumer detection state is therefore UNKNOWN, not "off"** — Studio cannot observe the difference, and must say so (non-negotiable #5) rather than guess. |
+| 4 | Do `getRolesAsJSON` and the acceptor MBeans exist and answer? | **Yes, both sides, identical output.** `getRolesAsJSON("#")` returns the `amq` role's twelve permission flags. Acceptors are better read as the **`AcceptorsAsJSON` attribute** than through the `component=acceptors,*` MBean search: it carries `name`, `factoryClassName`, `params` (port, host, protocols, buffer sizes) and `extraProps` in one entry that batches with everything else, whereas the search costs a second round trip and returns only the queried node's own acceptor. Both `securitySettings` and `acceptors` diff sections are therefore viable. |
+| 5 | Does `broker_event`'s type CHECK accept `CONSUMER_SLOW`? | **There is no CHECK.** `010-broker-events.sql:14` declares `type TEXT NOT NULL` with no constraint — only an index on it. No changeset is needed for `CONSUMER_SLOW`. |
+
+### Consequences carried into the slices
+
+- **Slice 4 is not degraded.** Q1 and Q2 remove the "primary vs primary, pair-diff
+  only when the backup answers" fallback the plan hedged for. The passive-backup
+  detection stays in the design as a **guard** — a broker that does answer thinly
+  must be told about, not half-diffed — but it is not this stack's behaviour.
+- **Address settings resolve for any match on either side.**
+  `getAddressSettingsAsJSON` returns *effective* settings for an arbitrary match
+  string, including one the node hosts no address for: querying `PHASE3.DST` and
+  `no.such.address.anywhere` against the backup (`AddressCount=0`,
+  `AddressNames=[]`) both return the same resolved settings the primary returns.
+  So the address-settings comparison is not blocked by the backup having no live
+  addresses. There is **no operation that enumerates configured match patterns**,
+  so the compared set is `#` ∪ `AddressNames(left)` ∪ `AddressNames(right)`,
+  capped and disclosed.
+- **Expected-difference class is confirmed by observation, not assumed.** `Name`
+  (`primary`/`backup`) and `HAPolicy` (`Replication Primary w/quorum voting` /
+  `Replication Backup w/quorum voting`) differ by design on a correctly
+  configured pair. `NodeID` and `JournalDirectory` are **identical** here — so
+  NodeID is only an expected difference when comparing two *different* logical
+  nodes, not the two endpoints of a pair.
+- **Slow-consumer capability is three-state with UNKNOWN as the answer here.** Q3
+  settles it: `CapabilityProbe` reports UNKNOWN and ships the enabling
+  `broker.xml` snippet.
+- **`paused` is already on the wire.** Checked while resolving the paused-queue
+  scoping question: a `listQueues` row carries `paused` (and `persistedPause`)
+  alongside the counters Studio already parses. A paused queue with a backlog and
+  consumers is *correctly* slow but operationally expected, so `queue_snapshot`
+  gains a `paused` column (a new changeset — `005-broker-cache.sql` is released)
+  and `SlowConsumerCondition` excludes paused queues from its universe. No extra
+  broker call: the field is in the page Studio already reads.

@@ -1,8 +1,9 @@
 # Artemis Studio
 
-[![CI](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml)
-[![Docker image](https://img.shields.io/docker/v/sudoit1/artemis-studio/dev?label=docker%20%3Adev&logo=docker)](https://hub.docker.com/r/sudoit1/artemis-studio)
-[![Docker pulls](https://img.shields.io/docker/pulls/sudoit1/artemis-studio?logo=docker)](https://hub.docker.com/r/sudoit1/artemis-studio)
+[![CI](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/sudoitir/artemis-studio?include_prereleases&sort=semver&label=release)](https://github.com/sudoitir/artemis-studio/releases)
+[![Docker image](https://img.shields.io/docker/v/sudoit1/artemis-studio?sort=semver&logo=docker&label=docker%20hub)](https://hub.docker.com/r/sudoit1/artemis-studio/tags)
+[![Docker pulls](https://img.shields.io/docker/pulls/sudoit1/artemis-studio?logo=docker&label=pulls)](https://hub.docker.com/r/sudoit1/artemis-studio)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
 
 > **⚠️ Alpha.** Under active development, not yet feature-complete. Published
@@ -176,9 +177,7 @@ OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get 
 | [ ] | Multi-instance HA — Postgres advisory lock per cluster |
 | [ ] | Helm chart |
 | [ ] | Docs site |
-| [ ] | Slow-consumer detection |
 | [ ] | Message replay from a captured payload |
-| [ ] | Payload inspection helpers (pretty-print, type detection) |
 | [ ] | Metric rollup tables — only when a query is measurably slow |
 
 ### Beyond
@@ -189,7 +188,6 @@ OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get 
 | [ ] | JMX transport |
 | [ ] | Saved / shareable views |
 | [ ] | Scheduled reports |
-| [ ] | Broker config diff across a pair |
 | [ ] | Prometheus scrape ingestion option |
 | [ ] | Artemis MCP |
 

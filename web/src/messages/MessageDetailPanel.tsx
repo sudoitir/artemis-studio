@@ -1,7 +1,22 @@
-import { Alert, Badge, Drawer, Group, Loader, Stack, Table, Text } from '@mantine/core';
+import { useMemo, useState } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  CopyButton,
+  Drawer,
+  Group,
+  Loader,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+} from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 
 import { useMessageDetail } from '../api/client.ts';
+import { HexDump } from './HexDump.tsx';
+import { detectPayload, messageTypeName, unavailableMessage } from './payload.ts';
 
 /**
  * Raises the per-message body/property cap. Mirrors
@@ -44,6 +59,111 @@ function PropertyTable({ title, entries }: { title: string; entries: [string, un
   );
 }
 
+/**
+ * The body, with its format named and — when the format actually parsed — indented
+ * and highlighted. Everything here is client-side: the body is already in the
+ * browser, so nothing is sent back to be classified.
+ */
+function MessageBody({
+  body,
+  bodyEncoding,
+  contentType,
+  bodyTruncated,
+  stringProperties,
+  messageId,
+}: {
+  body: string | null;
+  bodyEncoding: string;
+  contentType?: string | null;
+  bodyTruncated: boolean;
+  stringProperties: Record<string, string>;
+  messageId: number;
+}) {
+  const [view, setView] = useState<'formatted' | 'raw'>('formatted');
+  const detected = useMemo(
+    () => detectPayload({ body, bodyEncoding, contentType, bodyTruncated, stringProperties }),
+    [body, bodyEncoding, contentType, bodyTruncated, stringProperties],
+  );
+
+  const raw = body ?? '';
+  const shown = view === 'formatted' && detected.formatted !== null ? detected.formatted : raw;
+  const note = unavailableMessage(detected);
+
+  const download = () => {
+    const blob = new Blob([raw], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `message-${messageId}.${detected.format === 'json' ? 'json' : detected.format === 'xml' ? 'xml' : 'txt'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Stack gap={4}>
+      <Group gap="xs" justify="space-between">
+        <Group gap="xs">
+          <Text size="xs" fw={600} c="dimmed">
+            Body
+          </Text>
+          <Badge size="xs" variant="light" color={detected.bytes ? 'teal' : 'gray'}>
+            {detected.label}
+          </Badge>
+          {detected.source === 'declared' ? (
+            <Text size="xs" c="dimmed">
+              declared by the producer
+            </Text>
+          ) : null}
+        </Group>
+        <Group gap={4}>
+          {detected.formatted !== null ? (
+            <SegmentedControl
+              size="xs"
+              value={view}
+              onChange={(v) => setView(v as 'formatted' | 'raw')}
+              data={[
+                { label: 'Formatted', value: 'formatted' },
+                { label: 'Raw', value: 'raw' },
+              ]}
+            />
+          ) : null}
+          <CopyButton value={raw}>
+            {({ copied, copy }) => (
+              <Button size="compact-xs" variant="default" onClick={copy}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            )}
+          </CopyButton>
+          <Button size="compact-xs" variant="default" onClick={download}>
+            Download
+          </Button>
+        </Group>
+      </Group>
+
+      {detected.bytes ? (
+        <HexDump bytes={detected.bytes} />
+      ) : (
+        <CodeHighlight
+          code={shown || '(empty)'}
+          language={(view === 'formatted' && detected.highlightLanguage) || 'text'}
+        />
+      )}
+
+      {note ? (
+        <Text size="xs" c="dimmed">
+          {note}
+          {detected.unavailable === 'truncated' ? ' See the truncation notice below.' : ''}
+        </Text>
+      ) : null}
+      {bodyEncoding === 'BASE64' ? (
+        <Text size="xs" c="dimmed">
+          Shown as bytes — the Core client returned the exact body, not a stringified copy.
+        </Text>
+      ) : null}
+    </Stack>
+  );
+}
+
 export function MessageDetailPanel({
   clusterId,
   queueName,
@@ -79,7 +199,7 @@ export function MessageDetailPanel({
       ) : m ? (
         <Stack gap="md">
           <Group gap="xs">
-            <Badge variant="light">type {m.type}</Badge>
+            <Badge variant="light">{messageTypeName(m.type)}</Badge>
             <Badge variant="light" color="gray">
               {m.durable ? 'durable' : 'non-durable'}
             </Badge>
@@ -173,26 +293,14 @@ export function MessageDetailPanel({
           <PropertyTable title="Double properties" entries={Object.entries(m.doubleProperties)} />
           <PropertyTable title="Boolean properties" entries={Object.entries(m.booleanProperties)} />
 
-          <Stack gap={4}>
-            <Group gap="xs" justify="space-between">
-              <Text size="xs" fw={600} c="dimmed">
-                Body
-              </Text>
-              {m.bodyEncoding === 'BASE64' ? (
-                <Badge size="xs" variant="light" color="teal">
-                  binary · base64
-                  {m.contentType ? ` · ${m.contentType}` : ''}
-                </Badge>
-              ) : null}
-            </Group>
-            <CodeHighlight code={m.body ?? '(empty)'} language="text" />
-            {m.bodyEncoding === 'BASE64' ? (
-              <Text size="xs" c="dimmed">
-                Shown base64-encoded — the Core client returned the exact bytes, not a
-                stringified copy.
-              </Text>
-            ) : null}
-          </Stack>
+          <MessageBody
+            body={m.body ?? null}
+            bodyEncoding={m.bodyEncoding}
+            contentType={m.contentType}
+            bodyTruncated={m.bodyTruncated}
+            stringProperties={m.stringProperties}
+            messageId={m.messageId}
+          />
 
           {m.bodyTruncated ? (
             <Alert color="yellow" variant="light" title="This message is truncated">

@@ -6,6 +6,7 @@ import {
   IconBellRinging,
   IconChartLine,
   IconClipboardList,
+  IconGitCompare,
   IconListDetails,
   IconNetwork,
   IconPlugConnected,
@@ -39,6 +40,7 @@ export const NAV_ITEMS: NavItemDef[] = [
   { path: 'events', label: 'Events', icon: IconBellRinging },
   { path: 'rr', label: 'Requests', icon: IconArrowsExchange },
   { path: 'dlq', label: 'DLQ', icon: IconAlertTriangle },
+  { path: 'config-diff', label: 'Config diff', icon: IconGitCompare },
   { path: 'audit', label: 'Audit', icon: IconClipboardList },
   { path: 'settings', label: 'Settings', icon: IconSettings },
 ];

@@ -25,13 +25,14 @@ public class CapabilityProbe {
             // No read means nothing else can be judged; report the rest as unknown.
             CapabilityAssessment unknown = CapabilityAssessment.unknown(
                     "Not assessed — management reads are not available on this connection.", null);
-            return new BrokerCapabilities(read, unknown, unknown, unknown);
+            return new BrokerCapabilities(read, unknown, unknown, unknown, unknown);
         }
 
         CapabilityAssessment write = probeManagementWrite(client);
         CapabilityAssessment notifications = assessNotifications(client, notificationVerdict);
         CapabilityAssessment messageIo = assessMessageIo(write);
-        return new BrokerCapabilities(read, write, notifications, messageIo);
+        CapabilityAssessment slowConsumers = assessSlowConsumerDetection(client);
+        return new BrokerCapabilities(read, write, notifications, messageIo, slowConsumers);
     }
 
     private CapabilityAssessment probeManagementRead(JolokiaBrokerClient client) {
@@ -129,12 +130,53 @@ public class CapabilityProbe {
         };
     }
 
+    /**
+     * Whether the broker runs its own slow-consumer detection (ADR-0044). The
+     * slice-0 spike against Artemis 2.44 confirmed {@code getAddressSettingsAsJSON}
+     * returns 18 fields, of which the only slow-consumer one is
+     * {@code slowConsumerThresholdMeasurementUnit} — the threshold, check period and
+     * policy are not exposed. So the honest answer is normally UNKNOWN: Studio cannot
+     * tell a configured threshold from an absent one, and saying "off" would be a
+     * guess. The branches for a broker version that does expose it are here so that
+     * the day it does, the answer improves without a code change elsewhere.
+     */
+    private CapabilityAssessment assessSlowConsumerDetection(JolokiaBrokerClient client) {
+        try {
+            JsonNode settings = client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
+            JsonNode threshold = settings == null ? null : settings.get("slowConsumerThreshold");
+            if (threshold == null || threshold.isNull()) {
+                return CapabilityAssessment.unknown(
+                        "This broker's management surface does not expose slow-consumer-threshold"
+                                + " (only slowConsumerThresholdMeasurementUnit), so Studio cannot tell whether"
+                                + " native detection is configured. Studio's own ackRatePerConsumer alert rule"
+                                + " works either way, but resolves to a queue on a node, never to one consumer.",
+                        BrokerXmlSnippets.forSlowConsumerDetection());
+            }
+            long value = threshold.asLong(-1L);
+            if (value <= 0) {
+                return CapabilityAssessment.unavailable(
+                        "Native slow-consumer detection is disabled (slow-consumer-threshold " + value + ").",
+                        BrokerXmlSnippets.forSlowConsumerDetection());
+            }
+            JsonNode unit = settings.get("slowConsumerThresholdMeasurementUnit");
+            JsonNode policy = settings.get("slowConsumerPolicy");
+            return CapabilityAssessment.available("Native slow-consumer detection is on: threshold " + value
+                    + (unit == null || unit.isNull() ? "" : " " + unit.asString())
+                    + (policy == null || policy.isNull() ? "" : ", policy " + policy.asString())
+                    + ". The broker's own CONSUMER_SLOW notification is authoritative and names the consumer.");
+        } catch (BrokerConnectionException e) {
+            return CapabilityAssessment.unknown(
+                    "Could not read address settings to assess slow-consumer detection: " + e.getMessage(),
+                    BrokerXmlSnippets.forSlowConsumerDetection());
+        }
+    }
+
     private CapabilityAssessment assessMessageIo(CapabilityAssessment write) {
         if (write.status() == BrokerCapabilities.CapabilityStatus.AVAILABLE) {
             return CapabilityAssessment.available(
                     "Available through Jolokia: browse, send, move/retry/delete/expire and purge all work."
                             + " Bodies are carried as text and the broker truncates oversized body/property"
-                            + " values (disclosed per message); faithful binary message I/O is Phase 4 (Core client).");
+                            + " values (disclosed per message); faithful binary message I/O needs the Core client.");
         }
         return CapabilityAssessment.unavailable("Needs management-write access, which this connection does not have.");
     }
