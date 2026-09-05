@@ -18,7 +18,7 @@ default:
 
 # Run Artemis Studio + Postgres from the published image. Register your brokers in the UI.
 [group('stack')]
-up: _env
+up: setup
     {{compose_prod}} --env-file deploy/compose/.env up -d
     @echo "→ http://localhost:8080"
     @echo "→ waiting for Studio to be ready…"
@@ -41,16 +41,26 @@ logs *service:
 ps:
     {{compose_prod}} --env-file deploy/compose/.env ps
 
-# Create deploy/compose/.env from the template with generated secrets, once.
-_env:
+# Write deploy/compose/.env (generated secrets on first run), pinned to the latest release tag.
+[group('stack')]
+setup:
     #!/usr/bin/env bash
     set -euo pipefail
     env=deploy/compose/.env
-    [ -f "$env" ] && exit 0
-    sed -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
-        -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" \
-        deploy/compose/.env.example > "$env"
-    echo "→ wrote $env with generated secrets"
+    if [ ! -f "$env" ]; then
+        sed -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
+            -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" \
+            deploy/compose/.env.example > "$env"
+        echo "→ wrote $env with generated secrets"
+    fi
+    latest=$(git ls-remote --tags --refs origin 2>/dev/null | sed 's;.*/;;' \
+        | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | tail -1 || true)
+    if [ -n "$latest" ]; then
+        sed -i "s|^STUDIO_IMAGE=.*|STUDIO_IMAGE=sudoit1/artemis-studio:$latest|" "$env"
+        echo "→ pinned STUDIO_IMAGE to :$latest"
+    else
+        echo "→ no release tag found; STUDIO_IMAGE stays :dev"
+    fi
 
 # ── develop ──────────────────────────────────────────────────────────────────
 

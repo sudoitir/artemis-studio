@@ -82,7 +82,7 @@ work is the Roadmap in `README.md` — each item is a self-contained session.
 
 ```bash
 just                 # menu of all tasks, grouped
-just up / just down  # Studio + Postgres from the published image (writes .env on first run)
+just up / just down  # Studio + Postgres from the published image (runs `just setup`: .env + version pin)
 just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + studio, built locally
 just dev             # backend :8080 + vite :5173 (proxied), together
 just verify          # everything CI runs: verify-api + verify-web

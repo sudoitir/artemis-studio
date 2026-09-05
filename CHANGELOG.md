@@ -26,8 +26,10 @@ marked as pre-releases.
   (previously the dev build). The dev stack — Postgres plus a real Artemis
   primary/backup pair, built locally — moved to `just dev-up` / `just dev-down`.
   `just prod-up` / `just prod-down` are removed.
-- `just up` generates `deploy/compose/.env` with fresh secrets on first run, so a
-  clean clone comes up with a single command.
+- `just up` runs `just setup` first: it generates `deploy/compose/.env` with a
+  random `SECRET_KEY` / `DB_PASSWORD` on first run and pins `STUDIO_IMAGE` to the
+  newest published release tag (`:dev` until one exists), so a clean clone comes
+  up with a single command.
 - The published image is `sudoit1/artemis-studio` on Docker Hub. The previous
   `ghcr.io/sudoitir/artemis-studio` reference is dropped — CI only ever built that
   tag and threw it away.

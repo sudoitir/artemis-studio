@@ -44,15 +44,19 @@ and reach) is next — see the [Roadmap](#roadmap).
 
 Runs Artemis Studio and its Postgres from the published image. Your Artemis
 clusters already exist and are registered through the UI — nothing here starts a
-broker. Images are **pre-stable dev builds** (Docker Hub `:dev`); pin a
-[CalVer tag](#releases) once you depend on one.
+broker. Images are **pre-stable dev builds**; see [Releases](#releases).
 
 From a clone, with [`just`](https://github.com/casey/just#packages):
 
 ```bash
-just up          # generates deploy/compose/.env with fresh secrets on first run
+just up          # writes deploy/compose/.env with fresh secrets, pinned to the latest release
 open http://localhost:8080
 ```
+
+`just up` runs `just setup` first: on a clean checkout it generates
+`deploy/compose/.env` with a random `SECRET_KEY` / `DB_PASSWORD` and pins
+`STUDIO_IMAGE` to the newest published [CalVer tag](#releases) (or `:dev` if no
+release exists yet). Run `just setup` again to move the pin forward.
 
 Without `just` — grab the compose file and provide the environment yourself:
 
