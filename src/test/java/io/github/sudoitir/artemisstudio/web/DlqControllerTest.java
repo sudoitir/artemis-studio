@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /** {@code GET .../dlq} — addresses from broker settings, per-node depth from the cache, honest unavailable path. */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class DlqControllerTest extends PostgresIntegrationTest {
 
     private static final String URL = "http://a:8161/console/jolokia";

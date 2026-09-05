@@ -1,58 +1,111 @@
 package io.github.sudoitir.artemisstudio.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
+import io.github.sudoitir.artemisstudio.security.ApiTokenAuthenticationFilter;
+import io.github.sudoitir.artemisstudio.security.ApiTokenService;
+import io.github.sudoitir.artemisstudio.security.CsrfCookieFilter;
+import io.github.sudoitir.artemisstudio.security.MustChangePasswordFilter;
+import io.github.sudoitir.artemisstudio.security.oidc.OidcAuthenticationSuccessHandler;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.env.Environment;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * Placeholder security. The app runs fully open so Phase 1's API is usable
- * without an auth flow.
+ * Session-cookie authentication and dynamic, scope-walked authorization
+ * (ADR-0037, ADR-0038). Replaces the Phase 1-7 placeholder that ran the whole
+ * API {@code permitAll()} — see git history for that version and
+ * {@code docs/adr/0023-audit-actor-before-authentication.md} (superseded by
+ * ADR-0041) for why it existed.
  *
- * <p>Phase 8 replaces this with local users in Postgres, a session cookie,
- * three roles, and per-cluster scoping (OIDC follows in v1.0). See
- * {@code docs/roadmap.md}. Do not build features that assume this stays open.
- *
- * <p>Phase 1 introduces stored broker credentials and mutating endpoints, so an
- * unauthenticated instance on a non-loopback address is a real exposure. Until
- * Phase 8 lands, {@link #warnIfExposed} logs a startup WARN in that case, and
- * the dev compose file binds to {@code 127.0.0.1} (ADR-0002 area).
+ * <p>Every {@code /api/**} path requires authentication except
+ * {@code /api/v1/auth/login}; the served SPA shell and its static assets stay
+ * public so an unauthenticated browser can load the login screen at all.
  */
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
-
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+    SecurityFilterChain filterChain(
+            HttpSecurity http,
+            ApiTokenService apiTokenService,
+            HandlerExceptionResolver handlerExceptionResolver,
+            CsrfTokenRepository csrfTokenRepository,
+            ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+            OidcAuthenticationSuccessHandler oidcSuccessHandler)
+            throws Exception {
+        http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
+                .sessionManagement(session -> session.sessionCreationPolicy(
+                        org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        // Bearer-token requests carry no ambient browser credential, so there is
+                        // nothing for a cross-site request to ride on (design.md decision 1).
+                        .ignoringRequestMatchers(request -> request.getHeader("Authorization") != null))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
+                .authorizeHttpRequests(auth -> auth.requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/providers",
+                                "/actuator/health",
+                                "/actuator/health/**")
+                        .permitAll()
+                        .requestMatchers("/api/**")
+                        .authenticated()
+                        // The SPA shell and its static assets (SpaRoutingConfig) must stay
+                        // reachable unauthenticated, or the login page itself cannot load.
+                        .anyRequest()
+                        .permitAll())
+                // SecurityContextHolderFilter loads (empty, session-less) context from the
+                // repository and would overwrite a bearer authentication set before it runs —
+                // this filter must come after, not before.
+                .addFilterAfter(new ApiTokenAuthenticationFilter(apiTokenService), SecurityContextHolderFilter.class)
+                .addFilterAfter(
+                        new MustChangePasswordFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
+                .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
+
+        // OIDC/SSO (ADR-0040) is opt-in: with no spring.security.oauth2.client.registration.*
+        // configured, Boot creates no ClientRegistrationRepository bean at all, and
+        // .oauth2Login() must not be called in that case (it would fail to wire).
+        if (clientRegistrations.getIfAvailable() != null) {
+            http.oauth2Login(oauth2 -> oauth2.successHandler(oidcSuccessHandler));
+        }
         return http.build();
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    void warnIfExposed(ApplicationReadyEvent event) {
-        Environment env = event.getApplicationContext().getEnvironment();
-        String address = env.getProperty("server.address");
-        if (!isLoopback(address)) {
-            log.warn(
-                    "Artemis Studio API is UNAUTHENTICATED (auth arrives in Phase 8) and bound to {} "
-                            + "— it exposes broker credentials and mutating endpoints to anyone who can reach "
-                            + "this port. Bind to 127.0.0.1 or put an authenticating proxy in front until then.",
-                    address == null ? "all interfaces" : address);
-        }
+    /** Combines session storage (form login) with the per-request attribute cache Spring Security expects. */
+    private static SecurityContextRepository securityContextRepository() {
+        return new DelegatingSecurityContextRepository(
+                new HttpSessionSecurityContextRepository(), new RequestAttributeSecurityContextRepository());
     }
 
-    private static boolean isLoopback(String address) {
-        if (address == null || address.isBlank()) {
-            return false;
-        }
-        String a = address.trim();
-        return a.equals("127.0.0.1") || a.equals("::1") || a.equalsIgnoreCase("localhost") || a.startsWith("127.");
+    @Bean
+    SecurityContextRepository securityContextRepositoryBean() {
+        return securityContextRepository();
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
+    CsrfTokenRepository csrfTokenRepository() {
+        return CookieCsrfTokenRepository.withHttpOnlyFalse();
     }
 }

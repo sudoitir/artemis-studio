@@ -1,6 +1,8 @@
 package io.github.sudoitir.artemisstudio.web;
 
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.service.BrokerEventService;
+import io.github.sudoitir.artemisstudio.service.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import io.github.sudoitir.artemisstudio.sse.Subscriber;
 import io.github.sudoitir.artemisstudio.web.dto.EventViews.BrokerEventView;
@@ -41,6 +43,7 @@ public class StreamController {
 
     private final SseHub hub;
     private final BrokerEventService events;
+    private final ClusterAccessGuard clusterAccess;
 
     @GetMapping(path = "/api/v1/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(
@@ -48,6 +51,7 @@ public class StreamController {
             @RequestParam(defaultValue = DEFAULT_TOPICS) String topics,
             @RequestHeader(name = "Last-Event-ID", required = false) Long lastEventId,
             HttpServletResponse response) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         response.setHeader("X-Accel-Buffering", "no");
 
         Set<String> wanted = Arrays.stream(topics.split(","))

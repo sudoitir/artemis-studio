@@ -9,12 +9,12 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Resolves the {@link Actor} for a mutating action (ADR-0023). Works today with
- * no authentication configured: the principal is {@code "anonymous"}, the source
- * IP comes from {@code getRemoteAddr()}, and the request id is the inbound
- * {@code X-Request-Id} header or a fresh UUID. When Phase 8 wires Spring
- * Security, {@code SecurityContextHolder} starts returning a real principal and
- * this class needs no change.
+ * Resolves the {@link Actor} for a mutating action (ADR-0041, superseding
+ * ADR-0023). The username and user id come from the authenticated
+ * {@link StudioPrincipal} when one is present; otherwise the actor is
+ * {@code "anonymous"} with no user id. The source IP comes from
+ * {@code getRemoteAddr()}, and the request id is the inbound
+ * {@code X-Request-Id} header or a fresh UUID.
  */
 @Component
 public class ActorResolver {
@@ -23,7 +23,11 @@ public class ActorResolver {
 
     public Actor resolve() {
         HttpServletRequest request = currentRequest();
-        return new Actor(principalName(), sourceIp(request), requestId(request), null);
+        StudioPrincipal principal = currentPrincipal();
+        String username = principal != null ? principal.getUsername() : Actor.ANONYMOUS;
+        UUID userId = principal != null ? principal.userId() : null;
+        String tokenName = principal != null ? principal.tokenName() : null;
+        return new Actor(username, sourceIp(request), requestId(request), userId, tokenName);
     }
 
     /** For scheduler-originated audit rows. */
@@ -31,15 +35,12 @@ public class ActorResolver {
         return Actor.system();
     }
 
-    private static String principalName() {
+    private static StudioPrincipal currentPrincipal() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null
-                && auth.isAuthenticated()
-                && auth.getName() != null
-                && !"anonymousUser".equals(auth.getName())) {
-            return auth.getName();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof StudioPrincipal p) {
+            return p;
         }
-        return Actor.ANONYMOUS;
+        return null;
     }
 
     private static String sourceIp(HttpServletRequest request) {

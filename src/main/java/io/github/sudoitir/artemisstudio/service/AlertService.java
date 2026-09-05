@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.persist.AlertFiringEntity;
 import io.github.sudoitir.artemisstudio.persist.AlertFiringRepository;
 import io.github.sudoitir.artemisstudio.persist.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.persist.AlertRuleRepository;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.AlertViews.AlertFiringPageView;
 import io.github.sudoitir.artemisstudio.web.dto.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.web.dto.AlertViews.ClusterFiringCountView;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +26,11 @@ public class AlertService {
     private final AlertFiringRepository firingRepo;
     private final AlertRuleRepository ruleRepo;
     private final AlertViewMapper mapper;
+    private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
     public List<AlertFiringView> firingNow(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.ALERT_READ);
         List<AlertFiringEntity> open = firingRepo.findByClusterIdAndResolvedAtIsNullOrderByStartedAtDesc(clusterId);
         Map<UUID, String> names = ruleNames(open);
         return open.stream()
@@ -36,6 +40,7 @@ public class AlertService {
 
     @Transactional(readOnly = true)
     public AlertFiringPageView history(UUID clusterId, int page, int size) {
+        clusterAccess.requireCluster(clusterId, Permissions.ALERT_READ);
         int p = Math.max(page, 1);
         int s = Math.min(Math.max(size, 1), 500);
         var result = firingRepo.findByClusterIdOrderBySeqDesc(clusterId, PageRequest.of(p - 1, s));
@@ -49,7 +54,9 @@ public class AlertService {
                 s);
     }
 
-    /** Cross-cluster open-firing counts for the shell badge — no cluster context required. */
+    /** Cross-cluster open-firing counts for the shell badge, filtered to what the caller may see. */
+    @PostFilter(
+            "@perm.can(filterObject.clusterId(), T(io.github.sudoitir.artemisstudio.security.Permissions).ALERT_READ)")
     @Transactional(readOnly = true)
     public List<ClusterFiringCountView> firingCounts() {
         return firingRepo.firingCountsByCluster().stream()

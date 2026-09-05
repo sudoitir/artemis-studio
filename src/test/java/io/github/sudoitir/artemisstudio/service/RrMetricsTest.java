@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.artemisstudio.domain.rr.Observation;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.AddressStatsView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.StatsResponse;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /** {@link RrMetrics}: percentiles and coverage are never reported separately, and coverage starts unknown. */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class RrMetricsTest extends PostgresIntegrationTest {
 
     @Autowired

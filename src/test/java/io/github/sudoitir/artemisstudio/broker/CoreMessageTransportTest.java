@@ -46,7 +46,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         queueName = "core.tx.it." + System.nanoTime();
 
         ArtemisStudioProperties props =
-                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null);
+                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null, null);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
         CorePool corePool = new CorePool(connectionFactory);
 

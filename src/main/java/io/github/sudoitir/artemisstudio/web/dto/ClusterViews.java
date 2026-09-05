@@ -28,7 +28,8 @@ public final class ClusterViews {
             @Schema(nullable = true) String description,
             @Schema(requiredMode = REQUIRED) ClusterHealth.Level health,
             @Schema(requiredMode = REQUIRED) int nodeCount,
-            @Schema(requiredMode = REQUIRED) Instant updatedAt) {}
+            @Schema(requiredMode = REQUIRED) Instant updatedAt,
+            @Schema(nullable = true) UUID environmentId) {}
 
     /** The full cluster screen payload. */
     public record ClusterDetail(
@@ -37,7 +38,8 @@ public final class ClusterViews {
             @Schema(nullable = true) String description,
             @Schema(requiredMode = REQUIRED) TopologyView topology,
             @Schema(requiredMode = REQUIRED) CapabilitiesView capabilities,
-            @Schema(requiredMode = REQUIRED) HealthView health) {}
+            @Schema(requiredMode = REQUIRED) HealthView health,
+            @Schema(nullable = true) UUID environmentId) {}
 
     /** One broker endpoint — a {@code broker_node} row, minus anything secret. */
     public record NodeEndpointView(

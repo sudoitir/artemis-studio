@@ -68,4 +68,9 @@ public class ClusterEntity {
     public void touch() {
         updatedAt = Instant.now();
     }
+
+    public void setEnvironmentId(UUID environmentId) {
+        this.environmentId = environmentId;
+        touch();
+    }
 }

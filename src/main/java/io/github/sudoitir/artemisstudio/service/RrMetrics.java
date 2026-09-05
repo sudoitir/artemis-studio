@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.domain.rr.RrState;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotRepository;
 import io.github.sudoitir.artemisstudio.persist.RrFlowRepository;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.AddressStatsView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.StatsResponse;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -36,16 +37,19 @@ public class RrMetrics {
     private final RrFlowRepository flows;
     private final QueueSnapshotRepository queueSnapshots;
     private final Duration percentileWindow;
+    private final ClusterAccessGuard clusterAccess;
 
     public RrMetrics(
             MeterRegistry registry,
             RrFlowRepository flows,
             QueueSnapshotRepository queueSnapshots,
-            ArtemisStudioProperties properties) {
+            ArtemisStudioProperties properties,
+            ClusterAccessGuard clusterAccess) {
         this.registry = registry;
         this.flows = flows;
         this.queueSnapshots = queueSnapshots;
         this.percentileWindow = properties.rr().percentileWindow();
+        this.clusterAccess = clusterAccess;
     }
 
     // ponytail: a single in-process baseline reading per address, not a persisted
@@ -70,6 +74,7 @@ public class RrMetrics {
 
     @Transactional(readOnly = true)
     public StatsResponse stats(UUID clusterId, Duration window) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         List<String> addresses = flows.findDistinctRequestAddressByClusterId(clusterId);
         Instant since = Instant.now().minus(window);
         List<AddressStatsView> views = addresses.stream()

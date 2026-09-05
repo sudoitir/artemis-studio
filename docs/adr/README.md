@@ -32,7 +32,7 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0020](0020-grid-columns-as-css-grid-tracks.md) | The virtualized data grid lays out on shared CSS grid tracks, not `<table>` |
 | [0021](0021-message-operations-jolokia-only.md) | ~~Phase 3 message operations are Jolokia-only~~ — superseded by 0029 |
 | [0022](0022-dry-run-estimate-and-server-enforced-bulk-cap.md) | Dry-run is a broker-side estimate; the bulk safety cap is server-enforced |
-| [0023](0023-audit-actor-before-authentication.md) | Audit actor resolution before authentication exists (`anonymous` + request context) |
+| [0023](0023-audit-actor-before-authentication.md) | ~~Audit actor resolution before authentication exists~~ — superseded by 0041 |
 | [0024](0024-frontend-dom-test-harness.md) | Frontend DOM test harness is Vitest + Testing Library + MSW |
 | [0025](0025-live-scrape-cadence-scheduling-configurer.md) | Scrape cadence applies without a restart, via `SchedulingConfigurer` |
 | [0026](0026-core-client-connection-model.md) | Core client — one subscription per live node, poll loop, Studio-driven reconnect, cached capability verdict (extended by 0031) |
@@ -46,3 +46,8 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0034](0034-collapsible-sidebar.md) | Two-section collapsible sidebar (cluster switcher + per-cluster view nav), replacing the horizontal view strip |
 | [0035](0035-alert-rule-model-and-evaluation-timing.md) | Alert rules are a discriminated union (metric threshold / cluster state); evaluation rides the scrape tiers, not an independent timer |
 | [0036](0036-notification-delivery-queue-and-channel-signing.md) | Notification delivery is a durable Postgres queue, batched per rule per tick, with Standard Webhooks signing |
+| [0037](0037-session-cookie-authentication.md) | Session-cookie authentication (not bearer tokens) for the browser, since `EventSource` cannot set headers |
+| [0038](0038-dynamic-permissions-and-scope-walk.md) | Fully dynamic permission strings, resolved once per request via a cluster→environment→global scope walk |
+| [0039](0039-api-tokens-sha256-intersected-grants.md) | API tokens — SHA-256 hash, prefix lookup, grants intersected with the live owner |
+| [0040](0040-oidc-jit-provisioning-and-claim-mapping.md) | OIDC — JIT provisioning, principal swap after the exchange, claim mapping re-applied every login |
+| [0041](0041-audit-actor-tokens-and-real-identity.md) | Audit actor carries real identity and token attribution (supersedes 0023) |

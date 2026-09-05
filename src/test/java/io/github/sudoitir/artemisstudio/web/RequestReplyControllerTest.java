@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -20,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
 /** {@code .../rr/*} — expectation CRUD, flows, and stats (request-reply-tracing spec). */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class RequestReplyControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;

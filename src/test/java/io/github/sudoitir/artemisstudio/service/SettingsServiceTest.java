@@ -6,13 +6,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /** {@link SettingsService}: default fall-through, put-then-get, validation, and live limiter/reaper wiring. */
+@ExtendWith(AdminAuthenticationExtension.class)
 class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Autowired

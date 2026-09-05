@@ -22,6 +22,7 @@ import io.github.sudoitir.artemisstudio.persist.QueueSnapshotRepository;
 import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.security.Actor;
 import io.github.sudoitir.artemisstudio.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import io.github.sudoitir.artemisstudio.web.dto.MessageRequests.MessageActionRequest;
 import io.github.sudoitir.artemisstudio.web.dto.MessageRequests.SendMessageRequest;
@@ -69,6 +70,7 @@ public class MessageService {
     private final ActorResolver actorResolver;
     private final SettingsService settings;
     private final SseHub sseHub;
+    private final ClusterAccessGuard clusterAccess;
 
     /** Resolved (node, address, routingType) for a queue name on a cluster. */
     record ResolvedQueue(BrokerNodeEntity node, String address, String routingType) {}
@@ -86,6 +88,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public MessagePageView browse(UUID clusterId, String queueName, UUID nodeId, String filter, int page, int size) {
+        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         BrowseResult result = browseAt(clusterId, queueName, resolved, page, Math.min(size, BROKER_PAGE_CAP), filter);
         List<MessageSummaryView> rows =
@@ -101,6 +104,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public MessageDetailView detail(UUID clusterId, String queueName, long messageId, UUID nodeId, String filter) {
+        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         BrowseResult result = browseAt(clusterId, queueName, resolved, 1, BROKER_PAGE_CAP, filter);
         return result.page().messages().stream()
@@ -115,6 +119,7 @@ public class MessageService {
     @Transactional
     public Attempt<Outcome> send(
             UUID clusterId, String queueName, UUID nodeId, SendMessageRequest req, boolean dryRun) {
+        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_SEND);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         AuditEventEntity event = begin(
                 "SEND_MESSAGE", queueName, clusterId, resolved.node().getId(), Map.of("type", req.type()), dryRun);
@@ -155,6 +160,7 @@ public class MessageService {
             MessageActionRequest req,
             boolean dryRun,
             boolean override) {
+        clusterAccess.requireCluster(clusterId, permissionFor(action));
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
 
@@ -216,6 +222,7 @@ public class MessageService {
 
     @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<Outcome> purge(UUID clusterId, String queueName, UUID nodeId, boolean dryRun, boolean override) {
+        clusterAccess.requireCluster(clusterId, Permissions.QUEUE_PURGE);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
         AuditEventEntity event = begin("PURGE_QUEUE", queueName, clusterId, node, Map.of(), dryRun);
@@ -243,6 +250,13 @@ public class MessageService {
             audit.fail(event, e.getMessage());
             return new Attempt.Failed<>(e.kind(), e.getMessage());
         }
+    }
+
+    private static String permissionFor(MessageAction action) {
+        return switch (action) {
+            case MOVE, RETRY -> Permissions.MESSAGE_MOVE;
+            case DELETE, EXPIRE -> Permissions.MESSAGE_DELETE;
+        };
     }
 
     // ---- estimate / perform dispatch --------------------------------

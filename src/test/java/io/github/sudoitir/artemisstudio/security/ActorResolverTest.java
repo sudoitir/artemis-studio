@@ -3,9 +3,13 @@ package io.github.sudoitir.artemisstudio.security;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -54,5 +58,41 @@ class ActorResolverTest {
     void systemActorForTheScheduler() {
         assertThat(resolver.system().username()).isEqualTo("system");
         assertThat(Actor.system().username()).isEqualTo("system");
+    }
+
+    @Test
+    void resolvesRealUsernameAndUserIdForAnAuthenticatedSessionPrincipal() {
+        bind(new MockHttpServletRequest());
+        UUID userId = UUID.randomUUID();
+        authenticate(new StudioPrincipal(userId, "alice", Set.of(), false));
+
+        Actor actor = resolver.resolve();
+
+        assertThat(actor.username()).isEqualTo("alice");
+        assertThat(actor.userId()).isEqualTo(userId);
+        assertThat(actor.tokenName()).isNull();
+        assertThat(actor.displayName()).isEqualTo("alice");
+    }
+
+    @Test
+    void foldsTheTokenNameIntoDisplayNameForAnApiTokenPrincipal() {
+        bind(new MockHttpServletRequest());
+        UUID userId = UUID.randomUUID();
+        authenticate(new StudioPrincipal(userId, "alice", Set.of(), false, "ci-token"));
+
+        Actor actor = resolver.resolve();
+
+        assertThat(actor.username()).isEqualTo("alice");
+        assertThat(actor.userId()).isEqualTo(userId);
+        assertThat(actor.tokenName()).isEqualTo("ci-token");
+        assertThat(actor.displayName()).isEqualTo("alice [token: ci-token]");
+    }
+
+    private static void authenticate(StudioPrincipal principal) {
+        var authentication =
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
     }
 }

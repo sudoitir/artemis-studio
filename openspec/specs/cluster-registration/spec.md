@@ -115,18 +115,21 @@ subscription state.
 - **WHEN** a user removes a cluster from the frontend
 - **THEN** the UI requires the cluster name to be typed to confirm
 
-### Requirement: The unauthenticated API is flagged at startup
+### Requirement: Cluster registration and listing require the matching permission
 
-Until authentication exists, the system SHALL log a warning at startup whenever
-the API is served without authentication and is not bound to a loopback
-address, naming the exposure.
+Registering a cluster SHALL require a global write permission. Listing,
+inspecting, or removing a cluster SHALL require the corresponding read or
+write permission resolved at that cluster's scope, as defined by the
+authorization capability.
 
-#### Scenario: Exposed and unauthenticated
+#### Scenario: Registration requires global write
 
-- **WHEN** the app starts unauthenticated and bound to a non-loopback address
-- **THEN** a startup WARN is logged describing the risk
+- **WHEN** a user without global cluster-write permission attempts to
+  register a cluster
+- **THEN** the request is rejected
 
-#### Scenario: Loopback is quiet
+#### Scenario: Listing is scoped to granted clusters
 
-- **WHEN** the app starts unauthenticated and bound only to loopback
-- **THEN** no such warning is logged
+- **WHEN** a user holding a grant on only some registered clusters lists
+  clusters
+- **THEN** only the clusters they hold a read grant on are returned

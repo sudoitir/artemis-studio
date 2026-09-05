@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /** {@code GET .../queues/{q}/messages} — page shape, single-message detail + 404, node echo, bad filter, capability path. */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     private static final String URL_A = "http://a:8161/console/jolokia";

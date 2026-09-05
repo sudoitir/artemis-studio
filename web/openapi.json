@@ -10,6 +10,43 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/users/{userId}/disabled" : {
+      "put" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "setDisabled",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetDisabledRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/{key}" : {
       "put" : {
         "tags" : [ "settings-controller" ],
@@ -47,6 +84,116 @@
           "required" : true,
           "schema" : {
             "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{roleId}" : {
+      "put" : {
+        "tags" : [ "roles-controller" ],
+        "operationId" : "update",
+        "parameters" : [ {
+          "name" : "roleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "roles-controller" ],
+        "operationId" : "delete",
+        "parameters" : [ {
+          "name" : "roleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/environments/{environmentId}" : {
+      "put" : {
+        "tags" : [ "environments-controller" ],
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "name" : "environmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EnvironmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EnvironmentView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "environments-controller" ],
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "name" : "environmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         } ],
         "responses" : {
@@ -120,6 +267,36 @@
             "format" : "uuid"
           }
         } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/environment" : {
+      "put" : {
+        "tags" : [ "environments-controller" ],
+        "operationId" : "assign",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignEnvironmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "204" : {
             "description" : "No Content"
@@ -231,7 +408,7 @@
     "/api/v1/channels/{channelId}" : {
       "put" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "update",
+        "operationId" : "update_2",
         "parameters" : [ {
           "name" : "channelId",
           "in" : "path",
@@ -266,7 +443,7 @@
       },
       "delete" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "delete",
+        "operationId" : "delete_2",
         "parameters" : [ {
           "name" : "channelId",
           "in" : "path",
@@ -283,10 +460,275 @@
         }
       }
     },
+    "/api/v1/users" : {
+      "get" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/grants" : {
+      "post" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "addGrant",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/tokens" : {
+      "get" : {
+        "tags" : [ "tokens-controller" ],
+        "operationId" : "list_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TokenView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "tokens-controller" ],
+        "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateTokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedTokenView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles" : {
+      "get" : {
+        "tags" : [ "roles-controller" ],
+        "operationId" : "list_2",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RoleView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "roles-controller" ],
+        "operationId" : "create_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oidc/mappings" : {
+      "get" : {
+        "tags" : [ "oidc-mapping-controller" ],
+        "operationId" : "list_3",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/OidcMappingView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "oidc-mapping-controller" ],
+        "operationId" : "create_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OidcMappingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OidcMappingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/environments" : {
+      "get" : {
+        "tags" : [ "environments-controller" ],
+        "operationId" : "list_4",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EnvironmentView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "environments-controller" ],
+        "operationId" : "create_4",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EnvironmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EnvironmentView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "list",
+        "operationId" : "list_5",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -777,7 +1219,7 @@
     "/api/v1/channels" : {
       "get" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "list_1",
+        "operationId" : "list_6",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -796,7 +1238,7 @@
       },
       "post" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "create",
+        "operationId" : "create_5",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -837,6 +1279,66 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "changePassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "logout",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeView"
+                }
+              }
+            }
           }
         }
       }
@@ -932,7 +1434,7 @@
     "/api/v1/settings" : {
       "get" : {
         "tags" : [ "settings-controller" ],
-        "operationId" : "list_2",
+        "operationId" : "list_7",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -940,6 +1442,27 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/permissions" : {
+      "get" : {
+        "tags" : [ "roles-controller" ],
+        "operationId" : "permissions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PermissionView"
+                  }
                 }
               }
             }
@@ -975,7 +1498,7 @@
       },
       "delete" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "delete_1",
+        "operationId" : "delete_3",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1435,7 +1958,7 @@
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "list_3",
+        "operationId" : "list_8",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1640,7 +2163,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_4",
+        "operationId" : "list_9",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -1828,6 +2351,45 @@
         }
       }
     },
+    "/api/v1/auth/providers" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "providers",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProviderView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/alerts/firing" : {
       "get" : {
         "tags" : [ "alert-summary-controller" ],
@@ -1848,10 +2410,152 @@
           }
         }
       }
+    },
+    "/api/v1/users/{userId}/grants/{roleId}" : {
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "removeGrant",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "roleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "scopeType",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "scopeId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/tokens/{tokenId}" : {
+      "delete" : {
+        "tags" : [ "tokens-controller" ],
+        "operationId" : "revoke",
+        "parameters" : [ {
+          "name" : "tokenId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/oidc/mappings/{mappingId}" : {
+      "delete" : {
+        "tags" : [ "oidc-mapping-controller" ],
+        "operationId" : "delete_4",
+        "parameters" : [ {
+          "name" : "mappingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
     }
   },
   "components" : {
     "schemas" : {
+      "SetDisabledRequest" : {
+        "type" : "object",
+        "properties" : {
+          "disabled" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "GrantSummary" : {
+        "type" : "object",
+        "properties" : {
+          "roleName" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "roleId", "roleName", "scopeType" ]
+      },
+      "UserView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : [ "string", "null" ]
+          },
+          "authSource" : {
+            "type" : "string"
+          },
+          "disabled" : {
+            "type" : "boolean"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "grants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GrantSummary"
+            }
+          }
+        },
+        "required" : [ "authSource", "disabled", "grants", "id", "mustChangePassword", "username" ]
+      },
       "UpdateSettingRequest" : {
         "type" : "object",
         "properties" : {
@@ -1861,6 +2565,81 @@
           }
         },
         "required" : [ "value" ]
+      },
+      "RoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "name", "permissions" ]
+      },
+      "RoleView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "builtin" : {
+            "type" : "boolean"
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "builtin", "id", "name", "permissions" ]
+      },
+      "EnvironmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "colour" : {
+            "type" : [ "string", "null" ]
+          },
+          "sortOrder" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "name", "sortOrder" ]
+      },
+      "EnvironmentView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "colour" : {
+            "type" : [ "string", "null" ]
+          },
+          "sortOrder" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "id", "name", "sortOrder" ]
       },
       "UpdateExpectationRequest" : {
         "type" : "object",
@@ -1921,6 +2700,15 @@
           }
         },
         "required" : [ "capturePayload", "enabled", "id", "requestAddress", "samplePerMin" ]
+      },
+      "AssignEnvironmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "environmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
       },
       "RotateCredentialsRequest" : {
         "type" : "object",
@@ -2095,6 +2883,178 @@
           }
         },
         "required" : [ "config", "enabled", "hasSecret", "id", "kind", "name" ]
+      },
+      "CreateUserRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password", "username" ]
+      },
+      "GrantRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "roleId", "scopeType" ]
+      },
+      "CreateTokenRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "grants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TokenGrantRequest"
+            },
+            "minItems" : 1
+          }
+        },
+        "required" : [ "grants", "name" ]
+      },
+      "TokenGrantRequest" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "scopeType" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "action", "scopeType" ]
+      },
+      "CreatedTokenView" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "$ref" : "#/components/schemas/TokenView"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "token", "value" ]
+      },
+      "TokenView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "prefix" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastUsedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "revokedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "createdAt", "id", "name", "prefix" ]
+      },
+      "OidcMappingRequest" : {
+        "type" : "object",
+        "properties" : {
+          "claim" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "claimValue" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "claim", "claimValue", "roleId", "scopeType" ]
+      },
+      "OidcMappingView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "claim" : {
+            "type" : "string"
+          },
+          "claimValue" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "claim", "claimValue", "id", "roleId", "roleName", "scopeType" ]
       },
       "Credentials" : {
         "type" : "object",
@@ -2303,6 +3263,10 @@
           },
           "health" : {
             "$ref" : "#/components/schemas/HealthView"
+          },
+          "environmentId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
           }
         },
         "required" : [ "capabilities", "health", "id", "name", "topology" ]
@@ -2450,6 +3414,75 @@
           }
         }
       },
+      "ChangePasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "newPassword" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "currentPassword", "newPassword" ]
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password", "username" ]
+      },
+      "GrantView" : {
+        "type" : "object",
+        "properties" : {
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "permissions", "scopeType" ]
+      },
+      "MeView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "grants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GrantView"
+            }
+          }
+        },
+        "required" : [ "grants", "id", "mustChangePassword", "username" ]
+      },
       "NodeOverrideRequest" : {
         "type" : "object",
         "properties" : {
@@ -2497,6 +3530,18 @@
         },
         "required" : [ "settings" ]
       },
+      "PermissionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "action", "label" ]
+      },
       "ClusterSummary" : {
         "type" : "object",
         "properties" : {
@@ -2521,6 +3566,10 @@
           "updatedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "environmentId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
           }
         },
         "required" : [ "health", "id", "name", "nodeCount", "updatedAt" ]
@@ -3634,6 +4683,21 @@
           }
         },
         "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "ProviderView" : {
+        "type" : "object",
+        "properties" : {
+          "registrationId" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "authorizationUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "authorizationUrl", "label", "registrationId" ]
       },
       "ClusterFiringCountView" : {
         "type" : "object",

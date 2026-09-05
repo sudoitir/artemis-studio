@@ -11,6 +11,31 @@ spring:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
 
+  session:
+    store-type: jdbc
+    jdbc:
+      # Liquibase owns this schema (014-identity.sql), not the library's own
+      # initializer (ADR-0011).
+      initialize-schema: never
+      table-name: spring_session
+
+  # OIDC/SSO (ADR-0040) is opt-in: with no `spring.security.oauth2.client.registration.*`
+  # entry configured, Spring Boot's OAuth2 client auto-configuration backs off
+  # entirely and only local login is available. Uncomment and fill in to enable
+  # it — never commit a real client-secret; source it from the environment.
+  #
+  # security:
+  #   oauth2:
+  #     client:
+  #       registration:
+  #         studio:
+  #           client-id: ${ARTEMIS_STUDIO_OIDC_CLIENT_ID:}
+  #           client-secret: ${ARTEMIS_STUDIO_OIDC_CLIENT_SECRET:}
+  #           scope: openid,profile,email,groups
+  #       provider:
+  #         studio:
+  #           issuer-uri: ${ARTEMIS_STUDIO_OIDC_ISSUER_URI:}
+
   jpa:
     # Liquibase owns the schema; Hibernate only maps to it and checks the mapping
     # on startup. Never let Hibernate touch DDL.
@@ -37,6 +62,9 @@ spring:
 server:
   port: ${ARTEMIS_STUDIO_PORT:8080}
   forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 8h
 
 management:
   endpoints:
@@ -106,6 +134,11 @@ artemis-studio:
     connect-timeout: 10s         # notificationRestClient connect + read timeout
     initial-backoff: 5s          # first retry delay (exponential with jitter)
     max-backoff: 10m             # backoff ceiling
+  security:
+    # Governance (Phase 8, ADR-0037, ADR-0040).
+    session-timeout: 8h
+    oidc-claim: groups            # the token/userinfo claim mapped by oidc_role_mapping
+    # oidc-default-role: VIEWER   # role granted when no mapping matches; unset refuses the login
 
 logging:
   level:

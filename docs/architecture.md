@@ -18,7 +18,7 @@ management endpoints.
                     │  Spring Boot 4.1 · Java 25                   │
                     │                                              │
                     │  web/        controllers, DTOs, SSE hub       │
-                    │  security/   local users, RBAC, audit filter  │
+                    │  security/   session/token/OIDC auth, RBAC    │
                     │  broker/     JolokiaBrokerClient ─┐           │
                     │              CoreEventClient  ────┤ (Phase 4)  │
                     │              CapabilityProbe      │           │
@@ -184,10 +184,13 @@ Every mutating endpoint accepts `?dryRun=true` and returns the affected count
 without acting. Purge/delete require typed confirmation in the UI. Every mutation
 writes an `audit_event` in the same transaction as the command — row created
 before the broker call, updated with the outcome; a dry run is audited too
-(`dry_run = true`). The actor is resolved before authentication exists
-(ADR-0023): the security principal or the literal `anonymous`, plus the source IP
-and an `X-Request-Id` (or a generated UUID); scheduler-originated rows are
-`system`. The audit-log screen reads these back filtered by user / action /
+(`dry_run = true`). The actor is a real identity (ADR-0041): the authenticated
+principal's username and `user_id`, with the token name folded in when the
+caller authenticated via an API token (`"<owner> [token: <name>]"`), plus the
+source IP and an `X-Request-Id` (or a generated UUID); scheduler-originated
+rows are `system`; the literal `anonymous` is reachable only for a failed
+login attempt itself, since every other mutating call requires authentication
+(ADR-0037). The audit-log screen reads these back filtered by user / action /
 outcome / time, newest first.
 
 **Bulk safety cap.** A destructive message operation whose dry-run count exceeds

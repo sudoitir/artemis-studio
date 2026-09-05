@@ -27,7 +27,8 @@ public record ArtemisStudioProperties(
         Safety safety,
         Events events,
         Rr rr,
-        Alerting alerting) {
+        Alerting alerting,
+        Security security) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -48,6 +49,7 @@ public record ArtemisStudioProperties(
                         Duration.ofSeconds(10),
                         Duration.ofSeconds(5),
                         Duration.ofMinutes(10));
+        security = security != null ? security : new Security(Duration.ofHours(8), "groups", null);
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -113,4 +115,14 @@ public record ArtemisStudioProperties(
             @DefaultValue("10s") Duration connectTimeout,
             @DefaultValue("5s") Duration initialBackoff,
             @DefaultValue("10m") Duration maxBackoff) {}
+
+    /**
+     * Governance (Phase 8, ADR-0037, ADR-0040). {@code oidcDefaultRole} is the
+     * role name granted to an OIDC login matching no
+     * {@code oidc_role_mapping} row; {@code null} refuses such a login.
+     */
+    public record Security(
+            @DefaultValue("8h") Duration sessionTimeout,
+            @DefaultValue("groups") String oidcClaim,
+            String oidcDefaultRole) {}
 }
