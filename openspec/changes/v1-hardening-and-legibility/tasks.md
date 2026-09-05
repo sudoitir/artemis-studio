@@ -32,18 +32,18 @@
 
 ## 3. Slice 2 — payload inspection helpers
 
-- [ ] 3.1 Add `shiki` to `web/package.json`
-- [ ] 3.2 `main.tsx`: `CodeHighlightAdapterProvider` with `createShikiAdapter(loadShiki)`, `loadShiki` using a dynamic `import('shiki')`; `langs: ['json','xml','yaml','sql','properties']`, `themes: []`
-- [ ] 3.3 Confirm against `vite build`'s chunk report that the entry chunk did not grow, and that the existing `broker.xml` snippets now highlight
-- [ ] 3.4 `web/src/messages/payload.ts`: detection in order — declared content type (`contentType` on the DTO or `_AMQ_CONTENT_TYPE` / `contentType` / `content_type` property) wins; TEXT structural probe (`{`/`[` → `JSON.parse`; `<` → `DOMParser` **with `parsererror` checked**); BASE64 magic bytes (gzip `1F 8B`, zip `50 4B 03 04`, Java-serialized `AC ED 00 05`, Avro `4F 62 6A 01`); else TEXT
-- [ ] 3.5 `payload.ts`: formatting — JSON via `JSON.stringify(JSON.parse(x), null, 2)`; XML via a recursive indent walk over the `Document` already parsed in detection
-- [ ] 3.6 `payload.ts`: truncation path — a `bodyTruncated` body that fails to parse reports "can't format: the broker truncated this body", never "not JSON"
-- [ ] 3.7 Measure `JSON.parse` + Shiki on synthetic 1 / 5 / 20 MB bodies, then fix the three named size ceilings (detect-prefix, pretty-print, highlight) from the measurements
-- [ ] 3.8 `web/src/messages/HexDump.tsx`: hex + ASCII dump of the first N bytes for binary bodies; never `TextDecoder` a binary body into the code block
-- [ ] 3.9 `payload.test.ts`: declared type wins over a conflicting body; valid JSON; truncated JSON reports truncated not "not JSON"; XML with a `parsererror`; each of the four magic-byte kinds; empty body; a body over each size ceiling
-- [ ] 3.10 `MessageDetailPanel.tsx`: format badge next to "Body", formatted/raw toggle, copy and download; above-ceiling fallback to plain `<pre>` with "Formatting is off for a body this size"
-- [ ] 3.11 `MessageDetailPanel.tsx`: map the JMS type int to a name, reading the constants off `org.apache.activemq.artemis.api.core.Message` in the `artemis-jakarta-client` jar
-- [ ] 3.12 `npm --prefix web test -- payload`, `npm --prefix web run build` and `npm --prefix web run lint` pass
+- [x] 3.1 Add `shiki` to `web/package.json`
+- [x] 3.2 `main.tsx`: `CodeHighlightAdapterProvider` with `createShikiAdapter(loadShiki)`, `loadShiki` using a dynamic `import('shiki')`; `langs: ['json','xml','yaml','sql','properties']`, `themes: []`
+- [x] 3.3 Confirm against `vite build`'s chunk report that the entry chunk did not grow, and that the existing `broker.xml` snippets now highlight
+- [x] 3.4 `web/src/messages/payload.ts`: detection in order — declared content type (`contentType` on the DTO or `_AMQ_CONTENT_TYPE` / `contentType` / `content_type` property) wins; TEXT structural probe (`{`/`[` → `JSON.parse`; `<` → `DOMParser` **with `parsererror` checked**); BASE64 magic bytes (gzip `1F 8B`, zip `50 4B 03 04`, Java-serialized `AC ED 00 05`, Avro `4F 62 6A 01`); else TEXT
+- [x] 3.5 `payload.ts`: formatting — JSON via `JSON.stringify(JSON.parse(x), null, 2)`; XML via a recursive indent walk over the `Document` already parsed in detection
+- [x] 3.6 `payload.ts`: truncation path — a `bodyTruncated` body that fails to parse reports "can't format: the broker truncated this body", never "not JSON"
+- [x] 3.7 Measure `JSON.parse` + Shiki on synthetic 1 / 5 / 20 MB bodies, then fix the three named size ceilings (detect-prefix, pretty-print, highlight) from the measurements
+- [x] 3.8 `web/src/messages/HexDump.tsx`: hex + ASCII dump of the first N bytes for binary bodies; never `TextDecoder` a binary body into the code block
+- [x] 3.9 `payload.test.ts`: declared type wins over a conflicting body; valid JSON; truncated JSON reports truncated not "not JSON"; XML with a `parsererror`; each of the four magic-byte kinds; empty body; a body over each size ceiling
+- [x] 3.10 `MessageDetailPanel.tsx`: format badge next to "Body", formatted/raw toggle, copy and download; above-ceiling fallback to plain `<pre>` with "Formatting is off for a body this size"
+- [x] 3.11 `MessageDetailPanel.tsx`: map the JMS type int to a name, reading the constants off `org.apache.activemq.artemis.api.core.Message` in the `artemis-jakarta-client` jar
+- [x] 3.12 `npm --prefix web test -- payload`, `npm --prefix web run build` and `npm --prefix web run lint` pass
 
 ## 4. Slice 3 — slow-consumer detection
 
