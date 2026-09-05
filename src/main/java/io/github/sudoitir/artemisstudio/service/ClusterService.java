@@ -18,6 +18,8 @@ import io.github.sudoitir.artemisstudio.domain.topology.TopologyDiscovery;
 import io.github.sudoitir.artemisstudio.domain.topology.TopologyDiscovery.ProbedSeed;
 import io.github.sudoitir.artemisstudio.mapper.BrokerNodeMapper;
 import io.github.sudoitir.artemisstudio.mapper.ClusterViewMapper;
+import io.github.sudoitir.artemisstudio.persist.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.persist.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.persist.BrokerCredentialEntity;
@@ -79,6 +81,7 @@ public class ClusterService {
     private final CorePool corePool;
     private final SecretVault vault;
     private final AuditService audit;
+    private final AlertRuleRepository alertRules;
     private final io.github.sudoitir.artemisstudio.security.ActorResolver actorResolver;
 
     private final BrokerNodeMapper nodeMapper;
@@ -188,6 +191,7 @@ public class ClusterService {
                 clusterId, reachable.stream().map(Probe::asSeed).toList());
         BrokerCapabilities capabilities =
                 capabilityProbe.probe(reachable.get(0).client(), coreSubscriptions.verdictFor(clusterId));
+        seedBuiltinAlertRules(clusterId);
 
         audit.succeed(event, endpointCount(topology));
         return new Attempt.Ok<>(new ClusterDetail(
@@ -369,6 +373,13 @@ public class ClusterService {
         coreSubscriptions.forget(clusterId);
         corePool.forget(clusterId);
         audit.succeed(event, 1);
+    }
+
+    /** Ordinary, editable, unrouted rows an operator can silence or route (design.md decision 8) — not an unconditional check. */
+    private void seedBuiltinAlertRules(UUID clusterId) {
+        alertRules.save(AlertRuleEntity.state(clusterId, "Split-brain", "SPLIT_BRAIN", 0, "CRITICAL"));
+        alertRules.save(AlertRuleEntity.state(clusterId, "Node down", "NODE_DOWN", 30, "CRITICAL"));
+        alertRules.save(AlertRuleEntity.state(clusterId, "Replication behind", "REPLICATION_BEHIND", 120, "WARNING"));
     }
 
     // ---- helpers ------------------------------------------------------------

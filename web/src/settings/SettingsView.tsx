@@ -22,6 +22,7 @@ import {
 } from '../api/client.ts';
 import { RegisterClusterButton } from '../clusters/RegisterCluster.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
+import { NotificationChannels } from './NotificationChannels.tsx';
 
 const FIELDS: { key: string; label: string; hint: string }[] = [
   { key: 'scrape.tier-a-interval', label: 'Tier A interval', hint: 'HA state + topology (e.g. 5s). Takes effect on restart.' },
@@ -219,6 +220,17 @@ export function SettingsView() {
           expand with the reason and the exact <code>broker.xml</code> change to close the gap.
         </Text>
         {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} /> : null}
+      </div>
+
+      <Divider />
+
+      <div>
+        <Title order={3}>Notification channels</Title>
+        <Text size="sm" c="dimmed" mb="sm">
+          Slack and webhook destinations alert rules can route to — global, not per cluster, since
+          one channel commonly serves several clusters.
+        </Text>
+        <NotificationChannels />
       </div>
 
       <Text size="xs" c="dimmed">

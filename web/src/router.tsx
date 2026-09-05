@@ -21,6 +21,7 @@ import { ResourceView } from './resources/ResourceView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
 import { MetricsView } from './metrics/MetricsView.tsx';
 import { METRIC_RANGES, type MetricRange } from './metrics/ranges.ts';
+import { AlertsView } from './alerts/AlertsView.tsx';
 
 /** Navigable state that belongs in the URL, not local state (non-negotiable #9). */
 export interface ResourceSearch {
@@ -161,6 +162,22 @@ const metricsRoute = createRoute({
   errorComponent: RouteError,
 });
 
+function validateAlertsSearch(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (typeof raw.tab === 'string' && ['firing', 'history', 'rules'].includes(raw.tab)) {
+    out.tab = raw.tab;
+  }
+  return out;
+}
+
+const alertsRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'alerts',
+  component: AlertsView,
+  validateSearch: validateAlertsSearch,
+  errorComponent: RouteError,
+});
+
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
@@ -208,6 +225,7 @@ const routeTree = rootRoute.addChildren([
     queuesRoute,
     messagesRoute,
     metricsRoute,
+    alertsRoute,
     auditRoute,
     dlqRoute,
     eventsRoute,

@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 class NodeCallLimiterTest {
 
     private static NodeCallLimiter limiter(int perSecond) {
-        return new NodeCallLimiter(
-                new ArtemisStudioProperties(null, null, null, new RateLimit(perSecond), null, null, null, null, null));
+        return new NodeCallLimiter(new ArtemisStudioProperties(
+                null, null, null, new RateLimit(perSecond), null, null, null, null, null, null));
     }
 
     @Test

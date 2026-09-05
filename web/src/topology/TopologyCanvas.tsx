@@ -24,6 +24,9 @@ function BrokerNode({ data }: NodeProps) {
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
         <span className={styles.name}>{d.name}</span>
+        {d.firing ? (
+          <span className={styles.alertDot} title="An alert is firing on this node" />
+        ) : null}
         {d.version ? <span className={styles.badge}>{d.version}</span> : null}
       </div>
       <div className={styles.body}>

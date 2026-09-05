@@ -31,14 +31,14 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 5 complete
-(request-reply flows reconstructed from a notification-anchored,
-browse-sampled correlator — `RrSampler` over a pooled Core connection plus
-`RrNotificationObserver` on the existing notification stream feed
-`RrCorrelator`'s six-state `FlowStateMachine`; a deadline sweep splits
-`ORPHANED` from `TIMED_OUT`; Micrometer latency percentiles never reported
-without a coverage-ratio disclosure; the flows/stuck/latency/expectations
-screen at `clusters/{id}/rr`); Phase 6 (metrics and charts) next.
+`docs/roadmap.md` and the TODO list in `README.md`. Current phase: 7 complete
+(alert rules as a discriminated union — metric threshold or cluster state,
+sharing one OK→PENDING→FIRING debounce and evaluator, riding scrape-tier
+completion rather than an independent timer; durable Postgres-queued delivery
+to Slack and signed generic webhooks, batched per rule per tick; built-in
+split-brain/node-down/replication-behind rules seeded per cluster; the
+firing/history/rules screen at `clusters/{id}/alerts`, topology alert dots, and
+a shell firing badge — ADR-0035, ADR-0036); Phase 8 (governance) next.
 
 ## How to work a change
 

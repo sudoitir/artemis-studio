@@ -50,6 +50,14 @@ class ApiExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    ProblemDetail onIllegalState(IllegalStateException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "notification-delivery-failed"));
+        problem.setTitle("Notification delivery failed");
+        return problem;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail onIllegalArgument(IllegalArgumentException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());

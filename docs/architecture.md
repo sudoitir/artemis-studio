@@ -23,8 +23,9 @@ management endpoints.
                     │              CoreEventClient  ────┤ (Phase 4)  │
                     │              CapabilityProbe      │           │
                     │  scheduler/  tiered scrape + per-node limiter │
-                    │  domain/     topology, queues, messages, RR   │
-                    │  alerting/   rule eval, channels             │
+                    │  domain/     topology, queues, messages, RR,  │
+                    │              alerting conditions + state      │
+                    │  service/    orchestration incl. alert eval   │
                     │  persist/    Spring Data JDBC + Liquibase     │
                     └──────┬──────────────────────────────┬────────┘
                            │                              │

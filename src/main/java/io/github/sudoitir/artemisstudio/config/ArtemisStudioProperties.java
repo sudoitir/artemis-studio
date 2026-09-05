@@ -26,7 +26,8 @@ public record ArtemisStudioProperties(
         Metric metric,
         Safety safety,
         Events events,
-        Rr rr) {
+        Rr rr,
+        Alerting alerting) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -39,6 +40,14 @@ public record ArtemisStudioProperties(
         safety = safety != null ? safety : new Safety(1000);
         events = events != null ? events : new Events(Duration.ofHours(72), 10_000, Duration.ofSeconds(1), 1000);
         rr = rr != null ? rr : new Rr(30_000, Duration.ofSeconds(5), Duration.ofMinutes(15), 4096, Duration.ofDays(7));
+        alerting = alerting != null
+                ? alerting
+                : new Alerting(
+                        Duration.ofSeconds(5),
+                        5,
+                        Duration.ofSeconds(10),
+                        Duration.ofSeconds(5),
+                        Duration.ofMinutes(10));
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -92,4 +101,16 @@ public record ArtemisStudioProperties(
             @DefaultValue("15m") Duration percentileWindow,
             @DefaultValue("4096") int payloadCaptureBytes,
             @DefaultValue("7d") Duration retention) {}
+
+    /**
+     * Notification delivery (Phase 7, ADR-0036). A separate {@code RestClient}
+     * from the broker one — no sharing of the per-node rate limiter or broker
+     * TLS bundles with an outbound webhook/Slack call.
+     */
+    public record Alerting(
+            @DefaultValue("5s") Duration dispatchInterval,
+            @DefaultValue("5") int maxAttempts,
+            @DefaultValue("10s") Duration connectTimeout,
+            @DefaultValue("5s") Duration initialBackoff,
+            @DefaultValue("10m") Duration maxBackoff) {}
 }

@@ -42,3 +42,7 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0030](0030-request-reply-correlation-strategy.md) | Request-reply correlation is notification-anchored and browse-sampled, with a disclosed coverage ceiling |
 | [0031](0031-pooled-core-connections.md) | Pooled Core connections via `pooled-jms`, superseding connect-per-call |
 | [0032](0032-rr-latency-micrometer-percentiles.md) | Request-reply latency via Micrometer time-windowed percentiles, no persisted history in Phase 5 |
+| [0033](0033-metric-read-model.md) | Metric read model — `date_bin` bucketing, gauge vs. counter-rate, server-clamped step/range |
+| [0034](0034-collapsible-sidebar.md) | Two-section collapsible sidebar (cluster switcher + per-cluster view nav), replacing the horizontal view strip |
+| [0035](0035-alert-rule-model-and-evaluation-timing.md) | Alert rules are a discriminated union (metric threshold / cluster state); evaluation rides the scrape tiers, not an independent timer |
+| [0036](0036-notification-delivery-queue-and-channel-signing.md) | Notification delivery is a durable Postgres queue, batched per rule per tick, with Standard Webhooks signing |

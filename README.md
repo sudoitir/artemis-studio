@@ -170,11 +170,11 @@ Every feature we intend to ship, grouped by phase. Context:
 
 |  | Task |
 |--|------|
-| [ ] | Rule model + evaluation loop (`for` duration) |
-| [ ] | `alert_state` OK → PENDING → FIRING → resolved |
-| [ ] | Notification channels — webhook, Slack |
-| [ ] | Built-in critical alerts — split-brain, node down, replication desync |
-| [ ] | Rule CRUD + alerts screen |
+| [x] | Rule model + evaluation loop (`for` duration) |
+| [x] | `alert_state` OK → PENDING → FIRING → resolved |
+| [x] | Notification channels — webhook, Slack |
+| [x] | Built-in critical alerts — split-brain, node down, replication desync |
+| [x] | Rule CRUD + alerts screen |
 
 ### Phase 8 · Governance
 

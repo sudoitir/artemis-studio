@@ -1,5 +1,6 @@
-import { Divider } from '@mantine/core';
+import { Badge, Divider } from '@mantine/core';
 
+import { useFiringCounts } from '../api/client.ts';
 import { NAV_ITEMS } from './navItems.ts';
 import { NavItem } from './NavItem.tsx';
 
@@ -9,6 +10,9 @@ import { NavItem } from './NavItem.tsx';
  * while a cluster is the active route.
  */
 export function ClusterViewNav({ clusterId, collapsed }: { clusterId: string; collapsed: boolean }) {
+  const firingCounts = useFiringCounts();
+  const firing = firingCounts.data?.find((c) => c.clusterId === clusterId)?.firing ?? 0;
+
   return (
     <>
       <Divider my="xs" />
@@ -20,6 +24,13 @@ export function ClusterViewNav({ clusterId, collapsed }: { clusterId: string; co
             label={item.label}
             collapsed={collapsed}
             leading={<item.icon size={18} stroke={1.5} />}
+            trailing={
+              item.path === 'alerts' && firing > 0 ? (
+                <Badge size="xs" variant="filled" color="red" circle>
+                  {firing}
+                </Badge>
+              ) : undefined
+            }
           />
         ))}
       </nav>
