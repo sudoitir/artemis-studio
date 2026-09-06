@@ -36,7 +36,7 @@ function subscribe(listener: () => void) {
  * Returning `false` suspends the interval; TanStack Query calls this again on the
  * next cycle, so resuming needs no remount.
  */
-export function poll(ms: number): () => number | false {
+export function poll(ms: number | false): () => number | false {
   return () => (paused ? false : ms);
 }
 
