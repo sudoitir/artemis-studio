@@ -11,6 +11,8 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+## [2026.09.3] — 2026-09-06
+
 ### Added
 
 - **Settings changes no longer need a restart, and there are far more of them.** The
