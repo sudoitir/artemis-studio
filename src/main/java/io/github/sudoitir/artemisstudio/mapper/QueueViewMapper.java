@@ -35,7 +35,8 @@ public class QueueViewMapper {
                         r.getMessageCount(),
                         r.getConsumerCount(),
                         r.getDeliveringCount(),
-                        r.getScheduledCount()))
+                        r.getScheduledCount(),
+                        r.isPaused()))
                 .sorted((a, b) -> a.nodeName().compareToIgnoreCase(b.nodeName()))
                 .toList();
 
@@ -50,6 +51,7 @@ public class QueueViewMapper {
                 cells.stream().mapToLong(QueueNodeCell::scheduledCount).sum(),
                 (int) cells.stream().map(QueueNodeCell::nodeId).distinct().count(),
                 nodesTotal,
+                cells.stream().anyMatch(QueueNodeCell::paused),
                 cells);
     }
 }

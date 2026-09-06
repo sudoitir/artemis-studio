@@ -76,6 +76,22 @@ form labelling and blur-time validation, empty states that teach, and keyboard
 completeness for destructive flows. It is written once here and referenced by the
 changes that follow rather than restated in each.
 
+**Per-node broker settings become readable** (folded in during apply, at the
+operator's request). Studio could compare two nodes' configuration but had no way
+to answer "what is this one node actually running with" — the question asked
+first. `ConfigReader` already read exactly that in one batched call for the diff's
+benefit, with no endpoint of its own. It now has one, and is exposed to an MCP
+client as a **resource** (`cluster://{id}/nodes/{nodeId}/settings`) rather than a
+tool, because it is something to look at rather than an action to take — and
+because a resource costs nothing in the tool listing every conversation pays for.
+
+**The MCP listing budget becomes a per-tool average (ADR-0050).** The flat 2000
+-token ceiling had been calibrated against the thirteen tools that existed and had
+no headroom, so *any* new capability would have failed it. Enum members and JSON
+body shapes moved out of the tool schemas into a `studio://tools` resource that a
+model reads only once it has chosen a tool, and the ceiling now scales with tool
+count. No tool was removed to make room.
+
 ## Impact
 
 - **First write path to a broker that is not a message operation.** Every
@@ -93,7 +109,12 @@ changes that follow rather than restated in each.
   stated, the new screens meet it, and existing screens are brought up as they are
   touched. Retrofitting the whole frontend inside this change would bury the
   feature.
-- ADRs: 0049 (cluster-wide topology mutation).
+- ADRs: 0049 (cluster-wide topology mutation), 0050 (MCP progressive disclosure,
+  extends 0045).
+- **New endpoint and MCP resource for per-node settings**, and a corrected
+  `queue-lifecycle` spec: the filter turned out to be *mutable* on a live queue,
+  and `updateQueue` turned out to replace rather than merge. Both were measured
+  against a live broker during apply, not assumed.
 - Not in scope, deliberately: diverts and bridges (their own change — a runtime
   divert has a persistence problem queues do not), and any notion of a declared
   desired state (its own change, and it depends on this one).

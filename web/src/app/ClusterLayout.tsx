@@ -25,15 +25,16 @@ export function ClusterLayout() {
   useClusterStream(clusterId);
 
   const caps = data?.capabilities;
+  // Nag only on a real, actionable gap. UNKNOWN is not one: since ADR-0049 D5
+  // managementWrite and messageIo stay UNKNOWN until a write has actually been
+  // attempted, and a notice on every freshly registered cluster — for a broker
+  // that is very likely fine — is noise the operator learns to dismiss unread.
   const gaps = caps
-    ? [
-        ...(['managementRead', 'managementWrite', 'messageIo'] as const).filter(
-          (k) => caps[k].status !== 'AVAILABLE',
+    ? ([
+        ...(['managementRead', 'managementWrite', 'messageIo', 'notifications'] as const).filter(
+          (k) => caps[k].status === 'UNAVAILABLE',
         ),
-        // notifications: nag only on a real, actionable gap — not while it is
-        // still UNKNOWN because the first scrape cycle has not run.
-        ...(caps.notifications.status === 'UNAVAILABLE' ? ['notifications'] : []),
-      ]
+      ] as string[])
     : [];
   // Keyed on which capabilities are short, so dismissing today's gap does not
   // also hide a different one that appears tomorrow. Computed before the early

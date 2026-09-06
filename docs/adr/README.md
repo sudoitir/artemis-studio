@@ -58,3 +58,5 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0046](0046-mcp-authenticates-with-existing-api-tokens.md) | MCP authenticates with the ADR-0039 personal API tokens — one credential store, one authorization model |
 | [0047](0047-two-configuration-planes.md) | Two configuration planes — `studio_setting` (operator, live, audited) and a Spring Cloud bootstrap plane (deploy-time, `{cipher}`); no config server |
 | [0048](0048-settings-driven-dynamic-schedules.md) | Every settings-tunable schedule is a re-reading trigger task, not a `@Scheduled` annotation (extends 0025) |
+| [0049](0049-cluster-wide-topology-mutation.md) | Queue and address lifecycle is a cluster-wide fan-out that reports per node, never rolls back, and makes `managementWrite` evidence-backed |
+| [0050](0050-mcp-progressive-disclosure.md) | The MCP listing budget scales per tool and enum/body detail moves to `studio://tools` (extends 0045) |

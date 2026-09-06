@@ -79,9 +79,19 @@
 /* Light overrides. Dark is the base above; only the values that must change for
    a legible light theme are redefined here (non-negotiable #6 keeps colour out
    of components, so this is the whole surface). */
+/* Status text carried these as yellow-7 (2.13:1 on white) and red-7 (3.84:1),
+   both under the WCAG 2.2 AA 4.5:1 floor for body text — measured, not assumed.
+   No shade of Mantine's yellow or orange ramp reaches 4.5:1 on white at all, so
+   the light-scheme warning cannot be fixed by re-stepping the ramp; it needs a
+   dark amber, which is why this is a literal here rather than a scale reference.
+   Both keep their hue, so a warning still reads as a warning.
+
+   The purely graphical marks below — chart axis, graph edge, alert dot, node
+   state — deliberately stay on the bright ramp: they are not text, the AA text
+   floor does not apply to them, and the darker value reads as muddy at 1-2px. */
 :root[data-mantine-color-scheme='light'] {
-  --as-warning: var(--mantine-color-yellow-7);
-  --as-danger: var(--mantine-color-red-7);
+  --as-warning: #8f4a00; /* 6.67:1 on white */
+  --as-danger: #c92a2a; /* 5.46:1 on white */
   --as-node-split-brain: var(--mantine-color-red-7);
   --as-node-down: var(--mantine-color-yellow-7);
   --as-axis-broken: var(--mantine-color-yellow-7);

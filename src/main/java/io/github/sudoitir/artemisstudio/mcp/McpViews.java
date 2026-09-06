@@ -127,6 +127,25 @@ public final class McpViews {
             String node,
             String message) {}
 
+    /**
+     * The result of a cluster-wide lifecycle command (ADR-0049). The per-node list
+     * is returned in full: an agent that cannot tell a fully applied command from a
+     * partially applied one will confidently report the wrong thing to a human.
+     */
+    public record LifecycleOutcomeSummary(
+            String action,
+            String subject,
+            boolean dryRun,
+            boolean partial,
+            long totalAffected,
+            Long cap,
+            boolean overCap,
+            List<LifecycleNode> nodes,
+            String message) {}
+
+    /** One node's share of a lifecycle command. */
+    public record LifecycleNode(String node, String status, Long affected, String error) {}
+
     /** An alert rule, flattened — ids as ids, no channel objects. */
     public record AlertRuleSummary(
             UUID ruleId,

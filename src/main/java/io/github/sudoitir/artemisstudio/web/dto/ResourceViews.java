@@ -40,6 +40,14 @@ public final class ResourceViews {
             @Schema(requiredMode = REQUIRED) long totalScheduledCount,
             @Schema(requiredMode = REQUIRED) int nodesPresent,
             @Schema(requiredMode = REQUIRED) int nodesTotal,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "True when the queue is paused on at least one node. A queue paused on some"
+                            + " nodes and not others is a divergence the operator needs to see, so this is"
+                            + " deliberately 'any', not 'all' — perNode says which.")
+            boolean paused,
+
             @Schema(requiredMode = REQUIRED) List<QueueNodeCell> perNode) {}
 
     /**
@@ -56,7 +64,8 @@ public final class ResourceViews {
             @Schema(requiredMode = REQUIRED) long messageCount,
             @Schema(requiredMode = REQUIRED) long consumerCount,
             @Schema(requiredMode = REQUIRED) long deliveringCount,
-            @Schema(requiredMode = REQUIRED) long scheduledCount) {}
+            @Schema(requiredMode = REQUIRED) long scheduledCount,
+            @Schema(requiredMode = REQUIRED) boolean paused) {}
 
     // ---- live-through resources (one POST per serving node, merged) -------
 

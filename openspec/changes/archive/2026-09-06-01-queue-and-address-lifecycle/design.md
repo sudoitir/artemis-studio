@@ -140,13 +140,35 @@ count per node so the confirmation names a real number.
 
 ### D7 — The update surface is only what the broker will actually accept
 
-Artemis allows a subset of a queue's configuration to change on a live queue.
-Filter and routing type are not in it. The API exposes only the mutable subset and
-the UI renders the immutable fields read-only with the reason, rather than
-offering an edit that ends in a broker refusal the operator has to interpret.
+**Revised at apply time against a live broker.** The original text asserted that
+both the filter and the routing type are immutable. Only the second half is true.
 
-The exact mutable set is confirmed against the Artemis management API at apply
-time (see `tasks.md`), not asserted here from memory.
+Measured on Artemis 2.44.0 (the dev pair) through Jolokia — see "Confirmed
+management surface" below for the method:
+
+- **Routing type is immutable.** `updateQueue` with a changed `routing-type` is
+  refused with `AMQ229211 Can't update queue X with routing type: MULTICAST,
+  Supported routing types for address: X are [ANYCAST]`. It stays read-only in the
+  UI with the reason, as the spec says.
+- **The filter is mutable.** `updateQueue` with a changed `filter-string` is
+  accepted and takes effect — the queue's `Filter` attribute reads back as the new
+  value. The spec delta's claim that the filter is immutable is wrong and is
+  corrected in `specs/queue-lifecycle/spec.md` as part of this change.
+- **`updateQueue` is a replace, not a merge.** A config that omits a field
+  *clears* it: sending `{"name":"q","max-consumers":7}` against a queue with a
+  filter left the queue with `Filter = null`. This is the single most dangerous
+  fact in this change — a partial update silently destroys the filter.
+
+  Therefore the update path **reads the queue's current configuration and sends a
+  full merged configuration**, never the operator's changed fields alone. The
+  service owns that merge; the API accepts a sparse patch and the UI shows the
+  effective result before it submits.
+
+The mutable set is consequently every `QueueConfiguration` field except
+`routing-type`, `address`, `name` and `durable`. The UI exposes the subset an
+operator has reason to change — `filter-string`, `max-consumers`,
+`purge-on-no-consumers`, `exclusive`, `non-destructive`, `ring-size` — and the
+rest are carried through the merge untouched.
 
 ### D8 — Address delete is force-free
 
@@ -155,6 +177,88 @@ exposed. Deleting an address that still has queues is refused with a message
 naming the queues, and the operator deletes them explicitly. One click that
 destroys an unbounded amount of data with no per-queue count in the confirmation
 is not a safe default, and the safe path costs one extra step.
+
+Confirmed on 2.44.0: the force-free `deleteAddress(name)` already refuses with
+`AMQ229205 Address X has bindings`. The broker enforces D8 on its own; Studio adds
+the queue names, which `AddressControl.getQueueNames()` supplies, because the
+broker's own message does not name them.
+
+## Confirmed management surface
+
+Task 1/2 groundwork. Signatures read from the `ActiveMQServerControl`,
+`QueueControl` and `AddressControl` interfaces in `artemis-core-client-2.56.0`
+(the version this project depends on), and behaviour measured over Jolokia
+against the dev broker, Artemis **2.44.0**. Nothing here is from memory.
+
+### Use the JSON API, not the positional overloads
+
+**Every positional `createQueue(...)` and `updateQueue(...)` overload is
+`@Deprecated` in 2.56.0.** The current surface takes a `QueueConfiguration` JSON
+document:
+
+| Operation | Signature | Notes |
+|---|---|---|
+| create queue | `createQueue(java.lang.String,boolean)` | `(queueConfiguration, ignoreIfExists)` — returns the resulting config as JSON |
+| update queue | `updateQueue(java.lang.String)` | `(queueConfiguration)` — **replaces**, see D7 |
+| destroy queue | `destroyQueue(java.lang.String,boolean,boolean)` | `(name, removeConsumers, forceAutoDeleteAddress)` |
+| create address | `createAddress(java.lang.String,java.lang.String)` | `(name, routingTypes)` |
+| delete address | `deleteAddress(java.lang.String)` | `(name)` — the force-free arm, per D8 |
+
+On `QueueControl` (no arguments, all confirmed working):
+`pause()`, `pause(boolean)` (persist), `resume()`, `resetMessageCounter()`, and
+the `Paused` / `MessageCount` / `Filter` attributes.
+
+On `AddressControl`: `getQueueNames()` — the bound-queue list D8 needs.
+
+`QueueConfiguration` JSON keys are kebab-case: `name`, `address`, `routing-type`,
+`filter-string`, `durable`, `max-consumers`, `purge-on-no-consumers`, `exclusive`,
+`non-destructive`, `ring-size`, `auto-create-address`, `group-rebalance`,
+`group-buckets`, `group-first-key`, `last-value`, `last-value-key`,
+`consumers-before-dispatch`, `delay-before-dispatch`, `auto-delete`,
+`auto-delete-delay`, `auto-delete-message-count`, `user`, `enabled`,
+`consumer-priority`.
+
+### `ignoreIfExists` gives `ALREADY` for free
+
+`createQueue(config, true)` against an existing queue returns **200 with the
+existing configuration** rather than an error. That is exactly D2's `ALREADY`, and
+the returned document is what the create path compares against the requested one
+to decide `ALREADY` versus `FAILED`-with-the-difference (see Risks) — no separate
+read is needed.
+
+### Error codes to classify against
+
+Measured, with the `error_type` Jolokia reports:
+
+| Situation | Code | Classify as |
+|---|---|---|
+| create queue, already exists (`ignoreIfExists=false`) | `AMQ229019` | `ALREADY` |
+| destroy queue, does not exist | `AMQ229017` (`ActiveMQNonExistentQueueException`) | `ALREADY` |
+| create address, already exists | `AMQ229204` (`ActiveMQAddressExistsException`) | `ALREADY` |
+| delete address, does not exist | `AMQ229203` | `ALREADY` |
+| delete address with queues bound | `AMQ229205` | refusal (D8), name the queues |
+| update queue, routing-type change | `AMQ229211` | argument refusal (immutable field) |
+| invalid filter | `AMQ229020` | argument refusal → 400 |
+
+None of these change the `managementWrite` assessment (D5) — they are argument
+refusals, not authorization refusals.
+
+### What an authorization refusal actually looks like
+
+On the console's Jolokia endpoint an unauthorized caller gets **HTTP 403 with no
+body**, both for a bad credential and for a valid user whose role lacks access —
+and for reads as well as writes. So on this deployment shape D5's authorization
+signal is the transport status (401/403), not an in-band `AMQ` code. A broker that
+exposes Jolokia without the console's role filter would instead surface
+`ActiveMQSecurityException` as a 500 with that `error_type`; the classifier treats
+both as authorization refusals and everything else as not.
+
+### A failed create can still leave an address behind
+
+`auto-create-address` defaults to true, so `createQueue` with a bad filter
+auto-created the address and *then* failed — leaving a stray empty address. The
+create path sets `auto-create-address` explicitly and the create-queue form says
+whether the address will be created.
 
 ## Risks
 
@@ -172,7 +276,15 @@ is not a safe default, and the safe path costs one extra step.
 
 ## Open for refinement
 
-These decisions are the current best answer, not a settled one. D2's status set,
-D7's mutable field list and D8's force-free stance are the most likely to move once
-the Artemis management API is checked in detail. Revise this file, `tasks.md` and
-the spec deltas together when they do.
+These decisions are the current best answer, not a settled one.
+
+D7 and D8 have now been checked against a live broker and revised above —
+D7 materially (the filter turned out to be mutable, and `updateQueue` turned out to
+be a replace), D8 confirmed as written. The `queue-lifecycle` spec delta was
+corrected to match. D2's status set survived the check unchanged, and
+`ignoreIfExists` turned out to implement `ALREADY` natively.
+
+What remains open: whether the update API should accept a sparse patch (and merge
+server-side, as D7 now specifies) or require the full configuration from the
+client. The former is chosen because it keeps the client honest about what the
+operator actually changed, and keeps the dangerous merge in one place.

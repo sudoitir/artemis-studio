@@ -45,31 +45,6 @@ broker attribute read returns success, and `UNAVAILABLE` otherwise.
 - **WHEN** attribute reads return 403
 - **THEN** `MANAGEMENT_READ` is `UNAVAILABLE` with a reason naming the rejection
 
-### Requirement: MANAGEMENT_WRITE is inferred without mutating the broker
-
-`MANAGEMENT_WRITE` SHALL be determined by invoking a read-only management
-operation (`listNetworkTopology()`) and observing whether it is permitted. The
-system SHALL NOT create, delete, or modify any broker object to probe write
-access. When the inference is positive the reason string SHALL state that it is
-an inference and that a per-operation Jolokia policy could still restrict
-specific writes.
-
-#### Scenario: Read-only exec succeeds
-
-- **WHEN** `listNetworkTopology()` returns success
-- **THEN** `MANAGEMENT_WRITE` is `AVAILABLE` and the reason states it was inferred
-  from a read-only operation
-
-#### Scenario: Exec is forbidden
-
-- **WHEN** `listNetworkTopology()` returns a permission error
-- **THEN** `MANAGEMENT_WRITE` is `UNAVAILABLE`
-
-#### Scenario: No throwaway objects are created
-
-- **WHEN** the capability probe runs
-- **THEN** no address or queue is created or deleted on the broker at any point
-
 ### Requirement: NOTIFICATIONS reflects the Core subscription outcome
 
 `NOTIFICATIONS` SHALL be a determined verdict, not a fixed `UNKNOWN`. The system
@@ -183,3 +158,32 @@ period, and the policy.
 - **WHEN** the broker exposes the slow-consumer threshold and reports it disabled
 - **THEN** native slow-consumer detection is reported as not configured, with the
   enabling `broker.xml` snippet
+
+### Requirement: A node's effective configuration is readable on its own
+
+The system SHALL report the configuration one node is effectively running with —
+broker attributes, address settings, security settings and acceptors, as the broker
+resolves them — addressable by that node alone, without requiring a second node to
+compare it against.
+
+This SHALL be the broker's resolved runtime configuration, never the contents of a
+configuration file: the system does not read or write `broker.xml`.
+
+A node that cannot be read SHALL be reported as unavailable with the reason. An
+empty configuration SHALL NOT be returned in its place, because an absence
+presented as a fact is indistinguishable from a node that is genuinely configured
+with nothing.
+
+Where the number of address-setting matches resolved is capped, the response SHALL
+state how many were read of how many were known.
+
+#### Scenario: One node's settings are readable alone
+
+- **WHEN** an operator asks what a single node is configured with
+- **THEN** its effective configuration is returned without naming a second node
+
+#### Scenario: An unreadable node is not reported as unconfigured
+
+- **WHEN** a node's configuration cannot be read
+- **THEN** the result says so and gives the reason, rather than returning an empty
+  configuration

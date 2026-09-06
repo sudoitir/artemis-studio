@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.web;
 
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException.Kind;
+import io.github.sudoitir.artemisstudio.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.service.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.service.ConflictException;
 import io.github.sudoitir.artemisstudio.service.LoginThrottledException;
@@ -37,6 +38,22 @@ class ApiExceptionHandler {
         problem.setType(URI.create(TYPE_BASE + "broker-" + kebab(e.kind())));
         problem.setTitle(titleFor(e.kind()));
         problem.setProperty("brokerErrorKind", e.kind().name());
+        return problem;
+    }
+
+    /**
+     * A management refusal that reached the controller rather than being folded
+     * into a per-node outcome — an address delete blocked by bound queues (D8), or
+     * an argument the broker will not accept. 409 rather than 400: the request is
+     * well-formed, the resource's current state is what refuses it.
+     */
+    @ExceptionHandler(ManagementRefusal.class)
+    ProblemDetail onManagementRefusal(ManagementRefusal e) {
+        HttpStatus status = e.kind() == ManagementRefusal.Kind.ARGUMENT ? HttpStatus.BAD_REQUEST : HttpStatus.CONFLICT;
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "management-refused"));
+        problem.setTitle("The broker refused this operation");
+        problem.setProperty("refusalKind", e.kind().name());
         return problem;
     }
 

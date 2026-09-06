@@ -5,9 +5,10 @@ import dayjs from "dayjs";
 
 import { useMetrics, type QueueView } from "../api/client.ts";
 import { DepthChart } from "../metrics/DepthChart.tsx";
+import { QueueLifecycleActions } from "./QueueLifecycleActions.tsx";
 import { ThroughputChart } from "../metrics/ThroughputChart.tsx";
 
-/** Read-only per-node breakdown for one queue row, plus a jump into the message browser. */
+/** Per-node breakdown for one queue row, its lifecycle actions, and a jump into the message browser. */
 export function QueueDetailDrawer({
   queue,
   onClose,
@@ -65,6 +66,8 @@ export function QueueDetailDrawer({
               Browse messages
             </Button>
           </Group>
+
+          <QueueLifecycleActions clusterId={clusterId} queue={queue} onClose={onClose} />
 
           {/* A node name is broker-supplied and can be long; the library's own
               container keeps the overflow in the table rather than the drawer. */}

@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.web;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.service.Attempt;
 import io.github.sudoitir.artemisstudio.service.ClusterService;
+import io.github.sudoitir.artemisstudio.service.ConfigDiffService;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.RegisterClusterRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.RotateCredentialsRequest;
@@ -13,6 +14,7 @@ import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.HealthView;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.NodeEndpointView;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.RegisterPreview;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.TopologyView;
+import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.NodeConfigView;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -46,6 +48,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ClusterController {
 
     private final ClusterService service;
+    private final ConfigDiffService configDiff;
 
     /** Register from a list of seed URLs (ADR-0013). {@code ?dryRun=true} probes and returns without persisting. */
     @ApiResponse(
@@ -112,6 +115,22 @@ public class ClusterController {
     public NodeEndpointView overrideNode(
             @PathVariable UUID clusterId, @PathVariable UUID nodeId, @Valid @RequestBody NodeOverrideRequest request) {
         return unwrap(service.overrideNodeUrl(clusterId, nodeId, request));
+    }
+
+    /**
+     * One node's effective broker configuration, read live (ADR-0043, ADR-0049).
+     *
+     * <p>What the node is actually running with, as the broker resolves it — never
+     * the {@code broker.xml} on disk, which Studio neither reads nor writes. The
+     * config-diff endpoint answers "do these two nodes agree"; this answers "what is
+     * this node set to", which is the question asked first.
+     *
+     * <p>Read-only introspection at the same permission tier as the topology read,
+     * and deliberately unaudited: only mutating calls write an audit event.
+     */
+    @GetMapping("/{clusterId}/nodes/{nodeId}/config")
+    public NodeConfigView nodeConfig(@PathVariable UUID clusterId, @PathVariable UUID nodeId) {
+        return configDiff.nodeConfig(clusterId, nodeId);
     }
 
     /** A {@link Attempt.Failed} becomes a classified {@link BrokerConnectionException} for the advice to render. */

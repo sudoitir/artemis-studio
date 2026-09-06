@@ -141,7 +141,12 @@ export function MessagesView() {
   });
 
   const messageIo = cluster.data?.capabilities.messageIo;
-  const gated = messageIo && messageIo.status !== 'AVAILABLE';
+  // Block only on a known refusal. Since ADR-0049 D5 this capability is UNKNOWN
+  // until a management write has actually been attempted, and blocking on absence
+  // of evidence would lock every operator out of a working broker until something
+  // else happened to write to it first.
+  const gated = messageIo?.status === 'UNAVAILABLE';
+  const unproven = messageIo?.status === 'UNKNOWN';
 
   const backToQueues = { to: `/clusters/${clusterId}/queues` } as const;
 
@@ -185,6 +190,13 @@ export function MessagesView() {
     </Stack>
   );
 
+  const uncertainty = unproven ? (
+    <Alert color="gray" variant="light" title="Not yet established for this connection">
+      No management write has been attempted here yet, so Studio cannot say for certain that message
+      operations will work. They are offered anyway — the first one settles it.
+    </Alert>
+  ) : null;
+
   if (cluster.data && gated) {
     return (
       <Stack gap="md">
@@ -219,6 +231,7 @@ export function MessagesView() {
   return (
     <Stack gap="sm">
       {header}
+      {uncertainty}
 
       <Group justify="space-between">
         <Group gap="xs">

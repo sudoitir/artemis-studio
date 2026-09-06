@@ -61,6 +61,47 @@ public final class ConfigViews {
             @Schema(requiredMode = REQUIRED) List<ConfigEntryView> entries,
             @Schema(requiredMode = REQUIRED) int driftCount) {}
 
+    /** One configuration key and its value on a single node. */
+    @Schema(description = "One configuration key on one node")
+    public record NodeConfigEntryView(
+            @Schema(requiredMode = REQUIRED) String key,
+            @Schema(nullable = true) String value,
+            @Schema(requiredMode = REQUIRED) String classification) {}
+
+    /** One section of a single node's configuration. */
+    @Schema(description = "One section of a node's configuration")
+    public record NodeConfigSectionView(
+            @Schema(requiredMode = REQUIRED) String section,
+            @Schema(requiredMode = REQUIRED) String label,
+            @Schema(requiredMode = REQUIRED) List<NodeConfigEntryView> entries) {}
+
+    /**
+     * One node's effective broker configuration, read live.
+     *
+     * <p>This is the settings a node is <em>actually running with</em>, resolved by
+     * the broker — not the {@code broker.xml} on disk, which Studio never reads and
+     * never writes.
+     *
+     * @param available false when the node could not be read at all; the sections are
+     *     then empty and {@code unavailableReason} says why, rather than an empty
+     *     configuration being presented as a fact
+     * @param matchesCompared how many address-setting match patterns were resolved
+     * @param matchesAvailable how many were known about; when it exceeds
+     *     {@code matchesCompared} the cap applied, and {@code note} says so
+     */
+    @Schema(description = "One node's effective broker configuration")
+    public record NodeConfigView(
+            @Schema(requiredMode = REQUIRED) UUID clusterId,
+            @Schema(requiredMode = REQUIRED) UUID nodeId,
+            @Schema(requiredMode = REQUIRED) String nodeName,
+            @Schema(requiredMode = REQUIRED) boolean available,
+            @Schema(requiredMode = REQUIRED) boolean active,
+            @Schema(nullable = true) String unavailableReason,
+            @Schema(requiredMode = REQUIRED) List<NodeConfigSectionView> sections,
+            @Schema(requiredMode = REQUIRED) int matchesCompared,
+            @Schema(requiredMode = REQUIRED) int matchesAvailable,
+            @Schema(nullable = true) String note) {}
+
     /**
      * @param comparable false when either side is unavailable, or when a passive node's
      *     reduced surface makes the comparison meaningless; the sections are then empty
