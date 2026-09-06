@@ -13,6 +13,7 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query';
+import { clearDismissedNotices } from '../app/useDismissedNotice.ts';
 import type { components } from './schema.d.ts';
 
 const BASE = '/api/v1';
@@ -936,7 +937,11 @@ export function useLogin() {
   const qc = useQueryClient();
   return useMutation<MeView, ApiError, LoginRequest>({
     mutationFn: (body) => request<MeView>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: (me) => qc.setQueryData(keys.me, me),
+    onSuccess: (me) => {
+      // Whoever signs in next sees every notice again, including on a shared browser.
+      clearDismissedNotices();
+      qc.setQueryData(keys.me, me);
+    },
   });
 }
 
@@ -944,7 +949,10 @@ export function useLogout() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, void>({
     mutationFn: () => request<void>('/auth/logout', { method: 'POST' }),
-    onSuccess: () => qc.setQueryData(keys.me, undefined),
+    onSuccess: () => {
+      clearDismissedNotices();
+      qc.setQueryData(keys.me, undefined);
+    },
   });
 }
 

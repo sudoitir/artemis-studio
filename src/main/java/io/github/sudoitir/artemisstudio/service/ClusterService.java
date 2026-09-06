@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PostFilter;
@@ -271,14 +272,33 @@ public class ClusterService {
     public CapabilitiesView capabilities(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
-        BrokerNodeEntity manageable = nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
-                .filter(n -> n.getJolokiaUrl() != null)
-                .findFirst()
+        BrokerNodeEntity manageable = manageableNode(clusterId);
+        JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
+        return viewMapper.capabilities(capabilityProbe.probe(client, coreSubscriptions.verdictFor(clusterId)));
+    }
+
+    /**
+     * The node to assess capabilities against: a live one for preference, any
+     * manageable one otherwise. A passive backup answers management reads but
+     * registers no acceptor and no address MBeans, so probing one reports "CORE
+     * acceptor not found" and "activemq.notifications address not found" about a
+     * broker where both are present. Ordering by name alone made that the normal
+     * outcome for any cluster whose backup sorts first.
+     */
+    private BrokerNodeEntity manageableNode(UUID clusterId) {
+        return chooseManageable(nodes.findByClusterIdOrderByNameAsc(clusterId))
                 .orElseThrow(() -> new BrokerConnectionException(
                         BrokerConnectionException.Kind.UNREACHABLE,
                         "This cluster has no node with a management URL yet."));
-        JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-        return viewMapper.capabilities(capabilityProbe.probe(client, coreSubscriptions.verdictFor(clusterId)));
+    }
+
+    static Optional<BrokerNodeEntity> chooseManageable(List<BrokerNodeEntity> nodes) {
+        List<BrokerNodeEntity> manageable =
+                nodes.stream().filter(n -> n.getJolokiaUrl() != null).toList();
+        return manageable.stream()
+                .filter(n -> Boolean.TRUE.equals(n.getActive()) && n.getLastError() == null)
+                .findFirst()
+                .or(() -> manageable.stream().findFirst());
     }
 
     // ---- mutations ------------------------------------------------------------

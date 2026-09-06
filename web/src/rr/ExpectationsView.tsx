@@ -9,11 +9,11 @@ import {
   Switch,
   Table,
   Text,
-  TextInput,
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
+import { AddressPicker } from '../queues/AddressPicker.tsx';
 import {
   useCreateRrExpectation,
   useDeleteRrExpectation,
@@ -90,20 +90,24 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
       </Text>
 
       <Group align="flex-end" gap="xs">
-        <TextInput
+        <AddressPicker
+          clusterId={clusterId}
           label="Request address"
           placeholder="orders.request"
           value={requestAddress}
-          onChange={(e) => setRequestAddress(e.currentTarget.value)}
-          w={200}
+          onChange={setRequestAddress}
+          unknownHint="No address on this cluster has that name yet."
+          w={240}
         />
-        <TextInput
+        <AddressPicker
+          clusterId={clusterId}
           label="Reply address"
           description="Needed unless the request carries a replyTo"
           placeholder="orders.reply"
           value={replyAddress}
-          onChange={(e) => setReplyAddress(e.currentTarget.value)}
-          w={200}
+          onChange={setReplyAddress}
+          unknownHint="No address on this cluster has that name yet."
+          w={240}
         />
         <NumberInput
           label="Deadline (ms)"

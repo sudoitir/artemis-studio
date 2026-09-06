@@ -1,0 +1,44 @@
+.option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm);
+  min-inline-size: 0;
+}
+
+.name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mantine-font-family-monospace);
+}
+
+/* Depth and node coverage sit on the trailing edge as a stable column so the
+   eye can compare rows rather than read each one. */
+.meta {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--mantine-spacing-xs);
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding-block: 4px;
+  padding-inline: var(--mantine-spacing-xs);
+  border-block-end: 1px solid var(--as-border);
+}
+
+/* A plain scroll container rather than a ScrollArea: the list is short, the
+   native scrollbar is the accessible one, and it keeps the option rows in the
+   accessibility tree where a virtualised viewport does not. */
+.options {
+  max-block-size: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

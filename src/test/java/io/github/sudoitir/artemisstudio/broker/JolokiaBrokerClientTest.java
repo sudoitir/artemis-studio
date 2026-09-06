@@ -226,6 +226,20 @@ class JolokiaBrokerClientTest {
                 });
     }
 
+    @Test
+    void jolokiaJsonLabelledTextPlainIsStillParsed() {
+        // Artemis 2.39's bundled agent answers with Content-Type: text/plain;charset=utf-8.
+        // The response is valid Jolokia JSON; only the label is wrong.
+        RestClient.Builder builder =
+                RestClient.builder().messageConverters(c -> BrokerClientFactory.applyJolokiaConverters(c, mapper));
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.TEXT_PLAIN));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper);
+
+        assertThat(client.resolveBrokerObjectName()).isEqualTo("org.apache.activemq.artemis:broker=\"primary\"");
+        server.verify();
+    }
+
     private static HttpHeaders hawtioForbidden(String reason) {
         HttpHeaders headers = new HttpHeaders();
         headers.add("Hawtio-Forbidden-Reason", reason);

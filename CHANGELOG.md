@@ -11,7 +11,37 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+### Added
+
+- **Pick an address instead of typing it.** The request and reply address fields on the
+  Requests screen now suggest the cluster's own addresses as you type, each with its
+  routing type, current depth and how many nodes carry it — enough to tell a request
+  queue from a reply queue without leaving the form. You can still type a name that does
+  not exist yet; the field says it matched nothing rather than refusing it. The
+  suggestions can be narrowed to anycast or multicast.
+
+### Changed
+
+- **The broker-capabilities notice can be dismissed.** It stays dismissed for the rest of
+  your session and comes back when you sign out, when someone else signs in, or when a
+  *different* capability starts falling short — so waving away a known gap never hides a
+  new one.
+
 ### Fixed
+
+- **Capabilities are assessed against a live node.** Studio probed whichever node sorted
+  first by name. On a cluster whose backup sorts before its primary that meant probing a
+  passive backup, which registers no acceptor and no address MBeans — so Studio reported
+  "CORE acceptor not found" and "activemq.notifications address not found" about a broker
+  where both were present.
+- **A Jolokia agent that labels its JSON `text/plain` is understood.** The agent bundled
+  with Artemis 2.39 answers a valid Jolokia response with
+  `Content-Type: text/plain;charset=utf-8` where 2.44 sends `application/json`. Studio's
+  client only accepted the JSON content types, so every response from the older broker
+  failed to convert and a healthy cluster was reported as "the broker answered, but not
+  with a Jolokia response".
+- **The MCP client configuration example is valid.** It omitted `"type": "http"`, which
+  clients reject.
 
 - **A broker that refuses the connection now says so.** Registering a cluster against an
   Artemis console that rejects the credentials reported *"The broker answered, but not with
