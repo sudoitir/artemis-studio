@@ -11,6 +11,8 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+## [2026.09.4] — 2026-09-06
+
 ### Breaking
 
 - **An expectation's reply address is now a set of patterns.** The request-reply
