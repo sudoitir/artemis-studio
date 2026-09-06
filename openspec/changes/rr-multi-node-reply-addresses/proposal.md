@@ -1,69 +1,84 @@
 ## Why
 
-Request-reply tracing does not produce a single flow against a real deployment whose
-responders reply to a **per-node** shared reply queue. On the dev cluster
-`nova-dev-server-20`, the traced request address `nova.fcb.integration.request.v1` is
-answered on three distinct reply addresses — `nova.fcb.integration.reply.nova-10.100.7.20`,
-`…-.21` and `…-.22`, one per application instance. Two limitations combine to make that
-untraceable:
+Request-reply tracing does not reconstruct a single flow against either of the clusters it
+has been pointed at, because both answer on **more than one reply address, chosen by the
+responder rather than by the operator**:
+
+- Dev (`nova-dev-server-20`): one shared reply queue per broker node —
+  `nova.fcb.integration.reply.nova-10.100.7.20`, `…-.21`, `…-.22`.
+- Production (`10.100.6.116/117/118`): one shared reply queue per *client host* —
+  `nova.fcb.integration.reply.LIN00127` today, a different name as soon as another client
+  connects, and gone again when that client goes away.
+
+Three limitations combine to make that untraceable:
 
 1. **An expectation holds exactly one reply address.** `rr_expectation.reply_address` is a
-   single `TEXT` column. An operator with three reply queues can name one of them, and the
-   unique key `(cluster_id, request_address)` forbids declaring the same request address
-   three times to cover the rest. Naming none — which is what the operator did, because the
-   form gives no reason to think it matters — means every shared-queue flow is created with
-   a null reply destination and can never be joined by a reply.
-2. **Only one node is ever sampled.** `RrSampler.servingNode` takes the *first* active node
+   single `TEXT` column, and the unique key `(cluster_id, request_address)` forbids
+   declaring the same request address again to cover the rest. Faced with a field that
+   plainly could not hold the answer, the operator left it empty — which is the worst
+   outcome, because a shared-queue flow with no reply destination can never be joined and
+   every flow ends orphaned.
+2. **Even a list would not survive the production shape.** A per-client-host reply queue
+   cannot be enumerated in advance; anything Studio is told today is stale the next time a
+   client is redeployed. The name is not data an operator has — the *shape* is.
+3. **Only one node is ever sampled.** `RrSampler.servingNode` takes the first active node
    with a Core URL and browses only that one. In a three-primary cluster the request and
-   reply queues of the other two nodes are never read, so the correlation identity that only
-   browsing can supply (design.md D2) is missing for two thirds of the traffic.
+   reply queues on the other two nodes are never read, so the correlation identity that
+   only browsing can supply is missing for two thirds of the traffic.
 
-The observable symptom is an empty Flows tab with no error anywhere: the sampler swallows
-its failures at `log.debug`, and a correctly-configured-looking expectation produces
-nothing. This change closes both gaps and makes the reply-address requirement legible in
-the UI instead of implicit.
+The symptom is an empty Flows tab with no error anywhere: the sampler swallows its failures
+at `log.debug`, so a correctly-configured-looking expectation produces nothing and says
+nothing.
 
-Depends on the request-reply design recorded in the archived
-`2026-09-04-phase-5-request-reply-tracing` change. It does not supersede any ADR: the
-correlation model, the six flow states and the two observation channels are unchanged.
+Depends on the request-reply design in the archived `2026-09-04-phase-5-request-reply-tracing`
+change. It supersedes nothing: the correlation model, the six flow states and the two
+observation channels are unchanged.
 
 ## What Changes
 
-**Expectations carry a set of reply addresses.** `reply_address TEXT` becomes
-`reply_addresses TEXT[]` in a new changeset (released changesets 007 and 011 are never
-edited). A single existing value is migrated into a one-element array; an empty array means
-"replies arrive on a temporary queue named by the request's `replyTo`". The API accepts and
-returns a list; `ExpectationView.replyAddress` becomes `replyAddresses`.
+**An expectation declares reply addresses as a set of patterns.** `reply_address TEXT`
+becomes `reply_addresses TEXT[]`. Each entry is either a literal address or a glob
+containing `*`, so `nova.fcb.integration.reply.*` covers every current and future per-node
+or per-client reply queue without the expectation being edited. An empty set keeps its
+existing meaning: replies arrive on a temporary queue named by the request's `replyTo`.
 
-**Reply joining spans the set.** `RrCorrelator.onReplySeen` already matches a shared-queue
-reply on correlation identity rather than on destination, so the join itself needs no
-change — but a flow created from a request with no `replyTo` currently stamps the single
-configured reply address as its `reply_destination`, which is now ambiguous. A flow whose
-expectation names more than one reply address SHALL be created with no reply destination and
-SHALL take the destination from the reply that joins it, so the recorded flow says which
-queue actually answered.
+**Patterns resolve against addresses Studio already knows.** Expansion reads
+`queue_snapshot`, which the scrape loop already fills, so a pattern costs no extra broker
+call and picks up a new reply queue within one scrape cycle of it appearing. A pattern that
+currently matches nothing is not an error — it is a queue that has not been created yet.
 
-**The sampler reads every serving node.** `RrSampler` samples each active, error-free node
-that has a Core URL, not the first one, and browses each of the expectation's reply
-addresses. Page size and cadence are unchanged, so the per-node cost is unchanged and the
-work scales with node count rather than with queue depth.
+**A flow records the reply address that actually answered.** A flow whose expectation
+resolves to more than one reply address is created with no reply destination, and takes it
+from the joining reply. For a single resolved literal the current behaviour is kept — the
+destination is known in advance, so it is stamped at creation.
 
-**Sampling failures stop being silent.** A repeated sampling failure for an expectation is
-logged at `warn` with the address and the node, once per expectation per backoff window,
-rather than only at `debug`.
+**Shared-queue replies are observed, not only temp-queue ones.** `RrNotificationObserver`
+currently forwards `MESSAGE_DELIVERED` only when it closes a temp-queue flow. A delivery on
+a resolved reply address is now forwarded too, so a reply drained faster than the 5s sampler
+tick is still seen.
 
-**The UI states the requirement.** The reply-address field becomes a multi-value input, and
-the Expectations tab explains that a request without a `replyTo` and without any declared
-reply address cannot be joined, so its flows will all end orphaned.
+**The sampler reads every serving node**, and each resolved reply address on each, at the
+existing page size and cadence.
+
+**Sampling failures stop being silent.** A failure is logged at `warn` naming the
+expectation and the node, on first occurrence and at a bounded rate after.
+
+**The UI states the requirement.** The reply-address field becomes a multi-value input that
+accepts patterns, shows what each pattern currently resolves to, and explains that a request
+with neither a `replyTo` nor a matching reply address cannot be joined.
 
 ## Impact
 
 - Affected specs: `request-reply-tracing`.
-- Affected schema: new Liquibase changeset adding `rr_expectation.reply_addresses`; the
-  released `reply_address` column is dropped in the same changeset after backfill, since
-  nothing outside this feature reads it.
+- Affected schema: new changeset `017-rr-reply-addresses.sql` adding
+  `rr_expectation.reply_addresses TEXT[] NOT NULL DEFAULT '{}'`, backfilling from
+  `reply_address`, then dropping it. Released changesets 007 and 011 are untouched.
 - Affected code: `RrExpectationEntity`, `RrExpectationRepository`, `RequestReplyService`,
-  `RrViews`, `RrCorrelator`, `RrSampler`, `RrNotificationObserver`, `web/src/rr/ExpectationsView.tsx`.
-- API change: `replyAddress` (string) → `replyAddresses` (array of string) on the
-  expectation create, update and read payloads. Pre-1.0, no compatibility shim; the
-  CHANGELOG carries a `### Breaking` note.
+  `RrViews`, `RrCorrelator`, `RrSampler`, `RrNotificationObserver`, and a new
+  `ReplyAddressResolver`; `web/src/rr/ExpectationsView.tsx`.
+- **Breaking API change**: `replyAddress` (string) → `replyAddresses` (array of string) on
+  the expectation create, update and read payloads. Pre-1.0 on a `dev` channel only, so the
+  cost is a `### Breaking` CHANGELOG block, not a compatibility shim.
+- Does **not** fix production tracing on its own: that cluster's Core subscription is
+  refused with `AMQ229099` because Studio authenticates as the account named in
+  `<cluster-user>`. That is a broker-account change, recorded separately.
