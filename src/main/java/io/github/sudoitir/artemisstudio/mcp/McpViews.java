@@ -20,7 +20,7 @@ public final class McpViews {
 
     private McpViews() {}
 
-    /** One broker endpoint's live state, as {@code cluster_health} reports it. */
+    /** One broker endpoint's live state, as {@code diagnose} reports it. */
     public record NodeHealth(
             String node, String haRole, boolean live, boolean manageable, String artemisNodeId, Instant lastSeenAt) {}
 
@@ -28,7 +28,7 @@ public final class McpViews {
     public record FiringAlert(String rule, String subject, String severity, Double value, Instant since) {}
 
     /**
-     * {@code cluster_health} — the five-second answer. Everything a triage step
+     * {@code diagnose} with no queue — the five-second answer. Everything a triage step
      * needs and nothing it does not: who is live, is the cluster split-brained, is
      * replication behind, what is firing.
      *
@@ -99,7 +99,7 @@ public final class McpViews {
     public record MetricSeries(
             UUID clusterId, String metric, String subject, String window, List<MetricPoint> points) {}
 
-    /** {@code diagnose_queue} — one queue, end to end, replacing four screens. */
+    /** {@code diagnose} with a queue — one queue, end to end, replacing four screens. */
     public record QueueDiagnosis(
             UUID clusterId,
             String queue,

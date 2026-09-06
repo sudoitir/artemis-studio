@@ -74,3 +74,49 @@ configuration that names it. Is there a deprecation path, and is it worth one?
 What the tools *do*. This change is about presentation and discovery only. A
 grouping that quietly changes an operation's semantics while moving it is two
 changes wearing one coat.
+
+---
+
+## The answers
+
+Recorded here as the brainstorm settled them. The reasoning is in
+[ADR-0054](../../../docs/adr/0054-mcp-discovery-is-a-tool-not-a-resource.md).
+
+**A1 — Static, and not by preference.** Dynamic disclosure is not expressible.
+`addTool`/`removeTool`/`listTools` in MCP SDK 2.0.0 act on the **server**, not on a
+session or exchange, and `mcp-core` ships no tool filter or interceptor type. A
+tool registered because one model asked would appear for every connected client.
+That holds in stateful mode too, so it is not something `protocol: STATELESS` is
+costing us — abandoning STATELESS would spend multi-instance HA and the session
+posture that pins spring-ai 2.0.1 and buy nothing.
+
+**A2 — Less than it looks.** `notifications/tools/list_changed` is optional in the
+specification, gated behind a `capabilities.tools.listChanged` declaration, and
+worded as *should* send. There is no client obligation to re-fetch. Separately,
+`McpStatelessSyncServer` has no `notify*` methods at all.
+
+**A3 — At the point where the argument schema stops being usable on its own.** A
+tool whose `op` spans disjoint argument clusters cannot be called correctly without
+first fetching detail, which turns progressive discovery from an optimisation into
+a precondition. The `mcp-server` spec forbids that.
+
+**A4 — Posture first, then target; both bind.** Posture is forced by the protocol:
+a host gates a whole tool on one `destructiveHint`, so a read behind a
+purge-capable tool makes every read prompt the operator — which is how an operator
+learns to reflex-approve the purge. Target is what makes an argument union
+coherent. Posture alone is not enough: all nine read tools share a posture, and
+merging them would fail A3.
+
+**A5 — The graph belongs in a tool, and only mirrored in a resource.** This is the
+correction to ADR-0050. `resources` is an optional server capability and no client
+is obliged ever to call `resources/read`; tools are the one thing every host
+implements. ADR-0050 put the detail a model needs on the least reliable channel MCP
+has. `studio_help(topic?)` costs ~35 listing tokens, works everywhere, and — because
+the channel is now reliable — licenses stripping the hedging descriptions out of
+every schema, so the listing ends up smaller than before the tool was added.
+
+**A6 — Nothing worth preserving.** No backward compatibility and no deprecation, by
+project rule and explicit decision. An alias would double the listing cost of
+exactly the tools this change made leaner, which is the opposite of the decision.
+`queue_action`, `cluster_health`, `diagnose_queue` and `message_body` are removed
+names; the commit is `feat(mcp)!:` with a `### Breaking` block.

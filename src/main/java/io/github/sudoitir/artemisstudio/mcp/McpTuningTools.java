@@ -80,9 +80,6 @@ public class McpTuningTools {
         SET
     }
 
-    /** Named, not spelled out — the field list is in {@code studio://tools} (ADR-0050). */
-    private static final String RULE_SHAPE = "Alert rule JSON; see studio://tools";
-
     /** What {@code rule} deserialises to. Every field optional here; required-ness is checked by op. */
     public record RuleBody(
             String name,
@@ -96,10 +93,18 @@ public class McpTuningTools {
             String scope,
             Boolean enabled) {}
 
-    // ---- queue_action -----------------------------------------------------
+    // ---- message_action ---------------------------------------------------
 
+    /**
+     * Named for its target, not its neighbour (ADR-0054). This was {@code
+     * queue_action}, which sat beside {@code queue_lifecycle} and inverted the
+     * distinction that matters: this acts on the messages <em>in</em> a queue, that
+     * one acts on the queue itself. They stay separate tools — identical postures,
+     * but thirteen operations across two disjoint argument clusters would make the
+     * most dangerous schema in the product unusable without fetching detail first.
+     */
     @McpTool(
-            name = "queue_action",
+            name = "message_action",
             description =
                     "Move, retry, delete, expire or purge messages on a queue. " + "Select with messageIds or filter.",
             annotations =
@@ -111,12 +116,12 @@ public class McpTuningTools {
     public McpSchema.CallToolResult queueAction(
             @McpToolParam(required = true) String clusterId,
             @McpToolParam(required = true) String queue,
-            @McpToolParam(description = "The action", required = true) String action,
+            @McpToolParam(required = true) String action,
             @McpToolParam(required = false) String messageIds,
             @McpToolParam(required = false) String filter,
             @McpToolParam(required = false) String targetQueue,
-            @McpToolParam(description = "Default true", required = false) Boolean dryRun,
-            @McpToolParam(description = "The queue name", required = false) String confirm,
+            @McpToolParam(required = false) Boolean dryRun,
+            @McpToolParam(required = false) String confirm,
             @McpToolParam(required = false) Boolean override) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String q = McpArgs.required("queue", queue);
@@ -156,14 +161,6 @@ public class McpTuningTools {
             Long ringSize) {}
 
     /**
-     * Named, not spelled out in the schema. The full field list lives in the
-     * {@code studio://tools} resource, which a model reads only when it has chosen
-     * this tool — every character here is paid for on every listing instead
-     * (ADR-0050).
-     */
-    private static final String CONFIG_SHAPE = "Queue config JSON; see studio://tools";
-
-    /**
      * Queue and address lifecycle, as <b>one</b> tool discriminated by {@code kind}
      * rather than eight — the tool-count budget the MCP capability sets is a real
      * constraint, and eight near-identical verbs would spend it for nothing.
@@ -189,11 +186,11 @@ public class McpTuningTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult queueLifecycle(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "The operation", required = true) String kind,
-            @McpToolParam(description = "Queue or address name", required = true) String name,
-            @McpToolParam(description = CONFIG_SHAPE, required = false) String config,
-            @McpToolParam(description = "Default true", required = false) Boolean dryRun,
-            @McpToolParam(description = "The name, to destroy", required = false) String confirm,
+            @McpToolParam(required = true) String kind,
+            @McpToolParam(required = true) String name,
+            @McpToolParam(required = false) String config,
+            @McpToolParam(required = false) Boolean dryRun,
+            @McpToolParam(required = false) String confirm,
             @McpToolParam(required = false) Boolean override) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String subject = McpArgs.required("name", name);
@@ -318,9 +315,9 @@ public class McpTuningTools {
             @McpToolParam(required = true) String clusterId,
             @McpToolParam(required = true) String queue,
             @McpToolParam(required = true) String body,
-            @McpToolParam(description = "3 text, 4 bytes. Default 3", required = false) Integer type,
-            @McpToolParam(description = "Default true", required = false) Boolean durable,
-            @McpToolParam(description = "Default true", required = false) Boolean dryRun) {
+            @McpToolParam(required = false) Integer type,
+            @McpToolParam(required = false) Boolean durable,
+            @McpToolParam(required = false) Boolean dryRun) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String q = McpArgs.required("queue", queue);
         String payload = McpArgs.required("body", body);
@@ -350,10 +347,10 @@ public class McpTuningTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult alertRule(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "Default list", required = false) String op,
-            @McpToolParam(description = "For update, delete", required = false) String ruleId,
-            @McpToolParam(description = RULE_SHAPE, required = false) String rule,
-            @McpToolParam(description = "The rule name, for delete", required = false) String confirm) {
+            @McpToolParam(required = false) String op,
+            @McpToolParam(required = false) String ruleId,
+            @McpToolParam(required = false) String rule,
+            @McpToolParam(required = false) String confirm) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         RuleOp operation = McpArgs.enumOf(RuleOp.class, "op", op, RuleOp.LIST);
         UUID ruleUuid = McpArgs.optionalUuid("ruleId", ruleId);
@@ -367,7 +364,7 @@ public class McpTuningTools {
             case UPDATE -> rule(alertRules.update(id, ruleUuid, ruleRequest(rule)));
             case DELETE -> {
                 // A delete is irreversible and the model chose the id, so the same
-                // confirm gate as queue_action applies — by the rule's own name.
+                // confirm gate as message_action applies — by the rule's own name.
                 AlertRuleView existing = alertRules.list(id).stream()
                         .filter(r -> r.id().equals(ruleUuid))
                         .findFirst()
@@ -393,9 +390,9 @@ public class McpTuningTools {
                             idempotentHint = true,
                             openWorldHint = false))
     public McpSchema.CallToolResult studioSetting(
-            @McpToolParam(description = "Default get", required = false) String op,
-            @McpToolParam(description = "Omit on get for all", required = false) String key,
-            @McpToolParam(description = "Required for set", required = false) String value) {
+            @McpToolParam(required = false) String op,
+            @McpToolParam(required = false) String key,
+            @McpToolParam(required = false) String value) {
         SettingOp operation = McpArgs.enumOf(SettingOp.class, "op", op, SettingOp.GET);
         return McpErrors.guard(() -> {
             Map<String, SettingValue> effective = settings.effective();

@@ -112,7 +112,7 @@ class McpAuthorizationIntegrationTest extends PostgresIntegrationTest {
         JsonNode response = McpFixture.callTool(
                 mvc,
                 key,
-                "queue_action",
+                "message_action",
                 Map.of("clusterId", clusterId.toString(), "queue", QUEUE, "action", "purge", "dryRun", true));
 
         // A refusal is a result the model can act on, not a transport fault: an

@@ -80,7 +80,7 @@ class McpErrorMappingTest extends PostgresIntegrationTest {
 
     @Test
     void aMalformedArgumentIsAProtocolErrorNamingTheField() throws Exception {
-        JsonNode response = McpFixture.callTool(mvc, key, "cluster_health", Map.of("clusterId", "not-a-uuid"));
+        JsonNode response = McpFixture.callTool(mvc, key, "diagnose", Map.of("clusterId", "not-a-uuid"));
         assertThat(response.path("error").path("code").asInt()).isEqualTo(-32602);
         assertThat(response.path("error").path("message").asString()).contains("clusterId");
     }
@@ -94,7 +94,7 @@ class McpErrorMappingTest extends PostgresIntegrationTest {
      */
     @Test
     void anOmittedRequiredArgumentIsRefusedAndNamesTheField() throws Exception {
-        JsonNode response = McpFixture.callTool(mvc, key, "cluster_health", Map.of());
+        JsonNode response = McpFixture.callTool(mvc, key, "diagnose", Map.of());
         assertThat(response.path("result").path("isError").asBoolean(false))
                 .describedAs("%s", response)
                 .isTrue();
@@ -119,10 +119,7 @@ class McpErrorMappingTest extends PostgresIntegrationTest {
     void anOperationalFailureIsAResultNotAProtocolError() throws Exception {
         // A cluster this key holds no grant on: the call itself was well formed.
         JsonNode response = McpFixture.callTool(
-                mvc,
-                key,
-                "cluster_health",
-                Map.of("clusterId", UUID.randomUUID().toString()));
+                mvc, key, "diagnose", Map.of("clusterId", UUID.randomUUID().toString()));
         assertThat(response.has("error")).describedAs("%s", response).isFalse();
         assertThat(response.path("result").path("isError").asBoolean(false)).isTrue();
         assertThat(response.path("result").path("content").get(0).path("text").asString())
