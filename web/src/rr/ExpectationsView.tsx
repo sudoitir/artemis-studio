@@ -14,6 +14,7 @@ import {
 import { notifications } from '@mantine/notifications';
 
 import { AddressPicker } from '../queues/AddressPicker.tsx';
+import { ReplyAddressesInput } from './ReplyAddressesInput.tsx';
 import {
   useCreateRrExpectation,
   useDeleteRrExpectation,
@@ -21,6 +22,44 @@ import {
   useUpdateRrExpectation,
   type ExpectationView,
 } from '../api/client.ts';
+
+/**
+ * One expectation's declared reply addresses, and what they resolve to right now.
+ *
+ * The declaration and the resolution are both shown because they answer different
+ * questions: the patterns say what the operator meant, the resolved set says what is
+ * actually being browsed this minute. A pattern matching nothing yet is normal — the
+ * responder has not started — so it reads as a state, not an error.
+ */
+function ReplyAddressesCell({ expectation: e }: { expectation: ExpectationView }) {
+  if (e.replyAddresses.length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        temporary queues
+      </Text>
+    );
+  }
+
+  const resolved = e.resolvedReplyAddresses;
+  const patterns = e.replyAddresses.filter((a) => a.includes('*'));
+
+  return (
+    <Stack gap={2}>
+      <Text size="sm" ff="monospace">
+        {e.replyAddresses.join(', ')}
+      </Text>
+      {patterns.length > 0 || e.replyAddressesCapped ? (
+        <Text size="xs" c={e.replyAddressesCapped ? 'orange' : resolved.length === 0 ? 'orange' : 'dimmed'}>
+          {e.replyAddressesCapped
+            ? `too broad — only the first ${resolved.length} addresses are traced`
+            : resolved.length === 0
+              ? 'no matching queue yet'
+              : `${resolved.length} matching now`}
+        </Text>
+      ) : null}
+    </Stack>
+  );
+}
 
 /** Which request addresses are traced, and how (request-reply-tracing spec). */
 export function ExpectationsView({ clusterId }: { clusterId: string }) {
@@ -30,7 +69,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
   const remove = useDeleteRrExpectation(clusterId);
 
   const [requestAddress, setRequestAddress] = useState('');
-  const [replyAddress, setReplyAddress] = useState('');
+  const [replyAddresses, setReplyAddresses] = useState<string[]>([]);
   const [deadlineMs, setDeadlineMs] = useState<number | ''>('');
   const [samplePerMin, setSamplePerMin] = useState<number | ''>(10);
   const [capturePayload, setCapturePayload] = useState(false);
@@ -44,7 +83,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
     create.mutate(
       {
         requestAddress: requestAddress.trim(),
-        replyAddress: replyAddress.trim() || undefined,
+        replyAddresses,
         correlationProperty: undefined,
         deadlineMs: deadlineMs === '' ? undefined : deadlineMs,
         samplePerMin: samplePerMin === '' ? 10 : samplePerMin,
@@ -53,7 +92,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
       {
         onSuccess: () => {
           setRequestAddress('');
-          setReplyAddress('');
+          setReplyAddresses([]);
           setDeadlineMs('');
           setSamplePerMin(10);
           setCapturePayload(false);
@@ -69,7 +108,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
       {
         id: e.id,
         body: {
-          replyAddress: e.replyAddress ?? undefined,
+          replyAddresses: e.replyAddresses,
           correlationProperty: e.correlationProperty ?? undefined,
           deadlineMs: e.deadlineMs ?? undefined,
           samplePerMin: e.samplePerMin,
@@ -99,15 +138,11 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           unknownHint="No address on this cluster has that name yet."
           w={240}
         />
-        <AddressPicker
+        <ReplyAddressesInput
           clusterId={clusterId}
-          label="Reply address"
-          description="Needed unless the request carries a replyTo"
-          placeholder="orders.reply"
-          value={replyAddress}
-          onChange={setReplyAddress}
-          unknownHint="No address on this cluster has that name yet."
-          w={240}
+          value={replyAddresses}
+          onChange={setReplyAddresses}
+          w={320}
         />
         <NumberInput
           label="Deadline (ms)"
@@ -147,7 +182,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Request address</Table.Th>
-              <Table.Th>Reply address</Table.Th>
+              <Table.Th>Reply addresses</Table.Th>
               <Table.Th>Deadline</Table.Th>
               <Table.Th>Samples/min</Table.Th>
               <Table.Th>Payload</Table.Th>
@@ -163,7 +198,9 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
                     {e.requestAddress}
                   </Text>
                 </Table.Td>
-                <Table.Td>{e.replyAddress ?? '—'}</Table.Td>
+                <Table.Td>
+                  <ReplyAddressesCell expectation={e} />
+                </Table.Td>
                 <Table.Td>{e.deadlineMs != null ? `${e.deadlineMs}ms` : 'from message'}</Table.Td>
                 <Table.Td>{e.samplePerMin}</Table.Td>
                 <Table.Td>{e.capturePayload ? 'yes' : 'no'}</Table.Td>

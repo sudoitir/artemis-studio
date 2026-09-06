@@ -36,5 +36,6 @@
     <include file="db/changelog/changes/014-identity.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/015-queue-paused.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/016-studio-config-property.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/017-rr-reply-addresses.sql" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

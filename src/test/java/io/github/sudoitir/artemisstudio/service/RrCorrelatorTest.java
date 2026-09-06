@@ -77,6 +77,47 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aReplyOnTheSecondOfSeveralReplyAddressesCompletesTheFlowAndRecordsThatAddress() {
+        UUID clusterId = cluster();
+        // Three declared reply addresses, so no destination is knowable at request
+        // time and the flow takes it from whichever responder answers (design.md D5).
+        expectations.save(new RrExpectationEntity(
+                clusterId, "rr.request", List.of("rr.reply.a", "rr.reply.b", "rr.reply.c"), null, 99_000, 10, false));
+        Instant t0 = Instant.now();
+
+        correlator.accept(new Observation.RequestSeen(
+                clusterId, null, t0, "rr.request", "m1", "corr-multi", null, 0L, null, Map.of()));
+
+        RrFlowEntity awaiting = flows.findByClusterIdAndRequestAddressAndRequestMessageId(clusterId, "rr.request", "m1")
+                .orElseThrow();
+        assertThat(awaiting.getReplyKind()).isEqualTo("SHARED_QUEUE");
+        assertThat(awaiting.getReplyDestination()).isNull();
+
+        correlator.accept(new Observation.ReplySeen(
+                clusterId, null, t0.plusSeconds(1), "rr.reply.b", "m2", "corr-multi", null, Map.of()));
+
+        RrFlowEntity flow = flows.findById(awaiting.getId()).orElseThrow();
+        assertThat(flow.getState()).isEqualTo(RrState.COMPLETED.name());
+        // Which responder served this exchange — a question the flow could not answer before.
+        assertThat(flow.getReplyDestination()).isEqualTo("rr.reply.b");
+    }
+
+    @Test
+    void aSingleLiteralReplyAddressIsStampedAtRequestTime() {
+        UUID clusterId = cluster();
+        expectations.save(
+                new RrExpectationEntity(clusterId, "rr.single", List.of("rr.reply.only"), null, 99_000, 10, false));
+
+        correlator.accept(new Observation.RequestSeen(
+                clusterId, null, Instant.now(), "rr.single", "m1", "corr-one", null, 0L, null, Map.of()));
+
+        RrFlowEntity flow = flows.findByClusterIdAndRequestAddressAndRequestMessageId(clusterId, "rr.single", "m1")
+                .orElseThrow();
+        // Known in advance, so the "awaiting a reply on this queue" reading is preserved.
+        assertThat(flow.getReplyDestination()).isEqualTo("rr.reply.only");
+    }
+
+    @Test
     void temporaryQueueReplyMatchesByDestination() {
         UUID clusterId = cluster();
         Instant t0 = Instant.now();
@@ -134,7 +175,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
     @Test
     void deadlineResolutionPrefersMessageExpirationOverExpectation() {
         UUID clusterId = cluster();
-        expectations.save(new RrExpectationEntity(clusterId, "rr.request", null, null, 99_000, 10, false));
+        expectations.save(new RrExpectationEntity(clusterId, "rr.request", List.of(), null, 99_000, 10, false));
         Instant t0 = Instant.now();
         long expirationEpochMs = t0.plusSeconds(3).toEpochMilli();
 

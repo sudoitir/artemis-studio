@@ -970,7 +970,7 @@ export interface components {
             sortOrder: number;
         };
         UpdateExpectationRequest: {
-            replyAddress?: string;
+            replyAddresses?: string[];
             correlationProperty?: string;
             /** Format: int32 */
             deadlineMs?: number;
@@ -983,7 +983,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             requestAddress: string;
-            replyAddress?: string | null;
+            replyAddresses: string[];
+            /** @description What replyAddresses currently expands to, from the last scrape's addresses */
+            resolvedReplyAddresses: string[];
+            /** @description The resolution cap cut the expansion short */
+            replyAddressesCapped: boolean;
             correlationProperty?: string | null;
             /** Format: int32 */
             deadlineMs?: number | null;
@@ -1202,7 +1206,7 @@ export interface components {
         };
         CreateExpectationRequest: {
             requestAddress: string;
-            replyAddress?: string;
+            replyAddresses?: string[];
             correlationProperty?: string;
             /** Format: int32 */
             deadlineMs?: number;

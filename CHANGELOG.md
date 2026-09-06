@@ -11,7 +11,36 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+### Breaking
+
+- **An expectation's reply address is now a set of patterns.** The request-reply
+  expectation API field `replyAddress` (a single string) is replaced by
+  `replyAddresses` (an array of strings) on the create, update and read payloads.
+  Any client posting `replyAddress` must send `replyAddresses: ["<the old value>"]`
+  instead, or `[]` where it previously sent nothing. Stored expectations migrate
+  themselves — an existing reply address becomes a one-entry set — so no operator
+  action is required in the UI.
+
 ### Added
+
+- **One expectation can trace reply queues you cannot list in advance.** Reply
+  addresses are now a set, and each entry may be a pattern: `orders.reply.*` covers
+  a reply queue per responder, including ones created after you declared it. This is
+  what makes tracing work against a deployment whose reply queue is named after the
+  broker node or the client host, where any fixed list is stale as soon as something
+  is redeployed. `*` matches any run of characters and matching is anchored at both
+  ends; Artemis's `#` is not a wildcard here. The form shows what a pattern currently
+  resolves to as you type it, and says so when it matches nothing yet — which is
+  normal, not an error.
+- **A completed flow records which reply queue answered it.** When more than one
+  reply address is in play, the flow takes its reply destination from the reply that
+  joined it, so you can see which responder served a given exchange.
+- **A separate broker account for the Core connection.** Settings can now rotate the
+  Core-protocol credentials independently of the management (Jolokia) ones. Set these
+  when your management account is also the broker's `<cluster-user>`: Artemis reserves
+  that account for inter-node traffic and refuses it over Core with `AMQ229099`, which
+  previously left the notification subscription failing with no way to fix it short of
+  re-registering the cluster.
 
 - **Pick an address instead of typing it.** The request and reply address fields on the
   Requests screen now suggest the cluster's own addresses as you type, each with its
@@ -29,6 +58,18 @@ marked as pre-releases.
 
 ### Fixed
 
+- **Every node serving a traced address is now sampled.** Studio browsed only the
+  first active node of a cluster, so in a multi-primary cluster the request and reply
+  traffic on the other nodes was never read and the correlation identity that only
+  browsing supplies was missing for most exchanges.
+- **A reply consumed faster than the sampler ticks is no longer missed.** A delivery
+  on a declared reply address now counts as a reply observation, alongside the
+  existing browse. It carries no correlation id, so it completes a flow only where
+  sampling already identified the request — coverage, not a replacement for browsing.
+- **Request-reply sampling failures are reported.** A failure was swallowed at debug
+  level, so a correctly-configured-looking expectation produced no flows and said
+  nothing about why. Failures now log a warning naming the expectation and the node,
+  rate-limited so a node that is down for an hour does not flood the log.
 - **Capabilities are assessed against a live node.** Studio probed whichever node sorted
   first by name. On a cluster whose backup sorts before its primary that meant probing a
   passive backup, which registers no acceptor and no address MBeans — so Studio reported

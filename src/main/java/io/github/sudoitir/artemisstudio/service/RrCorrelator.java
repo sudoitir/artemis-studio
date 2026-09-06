@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.github.sudoitir.artemisstudio.broker.rr.ReplyAddressResolver;
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.domain.rr.FlowStateMachine;
 import io.github.sudoitir.artemisstudio.domain.rr.FlowStateMachine.FlowContext;
@@ -43,6 +44,7 @@ public class RrCorrelator implements RrObservationSink {
     private final RrEventRepository events;
     private final RrExpectationRepository expectations;
     private final RrMetrics metrics;
+    private final ReplyAddressResolver replyAddresses;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
     private volatile int defaultDeadlineMs;
@@ -62,6 +64,7 @@ public class RrCorrelator implements RrObservationSink {
             RrEventRepository events,
             RrExpectationRepository expectations,
             RrMetrics metrics,
+            ReplyAddressResolver replyAddresses,
             SseHub sseHub,
             ObjectMapper mapper,
             ArtemisStudioProperties properties) {
@@ -69,6 +72,7 @@ public class RrCorrelator implements RrObservationSink {
         this.events = events;
         this.expectations = expectations;
         this.metrics = metrics;
+        this.replyAddresses = replyAddresses;
         this.sseHub = sseHub;
         this.mapper = mapper;
         this.defaultDeadlineMs = properties.rr().defaultDeadlineMs();
@@ -115,8 +119,17 @@ public class RrCorrelator implements RrObservationSink {
 
         RrExpectationEntity expectation = expectationFor(r.clusterId(), r.requestAddress());
         String replyKind = r.replyTo() != null ? "TEMP_QUEUE" : "SHARED_QUEUE";
-        String destination =
-                r.replyTo() != null ? r.replyTo() : (expectation != null ? expectation.getReplyAddress() : null);
+        // A shared-queue flow is stamped with its reply destination only when it is
+        // knowable in advance — one resolved literal. Under a pattern the stamp would
+        // be a guess and wrong most of the time, so the joining reply fills it in
+        // instead, which also makes the flow record *which* responder answered
+        // (design.md, D5). Joining never depends on it: findOpenMatches matches a
+        // shared-queue flow on correlation identity alone.
+        String destination = r.replyTo();
+        if (destination == null && expectation != null) {
+            ReplyAddressResolver.Resolution resolved = replyAddresses.resolve(r.clusterId(), expectation);
+            destination = resolved.singleLiteral() ? resolved.addresses().getFirst() : null;
+        }
         Instant deadline = deadlineAt(r, expectation);
 
         RrFlowEntity flow = new RrFlowEntity(
@@ -164,6 +177,9 @@ public class RrCorrelator implements RrObservationSink {
         }
         Transition t = transition.get();
         flow.setState(t.next().name());
+        if (flow.getReplyDestination() == null) {
+            flow.setReplyDestination(r.replyDestination());
+        }
         flow.setRepliedAt(r.at());
         flow.setReplyMessageId(r.messageId());
         flow.setLatencyMs(t.latencyMs());
@@ -269,6 +285,24 @@ public class RrCorrelator implements RrObservationSink {
         return !flows.findByClusterIdAndReplyDestinationAndState(
                         clusterId, replyDestination, RrState.AWAITING_REPLY.name())
                 .isEmpty();
+    }
+
+    /**
+     * Whether {@code address} is a reply address of some enabled expectation on this
+     * cluster — a literal it names, or one its patterns cover.
+     *
+     * <p>Used to let {@code MESSAGE_DELIVERED} count as a reply observation for the
+     * shared-queue pattern (design.md, D6). The sampler browses page 1 every few
+     * seconds, so a reply consumed in milliseconds is never in the queue when it
+     * looks; this is the second reason such flows time out. The notification carries
+     * no correlation id, so the join still falls to {@code findOpenMatches} — meaning
+     * this completes a flow only where sampling already supplied the correlation
+     * identity, and otherwise records an orphaned reply. Coverage, not a replacement
+     * for browsing.
+     */
+    boolean isTracedReplyAddress(UUID clusterId, String address) {
+        return expectations.findByClusterIdOrderByRequestAddress(clusterId).stream()
+                .anyMatch(e -> e.isEnabled() && replyAddresses.matches(e, address));
     }
 
     private RrExpectationEntity expectationFor(UUID clusterId, String requestAddress) {

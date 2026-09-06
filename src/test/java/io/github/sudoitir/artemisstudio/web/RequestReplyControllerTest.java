@@ -49,7 +49,7 @@ class RequestReplyControllerTest extends PostgresIntegrationTest {
     @Test
     void createListUpdateAndDeleteAnExpectation() throws Exception {
         String body = """
-                {"requestAddress":"rr.request","replyAddress":"rr.reply","samplePerMin":10,"capturePayload":false}""";
+                {"requestAddress":"rr.request","replyAddresses":["rr.reply"],"samplePerMin":10,"capturePayload":false}""";
 
         String created = mvc.perform(post("/api/v1/clusters/{id}/rr/expectations", clusterId)
                         .contentType(MediaType.APPLICATION_JSON)
