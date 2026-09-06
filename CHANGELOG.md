@@ -11,6 +11,8 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+## [2026.09.2] — 2026-09-06
+
 ### Security
 
 - **Cluster-scoped reads now honour your grants.** Six read endpoints — the cross-node
