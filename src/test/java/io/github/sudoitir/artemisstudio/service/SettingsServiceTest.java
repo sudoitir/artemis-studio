@@ -136,7 +136,13 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         settings.put(SettingsService.BULK_CAP, "50");
         settings.reset(SettingsService.BULK_CAP);
 
-        assertThat(auditEvents.findAll())
+        // Sorted by the generated id rather than trusting findAll()'s order: an
+        // unordered SELECT may return either row first, and asserting a sequence on
+        // it passes or fails by luck. The id is monotonic, so this still pins that
+        // the update was recorded before the reset.
+        assertThat(auditEvents.findAll().stream()
+                        .sorted(java.util.Comparator.comparing(AuditEventEntity::getId))
+                        .toList())
                 .extracting(AuditEventEntity::getAction, AuditEventEntity::getTargetName)
                 .containsExactly(
                         tuple("UPDATE_SETTING", SettingsService.BULK_CAP),
