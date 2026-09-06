@@ -60,6 +60,7 @@ class AlertDispatcherTest {
                 null,
                 new Alerting(
                         Duration.ofSeconds(5), 3, Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMinutes(1)),
+                null,
                 null);
         dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, properties);
         channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1}, new byte[] {2});

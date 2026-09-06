@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.service;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.MetricSeriesRepository;
 import io.github.sudoitir.artemisstudio.persist.MetricSeriesRepository.Bucket;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.MetricViews.MetricPoint;
 import io.github.sudoitir.artemisstudio.web.dto.MetricViews.MetricSeries;
 import io.github.sudoitir.artemisstudio.web.dto.MetricViews.MetricSeriesResponse;
@@ -31,10 +32,13 @@ public class MetricQueryService {
 
     private final MetricSeriesRepository repository;
     private final MetricSampleReaper reaper;
+    private final ClusterAccessGuard clusterAccess;
 
-    public MetricQueryService(MetricSeriesRepository repository, MetricSampleReaper reaper) {
+    public MetricQueryService(
+            MetricSeriesRepository repository, MetricSampleReaper reaper, ClusterAccessGuard clusterAccess) {
         this.repository = repository;
         this.reaper = reaper;
+        this.clusterAccess = clusterAccess;
     }
 
     public MetricSeriesResponse query(
@@ -45,6 +49,9 @@ public class MetricQueryService {
             Instant from,
             Instant to,
             Duration requestedStep) {
+        // Before input validation, so a caller with no grant cannot use the
+        // difference between a 400 and a 404 to probe which clusters exist.
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         if (metrics.isEmpty() || metrics.size() > 4) {
             throw new IllegalArgumentException("metric must list between 1 and 4 metric names");
         }

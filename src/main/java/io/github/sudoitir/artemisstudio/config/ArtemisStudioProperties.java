@@ -28,7 +28,8 @@ public record ArtemisStudioProperties(
         Events events,
         Rr rr,
         Alerting alerting,
-        Security security) {
+        Security security,
+        Mcp mcp) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -50,6 +51,7 @@ public record ArtemisStudioProperties(
                         Duration.ofSeconds(5),
                         Duration.ofMinutes(10));
         security = security != null ? security : new Security(Duration.ofHours(8), "groups", null);
+        mcp = mcp != null ? mcp : new Mcp(25, 100);
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -121,6 +123,25 @@ public record ArtemisStudioProperties(
      * role name granted to an OIDC login matching no
      * {@code oidc_role_mapping} row; {@code null} refuses such a login.
      */
+    /**
+     * Result caps for the MCP surface (ADR-0045). Deliberately tighter than the
+     * REST defaults: a model pays for every row it reads, and the broker pays for
+     * every row it did not need. Mutation volume gets no second ceiling here — it
+     * inherits {@link Safety#bulkCap()} through {@code MessageService}.
+     */
+    public record Mcp(
+            @DefaultValue("25") int defaultLimit,
+            @DefaultValue("100") int maxLimit) {
+
+        /** Clamps a caller-supplied limit into {@code 1..maxLimit}, defaulting a null. */
+        public int clamp(Integer requested) {
+            if (requested == null) {
+                return defaultLimit;
+            }
+            return Math.clamp(requested, 1, maxLimit);
+        }
+    }
+
     public record Security(
             @DefaultValue("8h") Duration sessionTimeout,
             @DefaultValue("groups") String oidcClaim,

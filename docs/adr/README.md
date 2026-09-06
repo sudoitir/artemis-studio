@@ -52,3 +52,7 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0040](0040-oidc-jit-provisioning-and-claim-mapping.md) | OIDC — JIT provisioning, principal swap after the exchange, claim mapping re-applied every login |
 | [0041](0041-audit-actor-tokens-and-real-identity.md) | Audit actor carries real identity and token attribution (supersedes 0023) |
 | [0042](0042-calver-releases-on-docker-hub.md) | CalVer releases published to Docker Hub on every push to main (complements 0007) |
+| [0043](0043-broker-configuration-comparison.md) | Broker configuration is compared by a classified pointer diff, not a diff library |
+| [0044](0044-slow-consumer-detection-two-authorities.md) | Slow-consumer detection has two authorities, and the broker wins |
+| [0045](0045-mcp-server-is-a-capability-surface.md) | The MCP server is a capability surface (~13 intent-shaped tools), not a REST mirror; the token budget is a build failure |
+| [0046](0046-mcp-authenticates-with-existing-api-tokens.md) | MCP authenticates with the ADR-0039 personal API tokens — one credential store, one authorization model |

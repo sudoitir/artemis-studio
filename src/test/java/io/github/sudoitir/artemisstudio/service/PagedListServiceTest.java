@@ -52,13 +52,19 @@ class PagedListServiceTest {
     @Mock
     BrokerConnections connections;
 
+    /** Permissive by default: an unstubbed void call is a no-op, i.e. access granted.
+     * The guard's real behaviour is covered by {@code ClusterScopeAuthorizationTest}. */
+    @Mock
+    ClusterAccessGuard clusterAccess;
+
     PagedListService service;
 
     @BeforeEach
     void setUp() {
         NodeCallLimiter limiter = new NodeCallLimiter(new ArtemisStudioProperties(
-                null, null, null, new RateLimit(50), null, null, null, null, null, null, null));
-        service = new PagedListService(nodes, connections, new BrokerListOps(), new ResourceViewMapper(), limiter);
+                null, null, null, new RateLimit(50), null, null, null, null, null, null, null, null));
+        service = new PagedListService(
+                nodes, connections, new BrokerListOps(), new ResourceViewMapper(), limiter, clusterAccess);
     }
 
     private JolokiaBrokerClient client(String url, String... fixtures) {

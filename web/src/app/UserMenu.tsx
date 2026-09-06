@@ -35,6 +35,11 @@ export function UserMenu({ me }: UserMenuProps) {
             Administration
           </Menu.Item>
         </Can>
+        {/* Not wrapped in <Can>: every user has an account, and their own keys
+            live here. */}
+        <Menu.Item component={Link} to="/account">
+          Account
+        </Menu.Item>
         <Menu.Item component={Link} to="/change-password">
           Change password
         </Menu.Item>

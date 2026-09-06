@@ -11,8 +11,41 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+### Security
+
+- **Cluster-scoped reads now honour your grants.** Six read endpoints — the cross-node
+  queue grid, the addresses / consumers / sessions / connections / producers views, the
+  metrics timeseries, the audit trail, and the broker event history — did not check
+  whether the caller held a grant on the cluster they addressed. Any signed-in user
+  could read any registered cluster's queues, metrics, audit trail, and events by
+  putting its id in the URL, regardless of the roles they had been given. They are now
+  checked like every other cluster-addressed read, and a cluster you hold no grant on
+  answers `404` rather than revealing that it exists.
+
+  **After upgrading, users whose grants are scoped to specific clusters or environments
+  will lose access to data they could previously see.** That is the fix working. If
+  someone genuinely needs cross-cluster visibility, grant them the role at global scope
+  (Administration → Users). Users holding a global grant are unaffected.
+
 ### Added
 
+- **MCP server.** Studio now speaks the Model Context Protocol at `POST /mcp`, so an
+  assistant can read your clusters and run the same guarded operations you can. About a
+  dozen purpose-built tools (`cluster_health`, `diagnose_queue`, `queue_action`, …),
+  four resources and four runbook prompts — not a mirror of the REST API. Authenticate
+  with a personal API key: a key never exceeds its owner's live grants, mutations
+  dry-run by default and a real destructive run needs the queue's own name as an
+  explicit `confirm`, and every call is audited under you with the key's name attached.
+  Setup, a copy-paste client config and a `curl` smoke test are in the README's MCP
+  section.
+- **An `/account` page**, reachable from the avatar menu by every user: who you are
+  signed in as, a link to change your password, your API keys, and how to connect an
+  MCP client.
+- **API keys can now be given permissions when you create one.** Keys minted from the
+  UI previously carried no grants at all — they authenticated and could do nothing,
+  and the only way to make a usable one was `POST /api/v1/tokens` by hand. The new-key
+  dialog now offers a scope (global, or one cluster) and the permissions you yourself
+  hold at it.
 - **Slow-consumer detection.** A consumer that is attached but not draining is now
   visible two ways. Studio surfaces the broker's own `CONSUMER_SLOW` notification on
   the `consumers` event topic — the only source that can name the individual consumer
@@ -46,6 +79,13 @@ marked as pre-releases.
   expose `slow-consumer-threshold` over management — which is all of them today —
   it reports *unknown* rather than guessing, with the `broker.xml` to enable it.
 - A message's type now reads `text` or `bytes` rather than `type 3`.
+
+### Changed
+
+- **API keys have moved off Administration.** They were under
+  Administration → API tokens, which hid a per-user credential behind `user:admin`.
+  They now live at **Account → API keys** (avatar menu → Account). A bookmark to
+  `/admin?tab=tokens` will land on Administration with the Users tab selected.
 
 ### Fixed
 

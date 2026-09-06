@@ -35,6 +35,10 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  * <p>Every {@code /api/**} path requires authentication except
  * {@code /api/v1/auth/login}; the served SPA shell and its static assets stay
  * public so an unauthenticated browser can load the login screen at all.
+ *
+ * <p>{@code /mcp} is authenticated on the same terms (ADR-0046): the MCP surface
+ * reuses the ADR-0039 personal API tokens rather than adding a second credential
+ * store, so the existing {@link ApiTokenAuthenticationFilter} is the whole of it.
  */
 @Configuration
 @EnableMethodSecurity
@@ -65,7 +69,7 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/health/**")
                         .permitAll()
-                        .requestMatchers("/api/**")
+                        .requestMatchers("/api/**", "/mcp", "/mcp/**")
                         .authenticated()
                         // The SPA shell and its static assets (SpaRoutingConfig) must stay
                         // reachable unauthenticated, or the login page itself cannot load.

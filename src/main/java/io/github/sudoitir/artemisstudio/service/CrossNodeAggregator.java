@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.PagedView;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.QueueView;
 import java.time.Instant;
@@ -35,9 +36,11 @@ public class CrossNodeAggregator {
     private final BrokerNodeRepository nodes;
     private final QueueViewMapper mapper;
     private final ArtemisStudioProperties properties;
+    private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
     public PagedView<QueueView> queues(UUID clusterId, ResourceQuery query) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         List<BrokerNodeEntity> nodeRows = nodes.findByClusterIdOrderByNameAsc(clusterId);
         Map<UUID, String> nodeNames =
                 nodeRows.stream().collect(Collectors.toMap(BrokerNodeEntity::getId, BrokerNodeEntity::getName));

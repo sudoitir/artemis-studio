@@ -13,7 +13,7 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
  * bookmark, refresh, or open from a link. Without this, anything but {@code /}
  * hits the static handler, finds no file, and returns Spring's 404 page.
  *
- * <p>Unknown {@code api/} and {@code actuator/} paths keep 404-ing — the client
+ * <p>Unknown {@code api/}, {@code actuator/} and {@code mcp} paths keep 404-ing — the client
  * parses those as problem details, so handing them an HTML shell with a 200
  * would turn a missing endpoint into an unreadable error.
  */
@@ -21,6 +21,19 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
 public class SpaRoutingConfig implements WebMvcConfigurer {
 
     private static final ClassPathResource INDEX = new ClassPathResource("static/index.html");
+
+    /**
+     * The MCP transport registers a functional {@code RouterFunction}, which
+     * {@code RouterFunctionMapping} (order -1) resolves before this resource
+     * handler — so in practice this branch is belt and braces. It matters for the
+     * probe a human or client makes by hand: a bare {@code GET /mcp} does not
+     * match the transport's POST route, and without this it would fall through to
+     * {@code index.html} with a {@code 200} — exactly the unreadable-error failure
+     * this class already avoids for {@code api/}.
+     */
+    private static boolean isMcp(String path) {
+        return path.equals("mcp") || path.startsWith("mcp/");
+    }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -34,7 +47,7 @@ public class SpaRoutingConfig implements WebMvcConfigurer {
                         if (asset.exists() && asset.isReadable()) {
                             return asset;
                         }
-                        if (path.startsWith("api/") || path.startsWith("actuator/")) {
+                        if (path.startsWith("api/") || path.startsWith("actuator/") || isMcp(path)) {
                             return null;
                         }
                         return INDEX.exists() ? INDEX : null;

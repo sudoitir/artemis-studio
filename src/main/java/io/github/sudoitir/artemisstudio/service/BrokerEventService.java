@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.service;
 import io.github.sudoitir.artemisstudio.persist.BrokerEventEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerEventRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerEventWriter;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.web.dto.EventViews.BrokerEventView;
 import java.time.Instant;
@@ -32,9 +33,16 @@ public class BrokerEventService {
     private final BrokerEventWriter writer;
     private final ObjectMapper mapper;
 
+    /**
+     * Guards {@link #page} only. {@link #since} is reached solely from
+     * {@code StreamController}, which applies the same check before subscribing.
+     */
+    private final ClusterAccessGuard clusterAccess;
+
     @Transactional(readOnly = true)
     public BrokerEventPageView page(
             UUID clusterId, String type, UUID nodeId, String address, Instant from, Instant to, int page, int size) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         int p = Math.max(page, 1);
         int s = Math.min(Math.max(size, 1), 500);
         Page<BrokerEventEntity> result = events.findPage(

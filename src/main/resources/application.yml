@@ -49,6 +49,44 @@ spring:
     virtual:
       enabled: true
 
+  ai:
+    mcp:
+      server:
+        name: artemis-studio
+        version: 1.0.0
+        # SYNC is load-bearing, not a preference (ADR-0045). The tool body must stay
+        # on the servlet thread: PermissionResolver reads SecurityContextHolder and
+        # ActorResolver reads RequestContextHolder, both ThreadLocal. Under ASYNC the
+        # work moves to a Reactor scheduler, the context is empty, and every tool
+        # answers "no cluster visible" — a config mistake that presents as a
+        # permissions bug. McpAuthorizationIntegrationTest is the regression guard.
+        type: SYNC
+        # No session map, no sticky routing, compatible with multi-instance HA. Also
+        # sidesteps the unbounded-session class of problem behind CVE-2026-59279 in
+        # 2.0.0's STREAMABLE transport, which is why the pom pins 2.0.1.
+        protocol: STATELESS
+        annotation-scanner:
+          enabled: true
+        capabilities:
+          # Declaring a capability we do not implement is worse than not having it.
+          # There is no @McpComplete anywhere in the surface.
+          completion: false
+        # Under a host that searches tools rather than dumping tools/list, this is
+        # the discovery index — it is the only text guaranteed to be read.
+        instructions: >
+          Artemis Studio: cluster-wide management and observability for Apache
+          ActiveMQ Artemis brokers. Read tools: cluster_health (HA state,
+          split-brain, firing alerts), list_resources (queues, addresses,
+          consumers, sessions, connections, producers), diagnose_queue (one queue,
+          end to end), metric_series, config_diff, browse_messages,
+          trace_request_reply, activity_log. Mutating tools: queue_action,
+          send_message, alert_rule, studio_setting — all default to dryRun=true and
+          a real destructive run needs `confirm` to equal the subject's name.
+          Resources: studio://clusters, studio://permissions,
+          cluster://{id}/topology, cluster://{id}/capabilities. Start from
+          studio://clusters for the cluster ids this key can see, and
+          studio://permissions for what it may do.
+
   task:
     scheduling:
       # The tiered scrape scheduler (ADR-0015) runs three overlapping tiers plus a
@@ -105,6 +143,11 @@ artemis-studio:
     # Raw metric_sample retention in days (ADR-0006). MetricSampleReaper trims
     # older rows nightly. Runtime-overridable via studio_setting.
     retention-days: 7
+  mcp:
+    # Result caps for the MCP surface (ADR-0045); tighter than REST's on purpose.
+    # A mutation ceiling is NOT set here — that inherits safety.bulk-cap below.
+    default-limit: 25
+    max-limit: 100
   safety:
     # Server-enforced ceiling on one destructive message operation (ADR-0022).
     # A dry-run count above this is a 422 unless ?override=true (behind the UI's
