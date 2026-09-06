@@ -18,7 +18,16 @@ public final class RrViews {
     public record ExpectationView(
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String requestAddress,
-            @Schema(nullable = true) String replyAddress,
+            @Schema(requiredMode = REQUIRED) List<String> replyAddresses,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "What replyAddresses currently expands to, from the last scrape's addresses")
+            List<String> resolvedReplyAddresses,
+
+            @Schema(requiredMode = REQUIRED, description = "The resolution cap cut the expansion short")
+            boolean replyAddressesCapped,
+
             @Schema(nullable = true) String correlationProperty,
             @Schema(nullable = true) Integer deadlineMs,
             @Schema(requiredMode = REQUIRED) int samplePerMin,
@@ -27,14 +36,14 @@ public final class RrViews {
 
     public record CreateExpectationRequest(
             @NotBlank String requestAddress,
-            String replyAddress,
+            List<String> replyAddresses,
             String correlationProperty,
             @Min(1) Integer deadlineMs,
             @Min(1) int samplePerMin,
             boolean capturePayload) {}
 
     public record UpdateExpectationRequest(
-            String replyAddress,
+            List<String> replyAddresses,
             String correlationProperty,
             @Min(1) Integer deadlineMs,
             @Min(1) int samplePerMin,

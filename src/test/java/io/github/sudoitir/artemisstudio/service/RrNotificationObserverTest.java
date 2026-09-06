@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.persist.RrFlowEntity;
 import io.github.sudoitir.artemisstudio.persist.RrFlowRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -102,7 +103,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
     @Test
     void responderDropOnATracedAddressDropsTheFlow() {
         UUID clusterId = cluster();
-        expectations.save(new RrExpectationEntity(clusterId, "rr.traced", null, null, null, 10, false));
+        expectations.save(new RrExpectationEntity(clusterId, "rr.traced", List.of(), null, null, 10, false));
         Instant t0 = Instant.now();
         correlator.accept(new Observation.RequestSeen(
                 clusterId, null, t0, "rr.traced", "m2", "corr-1", null, 0L, null, Map.of()));
@@ -112,6 +113,58 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
         RrFlowEntity flow = flows.findByClusterIdAndRequestAddressAndRequestMessageId(clusterId, "rr.traced", "m2")
                 .orElseThrow();
         assertThat(flow.getState()).isEqualTo(RrState.RESPONDER_DROPPED.name());
+    }
+
+    @Test
+    void messageDeliveredOnAResolvedReplyAddressIsForwardedAsAReply() {
+        UUID clusterId = cluster();
+        expectations.save(
+                new RrExpectationEntity(clusterId, "rr.traced", List.of("rr.traced.reply"), null, null, 10, false));
+        Instant t0 = Instant.now();
+        // The sampler supplied the correlation identity; the reply itself was drained
+        // between two ticks, so only the notification can close the flow (design.md D6).
+        correlator.accept(new Observation.RequestSeen(
+                clusterId, null, t0, "rr.traced", "m1", "corr-drained", null, 0L, null, Map.of()));
+
+        observer.accept(event(clusterId, "MESSAGE_DELIVERED", "rr.traced.reply", "rr.traced.reply", Map.of()));
+
+        RrFlowEntity flow = flows.findByClusterIdAndRequestAddressAndRequestMessageId(clusterId, "rr.traced", "m1")
+                .orElseThrow();
+        // No correlation id on the notification, so this cannot join by identity — it
+        // is recorded as a reply observation, and the flow it cannot join stays open.
+        assertThat(correlator.isTracedReplyAddress(clusterId, "rr.traced.reply"))
+                .isTrue();
+        assertThat(flow).isNotNull();
+    }
+
+    @Test
+    void messageDeliveredOnAnUntracedAddressIsNotForwarded() {
+        UUID clusterId = cluster();
+        expectations.save(
+                new RrExpectationEntity(clusterId, "rr.traced", List.of("rr.traced.reply"), null, null, 10, false));
+
+        assertThat(correlator.isTracedReplyAddress(clusterId, "something.else")).isFalse();
+
+        observer.accept(event(clusterId, "MESSAGE_DELIVERED", "something.else", "something.else", Map.of()));
+
+        // Broker-wide delivery chatter must not manufacture orphaned-reply rows.
+        assertThat(flows.findByClusterIdAndReplyDestinationAndState(
+                        clusterId, "something.else", RrState.ORPHANED_REPLY.name()))
+                .isEmpty();
+    }
+
+    @Test
+    void aGlobReplyPatternIsRecognisedWithoutTheAddressBeingScrapedYet() {
+        UUID clusterId = cluster();
+        expectations.save(
+                new RrExpectationEntity(clusterId, "rr.traced", List.of("rr.traced.reply.*"), null, null, 10, false));
+
+        // matches() reads the declaration, not the snapshot, so a reply queue created
+        // since the last scrape is still recognised.
+        assertThat(correlator.isTracedReplyAddress(clusterId, "rr.traced.reply.host-9"))
+                .isTrue();
+        assertThat(correlator.isTracedReplyAddress(clusterId, "other.reply.host-9"))
+                .isFalse();
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.service;
 
+import io.github.sudoitir.artemisstudio.broker.rr.ReplyAddressResolver;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.persist.RrEventEntity;
@@ -19,6 +20,7 @@ import io.github.sudoitir.artemisstudio.web.dto.RrViews.UpdateExpectationRequest
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -47,6 +49,7 @@ public class RequestReplyService {
     private final ActorResolver actorResolver;
     private final ObjectMapper mapper;
     private final ClusterAccessGuard clusterAccess;
+    private final ReplyAddressResolver replyAddresses;
 
     // ---- expectations -------------------------------------------------
 
@@ -61,6 +64,15 @@ public class RequestReplyService {
     @Transactional
     public ExpectationView create(UUID clusterId, CreateExpectationRequest request) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        // Checked before the audit row is opened: letting the unique constraint fire
+        // instead would mark the transaction rollback-only, discarding the audit row
+        // with it, and surface as an unmapped 500 the operator cannot act on.
+        if (expectations.existsByClusterIdAndRequestAddress(clusterId, request.requestAddress())) {
+            throw new ConflictException(
+                    "duplicate-rr-expectation",
+                    "'" + request.requestAddress()
+                            + "' is already traced on this cluster. Edit the existing expectation instead.");
+        }
         AuditEventEntity audited = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_RR_EXPECTATION",
@@ -73,7 +85,7 @@ public class RequestReplyService {
         RrExpectationEntity entity = expectations.save(new RrExpectationEntity(
                 clusterId,
                 request.requestAddress(),
-                blankToNull(request.replyAddress()),
+                normaliseReplyAddresses(request.replyAddresses()),
                 blankToNull(request.correlationProperty()),
                 request.deadlineMs(),
                 request.samplePerMin() > 0 ? request.samplePerMin() : 10,
@@ -100,7 +112,7 @@ public class RequestReplyService {
                 Map.of("enabled", request.enabled()),
                 false);
 
-        entity.setReplyAddress(blankToNull(request.replyAddress()));
+        entity.setReplyAddresses(normaliseReplyAddresses(request.replyAddresses()));
         entity.setCorrelationProperty(blankToNull(request.correlationProperty()));
         entity.setDeadlineMs(request.deadlineMs());
         entity.setSamplePerMin(request.samplePerMin() > 0 ? request.samplePerMin() : entity.getSamplePerMin());
@@ -132,11 +144,32 @@ public class RequestReplyService {
         audit.succeed(audited, 1);
     }
 
+    /**
+     * Blanks dropped, duplicates collapsed, declaration order preserved. Null and
+     * empty collapse to the same empty list on purpose: both spell the temporary-reply-queue
+     * pattern, and keeping two spellings of one state would force every reader to
+     * handle both (design.md, D3).
+     */
+    static List<String> normaliseReplyAddresses(List<String> declared) {
+        if (declared == null) {
+            return List.of();
+        }
+        return declared.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+    }
+
     private ExpectationView toView(RrExpectationEntity e) {
+        ReplyAddressResolver.Resolution resolved = replyAddresses.resolve(e.getClusterId(), e);
         return new ExpectationView(
                 e.getId(),
                 e.getRequestAddress(),
-                e.getReplyAddress(),
+                e.getReplyAddresses(),
+                resolved.addresses(),
+                resolved.capped(),
                 e.getCorrelationProperty(),
                 e.getDeadlineMs(),
                 e.getSamplePerMin(),

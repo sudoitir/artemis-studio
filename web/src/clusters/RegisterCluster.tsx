@@ -67,7 +67,7 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   });
   const [shape, setShape] = useState<ExampleShape | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [checkedSeeds, setCheckedSeeds] = useState<string | null>(null);
+  const [checkedInputs, setCheckedInputs] = useState<string | null>(null);
 
   const check = useCheckConnection();
   const register = useRegisterCluster();
@@ -99,7 +99,34 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   const valid =
     seedList.length > 0 && !seedsError && !credError && !coreCredError;
 
-  const stale = check.isSuccess && checkedSeeds !== null && checkedSeeds !== JSON.stringify(seedList);
+  // Everything the check's verdict depends on, credentials included — a check that
+  // stayed valid across a password edit would vouch for credentials it never saw,
+  // which is the exact failure this gate exists to prevent.
+  const inputSignature = JSON.stringify([
+    seedList,
+    f.username,
+    f.password,
+    f.coreUsername,
+    f.corePassword,
+    f.tlsBundle,
+  ]);
+  const checkedThis = checkedInputs === inputSignature;
+  const stale = check.isSuccess && checkedInputs !== null && !checkedThis;
+
+  // Registering is gated on a passing check of these exact inputs. The check now
+  // opens a real Core subscription, so it is the only thing that can catch a Core
+  // account the broker refuses — the failure that otherwise surfaces after
+  // registration, where it reads as a broken cluster rather than a typo.
+  const checkPassed = check.isSuccess && checkedThis;
+  const registerBlockedReason = !valid
+    ? null
+    : check.isPending
+      ? 'Checking the connection…'
+      : checkPassed
+        ? null
+        : stale || check.isError
+          ? 'Check the connection again — the details changed since the last check.'
+          : 'Check the connection first.';
 
   // Open the advanced fields on their own once a check reveals they'd matter —
   // the operator never has to know they exist until the ledger says so.
@@ -232,13 +259,18 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
 
           {check.isSuccess ? <CapabilityLedger capabilities={check.data.capabilities} /> : null}
 
-          <Group justify="flex-end" gap="sm">
+          <Group justify="flex-end" gap="sm" align="center">
+            {registerBlockedReason ? (
+              <Text size="xs" c="dimmed">
+                {registerBlockedReason}
+              </Text>
+            ) : null}
             <Button
               variant="default"
               loading={check.isPending}
               disabled={!valid}
               onClick={() => {
-                setCheckedSeeds(JSON.stringify(seedList));
+                setCheckedInputs(inputSignature);
                 check.mutate(payload());
               }}
             >
@@ -246,7 +278,7 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
             </Button>
             <Button
               loading={register.isPending}
-              disabled={!valid}
+              disabled={!valid || !checkPassed}
               onClick={() =>
                 register.mutate(payload(), {
                   onSuccess: (detail) => {

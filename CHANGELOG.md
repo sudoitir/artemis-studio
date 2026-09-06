@@ -11,6 +11,109 @@ marked as pre-releases.
 
 ## [Unreleased]
 
+### Breaking
+
+- **An expectation's reply address is now a set of patterns.** The request-reply
+  expectation API field `replyAddress` (a single string) is replaced by
+  `replyAddresses` (an array of strings) on the create, update and read payloads.
+  Any client posting `replyAddress` must send `replyAddresses: ["<the old value>"]`
+  instead, or `[]` where it previously sent nothing. Stored expectations migrate
+  themselves — an existing reply address becomes a one-entry set — so no operator
+  action is required in the UI.
+
+### Added
+
+- **One expectation can trace reply queues you cannot list in advance.** Reply
+  addresses are now a set, and each entry may be a pattern: `orders.reply.*` covers
+  a reply queue per responder, including ones created after you declared it. This is
+  what makes tracing work against a deployment whose reply queue is named after the
+  broker node or the client host, where any fixed list is stale as soon as something
+  is redeployed. `*` matches any run of characters and matching is anchored at both
+  ends; Artemis's `#` is not a wildcard here. The form shows what a pattern currently
+  resolves to as you type it, and says so when it matches nothing yet — which is
+  normal, not an error.
+- **A completed flow records which reply queue answered it.** When more than one
+  reply address is in play, the flow takes its reply destination from the reply that
+  joined it, so you can see which responder served a given exchange.
+- **"Check connection" now tests the Core connection too, and registration waits for
+  it.** The check opened no Core connection at all, so it reported nothing about the
+  channel that carries notifications and faithful message I/O — a wrong Core account, or
+  the same wrong password entered twice, passed the check and only failed after the
+  cluster was registered. The check now opens and closes a real subscription to
+  `activemq.notifications`, and **Register cluster** stays disabled until a check of the
+  exact details in the form has passed, saying which of those it is waiting for. Editing
+  a URL, a username or a password invalidates the previous check rather than carrying it
+  over.
+- **A separate broker account for the Core connection.** Settings can now rotate the
+  Core-protocol credentials independently of the management (Jolokia) ones. Set these
+  when your management account is also the broker's `<cluster-user>`: Artemis reserves
+  that account for inter-node traffic and refuses it over Core with `AMQ229099`, which
+  previously left the notification subscription failing with no way to fix it short of
+  re-registering the cluster.
+
+- **Pick an address instead of typing it.** The request and reply address fields on the
+  Requests screen now suggest the cluster's own addresses as you type, each with its
+  routing type, current depth and how many nodes carry it — enough to tell a request
+  queue from a reply queue without leaving the form. You can still type a name that does
+  not exist yet; the field says it matched nothing rather than refusing it. The
+  suggestions can be narrowed to anycast or multicast.
+
+### Changed
+
+- **The broker-capabilities notice can be dismissed.** It stays dismissed for the rest of
+  your session and comes back when you sign out, when someone else signs in, or when a
+  *different* capability starts falling short — so waving away a known gap never hides a
+  new one.
+
+### Fixed
+
+- **Every node serving a traced address is now sampled.** Studio browsed only the
+  first active node of a cluster, so in a multi-primary cluster the request and reply
+  traffic on the other nodes was never read and the correlation identity that only
+  browsing supplies was missing for most exchanges.
+- **A reply consumed faster than the sampler ticks is no longer missed.** A delivery
+  on a declared reply address now counts as a reply observation, alongside the
+  existing browse. It carries no correlation id, so it completes a flow only where
+  sampling already identified the request — coverage, not a replacement for browsing.
+- **Request-reply sampling failures are reported.** A failure was swallowed at debug
+  level, so a correctly-configured-looking expectation produced no flows and said
+  nothing about why. Failures now log a warning naming the expectation and the node,
+  rate-limited so a node that is down for an hour does not flood the log.
+- **Capabilities are assessed against a live node.** Studio probed whichever node sorted
+  first by name. On a cluster whose backup sorts before its primary that meant probing a
+  passive backup, which registers no acceptor and no address MBeans — so Studio reported
+  "CORE acceptor not found" and "activemq.notifications address not found" about a broker
+  where both were present.
+- **A Jolokia agent that labels its JSON `text/plain` is understood.** The agent bundled
+  with Artemis 2.39 answers a valid Jolokia response with
+  `Content-Type: text/plain;charset=utf-8` where 2.44 sends `application/json`. Studio's
+  client only accepted the JSON content types, so every response from the older broker
+  failed to convert and a healthy cluster was reported as "the broker answered, but not
+  with a Jolokia response".
+- **The MCP client configuration example is valid.** It omitted `"type": "http"`, which
+  clients reject.
+
+- **A broker that refuses the connection now says so.** Registering a cluster against an
+  Artemis console that rejects the credentials reported *"The broker answered, but not with
+  a Jolokia response"* — a message that sent operators looking for a proxy or a CORS problem
+  that was not there. Studio now classifies the refusal from the HTTP status rather than
+  from an exception subclass, and repeats what the broker itself said: the
+  `Hawtio-Forbidden-Reason` header the Artemis console sets on its bare 403, and any
+  `WWW-Authenticate` challenge.
+- **A management URL pointing at the console instead of the agent is named as such.** Studio
+  no longer follows redirects to the console's login page and then reports the resulting
+  HTML as a bad Jolokia response; a redirect is reported as the wrong path, with the
+  location the broker sent. A seed typed as `host:port/console` is completed to
+  `/console/jolokia` rather than left to fail.
+- **Tracing an already-traced request address returns a conflict, not a server error.**
+  Adding the same request address twice failed with an HTTP 500 whose body said nothing;
+  it now returns 409 naming the address, and the Requests screen shows that message. The
+  enable/disable switch and the remove button on that screen also report their failures
+  instead of appearing to do nothing.
+- **The config diff table is readable again.** Long acceptor values no longer take the whole
+  row and squeeze the key and status columns to one character per line; wide values scroll
+  inside the section, and a key too long for its column is revealed on hover.
+
 ## [2026.09.3] — 2026-09-06
 
 ### Added
@@ -85,23 +188,6 @@ marked as pre-releases.
 
 ### Added
 
-- **MCP server.** Studio now speaks the Model Context Protocol at `POST /mcp`, so an
-  assistant can read your clusters and run the same guarded operations you can. About a
-  dozen purpose-built tools (`cluster_health`, `diagnose_queue`, `queue_action`, …),
-  four resources and four runbook prompts — not a mirror of the REST API. Authenticate
-  with a personal API key: a key never exceeds its owner's live grants, mutations
-  dry-run by default and a real destructive run needs the queue's own name as an
-  explicit `confirm`, and every call is audited under you with the key's name attached.
-  Setup, a copy-paste client config and a `curl` smoke test are in the README's MCP
-  section.
-- **An `/account` page**, reachable from the avatar menu by every user: who you are
-  signed in as, a link to change your password, your API keys, and how to connect an
-  MCP client.
-- **API keys can now be given permissions when you create one.** Keys minted from the
-  UI previously carried no grants at all — they authenticated and could do nothing,
-  and the only way to make a usable one was `POST /api/v1/tokens` by hand. The new-key
-  dialog now offers a scope (global, or one cluster) and the permissions you yourself
-  hold at it.
 - **Slow-consumer detection.** A consumer that is attached but not draining is now
   visible two ways. Studio surfaces the broker's own `CONSUMER_SLOW` notification on
   the `consumers` event topic — the only source that can name the individual consumer
@@ -136,29 +222,8 @@ marked as pre-releases.
   it reports *unknown* rather than guessing, with the `broker.xml` to enable it.
 - A message's type now reads `text` or `bytes` rather than `type 3`.
 
-### Changed
-
-- **API keys have moved off Administration.** They were under
-  Administration → API tokens, which hid a per-user credential behind `user:admin`.
-  They now live at **Account → API keys** (avatar menu → Account). A bookmark to
-  `/admin?tab=tokens` will land on Administration with the Users tab selected.
-- `queue_snapshot` gains a `paused` column so paused queues can be excluded from
-  slow-consumer detection. Applied automatically on startup; no action needed.
-
 ### Fixed
 
-- **A key scoped to one cluster now works.** API keys intersect their grants with their
-  owner's live grants, and that check compared scopes for exact equality — so a user
-  whose roles are granted globally, which is every administrator, could only mint a
-  globally scoped key. Narrowing a key to a single cluster produced a key that
-  authenticated and then failed every call with "no such cluster". The check now walks
-  scopes the way permission checks do: global covers everything, an environment covers
-  its clusters. A key still cannot exceed its owner — the widening runs one way only.
-- **Purge, browse totals, and CORE acceptor detection against a live broker.** Jolokia
-  answers a single-attribute read with a map keyed by the attribute name, not with the
-  bare value, and three call sites read the value directly. `DELETE .../messages?dryRun=true`
-  answered `500`; a message browse reported the page size as the queue total; and a
-  broker with no CORE acceptor could be reported as having one.
 - **Topology view.** The band carrying each pair's shared NodeID was drawn at a fixed
   position over the canvas rather than attached to the nodes it grouped, so it lined up
   only by coincidence and slid out of place on the first pan or zoom. Each logical node
@@ -173,6 +238,11 @@ marked as pre-releases.
 - The "add a management URL" prompt on a discovered-but-unreachable node was a
   permanently disabled button. It now opens the dialog that adds the URL.
 - The topology graph re-fits after a failover instead of leaving a stale viewport.
+
+### Changed
+
+- `queue_snapshot` gains a `paused` column so paused queues can be excluded from
+  slow-consumer detection. Applied automatically on startup; no action needed.
 
 ## [2026.09.0] — 2026-09-05
 

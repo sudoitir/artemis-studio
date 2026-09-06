@@ -10,6 +10,8 @@ import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * stable {@code type} URI, so the frontend switches on the class of failure
  * rather than string-matching a message.
  */
+@Slf4j
 @RestControllerAdvice
 class ApiExceptionHandler {
 
@@ -75,6 +78,21 @@ class ApiExceptionHandler {
     ProblemDetail onConflict(ConflictException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
         problem.setType(URI.create(TYPE_BASE + e.slug()));
+        problem.setTitle("Conflict");
+        return problem;
+    }
+
+    /**
+     * A last line of defence, not the intended path. Services check for a conflict
+     * up front and throw {@link ConflictException}; this keeps any constraint that
+     * slips through from reaching the client as a 500 with no usable body.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail onDataIntegrityViolation(DataIntegrityViolationException e) {
+        log.warn("Unmapped constraint violation surfaced to the API", e);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, "This conflicts with something that already exists.");
+        problem.setType(URI.create(TYPE_BASE + "constraint-violation"));
         problem.setTitle("Conflict");
         return problem;
     }

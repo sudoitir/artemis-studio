@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -154,6 +155,95 @@ class JolokiaBrokerClientTest {
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
                 .isEqualTo(BrokerConnectionException.Kind.WRONG_PATH);
+    }
+
+    @Test
+    void bareForbiddenWithNoBodyIsCredentialsNotBadResponse() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN).headers(hawtioForbidden("NONE")));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper);
+
+        assertThatThrownBy(() -> client.search(BrokerMBeans.BROKER_SEARCH_PATTERN))
+                .isInstanceOf(BrokerConnectionException.class)
+                .satisfies(e -> {
+                    BrokerConnectionException broker = (BrokerConnectionException) e;
+                    assertThat(broker.kind()).isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
+                    assertThat(broker.getMessage())
+                            .contains("Hawtio-Forbidden-Reason: NONE")
+                            .contains("no authenticated session");
+                });
+    }
+
+    @Test
+    void authenticationChallengeIsEchoedBack() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.WWW_AUTHENTICATE, "Bearer realm=\"artemis\"");
+        server.expect(requestTo(URL))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED).headers(headers));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper);
+
+        assertThatThrownBy(() -> client.search(BrokerMBeans.BROKER_SEARCH_PATTERN))
+                .isInstanceOf(BrokerConnectionException.class)
+                .hasMessageContaining("Bearer realm=\"artemis\"");
+    }
+
+    @Test
+    void redirectToTheConsoleLoginIsWrongPath() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.LOCATION, "/console/auth/login");
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.FOUND).headers(headers));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper);
+
+        assertThatThrownBy(() -> client.search(BrokerMBeans.BROKER_SEARCH_PATTERN))
+                .isInstanceOf(BrokerConnectionException.class)
+                .satisfies(e -> {
+                    BrokerConnectionException broker = (BrokerConnectionException) e;
+                    assertThat(broker.kind()).isEqualTo(BrokerConnectionException.Kind.WRONG_PATH);
+                    assertThat(broker.getMessage()).contains("/console/auth/login");
+                });
+    }
+
+    @Test
+    void htmlLoginPageOnTwoHundredNamesTheRealProblem() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL))
+                .andRespond(withSuccess("<!DOCTYPE html><html><body>Login</body></html>", MediaType.TEXT_HTML));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper);
+
+        assertThatThrownBy(() -> client.search(BrokerMBeans.BROKER_SEARCH_PATTERN))
+                .isInstanceOf(BrokerConnectionException.class)
+                .satisfies(e -> {
+                    BrokerConnectionException broker = (BrokerConnectionException) e;
+                    assertThat(broker.kind()).isEqualTo(BrokerConnectionException.Kind.BAD_RESPONSE);
+                    assertThat(broker.getMessage()).contains("/console/jolokia");
+                });
+    }
+
+    @Test
+    void jolokiaJsonLabelledTextPlainIsStillParsed() {
+        // Artemis 2.39's bundled agent answers with Content-Type: text/plain;charset=utf-8.
+        // The response is valid Jolokia JSON; only the label is wrong.
+        RestClient.Builder builder =
+                RestClient.builder().messageConverters(c -> BrokerClientFactory.applyJolokiaConverters(c, mapper));
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.TEXT_PLAIN));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper);
+
+        assertThat(client.resolveBrokerObjectName()).isEqualTo("org.apache.activemq.artemis:broker=\"primary\"");
+        server.verify();
+    }
+
+    private static HttpHeaders hawtioForbidden(String reason) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Hawtio-Forbidden-Reason", reason);
+        return headers;
     }
 
     @Test

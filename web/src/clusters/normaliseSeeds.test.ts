@@ -26,6 +26,15 @@ describe('normaliseSeeds', () => {
     ]);
   });
 
+  it('completes the path when the operator pasted the console URL', () => {
+    expect(normaliseSeeds('http://broker-1:8161/console')[0].url).toBe(
+      'http://broker-1:8161/console/jolokia',
+    );
+    expect(normaliseSeeds('http://broker-1:8161/console/')[0].url).toBe(
+      'http://broker-1:8161/console/jolokia',
+    );
+  });
+
   it('dedupes identical normalised URLs', () => {
     const result = normaliseSeeds('broker-1\nhttp://broker-1:8161/console/jolokia');
     expect(result).toHaveLength(1);

@@ -18,6 +18,9 @@ export function McpConnectionPanel() {
     {
       mcpServers: {
         'artemis-studio': {
+          // Clients reject an entry that gives a url without saying how to speak
+          // to it. Studio's endpoint is streamable HTTP.
+          type: 'http',
           url: endpoint,
           headers: { Authorization: 'Bearer <your-api-key>' },
         },

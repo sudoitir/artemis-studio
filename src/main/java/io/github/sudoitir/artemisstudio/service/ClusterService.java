@@ -7,7 +7,9 @@ import io.github.sudoitir.artemisstudio.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.core.CorePool;
+import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.domain.topology.ClusterTopology;
@@ -47,6 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PostFilter;
@@ -82,6 +85,7 @@ public class ClusterService {
     private final HaStateEvaluator evaluator;
     private final SplitBrainRegistry splitBrainRegistry;
     private final CoreSubscriptionManager coreSubscriptions;
+    private final CoreSubscriptionCheck coreSubscriptionCheck;
     private final CorePool corePool;
     private final SecretVault vault;
     private final AuditService audit;
@@ -124,10 +128,17 @@ public class ClusterService {
             return failed(event, probes.get(0).error());
         }
 
-        BrokerCapabilities capabilities =
-                capabilityProbe.probe(reachable.get(0).client(), new SubscriptionVerdict.NotAttempted());
         ClusterTopology preview =
                 topologyDiscovery.preview(reachable.stream().map(Probe::asSeed).toList());
+
+        // Actually open a Core subscription rather than reporting NotAttempted. A
+        // check that stays silent about the Core channel is how a wrong Core account
+        // — or a management account the broker reserves as its <cluster-user> —
+        // reaches a registered cluster and fails there instead, where the operator
+        // has no obvious way back.
+        SubscriptionVerdict coreVerdict = coreSubscriptionCheck.probe(
+                preview.nodes().stream().flatMap(n -> n.endpoints().stream()).toList(), coreSettingsFrom(request));
+        BrokerCapabilities capabilities = capabilityProbe.probe(reachable.get(0).client(), coreVerdict);
         int nodeCount = (int) preview.nodes().stream()
                 .flatMap(n -> n.endpoints().stream())
                 .map(NodeEndpoint::name)
@@ -137,6 +148,21 @@ public class ClusterService {
         audit.succeed(event, nodeCount);
         return new Attempt.Ok<>(new RegisterPreview(
                 viewMapper.capabilities(capabilities), reachable.size(), nodeCount, viewMapper.topology(preview)));
+    }
+
+    /**
+     * Core settings straight from an unregistered request: the Core credentials if
+     * given, otherwise the management ones, matching the fallback
+     * {@code BrokerConnections.coreSettingsFor} applies once the cluster exists
+     * (ADR-0026, D6). Nothing is persisted or sealed — there is no cluster to key
+     * the vault by yet.
+     */
+    private static CoreConnectionSettings coreSettingsFrom(RegisterClusterRequest request) {
+        RegisterClusterRequest.Credentials core =
+                request.hasCoreCredentials() ? request.coreCredentials() : request.credentials();
+        return core == null
+                ? new CoreConnectionSettings(null, null, null, request.tlsBundle(), true)
+                : new CoreConnectionSettings(null, core.username(), core.password(), request.tlsBundle(), true);
     }
 
     // ---- registration -------------------------------------------------------
@@ -271,14 +297,33 @@ public class ClusterService {
     public CapabilitiesView capabilities(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
-        BrokerNodeEntity manageable = nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
-                .filter(n -> n.getJolokiaUrl() != null)
-                .findFirst()
+        BrokerNodeEntity manageable = manageableNode(clusterId);
+        JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
+        return viewMapper.capabilities(capabilityProbe.probe(client, coreSubscriptions.verdictFor(clusterId)));
+    }
+
+    /**
+     * The node to assess capabilities against: a live one for preference, any
+     * manageable one otherwise. A passive backup answers management reads but
+     * registers no acceptor and no address MBeans, so probing one reports "CORE
+     * acceptor not found" and "activemq.notifications address not found" about a
+     * broker where both are present. Ordering by name alone made that the normal
+     * outcome for any cluster whose backup sorts first.
+     */
+    private BrokerNodeEntity manageableNode(UUID clusterId) {
+        return chooseManageable(nodes.findByClusterIdOrderByNameAsc(clusterId))
                 .orElseThrow(() -> new BrokerConnectionException(
                         BrokerConnectionException.Kind.UNREACHABLE,
                         "This cluster has no node with a management URL yet."));
-        JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-        return viewMapper.capabilities(capabilityProbe.probe(client, coreSubscriptions.verdictFor(clusterId)));
+    }
+
+    static Optional<BrokerNodeEntity> chooseManageable(List<BrokerNodeEntity> nodes) {
+        List<BrokerNodeEntity> manageable =
+                nodes.stream().filter(n -> n.getJolokiaUrl() != null).toList();
+        return manageable.stream()
+                .filter(n -> Boolean.TRUE.equals(n.getActive()) && n.getLastError() == null)
+                .findFirst()
+                .or(() -> manageable.stream().findFirst());
     }
 
     // ---- mutations ------------------------------------------------------------

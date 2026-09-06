@@ -157,19 +157,21 @@ class ClusterControllerTest extends PostgresIntegrationTest {
 
     @Test
     void dryRunProbesButPersistsNoCluster() throws Exception {
-        // checkConnection order: connect, then capability probe, then in-memory preview.
+        // checkConnection order: connect, then the in-memory preview (which the Core
+        // subscription pre-check needs for a Core URL), then the capability probe
+        // (which is handed that check's verdict).
         when(clientFactory.forNode(any(), eq(SEED)))
                 .thenReturn(client(
                         SEED,
                         "search-broker.json",
+                        "ha-read-primary.json",
+                        "topology.json",
                         "capability-version-read.json",
                         "topology.json",
                         "acceptors.json",
                         "acceptor-params-core.json",
                         "addresses-with-notifications.json",
-                        "address-settings.json",
-                        "ha-read-primary.json",
-                        "topology.json"));
+                        "address-settings.json"));
 
         mvc.perform(post("/api/v1/clusters")
                         .param("dryRun", "true")

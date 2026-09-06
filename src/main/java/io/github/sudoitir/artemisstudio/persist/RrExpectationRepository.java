@@ -9,4 +9,6 @@ public interface RrExpectationRepository extends JpaRepository<RrExpectationEnti
     List<RrExpectationEntity> findByClusterIdOrderByRequestAddress(UUID clusterId);
 
     List<RrExpectationEntity> findByEnabledTrue();
+
+    boolean existsByClusterIdAndRequestAddress(UUID clusterId, String requestAddress);
 }

@@ -4,16 +4,19 @@ import io.github.sudoitir.artemisstudio.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.TransportTarget;
+import io.github.sudoitir.artemisstudio.broker.rr.ReplyAddressResolver;
 import io.github.sudoitir.artemisstudio.domain.rr.Observation;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.persist.RrExpectationRepository;
 import io.github.sudoitir.artemisstudio.service.RrObservationSink;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -37,11 +40,16 @@ import org.springframework.stereotype.Component;
 public class RrSampler {
 
     private static final int SAMPLE_PAGE_SIZE = 20;
+    private static final Duration FAILURE_LOG_INTERVAL = Duration.ofMinutes(1);
 
     private final RrExpectationRepository expectations;
     private final BrokerNodeRepository nodes;
     private final CoreMessageTransport coreTransport;
     private final ObjectProvider<RrObservationSink> sink;
+    private final ReplyAddressResolver replyAddresses;
+
+    /** Per expectation-and-node, when its last failure was logged. */
+    private final Map<String, Instant> lastReported = new ConcurrentHashMap<>();
 
     /**
      * Scheduled by {@code DynamicSchedules} on {@code rr.sample-interval}. It used to
@@ -56,17 +64,37 @@ public class RrSampler {
             try {
                 sampleExpectation(expectation, target);
             } catch (RuntimeException e) {
-                log.debug("Request-reply sampling failed for {}: {}", expectation.getRequestAddress(), e.getMessage());
+                log.warn("Request-reply sampling failed for '{}': {}", expectation.getRequestAddress(), e.toString());
             }
         }
     }
 
     private void sampleExpectation(RrExpectationEntity expectation, RrObservationSink target) {
         UUID clusterId = expectation.getClusterId();
-        BrokerNodeEntity node = servingNode(clusterId);
-        if (node == null || node.getCoreUrl() == null) {
-            return;
+        List<String> replyTargets =
+                replyAddresses.resolve(clusterId, expectation).addresses();
+
+        // Every serving node, not just the first: in a three-primary cluster the
+        // request and reply queues on the other two were never read, so the
+        // correlation identity only browsing can supply was missing for two thirds
+        // of the traffic (design.md, D7). Duplicates across nodes are already
+        // handled by recentRequestFlow and uq_rr_flow_request.
+        for (BrokerNodeEntity node : servingNodes(clusterId)) {
+            // One node failing must not cost the others their tick.
+            try {
+                sampleNode(expectation, node, replyTargets, target);
+            } catch (RuntimeException e) {
+                reportFailure(expectation, node, e);
+            }
         }
+    }
+
+    private void sampleNode(
+            RrExpectationEntity expectation,
+            BrokerNodeEntity node,
+            List<String> replyTargets,
+            RrObservationSink target) {
+        UUID clusterId = expectation.getClusterId();
 
         for (BrowsedMessage m : browse(clusterId, node, expectation.getRequestAddress())) {
             target.accept(new Observation.RequestSeen(
@@ -82,19 +110,41 @@ public class RrSampler {
                     Map.of()));
         }
 
-        if (expectation.getReplyAddress() != null) {
-            for (BrowsedMessage m : browse(clusterId, node, expectation.getReplyAddress())) {
+        for (String replyAddress : replyTargets) {
+            for (BrowsedMessage m : browse(clusterId, node, replyAddress)) {
                 target.accept(new Observation.ReplySeen(
                         clusterId,
                         node.getId(),
                         Instant.now(),
-                        expectation.getReplyAddress(),
+                        replyAddress,
                         String.valueOf(m.messageId()),
                         correlationOf(expectation, m),
                         m.bodyPreview(),
                         Map.of()));
             }
         }
+    }
+
+    /**
+     * A sampling failure used to be swallowed at {@code debug}, so a
+     * correctly-configured-looking expectation produced nothing and said nothing.
+     * It is now a {@code warn} on first occurrence and at most once a minute after,
+     * naming the expectation and the node — loud enough to find, quiet enough that a
+     * node down for an hour does not fill the log at the sampling cadence.
+     */
+    private void reportFailure(RrExpectationEntity expectation, BrokerNodeEntity node, RuntimeException e) {
+        String key = expectation.getId() + "|" + node.getId();
+        Instant now = Instant.now();
+        Instant last = lastReported.get(key);
+        if (last != null && last.isAfter(now.minus(FAILURE_LOG_INTERVAL))) {
+            return;
+        }
+        lastReported.put(key, now);
+        log.warn(
+                "Request-reply sampling failed for '{}' on node {}: {}",
+                expectation.getRequestAddress(),
+                node.getName(),
+                e.toString());
     }
 
     private static String correlationOf(RrExpectationEntity expectation, BrowsedMessage m) {
@@ -114,11 +164,10 @@ public class RrSampler {
         return result.page().messages();
     }
 
-    private BrokerNodeEntity servingNode(UUID clusterId) {
+    private List<BrokerNodeEntity> servingNodes(UUID clusterId) {
         return nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
                 .filter(n -> Boolean.TRUE.equals(n.getActive()) && n.getLastError() == null)
                 .filter(n -> n.getCoreUrl() != null)
-                .findFirst()
-                .orElse(null);
+                .toList();
     }
 }

@@ -2687,8 +2687,11 @@
       "UpdateExpectationRequest" : {
         "type" : "object",
         "properties" : {
-          "replyAddress" : {
-            "type" : "string"
+          "replyAddresses" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           },
           "correlationProperty" : {
             "type" : "string"
@@ -2721,8 +2724,22 @@
           "requestAddress" : {
             "type" : "string"
           },
-          "replyAddress" : {
-            "type" : [ "string", "null" ]
+          "replyAddresses" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "resolvedReplyAddresses" : {
+            "type" : "array",
+            "description" : "What replyAddresses currently expands to, from the last scrape's addresses",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "replyAddressesCapped" : {
+            "type" : "boolean",
+            "description" : "The resolution cap cut the expansion short"
           },
           "correlationProperty" : {
             "type" : [ "string", "null" ]
@@ -2742,7 +2759,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "capturePayload", "enabled", "id", "requestAddress", "samplePerMin" ]
+        "required" : [ "capturePayload", "enabled", "id", "replyAddresses", "replyAddressesCapped", "requestAddress", "resolvedReplyAddresses", "samplePerMin" ]
       },
       "AssignEnvironmentRequest" : {
         "type" : "object",
@@ -3355,8 +3372,11 @@
             "type" : "string",
             "minLength" : 1
           },
-          "replyAddress" : {
-            "type" : "string"
+          "replyAddresses" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           },
           "correlationProperty" : {
             "type" : "string"

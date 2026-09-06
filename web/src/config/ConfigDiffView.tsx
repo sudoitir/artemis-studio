@@ -53,31 +53,31 @@ function SectionTable({ entries }: { entries: ConfigEntryView[] }) {
       <Table withRowBorders={false} verticalSpacing={4} className={styles.table}>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Key</Table.Th>
+            <Table.Th className={styles.keyCell}>Key</Table.Th>
             <Table.Th>Left</Table.Th>
             <Table.Th>Right</Table.Th>
-            <Table.Th>Status</Table.Th>
+            <Table.Th className={styles.statusCell}>Status</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {entries.map((e) => (
             <Table.Tr key={e.key} data-drift={e.drift || undefined}>
-              <Table.Td>
+              <Table.Td className={styles.keyCell} title={e.key}>
                 <Text size="xs" ff="monospace">
                   {e.key}
                 </Text>
               </Table.Td>
-              <Table.Td>
+              <Table.Td className={styles.valueCell}>
                 <Text size="xs" ff="monospace" c={e.left === null ? 'dimmed' : undefined}>
                   {e.left ?? '—'}
                 </Text>
               </Table.Td>
-              <Table.Td>
+              <Table.Td className={styles.valueCell}>
                 <Text size="xs" ff="monospace" c={e.right === null ? 'dimmed' : undefined}>
                   {e.right ?? '—'}
                 </Text>
               </Table.Td>
-              <Table.Td>
+              <Table.Td className={styles.statusCell}>
                 {/* The status is a word, never carried by colour alone. */}
                 <Group gap={6} wrap="nowrap">
                   <Text size="xs">{e.statusWord}</Text>

@@ -26,6 +26,13 @@ import org.springframework.stereotype.Component;
  * queue (it has no fixed name to poll), so a delivery to it is the only signal
  * a reply arrived. The destination alone identifies the flow — the temp queue
  * is 1:1 per request — so no correlation id is needed for that observation.
+ *
+ * <p>A delivery on a <em>resolved reply address</em> is forwarded too (design.md
+ * D6). The shared-queue pattern is otherwise sampled-only, and the sampler browses
+ * page 1 every few seconds, so a reply consumed in milliseconds is never there when
+ * it looks. This observation carries no correlation id, so it completes a flow only
+ * where sampling already supplied the correlation identity — an improvement in
+ * coverage, not a replacement for browsing.
  */
 @Component
 @RequiredArgsConstructor
@@ -69,7 +76,11 @@ public class RrNotificationObserver implements BrokerEventSink {
                 }
             }
             case "MESSAGE_DELIVERED" -> {
-                if (correlator.hasOpenTempQueueFlow(event.clusterId(), event.routingName())) {
+                // Two ways a delivery is a reply: it closes a temp-queue flow, or it
+                // landed on an address some expectation's reply patterns cover.
+                if (correlator.hasOpenTempQueueFlow(event.clusterId(), event.routingName())
+                        || correlator.isTracedReplyAddress(event.clusterId(), event.address())
+                        || correlator.isTracedReplyAddress(event.clusterId(), event.routingName())) {
                     correlator.accept(new Observation.ReplySeen(
                             event.clusterId(),
                             event.nodeId(),

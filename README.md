@@ -124,6 +124,7 @@ key as a bearer token:
 {
   "mcpServers": {
     "artemis-studio": {
+      "type": "http",
       "url": "https://studio.example.com/mcp",
       "headers": { "Authorization": "Bearer as_..." }
     }

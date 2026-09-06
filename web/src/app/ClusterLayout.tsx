@@ -8,6 +8,7 @@ import { useCluster, useRediscover } from '../api/client.ts';
 import { useClusterStream } from '../api/stream.ts';
 import { RemoveCluster } from '../clusters/AddManagementUrl.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
+import { useDismissedNotice } from './useDismissedNotice.ts';
 
 /**
  * One cluster's screen: identity header, the health banner, and the routed
@@ -22,6 +23,24 @@ export function ClusterLayout() {
   const [removing, setRemoving] = useState(false);
 
   useClusterStream(clusterId);
+
+  const caps = data?.capabilities;
+  const gaps = caps
+    ? [
+        ...(['managementRead', 'managementWrite', 'messageIo'] as const).filter(
+          (k) => caps[k].status !== 'AVAILABLE',
+        ),
+        // notifications: nag only on a real, actionable gap — not while it is
+        // still UNKNOWN because the first scrape cycle has not run.
+        ...(caps.notifications.status === 'UNAVAILABLE' ? ['notifications'] : []),
+      ]
+    : [];
+  // Keyed on which capabilities are short, so dismissing today's gap does not
+  // also hide a different one that appears tomorrow. Computed before the early
+  // returns below so the hook order never depends on the query state.
+  const [capsDismissed, dismissCaps] = useDismissedNotice(
+    `capabilities:${clusterId}:${gaps.join(',')}`,
+  );
 
   if (isPending) return <Loader size="sm" />;
   if (isError) {
@@ -40,13 +59,6 @@ export function ClusterLayout() {
     data.health.level === 'UNKNOWN' ? 'not yet contacted' : 'reachable',
   ].join(' · ');
   const critical = data.health.splitBrain === 'CRITICAL';
-  const capsNeedingSetup =
-    (['managementRead', 'managementWrite', 'messageIo'] as const).some(
-      (k) => data.capabilities[k].status !== 'AVAILABLE',
-    ) ||
-    // notifications: nag only on a real, actionable gap — not while it is still
-    // UNKNOWN because the first scrape cycle has not run.
-    data.capabilities.notifications.status === 'UNAVAILABLE';
 
   return (
     <Stack gap="lg">
@@ -91,8 +103,15 @@ export function ClusterLayout() {
         </Alert>
       ) : null}
 
-      {capsNeedingSetup ? (
-        <Alert color="gray" variant="light" title="Some broker capabilities need setup">
+      {gaps.length > 0 && !capsDismissed ? (
+        <Alert
+          color="gray"
+          variant="light"
+          title="Some broker capabilities need setup"
+          withCloseButton
+          closeButtonLabel="Dismiss until you sign out"
+          onClose={dismissCaps}
+        >
           <Stack gap="xs">
             <Text size="sm">
               One or more features are limited by this connection. Each row below expands with the

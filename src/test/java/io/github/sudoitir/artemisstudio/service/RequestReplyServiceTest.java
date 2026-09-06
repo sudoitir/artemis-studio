@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.CreateExpectationRequest;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.ExpectationView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.UpdateExpectationRequest;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -50,16 +51,34 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
     void createIsAuditedAndEnabledByDefault() {
         UUID clusterId = cluster();
         ExpectationView created = service.create(
-                clusterId, new CreateExpectationRequest("rr.request", "rr.reply", null, 30_000, 10, false));
+                clusterId, new CreateExpectationRequest("rr.request", List.of("rr.reply"), null, 30_000, 10, false));
 
         assertThat(created.enabled()).isTrue();
         assertThat(created.requestAddress()).isEqualTo("rr.request");
-        assertThat(created.replyAddress()).isEqualTo("rr.reply");
+        assertThat(created.replyAddresses()).containsExactly("rr.reply");
 
         List<AuditEventEntity> events = audits.findByClusterIdOrderByTsDesc(clusterId);
         assertThat(events).hasSize(1);
         assertThat(events.getFirst().getAction()).isEqualTo("CREATE_RR_EXPECTATION");
         assertThat(events.getFirst().getOutcome()).isEqualTo("SUCCESS");
+    }
+
+    @Test
+    void aSecondExpectationForTheSameAddressConflictsRatherThanBreakingTheTransaction() {
+        UUID clusterId = cluster();
+        service.create(clusterId, new CreateExpectationRequest("rr.request", null, null, null, 10, false));
+
+        assertThatThrownBy(() -> service.create(
+                        clusterId,
+                        new CreateExpectationRequest("rr.request", List.of("rr.other"), null, null, 10, false)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("rr.request")
+                .extracting(e -> ((ConflictException) e).slug())
+                .isEqualTo("duplicate-rr-expectation");
+
+        // The rejected attempt leaves no audit row: it never opened one.
+        assertThat(audits.findByClusterIdOrderByTsDesc(clusterId)).hasSize(1);
+        assertThat(service.list(clusterId)).hasSize(1);
     }
 
     @Test
@@ -72,7 +91,7 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
                 clusterId,
                 created.id(),
                 new UpdateExpectationRequest(
-                        created.replyAddress(),
+                        created.replyAddresses(),
                         created.correlationProperty(),
                         created.deadlineMs(),
                         created.samplePerMin(),
@@ -87,6 +106,39 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
         List<AuditEventEntity> events = audits.findByClusterIdOrderByTsDesc(clusterId);
         assertThat(events).hasSize(2);
         assertThat(events.getFirst().getAction()).isEqualTo("UPDATE_RR_EXPECTATION");
+    }
+
+    @Test
+    void replyAddressesRoundTripWithBlanksAndDuplicatesRemoved() {
+        UUID clusterId = cluster();
+        ExpectationView created = service.create(
+                clusterId,
+                new CreateExpectationRequest(
+                        "rr.request",
+                        // Blanks and repeats are what a multi-value input produces when an
+                        // operator pastes a list; they must not reach the browse loop.
+                        Arrays.asList("rr.reply.a", "  ", "rr.reply.*", "rr.reply.a", null, " rr.reply.b "),
+                        null,
+                        null,
+                        10,
+                        false));
+
+        assertThat(created.replyAddresses()).containsExactly("rr.reply.a", "rr.reply.*", "rr.reply.b");
+
+        ExpectationView reread = service.list(clusterId).getFirst();
+        assertThat(reread.replyAddresses()).containsExactly("rr.reply.a", "rr.reply.*", "rr.reply.b");
+    }
+
+    @Test
+    void anEmptyReplyAddressSetIsStoredRatherThanRejected() {
+        UUID clusterId = cluster();
+        // An empty set is the temporary-reply-queue pattern (design.md D3), not an omission.
+        ExpectationView created =
+                service.create(clusterId, new CreateExpectationRequest("rr.temp", List.of(), null, null, 10, false));
+
+        assertThat(created.replyAddresses()).isEmpty();
+        assertThat(created.resolvedReplyAddresses()).isEmpty();
+        assertThat(created.replyAddressesCapped()).isFalse();
     }
 
     @Test

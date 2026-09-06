@@ -6,17 +6,25 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
- * Maps {@code rr_expectation} (changesets 007, 011): which request addresses an
- * operator has declared for request-reply tracing, and how (proposal.md,
+ * Maps {@code rr_expectation} (changesets 007, 011, 017): which request addresses
+ * an operator has declared for request-reply tracing, and how (proposal.md,
  * request-reply-tracing spec).
+ *
+ * <p>{@code replyAddresses} is a set of literal addresses or globs, never null. An
+ * empty list is meaningful and is not the same as unset: it says replies arrive on
+ * a temporary queue named by the request's {@code replyTo} (design.md, D3).
  */
 @Entity
 @Table(name = "rr_expectation")
@@ -38,8 +46,15 @@ public class RrExpectationEntity {
     @Column(name = "request_address", nullable = false)
     private String requestAddress;
 
-    @Column(name = "reply_address")
-    private String replyAddress;
+    /**
+     * Literal addresses or {@code *} globs. Mapped as the Postgres {@code TEXT[]}
+     * declared by changeset 017 rather than a child table: the set is small, always
+     * read whole with its parent and never queried on its own, so a join would only
+     * add a query to the correlator's hot path (design.md, D2).
+     */
+    @Column(name = "reply_addresses", nullable = false, columnDefinition = "text[]")
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private List<String> replyAddresses = new ArrayList<>();
 
     @Column(name = "correlation_property")
     private String correlationProperty;
@@ -56,17 +71,22 @@ public class RrExpectationEntity {
     @Column(name = "enabled", nullable = false)
     private boolean enabled = true;
 
+    /** Never stores null — the column is {@code NOT NULL} and an empty list is the meaningful "temp queue" value. */
+    public void setReplyAddresses(List<String> replyAddresses) {
+        this.replyAddresses = replyAddresses == null ? new ArrayList<>() : new ArrayList<>(replyAddresses);
+    }
+
     public RrExpectationEntity(
             UUID clusterId,
             String requestAddress,
-            String replyAddress,
+            List<String> replyAddresses,
             String correlationProperty,
             Integer deadlineMs,
             int samplePerMin,
             boolean capturePayload) {
         this.clusterId = clusterId;
         this.requestAddress = requestAddress;
-        this.replyAddress = replyAddress;
+        setReplyAddresses(replyAddresses);
         this.correlationProperty = correlationProperty;
         this.deadlineMs = deadlineMs;
         this.samplePerMin = samplePerMin;
