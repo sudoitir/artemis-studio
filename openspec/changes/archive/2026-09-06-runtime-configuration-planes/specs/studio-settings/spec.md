@@ -1,13 +1,4 @@
-# studio-settings Specification
-
-## Purpose
-Defines how Artemis Studio is configured: the operational settings an operator
-can change from the application without restarting it and the audit trail of
-those changes, the deploy-time properties a deployment supplies from its own
-database before the application starts, and the rotation of stored broker
-credentials.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Operational settings are stored and overridable at runtime
 
@@ -110,46 +101,8 @@ knowledge of.
 - **THEN** the client can present it, under its grouping and with its label and
   explanation, without a client-side change
 
-### Requirement: Broker credentials can be rotated
+## ADDED Requirements
 
-The system SHALL allow replacing a cluster's stored broker credentials. The new
-credentials SHALL be stored only as authenticated ciphertext bound to that
-cluster, the change SHALL be audited in the same transaction as the write, and
-no response SHALL ever contain the credentials in plaintext.
-
-#### Scenario: Rotation re-encrypts and audits
-
-- **WHEN** an operator submits new broker credentials for a cluster
-- **THEN** the stored ciphertext is replaced, an audit event records the
-  rotation and its outcome, and the response contains no secret
-
-#### Scenario: Next scrape uses the new credentials
-
-- **WHEN** credentials are rotated and the next scrape runs
-- **THEN** the scrape authenticates with the new credentials
-
-#### Scenario: Rotation is guarded in the UI
-
-- **WHEN** an operator rotates credentials from the frontend
-- **THEN** the UI requires the cluster name to be typed to confirm
-
-### Requirement: Settings writes require a global write permission
-
-Reading operational settings SHALL require an authenticated principal.
-Updating a setting, including the bulk-operation safety cap, SHALL require a
-global settings-write permission.
-
-#### Scenario: Settings write requires global permission
-
-- **WHEN** a user without global settings-write permission attempts to change
-  a setting
-- **THEN** the request is rejected
-
-#### Scenario: The bulk safety cap cannot be raised without permission
-
-- **WHEN** a user without global settings-write permission attempts to raise
-  the bulk-operation safety cap
-- **THEN** the request is rejected and the previous cap remains in effect
 ### Requirement: Settings changes are audited
 
 The system SHALL record an audit event for every change to an operational setting

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.Events;
+import io.github.sudoitir.artemisstudio.support.Props;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -15,19 +16,8 @@ import org.junit.jupiter.api.Test;
 class TopicCoalescerTest {
 
     private final SseHub hub = mock(SseHub.class);
-    private final ArtemisStudioProperties props = new ArtemisStudioProperties(
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            new Events(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50),
-            null,
-            null,
-            null,
-            null);
+    private final ArtemisStudioProperties props =
+            Props.events(new Events(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50, "0 15 * * * *"));
     private final TopicCoalescer coalescer = new TopicCoalescer(hub, props);
 
     @Test

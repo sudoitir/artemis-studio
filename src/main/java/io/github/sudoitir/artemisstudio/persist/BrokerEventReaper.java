@@ -4,7 +4,6 @@ import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +37,7 @@ public class BrokerEventReaper {
         return retentionHours;
     }
 
-    @Scheduled(cron = "0 15 * * * *")
+    /** Scheduled by {@code DynamicSchedules} on the settings-driven cron (ADR-0048). */
     @Transactional
     public void reap() {
         int deleted = jdbc.update(DELETE_OLD, Map.of("hours", retentionHours));

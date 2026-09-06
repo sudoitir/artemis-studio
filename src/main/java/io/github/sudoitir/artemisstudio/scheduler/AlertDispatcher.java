@@ -1,18 +1,17 @@
 package io.github.sudoitir.artemisstudio.scheduler;
 
 import io.github.sudoitir.artemisstudio.broker.notify.NotificationSender;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.persist.AlertDeliveryEntity;
 import io.github.sudoitir.artemisstudio.persist.AlertDeliveryRepository;
 import io.github.sudoitir.artemisstudio.persist.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.persist.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.security.SecretVault;
+import io.github.sudoitir.artemisstudio.service.SettingsService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,11 +32,9 @@ public class AlertDispatcher {
     private final NotificationChannelRepository channels;
     private final List<NotificationSender> senders;
     private final SecretVault vault;
-    private final ArtemisStudioProperties properties;
+    private final SettingsService settings;
 
-    @Scheduled(
-            fixedDelayString = "${artemis-studio.alerting.dispatch-interval:5s}",
-            initialDelayString = "${artemis-studio.alerting.dispatch-interval:5s}")
+    /** Scheduled by {@code DynamicSchedules} on {@code alerting.dispatch-interval}. */
     @Transactional
     public void dispatch() {
         for (AlertDeliveryEntity delivery : deliveries.claimDue(BATCH_SIZE)) {
@@ -84,10 +81,9 @@ public class AlertDispatcher {
                     ? result.retryAfter()
                     : AlertBackoff.delayFor(
                             delivery.getAttempts() + 1,
-                            properties.alerting().initialBackoff(),
-                            properties.alerting().maxBackoff());
-            delivery.recordFailure(
-                    now, result.error(), delay, properties.alerting().maxAttempts());
+                            settings.alertingInitialBackoff(),
+                            settings.alertingMaxBackoff());
+            delivery.recordFailure(now, result.error(), delay, settings.alertingMaxAttempts());
             log.warn(
                     "Notification delivery {} to channel {} failed (attempt {}): {}",
                     delivery.getSeq(),

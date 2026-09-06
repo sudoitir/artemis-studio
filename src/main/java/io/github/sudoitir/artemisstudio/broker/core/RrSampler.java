@@ -17,7 +17,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -44,7 +43,10 @@ public class RrSampler {
     private final CoreMessageTransport coreTransport;
     private final ObjectProvider<RrObservationSink> sink;
 
-    @Scheduled(fixedDelay = 5000, initialDelay = 5000)
+    /**
+     * Scheduled by {@code DynamicSchedules} on {@code rr.sample-interval}. It used to
+     * hardcode 5s and ignore the configured value entirely.
+     */
     public void tick() {
         RrObservationSink target = sink.getIfAvailable();
         if (target == null) {

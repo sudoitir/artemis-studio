@@ -86,6 +86,7 @@ docker run -p 8080:8080 \
 | `ARTEMIS_STUDIO_DB_URL` | yes | `jdbc:postgresql://host:5432/artemis_studio` |
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | yes | Encrypts stored broker credentials (ADR-0009). Base64 of **exactly 32 bytes** or the app won't start: `openssl rand -base64 32` |
+| `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values stored in `studio_config_property` (ADR-0047). A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
 | `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=75` |
 
 **First login.** Username `admin`. The first run against an empty database
