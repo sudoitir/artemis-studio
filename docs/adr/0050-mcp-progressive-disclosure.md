@@ -1,6 +1,6 @@
 # ADR-0050: The MCP listing budget scales per tool, and detail moves to a resource
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0054](0054-mcp-discovery-is-a-tool-not-a-resource.md)
 - **Date**: 2026-09-06
 - **Deciders**: Artemis Studio maintainers
 - **Extends**: [ADR-0045](0045-mcp-server-is-a-capability-surface.md)

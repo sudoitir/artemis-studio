@@ -52,25 +52,24 @@ public class McpCatalogResources {
     }
 
     /**
-     * The detail the tool schemas deliberately leave out (ADR-0050).
+     * The detail the tool schemas deliberately leave out — mirrored here for hosts
+     * that read resources (ADR-0054).
      *
-     * <p>{@code tools/list} is sent to a model on every conversation that touches
-     * Studio, before it has asked for anything, so anything spelled out there is a
-     * permanent tax on every session. Enum members and JSON body shapes are the
-     * bulk of it and are needed by exactly one tool, once the model has already
-     * decided to call it. So they live here, and the schemas name this resource.
-     *
-     * <p>A model that never reads this still works: every discriminator is
-     * validated server-side and the rejection names the values it would have
-     * accepted.
+     * <p>This is a mirror, not the route. {@code resources} is an optional server
+     * capability and nothing in the protocol obliges a client ever to call
+     * {@code resources/read}, so ADR-0050's decision to put this detail here and
+     * only here made the surface unusable on hosts that skip resources. The
+     * {@code studio_help} tool is now the primary channel, because tools are the one
+     * part of MCP every host implements; this resource is generated from the same
+     * {@link McpToolCatalog} and nothing depends on it being fetched.
      */
     @McpResource(
             uri = "studio://tools",
             name = "Tool parameter detail",
-            description = "Valid values and JSON body shapes for tools whose schema names this resource.",
+            description = "Accepted values and JSON body shapes for every tool. Mirrors the studio_help tool.",
             mimeType = "application/json")
     public McpSchema.ReadResourceResult toolDetail() {
-        return json("studio://tools", McpToolDetail.entries());
+        return json("studio://tools", McpToolCatalog.entries());
     }
 
     @McpResource(

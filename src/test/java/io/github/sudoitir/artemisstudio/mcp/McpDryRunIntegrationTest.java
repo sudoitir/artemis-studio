@@ -119,7 +119,7 @@ class McpDryRunIntegrationTest extends PostgresIntegrationTest {
         JsonNode response = McpFixture.callTool(
                 mvc,
                 key,
-                "queue_action",
+                "message_action",
                 Map.of(
                         "clusterId",
                         clusterId.toString(),
@@ -149,7 +149,7 @@ class McpDryRunIntegrationTest extends PostgresIntegrationTest {
         JsonNode response = McpFixture.callTool(
                 mvc,
                 key,
-                "queue_action",
+                "message_action",
                 Map.of(
                         "clusterId",
                         clusterId.toString(),
@@ -176,7 +176,7 @@ class McpDryRunIntegrationTest extends PostgresIntegrationTest {
         JsonNode response = McpFixture.callTool(
                 mvc,
                 key,
-                "queue_action",
+                "message_action",
                 Map.of(
                         "clusterId",
                         clusterId.toString(),

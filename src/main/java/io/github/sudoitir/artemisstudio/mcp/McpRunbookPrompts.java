@@ -27,7 +27,7 @@ public class McpRunbookPrompts {
         return prompt("Triage runbook", """
                 Triage %s in this order, and stop as soon as one step explains the symptom.
 
-                1. cluster_health. A splitBrain of CRITICAL is the whole answer — stop and \
+                1. diagnose with no queue. A splitBrain of CRITICAL is the whole answer — stop and \
                 escalate; two nodes are accepting writes and the journals are diverging. \
                 SUSPECTED during a failover is normal for a few seconds.
                 2. If alertsVisible is false, this key cannot see alerts. Say so rather than \
@@ -38,7 +38,7 @@ public class McpRunbookPrompts {
                 risk, not an outage.
                 4. list_resources kind=queues, sorted by depth. A deep queue with zero consumers \
                 is a stuck consumer, not a broker fault.
-                5. diagnose_queue on the worst queue. Its trend separates a backlog that is \
+                5. diagnose queue=<the worst queue>. Its trend separates a backlog that is \
                 draining from one that is growing.
                 6. activity_log source=broker_events for what the broker itself reported around \
                 the time the symptom started.
@@ -56,7 +56,7 @@ public class McpRunbookPrompts {
         return prompt("Queue investigation runbook", """
                 Investigate %s on %s.
 
-                1. diagnose_queue. Read trend before depth: a deep queue that is draining needs \
+                1. diagnose with the queue name. Read trend before depth: a deep queue that is draining needs \
                 patience, not intervention.
                 2. Zero consumers with a growing depth is a consumer-side problem. The broker is \
                 working. Fixing it here — by purging — destroys the evidence and the messages.
@@ -64,8 +64,8 @@ public class McpRunbookPrompts {
                 are attached but not acknowledging.
                 4. browse_messages for a few headers. Check whether they are all one type, one \
                 correlation id, or all expired.
-                5. Only read a body (message_body) once the headers have narrowed it to a specific \
-                message worth looking at.
+                5. Only read a body (browse_messages with messageId) once the headers have narrowed \
+                it to a specific message worth looking at.
                 6. activity_log source=broker_events filtered to the address, for consumer \
                 connect/disconnect churn.
 
@@ -84,9 +84,9 @@ public class McpRunbookPrompts {
                 Purging discards messages permanently. There is no undo and no recovery from the \
                 broker side. Before proposing one on %s:
 
-                1. queue_action with the defaults. dryRun is true unless you set it false, so this \
+                1. message_action with the defaults. dryRun is true unless you set it false, so this \
                 returns the count that would be affected and changes nothing.
-                2. diagnose_queue. If consumers are attached and the depth is falling, the queue is \
+                2. diagnose with the queue name. If consumers are attached and the depth is falling, the queue is \
                 draining on its own — purging is the wrong action.
                 3. browse_messages. Look at what is actually there. Messages that a fixed consumer \
                 would process are messages a purge would destroy.
@@ -96,7 +96,7 @@ public class McpRunbookPrompts {
                 That is a signal about scale, not an obstacle to route around.
 
                 Then stop. Report the count, what the messages appear to be, and your \
-                recommendation — and ask the operator to confirm. Do not call queue_action with \
+                recommendation — and ask the operator to confirm. Do not call message_action with \
                 dryRun=false on your own initiative; the confirm argument exists so that a human \
                 decision is what unlocks a destructive run, and supplying it yourself defeats it.""".formatted(subject(queue, clusterId)));
     }

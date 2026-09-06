@@ -104,7 +104,7 @@ class McpClusterHidingTest extends PostgresIntegrationTest {
                 .apply(springSecurity())
                 .build();
 
-        JsonNode granted = McpFixture.callTool(mvc, key, "cluster_health", Map.of("clusterId", visible.toString()));
+        JsonNode granted = McpFixture.callTool(mvc, key, "diagnose", Map.of("clusterId", visible.toString()));
         assertThat(granted.path("result").path("isError").asBoolean(false))
                 .describedAs(
                         "the granted cluster came back as an error, so the token's grants were not "
@@ -117,7 +117,7 @@ class McpClusterHidingTest extends PostgresIntegrationTest {
                         .asString())
                 .isEqualTo(visible.toString());
 
-        JsonNode denied = McpFixture.callTool(mvc, key, "cluster_health", Map.of("clusterId", hidden.toString()));
+        JsonNode denied = McpFixture.callTool(mvc, key, "diagnose", Map.of("clusterId", hidden.toString()));
         assertThat(denied.path("result").path("isError").asBoolean(false)).isTrue();
 
         String message =

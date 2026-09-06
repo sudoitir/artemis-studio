@@ -71,21 +71,10 @@ spring:
           # Declaring a capability we do not implement is worse than not having it.
           # There is no @McpComplete anywhere in the surface.
           completion: false
-        # Under a host that searches tools rather than dumping tools/list, this is
-        # the discovery index — it is the only text guaranteed to be read.
-        instructions: >
-          Artemis Studio: cluster-wide management and observability for Apache
-          ActiveMQ Artemis brokers. Read tools: cluster_health (HA state,
-          split-brain, firing alerts), list_resources (queues, addresses,
-          consumers, sessions, connections, producers), diagnose_queue (one queue,
-          end to end), metric_series, config_diff, browse_messages,
-          trace_request_reply, activity_log. Mutating tools: queue_action,
-          send_message, alert_rule, studio_setting — all default to dryRun=true and
-          a real destructive run needs `confirm` to equal the subject's name.
-          Resources: studio://clusters, studio://permissions,
-          cluster://{id}/topology, cluster://{id}/capabilities. Start from
-          studio://clusters for the cluster ids this key can see, and
-          studio://permissions for what it may do.
+        # The instructions block is NOT written here. It is generated from
+        # McpToolCatalog by McpServerInstructions (ADR-0054) — the hand-written one
+        # that used to live here had already drifted, omitting two tools, which told
+        # a tool-searching host that two capabilities did not exist.
 
   task:
     scheduling:

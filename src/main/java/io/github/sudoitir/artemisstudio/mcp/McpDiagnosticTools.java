@@ -67,19 +67,37 @@ public class McpDiagnosticTools {
     private final PermissionResolver perm;
     private final io.github.sudoitir.artemisstudio.service.ClockOffsetService clocks;
 
+    /**
+     * Cluster health and single-queue diagnosis behind one optional argument
+     * (ADR-0054).
+     *
+     * <p>They merge because they share both conditions the grouping rule requires:
+     * one honest posture — neither mutates — and one target family, a cluster and
+     * something in it, scoped by an optional name. That is the shape
+     * {@code metric_series} already uses for the same reason.
+     *
+     * <p>It is also the pair a model most often has to choose between blind: "is
+     * this cluster healthy" and "why is this queue backing up" are the same triage
+     * step at two scopes, and making the scope an argument removes a selection
+     * decision rather than adding one.
+     */
     @McpTool(
-            name = "cluster_health",
-            description =
-                    "HA role per node, who is live, split-brain, replication lag, " + "firing alerts. Start here.",
+            name = "diagnose",
+            description = "Cluster health, or one queue end to end. Start here.",
             annotations =
                     @McpTool.McpAnnotations(
                             readOnlyHint = true,
                             destructiveHint = false,
                             idempotentHint = true,
                             openWorldHint = false))
-    public McpSchema.CallToolResult clusterHealth(@McpToolParam(required = true) String clusterId) {
+    public McpSchema.CallToolResult diagnose(
+            @McpToolParam(required = true) String clusterId, @McpToolParam(required = false) String queue) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
-        return McpErrors.guard(() -> health(id));
+        if (queue == null || queue.isBlank()) {
+            return McpErrors.guard(() -> health(id));
+        }
+        String name = queue.trim();
+        return McpErrors.guard(() -> diagnose(id, name));
     }
 
     private McpViews.ClusterHealth health(UUID clusterId) {
@@ -170,9 +188,9 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult listResources(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "The resource kind", required = true) String kind,
-            @McpToolParam(description = "Substring filter", required = false) String filter,
-            @McpToolParam(description = "Max rows", required = false) Integer limit) {
+            @McpToolParam(required = true) String kind,
+            @McpToolParam(required = false) String filter,
+            @McpToolParam(required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         ListKind k = McpArgs.enumOf(ListKind.class, "kind", kind, null);
         int capped = props.mcp().clamp(limit);
@@ -269,9 +287,9 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult metricSeries(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "The metric", required = true) String metric,
-            @McpToolParam(description = "Omit for the whole cluster", required = false) String queue,
-            @McpToolParam(description = "e.g. 15m, 6h, 2d. Default 1h", required = false) String window) {
+            @McpToolParam(required = true) String metric,
+            @McpToolParam(required = false) String queue,
+            @McpToolParam(required = false) String window) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String m = McpArgs.required("metric", metric);
         Duration lookback = parseWindow(window);
@@ -332,23 +350,7 @@ public class McpDiagnosticTools {
         };
     }
 
-    // ---- diagnose_queue ---------------------------------------------------
-
-    @McpTool(
-            name = "diagnose_queue",
-            description = "One queue end to end: depth and trend, consumers, paused, " + "slow consumers, DLQ, events.",
-            annotations =
-                    @McpTool.McpAnnotations(
-                            readOnlyHint = true,
-                            destructiveHint = false,
-                            idempotentHint = true,
-                            openWorldHint = false))
-    public McpSchema.CallToolResult diagnoseQueue(
-            @McpToolParam(required = true) String clusterId, @McpToolParam(required = true) String queue) {
-        UUID id = McpArgs.uuid("clusterId", clusterId);
-        String name = McpArgs.required("queue", queue);
-        return McpErrors.guard(() -> diagnose(id, name));
-    }
+    // ---- diagnose, queue scope --------------------------------------------
 
     private McpViews.QueueDiagnosis diagnose(UUID clusterId, String queue) {
         // The snapshot row is the cheap authoritative read; an exact-name filter still
@@ -438,7 +440,7 @@ public class McpDiagnosticTools {
         }
         if (row.totalDeliveringCount() > 0 && row.totalMessageCount() > row.totalDeliveringCount() * 10) {
             return "possible — depth is far above what is in flight; check "
-                    + "slow-consumer-policy on the address and cluster_health for the broker's own verdict";
+                    + "slow-consumer-policy on the address and diagnose for the broker's own verdict";
         }
         return "none observed";
     }
@@ -456,8 +458,8 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult configDiff(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "First node id", required = false) String nodeA,
-            @McpToolParam(description = "Second node id", required = false) String nodeB) {
+            @McpToolParam(required = false) String nodeA,
+            @McpToolParam(required = false) String nodeB) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         UUID a = McpArgs.optionalUuid("nodeA", nodeA);
         UUID b = McpArgs.optionalUuid("nodeB", nodeB);
@@ -505,9 +507,16 @@ public class McpDiagnosticTools {
 
     // ---- browse_messages --------------------------------------------------
 
+    /**
+     * Headers, or one body, behind an optional id (ADR-0054).
+     *
+     * <p>The body was always the drill-down from a header row: same cluster, same
+     * queue, one more identifier. Two tools made a model choose between them before
+     * it had the id that distinguishes them.
+     */
     @McpTool(
             name = "browse_messages",
-            description = "A capped page of message headers. Bodies come from message_body.",
+            description = "A capped page of message headers on a queue, or one message's full body by id.",
             annotations =
                     @McpTool.McpAnnotations(
                             readOnlyHint = true,
@@ -517,10 +526,20 @@ public class McpDiagnosticTools {
     public McpSchema.CallToolResult browseMessages(
             @McpToolParam(required = true) String clusterId,
             @McpToolParam(required = true) String queue,
-            @McpToolParam(description = "e.g. JMSPriority > 5", required = false) String filter,
-            @McpToolParam(description = "Max headers; capped server-side", required = false) Integer limit) {
+            @McpToolParam(required = false) String messageId,
+            @McpToolParam(required = false) String filter,
+            @McpToolParam(required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String q = McpArgs.required("queue", queue);
+        if (messageId != null && !messageId.isBlank()) {
+            long mid;
+            try {
+                mid = Long.parseLong(messageId.trim());
+            } catch (NumberFormatException e) {
+                throw McpErrors.invalidParams("messageId must be the numeric id a header row returned.");
+            }
+            return McpErrors.guard(() -> messages.detail(id, q, mid, null, null));
+        }
         int capped = props.mcp().clamp(limit);
         return McpErrors.guard(() -> headers(id, q, filter, capped));
     }
@@ -540,30 +559,6 @@ public class McpDiagnosticTools {
         return McpViews.Page.of(rows, limit, "broker order");
     }
 
-    @McpTool(
-            name = "message_body",
-            description = "The full body and properties of one message, by id.",
-            annotations =
-                    @McpTool.McpAnnotations(
-                            readOnlyHint = true,
-                            destructiveHint = false,
-                            idempotentHint = true,
-                            openWorldHint = false))
-    public McpSchema.CallToolResult messageBody(
-            @McpToolParam(required = true) String clusterId,
-            @McpToolParam(required = true) String queue,
-            @McpToolParam(required = true) String messageId) {
-        UUID id = McpArgs.uuid("clusterId", clusterId);
-        String q = McpArgs.required("queue", queue);
-        long mid;
-        try {
-            mid = Long.parseLong(McpArgs.required("messageId", messageId));
-        } catch (NumberFormatException e) {
-            throw McpErrors.invalidParams("messageId must be the numeric id browse_messages returned.");
-        }
-        return McpErrors.guard(() -> messages.detail(id, q, mid, null, null));
-    }
-
     // ---- trace_request_reply ---------------------------------------------
 
     private enum RrMode {
@@ -576,8 +571,7 @@ public class McpDiagnosticTools {
 
     @McpTool(
             name = "trace_request_reply",
-            description = "Request-reply tracing: flows, stats (latency, timeouts), expectations, or "
-                    + "diagnostics (why there are no flows).",
+            description = "Request-reply tracing: flows, latency and timeouts, expectations, or diagnostics.",
             annotations =
                     @McpTool.McpAnnotations(
                             readOnlyHint = true,
@@ -586,10 +580,10 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult traceRequestReply(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "Default flows", required = false) String mode,
-            @McpToolParam(description = "Request address filter", required = false) String address,
-            @McpToolParam(description = "e.g. 15m. Default 15m", required = false) String window,
-            @McpToolParam(description = "Max rows", required = false) Integer limit) {
+            @McpToolParam(required = false) String mode,
+            @McpToolParam(required = false) String address,
+            @McpToolParam(required = false) String window,
+            @McpToolParam(required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         RrMode m = McpArgs.enumOf(RrMode.class, "mode", mode, RrMode.FLOWS);
         Duration w = parseWindow(window == null ? "15m" : window);
@@ -637,9 +631,9 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult activityLog(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "Default broker_events", required = false) String source,
-            @McpToolParam(description = "Address or action filter", required = false) String filter,
-            @McpToolParam(description = "Max rows", required = false) Integer limit) {
+            @McpToolParam(required = false) String source,
+            @McpToolParam(required = false) String filter,
+            @McpToolParam(required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         LogSource src = McpArgs.enumOf(LogSource.class, "source", source, LogSource.BROKER_EVENTS);
         int capped = props.mcp().clamp(limit);

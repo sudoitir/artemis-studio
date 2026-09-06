@@ -29,7 +29,7 @@ import tools.jackson.databind.JsonNode;
  * The catalogue must be identical for every caller and every call.
  *
  * <p>Hosts cache the tool listing in the prompt prefix. A listing that varied by
- * what the key can reach — hiding {@code queue_action} from a read-only key, say —
+ * what the key can reach — hiding {@code message_action} from a read-only key, say —
  * would look like helpful tailoring and would invalidate that cache on every
  * connection, re-billing the whole prefix. It would also mislead: a tool absent
  * from the listing reads as "this product cannot do that", when the truth is "this
