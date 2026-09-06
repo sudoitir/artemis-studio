@@ -25,7 +25,7 @@ import {
   useTokens,
   type TokenGrantRequest,
 } from '../api/client.ts';
-import { useCan } from '../auth/Can.tsx';
+import { useCan } from '../auth/useCan.ts';
 
 const GLOBAL = 'GLOBAL';
 

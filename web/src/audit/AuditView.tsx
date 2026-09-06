@@ -18,7 +18,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useAudit, useUsers, type AuditEventView } from '../api/client.ts';
-import { useCan } from '../auth/Can.tsx';
+import { useCan } from '../auth/useCan.ts';
 
 const PAGE_SIZE = 100;
 
