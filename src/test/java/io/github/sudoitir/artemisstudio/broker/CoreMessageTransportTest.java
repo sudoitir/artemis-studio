@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.core.CorePool;
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.Props;
 import jakarta.jms.BytesMessage;
 import jakarta.jms.Connection;
 import jakarta.jms.Session;
@@ -45,8 +46,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         UUID clusterId = UUID.randomUUID();
         queueName = "core.tx.it." + System.nanoTime();
 
-        ArtemisStudioProperties props =
-                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null, null, null);
+        ArtemisStudioProperties props = Props.defaults();
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
         CorePool corePool = new CorePool(connectionFactory);
 

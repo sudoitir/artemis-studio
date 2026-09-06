@@ -1277,6 +1277,10 @@ export interface components {
             value: string;
             overridden: boolean;
             defaultValue: string;
+            group: string;
+            label: string;
+            hint: string;
+            kind: string;
         };
         SettingsResponse: {
             settings: {

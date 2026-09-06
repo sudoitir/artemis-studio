@@ -2,8 +2,7 @@ package io.github.sudoitir.artemisstudio.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.RateLimit;
+import io.github.sudoitir.artemisstudio.support.Props;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,8 +11,7 @@ import org.junit.jupiter.api.Test;
 class NodeCallLimiterTest {
 
     private static NodeCallLimiter limiter(int perSecond) {
-        return new NodeCallLimiter(new ArtemisStudioProperties(
-                null, null, null, new RateLimit(perSecond), null, null, null, null, null, null, null, null));
+        return new NodeCallLimiter(Props.rateLimit(perSecond));
     }
 
     @Test

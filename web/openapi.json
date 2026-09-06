@@ -3560,9 +3560,21 @@
           },
           "defaultValue" : {
             "type" : "string"
+          },
+          "group" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "hint" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
           }
         },
-        "required" : [ "defaultValue", "overridden", "value" ]
+        "required" : [ "defaultValue", "group", "hint", "kind", "label", "overridden", "value" ]
       },
       "SettingsResponse" : {
         "type" : "object",

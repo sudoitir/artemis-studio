@@ -1,0 +1,39 @@
+# The bootstrap phase (ADR-0047). This file is read before application.yml, into a
+# separate context that exists only to build the Environment the main context then
+# starts from. It carries exactly two things and should never grow a third kind:
+#
+#   1. what JdbcConfigPropertySourceLocator needs to reach Postgres, because it runs
+#      before the DataSource exists and cannot ask Spring for one;
+#   2. the key that decrypts {cipher} values, because a value has to be readable
+#      before anything can be bound to it.
+#
+# Everything else belongs in application.yml (packaged defaults), in
+# studio_config_property (deploy-time, per environment), or in studio_setting
+# (operator-tunable, changed from the Settings screen without a restart).
+#
+# Precedence, lowest to highest: bootstrap.yml -> application.yml ->
+# studio_config_property -> environment variables. A studio_setting override is not
+# in this chain at all: it is read through SettingsService, not the Environment.
+
+spring:
+  application:
+    name: artemis-studio
+
+
+  # Same variables as application.yml, repeated rather than imported: the bootstrap
+  # context has no access to application.yml, and duplicating three placeholders is
+  # cheaper than the indirection that would avoid it.
+  datasource:
+    url: ${ARTEMIS_STUDIO_DB_URL:jdbc:postgresql://localhost:5432/artemis_studio}
+    username: ${ARTEMIS_STUDIO_DB_USER:artemis_studio}
+    password: ${ARTEMIS_STUDIO_DB_PASSWORD:artemis_studio}
+
+# Symmetric key for {cipher} values stored in studio_config_property. Unset means
+# encryption is simply unavailable and a {cipher} value stays an opaque string —
+# it does not mean it is silently used in the clear.
+#
+# This is NOT the broker-credential key. ARTEMIS_STUDIO_SECRET_KEY (ADR-0009) seals
+# per-cluster broker credentials in broker_credential and is the only thing that
+# touches them. Two keys, two jobs; do not set them to the same value.
+encrypt:
+  key: ${ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY:}

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.Props;
 import jakarta.jms.Message;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Queue;
@@ -17,8 +18,7 @@ import org.springframework.boot.ssl.SslBundles;
 class CorePoolTest extends ArtemisIntegrationTest {
 
     private CorePool pool() {
-        ArtemisStudioProperties props =
-                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null, null, null);
+        ArtemisStudioProperties props = Props.defaults();
         return new CorePool(new CoreConnectionFactory(props, Mockito.mock(SslBundles.class)));
     }
 

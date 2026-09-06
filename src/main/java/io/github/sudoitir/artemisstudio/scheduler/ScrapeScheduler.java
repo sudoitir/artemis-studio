@@ -13,7 +13,6 @@ import io.github.sudoitir.artemisstudio.persist.MetricSampleWriter;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.service.AlertEvaluator;
 import io.github.sudoitir.artemisstudio.sse.StreamSignals;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +24,6 @@ import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
@@ -76,18 +74,9 @@ public class ScrapeScheduler implements SchedulingConfigurer {
         scheduler.initialize();
         registrar.setTaskScheduler(scheduler);
 
-        registrar.addTriggerTask(this::tierA, fixedDelay(settings::tierA));
-        registrar.addTriggerTask(this::tierB, fixedDelay(settings::tierB));
-        registrar.addTriggerTask(this::tierC, fixedDelay(settings::tierC));
-    }
-
-    static Trigger fixedDelay(java.util.function.Supplier<Duration> interval) {
-        return context -> {
-            Instant last = context.lastCompletion() != null
-                    ? context.lastCompletion()
-                    : context.lastActualExecution() != null ? context.lastActualExecution() : Instant.now();
-            return last.plus(interval.get());
-        };
+        registrar.addTriggerTask(this::tierA, DynamicTriggers.fixedDelay(settings::tierA));
+        registrar.addTriggerTask(this::tierB, DynamicTriggers.fixedDelay(settings::tierB));
+        registrar.addTriggerTask(this::tierC, DynamicTriggers.fixedDelay(settings::tierC));
     }
 
     private static final String[] HA_ATTRS = {

@@ -1,0 +1,4 @@
+# Bootstrap-phase configuration (ADR-0047). Registered here rather than as an
+# @Bean because the bootstrap context is built before component scanning happens.
+org.springframework.cloud.bootstrap.BootstrapConfiguration=\
+io.github.sudoitir.artemisstudio.config.JdbcConfigPropertySourceConfiguration

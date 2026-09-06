@@ -16,7 +16,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
@@ -90,7 +89,7 @@ public class BrokerEventWriter implements BrokerEventSink {
         return count == null ? 0 : count.get();
     }
 
-    @Scheduled(fixedDelayString = "${artemis-studio.events.flush:PT1S}")
+    /** Scheduled by {@code DynamicSchedules} on the settings-driven flush interval. */
     @Transactional
     public void flush() {
         List<BrokerEvent> batch = new ArrayList<>(BATCH_MAX);

@@ -14,8 +14,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.RateLimit;
 import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
@@ -25,6 +23,7 @@ import io.github.sudoitir.artemisstudio.persist.MetricSampleWriter;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import io.github.sudoitir.artemisstudio.sse.StreamSignals;
+import io.github.sudoitir.artemisstudio.support.Props;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -86,8 +85,7 @@ class ScrapeSchedulerTest {
 
     @BeforeEach
     void setUp() {
-        limiter = new NodeCallLimiter(new ArtemisStudioProperties(
-                null, null, null, new RateLimit(50), null, null, null, null, null, null, null, null));
+        limiter = new NodeCallLimiter(Props.rateLimit(50));
         scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
@@ -230,36 +228,6 @@ class ScrapeSchedulerTest {
         verify(upsert, times(1)).reapStale(any(), any());
     }
 
-    @Test
-    void aShortenedIntervalSchedulesTheNextRunSoonerWithoutARestart() {
-        java.util.concurrent.atomic.AtomicReference<java.time.Duration> interval =
-                new java.util.concurrent.atomic.AtomicReference<>(java.time.Duration.ofSeconds(60));
-        org.springframework.scheduling.Trigger trigger = ScrapeScheduler.fixedDelay(interval::get);
-
-        java.time.Instant last = java.time.Instant.parse("2026-09-04T10:00:00Z");
-        org.springframework.scheduling.TriggerContext ctx = new org.springframework.scheduling.TriggerContext() {
-            @Override
-            public java.time.Instant lastScheduledExecution() {
-                return last;
-            }
-
-            @Override
-            public java.time.Instant lastActualExecution() {
-                return last;
-            }
-
-            @Override
-            public java.time.Instant lastCompletion() {
-                return last;
-            }
-        };
-
-        java.time.Instant before = trigger.nextExecution(ctx);
-        interval.set(java.time.Duration.ofSeconds(5)); // operator lowers the cadence in Settings
-        java.time.Instant after = trigger.nextExecution(ctx);
-
-        org.assertj.core.api.Assertions.assertThat(before).isEqualTo(last.plusSeconds(60));
-        org.assertj.core.api.Assertions.assertThat(after).isEqualTo(last.plusSeconds(5));
-        org.assertj.core.api.Assertions.assertThat(after).isBefore(before);
-    }
+    // The trigger itself — that a changed interval is honoured without a restart —
+    // is covered by DynamicTriggersTest, where the shared helper now lives.
 }
