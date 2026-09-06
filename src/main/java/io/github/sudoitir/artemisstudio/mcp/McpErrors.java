@@ -7,6 +7,8 @@ import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -45,6 +47,8 @@ public final class McpErrors {
      */
     static final String CLUSTER_DENIED = "No such cluster, or this key has no grant on it.";
 
+    private static final Logger LOG = LoggerFactory.getLogger(McpErrors.class);
+
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private McpErrors() {}
@@ -75,6 +79,18 @@ public final class McpErrors {
             // A bad enum value or an out-of-range argument is a malformed call, not a
             // failure of the operation — the protocol has a code for that.
             throw invalidParams(e.getMessage());
+        } catch (McpError e) {
+            // Already the protocol's own shape (McpArgs raises these); it must not be
+            // caught by the catch-all below.
+            throw e;
+        } catch (RuntimeException e) {
+            // Anything unmapped is a bug, and its message is written for a log reader,
+            // not for a model — it may name internals the caller has no business
+            // seeing. The stack trace goes to the log; the caller gets a sentence it
+            // can act on. Without this the raw exception text is what the model reads.
+            LOG.error("Unmapped failure in an MCP tool", e);
+            return error("That operation failed inside Studio. The server log has the detail; "
+                    + "this is a bug rather than something the call can be corrected to avoid.");
         }
     }
 

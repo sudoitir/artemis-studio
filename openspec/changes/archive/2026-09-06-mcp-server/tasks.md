@@ -23,7 +23,7 @@
 - [x] 2.9 `mcp/McpDiagnosticTools.java`: `cluster_health` only — HA state per node, split-brain verdict, firing alerts, pressure signals. `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`. Declare `outputSchema`, return `structuredContent`, echo JSON in `content`
 - [x] 2.10 `mcp/McpEndpointProtectionTest`: `POST /mcp` unauthenticated → 401; with a valid `as_` token → 200. Mirror `web/EndpointProtectionTest`'s style
 - [x] 2.11 Verify `/mcp` did **not** enter the OpenAPI document — run `web/OpenApiSnapshotTest` and check `git diff web/openapi.json`. If it appears, add `springdoc.paths-to-exclude: /mcp` (the file has none today)
-- [ ] 2.12 `just dev-up`, mint a key with `cluster:read`, and prove the whole path: `tools/list` then `tools/call cluster_health` returning real topology. Do not add surface area before this passes
+- [x] 2.12 `just dev-up`, mint a key with `cluster:read`, and prove the whole path: `tools/list` then `tools/call cluster_health` returning real topology. Do not add surface area before this passes
 - [x] 2.13 Decide the design's open question — whether `artemis-studio.mcp.enabled` ships — now that we know whether the starter disables cleanly. Record the answer in ADR-0045; if it ships, it goes in the README `## Run it` env table
 
 ## 3. Slice 2 — the rest of the read surface
@@ -86,10 +86,10 @@
 
 ## 7. End-to-end verification against a real broker
 
-- [ ] 7.1 `just dev-up`; sign in; `/account`; mint a key with `cluster:read` + `message:read`
-- [ ] 7.2 `tools/list` via the README `curl` — confirm the tool set and its size
-- [ ] 7.3 `tools/call cluster_health` — real topology comes back
-- [ ] 7.4 `tools/call queue_action(action=purge)` with defaults — dry-runs, returns an estimate, touches nothing, writes an audit row with `dry_run = true`
-- [ ] 7.5 Repeat 7.4 with a key lacking `queue:purge` — a clean `isError`, not a stack trace
-- [ ] 7.6 Repeat 7.3 with a key holding no grant on that cluster — the not-found-shaped message, naming no permission
-- [ ] 7.7 `/clusters/{id}/audit` in the UI shows the owner's username with the key's name attached (`user [token: name]`)
+- [x] 7.1 `just dev-up`; sign in; `/account`; mint a key with `cluster:read` + `message:read`
+- [x] 7.2 `tools/list` via the README `curl` — confirm the tool set and its size
+- [x] 7.3 `tools/call cluster_health` — real topology comes back
+- [x] 7.4 `tools/call queue_action(action=purge)` with defaults — dry-runs, returns an estimate, touches nothing, writes an audit row with `dry_run = true`
+- [x] 7.5 Repeat 7.4 with a key lacking `queue:purge` — a clean `isError`, not a stack trace
+- [x] 7.6 Repeat 7.3 with a key holding no grant on that cluster — the not-found-shaped message, naming no permission
+- [x] 7.7 `/clusters/{id}/audit` in the UI shows the owner's username with the key's name attached (`user [token: name]`)

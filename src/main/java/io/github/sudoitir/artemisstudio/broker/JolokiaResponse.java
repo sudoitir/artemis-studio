@@ -31,6 +31,24 @@ public record JolokiaResponse(
     }
 
     /**
+     * One attribute's value, whichever shape Jolokia answered a {@code read} in.
+     *
+     * <p>A {@code read} whose {@code attribute} is a bare string comes back as the
+     * value itself; a {@code read} whose {@code attribute} is a <em>list</em> —
+     * which is what {@link JolokiaRequest#read(String, String...)} always sends,
+     * even for one name — comes back as a map keyed by attribute name. Reading
+     * {@code value()} directly is therefore correct against a hand-written probe
+     * and wrong against this client, which is how the mismatch survived: every
+     * unit test stubs the scalar shape a live broker never sends here.
+     */
+    public JsonNode attribute(String name) {
+        if (value == null) {
+            return null;
+        }
+        return value.isObject() && value.has(name) ? value.get(name) : value;
+    }
+
+    /**
      * The {@code value}, parsed a second time when it is a JSON string (the
      * shape Artemis uses for {@code listNetworkTopology()} / {@code listQueues()}).
      * A non-string value is returned unchanged.

@@ -113,12 +113,8 @@ public class MessageBrowser {
         }
 
         JolokiaResponse count = responses.size() > 1 ? responses.get(1) : null;
-        long total = count != null
-                        && count.ok()
-                        && count.value() != null
-                        && count.value().isNumber()
-                ? count.value().asLong()
-                : messages.size();
+        JsonNode totalNode = count != null && count.ok() ? count.attribute(ATTR_MESSAGE_COUNT) : null;
+        long total = totalNode != null && totalNode.isNumber() ? totalNode.asLong() : messages.size();
         return new BrowsePage(List.copyOf(messages), total);
     }
 

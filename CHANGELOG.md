@@ -89,6 +89,18 @@ marked as pre-releases.
 
 ### Fixed
 
+- **A key scoped to one cluster now works.** API keys intersect their grants with their
+  owner's live grants, and that check compared scopes for exact equality — so a user
+  whose roles are granted globally, which is every administrator, could only mint a
+  globally scoped key. Narrowing a key to a single cluster produced a key that
+  authenticated and then failed every call with "no such cluster". The check now walks
+  scopes the way permission checks do: global covers everything, an environment covers
+  its clusters. A key still cannot exceed its owner — the widening runs one way only.
+- **Purge, browse totals, and CORE acceptor detection against a live broker.** Jolokia
+  answers a single-attribute read with a map keyed by the attribute name, not with the
+  bare value, and three call sites read the value directly. `DELETE .../messages?dryRun=true`
+  answered `500`; a message browse reported the page size as the queue total; and a
+  broker with no CORE acceptor could be reported as having one.
 - **Topology view.** The band carrying each pair's shared NodeID was drawn at a fixed
   position over the canvas rather than attached to the nodes it grouped, so it lined up
   only by coincidence and slid out of place on the first pan or zoom. Each logical node

@@ -45,6 +45,7 @@ public class ApiTokenService {
     private final GrantLoader grantLoader;
     private final AuditService audit;
     private final ActorResolver actorResolver;
+    private final ClusterEnvironmentIndex environments;
     private final SecureRandom random = new SecureRandom();
 
     /** token id -> last-flushed instant, batched at most once a minute (design.md decision 5, task 8.4). */
@@ -142,11 +143,11 @@ public class ApiTokenService {
         }));
     }
 
-    private static Set<Grant> intersect(Set<Grant> tokenGrants, Set<Grant> ownerGrants) {
+    private Set<Grant> intersect(Set<Grant> tokenGrants, Set<Grant> ownerGrants) {
         Set<Grant> result = new HashSet<>();
         for (Grant tg : tokenGrants) {
             for (Grant og : ownerGrants) {
-                if (og.scopeType() != tg.scopeType() || !java.util.Objects.equals(og.scopeId(), tg.scopeId())) {
+                if (!covers(og, tg)) {
                     continue;
                 }
                 for (String action : tg.permissions()) {
@@ -157,6 +158,35 @@ public class ApiTokenService {
             }
         }
         return result;
+    }
+
+    /**
+     * Whether an owner grant reaches the subject a token grant addresses, using
+     * the same widening as {@link PermissionResolver}: global covers everything,
+     * an environment covers its clusters, a cluster covers itself.
+     *
+     * <p>Scope-id equality alone would be wrong in the one direction that matters
+     * in practice. A user whose grants are global — every administrator — could
+     * only ever mint a globally scoped key: narrowing a key to one cluster would
+     * intersect to nothing and produce a key that authenticates and can do
+     * nothing. Narrowing a key is the entire point of minting one, so the check
+     * has to walk the scopes rather than compare them.
+     *
+     * <p>The relation stays one-way. A cluster-scoped owner grant never satisfies
+     * a global token grant, so a key still cannot exceed its owner.
+     */
+    private boolean covers(Grant owner, Grant token) {
+        return switch (owner.scopeType()) {
+            case GLOBAL -> true;
+            case ENVIRONMENT ->
+                switch (token.scopeType()) {
+                    case GLOBAL -> false;
+                    case ENVIRONMENT -> owner.scopeId().equals(token.scopeId());
+                    case CLUSTER -> owner.scopeId().equals(environments.environmentOf(token.scopeId()));
+                };
+            case CLUSTER ->
+                token.scopeType() == Grant.ScopeType.CLUSTER && owner.scopeId().equals(token.scopeId());
+        };
     }
 
     private String randomToken(int bytes) {
