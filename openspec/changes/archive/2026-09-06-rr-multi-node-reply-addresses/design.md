@@ -5,9 +5,9 @@ queue named by the request's `replyTo`, and one shared reply queue named in the 
 Both clusters Studio has been pointed at use a third: **a shared reply queue per responder
 instance**, where the name is chosen by whichever responder picked the request up.
 
-The two deployments differ in a way that decides the design. Dev's three reply queues are
-per broker node and stable, so a fixed list would work. Production's are per client host
-(`nova.fcb.integration.reply.LIN00127`), created and destroyed as clients come and go — a
+The two shapes differ in a way that decides the design. One deployment's reply queues are
+per broker node and stable, so a fixed list would work. Another's are per client host
+(`orders.reply.host-7`), created and destroyed as clients come and go — a
 list is stale the moment a client is redeployed. What the operator reliably knows is not the
 names but the **shape**, and the shape is stable in both.
 
@@ -25,7 +25,7 @@ names but the **shape**, and the shape is stable in both.
 ### D1 — Glob patterns, not regular expressions
 
 An entry is a literal address unless it contains `*`, which matches any run of characters
-including `.`. `nova.fcb.integration.reply.*` is the whole vocabulary this needs.
+including `.`. `orders.reply.*` is the whole vocabulary this needs.
 
 Regular expressions were rejected: they invite a pattern that takes exponential time on a
 crafted address, they are hard to show back to an operator (matching what, exactly?), and

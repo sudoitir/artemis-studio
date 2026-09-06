@@ -4,11 +4,12 @@ Request-reply tracing does not reconstruct a single flow against either of the c
 has been pointed at, because both answer on **more than one reply address, chosen by the
 responder rather than by the operator**:
 
-- Dev (`nova-dev-server-20`): one shared reply queue per broker node —
-  `nova.fcb.integration.reply.nova-10.100.7.20`, `…-.21`, `…-.22`.
-- Production (`10.100.6.116/117/118`): one shared reply queue per *client host* —
-  `nova.fcb.integration.reply.LIN00127` today, a different name as soon as another client
-  connects, and gone again when that client goes away.
+- One deployment names the reply queue after the **broker node** — three primaries, three
+  reply queues, e.g. `orders.reply.broker-1`, `orders.reply.broker-2`, `orders.reply.broker-3`.
+  Stable, so a fixed list would work.
+- Another names it after the **client host** — `orders.reply.host-7` today, a different name
+  as soon as another client connects, and gone again when that client goes away. No list
+  survives a redeployment.
 
 Three limitations combine to make that untraceable:
 
@@ -38,7 +39,7 @@ observation channels are unchanged.
 
 **An expectation declares reply addresses as a set of patterns.** `reply_address TEXT`
 becomes `reply_addresses TEXT[]`. Each entry is either a literal address or a glob
-containing `*`, so `nova.fcb.integration.reply.*` covers every current and future per-node
+containing `*`, so `orders.reply.*` covers every current and future per-node
 or per-client reply queue without the expectation being edited. An empty set keeps its
 existing meaning: replies arrive on a temporary queue named by the request's `replyTo`.
 

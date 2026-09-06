@@ -35,6 +35,15 @@ marked as pre-releases.
 - **A completed flow records which reply queue answered it.** When more than one
   reply address is in play, the flow takes its reply destination from the reply that
   joined it, so you can see which responder served a given exchange.
+- **"Check connection" now tests the Core connection too, and registration waits for
+  it.** The check opened no Core connection at all, so it reported nothing about the
+  channel that carries notifications and faithful message I/O — a wrong Core account, or
+  the same wrong password entered twice, passed the check and only failed after the
+  cluster was registered. The check now opens and closes a real subscription to
+  `activemq.notifications`, and **Register cluster** stays disabled until a check of the
+  exact details in the form has passed, saying which of those it is waiting for. Editing
+  a URL, a username or a password invalidates the previous check rather than carrying it
+  over.
 - **A separate broker account for the Core connection.** Settings can now rotate the
   Core-protocol credentials independently of the management (Jolokia) ones. Set these
   when your management account is also the broker's `<cluster-user>`: Artemis reserves

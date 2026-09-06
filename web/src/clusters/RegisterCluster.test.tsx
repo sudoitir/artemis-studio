@@ -87,6 +87,49 @@ describe('RegisterClusterForm', () => {
     await user.type(screen.getByLabelText(/Broker management URLs/), '\nbroker-2');
     expect(await screen.findByText('Changed since you checked')).toBeInTheDocument();
   });
+
+  it('will not register until the connection has been checked, and says so', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    // Disabled without a reason is the thing the form must never do.
+    expect(screen.getByText('Check the connection first.')).toBeInTheDocument();
+  });
+
+  it('enables registration once the check passes', async () => {
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText('Discovered topology');
+
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeEnabled();
+  });
+
+  it('re-blocks registration when a credential changes after a passing check', async () => {
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText('Discovered topology');
+
+    // A check that survived a password edit would vouch for credentials it never
+    // saw — which is exactly how a wrong Core account reached a registered cluster.
+    await user.type(screen.getByLabelText('Username'), 'artemis');
+    await user.type(screen.getByLabelText('Password'), 'secret');
+
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    expect(
+      await screen.findByText('Check the connection again — the details changed since the last check.'),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('RegisterClusterButton', () => {

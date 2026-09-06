@@ -33,11 +33,11 @@ class ClusterServiceNodeChoiceTest {
     void prefersALiveNodeOverAnAlphabeticallyEarlierBackup() {
         // The shape that caused the false report: the backup sorts first by name.
         List<BrokerNodeEntity> nodes =
-                List.of(node("newtst1-py-b3:61511", false, null), node("newtst1-py-p1:61510", true, null));
+                List.of(node("broker-1-backup:61511", false, null), node("broker-1-primary:61510", true, null));
 
         assertThat(ClusterService.chooseManageable(nodes))
                 .map(BrokerNodeEntity::getName)
-                .contains("newtst1-py-p1:61510");
+                .contains("broker-1-primary:61510");
     }
 
     @Test

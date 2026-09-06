@@ -27,11 +27,11 @@ describe('normaliseSeeds', () => {
   });
 
   it('completes the path when the operator pasted the console URL', () => {
-    expect(normaliseSeeds('http://10.100.6.116:8074/console')[0].url).toBe(
-      'http://10.100.6.116:8074/console/jolokia',
+    expect(normaliseSeeds('http://broker-1:8161/console')[0].url).toBe(
+      'http://broker-1:8161/console/jolokia',
     );
-    expect(normaliseSeeds('http://10.100.6.116:8074/console/')[0].url).toBe(
-      'http://10.100.6.116:8074/console/jolokia',
+    expect(normaliseSeeds('http://broker-1:8161/console/')[0].url).toBe(
+      'http://broker-1:8161/console/jolokia',
     );
   });
 

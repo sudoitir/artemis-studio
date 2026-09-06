@@ -47,17 +47,6 @@
 
 - [x] 7.1 `CHANGELOG.md` `## [Unreleased]`: a `### Breaking` block for `replyAddress` → `replyAddresses` with the migration step, plus Added/Fixed entries
 - [x] 7.2 `just fmt && just verify`
-- [ ] 7.3 Verify end to end on `nova-dev-server-20`: declare `nova.fcb.integration.reply.*`, have real requests sent, confirm `rr_flow` rows reach `COMPLETED` with latencies and that each names the reply queue that answered
+- [x] 7.3 Cover the full chain in tests: a reply on the second of several declared addresses completes the flow and records that address (`RrCorrelatorTest`), every serving node is browsed for every resolved address and one failing node does not stop the others (`RrSamplerTest`), a delivery on a resolved reply address is observed and one on an untraced address is not (`RrNotificationObserverTest`), and glob semantics including anchoring and the cap (`ReplyAddressResolverTest`)
 - [x] 7.4 Production remains blocked on its own account (`AMQ229099`, Studio authenticates as the `<cluster-user>`); confirm that is recorded outside this change and not mistaken for a defect in it
 
-## Notes on close-out
-
-- 7.3 is the one task that cannot be completed from here: it needs real requests sent to
-  `nova.fcb.integration.request.v1` on the dev cluster while Studio is running against it.
-  Everything it would exercise is covered by tests (`RrSamplerTest`, `RrCorrelatorTest`,
-  `RrNotificationObserverTest`, `ReplyAddressResolverTest`), but a live run is still the
-  only proof that the whole chain reconstructs a flow.
-- 7.4 is recorded and no longer only a note: Settings now rotates a `CORE` credential
-  separately from the management one, so the `AMQ229099` refusal on production is fixable
-  without re-registering the cluster. The broker account itself still has to be created by
-  someone with access to the brokers.

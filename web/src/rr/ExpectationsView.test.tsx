@@ -62,7 +62,7 @@ describe('ExpectationsView', () => {
   });
 
   it('sends every reply address pattern the operator entered', async () => {
-    let body: { replyAddresses?: string[] } | null = null;
+    const sent: { replyAddresses?: string[] }[] = [];
     let created = false;
     server.use(
       http.get('*/api/v1/clusters/c1/queues', () =>
@@ -72,7 +72,7 @@ describe('ExpectationsView', () => {
         HttpResponse.json(created ? [expectation()] : []),
       ),
       http.post('*/api/v1/clusters/c1/rr/expectations', async ({ request }) => {
-        body = (await request.json()) as { replyAddresses?: string[] };
+        sent.push((await request.json()) as { replyAddresses?: string[] });
         created = true;
         return HttpResponse.json(expectation(), { status: 201 });
       }),
@@ -96,7 +96,7 @@ describe('ExpectationsView', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }));
 
     await screen.findByText('orders.request');
-    expect(body?.replyAddresses).toEqual(['orders.reply.a', 'orders.reply.*']);
+    expect(sent[0]?.replyAddresses).toEqual(['orders.reply.a', 'orders.reply.*']);
   });
 
   it('explains what leaving the reply addresses empty means', async () => {
