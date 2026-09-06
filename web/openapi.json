@@ -883,6 +883,209 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/queues" : {
+      "get" : {
+        "tags" : [ "cluster-resource-controller" ],
+        "operationId" : "queues",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ResourceQuery"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewQueueView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "createQueue",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateQueueRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/resume" : {
+      "post" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "resumeQueue",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/reset-counter" : {
+      "post" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "resetCounter",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/pause" : {
+      "post" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "pauseQueue",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages" : {
       "get" : {
         "tags" : [ "message-controller" ],
@@ -1216,6 +1419,83 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/addresses" : {
+      "get" : {
+        "tags" : [ "cluster-resource-controller" ],
+        "operationId" : "addresses",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ResourceQuery"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewAddressView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "createAddress",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/channels" : {
       "get" : {
         "tags" : [ "notification-channels-controller" ],
@@ -1336,6 +1616,106 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/MeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/queues/{queueName}" : {
+      "delete" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "deleteQueue",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        }, {
+          "name" : "override",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "updateQueue",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateQueueRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
                 }
               }
             }
@@ -1728,40 +2108,6 @@
         }
       }
     },
-    "/api/v1/clusters/{clusterId}/queues" : {
-      "get" : {
-        "tags" : [ "cluster-resource-controller" ],
-        "operationId" : "queues",
-        "parameters" : [ {
-          "name" : "clusterId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "query",
-          "in" : "query",
-          "required" : true,
-          "schema" : {
-            "$ref" : "#/components/schemas/ResourceQuery"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PagedViewQueueView"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}" : {
       "get" : {
         "tags" : [ "message-controller" ],
@@ -1846,6 +2192,41 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PagedViewProducerView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/nodes/{nodeId}/config" : {
+      "get" : {
+        "tags" : [ "cluster-controller" ],
+        "operationId" : "nodeConfig",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NodeConfigView"
                 }
               }
             }
@@ -2360,40 +2741,6 @@
         }
       }
     },
-    "/api/v1/clusters/{clusterId}/addresses" : {
-      "get" : {
-        "tags" : [ "cluster-resource-controller" ],
-        "operationId" : "addresses",
-        "parameters" : [ {
-          "name" : "clusterId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "query",
-          "in" : "query",
-          "required" : true,
-          "schema" : {
-            "$ref" : "#/components/schemas/ResourceQuery"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PagedViewAddressView"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/auth/providers" : {
       "get" : {
         "tags" : [ "auth-controller" ],
@@ -2533,6 +2880,48 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/addresses/{address}" : {
+      "delete" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "deleteAddress",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "address",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
           }
         }
       }
@@ -3397,6 +3786,126 @@
         },
         "required" : [ "requestAddress" ]
       },
+      "CreateQueueRequest" : {
+        "type" : "object",
+        "properties" : {
+          "address" : {
+            "type" : "string",
+            "description" : "The address this queue binds to.",
+            "minLength" : 1
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "The queue's name.",
+            "minLength" : 1
+          },
+          "routingType" : {
+            "type" : "string",
+            "description" : "ANYCAST or MULTICAST. Cannot be changed once the queue exists.",
+            "enum" : [ "ANYCAST", "MULTICAST" ],
+            "minLength" : 1,
+            "pattern" : "(?i)ANYCAST|MULTICAST"
+          },
+          "durable" : {
+            "type" : "boolean",
+            "default" : true,
+            "description" : "Whether the queue survives a broker restart."
+          },
+          "filter" : {
+            "type" : [ "string", "null" ],
+            "description" : "A JMS selector limiting what the queue accepts."
+          },
+          "maxConsumers" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "Maximum concurrent consumers; -1 for unlimited."
+          },
+          "purgeOnNoConsumers" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Delete the queue when its last consumer disconnects."
+          },
+          "exclusive" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Route to exactly one consumer at a time."
+          },
+          "nonDestructive" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Messages stay on the queue after delivery."
+          },
+          "ringSize" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Retain at most this many messages; -1 for unlimited."
+          },
+          "autoCreateAddress" : {
+            "type" : "boolean",
+            "default" : true,
+            "description" : "Create the address if it does not exist."
+          }
+        },
+        "required" : [ "address", "name", "routingType" ]
+      },
+      "LifecycleOutcomeView" : {
+        "type" : "object",
+        "properties" : {
+          "dryRun" : {
+            "type" : "boolean",
+            "description" : "Whether this was a preview that mutated nothing."
+          },
+          "cap" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "The bulk safety cap in force."
+          },
+          "overCap" : {
+            "type" : "boolean",
+            "description" : "Whether the summed estimate exceeds the cap."
+          },
+          "partial" : {
+            "type" : "boolean",
+            "description" : "Whether some nodes applied the command and others did not."
+          },
+          "totalAffected" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Total messages destroyed, or that would be."
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeOutcomeView"
+            }
+          }
+        },
+        "required" : [ "cap", "dryRun", "nodes", "overCap", "partial", "totalAffected" ]
+      },
+      "NodeOutcomeView" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was already in the requested state; SKIPPED_NOT_LIVE when the node was not live and never received the command; FAILED when it refused.",
+            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "FAILED" ]
+          },
+          "affected" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Messages destroyed, or that would be destroyed, on this node."
+          },
+          "error" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why this node failed."
+          }
+        },
+        "required" : [ "nodeId", "nodeName", "status" ]
+      },
       "SendMessageRequest" : {
         "type" : "object",
         "properties" : {
@@ -3480,6 +3989,24 @@
           }
         }
       },
+      "CreateAddressRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "The address name.",
+            "minLength" : 1
+          },
+          "routingTypes" : {
+            "type" : "string",
+            "description" : "Comma-separated routing types the address supports.",
+            "enum" : [ "ANYCAST", "MULTICAST", "ANYCAST,MULTICAST" ],
+            "minLength" : 1,
+            "pattern" : "(?i)ANYCAST|MULTICAST|ANYCAST,MULTICAST|MULTICAST,ANYCAST"
+          }
+        },
+        "required" : [ "name", "routingTypes" ]
+      },
       "ChangePasswordRequest" : {
         "type" : "object",
         "properties" : {
@@ -3548,6 +4075,32 @@
           }
         },
         "required" : [ "grants", "id", "mustChangePassword", "username" ]
+      },
+      "UpdateQueueRequest" : {
+        "type" : "object",
+        "properties" : {
+          "filter" : {
+            "type" : [ "string", "null" ],
+            "description" : "A JMS selector limiting what the queue accepts."
+          },
+          "maxConsumers" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "purgeOnNoConsumers" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "exclusive" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "nonDestructive" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "ringSize" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          }
+        }
       },
       "NodeOverrideRequest" : {
         "type" : "object",
@@ -3956,9 +4509,12 @@
           "scheduledCount" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "paused" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "consumerCount", "deliveringCount", "messageCount", "nodeId", "nodeName", "scheduledCount", "stale" ]
+        "required" : [ "consumerCount", "deliveringCount", "messageCount", "nodeId", "nodeName", "paused", "scheduledCount", "stale" ]
       },
       "QueueView" : {
         "type" : "object",
@@ -3999,6 +4555,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "paused" : {
+            "type" : "boolean",
+            "description" : "True when the queue is paused on at least one node. A queue paused on some nodes and not others is a divergence the operator needs to see, so this is deliberately 'any', not 'all' — perNode says which."
+          },
           "perNode" : {
             "type" : "array",
             "items" : {
@@ -4006,7 +4566,7 @@
             }
           }
         },
-        "required" : [ "address", "durable", "nodesPresent", "nodesTotal", "perNode", "queueName", "routingType", "totalConsumerCount", "totalDeliveringCount", "totalMessageCount", "totalScheduledCount" ]
+        "required" : [ "address", "durable", "nodesPresent", "nodesTotal", "paused", "perNode", "queueName", "routingType", "totalConsumerCount", "totalDeliveringCount", "totalMessageCount", "totalScheduledCount" ]
       },
       "MessagePageView" : {
         "type" : "object",
@@ -4241,6 +4801,85 @@
           }
         },
         "required" : [ "messagesSent", "nodeId", "nodeName" ]
+      },
+      "NodeConfigEntryView" : {
+        "type" : "object",
+        "description" : "One configuration key on one node",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : [ "string", "null" ]
+          },
+          "classification" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "classification", "key" ]
+      },
+      "NodeConfigSectionView" : {
+        "type" : "object",
+        "description" : "One section of a node's configuration",
+        "properties" : {
+          "section" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "entries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeConfigEntryView"
+            }
+          }
+        },
+        "required" : [ "entries", "label", "section" ]
+      },
+      "NodeConfigView" : {
+        "type" : "object",
+        "description" : "One node's effective broker configuration",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "unavailableReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "sections" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeConfigSectionView"
+            }
+          },
+          "matchesCompared" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "matchesAvailable" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "active", "available", "clusterId", "matchesAvailable", "matchesCompared", "nodeId", "nodeName", "sections" ]
       },
       "MetricPoint" : {
         "type" : "object",

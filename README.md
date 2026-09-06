@@ -243,6 +243,15 @@ governance. What's left, roughly in order. Every feature phase goes through
 OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get an
 [ADR](docs/adr/).
 
+### Broker management
+
+|  | Task |
+|--|------|
+| [x] | Queue and address lifecycle — create, destroy, reconfigure, pause and resume across a cluster ([ADR-0049](docs/adr/0049-cluster-wide-topology-mutation.md)) |
+| [ ] | Connection and consumer control |
+| [ ] | Divert and bridge management |
+| [ ] | Declared desired state and drift detection |
+
 ### v1.0 · Hardening and reach
 
 |  | Task |

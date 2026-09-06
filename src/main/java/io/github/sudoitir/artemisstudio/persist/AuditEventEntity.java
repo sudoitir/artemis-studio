@@ -73,6 +73,15 @@ public class AuditEventEntity {
     @Column(name = "params", updatable = false)
     private String params;
 
+    /**
+     * The per-node outcome of a cluster-wide fan-out command (ADR-0049 D2/D4), as
+     * a JSON array. Null for a single-node action, which has nothing to spread
+     * across nodes.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "outcome_detail")
+    private String outcomeDetail;
+
     @Column(name = "cluster_id", updatable = false)
     private UUID clusterId;
 
@@ -120,5 +129,13 @@ public class AuditEventEntity {
     public void markFailure(String error) {
         this.outcome = "FAILURE";
         this.error = error;
+    }
+
+    /**
+     * Attach the per-node detail of a fan-out. Set alongside the outcome, so a
+     * partially applied command is reconstructable from this row alone (D4).
+     */
+    public void attachOutcomeDetail(String outcomeDetail) {
+        this.outcomeDetail = outcomeDetail;
     }
 }

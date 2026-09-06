@@ -103,6 +103,40 @@ public final class BrokerXmlSnippets {
     }
 
     /**
+     * What a management user needs to perform a management <em>write</em>
+     * (ADR-0049 D5) — shown when a write has been refused for an authorization
+     * reason.
+     *
+     * <p>Two separate gates refuse independently, and an operator who fixes only one
+     * still cannot write:
+     *
+     * <ul>
+     *   <li>the broker's own security settings on {@code activemq.management}, plus
+     *       the {@code manage} permission, which is what the management operations
+     *       themselves check;
+     *   <li>the console/Jolokia layer in front of them, which refuses with a bare
+     *       HTTP 403 before the broker sees the call at all — so the user must also
+     *       hold a role the console admits.
+     * </ul>
+     */
+    public static final String MANAGEMENT_SECURITY_SETTING = """
+            <!-- 1. The broker-side permission the management operations check. -->
+            <security-setting match="activemq.management.#">
+              <permission type="createNonDurableQueue" roles="amq"/>
+              <permission type="createAddress"         roles="amq"/>
+              <permission type="consume"               roles="amq"/>
+              <permission type="send"                  roles="amq"/>
+              <permission type="manage"                roles="amq"/>
+            </security-setting>
+
+            <!-- 2. The console/Jolokia layer refuses with HTTP 403 before the broker
+                 is reached, so the management user must hold a role it admits. Grant
+                 it in etc/artemis-roles.properties, e.g.:
+                   amq = <your-management-user>
+            -->
+            """;
+
+    /**
      * A CORE-protocol acceptor. Shown when no live node has a reachable Core URL:
      * either the broker exposes no CORE acceptor, or discovery only knows an
      * internal connector hostname and the operator must set a manual Core URL on

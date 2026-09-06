@@ -155,10 +155,7 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult listResources(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(
-                            description = "queues, addresses, consumers, sessions, connections or producers",
-                            required = true)
-                    String kind,
+            @McpToolParam(description = "The resource kind", required = true) String kind,
             @McpToolParam(description = "Substring filter", required = false) String filter,
             @McpToolParam(description = "Max rows", required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
@@ -257,8 +254,7 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult metricSeries(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "messageCount, consumerCount, messagesAdded or messagesAcked", required = true)
-                    String metric,
+            @McpToolParam(description = "The metric", required = true) String metric,
             @McpToolParam(description = "Omit for the whole cluster", required = false) String queue,
             @McpToolParam(description = "e.g. 15m, 6h, 2d. Default 1h", required = false) String window) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
@@ -572,7 +568,7 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult traceRequestReply(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "flows, stats or expectations. Default flows", required = false) String mode,
+            @McpToolParam(description = "Default flows", required = false) String mode,
             @McpToolParam(description = "Request address filter", required = false) String address,
             @McpToolParam(description = "e.g. 15m. Default 15m", required = false) String window,
             @McpToolParam(description = "Max rows", required = false) Integer limit) {
@@ -619,8 +615,7 @@ public class McpDiagnosticTools {
                             openWorldHint = false))
     public McpSchema.CallToolResult activityLog(
             @McpToolParam(required = true) String clusterId,
-            @McpToolParam(description = "broker_events or audit. Default broker_events", required = false)
-                    String source,
+            @McpToolParam(description = "Default broker_events", required = false) String source,
             @McpToolParam(description = "Address or action filter", required = false) String filter,
             @McpToolParam(description = "Max rows", required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);

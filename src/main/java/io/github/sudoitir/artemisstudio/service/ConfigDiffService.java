@@ -17,6 +17,9 @@ import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.ConfigDiffView;
 import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.ConfigEntryView;
 import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.ConfigSectionView;
 import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.ConfigSideView;
+import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.NodeConfigEntryView;
+import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.NodeConfigSectionView;
+import io.github.sudoitir.artemisstudio.web.dto.ConfigViews.NodeConfigView;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -190,6 +193,81 @@ public class ConfigDiffService {
                 .findFirst()
                 .orElseThrow(() -> new BrokerConnectionException(
                         BrokerConnectionException.Kind.UNREACHABLE, "No such node in this cluster: " + nodeId));
+    }
+
+    /**
+     * One node's effective configuration, read live (the folded-in settings read).
+     *
+     * <p>The diff answers "do these two nodes agree"; this answers "what is this node
+     * actually running with", which is the question an operator — or an agent — asks
+     * first, and which had no endpoint at all. Same permission tier as the diff, same
+     * rate limiter, and equally unaudited: it mutates nothing.
+     *
+     * <p>A node that cannot be read comes back {@code available = false} with the
+     * reason, never as an empty configuration — an absence presented as a fact is the
+     * failure mode this whole feature area exists to avoid.
+     */
+    @Transactional(readOnly = true)
+    public NodeConfigView nodeConfig(UUID clusterId, UUID nodeId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        BrokerNodeEntity node = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+                .filter(n -> n.getId().equals(nodeId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("node", nodeId));
+
+        List<String> matches = ConfigReader.matchesFor(addressesOf(clusterId));
+        Read read = read(clusterId, node, matches);
+        if (read.config() == null) {
+            return new NodeConfigView(
+                    clusterId,
+                    nodeId,
+                    node.getName(),
+                    false,
+                    Boolean.TRUE.equals(node.getActive()),
+                    read.failure(),
+                    List.of(),
+                    0,
+                    matches.size(),
+                    null);
+        }
+
+        NodeConfig config = read.config();
+        List<NodeConfigSectionView> sections = List.of(
+                nodeSection(ConfigDiff.SECTION_BROKER, ConfigDiff.flatten(config.brokerAttributes())),
+                nodeSection(
+                        ConfigDiff.SECTION_ADDRESS_SETTINGS,
+                        ConfigDiff.flattenKeyed(config.addressSettings(), "match")),
+                nodeSection(
+                        ConfigDiff.SECTION_SECURITY_SETTINGS,
+                        ConfigDiff.flattenKeyed(config.securitySettings(), "name")),
+                nodeSection(ConfigDiff.SECTION_ACCEPTORS, ConfigDiff.flattenKeyed(config.acceptors(), "name")));
+
+        String note = config.matchesCompared() < matches.size()
+                ? "Read " + config.matchesCompared() + " of " + matches.size() + " address settings (the default"
+                        + " match \"#\" is always included)."
+                : null;
+
+        return new NodeConfigView(
+                clusterId,
+                nodeId,
+                node.getName(),
+                true,
+                config.active(),
+                null,
+                sections,
+                config.matchesCompared(),
+                matches.size(),
+                note);
+    }
+
+    private static NodeConfigSectionView nodeSection(String section, Map<String, String> flattened) {
+        List<NodeConfigEntryView> entries = flattened.entrySet().stream()
+                .map(e -> new NodeConfigEntryView(
+                        e.getKey(),
+                        e.getValue(),
+                        ConfigDiff.classify(section, e.getKey()).name()))
+                .toList();
+        return new NodeConfigSectionView(section, ConfigDiff.sectionLabel(section), entries);
     }
 
     private Set<String> addressesOf(UUID clusterId) {

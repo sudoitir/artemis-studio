@@ -292,6 +292,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/queues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queues"];
+        put?: never;
+        post: operations["createQueue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resumeQueue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/reset-counter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resetCounter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pauseQueue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages": {
         parameters: {
             query?: never;
@@ -334,6 +398,22 @@ export interface paths {
         get: operations["rules"];
         put?: never;
         post: operations["createRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["addresses"];
+        put?: never;
+        post: operations["createAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -418,6 +498,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/queues/{queueName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteQueue"];
+        options?: never;
+        head?: never;
+        patch: operations["updateQueue"];
         trace?: never;
     };
     "/api/v1/clusters/{clusterId}/nodes/{nodeId}": {
@@ -580,22 +676,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/clusters/{clusterId}/queues": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["queues"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}": {
         parameters: {
             query?: never;
@@ -620,6 +700,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["producers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/nodes/{nodeId}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["nodeConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -804,22 +900,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/clusters/{clusterId}/addresses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["addresses"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/providers": {
         parameters: {
             query?: never;
@@ -911,6 +991,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_4"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/addresses/{address}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteAddress"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1214,6 +1310,81 @@ export interface components {
             samplePerMin?: number;
             capturePayload?: boolean;
         };
+        CreateQueueRequest: {
+            /** @description The address this queue binds to. */
+            address: string;
+            /** @description The queue's name. */
+            name: string;
+            /**
+             * @description ANYCAST or MULTICAST. Cannot be changed once the queue exists.
+             * @enum {string}
+             */
+            routingType: "ANYCAST" | "MULTICAST";
+            /**
+             * @description Whether the queue survives a broker restart.
+             * @default true
+             */
+            durable: boolean;
+            /** @description A JMS selector limiting what the queue accepts. */
+            filter?: string | null;
+            /**
+             * Format: int32
+             * @description Maximum concurrent consumers; -1 for unlimited.
+             */
+            maxConsumers?: number | null;
+            /** @description Delete the queue when its last consumer disconnects. */
+            purgeOnNoConsumers?: boolean | null;
+            /** @description Route to exactly one consumer at a time. */
+            exclusive?: boolean | null;
+            /** @description Messages stay on the queue after delivery. */
+            nonDestructive?: boolean | null;
+            /**
+             * Format: int64
+             * @description Retain at most this many messages; -1 for unlimited.
+             */
+            ringSize?: number | null;
+            /**
+             * @description Create the address if it does not exist.
+             * @default true
+             */
+            autoCreateAddress: boolean;
+        };
+        LifecycleOutcomeView: {
+            /** @description Whether this was a preview that mutated nothing. */
+            dryRun: boolean;
+            /**
+             * Format: int64
+             * @description The bulk safety cap in force.
+             */
+            cap: number;
+            /** @description Whether the summed estimate exceeds the cap. */
+            overCap: boolean;
+            /** @description Whether some nodes applied the command and others did not. */
+            partial: boolean;
+            /**
+             * Format: int64
+             * @description Total messages destroyed, or that would be.
+             */
+            totalAffected: number;
+            nodes: components["schemas"]["NodeOutcomeView"][];
+        };
+        NodeOutcomeView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            /**
+             * @description WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was already in the requested state; SKIPPED_NOT_LIVE when the node was not live and never received the command; FAILED when it refused.
+             * @enum {string}
+             */
+            status: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "SKIPPED_NOT_LIVE" | "FAILED";
+            /**
+             * Format: int64
+             * @description Messages destroyed, or that would be destroyed, on this node.
+             */
+            affected?: number | null;
+            /** @description Why this node failed. */
+            error?: string | null;
+        };
         SendMessageRequest: {
             /** Format: int32 */
             type: number;
@@ -1248,6 +1419,15 @@ export interface components {
             filter?: string;
             targetQueue?: string;
         };
+        CreateAddressRequest: {
+            /** @description The address name. */
+            name: string;
+            /**
+             * @description Comma-separated routing types the address supports.
+             * @enum {string}
+             */
+            routingTypes: "ANYCAST" | "MULTICAST" | "ANYCAST,MULTICAST";
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -1268,6 +1448,17 @@ export interface components {
             username: string;
             mustChangePassword: boolean;
             grants: components["schemas"]["GrantView"][];
+        };
+        UpdateQueueRequest: {
+            /** @description A JMS selector limiting what the queue accepts. */
+            filter?: string | null;
+            /** Format: int32 */
+            maxConsumers?: number | null;
+            purgeOnNoConsumers?: boolean | null;
+            exclusive?: boolean | null;
+            nonDestructive?: boolean | null;
+            /** Format: int64 */
+            ringSize?: number | null;
         };
         NodeOverrideRequest: {
             jolokiaUrl?: string;
@@ -1435,6 +1626,7 @@ export interface components {
             deliveringCount: number;
             /** Format: int64 */
             scheduledCount: number;
+            paused: boolean;
         };
         QueueView: {
             address: string;
@@ -1453,6 +1645,8 @@ export interface components {
             nodesPresent: number;
             /** Format: int32 */
             nodesTotal: number;
+            /** @description True when the queue is paused on at least one node. A queue paused on some nodes and not others is a divergence the operator needs to see, so this is deliberately 'any', not 'all' — perNode says which. */
+            paused: boolean;
             perNode: components["schemas"]["QueueNodeCell"][];
         };
         MessagePageView: {
@@ -1550,6 +1744,35 @@ export interface components {
             protocol?: string | null;
             /** Format: int64 */
             messagesSent: number;
+        };
+        /** @description One configuration key on one node */
+        NodeConfigEntryView: {
+            key: string;
+            value?: string | null;
+            classification: string;
+        };
+        /** @description One section of a node's configuration */
+        NodeConfigSectionView: {
+            section: string;
+            label: string;
+            entries: components["schemas"]["NodeConfigEntryView"][];
+        };
+        /** @description One node's effective broker configuration */
+        NodeConfigView: {
+            /** Format: uuid */
+            clusterId: string;
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            available: boolean;
+            active: boolean;
+            unavailableReason?: string | null;
+            sections: components["schemas"]["NodeConfigSectionView"][];
+            /** Format: int32 */
+            matchesCompared: number;
+            /** Format: int32 */
+            matchesAvailable: number;
+            note?: string | null;
         };
         MetricPoint: {
             /** Format: date-time */
@@ -2532,6 +2755,133 @@ export interface operations {
             };
         };
     };
+    queues: {
+        parameters: {
+            query: {
+                query: components["schemas"]["ResourceQuery"];
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewQueueView"];
+                };
+            };
+        };
+    };
+    createQueue: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateQueueRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+        };
+    };
+    resumeQueue: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                queueName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+        };
+    };
+    resetCounter: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                queueName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+        };
+    };
+    pauseQueue: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                queueName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+        };
+    };
     browse: {
         parameters: {
             query?: {
@@ -2697,6 +3047,58 @@ export interface operations {
             };
         };
     };
+    addresses: {
+        parameters: {
+            query: {
+                query: components["schemas"]["ResourceQuery"];
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewAddressView"];
+                };
+            };
+        };
+    };
+    createAddress: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+        };
+    };
     list_6: {
         parameters: {
             query?: never;
@@ -2821,6 +3223,61 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    deleteQueue: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+                override?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                queueName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+        };
+    };
+    updateQueue: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                queueName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateQueueRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
         };
@@ -3082,30 +3539,6 @@ export interface operations {
             };
         };
     };
-    queues: {
-        parameters: {
-            query: {
-                query: components["schemas"]["ResourceQuery"];
-            };
-            header?: never;
-            path: {
-                clusterId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PagedViewQueueView"];
-                };
-            };
-        };
-    };
     detail: {
         parameters: {
             query?: {
@@ -3153,6 +3586,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewProducerView"];
+                };
+            };
+        };
+    };
+    nodeConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                nodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NodeConfigView"];
                 };
             };
         };
@@ -3432,30 +3888,6 @@ export interface operations {
             };
         };
     };
-    addresses: {
-        parameters: {
-            query: {
-                query: components["schemas"]["ResourceQuery"];
-            };
-            header?: never;
-            path: {
-                clusterId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PagedViewAddressView"];
-                };
-            };
-        };
-    };
     providers: {
         parameters: {
             query?: never;
@@ -3577,6 +4009,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    deleteAddress: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                address: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
             };
         };
     };

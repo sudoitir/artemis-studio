@@ -1,0 +1,31 @@
+/* Fields that can never change are facts about the queue, not switched-off
+   inputs — so they are set as a definition list rather than as disabled controls.
+   An operator who mistakes "immutable" for "disabled" goes looking for the way to
+   enable it, and there isn't one. */
+
+.fixed {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.35rem;
+  border-block-end: 1px solid var(--as-border);
+}
+
+.term {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.value {
+  margin: 0;
+  color: var(--as-text);
+  font-size: var(--mantine-font-size-sm);
+  overflow-wrap: anywhere;
+}

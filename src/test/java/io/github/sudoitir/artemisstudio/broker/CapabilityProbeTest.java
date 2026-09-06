@@ -5,12 +5,14 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.broker.BrokerCapabilities.CapabilityAssessment;
 import io.github.sudoitir.artemisstudio.broker.BrokerCapabilities.CapabilityStatus;
 import io.github.sudoitir.artemisstudio.broker.core.CoreEventClient;
 import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpMethod;
@@ -76,11 +78,10 @@ class CapabilityProbeTest {
     }
 
     @Test
-    void readAndWriteAvailableNotificationsUnknownMessageIoDegraded() {
+    void readAvailableWriteUnknownNotificationsUnknown() {
         Fixture f = fixture(
                 "search-broker.json",
                 "capability-version-read.json",
-                "topology.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
                 "addresses-with-notifications.json",
@@ -89,24 +90,55 @@ class CapabilityProbeTest {
         BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
         assertThat(caps.managementRead().status()).isEqualTo(CapabilityStatus.AVAILABLE);
-        assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.AVAILABLE);
-        assertThat(caps.managementWrite().reason()).contains("jolokia-access.xml");
+        // A read says nothing about writing (ADR-0049 D5): unknown until one is tried.
+        assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.UNKNOWN);
         // No scrape cycle has produced a subscription outcome yet.
         assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNKNOWN);
         assertThat(caps.notifications().reason()).contains("first scrape cycle has not completed");
         assertThat(caps.notifications().reason()).contains("CORE acceptor present");
         assertThat(caps.notifications().reason()).contains("activemq.notifications address present");
-        assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.AVAILABLE);
+        assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.UNKNOWN);
         assertThat(caps.messageIo().reason()).contains("truncates").contains("Core client");
         f.server().verify();
     }
 
+    /**
+     * The probe makes no write, so it cannot report one as unavailable. Recorded
+     * evidence from a real write is overlaid by {@code CapabilityLedger}; supplying
+     * it here is what the caller does (ADR-0049 D5).
+     */
     @Test
-    void writeAndMessageIoUnavailableWhenExecIsRefused() {
+    void recordedRefusalIsReportedWhenOneHasBeenObserved() {
         Fixture f = fixture(
                 "search-broker.json",
                 "capability-version-read.json",
-                "exec-forbidden.json",
+                "acceptors.json",
+                "acceptor-params-core.json",
+                "addresses-with-notifications.json",
+                "address-settings.json");
+
+        BrokerCapabilities caps = probe.probe(
+                f.client(),
+                new SubscriptionVerdict.NotAttempted(),
+                Optional.of(CapabilityAssessment.unavailable("The broker refused a management write.")));
+
+        assertThat(caps.managementRead().status()).isEqualTo(CapabilityStatus.AVAILABLE);
+        assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
+        assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
+        assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNKNOWN);
+        f.server().verify();
+    }
+
+    /**
+     * A bad argument is not an authorization refusal, so nothing about it may reach
+     * the ledger — the probe keeps reporting unknown, and write operations stay
+     * offered. One malformed request must not permanently disable a button.
+     */
+    @Test
+    void writeStaysUnknownUntilAWriteIsActuallyAttempted() {
+        Fixture f = fixture(
+                "search-broker.json",
+                "capability-version-read.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
                 "addresses-with-notifications.json",
@@ -114,11 +146,11 @@ class CapabilityProbeTest {
 
         BrokerCapabilities caps = probe.probe(f.client(), new SubscriptionVerdict.NotAttempted());
 
-        assertThat(caps.managementRead().status()).isEqualTo(CapabilityStatus.AVAILABLE);
-        assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
-        assertThat(caps.managementWrite().reason()).contains("read-only policy");
-        assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
-        assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNKNOWN);
+        assertThat(caps.managementWrite().status()).isEqualTo(CapabilityStatus.UNKNOWN);
+        assertThat(caps.managementWrite().reason()).contains("No management write has been attempted");
+        // Offered, not hidden: absence of evidence must not block the operator.
+        assertThat(caps.messageIo().status()).isEqualTo(CapabilityStatus.UNKNOWN);
+        assertThat(caps.messageIo().reason()).contains("not yet established");
         f.server().verify();
     }
 
@@ -127,7 +159,6 @@ class CapabilityProbeTest {
         Fixture f = fixture(
                 "search-broker.json",
                 "capability-version-read.json",
-                "topology.json",
                 "acceptors-empty.json",
                 "addresses-without-notifications.json",
                 "address-settings.json");
@@ -159,7 +190,6 @@ class CapabilityProbeTest {
         Fixture f = fixture(
                 "search-broker.json",
                 "capability-version-read.json",
-                "topology.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
                 "addresses-with-notifications.json",
@@ -178,7 +208,6 @@ class CapabilityProbeTest {
         Fixture f = fixture(
                 "search-broker.json",
                 "capability-version-read.json",
-                "topology.json",
                 "acceptors.json",
                 "acceptor-params-core.json",
                 "addresses-with-notifications.json",
@@ -197,7 +226,6 @@ class CapabilityProbeTest {
         Fixture f = fixture(
                 "search-broker.json",
                 "capability-version-read.json",
-                "topology.json",
                 "acceptors-empty.json",
                 "addresses-without-notifications.json",
                 "address-settings.json");

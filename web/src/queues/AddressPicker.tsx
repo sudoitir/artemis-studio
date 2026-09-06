@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { Chip, Combobox, Group, Loader, Text, TextInput, useCombobox } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -21,6 +22,10 @@ export interface AddressPickerProps {
   unknownHint?: string;
   w?: number | string;
   disabled?: boolean;
+  /** So a form can move focus here when this is the first invalid field. */
+  inputRef?: React.Ref<HTMLInputElement>;
+  error?: React.ReactNode;
+  onBlur?: () => void;
 }
 
 /**
@@ -46,6 +51,9 @@ export function AddressPicker({
   unknownHint,
   w,
   disabled,
+  inputRef,
+  error,
+  onBlur,
 }: AddressPickerProps) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const [types, setTypes] = useState<RoutingType[]>([]);
@@ -86,6 +94,7 @@ export function AddressPicker({
       >
         <Combobox.Target>
           <TextInput
+            ref={inputRef}
             label={label}
             description={description}
             placeholder={placeholder}
@@ -105,12 +114,13 @@ export function AddressPicker({
               // Keep the dropdown open while focus moves to the filter inside it.
               if (root.current?.contains(e.relatedTarget)) return;
               combobox.closeDropdown();
+              onBlur?.();
             }}
             rightSection={
               queues.isFetching ? <Loader size={14} aria-label="Loading addresses" /> : <Combobox.Chevron />
             }
             rightSectionPointerEvents="none"
-            error={unknown ? unknownHint : undefined}
+            error={error ?? (unknown ? unknownHint : undefined)}
           />
         </Combobox.Target>
 

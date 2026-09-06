@@ -9,6 +9,8 @@ import {
   TextInput,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+
+import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
 import {
   useDeleteCluster,
   useOverrideNodeUrl,
@@ -120,50 +122,37 @@ export function RemoveCluster({
   onClose: () => void;
   onRemoved: () => void;
 }) {
-  const [typed, setTyped] = useState('');
   const remove = useDeleteCluster();
 
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title={`Remove ${clusterName}?`}
-      size="md"
-    >
+    <Modal opened={opened} onClose={onClose} title={`Remove ${clusterName}?`} size="md">
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
           This removes Studio's registration and stored credentials. It does not
           touch the broker.
         </Text>
-        <TextInput
-          label={`Type ${clusterName} to confirm`}
-          value={typed}
-          onChange={(e) => setTyped(e.currentTarget.value)}
+        {/* The shared typed-confirmation, not a fourth hand-rolled copy. */}
+        <ConfirmByTyping
+          token={clusterName}
+          confirmLabel="Remove cluster"
+          loading={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(clusterId, {
+              onSuccess: () => {
+                notifications.show({
+                  color: 'gray',
+                  title: 'Cluster removed',
+                  message: clusterName,
+                });
+                onClose();
+                onRemoved();
+              },
+            })
+          }
         />
         <Group justify="flex-end">
           <Button variant="subtle" onClick={onClose}>
             Cancel
-          </Button>
-          <Button
-            color="red"
-            loading={remove.isPending}
-            disabled={typed !== clusterName}
-            onClick={() =>
-              remove.mutate(clusterId, {
-                onSuccess: () => {
-                  notifications.show({
-                    color: 'gray',
-                    title: 'Cluster removed',
-                    message: clusterName,
-                  });
-                  setTyped('');
-                  onClose();
-                  onRemoved();
-                },
-              })
-            }
-          >
-            Remove cluster
           </Button>
         </Group>
       </Stack>

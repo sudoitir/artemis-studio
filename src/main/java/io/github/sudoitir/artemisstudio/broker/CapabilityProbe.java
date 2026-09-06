@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.broker;
 import io.github.sudoitir.artemisstudio.broker.BrokerCapabilities.CapabilityAssessment;
 import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -10,9 +11,19 @@ import tools.jackson.databind.JsonNode;
  * Determines a broker connection's {@link BrokerCapabilities} over Jolokia,
  * without ever mutating the broker.
  *
- * <p>The only operation this class invokes is {@code listNetworkTopology()},
- * which is read-only. {@code MANAGEMENT_WRITE} is <em>inferred</em> from it
- * succeeding (ADR-0002); no queue, address, or message is ever created.
+ * <p>No operation this class invokes mutates anything; no queue, address, or
+ * message is ever created.
+ *
+ * <p>{@code MANAGEMENT_WRITE} is therefore <em>not decided here</em> (ADR-0049
+ * D5). It used to be inferred from a read-only {@code listNetworkTopology()} exec
+ * succeeding, which proves only that Jolokia is not under a read-only policy — a
+ * {@code jolokia-access.xml} can still whitelist per operation, and the broker's
+ * own {@code manage} permission is a separate gate. Nothing depended on that
+ * inference until queue lifecycle did, and a create button resting on a guess is
+ * the capability model lying to the operator (non-negotiable #5).
+ *
+ * <p>So the probe returns {@code UNKNOWN} for it, and the caller overlays whatever
+ * an actual write has established. Honest absence of evidence, not a guess.
  */
 @Component
 public class CapabilityProbe {
@@ -20,6 +31,19 @@ public class CapabilityProbe {
     private static final String NOTIFICATIONS_ADDRESS = "activemq.notifications";
 
     public BrokerCapabilities probe(JolokiaBrokerClient client, SubscriptionVerdict notificationVerdict) {
+        return probe(client, notificationVerdict, Optional.empty());
+    }
+
+    /**
+     * @param recordedWrite what an actual management write has established for this
+     *     connection, if one has ever been attempted (ADR-0049 D5). Empty means no
+     *     write has been tried, and the answer is honestly unknown. Supplied by
+     *     {@code CapabilityLedger}; the probe never writes to find out for itself.
+     */
+    public BrokerCapabilities probe(
+            JolokiaBrokerClient client,
+            SubscriptionVerdict notificationVerdict,
+            Optional<CapabilityAssessment> recordedWrite) {
         CapabilityAssessment read = probeManagementRead(client);
         if (read.status() != BrokerCapabilities.CapabilityStatus.AVAILABLE) {
             // No read means nothing else can be judged; report the rest as unknown.
@@ -28,7 +52,7 @@ public class CapabilityProbe {
             return new BrokerCapabilities(read, unknown, unknown, unknown, unknown);
         }
 
-        CapabilityAssessment write = probeManagementWrite(client);
+        CapabilityAssessment write = recordedWrite.orElseGet(CapabilityProbe::probeManagementWrite);
         CapabilityAssessment notifications = assessNotifications(client, notificationVerdict);
         CapabilityAssessment messageIo = assessMessageIo(write);
         CapabilityAssessment slowConsumers = assessSlowConsumerDetection(client);
@@ -51,25 +75,19 @@ public class CapabilityProbe {
         }
     }
 
-    private CapabilityAssessment probeManagementWrite(JolokiaBrokerClient client) {
-        String caveat = " Inferred from a read-only listNetworkTopology() call succeeding — a"
-                + " jolokia-access.xml can still whitelist individual operations, so a specific"
-                + " command may yet be refused.";
-        try {
-            JolokiaResponse response = client.execOnBroker("listNetworkTopology()");
-            if (response.ok()) {
-                return CapabilityAssessment.available(
-                        "Jolokia is not under a read-only policy and the user cleared 'manage'." + caveat);
-            }
-            return CapabilityAssessment.unavailable("listNetworkTopology() was refused (" + response.status()
-                    + "). Jolokia may be under a read-only policy, or the user lacks 'manage'.");
-        } catch (BrokerConnectionException e) {
-            if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
-                return CapabilityAssessment.unavailable(
-                        "The broker refused a management operation for these credentials.");
-            }
-            throw e;
-        }
+    /**
+     * Always {@code UNKNOWN}. Establishing management-write authority needs an
+     * actual write, and probing is not allowed to make one. The recorded evidence
+     * from real writes is overlaid by {@code CapabilityLedger}; when there is none,
+     * this is the answer the operator sees, and it is the true one.
+     */
+    private static CapabilityAssessment probeManagementWrite() {
+        return CapabilityAssessment.unknown(
+                "No management write has been attempted on this connection yet, so Studio cannot say"
+                        + " whether it can perform one. A read succeeding does not establish it: Jolokia can"
+                        + " whitelist individual operations and the broker's 'manage' permission is a separate"
+                        + " gate. The next write operation will settle it.",
+                BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING);
     }
 
     /**
@@ -171,14 +189,28 @@ public class CapabilityProbe {
         }
     }
 
+    /**
+     * Message I/O rides on the same management-write authority, so it inherits that
+     * verdict — including its uncertainty. It must not be reported as unavailable
+     * just because no write has been attempted yet: that would hide working buttons
+     * behind an absence of evidence, which is the opposite of what D5 is for.
+     */
     private CapabilityAssessment assessMessageIo(CapabilityAssessment write) {
-        if (write.status() == BrokerCapabilities.CapabilityStatus.AVAILABLE) {
-            return CapabilityAssessment.available(
-                    "Available through Jolokia: browse, send, move/retry/delete/expire and purge all work."
-                            + " Bodies are carried as text and the broker truncates oversized body/property"
-                            + " values (disclosed per message); faithful binary message I/O needs the Core client.");
-        }
-        return CapabilityAssessment.unavailable("Needs management-write access, which this connection does not have.");
+        String what = "Through Jolokia: browse, send, move/retry/delete/expire and purge. Bodies are"
+                + " carried as text and the broker truncates oversized body/property values (disclosed"
+                + " per message); faithful binary message I/O needs the Core client.";
+        return switch (write.status()) {
+            case AVAILABLE -> CapabilityAssessment.available("Available. " + what);
+            case UNKNOWN ->
+                CapabilityAssessment.unknown(
+                        "Offered, but not yet established — it needs the same management-write authority,"
+                                + " which no write has tested yet. " + what,
+                        BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING);
+            case UNAVAILABLE ->
+                CapabilityAssessment.unavailable(
+                        "Needs management-write access, which this connection has been refused.",
+                        BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING);
+        };
     }
 
     private boolean hasCoreAcceptor(JolokiaBrokerClient client) {

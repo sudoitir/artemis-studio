@@ -2,7 +2,9 @@ package io.github.sudoitir.artemisstudio.mcp;
 
 import io.github.sudoitir.artemisstudio.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.service.ClusterService;
+import io.github.sudoitir.artemisstudio.service.ConfigDiffService;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews;
+import io.github.sudoitir.artemisstudio.web.dto.ConfigViews;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Component;
 public class McpCatalogResources {
 
     private final ClusterService clusters;
+    private final ConfigDiffService configDiff;
 
     @McpResource(
             uri = "studio://clusters",
@@ -46,6 +49,28 @@ public class McpCatalogResources {
                 .sorted(Comparator.comparing(McpViews.ClusterEntry::cluster))
                 .toList();
         return json("studio://clusters", entries);
+    }
+
+    /**
+     * The detail the tool schemas deliberately leave out (ADR-0050).
+     *
+     * <p>{@code tools/list} is sent to a model on every conversation that touches
+     * Studio, before it has asked for anything, so anything spelled out there is a
+     * permanent tax on every session. Enum members and JSON body shapes are the
+     * bulk of it and are needed by exactly one tool, once the model has already
+     * decided to call it. So they live here, and the schemas name this resource.
+     *
+     * <p>A model that never reads this still works: every discriminator is
+     * validated server-side and the rejection names the values it would have
+     * accepted.
+     */
+    @McpResource(
+            uri = "studio://tools",
+            name = "Tool parameter detail",
+            description = "Valid values and JSON body shapes for tools whose schema names this resource.",
+            mimeType = "application/json")
+    public McpSchema.ReadResourceResult toolDetail() {
+        return json("studio://tools", McpToolDetail.entries());
     }
 
     @McpResource(
@@ -103,6 +128,31 @@ public class McpCatalogResources {
         entries.add(entry("messageIo", c.messageIo()));
         entries.add(entry("slowConsumerDetection", c.slowConsumerDetection()));
         return json("cluster://" + clusterId + "/capabilities", entries);
+    }
+
+    /**
+     * One node's effective broker settings, as a resource rather than a tool.
+     *
+     * <p>A resource because this is something to look at, not an action to take —
+     * and because a host fetches a resource once and keeps it, where a tool is paid
+     * for in the listing on every conversation whether or not anyone asks about
+     * settings (ADR-0050). Node ids come from {@code cluster://{id}/topology}.
+     *
+     * <p>These are the settings the node is <em>running with</em>, resolved by the
+     * broker. Studio never reads or writes {@code broker.xml}, and this does not
+     * mutate anything.
+     */
+    @McpResource(
+            uri = "cluster://{clusterId}/nodes/{nodeId}/settings",
+            name = "Node settings",
+            description = "One node's effective broker configuration: broker attributes, address settings, "
+                    + "security settings and acceptors, as the broker resolves them.",
+            mimeType = "application/json")
+    public McpSchema.ReadResourceResult nodeSettings(String clusterId, String nodeId) {
+        UUID id = McpArgs.uuid("clusterId", clusterId);
+        UUID node = McpArgs.uuid("nodeId", nodeId);
+        ConfigViews.NodeConfigView view = configDiff.nodeConfig(id, node);
+        return json("cluster://" + clusterId + "/nodes/" + nodeId + "/settings", view);
     }
 
     private static McpViews.CapabilityEntry entry(String name, ClusterViews.CapabilityView v) {

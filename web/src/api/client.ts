@@ -53,6 +53,14 @@ export type AuditEventView = Schemas['AuditEventView'];
 export type AuditPageView = Schemas['AuditPageView'];
 export type DlqView = Schemas['DlqView'];
 export type ConfigDiffView = Schemas['ConfigDiffView'];
+export type NodeConfigView = Schemas['NodeConfigView'];
+export type NodeConfigSectionView = Schemas['NodeConfigSectionView'];
+export type NodeConfigEntryView = Schemas['NodeConfigEntryView'];
+export type LifecycleOutcomeView = Schemas['LifecycleOutcomeView'];
+export type NodeOutcomeView = Schemas['NodeOutcomeView'];
+export type CreateQueueRequest = Schemas['CreateQueueRequest'];
+export type UpdateQueueRequest = Schemas['UpdateQueueRequest'];
+export type CreateAddressRequest = Schemas['CreateAddressRequest'];
 export type ConfigSectionView = Schemas['ConfigSectionView'];
 export type ConfigEntryView = Schemas['ConfigEntryView'];
 export type DlqAddress = Schemas['DlqAddress'];
@@ -541,6 +549,131 @@ export function usePurgeQueue(clusterId: string, queueName: string) {
       qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
       qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
     },
+  });
+}
+
+// ── queue and address lifecycle (ADR-0049) ─────────────────────────────────
+
+/**
+ * A lifecycle command names the cluster, not a node, and comes back as a
+ * per-node outcome. `dryRun` previews without touching any broker; `override`
+ * clears the bulk cap on a destroy, which is the only kind the cap applies to.
+ */
+export interface LifecycleVars {
+  dryRun?: boolean;
+  override?: boolean;
+}
+
+const lifecycleBase = (clusterId: string) => `/clusters/${clusterId}`;
+
+function lifecycleQuery(dryRun?: boolean, override?: boolean): string {
+  const params = new URLSearchParams();
+  if (dryRun) params.set('dryRun', 'true');
+  if (override) params.set('override', 'true');
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
+
+/**
+ * Invalidate on a real run only. A preview mutated nothing, so refetching after
+ * one would cost a broker round trip to learn what we already know.
+ */
+function useLifecycleMutation<V extends LifecycleVars>(
+  clusterId: string,
+  send: (vars: V) => Promise<LifecycleOutcomeView>,
+) {
+  const qc = useQueryClient();
+  return useMutation<LifecycleOutcomeView, ApiError, V>({
+    mutationFn: send,
+    onSuccess: (result) => {
+      if (result.dryRun) return;
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
+    },
+  });
+}
+
+export function useCreateQueue(clusterId: string) {
+  return useLifecycleMutation<LifecycleVars & { body: CreateQueueRequest }>(
+    clusterId,
+    ({ body, dryRun }) =>
+      request(`${lifecycleBase(clusterId)}/queues${lifecycleQuery(dryRun)}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  );
+}
+
+export function useUpdateQueue(clusterId: string, queueName: string) {
+  return useLifecycleMutation<LifecycleVars & { body: UpdateQueueRequest }>(
+    clusterId,
+    ({ body, dryRun }) =>
+      request(
+        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${lifecycleQuery(dryRun)}`,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+  );
+}
+
+export function useDeleteQueue(clusterId: string, queueName: string) {
+  return useLifecycleMutation<LifecycleVars>(clusterId, ({ dryRun, override }) =>
+    request(
+      `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${lifecycleQuery(dryRun, override)}`,
+      { method: 'DELETE' },
+    ),
+  );
+}
+
+/** Pause and resume are one hook: the same permission, and the UI toggles between them. */
+export function useSetQueuePaused(clusterId: string, queueName: string) {
+  return useLifecycleMutation<LifecycleVars & { paused: boolean }>(
+    clusterId,
+    ({ paused, dryRun }) =>
+      request(
+        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}/${paused ? 'pause' : 'resume'}${lifecycleQuery(dryRun)}`,
+        { method: 'POST' },
+      ),
+  );
+}
+
+export function useResetQueueCounter(clusterId: string, queueName: string) {
+  return useLifecycleMutation<LifecycleVars>(clusterId, ({ dryRun }) =>
+    request(
+      `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}/reset-counter${lifecycleQuery(dryRun)}`,
+      { method: 'POST' },
+    ),
+  );
+}
+
+export function useCreateAddress(clusterId: string) {
+  return useLifecycleMutation<LifecycleVars & { body: CreateAddressRequest }>(
+    clusterId,
+    ({ body, dryRun }) =>
+      request(`${lifecycleBase(clusterId)}/addresses${lifecycleQuery(dryRun)}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  );
+}
+
+export function useDeleteAddress(clusterId: string, address: string) {
+  return useLifecycleMutation<LifecycleVars>(clusterId, ({ dryRun }) =>
+    request(
+      `${lifecycleBase(clusterId)}/addresses/${encodeURIComponent(address)}${lifecycleQuery(dryRun)}`,
+      { method: 'DELETE' },
+    ),
+  );
+}
+
+/** One node's effective broker configuration (ADR-0043 + ADR-0049). */
+export function useNodeConfig(
+  clusterId: string,
+  nodeId: string | undefined,
+): UseQueryResult<NodeConfigView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'nodes', nodeId, 'config'] as const,
+    queryFn: () => request<NodeConfigView>(`/clusters/${clusterId}/nodes/${nodeId}/config`),
+    enabled: Boolean(nodeId),
   });
 }
 

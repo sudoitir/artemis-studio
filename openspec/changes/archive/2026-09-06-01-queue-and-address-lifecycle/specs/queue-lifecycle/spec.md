@@ -7,8 +7,7 @@ create an address and destroy an address on a registered cluster, without leavin
 the product for a broker CLI or a JMX console.
 
 A queue creation SHALL carry the address it binds to, its routing type, its name,
-and whether it is durable; a filter MAY be supplied at creation and SHALL NOT be
-changeable afterwards.
+and whether it is durable; a filter MAY be supplied at creation.
 
 Destroying an address that still has queues bound to it SHALL be refused, and the
 refusal SHALL name the bound queues, so that the operator destroys them
@@ -119,8 +118,14 @@ and changing the subset of its configuration that the broker accepts on a live
 queue.
 
 The system SHALL NOT offer to change configuration the broker will not accept on an
-existing queue — including its filter and its routing type. Such fields SHALL be
-presented as immutable, with the reason, rather than offered and then refused.
+existing queue — in particular its routing type, which the broker refuses to change
+on a live queue. Such fields SHALL be presented as immutable, with the reason,
+rather than offered and then refused.
+
+Where the broker's update operation replaces a queue's whole configuration rather
+than merging into it, the system SHALL send the queue's complete configuration with
+the operator's changes applied, so that a field the operator did not touch is not
+silently cleared. A partial update SHALL NOT be forwarded to the broker as-is.
 
 A paused queue SHALL be identifiable as paused in the cluster's queue view.
 
@@ -133,8 +138,14 @@ A paused queue SHALL be identifiable as paused in the cluster's queue view.
 #### Scenario: An immutable field is not offered for edit
 
 - **WHEN** an operator opens a queue for editing
-- **THEN** the filter and routing type are shown as immutable with the reason, and
-  cannot be submitted as changes
+- **THEN** the routing type is shown as immutable with the reason, and cannot be
+  submitted as a change
+
+#### Scenario: An untouched field survives an update
+
+- **WHEN** an operator changes one field of a queue whose configuration also sets a
+  filter
+- **THEN** the filter is unchanged after the update
 
 ### Requirement: Lifecycle operations are permission-gated and audited
 

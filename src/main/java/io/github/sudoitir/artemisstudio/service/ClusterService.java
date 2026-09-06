@@ -81,6 +81,7 @@ public class ClusterService {
     private final BrokerClientFactory clientFactory;
     private final BrokerConnections connections;
     private final CapabilityProbe capabilityProbe;
+    private final CapabilityLedger capabilityLedger;
     private final TopologyDiscovery topologyDiscovery;
     private final HaStateEvaluator evaluator;
     private final SplitBrainRegistry splitBrainRegistry;
@@ -223,8 +224,10 @@ public class ClusterService {
 
         ClusterTopology topology = topologyDiscovery.discover(
                 clusterId, reachable.stream().map(Probe::asSeed).toList());
-        BrokerCapabilities capabilities =
-                capabilityProbe.probe(reachable.get(0).client(), coreSubscriptions.verdictFor(clusterId));
+        BrokerCapabilities capabilities = capabilityProbe.probe(
+                reachable.get(0).client(),
+                coreSubscriptions.verdictFor(clusterId),
+                capabilityLedger.managementWrite(clusterId));
         seedBuiltinAlertRules(clusterId);
         environmentIndex.invalidate();
 
@@ -292,14 +295,19 @@ public class ClusterService {
         return viewMapper.health(evaluator.toHealth(clusterId, topology.nodes()));
     }
 
-    /** A live probe of the first manageable node (ADR: no capability cache in Phase 1). */
+    /**
+     * A live probe of the first manageable node, with the recorded management-write
+     * evidence overlaid (ADR-0049 D5). The probe itself never writes, so without
+     * that overlay the write capability could only ever be unknown.
+     */
     @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
         BrokerNodeEntity manageable = manageableNode(clusterId);
         JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-        return viewMapper.capabilities(capabilityProbe.probe(client, coreSubscriptions.verdictFor(clusterId)));
+        return viewMapper.capabilities(capabilityProbe.probe(
+                client, coreSubscriptions.verdictFor(clusterId), capabilityLedger.managementWrite(clusterId)));
     }
 
     /**

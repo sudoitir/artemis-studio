@@ -197,7 +197,7 @@ public final class ConfigDiff {
      * segment — {@code /addressSettings/orders.#/maxSizeBytes} classifies on
      * {@code maxSizeBytes}, not on the match pattern that identifies the setting.
      */
-    static Classification classify(String section, String key) {
+    public static Classification classify(String section, String key) {
         String leaf = leafOf(key);
         return switch (section) {
             case SECTION_BROKER -> {

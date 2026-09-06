@@ -132,9 +132,12 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   // the operator never has to know they exist until the ledger says so.
   useEffect(() => {
     if (!check.data) return;
+    // A refusal, not an unproven capability: at check time no write has been
+    // attempted, so messageIo is legitimately UNKNOWN and opening the advanced
+    // fields for it would fire on every single registration.
     const gap =
-      check.data.capabilities.messageIo.status !== 'AVAILABLE' ||
-      check.data.capabilities.notifications.status !== 'AVAILABLE';
+      check.data.capabilities.messageIo.status === 'UNAVAILABLE' ||
+      check.data.capabilities.notifications.status === 'UNAVAILABLE';
     if (gap) setAdvancedOpen(true);
   }, [check.data]);
 

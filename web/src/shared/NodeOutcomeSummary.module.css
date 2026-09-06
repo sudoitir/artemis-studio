@@ -1,0 +1,89 @@
+/* One object, not a list of notifications. The headline states the shape of the
+   result so a partial application is apparent before any row is read; the rows
+   hang their state on one right-aligned column, the same scanning pattern as
+   CapabilityLedger. Colour appears only where something is wrong — a fully
+   applied command is monochrome, per the house rule. */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.verdict {
+  font-weight: 600;
+  color: var(--as-text);
+}
+
+/* Partial and failed are the two outcomes an operator must not scroll past. */
+.verdict[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.verdict[data-tone='danger'] {
+  color: var(--as-danger);
+}
+
+.total {
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.4rem;
+  border-block-start: 1px solid var(--as-border);
+}
+
+.node {
+  color: var(--as-text);
+  overflow-wrap: anywhere;
+}
+
+.state {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+
+/* Counts align in a column so a difference between nodes is visible without
+   reading the digits. */
+.count {
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  color: var(--as-text-dimmed);
+}
+
+.status[data-tone='danger'] {
+  color: var(--as-danger);
+}
+
+.status[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.error {
+  color: var(--as-danger);
+  padding-block-end: 0.4rem;
+  overflow-wrap: anywhere;
+}

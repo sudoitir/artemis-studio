@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
+import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.security.Grant;
@@ -64,6 +66,9 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
     @Autowired
     ClusterRepository clusters;
 
+    @Autowired
+    BrokerNodeRepository brokerNodes;
+
     /** Stands in for every non-cluster path variable: a valid UUID and a valid name. */
     private static final UUID PLACEHOLDER = UUID.fromString("00000000-0000-0000-0000-0000000000ff");
 
@@ -87,6 +92,15 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
     private UUID visible;
     private UUID hidden;
 
+    /**
+     * A real node on the granted cluster. Node-addressed reads would otherwise
+     * {@code 404} for absence even with a grant, and their control call could not
+     * tell "no grant" from "no such node" — the weakness the exemption list above
+     * describes. Seeding one is the upgrade that doc asks for, taken here because
+     * this change adds the first node-addressed read.
+     */
+    private UUID visibleNode;
+
     @AfterEach
     void cleanUp() {
         if (visible != null) {
@@ -95,6 +109,7 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
         if (hidden != null) {
             clusters.deleteById(hidden);
         }
+        visibleNode = null;
     }
 
     @Test
@@ -104,6 +119,13 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
         visible = clusters.save(new ClusterEntity("visible-" + UUID.randomUUID(), null, null))
                 .getId();
         hidden = clusters.save(new ClusterEntity("hidden-" + UUID.randomUUID(), null, null))
+                .getId();
+        // No management URL on purpose: the read then answers "unavailable, and here
+        // is why" with a 200 rather than reaching for a broker that is not there,
+        // which is exactly the control this needs.
+        visibleNode = brokerNodes
+                .save(BrokerNodeEntity.fromSeed(
+                        visible, "node-a", "STANDALONE", UUID.randomUUID().toString()))
                 .getId();
 
         MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
@@ -144,14 +166,14 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
                 if (!pattern.startsWith("/api/v1/clusters/{clusterId}")) {
                     continue;
                 }
-                int hiddenStatus = statusFor(mvc, pattern, hidden, auth);
+                int hiddenStatus = statusFor(mvc, pattern, hidden, auth, PLACEHOLDER);
                 if (hiddenStatus != 404) {
                     leaked.add("GET " + pattern + " -> " + hiddenStatus + " for a cluster with no grant");
                     continue;
                 }
                 // The control: the same call against a cluster the caller CAN see must
                 // not 404, or the 404 above proves nothing about the guard.
-                int visibleStatus = statusFor(mvc, pattern, visible, auth);
+                int visibleStatus = statusFor(mvc, pattern, visible, auth, visibleNode);
                 if (visibleStatus == 404 && !NO_CONTROL_POSSIBLE.contains(pattern)) {
                     inconclusive.add("GET " + pattern + " -> 404 even for a granted cluster");
                 }
@@ -176,9 +198,13 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
     private static final Map<String, String> REQUIRED_PARAMS =
             Map.of("/api/v1/clusters/{clusterId}/metrics", "?metric=messageCount");
 
-    private static int statusFor(MockMvc mvc, String pattern, UUID clusterId, UsernamePasswordAuthenticationToken auth)
+    private static int statusFor(
+            MockMvc mvc, String pattern, UUID clusterId, UsernamePasswordAuthenticationToken auth, UUID nodeId)
             throws Exception {
         String path = pattern.replace("{clusterId}", clusterId.toString())
+                // A node that really exists on the granted cluster, so a node-addressed
+                // read's control call is not a 404 for absence.
+                .replace("{nodeId}", nodeId.toString())
                 // The one numeric path variable; it must parse as a long or binding
                 // fails before the guard runs. Not derivable from the name — {flowId}
                 // is a UUID — so it is listed rather than pattern-matched.
