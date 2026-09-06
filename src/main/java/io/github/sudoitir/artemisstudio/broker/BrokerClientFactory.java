@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.HttpClientSettings;
+import org.springframework.boot.http.client.HttpRedirects;
 import org.springframework.boot.ssl.NoSuchSslBundleException;
 import org.springframework.boot.ssl.SslBundle;
 import org.springframework.boot.ssl.SslBundles;
@@ -37,7 +38,12 @@ public class BrokerClientFactory {
         this.sslBundles = sslBundles;
         this.baseSettings = HttpClientSettings.defaults()
                 .withConnectTimeout(properties.broker().connectTimeout())
-                .withReadTimeout(properties.broker().readTimeout());
+                .withReadTimeout(properties.broker().readTimeout())
+                // A Jolokia agent never redirects. The Artemis console does: a seed URL
+                // pointing at /console bounces to the Hawtio login page, and following
+                // that turns a wrong-path mistake into an unreadable "not a Jolokia
+                // response". Surfacing the 3xx keeps the real diagnosis visible.
+                .withRedirects(HttpRedirects.DONT_FOLLOW);
     }
 
     public JolokiaBrokerClient forNode(BrokerConnectionSettings settings, String jolokiaUrl) {

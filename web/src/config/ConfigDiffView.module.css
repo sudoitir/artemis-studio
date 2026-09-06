@@ -4,13 +4,41 @@
   overflow-x: auto;
 }
 
+/* Fixed layout, on purpose. With `auto` the browser sizes every column from its
+   content, so a long acceptor URI in one value cell takes the whole row and the
+   key and the status word collapse to a character per line. Fixed layout plus a
+   floor wide enough for four readable columns means wide values scroll instead. */
 .table {
-  min-inline-size: 640px;
+  table-layout: fixed;
+  min-inline-size: 1040px;
 }
 
+.table th,
 .table td {
   vertical-align: top;
-  word-break: break-all;
+}
+
+/* The key is the row's identity — it stays on one line and is revealed in full
+   by the cell's title attribute when it does not fit. */
+.keyCell {
+  inline-size: 28%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Only the two value columns wrap, and with `anywhere` rather than `break-all`
+   so ordinary words still break at word boundaries (house rule, see
+   ClusterLayout.module.css). */
+.valueCell {
+  overflow-wrap: anywhere;
+}
+
+.statusCell {
+  /* Wide enough for the longest status word plus the longest classification
+     badge ("unclassified") side by side; a truncated badge says nothing. */
+  inline-size: 190px;
+  white-space: nowrap;
 }
 
 /* A drift row is marked by a rule on its inline start, not by a colour fill —

@@ -61,6 +61,15 @@ public class RequestReplyService {
     @Transactional
     public ExpectationView create(UUID clusterId, CreateExpectationRequest request) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        // Checked before the audit row is opened: letting the unique constraint fire
+        // instead would mark the transaction rollback-only, discarding the audit row
+        // with it, and surface as an unmapped 500 the operator cannot act on.
+        if (expectations.existsByClusterIdAndRequestAddress(clusterId, request.requestAddress())) {
+            throw new ConflictException(
+                    "duplicate-rr-expectation",
+                    "'" + request.requestAddress()
+                            + "' is already traced on this cluster. Edit the existing expectation instead.");
+        }
         AuditEventEntity audited = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_RR_EXPECTATION",

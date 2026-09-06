@@ -11,43 +11,33 @@ marked as pre-releases.
 
 ## [Unreleased]
 
-### Security
+### Fixed
 
-- **Cluster-scoped reads now honour your grants.** Six read endpoints — the cross-node
-  queue grid, the addresses / consumers / sessions / connections / producers views, the
-  metrics timeseries, the audit trail, and the broker event history — did not check
-  whether the caller held a grant on the cluster they addressed. Any signed-in user
-  could read any registered cluster's queues, metrics, audit trail, and events by
-  putting its id in the URL, regardless of the roles they had been given. They are now
-  checked like every other cluster-addressed read, and a cluster you hold no grant on
-  answers `404` rather than revealing that it exists.
-
-  **After upgrading, users whose grants are scoped to specific clusters or environments
-  will lose access to data they could previously see.** That is the fix working. If
-  someone genuinely needs cross-cluster visibility, grant them the role at global scope
-  (Administration → Users). Users holding a global grant are unaffected.
+- **A broker that refuses the connection now says so.** Registering a cluster against an
+  Artemis console that rejects the credentials reported *"The broker answered, but not with
+  a Jolokia response"* — a message that sent operators looking for a proxy or a CORS problem
+  that was not there. Studio now classifies the refusal from the HTTP status rather than
+  from an exception subclass, and repeats what the broker itself said: the
+  `Hawtio-Forbidden-Reason` header the Artemis console sets on its bare 403, and any
+  `WWW-Authenticate` challenge.
+- **A management URL pointing at the console instead of the agent is named as such.** Studio
+  no longer follows redirects to the console's login page and then reports the resulting
+  HTML as a bad Jolokia response; a redirect is reported as the wrong path, with the
+  location the broker sent. A seed typed as `host:port/console` is completed to
+  `/console/jolokia` rather than left to fail.
+- **Tracing an already-traced request address returns a conflict, not a server error.**
+  Adding the same request address twice failed with an HTTP 500 whose body said nothing;
+  it now returns 409 naming the address, and the Requests screen shows that message. The
+  enable/disable switch and the remove button on that screen also report their failures
+  instead of appearing to do nothing.
+- **The config diff table is readable again.** Long acceptor values no longer take the whole
+  row and squeeze the key and status columns to one character per line; wide values scroll
+  inside the section, and a key too long for its column is revealed on hover.
 
 ## [2026.09.1] — 2026-09-05
 
 ### Added
 
-- **MCP server.** Studio now speaks the Model Context Protocol at `POST /mcp`, so an
-  assistant can read your clusters and run the same guarded operations you can. About a
-  dozen purpose-built tools (`cluster_health`, `diagnose_queue`, `queue_action`, …),
-  four resources and four runbook prompts — not a mirror of the REST API. Authenticate
-  with a personal API key: a key never exceeds its owner's live grants, mutations
-  dry-run by default and a real destructive run needs the queue's own name as an
-  explicit `confirm`, and every call is audited under you with the key's name attached.
-  Setup, a copy-paste client config and a `curl` smoke test are in the README's MCP
-  section.
-- **An `/account` page**, reachable from the avatar menu by every user: who you are
-  signed in as, a link to change your password, your API keys, and how to connect an
-  MCP client.
-- **API keys can now be given permissions when you create one.** Keys minted from the
-  UI previously carried no grants at all — they authenticated and could do nothing,
-  and the only way to make a usable one was `POST /api/v1/tokens` by hand. The new-key
-  dialog now offers a scope (global, or one cluster) and the permissions you yourself
-  hold at it.
 - **Slow-consumer detection.** A consumer that is attached but not draining is now
   visible two ways. Studio surfaces the broker's own `CONSUMER_SLOW` notification on
   the `consumers` event topic — the only source that can name the individual consumer
@@ -82,29 +72,8 @@ marked as pre-releases.
   it reports *unknown* rather than guessing, with the `broker.xml` to enable it.
 - A message's type now reads `text` or `bytes` rather than `type 3`.
 
-### Changed
-
-- **API keys have moved off Administration.** They were under
-  Administration → API tokens, which hid a per-user credential behind `user:admin`.
-  They now live at **Account → API keys** (avatar menu → Account). A bookmark to
-  `/admin?tab=tokens` will land on Administration with the Users tab selected.
-- `queue_snapshot` gains a `paused` column so paused queues can be excluded from
-  slow-consumer detection. Applied automatically on startup; no action needed.
-
 ### Fixed
 
-- **A key scoped to one cluster now works.** API keys intersect their grants with their
-  owner's live grants, and that check compared scopes for exact equality — so a user
-  whose roles are granted globally, which is every administrator, could only mint a
-  globally scoped key. Narrowing a key to a single cluster produced a key that
-  authenticated and then failed every call with "no such cluster". The check now walks
-  scopes the way permission checks do: global covers everything, an environment covers
-  its clusters. A key still cannot exceed its owner — the widening runs one way only.
-- **Purge, browse totals, and CORE acceptor detection against a live broker.** Jolokia
-  answers a single-attribute read with a map keyed by the attribute name, not with the
-  bare value, and three call sites read the value directly. `DELETE .../messages?dryRun=true`
-  answered `500`; a message browse reported the page size as the queue total; and a
-  broker with no CORE acceptor could be reported as having one.
 - **Topology view.** The band carrying each pair's shared NodeID was drawn at a fixed
   position over the canvas rather than attached to the nodes it grouped, so it lined up
   only by coincidence and slid out of place on the first pan or zoom. Each logical node
@@ -119,6 +88,11 @@ marked as pre-releases.
 - The "add a management URL" prompt on a discovered-but-unreachable node was a
   permanently disabled button. It now opens the dialog that adds the URL.
 - The topology graph re-fits after a failover instead of leaving a stale viewport.
+
+### Changed
+
+- `queue_snapshot` gains a `paused` column so paused queues can be excluded from
+  slow-consumer detection. Applied automatically on startup; no action needed.
 
 ## [2026.09.0] — 2026-09-05
 

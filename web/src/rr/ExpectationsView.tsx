@@ -35,6 +35,10 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
   const [samplePerMin, setSamplePerMin] = useState<number | ''>(10);
   const [capturePayload, setCapturePayload] = useState(false);
 
+  // Every mutation reports its own failure. A silently ignored error here reads as
+  // a switch that flipped back on its own, which is the least diagnosable outcome.
+  const failed = (error: Error) => notifications.show({ message: error.message, color: 'red' });
+
   const submit = () => {
     if (!requestAddress.trim()) return;
     create.mutate(
@@ -55,23 +59,26 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           setCapturePayload(false);
           notifications.show({ message: `Tracing ${requestAddress.trim()}`, color: 'green' });
         },
-        onError: (e) => notifications.show({ message: e.message, color: 'red' }),
+        onError: failed,
       },
     );
   };
 
   const toggle = (e: ExpectationView) => {
-    update.mutate({
-      id: e.id,
-      body: {
-        replyAddress: e.replyAddress ?? undefined,
-        correlationProperty: e.correlationProperty ?? undefined,
-        deadlineMs: e.deadlineMs ?? undefined,
-        samplePerMin: e.samplePerMin,
-        capturePayload: e.capturePayload,
-        enabled: !e.enabled,
+    update.mutate(
+      {
+        id: e.id,
+        body: {
+          replyAddress: e.replyAddress ?? undefined,
+          correlationProperty: e.correlationProperty ?? undefined,
+          deadlineMs: e.deadlineMs ?? undefined,
+          samplePerMin: e.samplePerMin,
+          capturePayload: e.capturePayload,
+          enabled: !e.enabled,
+        },
       },
-    });
+      { onError: failed },
+    );
   };
 
   return (
@@ -92,7 +99,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
         />
         <TextInput
           label="Reply address"
-          description="Only for the shared-reply-queue pattern"
+          description="Needed unless the request carries a replyTo"
           placeholder="orders.reply"
           value={replyAddress}
           onChange={(e) => setReplyAddress(e.currentTarget.value)}
@@ -163,7 +170,16 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
                   <ActionIcon
                     variant="subtle"
                     color="red"
-                    onClick={() => remove.mutate(e.id)}
+                    onClick={() =>
+                      remove.mutate(e.id, {
+                        onError: failed,
+                        onSuccess: () =>
+                          notifications.show({
+                            message: `Stopped tracing ${e.requestAddress}`,
+                            color: 'green',
+                          }),
+                      })
+                    }
                     aria-label={`Remove ${e.requestAddress}`}
                   >
                     ×

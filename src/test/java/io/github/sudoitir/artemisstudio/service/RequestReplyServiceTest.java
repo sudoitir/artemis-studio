@@ -63,6 +63,23 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aSecondExpectationForTheSameAddressConflictsRatherThanBreakingTheTransaction() {
+        UUID clusterId = cluster();
+        service.create(clusterId, new CreateExpectationRequest("rr.request", null, null, null, 10, false));
+
+        assertThatThrownBy(() -> service.create(
+                        clusterId, new CreateExpectationRequest("rr.request", "rr.other", null, null, 10, false)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("rr.request")
+                .extracting(e -> ((ConflictException) e).slug())
+                .isEqualTo("duplicate-rr-expectation");
+
+        // The rejected attempt leaves no audit row: it never opened one.
+        assertThat(audits.findByClusterIdOrderByTsDesc(clusterId)).hasSize(1);
+        assertThat(service.list(clusterId)).hasSize(1);
+    }
+
+    @Test
     void disablingRetainsConfiguration() {
         UUID clusterId = cluster();
         ExpectationView created =

@@ -1,5 +1,6 @@
 const DEFAULT_PORT = '8161';
 const DEFAULT_PATH = '/console/jolokia';
+const BARE_PATHS = new Set(['', '/', '/console', '/console/']);
 
 export interface NormalisedSeed {
   /** What the operator typed, verbatim — shown back on an error. */
@@ -41,7 +42,10 @@ function normaliseOne(token: string): string | null {
     const u = new URL(candidate);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
     if (!u.port) u.port = DEFAULT_PORT;
-    if (u.pathname === '' || u.pathname === '/') u.pathname = DEFAULT_PATH;
+    // `/console` is what an operator copies out of the browser's address bar. The
+    // agent lives one level deeper, and posting to the console itself only bounces
+    // to its login page, so fill the rest of the path in rather than let that fail.
+    if (BARE_PATHS.has(u.pathname)) u.pathname = DEFAULT_PATH;
     return u.toString();
   } catch {
     return null;
