@@ -4,10 +4,9 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { UsersPanel } from './UsersPanel.tsx';
 import { RolesPanel } from './RolesPanel.tsx';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
-import { TokensPanel } from './TokensPanel.tsx';
 import { OidcMappingPanel } from './OidcMappingPanel.tsx';
 
-/** Users, roles, environments, API tokens, and OIDC mapping administration (authorization spec). */
+/** Users, roles, environments, and OIDC mapping administration (authorization spec). */
 export function AdminView() {
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
@@ -25,7 +24,6 @@ export function AdminView() {
           <Tabs.Tab value="users">Users</Tabs.Tab>
           <Tabs.Tab value="roles">Roles</Tabs.Tab>
           <Tabs.Tab value="environments">Environments</Tabs.Tab>
-          <Tabs.Tab value="tokens">API tokens</Tabs.Tab>
           <Tabs.Tab value="oidc">SSO mapping</Tabs.Tab>
         </Tabs.List>
 
@@ -37,9 +35,6 @@ export function AdminView() {
         </Tabs.Panel>
         <Tabs.Panel value="environments" pt="md">
           <EnvironmentsPanel />
-        </Tabs.Panel>
-        <Tabs.Panel value="tokens" pt="md">
-          <TokensPanel />
         </Tabs.Panel>
         <Tabs.Panel value="oidc" pt="md">
           <OidcMappingPanel />

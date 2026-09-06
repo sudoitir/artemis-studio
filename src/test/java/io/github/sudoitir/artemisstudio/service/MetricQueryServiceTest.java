@@ -32,6 +32,11 @@ class MetricQueryServiceTest {
     @Mock
     MetricSampleReaper reaper;
 
+    /** Permissive by default: an unstubbed void call is a no-op, i.e. access granted.
+     * The guard's real behaviour is covered by {@code ClusterScopeAuthorizationTest}. */
+    @Mock
+    ClusterAccessGuard clusterAccess;
+
     MetricQueryService service;
 
     private final UUID clusterId = UUID.randomUUID();
@@ -39,7 +44,7 @@ class MetricQueryServiceTest {
     @BeforeEach
     void setUp() {
         when(reaper.retentionDays()).thenReturn(7);
-        service = new MetricQueryService(repository, reaper);
+        service = new MetricQueryService(repository, reaper, clusterAccess);
     }
 
     @Test

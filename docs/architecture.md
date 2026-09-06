@@ -14,6 +14,9 @@ management endpoints.
                     │  SSE client patches the Query cache          │
                     └───────────────┬─────────────────────────────┘
                           REST + SSE│  same origin, /api/v1
+  MCP client                        │
+  ──────────────────────────────────┤  JSON-RPC over HTTP, /mcp
+   (Bearer as_…)                    │  (ADR-0045, ADR-0046)
                     ┌───────────────▼─────────────────────────────┐
                     │  Spring Boot 4.1 · Java 25                   │
                     │                                              │
@@ -207,6 +210,28 @@ browser would not be a cap. The dry-run count itself is a broker-side estimate
 lists the `queue_snapshot` rows on those addresses with per-node depth and a
 "replay all" that runs a by-selector retry through the same preview + cap gate.
 If the settings read fails the view says exactly that and infers nothing.
+
+## MCP surface
+
+`POST /mcp` is a second inbound edge onto the same services (ADR-0045): around
+thirteen intent-shaped tools, four resources and four runbook prompts, mounted by
+Spring AI's WebMVC starter as a stateless Streamable HTTP transport. It is an
+adapter and nothing more — `mcp/**` holds argument coercion, its own lean
+projections and the error mapping, and calls the same `service/**` methods the
+controllers do.
+
+Everything above therefore applies unchanged: `ClusterAccessGuard` and
+`@PreAuthorize` are the enforcement, the bulk cap is the same `studio_setting`,
+and every mutation writes the same `audit_event` under the key owner's identity
+with the key's name attached. Authentication is the ADR-0039 personal API tokens
+(ADR-0046), so a key never exceeds its owner's live grants.
+
+Two things are specific to this edge. Tool bodies must run on the servlet thread
+(`type: SYNC`), because permission and actor resolution both read `ThreadLocal`
+state. And mutations add a model-facing gate on top of the existing ones:
+`dryRun` defaults to true, and a real destructive run requires `confirm` to equal
+the subject's name — separate from, and never satisfied by, the bulk-cap
+`override`.
 
 ## Persistence notes
 

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.service;
 
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.web.dto.AuditViews.AuditPageView;
 import java.time.Instant;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuditQueryService {
 
     private final AuditEventRepository events;
+    private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
     public AuditPageView page(
@@ -29,6 +31,7 @@ public class AuditQueryService {
             Instant to,
             int page,
             int size) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         int p = Math.max(page, 1);
         int s = Math.min(Math.max(size, 1), 500);
         Page<AuditEventEntity> result = events.findPage(

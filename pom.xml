@@ -42,6 +42,9 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <!-- springdoc 3.x is the Spring Boot 4 line (ADR-0019). -->
         <springdoc.version>3.1.0</springdoc.version>
+        <!-- MCP server (ADR-0045). 2.0.1, never 2.0.0: that release's STREAMABLE
+             transport retained sessions without bound (CVE-2026-59279). -->
+        <spring-ai.version>2.0.1</spring-ai.version>
         <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
         <node.version>v22.14.0</node.version>
 
@@ -53,6 +56,13 @@
     <dependencyManagement>
         <dependencies>
             <!-- Spring Boot 4.x no longer manages the Testcontainers versions itself. -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
@@ -104,6 +114,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- MCP server over the existing MVC stack, stateless (ADR-0045). Version
+             from the spring-ai BOM imported above. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
         </dependency>
 
         <!-- Boilerplate + mapping (ADR-0014). Lombok is compile-only; MapStruct's

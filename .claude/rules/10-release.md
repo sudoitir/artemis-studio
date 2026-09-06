@@ -9,17 +9,25 @@ See [ADR-0042](../../docs/adr/0042-calver-releases-on-docker-hub.md) for why.
 - The version is **derived from git tags by CI** (`date +%Y.%m` + one past the
   highest existing `PATCH` for that month). It is never written into `pom.xml` —
   that stays `0.1.0-SNAPSHOT` in git and is set only in the CI working tree.
+- Only tags matching `^[0-9]{4}\.[0-9]{2}\.[0-9]+$` are candidates when CI reads the
+  highest `PATCH`, and the computed version is re-checked against that same pattern
+  before anything is published. A tag of any other shape is ignored, not parsed.
+- A version tag is **immutable on Docker Hub**, so it is never reused: CI refuses to
+  release when the computed tag already exists on `origin`, and it commits, tags and
+  pushes — atomically — *before* pushing the image. A failure after that burns the
+  version number and the next push to `main` takes the following one. A gap in the
+  sequence is expected and fine; a republished tag is not.
 - Do not tag manually and do not add a version-bump commit.
 
 ## Every push to `main` is a release
 
 The `release` job in `.github/workflows/ci.yml` does all of it, with no manual step:
 
+- promotes the changelog `## [Unreleased]` section to `## [<version>] — <date>`, commits
+  it, and creates the annotated git tag on that release commit;
 - pushes the image to Docker Hub — `sudoit1/artemis-studio`, `linux/amd64` +
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
-- promotes the changelog `## [Unreleased]` section to `## [<version>] — <date>`;
-- creates an annotated git tag on the release commit;
 - creates a GitHub Release with the promoted changelog section as the body and the
   `artemis-studio-<version>.jar` + its `.sha256` attached.
 

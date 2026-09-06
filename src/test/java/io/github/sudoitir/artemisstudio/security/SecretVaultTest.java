@@ -21,7 +21,7 @@ class SecretVaultTest {
 
     private static SecretVault vault(String key) {
         return new SecretVault(
-                new ArtemisStudioProperties(key, null, null, null, null, null, null, null, null, null, null));
+                new ArtemisStudioProperties(key, null, null, null, null, null, null, null, null, null, null, null));
     }
 
     @Test

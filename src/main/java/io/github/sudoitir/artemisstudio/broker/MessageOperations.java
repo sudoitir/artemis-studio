@@ -53,7 +53,8 @@ public class MessageOperations {
     public long messageCount(JolokiaBrokerClient client, String queueMbean) {
         JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, "MessageCount"));
         requireOk(res, "MessageCount");
-        return res.value() == null ? 0L : res.value().asLong();
+        JsonNode count = res.attribute("MessageCount");
+        return count == null ? 0L : count.asLong();
     }
 
     // ---- by explicit ids (one exec per id; the broker has no id-batch op) ----

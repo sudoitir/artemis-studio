@@ -186,10 +186,11 @@ public class CapabilityProbe {
         for (String acceptor : acceptors) {
             try {
                 JolokiaResponse response = client.single(JolokiaRequest.read(acceptor, "Parameters"));
-                if (!response.ok() || response.value() == null) {
+                JsonNode parameters = response.ok() ? response.attribute("Parameters") : null;
+                if (parameters == null) {
                     continue;
                 }
-                JsonNode protocols = response.value().get("protocols");
+                JsonNode protocols = parameters.get("protocols");
                 // No 'protocols' parameter means the acceptor carries every protocol,
                 // which includes CORE; an explicit list must name CORE.
                 if (protocols == null || protocols.isNull()) {

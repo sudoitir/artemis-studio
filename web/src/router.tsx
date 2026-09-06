@@ -26,6 +26,7 @@ import { AlertsView } from './alerts/AlertsView.tsx';
 import { LoginView } from './auth/LoginView.tsx';
 import { ChangePasswordView } from './auth/ChangePasswordView.tsx';
 import { AdminView } from './admin/AdminView.tsx';
+import { AccountView } from './account/AccountView.tsx';
 
 /** Navigable state that belongs in the URL, not local state (non-negotiable #9). */
 export interface ResourceSearch {
@@ -83,7 +84,7 @@ function validateAdminSearch(raw: Record<string, unknown>): Record<string, unkno
   const out: Record<string, unknown> = {};
   if (
     typeof raw.tab === 'string' &&
-    ['users', 'roles', 'environments', 'tokens', 'oidc'].includes(raw.tab)
+    ['users', 'roles', 'environments', 'oidc'].includes(raw.tab)
   ) {
     out.tab = raw.tab;
   }
@@ -95,6 +96,13 @@ const adminRoute = createRoute({
   path: 'admin',
   component: AdminView,
   validateSearch: validateAdminSearch,
+  errorComponent: RouteError,
+});
+
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account',
+  component: AccountView,
   errorComponent: RouteError,
 });
 
@@ -264,6 +272,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   changePasswordRoute,
   adminRoute,
+  accountRoute,
   clusterRoute.addChildren([
     clusterIndexRoute,
     topologyRoute,

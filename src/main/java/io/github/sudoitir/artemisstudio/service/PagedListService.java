@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.mapper.ResourceViewMapper.NodeRef;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.AddressView;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.ConnectionView;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.ConsumerView;
@@ -49,6 +50,7 @@ public class PagedListService {
     private final BrokerListOps listOps;
     private final ResourceViewMapper mapper;
     private final NodeCallLimiter limiter;
+    private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
     public PagedView<AddressView> addresses(UUID clusterId, ResourceQuery query) {
@@ -106,6 +108,9 @@ public class PagedListService {
             BiFunction<JsonNode, NodeRef, T> rowMapper,
             Function<T, String> filterField,
             Comparator<T> comparator) {
+        // Every one of the five public reads routes through here, so the scope check
+        // lives here too — a sixth kind cannot be added without inheriting it.
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         List<BrokerNodeEntity> servingNodes = servingManageableNodes(clusterId);
         if (servingNodes.isEmpty()) {
             throw new BrokerConnectionException(

@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotUpsert;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.github.sudoitir.artemisstudio.web.dto.ResourceViews.QueueView;
 import java.util.List;
@@ -22,6 +23,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * {@link CrossNodeAggregator} against a real Postgres, seeded through the real
  * upsert path: pair dedup, one-node vs two-node queues, and stale-not-dropped.
  */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
 class CrossNodeAggregatorTest extends PostgresIntegrationTest {
 
     @Autowired

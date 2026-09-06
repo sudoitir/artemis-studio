@@ -69,7 +69,8 @@ class ClaimRoleMapperTest {
                 null,
                 null,
                 null,
-                new Security(Duration.ofHours(8), "groups", defaultRole));
+                new Security(Duration.ofHours(8), "groups", defaultRole),
+                null);
         return new ClaimRoleMapper(mappings, roles, userRoles, properties);
     }
 

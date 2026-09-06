@@ -38,8 +38,10 @@ a full audit trail, the Core client and request-reply tracing, metrics and
 charts, alerting, and — as of Phase 8 — governance: every endpoint requires
 authentication (session cookie for the browser, API tokens for automation,
 optional OIDC/SSO), a dynamic role/permission model scoped to global /
-environment / cluster, and per-environment cluster grouping. v1.0 (hardening
-and reach) is next — see the [Roadmap](#roadmap).
+environment / cluster, and per-environment cluster grouping. An MCP server
+(`/mcp`) exposes the same capabilities to an assistant under the same grants and
+the same audit trail — see [MCP](#mcp). v1.0 (hardening and reach) is next — see
+the [Roadmap](#roadmap).
 
 ## Run it
 
@@ -102,6 +104,74 @@ front of Studio **must not buffer it** (nginx `proxy_buffering off;`, Apache no
 output buffering on that path; Traefik works as-is). Without this the topology
 graph and queue grid only update on the 5-second poll.
 
+## MCP
+
+Studio speaks the [Model Context Protocol](https://modelcontextprotocol.io), so
+an assistant can answer "why is `ORDERS.DLQ` backed up" against your real
+clusters instead of guessing. The surface is about a dozen intent-shaped tools —
+`cluster_health`, `diagnose_queue`, `queue_action` and so on — not a mirror of
+the REST API ([ADR-0045](docs/adr/0045-mcp-server-is-a-capability-surface.md)).
+
+**Get a key.** Sign in → avatar menu → **Account** → **API keys** → **New key** →
+choose the scope and permissions it should carry → copy the value. It is shown
+once.
+
+**Connect.** The endpoint is `POST /mcp` on the same origin as the UI, with the
+key as a bearer token:
+
+```json
+{
+  "mcpServers": {
+    "artemis-studio": {
+      "url": "https://studio.example.com/mcp",
+      "headers": { "Authorization": "Bearer as_..." }
+    }
+  }
+}
+```
+
+Smoke-test it without a client:
+
+```bash
+curl -s https://studio.example.com/mcp \
+  -H "Authorization: Bearer as_..." \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+**What is there.** The ADR is authoritative; this is the shape of it.
+
+| Kind | Name | For |
+|---|---|---|
+| Tool | `cluster_health` | HA role per node, split-brain, replication lag, firing alerts |
+| Tool | `list_resources` | queues, addresses, consumers, sessions, connections, producers |
+| Tool | `diagnose_queue` | one queue end to end: depth, trend, consumers, DLQ, events |
+| Tool | `metric_series` | a bucketed timeseries for one metric |
+| Tool | `config_diff` | classified configuration differences between two nodes |
+| Tool | `browse_messages` / `message_body` | headers, then one body by id |
+| Tool | `trace_request_reply` | flows, latency/timeout stats, configured expectations |
+| Tool | `activity_log` | broker events, or Studio's audit trail |
+| Tool | `queue_action` | move / retry / delete / expire / purge |
+| Tool | `send_message` | enqueue one message |
+| Tool | `alert_rule` / `studio_setting` | alert rules; operational settings |
+| Resource | `studio://clusters`, `studio://permissions` | what this key can see and do |
+| Resource | `cluster://{id}/topology`, `cluster://{id}/capabilities` | nodes; what the connection supports, with the `broker.xml` to enable what it does not |
+| Prompt | `triage_cluster`, `investigate_queue`, `before_you_purge`, `tune_scrape_load` | runbooks |
+
+**The safety contract**, plainly:
+
+- A key never exceeds its owner. Grants are intersected with the owner's *live*
+  grants on every call, so narrowing a person narrows their keys at once
+  ([ADR-0046](docs/adr/0046-mcp-authenticates-with-existing-api-tokens.md)).
+- Mutations dry-run by default. A real destructive run additionally requires
+  `confirm` to equal the queue's own name — separate from the bulk-cap
+  `override`, which is a different question and is never satisfied by `confirm`.
+- Everything is audited under the owner with the key's name attached
+  (`ada [token: laptop-agent]`), dry runs included.
+- A cluster the key holds no grant on comes back as "no such cluster, or this key
+  has no grant on it" — naming no permission and confirming no id.
+
 ## Develop
 
 The dev stack adds a real Artemis primary/backup pair and builds Studio locally.
@@ -133,6 +203,7 @@ just verify          # backend (Liquibase vs Testcontainers Postgres, tests) + f
 | Broker transport | Jolokia HTTP first, Artemis Core client second, capability-gated | [ADR-0002](docs/adr/0002-broker-transport-and-capability-model.md) |
 | Realtime | SSE | [ADR-0003](docs/adr/0003-realtime-via-sse.md) |
 | Packaging | one container image, Docker Compose first | [ADR-0007](docs/adr/0007-packaging-single-image-compose-first.md) |
+| MCP | Spring AI 2.0.1, stateless Streamable HTTP at `/mcp` | [ADR-0045](docs/adr/0045-mcp-server-is-a-capability-surface.md) |
 
 Architecture: [`docs/architecture.md`](docs/architecture.md). All decisions:
 [`docs/adr/`](docs/adr/).
@@ -189,7 +260,6 @@ OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get 
 | [ ] | Saved / shareable views |
 | [ ] | Scheduled reports |
 | [ ] | Prometheus scrape ingestion option |
-| [ ] | Artemis MCP |
 
 
 ---
