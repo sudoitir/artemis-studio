@@ -27,6 +27,8 @@ marked as pre-releases.
   someone genuinely needs cross-cluster visibility, grant them the role at global scope
   (Administration → Users). Users holding a global grant are unaffected.
 
+## [2026.09.1] — 2026-09-05
+
 ### Added
 
 - **MCP server.** Studio now speaks the Model Context Protocol at `POST /mcp`, so an
@@ -86,6 +88,8 @@ marked as pre-releases.
   Administration → API tokens, which hid a per-user credential behind `user:admin`.
   They now live at **Account → API keys** (avatar menu → Account). A bookmark to
   `/admin?tab=tokens` will land on Administration with the Users tab selected.
+- `queue_snapshot` gains a `paused` column so paused queues can be excluded from
+  slow-consumer detection. Applied automatically on startup; no action needed.
 
 ### Fixed
 
@@ -115,11 +119,6 @@ marked as pre-releases.
 - The "add a management URL" prompt on a discovered-but-unreachable node was a
   permanently disabled button. It now opens the dialog that adds the URL.
 - The topology graph re-fits after a failover instead of leaving a stale viewport.
-
-### Changed
-
-- `queue_snapshot` gains a `paused` column so paused queues can be excluded from
-  slow-consumer detection. Applied automatically on startup; no action needed.
 
 ## [2026.09.0] — 2026-09-05
 
