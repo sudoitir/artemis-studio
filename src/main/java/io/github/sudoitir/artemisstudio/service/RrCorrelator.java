@@ -45,8 +45,8 @@ public class RrCorrelator implements RrObservationSink {
     private final RrMetrics metrics;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
-    private final int defaultDeadlineMs;
-    private final int payloadCaptureBytes;
+    private volatile int defaultDeadlineMs;
+    private volatile int payloadCaptureBytes;
 
     /** {@code clusterId|address -> currently observed responder consumer, or null}. In-memory, address-scoped (not per-flow) — a request-reply address either has a responder or it doesn't. */
     private final Map<String, String> currentResponder = new ConcurrentHashMap<>();
@@ -73,6 +73,19 @@ public class RrCorrelator implements RrObservationSink {
         this.mapper = mapper;
         this.defaultDeadlineMs = properties.rr().defaultDeadlineMs();
         this.payloadCaptureBytes = properties.rr().payloadCaptureBytes();
+    }
+
+    /**
+     * Runtime override hooks — {@code SettingsService} pushes here rather than the
+     * correlator pulling, because these are read once per observed message and the
+     * correlator is the hottest path in request-reply tracing.
+     */
+    public void setDefaultDeadlineMs(int defaultDeadlineMs) {
+        this.defaultDeadlineMs = Math.max(1, defaultDeadlineMs);
+    }
+
+    public void setPayloadCaptureBytes(int payloadCaptureBytes) {
+        this.payloadCaptureBytes = Math.max(1, payloadCaptureBytes);
     }
 
     @Override

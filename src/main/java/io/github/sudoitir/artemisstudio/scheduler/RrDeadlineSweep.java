@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +28,10 @@ public class RrDeadlineSweep {
     private final RrEventRepository events;
     private final SseHub sseHub;
 
-    @Scheduled(fixedDelay = 5000, initialDelay = 5000)
+    /**
+     * Scheduled by {@link DynamicSchedules} on {@code rr.sweep-interval}. It used to
+     * hardcode 5s and ignore the configured value entirely.
+     */
     @Transactional
     public void sweep() {
         Instant now = Instant.now();

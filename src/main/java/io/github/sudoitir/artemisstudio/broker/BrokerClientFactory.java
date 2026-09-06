@@ -28,7 +28,7 @@ public class BrokerClientFactory {
 
     private final ObjectMapper mapper;
     private final SslBundles sslBundles;
-    private final HttpClientSettings baseSettings;
+    private volatile HttpClientSettings baseSettings;
 
     /** Resolved broker MBean names, shared across every client this factory builds (keyed by Jolokia URL). */
     private final Map<String, String> brokerObjectNames = new ConcurrentHashMap<>();
@@ -44,6 +44,17 @@ public class BrokerClientFactory {
                 // that turns a wrong-path mistake into an unreadable "not a Jolokia
                 // response". Surfacing the 3xx keeps the real diagnosis visible.
                 .withRedirects(HttpRedirects.DONT_FOLLOW);
+    }
+
+    /**
+     * Runtime override hook — {@code SettingsService} calls this when either broker
+     * timeout changes. {@code BrokerConnections} builds a client per call rather than
+     * caching one, so the next Jolokia call already uses the new timeouts; only a
+     * request already in flight keeps the old ones.
+     */
+    public void setTimeouts(java.time.Duration connectTimeout, java.time.Duration readTimeout) {
+        this.baseSettings =
+                HttpClientSettings.defaults().withConnectTimeout(connectTimeout).withReadTimeout(readTimeout);
     }
 
     public JolokiaBrokerClient forNode(BrokerConnectionSettings settings, String jolokiaUrl) {

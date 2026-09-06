@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.domain.topology.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.Props;
 import jakarta.jms.Connection;
 import jakarta.jms.Session;
 import java.time.Duration;
@@ -40,8 +41,7 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
         nodeId = UUID.randomUUID();
         received.clear();
 
-        ArtemisStudioProperties props =
-                new ArtemisStudioProperties(null, null, null, null, null, null, null, null, null, null, null, null);
+        ArtemisStudioProperties props = Props.defaults();
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
 
         BrokerConnections connections = mock(BrokerConnections.class);

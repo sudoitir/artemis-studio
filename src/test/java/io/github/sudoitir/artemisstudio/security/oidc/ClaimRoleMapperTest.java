@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.persist.RoleRepository;
 import io.github.sudoitir.artemisstudio.persist.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.persist.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.support.Props;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -58,19 +59,7 @@ class ClaimRoleMapperTest {
     }
 
     private ClaimRoleMapper mapperWithDefaultRole(String defaultRole) {
-        ArtemisStudioProperties properties = new ArtemisStudioProperties(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                new Security(Duration.ofHours(8), "groups", defaultRole),
-                null);
+        ArtemisStudioProperties properties = Props.security(new Security(Duration.ofHours(8), "groups", defaultRole));
         return new ClaimRoleMapper(mappings, roles, userRoles, properties);
     }
 

@@ -108,7 +108,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
+        include: health,info,prometheus,metrics,refresh
   endpoint:
     health:
       probes:
@@ -119,6 +119,13 @@ management:
       enabled: true
 
 # Application configuration, bound by ArtemisStudioProperties.
+#
+# These are DEFAULTS. Most of this tree is overridable at runtime from Settings
+# (a studio_setting row wins over the value here, and deleting the row restores
+# it) — SettingsService.REGISTRY is the list of exactly which keys, and is the
+# one place to add another. Nothing here is seeded into the database on first
+# start, on purpose: an absent row means "use the packaged default", so an
+# upgrade ships a new default instead of being pinned by a row written once.
 artemis-studio:
   # base64 of 32 bytes; encrypts stored broker credentials (ADR-0009).
   # The app fails to start if this is missing or the wrong length.
@@ -127,7 +134,7 @@ artemis-studio:
     # If the project is renamed, this string and Branding.java move together.
     product-name: "Artemis Studio"
   scrape:
-    # Tiered polling cadence (ADR-0015). Runtime-overridable via studio_setting.
+    # Tiered polling cadence (ADR-0015).
     tier-a-interval: 5s      # HA state + topology + split-brain corroboration
     tier-b-interval: 15s     # re-read the queues that were busy last sweep
     tier-c-interval: 5m      # walk the whole queue set, one page per tick
@@ -141,8 +148,10 @@ artemis-studio:
     read-timeout: 10s
   metric:
     # Raw metric_sample retention in days (ADR-0006). MetricSampleReaper trims
-    # older rows nightly. Runtime-overridable via studio_setting.
+    # older rows nightly.
     retention-days: 7
+    reaper-cron: "0 30 3 * * *"               # MetricSampleReaper
+    partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer, just before it
   mcp:
     # Result caps for the MCP surface (ADR-0045); tighter than REST's on purpose.
     # A mutation ceiling is NOT set here — that inherits safety.bulk-cap below.
@@ -151,24 +160,27 @@ artemis-studio:
   safety:
     # Server-enforced ceiling on one destructive message operation (ADR-0022).
     # A dry-run count above this is a 422 unless ?override=true (behind the UI's
-    # typed confirmation). Runtime-overridable via studio_setting.
+    # typed confirmation).
     bulk-cap: 1000
   events:
-    # Broker-event history (ADR-0028). retention and buffer-size are
-    # runtime-overridable via studio_setting; flush and coalesce-window-millis
-    # are compile-time only.
+    # Broker-event history (ADR-0028). coalesce-window-millis is the only
+    # compile-time value here — TopicCoalescer reads it once at construction.
     retention: 72h            # BrokerEventReaper trims older rows hourly
     buffer-size: 10000        # bounded write buffer; overflow is dropped and counted
     flush: 1s                 # BrokerEventWriter batch-insert interval
+    reaper-cron: "0 15 * * * *"   # BrokerEventReaper
     coalesce-window-millis: 1000  # derived resource-view SSE signal coalescing (slice 3)
   rr:
-    # Request-reply tracing (Phase 5). Compile-time only — no runtime override
-    # via studio_setting for this phase.
+    # Request-reply tracing (Phase 5). percentile-window is the only compile-time
+    # value here: it is a Micrometer distributionStatisticExpiry fixed when the
+    # Timer is registered, so a later change would silently not apply.
     default-deadline-ms: 30000     # used only when neither the message nor its expectation carries a deadline
     sweep-interval: 5s             # RrDeadlineSweep cadence
+    sample-interval: 5s            # RrSampler cadence
     percentile-window: 15m         # Micrometer Timer distributionStatisticExpiry
     payload-capture-bytes: 4096    # captured request/reply body cap when an expectation enables capture
-    retention: 7d                 # RrFlowReaper trims older rr_flow/rr_event rows
+    retention: 7d                  # RrFlowReaper trims older rr_flow/rr_event rows
+    reaper-cron: "0 20 3 * * *"    # RrFlowReaper
   alerting:
     # Notification delivery (Phase 7, ADR-0036). A separate RestClient from the
     # broker one — never shares the per-node rate limiter or a broker TLS bundle.
@@ -177,6 +189,10 @@ artemis-studio:
     connect-timeout: 10s         # notificationRestClient connect + read timeout
     initial-backoff: 5s          # first retry delay (exponential with jitter)
     max-backoff: 10m             # backoff ceiling
+  sse:
+    # Keep-alive comment interval for GET /api/v1/stream (ADR-0018). Lower it if a
+    # proxy in front of Studio idles the connection out sooner than this.
+    heartbeat-interval: 20s
   security:
     # Governance (Phase 8, ADR-0037, ADR-0040).
     session-timeout: 8h

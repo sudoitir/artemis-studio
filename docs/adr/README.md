@@ -56,3 +56,5 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0044](0044-slow-consumer-detection-two-authorities.md) | Slow-consumer detection has two authorities, and the broker wins |
 | [0045](0045-mcp-server-is-a-capability-surface.md) | The MCP server is a capability surface (~13 intent-shaped tools), not a REST mirror; the token budget is a build failure |
 | [0046](0046-mcp-authenticates-with-existing-api-tokens.md) | MCP authenticates with the ADR-0039 personal API tokens — one credential store, one authorization model |
+| [0047](0047-two-configuration-planes.md) | Two configuration planes — `studio_setting` (operator, live, audited) and a Spring Cloud bootstrap plane (deploy-time, `{cipher}`); no config server |
+| [0048](0048-settings-driven-dynamic-schedules.md) | Every settings-tunable schedule is a re-reading trigger task, not a `@Scheduled` annotation (extends 0025) |

@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,8 +35,10 @@ public class MetricPartitionMaintainer {
         this.reaper = reaper;
     }
 
-    /** Runs once shortly after the reaper, at a quiet hour. Both are idempotent. */
-    @Scheduled(cron = "0 0 3 * * *")
+    /**
+     * Runs once shortly after the reaper, at a quiet hour. Both are idempotent, and
+     * both are scheduled by {@code DynamicSchedules} on a settings-driven cron.
+     */
     public void maintain() {
         createAhead();
         dropExpired();

@@ -34,6 +34,76 @@ marked as pre-releases.
   row and squeeze the key and status columns to one character per line; wide values scroll
   inside the section, and a key too long for its column is revealed on hover.
 
+## [2026.09.3] — 2026-09-06
+
+### Added
+
+- **Settings changes no longer need a restart, and there are far more of them.** The
+  Settings screen now covers 25 operational keys instead of 5: broker connect/read
+  timeouts, the request-reply deadline, payload capture cap, sweep and sampler
+  cadences, alerting dispatch interval, retry attempts and backoff, the broker-event
+  flush interval and buffer size, the SSE heartbeat, the bulk-operation safety cap,
+  and every retention window plus the cron each reaper runs on. All apply on the next
+  use or the next fire — none require a restart, and `Reset` puts a key back to the
+  packaged default.
+- **Deploy-time configuration can live in Postgres.** A new `studio_config_property`
+  table is read during startup and contributes to the application's configuration,
+  keyed by application / profile / label. It ships empty, and an unreachable or
+  not-yet-migrated database is a warning rather than a failed start. Set
+  `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` to store a value as `{cipher}…` and have it
+  decrypted at startup. This is a **different key** from
+  `ARTEMIS_STUDIO_SECRET_KEY`, which still exclusively seals broker credentials — do
+  not set them to the same value. See [ADR-0047](docs/adr/0047-two-configuration-planes.md).
+- `POST /actuator/refresh` re-reads configuration into the running application. It
+  requires the `settings:write` permission. Note that it does **not** rebind most
+  components — for anything an operator changes, use Settings, which does.
+
+### Changed
+
+- The Settings screen is now generated from the server's own description of each key,
+  so its labels and hints cannot drift from what the settings actually do.
+
+### Fixed
+
+- **Changing a setting is now recorded in the audit trail**, with the old and new
+  value, in the same transaction as the change. Settings writes were previously the
+  one mutating path that wrote no audit event.
+- **`artemis-studio.rr.sweep-interval` now does something.** The request-reply
+  deadline sweep and the sampler both hardcoded a 5-second cadence and ignored the
+  configured value entirely. If you had set this property and observed no effect,
+  that was why — it now applies, so check the value you set.
+- The Settings screen no longer claims scrape cadence changes "take effect on
+  restart". They have applied immediately since
+  [ADR-0025](docs/adr/0025-live-scrape-cadence-scheduling-configurer.md); only the
+  caption was out of date.
+- `safety.bulk-cap`, `events.retention-hours` and `events.buffer-size` were reachable
+  over the API but missing from the Settings screen. They are now shown.
+
+### Security
+
+- `POST /actuator/refresh` is gated on `settings:write`. Other non-health actuator
+  endpoints (`/actuator/prometheus`, `/actuator/metrics`, `/actuator/info`) remain
+  reachable without authentication, as before — bind Studio behind a proxy if that
+  matters to you.
+
+## [2026.09.2] — 2026-09-06
+
+### Security
+
+- **Cluster-scoped reads now honour your grants.** Six read endpoints — the cross-node
+  queue grid, the addresses / consumers / sessions / connections / producers views, the
+  metrics timeseries, the audit trail, and the broker event history — did not check
+  whether the caller held a grant on the cluster they addressed. Any signed-in user
+  could read any registered cluster's queues, metrics, audit trail, and events by
+  putting its id in the URL, regardless of the roles they had been given. They are now
+  checked like every other cluster-addressed read, and a cluster you hold no grant on
+  answers `404` rather than revealing that it exists.
+
+  **After upgrading, users whose grants are scoped to specific clusters or environments
+  will lose access to data they could previously see.** That is the fix working. If
+  someone genuinely needs cross-cluster visibility, grant them the role at global scope
+  (Administration → Users). Users holding a global grant are unaffected.
+
 ## [2026.09.1] — 2026-09-05
 
 ### Added

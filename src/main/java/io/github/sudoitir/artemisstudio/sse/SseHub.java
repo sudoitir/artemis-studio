@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -85,8 +84,11 @@ public class SseHub {
         }
     }
 
-    /** Keep idle streams open through proxies. A comment, not an event. */
-    @Scheduled(fixedRate = 20_000)
+    /**
+     * Keep idle streams open through proxies. A comment, not an event. Scheduled by
+     * {@code DynamicSchedules} on {@code sse.heartbeat-interval}, because the value
+     * that keeps a stream alive is a property of whatever proxy sits in front.
+     */
     public void heartbeat() {
         byCluster.forEach((clusterId, set) -> set.forEach(s -> {
             try {

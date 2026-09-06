@@ -4,10 +4,13 @@ import io.github.sudoitir.artemisstudio.security.ApiTokenAuthenticationFilter;
 import io.github.sudoitir.artemisstudio.security.ApiTokenService;
 import io.github.sudoitir.artemisstudio.security.CsrfCookieFilter;
 import io.github.sudoitir.artemisstudio.security.MustChangePasswordFilter;
+import io.github.sudoitir.artemisstudio.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.security.oidc.OidcAuthenticationSuccessHandler;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -51,7 +54,8 @@ public class SecurityConfig {
             HandlerExceptionResolver handlerExceptionResolver,
             CsrfTokenRepository csrfTokenRepository,
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-            OidcAuthenticationSuccessHandler oidcSuccessHandler)
+            OidcAuthenticationSuccessHandler oidcSuccessHandler,
+            PermissionResolver perm)
             throws Exception {
         http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
                 .sessionManagement(session -> session.sessionCreationPolicy(
@@ -69,6 +73,17 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/health/**")
                         .permitAll()
+                        // POST /actuator/refresh re-reads the Environment, so it is a
+                        // configuration change and is gated like one. Without this rule it
+                        // would fall through to the permitAll() below with the rest of
+                        // /actuator/** and be callable by anyone who can reach the port.
+                        .requestMatchers("/actuator/refresh")
+                        // The resolver is called directly rather than through a SpEL
+                        // "@perm.can(...)" expression: WebExpressionAuthorizationManager
+                        // evaluates without a bean resolver, so the @perm reference fails
+                        // at request time rather than at startup.
+                        .access((authentication, context) ->
+                                new AuthorizationDecision(perm.can(Permissions.SETTINGS_WRITE)))
                         .requestMatchers("/api/**", "/mcp", "/mcp/**")
                         .authenticated()
                         // The SPA shell and its static assets (SpaRoutingConfig) must stay

@@ -87,4 +87,26 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
                         + "unless it is on EndpointProtectionTest.ALLOWED_UNAUTHENTICATED")
                 .isEmpty();
     }
+
+    /**
+     * Actuator endpoints are not controllers, so the sweep above cannot see them.
+     * {@code /actuator/refresh} re-reads the Environment — a configuration change —
+     * and the surrounding {@code /actuator/**} rule is {@code permitAll}, so without
+     * its own explicit rule it would be callable by anyone who can reach the port.
+     */
+    @Test
+    void refreshingTheEnvironmentRequiresAuthentication() throws Exception {
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
+                .apply(springSecurity())
+                .build();
+
+        int status = mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/actuator/refresh")
+                                .with(csrf()))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isEqualTo(401);
+    }
 }

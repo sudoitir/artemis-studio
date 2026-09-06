@@ -6,13 +6,12 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.broker.notify.NotificationSender;
 import io.github.sudoitir.artemisstudio.broker.notify.NotificationSender.Result;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.Alerting;
 import io.github.sudoitir.artemisstudio.persist.AlertDeliveryEntity;
 import io.github.sudoitir.artemisstudio.persist.AlertDeliveryRepository;
 import io.github.sudoitir.artemisstudio.persist.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.persist.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.security.SecretVault;
+import io.github.sudoitir.artemisstudio.service.SettingsService;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -40,6 +39,9 @@ class AlertDispatcherTest {
     @Mock
     NotificationSender slackSender;
 
+    @Mock
+    SettingsService settings;
+
     AlertDispatcher dispatcher;
 
     private final UUID channelId = UUID.randomUUID();
@@ -48,21 +50,12 @@ class AlertDispatcherTest {
     @BeforeEach
     void setUp() {
         when(slackSender.kind()).thenReturn("SLACK");
-        ArtemisStudioProperties properties = new ArtemisStudioProperties(
-                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                new Alerting(
-                        Duration.ofSeconds(5), 3, Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMinutes(1)),
-                null,
-                null);
-        dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, properties);
+        // The dispatcher reads these on every attempt rather than caching them, so a
+        // change in Settings applies to the next retry and not the next restart.
+        when(settings.alertingMaxAttempts()).thenReturn(3);
+        when(settings.alertingInitialBackoff()).thenReturn(Duration.ofSeconds(1));
+        when(settings.alertingMaxBackoff()).thenReturn(Duration.ofMinutes(1));
+        dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, settings);
         channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1}, new byte[] {2});
         when(channels.findById(channelId)).thenReturn(java.util.Optional.of(channel));
         when(vault.decrypt(any(), any(), any())).thenReturn("https://hooks.slack.com/services/x");

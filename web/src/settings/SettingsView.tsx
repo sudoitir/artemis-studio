@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
   Divider,
   Group,
+  Loader,
   PasswordInput,
   Stack,
   Text,
@@ -24,29 +25,40 @@ import { RegisterClusterButton } from '../clusters/RegisterCluster.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
 import { NotificationChannels } from './NotificationChannels.tsx';
 
-const FIELDS: { key: string; label: string; hint: string }[] = [
-  { key: 'scrape.tier-a-interval', label: 'Tier A interval', hint: 'HA state + topology (e.g. 5s). Takes effect on restart.' },
-  { key: 'scrape.tier-b-interval', label: 'Tier B interval', hint: 'Fast queue refresh (e.g. 15s). Takes effect on restart.' },
-  { key: 'scrape.tier-c-interval', label: 'Tier C interval', hint: 'Full queue sweep (e.g. 5m). Takes effect on restart.' },
-  { key: 'rate-limit.calls-per-second', label: 'Per-node call ceiling', hint: 'Management calls/sec per broker. Applies on the next tick.' },
-  { key: 'metric.retention-days', label: 'Metric retention (days)', hint: 'Raw metric_sample rows older than this are trimmed nightly.' },
-];
-
-function OperationalConfig() {
+/**
+ * The settings form is generated from the API, not from a list kept here. Every
+ * key carries its own group, label, hint and kind (ADR-0047), so adding a setting
+ * on the server adds it to this screen with no frontend change — and, more to the
+ * point, a hint can never drift out of date with the behaviour it describes,
+ * which is exactly what happened to the previous hardcoded list.
+ */
+export function OperationalConfig() {
   const settings = useSettings();
   const update = useUpdateSetting();
   const reset = useResetSetting();
   const [draft, setDraft] = useState<Record<string, string>>({});
 
+  const entries = useMemo(
+    () => Object.entries(settings.data?.settings ?? {}),
+    [settings.data],
+  );
+
+  // Group in first-seen order: the server sends the registry order on purpose.
+  const groups = useMemo(() => {
+    const out: { name: string; keys: string[] }[] = [];
+    for (const [key, value] of entries) {
+      const existing = out.find((g) => g.name === value.group);
+      if (existing) existing.keys.push(key);
+      else out.push({ name: value.group, keys: [key] });
+    }
+    return out;
+  }, [entries]);
+
   useEffect(() => {
     if (settings.data) {
-      setDraft(
-        Object.fromEntries(
-          Object.entries(settings.data.settings).map(([k, v]) => [k, v.value]),
-        ),
-      );
+      setDraft(Object.fromEntries(entries.map(([k, v]) => [k, v.value])));
     }
-  }, [settings.data]);
+  }, [settings.data, entries]);
 
   if (settings.isError) {
     return (
@@ -56,61 +68,71 @@ function OperationalConfig() {
     );
   }
 
+  if (settings.isPending) {
+    return <Loader size="sm" />;
+  }
+
   return (
-    <Stack gap="sm" maw={520}>
-      {FIELDS.map((f) => {
-        const current = settings.data?.settings[f.key];
-        const value = draft[f.key] ?? '';
-        const dirty = current != null && value !== current.value;
-        return (
-          <div key={f.key}>
-            <Group align="flex-end" gap="xs">
-              <TextInput
-                label={f.label}
-                description={f.hint}
-                value={value}
-                onChange={(e) => {
-                  const v = e.currentTarget.value;
-                  setDraft((d) => ({ ...d, [f.key]: v }));
-                }}
-                w={280}
-                size="xs"
-              />
-              <Button
-                size="xs"
-                disabled={!dirty}
-                loading={update.isPending}
-                onClick={() =>
-                  update.mutate(
-                    { key: f.key, value },
-                    {
-                      onSuccess: () => notifications.show({ message: `${f.label} saved` }),
-                      onError: (err) =>
-                        notifications.show({ color: 'red', message: err.message }),
-                    },
-                  )
-                }
-              >
-                Save
-              </Button>
-              {current?.overridden ? (
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  onClick={() => reset.mutate(f.key)}
-                >
-                  Reset
-                </Button>
-              ) : null}
-            </Group>
-            {current?.overridden ? (
-              <Text size="xs" c="dimmed">
-                overridden — default is {current.defaultValue}
-              </Text>
-            ) : null}
-          </div>
-        );
-      })}
+    <Stack gap="lg">
+      {groups.map((group) => (
+        <Stack key={group.name} gap="sm" maw={560}>
+          <Text size="sm" fw={600}>
+            {group.name}
+          </Text>
+          {group.keys.map((key) => {
+            const current = settings.data?.settings[key];
+            if (!current) return null;
+            const value = draft[key] ?? '';
+            const dirty = value !== current.value;
+            return (
+              <div key={key}>
+                <Group align="flex-end" gap="xs">
+                  <TextInput
+                    label={current.label}
+                    description={current.hint}
+                    value={value}
+                    inputMode={current.kind === 'INT' ? 'numeric' : 'text'}
+                    onChange={(e) => {
+                      const v = e.currentTarget.value;
+                      setDraft((d) => ({ ...d, [key]: v }));
+                    }}
+                    w={300}
+                    size="xs"
+                  />
+                  <Button
+                    size="xs"
+                    disabled={!dirty}
+                    loading={update.isPending}
+                    onClick={() =>
+                      update.mutate(
+                        { key, value },
+                        {
+                          onSuccess: () =>
+                            notifications.show({ message: `${current.label} saved` }),
+                          onError: (err) =>
+                            notifications.show({ color: 'red', message: err.message }),
+                        },
+                      )
+                    }
+                  >
+                    Save
+                  </Button>
+                  {current.overridden ? (
+                    <Button size="xs" variant="subtle" onClick={() => reset.mutate(key)}>
+                      Reset
+                    </Button>
+                  ) : null}
+                </Group>
+                {current.overridden ? (
+                  <Text size="xs" c="dimmed">
+                    overridden — default is {current.defaultValue}
+                  </Text>
+                ) : null}
+              </div>
+            );
+          })}
+        </Stack>
+      ))}
     </Stack>
   );
 }
@@ -182,7 +204,9 @@ export function SettingsView() {
       <div>
         <Title order={3}>Operational configuration</Title>
         <Text size="sm" c="dimmed" mb="sm">
-          Overrides the deploy-time defaults. Stored in Postgres, not the container.
+          Overrides the packaged defaults. Stored in Postgres, not the container, and
+          applied without a restart. Reset clears the override and the packaged default
+          takes over again.
         </Text>
         <OperationalConfig />
       </div>
