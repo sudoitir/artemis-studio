@@ -224,8 +224,10 @@ Versioning is CalVer `YYYY.MM.PATCH` (`PATCH` resets each month), and the
 
 No `:latest` is published until the first stable release. Each release also
 attaches the runnable jar (with a `.sha256`) to a GitHub pre-release. Changes are
-recorded in [`CHANGELOG.md`](CHANGELOG.md); the conventions live in
-[`.claude/rules/10-release.md`](.claude/rules/10-release.md).
+recorded in [`changelog/`](changelog/) — one file per version, generated from the
+commit messages in that release ([ADR-0051](docs/adr/0051-changelog-generated-from-commits.md)).
+The conventions live in [`.claude/rules/05-commits.md`](.claude/rules/05-commits.md)
+and [`.claude/rules/10-release.md`](.claude/rules/10-release.md).
 
 ## How work happens
 

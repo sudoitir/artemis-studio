@@ -4,12 +4,15 @@ import io.github.sudoitir.artemisstudio.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.TransportTarget;
+import io.github.sudoitir.artemisstudio.broker.rr.QueueTargetResolver;
+import io.github.sudoitir.artemisstudio.broker.rr.QueueTargetResolver.QueueTarget;
 import io.github.sudoitir.artemisstudio.broker.rr.ReplyAddressResolver;
 import io.github.sudoitir.artemisstudio.domain.rr.Observation;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.persist.RrExpectationRepository;
+import io.github.sudoitir.artemisstudio.service.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.service.RrObservationSink;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,6 +42,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class RrSampler {
 
+    /** The reason tracing produces nothing on a cluster registered without a Core URL. */
+    public static final String NO_CORE_ENDPOINT =
+            "no node on this cluster has a reachable Core endpoint; tracing browses over the Core client";
+
     private static final int SAMPLE_PAGE_SIZE = 20;
     private static final Duration FAILURE_LOG_INTERVAL = Duration.ofMinutes(1);
 
@@ -47,9 +54,15 @@ public class RrSampler {
     private final CoreMessageTransport coreTransport;
     private final ObjectProvider<RrObservationSink> sink;
     private final ReplyAddressResolver replyAddresses;
+    private final ClockOffsetService clocks;
+    private final QueueTargetResolver queueTargets;
+    private final RrSamplerHealth health;
 
     /** Per expectation-and-node, when its last failure was logged. */
     private final Map<String, Instant> lastReported = new ConcurrentHashMap<>();
+
+    /** Per expectation, when it was last sampled — the throttle {@code samplePerMin} asks for. */
+    private final Map<UUID, Instant> lastSampledAt = new ConcurrentHashMap<>();
 
     /**
      * Scheduled by {@code DynamicSchedules} on {@code rr.sample-interval}. It used to
@@ -61,6 +74,9 @@ public class RrSampler {
             return;
         }
         for (RrExpectationEntity expectation : expectations.findByEnabledTrue()) {
+            if (!due(expectation)) {
+                continue;
+            }
             try {
                 sampleExpectation(expectation, target);
             } catch (RuntimeException e) {
@@ -69,34 +85,78 @@ public class RrSampler {
         }
     }
 
+    /**
+     * Whether this expectation's own rate allows another sample now.
+     *
+     * <p>{@code samplePerMin} was stored, shown in the table, and never read: the UI
+     * was offering a control that did nothing. The global {@code rr.sample-interval}
+     * remains the floor — a per-expectation rate faster than the tick cannot be
+     * delivered, and the diagnostics say so rather than pretending.
+     */
+    private boolean due(RrExpectationEntity expectation) {
+        int perMin = Math.max(1, expectation.getSamplePerMin());
+        Duration minimumGap = Duration.ofSeconds(60).dividedBy(perMin);
+        Instant last = lastSampledAt.get(expectation.getId());
+        Instant now = Instant.now();
+        if (last != null && last.plus(minimumGap).isAfter(now)) {
+            return false;
+        }
+        lastSampledAt.put(expectation.getId(), now);
+        return true;
+    }
+
     private void sampleExpectation(RrExpectationEntity expectation, RrObservationSink target) {
         UUID clusterId = expectation.getClusterId();
         List<String> replyTargets =
                 replyAddresses.resolve(clusterId, expectation).addresses();
+        RrSamplerHealth.Tick tick = health.begin(expectation.getId(), clusterId, expectation.getRequestAddress());
+
+        List<BrokerNodeEntity> serving = servingNodes(clusterId);
+        if (serving.isEmpty()) {
+            // Previously an empty loop: nothing sampled, nothing logged, nothing to
+            // find. Tracing needs the Core client, and saying which node could carry
+            // it is the whole diagnosis.
+            tick.skipped("(cluster)", NO_CORE_ENDPOINT);
+            tick.publish();
+            reportOnce(
+                    expectation.getId() + "|no-core",
+                    () -> log.warn(
+                            "Request-reply tracing for '{}' sampled nothing: {}",
+                            expectation.getRequestAddress(),
+                            NO_CORE_ENDPOINT));
+            return;
+        }
 
         // Every serving node, not just the first: in a three-primary cluster the
         // request and reply queues on the other two were never read, so the
         // correlation identity only browsing can supply was missing for two thirds
         // of the traffic (design.md, D7). Duplicates across nodes are already
         // handled by recentRequestFlow and uq_rr_flow_request.
-        for (BrokerNodeEntity node : servingNodes(clusterId)) {
+        for (BrokerNodeEntity node : serving) {
             // One node failing must not cost the others their tick.
             try {
-                sampleNode(expectation, node, replyTargets, target);
+                sampleNode(expectation, node, replyTargets, target, tick);
             } catch (RuntimeException e) {
+                tick.failed(node.getName(), e.toString());
                 reportFailure(expectation, node, e);
             }
         }
+        tick.publish();
     }
 
     private void sampleNode(
             RrExpectationEntity expectation,
             BrokerNodeEntity node,
             List<String> replyTargets,
-            RrObservationSink target) {
+            RrObservationSink target,
+            RrSamplerHealth.Tick tick) {
         UUID clusterId = expectation.getClusterId();
+        int browsed = 0;
+        int emitted = 0;
 
-        for (BrowsedMessage m : browse(clusterId, node, expectation.getRequestAddress())) {
+        for (BrowsedMessage m : browse(clusterId, node, expectation.getRequestAddress(), tick)) {
+            browsed += 1;
+            emitted += 1;
             target.accept(new Observation.RequestSeen(
                     clusterId,
                     node.getId(),
@@ -107,11 +167,14 @@ public class RrSampler {
                     m.replyTo() != null ? CoreDestinationName.extract(m.replyTo()) : null,
                     m.expiration(),
                     m.bodyPreview(),
-                    Map.of()));
+                    Map.of(),
+                    enqueuedAt(node, m)));
         }
 
         for (String replyAddress : replyTargets) {
-            for (BrowsedMessage m : browse(clusterId, node, replyAddress)) {
+            for (BrowsedMessage m : browse(clusterId, node, replyAddress, tick)) {
+                browsed += 1;
+                emitted += 1;
                 target.accept(new Observation.ReplySeen(
                         clusterId,
                         node.getId(),
@@ -120,9 +183,11 @@ public class RrSampler {
                         String.valueOf(m.messageId()),
                         correlationOf(expectation, m),
                         m.bodyPreview(),
-                        Map.of()));
+                        Map.of(),
+                        enqueuedAt(node, m)));
             }
         }
+        tick.sampled(browsed, emitted);
     }
 
     /**
@@ -147,6 +212,20 @@ public class RrSampler {
                 e.toString());
     }
 
+    /**
+     * When the message says it was produced, on Studio's clock.
+     *
+     * <p>The browse is the only channel that can supply this, and carrying it is
+     * what turns latency from "the gap between two sample ticks" — which is zero for
+     * two messages seen on the same tick — into the real figure. The broker's
+     * measured offset is removed here so the value can be compared with anything
+     * else Studio holds (ADR-0053). A message with no timestamp yields null, which
+     * means unknown rather than the epoch.
+     */
+    private Instant enqueuedAt(BrokerNodeEntity node, BrowsedMessage m) {
+        return m.timestamp() > 0 ? clocks.brokerTime().toStudioTime(node.getId(), m.timestamp()) : null;
+    }
+
     private static String correlationOf(RrExpectationEntity expectation, BrowsedMessage m) {
         if (expectation.getCorrelationProperty() != null) {
             String v = m.stringProperties().get(expectation.getCorrelationProperty());
@@ -157,11 +236,43 @@ public class RrSampler {
         return m.correlationId();
     }
 
-    private List<BrowsedMessage> browse(UUID clusterId, BrokerNodeEntity node, String address) {
+    /**
+     * Browse one address on one node, using the queue the broker actually has.
+     *
+     * <p>The queue name and routing type used to be assumed to equal the address and
+     * {@code ANYCAST}. A multicast address, or a queue named differently from its
+     * address, failed on every tick into a throttled warning. An address the last
+     * scrape never saw is now a stated reason instead.
+     */
+    private List<BrowsedMessage> browse(
+            UUID clusterId, BrokerNodeEntity node, String address, RrSamplerHealth.Tick tick) {
+        QueueTarget queue =
+                queueTargets.resolve(clusterId, node.getId(), address).orElse(null);
+        if (queue == null) {
+            tick.skipped(node.getName(), "no queue for address '" + address + "' in the last scrape");
+            return List.of();
+        }
         TransportTarget target = new TransportTarget(
-                clusterId, node.getId(), address, address, "ANYCAST", node.getJolokiaUrl(), node.getCoreUrl());
+                clusterId,
+                node.getId(),
+                address,
+                queue.queueName(),
+                queue.routingType(),
+                node.getJolokiaUrl(),
+                node.getCoreUrl());
         BrowseResult result = coreTransport.browse(target, 1, SAMPLE_PAGE_SIZE, null);
         return result.page().messages();
+    }
+
+    /** Log once per interval for a key, sharing the failure throttle's budget. */
+    private void reportOnce(String key, Runnable log) {
+        Instant now = Instant.now();
+        Instant last = lastReported.get(key);
+        if (last != null && last.isAfter(now.minus(FAILURE_LOG_INTERVAL))) {
+            return;
+        }
+        lastReported.put(key, now);
+        log.run();
     }
 
     private List<BrokerNodeEntity> servingNodes(UUID clusterId) {

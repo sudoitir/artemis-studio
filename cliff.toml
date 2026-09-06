@@ -1,0 +1,95 @@
+# git-cliff — the changelog is generated from the commit history.
+#
+# Every released version gets its own file under `changelog/`, written by CI from
+# the commits between the previous tag and the one being cut. There is no
+# hand-maintained `[Unreleased]` section to merge into and no monolithic
+# `CHANGELOG.md`: the commit message IS the changelog entry, which is the only
+# version of the note that cannot drift from the change it describes.
+#
+# See docs/adr/0051-changelog-generated-from-commits.md and
+# .claude/rules/05-commits.md.
+
+[changelog]
+# Each generated file is one version's section, so it carries no preamble of its
+# own — `changelog/README.md` is the index that explains the scheme.
+header = ""
+
+body = """
+{% if version -%}
+## {{ version }} — {{ timestamp | date(format="%Y-%m-%d") }}
+{%- else -%}
+## Unreleased
+{%- endif %}
+{%- macro entry(commit) %}
+{%- set parts = commit.message | split(pat="\n\n") %}
+{%- set subject = parts | first | trim | replace(from="\n", to=" ") %}
+{%- set rest = parts | slice(start=1) | join(sep="\n\n") %}
+{%- set body = [rest, commit.body | default(value="")] | join(sep="\n\n") | trim %}
+- **{{ subject | upper_first }}** ([{{ commit.id | truncate(length=8, end="") }}](https://github.com/sudoitir/artemis-studio/commit/{{ commit.id }}))
+{%- if body %}
+
+  {{ body | replace(from="\n", to="\n  ") }}
+{% endif %}
+{%- endmacro entry %}
+{%- set breaking = commits | filter(attribute="breaking", value=true) %}
+{%- if breaking | length > 0 %}
+
+### Breaking
+{% for commit in breaking %}{{ self::entry(commit=commit) }}{% endfor %}
+{%- endif %}
+{%- for group, group_commits in commits | group_by(attribute="group") %}
+
+### {{ group | upper_first }}
+{% for commit in group_commits %}{{ self::entry(commit=commit) }}{% endfor %}
+{%- endfor %}
+"""
+
+footer = ""
+trim = false
+
+# Sort keys keep Keep a Changelog's order (Added, Changed, Deprecated, Removed,
+# Fixed, Security) instead of Tera's alphabetical grouping; strip them after.
+postprocessors = [
+  { pattern = '<!-- [0-9]+ -->', replace = "" },
+  # Body indentation leaves whitespace-only lines behind.
+  { pattern = '(?m)[ \t]+$', replace = "" },
+]
+
+[git]
+conventional_commits = true
+# An unconventional subject is still a change someone shipped. It lands under
+# "Changed" rather than vanishing, which is the failure mode that makes people
+# stop trusting a generated changelog.
+filter_unconventional = false
+# A skipping parser must never swallow a breaking change.
+protect_breaking_commits = true
+filter_commits = true
+split_commits = false
+# Only canonical CalVer tags are releases (.claude/rules/10-release.md).
+tag_pattern = "^[0-9]{4}\\.[0-9]{2}\\.[0-9]+$"
+sort_commits = "newest"
+topo_order = false
+
+# Trailers are provenance for the repository, not release notes for an operator.
+commit_preprocessors = [
+  { pattern = '(?m)^(Co-Authored-By|Co-authored-by|Claude-Session|Signed-off-by|Reviewed-by|Refs|Closes):.*$', replace = "" },
+]
+
+commit_parsers = [
+  # CI's own release commits, and merge bubbles, describe no change.
+  { message = '^[Rr]elease [0-9]{4}\.[0-9]{2}\.[0-9]+', skip = true },
+  { message = '^Merge (pull request|branch|remote-tracking)', skip = true },
+
+  { message = '^feat', group = "<!-- 0 -->Added" },
+  { message = '^(perf|revert)', group = "<!-- 1 -->Changed" },
+  { message = '^deprecate', group = "<!-- 2 -->Deprecated" },
+  { message = '^remove', group = "<!-- 3 -->Removed" },
+  { message = '^fix', group = "<!-- 4 -->Fixed" },
+  { message = '^sec(urity)?', group = "<!-- 5 -->Security" },
+
+  # No entry: internal refactors, tests, docs, CI and build plumbing.
+  { message = '^(docs|test|chore|ci|build|style|refactor)', skip = true },
+
+  # Anything else still shipped something.
+  { message = '.*', group = "<!-- 1 -->Changed" },
+]

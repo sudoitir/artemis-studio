@@ -75,6 +75,27 @@ describe('AddressPicker', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows an address in full rather than truncating it to fit the field', async () => {
+    // The option used to lay the address and its meta out as two columns inside a
+    // 240px dropdown, so `flex: none` meta won and every long address rendered as
+    // an ellipsis — useless for exactly the names this picker exists to tell apart.
+    const long = 'orders.reply.responder-with-a-rather-long-node-name.v1';
+    server.use(
+      http.get('*/api/v1/clusters/c1/queues', () =>
+        HttpResponse.json(page([queue({ address: long })])),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    await user.click(screen.getByRole('textbox', { name: /request address/i }));
+
+    const option = await screen.findByRole('option', { name: new RegExp(`^${long},`), ...opt }, { timeout: 4000 });
+    const name = option.querySelector(`[title="${long}"]`);
+    expect(name).not.toBeNull();
+    expect(name).toHaveTextContent(long);
+  });
+
   it('filters the suggestions by routing type', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/queues', () =>

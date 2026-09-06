@@ -41,21 +41,30 @@ public class JolokiaBrokerClient {
      */
     private final Map<String, String> sharedBrokerObjectNames;
 
+    /**
+     * Where the broker's own clock reading goes. Shared like the MBean names above,
+     * and null in the tests and probes that build a client directly — measuring skew
+     * is a side effect of scraping, never a reason to make a call.
+     */
+    private final ClockOffsetRegistry clockOffsets;
+
     private volatile String cachedBrokerObjectName;
 
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
-        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>());
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null);
     }
 
     public JolokiaBrokerClient(
             RestClient restClient,
             String jolokiaUrl,
             ObjectMapper mapper,
-            Map<String, String> sharedBrokerObjectNames) {
+            Map<String, String> sharedBrokerObjectNames,
+            ClockOffsetRegistry clockOffsets) {
         this.restClient = restClient;
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
         this.sharedBrokerObjectNames = sharedBrokerObjectNames;
+        this.clockOffsets = clockOffsets;
         this.cachedBrokerObjectName = sharedBrokerObjectNames.get(jolokiaUrl);
     }
 
@@ -65,8 +74,12 @@ public class JolokiaBrokerClient {
 
     /** Send a bulk request; the returned list is positionally aligned with {@code requests}. */
     public List<JolokiaResponse> batch(List<JolokiaRequest> requests) {
+        long t0 = studioMillis();
         JolokiaResponse[] body = post(requests, JolokiaResponse[].class);
-        return body == null ? List.of() : List.of(body);
+        long t1 = studioMillis();
+        List<JolokiaResponse> entries = body == null ? List.of() : List.of(body);
+        entries.stream().filter(JolokiaResponse::ok).findFirst().ifPresent(e -> recordClock(e, t0, t1));
+        return entries;
     }
 
     /**
@@ -86,11 +99,31 @@ public class JolokiaBrokerClient {
 
     /** Send a single request. */
     public JolokiaResponse single(JolokiaRequest request) {
+        long t0 = studioMillis();
         JolokiaResponse body = post(request, JolokiaResponse.class);
+        long t1 = studioMillis();
         if (body == null) {
             throw BrokerConnectionException.of(BrokerConnectionException.Kind.BAD_RESPONSE);
         }
+        if (body.ok()) {
+            recordClock(body, t0, t1);
+        }
         return body;
+    }
+
+    private long studioMillis() {
+        return clockOffsets == null ? System.currentTimeMillis() : clockOffsets.now();
+    }
+
+    /**
+     * Offer the broker's own timestamp to the offset estimator. A response with no
+     * timestamp — a proxy that strips it, or an agent that does not send one —
+     * teaches nothing and is skipped, leaving the verdict unknown rather than zero.
+     */
+    private void recordClock(JolokiaResponse entry, long t0, long t1) {
+        if (clockOffsets != null && entry.timestamp() != null) {
+            clockOffsets.record(jolokiaUrl, entry.timestamp(), t0, t1);
+        }
     }
 
     /** MBean names matching a JMX pattern. */

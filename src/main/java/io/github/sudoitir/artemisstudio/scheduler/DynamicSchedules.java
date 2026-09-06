@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerEventWriter;
 import io.github.sudoitir.artemisstudio.persist.MetricPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.RrFlowReaper;
+import io.github.sudoitir.artemisstudio.service.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.service.SettingsService;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,8 @@ public class DynamicSchedules implements SchedulingConfigurer {
     private final RrSampler rrSampler;
     private final AlertDispatcher alertDispatcher;
     private final SseHub sseHub;
+    private final ClockOffsetService clockOffsets;
+    private final MonotonicClockWatch monotonicClockWatch;
 
     @Override
     public void configureTasks(ScheduledTaskRegistrar registrar) {
@@ -55,6 +58,12 @@ public class DynamicSchedules implements SchedulingConfigurer {
         registrar.addTriggerTask(
                 alertDispatcher::dispatch, DynamicTriggers.fixedDelay(settings::alertingDispatchInterval));
         registrar.addTriggerTask(sseHub::heartbeat, DynamicTriggers.fixedDelay(settings::sseHeartbeatInterval));
+        // Not settings-tunable: both are properties of how time is measured rather
+        // than of how hard Studio polls a broker, and neither makes a broker call.
+        registrar.addTriggerTask(
+                clockOffsets::refresh, DynamicTriggers.fixedDelay(() -> ClockOffsetService.REFRESH_INTERVAL));
+        registrar.addTriggerTask(
+                monotonicClockWatch::check, DynamicTriggers.fixedDelay(() -> MonotonicClockWatch.INTERVAL));
 
         // Housekeeping crons.
         registrar.addTriggerTask(metricReaper::reap, DynamicTriggers.cron(settings::metricReaperCron));

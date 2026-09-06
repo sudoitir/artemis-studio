@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.broker.core;
 
+import io.github.sudoitir.artemisstudio.broker.BrokerTime;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import java.time.Instant;
@@ -7,6 +8,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.apache.activemq.artemis.api.core.management.CoreNotificationType;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +24,24 @@ import org.springframework.stereotype.Component;
 @Component
 public class NotificationMapper {
 
+    /**
+     * A notification's timestamps come from the broker's clock; every other instant
+     * Studio stores is on its own. Left unnormalised, a completed flow could
+     * subtract a broker instant from a Studio instant and call the difference
+     * latency (ADR-0053). Supplied lazily because the offsets are refreshed on a
+     * schedule and this mapper outlives any one reading.
+     */
+    private final Supplier<BrokerTime> brokerTime;
+
+    public NotificationMapper(io.github.sudoitir.artemisstudio.service.ClockOffsetService clocks) {
+        this.brokerTime = clocks::brokerTime;
+    }
+
+    /** Without normalisation — for tests and for callers that have no node in hand. */
+    public NotificationMapper() {
+        this.brokerTime = BrokerTime::identity;
+    }
+
     public BrokerEvent toEvent(UUID clusterId, UUID nodeId, Message message) throws JMSException {
         Map<String, Object> props = new LinkedHashMap<>();
         Enumeration<?> names = message.getPropertyNames();
@@ -32,7 +52,7 @@ public class NotificationMapper {
 
         String rawType = str(props.get("_AMQ_NotifType"));
         String type = normaliseType(rawType);
-        Instant occurredAt = instant(props.get("_AMQ_NotifTimestamp"), message.getJMSTimestamp());
+        Instant occurredAt = instant(nodeId, props.get("_AMQ_NotifTimestamp"), message.getJMSTimestamp());
 
         return new BrokerEvent(
                 clusterId,
@@ -61,11 +81,9 @@ public class NotificationMapper {
         return "UNKNOWN:" + rawType;
     }
 
-    private static Instant instant(Object amqTimestamp, long jmsTimestamp) {
-        if (amqTimestamp instanceof Number number) {
-            return Instant.ofEpochMilli(number.longValue());
-        }
-        return Instant.ofEpochMilli(jmsTimestamp);
+    private Instant instant(UUID nodeId, Object amqTimestamp, long jmsTimestamp) {
+        long millis = amqTimestamp instanceof Number number ? number.longValue() : jmsTimestamp;
+        return brokerTime.get().toStudioTime(nodeId, millis);
     }
 
     private static String str(Object value) {

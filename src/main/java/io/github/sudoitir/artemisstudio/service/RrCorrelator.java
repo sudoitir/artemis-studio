@@ -45,10 +45,14 @@ public class RrCorrelator implements RrObservationSink {
     private final RrExpectationRepository expectations;
     private final RrMetrics metrics;
     private final ReplyAddressResolver replyAddresses;
+    private final ClockOffsetService clocks;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
     private volatile int defaultDeadlineMs;
     private volatile int payloadCaptureBytes;
+
+    /** The error bar on an observed latency: nothing between two ticks can be resolved. */
+    private volatile int sampleIntervalMs;
 
     /** {@code clusterId|address -> currently observed responder consumer, or null}. In-memory, address-scoped (not per-flow) — a request-reply address either has a responder or it doesn't. */
     private final Map<String, String> currentResponder = new ConcurrentHashMap<>();
@@ -65,6 +69,7 @@ public class RrCorrelator implements RrObservationSink {
             RrExpectationRepository expectations,
             RrMetrics metrics,
             ReplyAddressResolver replyAddresses,
+            ClockOffsetService clocks,
             SseHub sseHub,
             ObjectMapper mapper,
             ArtemisStudioProperties properties) {
@@ -73,10 +78,12 @@ public class RrCorrelator implements RrObservationSink {
         this.expectations = expectations;
         this.metrics = metrics;
         this.replyAddresses = replyAddresses;
+        this.clocks = clocks;
         this.sseHub = sseHub;
         this.mapper = mapper;
         this.defaultDeadlineMs = properties.rr().defaultDeadlineMs();
         this.payloadCaptureBytes = properties.rr().payloadCaptureBytes();
+        this.sampleIntervalMs = (int) properties.rr().sampleInterval().toMillis();
     }
 
     /**
@@ -90,6 +97,11 @@ public class RrCorrelator implements RrObservationSink {
 
     public void setPayloadCaptureBytes(int payloadCaptureBytes) {
         this.payloadCaptureBytes = Math.max(1, payloadCaptureBytes);
+    }
+
+    /** Kept in step with the sampler's cadence, because it is the width of the error bar. */
+    public void setSampleIntervalMs(int sampleIntervalMs) {
+        this.sampleIntervalMs = Math.max(1, sampleIntervalMs);
     }
 
     @Override
@@ -144,7 +156,13 @@ public class RrCorrelator implements RrObservationSink {
                 r.at(),
                 deadline);
         flow.setResponderConsumer(currentResponder.get(r.clusterId() + "|" + r.requestAddress()));
+        flow.setRequestEnqueuedAt(r.enqueuedAt());
+        Long skew = forwardSkew(r.enqueuedAt(), r.at());
+        flow.setRequestSkewMs(skew);
         flows.save(flow);
+        if (skew != null) {
+            recordEvent(flow.getId(), r.nodeId(), "CLOCK_SKEW", r.at(), skewDetail("request", skew));
+        }
         recentRequestFlow.put(dedupeKey, flow.getId());
 
         boolean capturePayload = expectation != null && expectation.isCapturePayload();
@@ -166,11 +184,16 @@ public class RrCorrelator implements RrObservationSink {
         }
 
         RrFlowEntity flow = matches.getFirst();
+        // A request whose own timestamp was already disbelieved must not be allowed
+        // to measure anything: the state machine falls back to observation when it
+        // is handed nothing to trust.
+        Instant trustedRequestEnqueuedAt = flow.getRequestSkewMs() == null ? flow.getRequestEnqueuedAt() : null;
         FlowContext ctx = new FlowContext(
                 RrState.valueOf(flow.getState()),
                 flow.getRequestedAt(),
                 flow.getRequestMessageId(),
-                flow.getReplyDestination());
+                flow.getReplyDestination(),
+                trustedRequestEnqueuedAt);
         Optional<Transition> transition = FlowStateMachine.apply(ctx, r);
         if (transition.isEmpty()) {
             return;
@@ -183,8 +206,18 @@ public class RrCorrelator implements RrObservationSink {
         flow.setRepliedAt(r.at());
         flow.setReplyMessageId(r.messageId());
         flow.setLatencyMs(t.latencyMs());
+        flow.setLatencySource(t.latencySource().name());
+        // An observed latency is only accurate to the tick that produced it; saying
+        // so is the difference between a number and a measurement.
+        flow.setLatencyBoundMs(t.latencySource() == FlowStateMachine.LatencySource.OBSERVED ? sampleIntervalMs : null);
+        flow.setReplyEnqueuedAt(r.enqueuedAt());
+        Long replySkew = forwardSkew(r.enqueuedAt(), r.at());
+        flow.setReplySkewMs(replySkew);
         flow.setObservedAt(r.at());
         flows.save(flow);
+        if (replySkew != null) {
+            recordEvent(flow.getId(), r.nodeId(), "CLOCK_SKEW", r.at(), skewDetail("reply", replySkew));
+        }
 
         if (t.latencyMs() != null) {
             metrics.recordCompletion(flow.getClusterId(), flow.getRequestAddress(), t.latencyMs());
@@ -258,9 +291,40 @@ public class RrCorrelator implements RrObservationSink {
         sseHub.publish(flow.getClusterId(), "rr");
     }
 
+    /**
+     * When this flow stops being allowed to wait, on <em>Studio's</em> clock.
+     *
+     * <p>{@code JMSExpiration} is absolute and was stamped by the producer: its own
+     * clock plus the TTL it asked for. The deadline sweep compares against Studio's
+     * clock, so before this normalisation a producer running ten minutes fast meant
+     * no flow ever timed out, and ten minutes slow meant every flow timed out the
+     * moment it was seen. The broker's measured offset is removed here (ADR-0053)
+     * so the comparison downstream is between two readings of the same clock.
+     */
+    /**
+     * Forward skew only, in milliseconds, or null when there is nothing to report.
+     *
+     * <p>Studio cannot tell "produced in the future" from "produced and then sat on
+     * the queue", so a timestamp <em>earlier</em> than the observation is ordinary
+     * residency and proves nothing. A timestamp <em>later</em> than the moment
+     * Studio read it cannot be explained that way: the clock that stamped it
+     * disagrees with this one.
+     */
+    private Long forwardSkew(Instant enqueuedAt, Instant observedAt) {
+        if (enqueuedAt == null || observedAt == null) {
+            return null;
+        }
+        long ahead = Duration.between(observedAt, enqueuedAt).toMillis();
+        return ahead > clocks.toleranceMs() ? ahead : null;
+    }
+
+    private Map<String, Object> skewDetail(String side, long skewMs) {
+        return Map.of("clockSkew", Map.of("side", side, "aheadOfStudioMs", skewMs));
+    }
+
     private Instant deadlineAt(Observation.RequestSeen r, RrExpectationEntity expectation) {
         if (r.expiration() > 0) {
-            return Instant.ofEpochMilli(r.expiration());
+            return clocks.brokerTime().toStudioTime(r.nodeId(), r.expiration());
         }
         if (expectation != null && expectation.getDeadlineMs() != null) {
             return r.at().plusMillis(expectation.getDeadlineMs());

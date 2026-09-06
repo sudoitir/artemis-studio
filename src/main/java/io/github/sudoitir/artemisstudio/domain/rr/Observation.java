@@ -18,7 +18,16 @@ public sealed interface Observation {
 
     Instant at();
 
-    /** A request message observed on a traced request address. */
+    /**
+     * A request message observed on a traced request address.
+     *
+     * <p>{@code at} is when Studio saw it; {@code enqueuedAt} is when the message
+     * says it was produced, already normalised onto Studio's clock (ADR-0053).
+     * They are different facts: the first is quantised to the sample interval, the
+     * second is the real thing but comes from a clock Studio does not own. Only the
+     * browse path can supply the second — a notification carries no enqueue time —
+     * so it is null there, and null means "unknown", never "zero".
+     */
     record RequestSeen(
             UUID clusterId,
             UUID nodeId,
@@ -29,8 +38,36 @@ public sealed interface Observation {
             String replyTo,
             long expiration,
             String bodyPreview,
-            Map<String, Object> properties)
-            implements Observation {}
+            Map<String, Object> properties,
+            Instant enqueuedAt)
+            implements Observation {
+
+        /** The notification path, which observes the message without reading it. */
+        public RequestSeen(
+                UUID clusterId,
+                UUID nodeId,
+                Instant at,
+                String requestAddress,
+                String messageId,
+                String correlationId,
+                String replyTo,
+                long expiration,
+                String bodyPreview,
+                Map<String, Object> properties) {
+            this(
+                    clusterId,
+                    nodeId,
+                    at,
+                    requestAddress,
+                    messageId,
+                    correlationId,
+                    replyTo,
+                    expiration,
+                    bodyPreview,
+                    properties,
+                    null);
+        }
+    }
 
     /** A reply message observed on a traced reply address or a temp reply queue. */
     record ReplySeen(
@@ -41,8 +78,23 @@ public sealed interface Observation {
             String messageId,
             String correlationId,
             String bodyPreview,
-            Map<String, Object> properties)
-            implements Observation {}
+            Map<String, Object> properties,
+            Instant enqueuedAt)
+            implements Observation {
+
+        /** The notification path, which observes the delivery without reading the message. */
+        public ReplySeen(
+                UUID clusterId,
+                UUID nodeId,
+                Instant at,
+                String replyDestination,
+                String messageId,
+                String correlationId,
+                String bodyPreview,
+                Map<String, Object> properties) {
+            this(clusterId, nodeId, at, replyDestination, messageId, correlationId, bodyPreview, properties, null);
+        }
+    }
 
     /** A consumer attached to a traced request address. */
     record ResponderUp(UUID clusterId, UUID nodeId, Instant at, String requestAddress, String consumerName)

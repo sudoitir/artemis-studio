@@ -24,5 +24,5 @@ they decide. Do not work through it as written.
 - [ ] Update `McpToolSchemaBudgetTest` to enforce the new shape's budget
 - [ ] Update the MCP integration tests for any renamed or regrouped tool
 - [ ] Decide and implement the deprecation path for renamed tools, if any
-- [ ] CHANGELOG `[Unreleased]` — any tool rename is a breaking change for agents
+- [ ] Commit message — `feat(mcp)!:` for any tool rename; a rename is a breaking change for agents (.claude/rules/05-commits.md)
       and needs a `### Breaking` block

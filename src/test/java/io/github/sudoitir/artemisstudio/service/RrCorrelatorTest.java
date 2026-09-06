@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import io.github.sudoitir.artemisstudio.domain.rr.Observation;
 import io.github.sudoitir.artemisstudio.domain.rr.RrState;
@@ -38,6 +39,15 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
     @Autowired
     ClusterRepository clusters;
 
+    @Autowired
+    io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository nodes;
+
+    @Autowired
+    io.github.sudoitir.artemisstudio.broker.ClockOffsetRegistry clockOffsets;
+
+    @Autowired
+    ClockOffsetService clocks;
+
     private UUID clusterId;
 
     @AfterEach
@@ -51,6 +61,45 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
         clusterId = clusters.save(new ClusterEntity("rr-corr-" + UUID.randomUUID(), null, null))
                 .getId();
         return clusterId;
+    }
+
+    /**
+     * The regression test for the reported bug.
+     *
+     * <p>{@code JMSExpiration} is absolute and stamped by the producer's clock; the
+     * deadline sweep compares against Studio's. A producer ten minutes fast meant no
+     * flow ever timed out (ADR-0053).
+     */
+    @Test
+    void aDeadlineFromAFastClockIsNormalisedOntoStudiosTimeline() {
+        UUID clusterId = cluster();
+        String jolokiaUrl = "http://broker-1:8161/console/jolokia/" + UUID.randomUUID();
+        var node = io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity.fromSeed(
+                clusterId, "broker-1", "PRIMARY", null);
+        node.applyManualUrl(jolokiaUrl);
+        UUID nodeId = nodes.save(node).getId();
+
+        long tenMinutes = 600_000;
+        long t0 = System.currentTimeMillis();
+        // The broker answers claiming a time ten minutes ahead of this host's.
+        clockOffsets.record(jolokiaUrl, (t0 + tenMinutes) / 1_000, t0, t0 + 20);
+        clocks.refresh();
+
+        Instant seenAt = Instant.now();
+        // A 30-second TTL, expressed on the fast clock — which is what a producer
+        // sharing that clock actually puts in the message.
+        long expiration = seenAt.toEpochMilli() + tenMinutes + 30_000;
+        correlator.accept(new Observation.RequestSeen(
+                clusterId, nodeId, seenAt, "rr.skewed", "m-skew", "corr-skew", null, expiration, null, Map.of()));
+
+        RrFlowEntity flow = flows.findByClusterIdAndRequestAddressAndRequestMessageId(clusterId, "rr.skewed", "m-skew")
+                .orElseThrow();
+        // Thirty seconds from now, not ten and a half minutes.
+        assertThat(flow.getDeadlineAt())
+                .isCloseTo(seenAt.plusSeconds(30), within(2, java.time.temporal.ChronoUnit.SECONDS));
+
+        clockOffsets.invalidate();
+        clocks.refresh();
     }
 
     @Test

@@ -676,6 +676,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/rr/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["diagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}": {
         parameters: {
             query?: never;
@@ -1588,6 +1604,27 @@ export interface components {
             repliedAt?: string | null;
             /** Format: int64 */
             latencyMs?: number | null;
+            /** @description How latencyMs was measured: OBSERVED (quantised to the sample interval, see latencyBoundMs) or MESSAGE_TIMESTAMPS (the messages' own clocks, normalised) */
+            latencySource: string;
+            /**
+             * Format: int32
+             * @description The error bar on an OBSERVED latency, in milliseconds
+             */
+            latencyBoundMs?: number | null;
+            /**
+             * Format: date-time
+             * @description When the request says it was produced, on Studio's clock
+             */
+            requestEnqueuedAt?: string | null;
+            /** Format: date-time */
+            replyEnqueuedAt?: string | null;
+            /**
+             * Format: int64
+             * @description How far into the future the request claimed to be produced. Forward skew only: an earlier timestamp is ordinary queue residency, not evidence of a wrong clock
+             */
+            requestSkewMs?: number | null;
+            /** Format: int64 */
+            replySkewMs?: number | null;
             events?: components["schemas"]["RrEventView"][] | null;
         };
         RrEventView: {
@@ -1601,6 +1638,65 @@ export interface components {
             detail?: {
                 [key: string]: unknown;
             } | null;
+        };
+        ClockDiagnosticsView: {
+            /** @description UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Studio's own host */
+            verdict: string;
+            /** Format: int64 */
+            worstOffsetMs?: number | null;
+            /** Format: int64 */
+            uncertaintyMs?: number | null;
+            skewedNodes: string[];
+            /** Format: date-time */
+            measuredAt?: string | null;
+            /** Format: int64 */
+            toleranceMs: number;
+        };
+        ExpectationDiagnosticsView: {
+            /** Format: uuid */
+            expectationId: string;
+            requestAddress: string;
+            enabled: boolean;
+            /** Format: date-time */
+            lastAttemptAt?: string | null;
+            /** Format: date-time */
+            lastSuccessAt?: string | null;
+            /** Format: int32 */
+            nodesSampled: number;
+            /** Format: int32 */
+            nodesTotal: number;
+            /** @description Nodes not sampled this tick, each with the reason */
+            skipped: string[];
+            /** Format: int32 */
+            messagesBrowsed: number;
+            /** Format: int32 */
+            observations: number;
+            lastError?: string | null;
+            /** Format: date-time */
+            lastErrorAt?: string | null;
+            /** Format: int32 */
+            samplePerMin: number;
+            /** @description The requested rate is faster than rr.sample-interval can deliver; the global interval is the floor */
+            rateExceedsInterval: boolean;
+        };
+        RrDiagnosticsView: {
+            /** Format: date-time */
+            asOf: string;
+            /** Format: int64 */
+            sampleIntervalMs: number;
+            /** Format: int32 */
+            nodesWithCoreEndpoint: number;
+            /** Format: int32 */
+            nodesTotal: number;
+            notificationsCapability: string;
+            clock: components["schemas"]["ClockDiagnosticsView"];
+            expectations: components["schemas"]["ExpectationDiagnosticsView"][];
+            reasons: components["schemas"]["TracingReasonView"][];
+        };
+        TracingReasonView: {
+            code: string;
+            summary: string;
+            remedy: string;
         };
         PagedViewQueueView: {
             data: components["schemas"]["QueueView"][];
@@ -3535,6 +3631,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FlowView"];
+                };
+            };
+        };
+    };
+    diagnostics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RrDiagnosticsView"];
                 };
             };
         };

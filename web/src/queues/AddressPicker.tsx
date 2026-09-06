@@ -83,7 +83,7 @@ export function AddressPicker({
     Boolean(unknownHint) && value.trim() !== '' && !queues.isFetching && !matchesKnownAddress;
 
   return (
-    <div ref={root}>
+    <div ref={root} className={styles.root}>
       <Combobox
         store={combobox}
         withinPortal={false}
@@ -121,10 +121,11 @@ export function AddressPicker({
             }
             rightSectionPointerEvents="none"
             error={error ?? (unknown ? unknownHint : undefined)}
+            classNames={{ error: styles.error }}
           />
         </Combobox.Target>
 
-        <Combobox.Dropdown>
+        <Combobox.Dropdown className={styles.dropdown}>
           <div className={styles.filters}>
             <Chip.Group multiple value={types} onChange={(v) => setTypes(v as RoutingType[])}>
               <Group gap={6} wrap="nowrap">
@@ -165,7 +166,9 @@ export function AddressPicker({
                     aria-label={`${o.address}, ${o.routingType.toLowerCase()}, ${o.totalMessageCount.toLocaleString()} messages, on ${o.nodesPresent} of ${o.nodesTotal} nodes`}
                   >
                     <div className={styles.option}>
-                      <span className={styles.name}>{o.address}</span>
+                      <span className={styles.name} title={o.address}>
+                        {o.address}
+                      </span>
                       <span className={styles.meta}>
                         <Text size="xs" span>
                           {o.routingType.toLowerCase()}

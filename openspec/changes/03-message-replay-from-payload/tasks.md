@@ -92,7 +92,7 @@ change is listed.
 
 - [ ] ADR-0051 — a replay is a new send with provenance; index row
 - [ ] Replay-depth ceiling added to the settings registry with a label and hint
-- [ ] CHANGELOG `[Unreleased]` — Added
+- [ ] Commit message — `feat(...)`, body written for someone upgrading (.claude/rules/05-commits.md)
 - [ ] README roadmap — tick "Message replay from a captured payload"
 - [ ] `./mvnw verify` and `just verify-web` green
 - [ ] `openspec validate 03-message-replay-from-payload --strict`

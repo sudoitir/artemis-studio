@@ -3,7 +3,6 @@ import {
   ActionIcon,
   Button,
   Checkbox,
-  Group,
   NumberInput,
   Stack,
   Switch,
@@ -13,15 +12,19 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
+import styles from './ExpectationsView.module.css';
+
 import { AddressPicker } from '../queues/AddressPicker.tsx';
-import { ReplyAddressesInput } from './ReplyAddressesInput.tsx';
+import { ReplyAddressesHelp, ReplyAddressesInput } from './ReplyAddressesInput.tsx';
 import {
   useCreateRrExpectation,
   useDeleteRrExpectation,
+  useRrDiagnostics,
   useRrExpectations,
   useUpdateRrExpectation,
   type ExpectationView,
 } from '../api/client.ts';
+import { ExpectationStatus } from './TracingDiagnostics.tsx';
 
 /**
  * One expectation's declared reply addresses, and what they resolve to right now.
@@ -64,6 +67,9 @@ function ReplyAddressesCell({ expectation: e }: { expectation: ExpectationView }
 /** Which request addresses are traced, and how (request-reply-tracing spec). */
 export function ExpectationsView({ clusterId }: { clusterId: string }) {
   const expectations = useRrExpectations(clusterId);
+  // What the sampler actually did, so "tracing is on" and "tracing is working" stop
+  // looking the same on this screen.
+  const diagnostics = useRrDiagnostics(clusterId);
   const create = useCreateRrExpectation(clusterId);
   const update = useUpdateRrExpectation(clusterId);
   const remove = useDeleteRrExpectation(clusterId);
@@ -128,7 +134,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
         sampled — see the Latency tab for what that means for reported numbers.
       </Text>
 
-      <Group align="flex-end" gap="xs">
+      <div className={styles.form}>
         <AddressPicker
           clusterId={clusterId}
           label="Request address"
@@ -136,38 +142,42 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           value={requestAddress}
           onChange={setRequestAddress}
           unknownHint="No address on this cluster has that name yet."
-          w={240}
+          w="100%"
         />
         <ReplyAddressesInput
           clusterId={clusterId}
           value={replyAddresses}
           onChange={setReplyAddresses}
-          w={320}
+          w="100%"
         />
         <NumberInput
           label="Deadline (ms)"
           placeholder="from message"
           value={deadlineMs}
           onChange={(v) => setDeadlineMs(typeof v === 'number' ? v : '')}
-          w={140}
         />
         <NumberInput
           label="Samples/min"
           value={samplePerMin}
           onChange={(v) => setSamplePerMin(typeof v === 'number' ? v : '')}
           min={1}
-          w={110}
         />
-        <Checkbox
-          label="Capture payload"
-          checked={capturePayload}
-          onChange={(e) => setCapturePayload(e.currentTarget.checked)}
-          mb={8}
-        />
-        <Button onClick={submit} loading={create.isPending} disabled={!requestAddress.trim()}>
-          Add
-        </Button>
-      </Group>
+        <div className={styles.actions}>
+          <Checkbox
+            label="Capture payload"
+            checked={capturePayload}
+            onChange={(e) => setCapturePayload(e.currentTarget.checked)}
+          />
+        </div>
+        <div className={styles.actions}>
+          <Button onClick={submit} loading={create.isPending} disabled={!requestAddress.trim()}>
+            Add
+          </Button>
+        </div>
+        <div className={styles.help}>
+          <ReplyAddressesHelp clusterId={clusterId} value={replyAddresses} />
+        </div>
+      </div>
 
       {expectations.isPending ? (
         <Text size="sm" c="dimmed">
@@ -178,58 +188,67 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           No addresses declared yet — traffic on this cluster is not being traced.
         </Text>
       ) : (
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Request address</Table.Th>
-              <Table.Th>Reply addresses</Table.Th>
-              <Table.Th>Deadline</Table.Th>
-              <Table.Th>Samples/min</Table.Th>
-              <Table.Th>Payload</Table.Th>
-              <Table.Th>Enabled</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {(expectations.data ?? []).map((e) => (
-              <Table.Tr key={e.id}>
-                <Table.Td>
-                  <Text size="sm" ff="monospace">
-                    {e.requestAddress}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <ReplyAddressesCell expectation={e} />
-                </Table.Td>
-                <Table.Td>{e.deadlineMs != null ? `${e.deadlineMs}ms` : 'from message'}</Table.Td>
-                <Table.Td>{e.samplePerMin}</Table.Td>
-                <Table.Td>{e.capturePayload ? 'yes' : 'no'}</Table.Td>
-                <Table.Td>
-                  <Switch checked={e.enabled} onChange={() => toggle(e)} size="sm" />
-                </Table.Td>
-                <Table.Td>
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    onClick={() =>
-                      remove.mutate(e.id, {
-                        onError: failed,
-                        onSuccess: () =>
-                          notifications.show({
-                            message: `Stopped tracing ${e.requestAddress}`,
-                            color: 'green',
-                          }),
-                      })
-                    }
-                    aria-label={`Remove ${e.requestAddress}`}
-                  >
-                    ×
-                  </ActionIcon>
-                </Table.Td>
+        <Table.ScrollContainer minWidth={860} type="native">
+          <Table highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Request address</Table.Th>
+                <Table.Th>Reply addresses</Table.Th>
+                <Table.Th>Deadline</Table.Th>
+                <Table.Th>Samples/min</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Payload</Table.Th>
+                <Table.Th>Enabled</Table.Th>
+                <Table.Th />
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {(expectations.data ?? []).map((e) => (
+                <Table.Tr key={e.id}>
+                  <Table.Td>
+                    <Text size="sm" ff="monospace">
+                      {e.requestAddress}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <ReplyAddressesCell expectation={e} />
+                  </Table.Td>
+                  <Table.Td>{e.deadlineMs != null ? `${e.deadlineMs}ms` : 'from message'}</Table.Td>
+                  <Table.Td>{e.samplePerMin}</Table.Td>
+                  <Table.Td>
+                    <ExpectationStatus
+                      status={diagnostics.data?.expectations.find((d) => d.expectationId === e.id)}
+                      now={Date.now()}
+                    />
+                  </Table.Td>
+                  <Table.Td>{e.capturePayload ? 'yes' : 'no'}</Table.Td>
+                  <Table.Td>
+                    <Switch checked={e.enabled} onChange={() => toggle(e)} size="sm" />
+                  </Table.Td>
+                  <Table.Td>
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      onClick={() =>
+                        remove.mutate(e.id, {
+                          onError: failed,
+                          onSuccess: () =>
+                            notifications.show({
+                              message: `Stopped tracing ${e.requestAddress}`,
+                              color: 'green',
+                            }),
+                        })
+                      }
+                      aria-label={`Remove ${e.requestAddress}`}
+                    >
+                      ×
+                    </ActionIcon>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       )}
     </Stack>
   );

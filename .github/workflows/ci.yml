@@ -17,6 +17,8 @@ permissions:
 # release job writes it. Survives across runs without GHA's 10 GB eviction.
 env:
   BUILDCACHE: sudoit1/artemis-studio:buildcache
+  # Pinned: the changelog is a published artifact, not a best-effort render.
+  GIT_CLIFF: git-cliff@2.13.1
 
 jobs:
   backend:
@@ -131,18 +133,20 @@ jobs:
           cp target/artemis-studio.jar "artemis-studio-$V.jar"
           sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
 
-      - name: Promote changelog section
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # The changelog is generated from the commit messages in this release, one
+      # file per version. See ADR-0051 and .claude/rules/05-commits.md.
+      - name: Write the release's changelog entry
         id: notes
         run: |
           set -euo pipefail
           V=${{ steps.ver.outputs.version }}
-          D=${{ steps.ver.outputs.date }}
-          sed -i "0,/^## \[Unreleased\]/s//## [Unreleased]\n\n## [$V] — $D/" CHANGELOG.md
-          awk -v ver="$V" '
-            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
-            flag && /^## \[/ { exit }
-            flag { print }
-          ' CHANGELOG.md > release-notes.md
+          npx -y "$GIT_CLIFF" --config cliff.toml --unreleased --tag "$V" -o "changelog/$V.md"
+          python3 scripts/release-notes.py "$V"
+          python3 scripts/changelog-index.py
           echo "→ release body:"; cat release-notes.md
 
       # Reserve the version in git BEFORE anything immutable is published. If the
@@ -156,7 +160,7 @@ jobs:
           V=${{ steps.ver.outputs.version }}
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
+          git add changelog
           git commit -m "Release $V [skip ci]"
           git tag -a "$V" -m "Release $V"
           git push --atomic origin HEAD:main "refs/tags/$V"

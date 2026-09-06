@@ -33,6 +33,13 @@
   --as-warning: var(--mantine-color-yellow-5);
   --as-danger: var(--mantine-color-red-6);
 
+  /* Data freshness (ADR-0052). Live is a bright neutral mark, not a green pill:
+     a screen that is working looks like every other working screen. Colour
+     enters only where the operator should stop trusting what they see. */
+  --as-live: var(--as-text);
+  --as-stale: var(--as-text-dimmed);
+  --as-offline: var(--as-warning);
+
   /* HA / topology status. */
   --as-node-live: var(--as-text); /* serving — a bright neutral mark, never a green pill */
   --as-node-backup: var(--as-text-dimmed); /* synced standby */

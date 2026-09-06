@@ -31,7 +31,9 @@ public class McpRunbookPrompts {
                 escalate; two nodes are accepting writes and the journals are diverging. \
                 SUSPECTED during a failover is normal for a few seconds.
                 2. If alertsVisible is false, this key cannot see alerts. Say so rather than \
-                reporting that nothing is firing.
+                reporting that nothing is firing. Check clock too: a verdict of \
+                STUDIO_SUSPECT or BROKER_SKEWED means timeouts and latencies were measured \
+                against a clock that disagrees, so treat those numbers as suspect and say so.
                 3. replicationBehind means the backup cannot take over cleanly yet. That is a \
                 risk, not an outage.
                 4. list_resources kind=queues, sorted by depth. A deep queue with zero consumers \

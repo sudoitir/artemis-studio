@@ -23,12 +23,12 @@ See [ADR-0042](../../docs/adr/0042-calver-releases-on-docker-hub.md) for why.
 
 The `release` job in `.github/workflows/ci.yml` does all of it, with no manual step:
 
-- promotes the changelog `## [Unreleased]` section to `## [<version>] — <date>`, commits
+- writes `changelog/<version>.md` from the commits in the release, commits
   it, and creates the annotated git tag on that release commit;
 - pushes the image to Docker Hub — `sudoit1/artemis-studio`, `linux/amd64` +
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
-- creates a GitHub Release with the promoted changelog section as the body and the
+- creates a GitHub Release with that version's changelog file as the body and the
   `artemis-studio-<version>.jar` + its `.sha256` attached.
 
 ## Dev channel (pre-stable)
@@ -47,18 +47,17 @@ When the project cuts its first stable release, three edits flip the channel:
 3. `deploy/compose/compose.prod.yaml` + `deploy/compose/.env.example` — change the
    `STUDIO_IMAGE` default from `:dev` to `:latest`.
 
-## Changelog is a merge-time obligation
+## Changelog
 
-`CHANGELOG.md`, [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+`changelog/`, one file per released version, generated from the commit messages
+in that release. There is no `CHANGELOG.md` and no `## [Unreleased]` section.
 
-- Any PR that changes user-visible behaviour adds a bullet under `## [Unreleased]`,
-  under one of `Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`.
-- Write for someone **upgrading**, not for someone reading the diff.
-- Internal refactors, test-only changes, and CI tweaks get no entry.
-- Never hand-edit a released (`## [YYYY.MM.N]`) section — it is a historical record.
+- The obligation moved to the **commit message**: see
+  [`05-commits.md`](05-commits.md) for the Conventional Commits format, which
+  types produce an entry, and how a breaking change announces itself.
+- `just changelog` renders what the next release will say.
+- CI writes `changelog/<version>.md` with `git-cliff` (pinned in `cliff.toml` and
+  `.github/workflows/ci.yml`), splices `changelog/unreleased.md` if it exists,
+  refreshes `changelog/README.md`, and uses the same text as the GitHub release
+  body. Never hand-edit a released file — it is a historical record.
 
-### Breaking changes
-
-CalVer carries no compatibility signal, so a breaking change must announce itself: a
-`### Breaking` block at the **top** of that version's section, stating what broke and
-the exact migration step.

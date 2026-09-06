@@ -102,7 +102,7 @@ this change.
 
 - [ ] ADR-0053 — desired state is advisory, never auto-reconciled; index row
 - [ ] Drift evaluation cadence added to the settings registry with label and hint
-- [ ] CHANGELOG `[Unreleased]` — Added
+- [ ] Commit message — `feat(...)`, body written for someone upgrading (.claude/rules/05-commits.md)
 - [ ] README roadmap row
 - [ ] `./mvnw verify` and `just verify-web` green
 - [ ] `openspec validate 05-desired-state-drift --strict`

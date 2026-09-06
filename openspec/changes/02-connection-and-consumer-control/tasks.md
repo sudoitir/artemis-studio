@@ -86,7 +86,7 @@ change is listed.
 ## Process
 
 - [ ] ADR-0050 — connection identifiers are node-local and ephemeral; index row
-- [ ] CHANGELOG `[Unreleased]` — Added
+- [ ] Commit message — `feat(...)`, body written for someone upgrading (.claude/rules/05-commits.md)
 - [ ] README roadmap row
 - [ ] `./mvnw verify` and `just verify-web` green
 - [ ] `openspec validate 02-connection-and-consumer-control --strict`

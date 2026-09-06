@@ -58,6 +58,7 @@ export const STATE_CONDITIONS = [
   'NODE_DOWN',
   'REPLICATION_BEHIND',
   'CLUSTER_DEGRADED',
+  'CLOCK_SKEW',
 ] as const;
 
 export const COMPARATORS = ['GT', 'GTE', 'LT', 'LTE', 'EQ', 'NE'] as const;
@@ -80,6 +81,7 @@ const STATE_LABELS: Record<string, string> = {
   NODE_DOWN: 'Node down',
   REPLICATION_BEHIND: 'Replication behind',
   CLUSTER_DEGRADED: 'Cluster degraded',
+  CLOCK_SKEW: 'Clock skew',
 };
 
 export function stateConditionLabel(condition: string): string {

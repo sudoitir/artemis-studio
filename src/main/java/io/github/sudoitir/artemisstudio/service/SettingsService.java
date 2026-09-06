@@ -317,10 +317,13 @@ public class SettingsService {
                 RR_SAMPLE_INTERVAL,
                 "Request-reply",
                 "Sampler interval",
-                "How often enabled expectations are sampled over the Core transport.",
+                "How often enabled expectations are sampled over the Core transport. "
+                        + "It is also the error bar on any latency measured by observation.",
                 Kind.DURATION,
                 () -> defaults.rr().sampleInterval().toString(),
-                null);
+                // The interval is the width of the error bar Studio reports next to an
+                // observed latency, so the two must never disagree.
+                () -> rrCorrelator.setSampleIntervalMs((int) rrSampleInterval().toMillis()));
 
         // ---- alerting -------------------------------------------------------
         register(

@@ -24,7 +24,19 @@ public record JolokiaResponse(
         int status,
         JsonNode value,
         String error,
-        @JsonProperty("error_type") String errorType) {
+        @JsonProperty("error_type") String errorType,
+        /**
+         * The broker's own wall clock when it answered, in epoch <em>seconds</em>.
+         *
+         * <p>Jolokia puts this on every response and it was being parsed and thrown
+         * away. It is the only reading of a broker's clock Studio can take without
+         * making an extra call, which is what makes clock-skew detection free
+         * (ADR-0053). Second granularity is why skew below a couple of seconds is
+         * never reported as meaningful. A proxy that strips or rewrites it leaves
+         * this {@code null}, and the verdict is then unknown rather than assumed
+         * to be zero.
+         */
+        Long timestamp) {
 
     public boolean ok() {
         return status == 200 && error == null;

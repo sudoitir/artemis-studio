@@ -7,6 +7,8 @@ compose_dev  := "docker compose -f deploy/compose/compose.dev.yaml"
 compose_prod := "docker compose -f deploy/compose/compose.prod.yaml"
 mvn          := "./mvnw"
 npm          := "npm --prefix web"
+# Pinned to match .github/workflows/ci.yml, so a local preview matches the release.
+git_cliff    := "git-cliff@2.13.1"
 
 # ── default ──────────────────────────────────────────────────────────────────
 
@@ -147,6 +149,18 @@ verify-web:
 fmt:
     {{mvn}} spotless:apply
     {{npm}} run lint -- --fix
+
+# ── changelog ────────────────────────────────────────────────────────────────
+
+# Preview the next release's notes, rendered from the commits since the last tag.
+[group('changelog')]
+changelog:
+    npx -y {{git_cliff}} --config cliff.toml --unreleased
+
+# Rewrite the release table in changelog/README.md from the files beside it.
+[group('changelog')]
+changelog-index:
+    python3 scripts/changelog-index.py
 
 # ── database ─────────────────────────────────────────────────────────────────
 

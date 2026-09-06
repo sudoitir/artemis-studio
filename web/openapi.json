@@ -2108,6 +2108,33 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/rr/diagnostics" : {
+      "get" : {
+        "tags" : [ "request-reply-controller" ],
+        "operationId" : "diagnostics",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RrDiagnosticsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}" : {
       "get" : {
         "tags" : [ "message-controller" ],
@@ -4419,6 +4446,33 @@
             "type" : [ "integer", "null" ],
             "format" : "int64"
           },
+          "latencySource" : {
+            "type" : "string",
+            "description" : "How latencyMs was measured: OBSERVED (quantised to the sample interval, see latencyBoundMs) or MESSAGE_TIMESTAMPS (the messages' own clocks, normalised)"
+          },
+          "latencyBoundMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "The error bar on an OBSERVED latency, in milliseconds"
+          },
+          "requestEnqueuedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "When the request says it was produced, on Studio's clock"
+          },
+          "replyEnqueuedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "requestSkewMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "How far into the future the request claimed to be produced. Forward skew only: an earlier timestamp is ordinary queue residency, not evidence of a wrong clock"
+          },
+          "replySkewMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
           "events" : {
             "type" : [ "array", "null" ],
             "items" : {
@@ -4426,7 +4480,7 @@
             }
           }
         },
-        "required" : [ "clusterId", "id", "replyKind", "requestedAt", "state" ]
+        "required" : [ "clusterId", "id", "latencySource", "replyKind", "requestedAt", "state" ]
       },
       "RrEventView" : {
         "type" : "object",
@@ -4452,6 +4506,155 @@
           }
         },
         "required" : [ "kind", "seq", "ts" ]
+      },
+      "ClockDiagnosticsView" : {
+        "type" : "object",
+        "properties" : {
+          "verdict" : {
+            "type" : "string",
+            "description" : "UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Studio's own host"
+          },
+          "worstOffsetMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "uncertaintyMs" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "skewedNodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "measuredAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "toleranceMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "skewedNodes", "toleranceMs", "verdict" ]
+      },
+      "ExpectationDiagnosticsView" : {
+        "type" : "object",
+        "properties" : {
+          "expectationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "requestAddress" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "lastAttemptAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastSuccessAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "nodesSampled" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodesTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "skipped" : {
+            "type" : "array",
+            "description" : "Nodes not sampled this tick, each with the reason",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "messagesBrowsed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "observations" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "lastErrorAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "samplePerMin" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rateExceedsInterval" : {
+            "type" : "boolean",
+            "description" : "The requested rate is faster than rr.sample-interval can deliver; the global interval is the floor"
+          }
+        },
+        "required" : [ "enabled", "expectationId", "messagesBrowsed", "nodesSampled", "nodesTotal", "observations", "rateExceedsInterval", "requestAddress", "samplePerMin", "skipped" ]
+      },
+      "RrDiagnosticsView" : {
+        "type" : "object",
+        "properties" : {
+          "asOf" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sampleIntervalMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "nodesWithCoreEndpoint" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodesTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notificationsCapability" : {
+            "type" : "string"
+          },
+          "clock" : {
+            "$ref" : "#/components/schemas/ClockDiagnosticsView"
+          },
+          "expectations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExpectationDiagnosticsView"
+            }
+          },
+          "reasons" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TracingReasonView"
+            }
+          }
+        },
+        "required" : [ "asOf", "clock", "expectations", "nodesTotal", "nodesWithCoreEndpoint", "notificationsCapability", "reasons", "sampleIntervalMs" ]
+      },
+      "TracingReasonView" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "remedy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "remedy", "summary" ]
       },
       "PagedViewQueueView" : {
         "type" : "object",

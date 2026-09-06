@@ -70,6 +70,28 @@ public final class RrViews {
             @Schema(nullable = true) Instant deadlineAt,
             @Schema(nullable = true) Instant repliedAt,
             @Schema(nullable = true) Long latencyMs,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "How latencyMs was measured: OBSERVED (quantised to the sample interval, "
+                            + "see latencyBoundMs) or MESSAGE_TIMESTAMPS (the messages' own clocks, normalised)")
+            String latencySource,
+
+            @Schema(nullable = true, description = "The error bar on an OBSERVED latency, in milliseconds")
+            Integer latencyBoundMs,
+
+            @Schema(nullable = true, description = "When the request says it was produced, on Studio's clock")
+            Instant requestEnqueuedAt,
+
+            @Schema(nullable = true) Instant replyEnqueuedAt,
+
+            @Schema(
+                    nullable = true,
+                    description = "How far into the future the request claimed to be produced. Forward skew only: "
+                            + "an earlier timestamp is ordinary queue residency, not evidence of a wrong clock")
+            Long requestSkewMs,
+
+            @Schema(nullable = true) Long replySkewMs,
             @Schema(nullable = true) List<RrEventView> events) {}
 
     public record FlowPageView(
@@ -95,4 +117,66 @@ public final class RrViews {
 
     public record StatsResponse(
             @Schema(requiredMode = REQUIRED) List<AddressStatsView> addresses) {}
+
+    /**
+     * One reason an operator might be seeing no flows, and what to do about it.
+     *
+     * <p>Ranked most-likely-first and each carrying its own remedy: an empty Flows
+     * tab used to render as a bare {@code 0 flows}, which is indistinguishable from
+     * "nothing was sent" and from "Studio never looked".
+     */
+    public record TracingReasonView(
+            @Schema(requiredMode = REQUIRED) String code,
+            @Schema(requiredMode = REQUIRED) String summary,
+            @Schema(requiredMode = REQUIRED) String remedy) {}
+
+    /** What the sampler did for one traced address on its most recent tick. */
+    public record ExpectationDiagnosticsView(
+            @Schema(requiredMode = REQUIRED) UUID expectationId,
+            @Schema(requiredMode = REQUIRED) String requestAddress,
+            @Schema(requiredMode = REQUIRED) boolean enabled,
+            @Schema(nullable = true) Instant lastAttemptAt,
+            @Schema(nullable = true) Instant lastSuccessAt,
+            @Schema(requiredMode = REQUIRED) int nodesSampled,
+            @Schema(requiredMode = REQUIRED) int nodesTotal,
+
+            @Schema(requiredMode = REQUIRED, description = "Nodes not sampled this tick, each with the reason")
+            List<String> skipped,
+
+            @Schema(requiredMode = REQUIRED) int messagesBrowsed,
+            @Schema(requiredMode = REQUIRED) int observations,
+            @Schema(nullable = true) String lastError,
+            @Schema(nullable = true) Instant lastErrorAt,
+            @Schema(requiredMode = REQUIRED) int samplePerMin,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The requested rate is faster than rr.sample-interval can deliver; "
+                            + "the global interval is the floor")
+            boolean rateExceedsInterval) {}
+
+    /** Studio's current verdict on the clocks it can see (ADR-0053). */
+    public record ClockDiagnosticsView(
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the last meaning "
+                            + "every node disagrees the same way, so the common factor is Studio's own host")
+            String verdict,
+
+            @Schema(nullable = true) Long worstOffsetMs,
+            @Schema(nullable = true) Long uncertaintyMs,
+            @Schema(requiredMode = REQUIRED) List<String> skewedNodes,
+            @Schema(nullable = true) Instant measuredAt,
+            @Schema(requiredMode = REQUIRED) long toleranceMs) {}
+
+    /** Why tracing is or is not producing flows on this cluster. */
+    public record RrDiagnosticsView(
+            @Schema(requiredMode = REQUIRED) Instant asOf,
+            @Schema(requiredMode = REQUIRED) long sampleIntervalMs,
+            @Schema(requiredMode = REQUIRED) int nodesWithCoreEndpoint,
+            @Schema(requiredMode = REQUIRED) int nodesTotal,
+            @Schema(requiredMode = REQUIRED) String notificationsCapability,
+            @Schema(requiredMode = REQUIRED) ClockDiagnosticsView clock,
+            @Schema(requiredMode = REQUIRED) List<ExpectationDiagnosticsView> expectations,
+            @Schema(requiredMode = REQUIRED) List<TracingReasonView> reasons) {}
 }

@@ -1,0 +1,57 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+/* The state, as a mark rather than a word-sized pill. Live is neutral on
+   purpose (theme.css): a working screen looks like every other working screen. */
+.dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--as-live);
+}
+
+.dot[data-state='polling'],
+.dot[data-state='paused'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--as-stale);
+}
+
+.dot[data-state='reconnecting'] {
+  background: var(--as-offline);
+  animation: as-freshness-pulse 1.4s ease-in-out infinite;
+}
+
+.dot[data-state='offline'] {
+  background: var(--as-offline);
+}
+
+@keyframes as-freshness-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot[data-state='reconnecting'] {
+    animation: none;
+  }
+}
+
+.label {
+  white-space: nowrap;
+}
+
+/* Announced, never seen: the polite region carries state transitions only, so
+   the elapsed label ticking every second does not narrate over the operator. */
+.announcement {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

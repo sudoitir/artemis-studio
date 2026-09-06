@@ -1,14 +1,25 @@
 import { useMemo } from 'react';
 import { Spotlight, type SpotlightActionGroupData } from '@mantine/spotlight';
 import { useNavigate, useParams } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useClusters, useQueues } from '../api/client.ts';
+import {
+  isPollingPaused,
+  refreshActiveQueries,
+  setPollingPaused,
+  usePollingPaused,
+} from '../api/polling.ts';
 import { NAV_ITEMS } from '../app/navItems.ts';
 
 /**
  * ⌘K navigation across the console: jump to a cluster, a view, or a queue by
  * name. Mounted once in the root layout; the shortcut is registered by
  * {@link Spotlight}.
+ *
+ * Refresh and pause live here rather than on a hotkey: the browser owns both
+ * shortcuts an operator would reach for (⌘R and ⇧⌘R), and taking either would be
+ * worse than not having one (ADR-0052).
  */
 export function CommandPalette() {
   const navigate = useNavigate();
@@ -16,9 +27,31 @@ export function CommandPalette() {
   const params = useParams({ strict: false }) as { clusterId?: string };
   const clusterId = params.clusterId;
   const queues = useQueues(clusterId ?? '', {});
+  const qc = useQueryClient();
+  const paused = usePollingPaused();
 
   const groups = useMemo<SpotlightActionGroupData[]>(() => {
-    const out: SpotlightActionGroupData[] = [];
+    const out: SpotlightActionGroupData[] = [
+      {
+        group: 'Data',
+        actions: [
+          {
+            id: 'refresh-data',
+            label: 'Refresh data',
+            description: 'Refetch everything on this screen',
+            onClick: () => refreshActiveQueries(qc),
+          },
+          {
+            id: 'toggle-auto-refresh',
+            label: paused ? 'Resume auto-refresh' : 'Pause auto-refresh',
+            description: paused
+              ? 'Start refetching on the usual interval again'
+              : 'Stop refetching until you resume; does not survive a reload',
+            onClick: () => setPollingPaused(!isPollingPaused()),
+          },
+        ],
+      },
+    ];
 
     if (clusterId) {
       out.push({
@@ -58,7 +91,7 @@ export function CommandPalette() {
     }
 
     return out;
-  }, [clusterId, clusters.data, queues.data, navigate]);
+  }, [clusterId, clusters.data, queues.data, navigate, qc, paused]);
 
   return (
     <Spotlight

@@ -23,6 +23,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Slf4j
 public class SseHub {
 
+    /** The keep-alive event name. Not a topic: it is sent to every subscriber. */
+    public static final String PING = "ping";
+
     private final Map<UUID, Set<Subscriber>> byCluster = new ConcurrentHashMap<>();
 
     public void register(UUID clusterId, Subscriber subscriber) {
@@ -85,14 +88,24 @@ public class SseHub {
     }
 
     /**
-     * Keep idle streams open through proxies. A comment, not an event. Scheduled by
-     * {@code DynamicSchedules} on {@code sse.heartbeat-interval}, because the value
-     * that keeps a stream alive is a property of whatever proxy sits in front.
+     * Keep idle streams open through proxies, as a named event rather than a comment.
+     *
+     * <p>A comment keeps the socket warm and fires nothing an {@code EventSource} can
+     * observe, so an intermediary that drops the connection without a clean close
+     * leaves the client sitting on a dead socket believing it is live. A named event
+     * gives the client a frame to miss, which is what its silence watchdog needs
+     * (ADR-0052). It is additive: a client that does not subscribe to {@code ping}
+     * ignores it.
+     *
+     * <p>Scheduled by {@code DynamicSchedules} on {@code sse.heartbeat-interval},
+     * because the value that keeps a stream alive is a property of whatever proxy
+     * sits in front. The watchdog window on the client is set well above it.
      */
     public void heartbeat() {
         byCluster.forEach((clusterId, set) -> set.forEach(s -> {
             try {
-                s.emitter().send(SseEmitter.event().comment("ping"));
+                s.emitter()
+                        .send(SseEmitter.event().name(PING).data(Instant.now().toEpochMilli()));
             } catch (IOException | RuntimeException e) {
                 drop(clusterId, s, e);
             }

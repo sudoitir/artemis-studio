@@ -458,6 +458,10 @@ public class ClusterService {
     /** Ordinary, editable, unrouted rows an operator can silence or route (design.md decision 8) — not an unconditional check. */
     private void seedBuiltinAlertRules(UUID clusterId) {
         alertRules.save(AlertRuleEntity.state(clusterId, "Split-brain", "SPLIT_BRAIN", 0, "CRITICAL"));
+        // Warning, not critical: a wrong clock does not stop the brokers, but it does
+        // make Studio's own deadlines and latencies wrong, so it must not be silent
+        // (ADR-0053). An ordinary rule like any other — editable and silenceable.
+        alertRules.save(AlertRuleEntity.state(clusterId, "Clock skew", "CLOCK_SKEW", 0, "WARNING"));
         alertRules.save(AlertRuleEntity.state(clusterId, "Node down", "NODE_DOWN", 30, "CRITICAL"));
         alertRules.save(AlertRuleEntity.state(clusterId, "Replication behind", "REPLICATION_BEHIND", 120, "WARNING"));
     }

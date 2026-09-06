@@ -5,8 +5,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.broker.BrokerTime;
 import io.github.sudoitir.artemisstudio.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsePage;
@@ -14,12 +17,14 @@ import io.github.sudoitir.artemisstudio.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.broker.MessageTransport.TransportTarget;
+import io.github.sudoitir.artemisstudio.broker.rr.QueueTargetResolver;
 import io.github.sudoitir.artemisstudio.broker.rr.ReplyAddressResolver;
 import io.github.sudoitir.artemisstudio.domain.rr.Observation;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.persist.RrExpectationRepository;
+import io.github.sudoitir.artemisstudio.service.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.service.RrObservationSink;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -70,7 +75,25 @@ class RrSamplerTest {
                 Map.of());
     }
 
-    private record Fixture(RrSampler sampler, List<Observation> seen) {}
+    /**
+     * An expectation as it comes back from the repository — with an id.
+     *
+     * <p>The sampler keys its per-expectation rate limit and health on that id, and
+     * it only ever iterates saved rows, so an unsaved entity is not a state it can
+     * encounter.
+     */
+    private static RrExpectationEntity saved(RrExpectationEntity e) {
+        try {
+            java.lang.reflect.Field id = RrExpectationEntity.class.getDeclaredField("id");
+            id.setAccessible(true);
+            id.set(e, java.util.UUID.randomUUID());
+        } catch (ReflectiveOperationException ex) {
+            throw new IllegalStateException(ex);
+        }
+        return e;
+    }
+
+    private record Fixture(RrSampler sampler, List<Observation> seen, RrSamplerHealth health) {}
 
     @SuppressWarnings("unchecked")
     private static Fixture samplerOver(
@@ -89,13 +112,28 @@ class RrSamplerTest {
         when(resolver.resolve(eq(CLUSTER), any()))
                 .thenReturn(new ReplyAddressResolver.Resolution(expectation.getReplyAddresses(), false, false));
 
-        return new Fixture(new RrSampler(expectations, nodeRepo, transport, provider, resolver), seen);
+        ClockOffsetService clocks = mock(ClockOffsetService.class);
+        when(clocks.brokerTime()).thenReturn(BrokerTime.identity());
+
+        // The queue name and routing type come from the last scrape now, rather than
+        // being assumed equal to the address and ANYCAST.
+        QueueTargetResolver queueTargets = mock(QueueTargetResolver.class);
+        when(queueTargets.resolve(eq(CLUSTER), any(), any()))
+                .thenAnswer(inv ->
+                        java.util.Optional.of(new QueueTargetResolver.QueueTarget(inv.getArgument(2), "ANYCAST")));
+
+        RrSamplerHealth health = new RrSamplerHealth(java.time.Clock.systemUTC());
+
+        return new Fixture(
+                new RrSampler(expectations, nodeRepo, transport, provider, resolver, clocks, queueTargets, health),
+                seen,
+                health);
     }
 
     @Test
     void oneFailingNodeDoesNotCostTheOthersTheirTick() {
         RrExpectationEntity expectation =
-                new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false);
+                saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false));
 
         CoreMessageTransport transport = mock(CoreMessageTransport.class);
         when(transport.browse(any(TransportTarget.class), anyInt(), anyInt(), any()))
@@ -122,8 +160,8 @@ class RrSamplerTest {
 
     @Test
     void everyServingNodeIsBrowsedForEveryResolvedReplyAddress() {
-        RrExpectationEntity expectation = new RrExpectationEntity(
-                CLUSTER, "rr.request", List.of("rr.reply.a", "rr.reply.b"), null, null, 10, false);
+        RrExpectationEntity expectation = saved(new RrExpectationEntity(
+                CLUSTER, "rr.request", List.of("rr.reply.a", "rr.reply.b"), null, null, 10, false));
 
         List<String> browsed = new ArrayList<>();
         CoreMessageTransport transport = mock(CoreMessageTransport.class);
@@ -152,7 +190,7 @@ class RrSamplerTest {
     @Test
     void aNodeWithNoCoreUrlOrALastErrorIsNotBrowsed() {
         RrExpectationEntity expectation =
-                new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false);
+                saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false));
 
         BrokerNodeEntity errored = node("n-errored", "core://errored:61616");
         errored.recordError(Instant.now(), "last scrape failed");
@@ -172,5 +210,43 @@ class RrSamplerTest {
         f.sampler().tick();
 
         assertThat(browsed).containsExactly("core://ok:61616");
+    }
+
+    @Test
+    void aClusterWithNoCoreEndpointSaysSoInsteadOfDoingNothingQuietly() {
+        // The loop over serving nodes was simply empty: nothing sampled, nothing
+        // logged, and an operator staring at an empty Flows tab with no way to tell
+        // that from "no traffic".
+        RrExpectationEntity expectation =
+                saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false));
+        BrokerNodeEntity noCore = node("broker-1", null);
+        Fixture f = samplerOver(List.of(noCore), expectation, mock(CoreMessageTransport.class));
+
+        f.sampler().tick();
+
+        RrSamplerHealth.ExpectationHealth health =
+                f.health().forExpectation(expectation.getId()).orElseThrow();
+        assertThat(health.nodesSampled()).isZero();
+        assertThat(health.skipped())
+                .singleElement()
+                .satisfies(o -> assertThat(o.reason()).isEqualTo(RrSampler.NO_CORE_ENDPOINT));
+    }
+
+    @Test
+    void samplePerMinIsHonouredRatherThanStoredAndIgnored() {
+        // It was written to the database, rendered in the table, and never read: the
+        // UI was offering a control that did nothing.
+        RrExpectationEntity expectation =
+                saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 1, false));
+        CoreMessageTransport transport = mock(CoreMessageTransport.class);
+        when(transport.browse(any(TransportTarget.class), anyInt(), anyInt(), any()))
+                .thenReturn(new BrowseResult(new BrowsePage(List.of(), 0L), Channel.CORE));
+        Fixture f = samplerOver(List.of(node("broker-1", "tcp://10.0.0.1:61616")), expectation, transport);
+
+        // One sample per minute: the second tick, moments later, must not browse.
+        f.sampler().tick();
+        f.sampler().tick();
+
+        verify(transport, times(1)).browse(any(TransportTarget.class), anyInt(), anyInt(), any());
     }
 }

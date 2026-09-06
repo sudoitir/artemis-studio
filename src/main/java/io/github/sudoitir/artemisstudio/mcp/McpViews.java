@@ -46,7 +46,26 @@ public final class McpViews {
             List<NodeHealth> nodes,
             List<String> notes,
             boolean alertsVisible,
-            List<FiringAlert> firingAlerts) {}
+            List<FiringAlert> firingAlerts,
+            /**
+             * When this answer was assembled. A model has no other way to tell a
+             * fresh verdict from one about a cluster last reachable an hour ago.
+             */
+            Instant asOf,
+            ClockVerdict clock) {}
+
+    /**
+     * Whether the clocks involved can be trusted (ADR-0053). Result shape only — it
+     * costs nothing on {@code tools/list}, and without it a model reasoning about a
+     * timeout or a latency has no way to know the numbers were measured against a
+     * clock that disagrees.
+     *
+     * @param verdict UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the
+     *     last meaning every node disagrees the same way, so Studio's own host is
+     *     the thing to check
+     */
+    public record ClockVerdict(
+            String verdict, Long worstOffsetMs, Long uncertaintyMs, List<String> skewedNodes, Instant measuredAt) {}
 
     /** A cluster the calling key can see, as {@code studio://clusters} lists it. */
     public record ClusterEntry(UUID clusterId, String cluster, String level, int nodeCount, UUID environmentId) {}

@@ -1,6 +1,7 @@
 # ADR-0042: CalVer releases published to Docker Hub on every push to main
 
-- **Status**: accepted
+- **Status**: accepted; the changelog mechanics below are superseded by
+  [ADR-0051](0051-changelog-generated-from-commits.md)
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 
@@ -49,7 +50,10 @@ should present itself as production-ready.
   exact edits that flip this.
 - `CHANGELOG.md` follows Keep a Changelog. Adding an entry under `## [Unreleased]`
   for any user-visible change is a merge-time obligation; the release job promotes
-  that section in place.
+  that section in place. *(Superseded by
+  [ADR-0051](0051-changelog-generated-from-commits.md): the changelog is generated
+  from commit messages into one file per release under `changelog/`. Versioning,
+  tagging and publishing are unchanged.)*
 
 ## Consequences
 

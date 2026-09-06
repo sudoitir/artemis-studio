@@ -11,6 +11,7 @@ import { FlowDetail } from './FlowDetail.tsx';
 import { FlowsTable } from './FlowsTable.tsx';
 import { LatencyPanel } from './LatencyPanel.tsx';
 import { StuckPanel } from './StuckPanel.tsx';
+import { TracingDiagnostics } from './TracingDiagnostics.tsx';
 
 const PAGE_SIZE = 100;
 
@@ -111,6 +112,11 @@ export function FlowsView() {
               <Alert color="red" variant="light" title={flows.error.title}>
                 {flows.error.message}
               </Alert>
+            ) : !flows.isPending && (flows.data?.count ?? 0) === 0 ? (
+              // A bare "0 flows" reads identically whether nothing was sent, nothing
+              // could be browsed, or every request was consumed faster than the
+              // sampler ticks. Those have three different answers.
+              <TracingDiagnostics clusterId={clusterId} />
             ) : (
               <>
                 <Text size="xs" c="dimmed">

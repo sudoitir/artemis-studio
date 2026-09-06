@@ -14,6 +14,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { clearDismissedNotices } from '../app/useDismissedNotice.ts';
+import { poll } from './polling.ts';
 import type { components } from './schema.d.ts';
 
 const BASE = '/api/v1';
@@ -75,6 +76,9 @@ export type FlowPageView = Schemas['FlowPageView'];
 export type RrEventView = Schemas['RrEventView'];
 export type AddressStatsView = Schemas['AddressStatsView'];
 export type StatsResponse = Schemas['StatsResponse'];
+export type RrDiagnosticsView = Schemas['RrDiagnosticsView'];
+export type ExpectationDiagnosticsView = Schemas['ExpectationDiagnosticsView'];
+export type TracingReasonView = Schemas['TracingReasonView'];
 export type MetricPoint = Schemas['MetricPoint'];
 export type MetricSeries = Schemas['MetricSeries'];
 export type MetricSeriesResponse = Schemas['MetricSeriesResponse'];
@@ -250,7 +254,7 @@ export function useClusters(): UseQueryResult<ClusterSummary[], ApiError> {
   return useQuery({
     queryKey: keys.all,
     queryFn: () => request<ClusterSummary[]>('/clusters'),
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
   });
 }
 
@@ -261,7 +265,7 @@ export function useCluster(
     queryKey: id ? keys.detail(id) : ['clusters', 'none'],
     queryFn: () => request<ClusterDetail>(`/clusters/${id}`),
     enabled: id !== null,
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
   });
 }
 
@@ -269,7 +273,7 @@ export function useTopology(id: string): UseQueryResult<TopologyView, ApiError> 
   return useQuery({
     queryKey: keys.topology(id),
     queryFn: () => request<TopologyView>(`/clusters/${id}/topology`),
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
   });
 }
 
@@ -277,7 +281,7 @@ export function useHealth(id: string): UseQueryResult<HealthView, ApiError> {
   return useQuery({
     queryKey: keys.health(id),
     queryFn: () => request<HealthView>(`/clusters/${id}/health`),
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
   });
 }
 
@@ -291,7 +295,7 @@ export function useQueues(
       request<PagedView<QueueView>>(
         `/clusters/${id}/queues${resourceSearch(params)}`,
       ),
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
   });
 }
@@ -305,7 +309,7 @@ function useResource<T>(
     queryKey: keys.resource(id, kind, params),
     queryFn: () =>
       request<PagedView<T>>(`/clusters/${id}/${kind}${resourceSearch(params)}`),
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
   });
 }
@@ -703,7 +707,7 @@ export function useAudit(
       const qs = sp.toString();
       return request<AuditPageView>(`/clusters/${clusterId}/audit${qs ? `?${qs}` : ''}`);
     },
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
   });
 }
@@ -736,7 +740,7 @@ export function useEvents(
         `/clusters/${clusterId}/events${qs ? `?${qs}` : ''}`,
       );
     },
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
   });
 }
@@ -745,7 +749,7 @@ export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
   return useQuery({
     queryKey: ['clusters', clusterId, 'dlq'],
     queryFn: () => request<DlqView>(`/clusters/${clusterId}/dlq`),
-    refetchInterval: 10_000,
+    refetchInterval: poll(10_000),
   });
 }
 
@@ -838,7 +842,7 @@ export function useRrFlows(
       const qs = sp.toString();
       return request<FlowPageView>(`/clusters/${clusterId}/rr/flows${qs ? `?${qs}` : ''}`);
     },
-    refetchInterval: 5_000,
+    refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
   });
 }
@@ -854,6 +858,22 @@ export function useRrFlow(
   });
 }
 
+/**
+ * Why tracing is or is not producing flows.
+ *
+ * <p>Polls slowly on purpose: it is a diagnosis, not a live view, and it is read
+ * on a screen an operator only opens when something already looks wrong.
+ */
+export function useRrDiagnostics(
+  clusterId: string,
+): UseQueryResult<RrDiagnosticsView, ApiError> {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'rr', 'diagnostics'],
+    queryFn: () => request<RrDiagnosticsView>(`/clusters/${clusterId}/rr/diagnostics`),
+    refetchInterval: poll(15_000),
+  });
+}
+
 export function useRrStats(
   clusterId: string,
   window = 'PT15M',
@@ -861,7 +881,7 @@ export function useRrStats(
   return useQuery({
     queryKey: ['clusters', clusterId, 'rr', 'stats', window],
     queryFn: () => request<StatsResponse>(`/clusters/${clusterId}/rr/stats?window=${window}`),
-    refetchInterval: 10_000,
+    refetchInterval: poll(10_000),
   });
 }
 
@@ -900,7 +920,7 @@ export function useMetrics(
       if (params.step) sp.set('step', params.step);
       return request<MetricSeriesResponse>(`/clusters/${clusterId}/metrics?${sp.toString()}`);
     },
-    refetchInterval: refetchMs,
+    refetchInterval: poll(refetchMs),
     placeholderData: (prev) => prev,
   });
 }
@@ -951,7 +971,7 @@ export function useFiringAlerts(clusterId: string): UseQueryResult<AlertFiringVi
   return useQuery({
     queryKey: keys.alertFiring(clusterId),
     queryFn: () => request<AlertFiringView[]>(`/clusters/${clusterId}/alerts/firing`),
-    refetchInterval: 15_000,
+    refetchInterval: poll(15_000),
   });
 }
 
@@ -975,7 +995,7 @@ export function useFiringCounts(enabled = true): UseQueryResult<ClusterFiringCou
   return useQuery({
     queryKey: keys.firingCounts,
     queryFn: () => request<ClusterFiringCountView[]>('/alerts/firing'),
-    refetchInterval: 30_000,
+    refetchInterval: poll(30_000),
     enabled,
   });
 }

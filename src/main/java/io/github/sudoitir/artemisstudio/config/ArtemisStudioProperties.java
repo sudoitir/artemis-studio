@@ -54,7 +54,8 @@ public record ArtemisStudioProperties(
                         Duration.ofMinutes(15),
                         4096,
                         Duration.ofDays(7),
-                        "0 20 3 * * *");
+                        "0 20 3 * * *",
+                        2_000);
         alerting = alerting != null
                 ? alerting
                 : new Alerting(
@@ -132,7 +133,16 @@ public record ArtemisStudioProperties(
             @DefaultValue("15m") Duration percentileWindow,
             @DefaultValue("4096") int payloadCaptureBytes,
             @DefaultValue("7d") Duration retention,
-            @DefaultValue("0 20 3 * * *") String reaperCron) {}
+            @DefaultValue("0 20 3 * * *") String reaperCron,
+            /**
+             * How far a clock may disagree with Studio's before it is called skew.
+             *
+             * <p>The floor is set by the measurement, not by taste: Jolokia reports
+             * its timestamp in whole seconds, so a single reading is ±500ms before
+             * the network is counted. Two seconds is the smallest value that is not
+             * mostly quantisation (ADR-0053).
+             */
+            @DefaultValue("2000") long clockSkewToleranceMs) {}
 
     /**
      * Notification delivery (Phase 7, ADR-0036). A separate {@code RestClient}

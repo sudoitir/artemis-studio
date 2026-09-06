@@ -19,6 +19,61 @@ class FlowStateMachineTest {
         return new FlowContext(RrState.AWAITING_REPLY, REQUESTED_AT, "req-msg-1", "temp.reply.q");
     }
 
+    private static Observation.ReplySeen reply(Instant at, Instant enqueuedAt) {
+        return new Observation.ReplySeen(
+                CLUSTER,
+                UUID.randomUUID(),
+                at,
+                "temp.reply.q",
+                "reply-msg-1",
+                "corr-1",
+                null,
+                java.util.Map.of(),
+                enqueuedAt);
+    }
+
+    @Test
+    void twoMessagesSeenOnOneTickStillHaveARealLatency() {
+        // The observed figure is the gap between sample ticks, so a request and its
+        // reply read on the same tick measured ~0ms. The messages' own clocks know
+        // better, and after normalisation they are on Studio's timeline (ADR-0053).
+        Instant sameTick = REQUESTED_AT.plusSeconds(4);
+        FlowContext flow = new FlowContext(
+                RrState.AWAITING_REPLY, sameTick, "req-msg-1", "temp.reply.q", REQUESTED_AT.plusMillis(100));
+
+        Transition t = FlowStateMachine.apply(flow, reply(sameTick, REQUESTED_AT.plusMillis(412)))
+                .orElseThrow();
+
+        assertThat(t.latencyMs()).isEqualTo(312L);
+        assertThat(t.latencySource()).isEqualTo(FlowStateMachine.LatencySource.MESSAGE_TIMESTAMPS);
+    }
+
+    @Test
+    void aReplyThatClaimsToPredateItsRequestIsNotALatency() {
+        // Impossible, so at least one of the two clocks is wrong. Storing the negative
+        // number would put a lie in the percentile window; observation is used instead
+        // and the caller records the disagreement.
+        FlowContext flow = new FlowContext(
+                RrState.AWAITING_REPLY, REQUESTED_AT, "req-msg-1", "temp.reply.q", REQUESTED_AT.plusSeconds(10));
+
+        Transition t = FlowStateMachine.apply(flow, reply(REQUESTED_AT.plusSeconds(5), REQUESTED_AT))
+                .orElseThrow();
+
+        assertThat(t.latencyMs()).isEqualTo(5000L);
+        assertThat(t.latencySource()).isEqualTo(FlowStateMachine.LatencySource.OBSERVED);
+    }
+
+    @Test
+    void aRequestTimestampTheCallerDoesNotTrustFallsBackToObservation() {
+        // The correlator passes null for a timestamp that already failed the skew
+        // check, so an untrustworthy clock is refused once rather than re-litigated.
+        Transition t = FlowStateMachine.apply(awaiting(), reply(REQUESTED_AT.plusSeconds(5), REQUESTED_AT))
+                .orElseThrow();
+
+        assertThat(t.latencySource()).isEqualTo(FlowStateMachine.LatencySource.OBSERVED);
+        assertThat(t.latencyMs()).isEqualTo(5000L);
+    }
+
     @Test
     void replySeenCompletesWithLatency() {
         Instant repliedAt = REQUESTED_AT.plusSeconds(5);

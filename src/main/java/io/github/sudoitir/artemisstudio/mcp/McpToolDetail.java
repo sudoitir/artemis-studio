@@ -69,7 +69,11 @@ final class McpToolDetail {
                         null,
                         null),
                 new ToolParameterDetail(
-                        "trace_request_reply", "mode", List.of("flows", "stats", "expectations"), null, null),
+                        "trace_request_reply",
+                        "mode",
+                        List.of("flows", "stats", "expectations", "diagnostics"),
+                        null,
+                        null),
                 new ToolParameterDetail("activity_log", "source", List.of("broker_events", "audit"), null, null),
                 new ToolParameterDetail("studio_setting", "op", List.of("get", "set"), null, null));
     }

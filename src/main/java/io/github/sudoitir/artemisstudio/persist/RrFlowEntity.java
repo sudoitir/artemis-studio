@@ -86,6 +86,37 @@ public class RrFlowEntity {
     @Column(name = "latency_ms")
     private Long latencyMs;
 
+    /**
+     * How {@link #latencyMs} was arrived at (ADR-0053). Never null: a flow measured
+     * before this existed was measured the observed way, and a third spelling of
+     * "unknown" would force every reader to handle it.
+     */
+    @Column(name = "latency_source", nullable = false)
+    private String latencySource = "OBSERVED";
+
+    /** The error bar on an {@code OBSERVED} latency — one sample interval. Null when exact. */
+    @Column(name = "latency_bound_ms")
+    private Integer latencyBoundMs;
+
+    /** When the request message says it was produced, on Studio's clock. Null on the notification path. */
+    @Column(name = "request_enqueued_at")
+    private Instant requestEnqueuedAt;
+
+    @Column(name = "reply_enqueued_at")
+    private Instant replyEnqueuedAt;
+
+    /**
+     * How far into the future the request claimed to have been produced. Only
+     * forward skew is evidence of a wrong clock: a message that says it was
+     * produced before Studio saw it was simply sitting on the queue, which is the
+     * normal case and is never recorded here.
+     */
+    @Column(name = "request_skew_ms")
+    private Long requestSkewMs;
+
+    @Column(name = "reply_skew_ms")
+    private Long replySkewMs;
+
     public RrFlowEntity(
             UUID clusterId,
             UUID nodeId,

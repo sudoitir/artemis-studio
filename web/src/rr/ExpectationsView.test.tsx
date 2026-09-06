@@ -108,6 +108,24 @@ describe('ExpectationsView', () => {
     expect(await screen.findByText(/temporary queue/)).toBeInTheDocument();
   });
 
+  it('keeps the reply-address help out of the control row', async () => {
+    // The help is four lines of prose. Inside a bottom-aligned row it was what sat
+    // on the baseline, so the field it belongs to floated above every other control
+    // on the form. It renders below the row now, and this is the regression guard.
+    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([])));
+    renderWithProviders(<ExpectationsView clusterId="c1" />);
+
+    const help = await screen.findByText(/temporary queue/);
+    const field = screen
+      .getAllByLabelText('Reply addresses')
+      .find(
+        (el): el is HTMLInputElement =>
+          el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'hidden',
+      )!;
+    // The nearest common ancestor is the form grid, never the field's own wrapper.
+    expect(field.closest('.mantine-TagsInput-root')?.contains(help)).toBe(false);
+  });
+
   it('says when a declared pattern matches nothing on the cluster yet', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/rr/expectations', () =>

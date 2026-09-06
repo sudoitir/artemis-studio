@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.web.dto.RrViews.CreateExpectationRequest
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.ExpectationView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.FlowPageView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.FlowView;
+import io.github.sudoitir.artemisstudio.web.dto.RrViews.RrDiagnosticsView;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.StatsResponse;
 import io.github.sudoitir.artemisstudio.web.dto.RrViews.UpdateExpectationRequest;
 import jakarta.validation.Valid;
@@ -83,6 +84,15 @@ public class RequestReplyController {
     @GetMapping("/flows/{flowId}")
     public FlowView flow(@PathVariable UUID clusterId, @PathVariable UUID flowId) {
         return requestReply.flow(clusterId, flowId);
+    }
+
+    /**
+     * Why tracing is or is not producing flows here — the sampler's own account of
+     * its last tick, plus the ranked reasons an operator should check.
+     */
+    @GetMapping("/diagnostics")
+    public RrDiagnosticsView diagnostics(@PathVariable UUID clusterId) {
+        return requestReply.diagnostics(clusterId);
     }
 
     @GetMapping("/stats")

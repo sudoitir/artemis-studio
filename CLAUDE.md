@@ -98,8 +98,10 @@ just db-status / db-sql / db-rollback [n] / db-shell
 live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
 
 Every push to `main` cuts a CalVer release to Docker Hub (image, git tag, GitHub
-pre-release). See `.claude/rules/10-release.md` for the versioning and
-`CHANGELOG.md` conventions — user-visible changes add a `## [Unreleased]` entry.
+pre-release). See `.claude/rules/10-release.md` for the versioning. There is no
+`CHANGELOG.md`: `changelog/` holds one generated file per version, and the commit
+message is the release note — `.claude/rules/05-commits.md` (Conventional Commits,
+ADR-0051). `just changelog` previews the pending release.
 
 ## Trademark
 

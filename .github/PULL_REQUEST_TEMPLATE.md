@@ -9,6 +9,8 @@ Closes #
 ## Checklist
 
 - [ ] `just verify` is green
+- [ ] Commit subject follows Conventional Commits, and the body is written for
+      someone upgrading — it is published as the release note (`just changelog`)
 - [ ] Behaviour change went through OpenSpec (`openspec/changes/...`), or this is
       a bug fix / refactor that doesn't need one
 - [ ] Touches an ADR decision? A new ADR is included

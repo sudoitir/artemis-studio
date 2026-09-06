@@ -1,0 +1,42 @@
+/* One grid, not a flex row.
+   `Group align="flex-end"` bottom-aligns items of structurally different heights,
+   so whichever field grew a help line or an error pushed its own control upward
+   and the row lost its shared baseline. The grid fixes the tracks, and every
+   growing text block lives in `.help` on a row of its own. */
+.form {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.2fr)
+    minmax(260px, 1.4fr)
+    minmax(120px, 140px)
+    minmax(100px, 120px)
+    auto
+    auto;
+  align-items: end;
+  column-gap: var(--mantine-spacing-sm);
+  row-gap: var(--mantine-spacing-xs);
+}
+
+/* Everything that can grow: the reply-address help and resolution preview. On its
+   own row it can be as tall as it needs without moving a single control. */
+.help {
+  grid-column: 1 / -1;
+}
+
+/* A control with no label of its own, sat on the inputs' bottom edge and centred
+   against their height — the job the hand-tuned `mb={8}` used to do badly. */
+.actions {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--input-height-sm, 2.25rem);
+}
+
+@media (max-width: 900px) {
+  .form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+}

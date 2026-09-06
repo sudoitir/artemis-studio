@@ -65,6 +65,7 @@ public class McpDiagnosticTools {
     private final ClusterRepository clusterRepo;
     private final AlertService alerts;
     private final PermissionResolver perm;
+    private final io.github.sudoitir.artemisstudio.service.ClockOffsetService clocks;
 
     @McpTool(
             name = "cluster_health",
@@ -125,7 +126,21 @@ public class McpDiagnosticTools {
                 nodes,
                 h.notes(),
                 alertsVisible,
-                firing);
+                firing,
+                Instant.now(),
+                clockVerdict(clusterId));
+    }
+
+    private McpViews.ClockVerdict clockVerdict(UUID clusterId) {
+        var assessment = clocks.assessmentFor(clusterId);
+        return new McpViews.ClockVerdict(
+                assessment.verdict().name(),
+                assessment.worst().map(w -> w.offset().offsetMs()).orElse(null),
+                assessment.worst().map(w -> w.offset().uncertaintyMs()).orElse(null),
+                assessment.skewed().stream()
+                        .map(io.github.sudoitir.artemisstudio.service.ClockOffsetService.NodeSkew::nodeName)
+                        .toList(),
+                assessment.at());
     }
 
     // ---- list_resources ---------------------------------------------------
@@ -554,12 +569,15 @@ public class McpDiagnosticTools {
     private enum RrMode {
         FLOWS,
         STATS,
-        EXPECTATIONS
+        EXPECTATIONS,
+        /** Why there are no flows — the sampler's account and the ranked reasons. */
+        DIAGNOSTICS
     }
 
     @McpTool(
             name = "trace_request_reply",
-            description = "Request-reply tracing: flows, stats (latency, timeouts) or expectations.",
+            description = "Request-reply tracing: flows, stats (latency, timeouts), expectations, or "
+                    + "diagnostics (why there are no flows).",
             annotations =
                     @McpTool.McpAnnotations(
                             readOnlyHint = true,
@@ -580,6 +598,10 @@ public class McpDiagnosticTools {
             case FLOWS -> flows(id, address, capped);
             case STATS -> rrMetrics.stats(id, w);
             case EXPECTATIONS -> requestReply.list(id);
+            // Answers the question a model otherwise cannot: an empty flow list means
+            // "nothing was sent", "nothing could be browsed", or "consumed faster than
+            // the sampler ticks", and only this tells them apart.
+            case DIAGNOSTICS -> requestReply.diagnostics(id);
         });
     }
 

@@ -60,3 +60,6 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0048](0048-settings-driven-dynamic-schedules.md) | Every settings-tunable schedule is a re-reading trigger task, not a `@Scheduled` annotation (extends 0025) |
 | [0049](0049-cluster-wide-topology-mutation.md) | Queue and address lifecycle is a cluster-wide fan-out that reports per node, never rolls back, and makes `managementWrite` evidence-backed |
 | [0050](0050-mcp-progressive-disclosure.md) | The MCP listing budget scales per tool and enum/body detail moves to `studio://tools` (extends 0045) |
+| [0051](0051-changelog-generated-from-commits.md) | The changelog is generated from commit messages, one file per release (supersedes 0042's changelog mechanics) |
+| [0052](0052-freshness-indicator-and-stream-reconnection.md) | One global freshness indicator scoped to observed queries; the stream reconnects forever with a silence watchdog (modifies 0018) |
+| [0053](0053-broker-time-normalised-and-skew-measured.md) | Broker time is normalised onto Studio's clock; skew is measured from the Jolokia response timestamp, disclosed per flow, and alerted (extends 0030, 0035) |

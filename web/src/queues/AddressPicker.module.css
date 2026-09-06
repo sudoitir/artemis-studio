@@ -1,28 +1,42 @@
+/* The wrapper is the flex/grid item the caller lays out; the unknown-address
+   message is positioned out of flow against it (see .error). */
+.root {
+  position: relative;
+}
+
+/* Two lines, not two columns. Squeezed into one row the meta column is
+   `flex: none` and the address is not, so inside a narrow field every option
+   collapsed to an ellipsis — exactly the addresses the picker exists to tell
+   apart. Stacked, the address is never the thing that gives way. */
 .option {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--mantine-spacing-sm);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-inline-size: 0;
 }
 
 .name {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  inline-size: 100%;
+  overflow-wrap: anywhere;
   font-family: var(--mantine-font-family-monospace);
 }
 
-/* Depth and node coverage sit on the trailing edge as a stable column so the
-   eye can compare rows rather than read each one. */
+/* Depth and node coverage read as one dimmed line under the name. */
 .meta {
-  flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--mantine-spacing-xs);
   color: var(--as-text-dimmed);
   font-variant-numeric: tabular-nums;
+}
+
+/* Wider than the field it hangs off: a request address is long and the field is
+   one cell of a form row. `min-inline-size` beats the inline width floating-ui
+   writes for a target-width dropdown, so this widens it without a fixed prop. */
+.dropdown {
+  min-inline-size: min(420px, 90vw);
 }
 
 .filters {
@@ -41,4 +55,14 @@
   max-block-size: 260px;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* Out of flow on purpose. In flow it grows the field downward, which in a
+   bottom-aligned form row shoves the input upward the moment you type a name
+   the broker does not know — the row jumps while you are still typing. */
+.error {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  margin-block-start: 2px;
 }

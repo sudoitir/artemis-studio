@@ -93,7 +93,7 @@ change is listed.
 ## Process
 
 - [ ] ADR-0052 — a runtime divert is not a configured divert; index row
-- [ ] CHANGELOG `[Unreleased]` — Added
+- [ ] Commit message — `feat(...)`, body written for someone upgrading (.claude/rules/05-commits.md)
 - [ ] README roadmap row
 - [ ] `./mvnw verify` and `just verify-web` green
 - [ ] `openspec validate 04-divert-and-bridge-management --strict`

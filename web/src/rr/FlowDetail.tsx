@@ -92,8 +92,41 @@ export function FlowDetail({
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs" ff="monospace">
-                      {f.latencyMs}ms
+                    <Stack gap={2}>
+                      <Text size="xs" ff="monospace">
+                        {f.latencyMs}ms
+                        {f.latencySource === 'OBSERVED' && f.latencyBoundMs != null
+                          ? ` ± ${f.latencyBoundMs}ms`
+                          : ''}
+                      </Text>
+                      {/* Which clock measured it is part of the measurement: an
+                          OBSERVED figure is the gap between two sample ticks and
+                          cannot resolve anything shorter (ADR-0053). */}
+                      <Text size="xs" c="dimmed">
+                        {f.latencySource === 'MESSAGE_TIMESTAMPS'
+                          ? 'from the messages’ own timestamps, normalised onto Studio’s clock'
+                          : 'observed between sample ticks, so it cannot resolve anything shorter'}
+                      </Text>
+                    </Stack>
+                  </Table.Td>
+                </Table.Tr>
+              ) : null}
+              {f.requestSkewMs != null || f.replySkewMs != null ? (
+                <Table.Tr>
+                  <Table.Td>
+                    <Text size="xs" c="dimmed">
+                      Clock skew
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" c="orange">
+                      {f.requestSkewMs != null
+                        ? `the request claimed to be produced ${f.requestSkewMs}ms in the future`
+                        : ''}
+                      {f.requestSkewMs != null && f.replySkewMs != null ? '; ' : ''}
+                      {f.replySkewMs != null
+                        ? `the reply claimed to be produced ${f.replySkewMs}ms in the future`
+                        : ''}
                     </Text>
                   </Table.Td>
                 </Table.Tr>

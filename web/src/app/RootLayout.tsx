@@ -8,6 +8,7 @@ import { branding } from '../branding.ts';
 import { useFiringCounts, useMe } from '../api/client.ts';
 import { ClusterRailNav } from './ClusterRailNav.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
+import { FreshnessBar } from './FreshnessBar.tsx';
 import { CommandPalette } from '../palette/CommandPalette.tsx';
 import { NavToggle } from './NavToggle.tsx';
 import { UserMenu } from './UserMenu.tsx';
@@ -95,8 +96,9 @@ export function RootLayout() {
               </Badge>
             ) : null}
           </Group>
-          <Group gap="md">
-            <Text size="xs" c="dimmed">
+          <Group gap="md" wrap="nowrap">
+            <FreshnessBar />
+            <Text size="xs" c="dimmed" visibleFrom="lg">
               <kbd>⌘</kbd> <kbd>K</kbd> search · <kbd>⌘</kbd> <kbd>B</kbd> sidebar
             </Text>
             <UserMenu me={me.data} />

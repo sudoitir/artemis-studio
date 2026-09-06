@@ -79,6 +79,15 @@ public class BrokerNodeEntity {
     @Column(name = "observed_cycle")
     private Long observedCycle;
 
+    @Column(name = "clock_measured_at")
+    private Instant clockMeasuredAt;
+
+    @Column(name = "clock_offset_ms")
+    private Long clockOffsetMs;
+
+    @Column(name = "clock_uncertainty_ms")
+    private Integer clockUncertaintyMs;
+
     /** A row learned from {@code listNetworkTopology()} — connector-named, no management URL yet. */
     public static BrokerNodeEntity discovered(UUID clusterId, String connector, String haRole, String nodeId) {
         BrokerNodeEntity n = new BrokerNodeEntity();
@@ -170,5 +179,18 @@ public class BrokerNodeEntity {
     public void recordError(Instant seenAt, String error) {
         this.lastSeenAt = seenAt;
         this.lastError = error;
+    }
+
+    /**
+     * The measured disagreement between this broker's clock and Studio's (ADR-0053).
+     *
+     * <p>Persisted so a restart does not begin blind, and so an operator can see the
+     * number Studio actually acted on rather than being told a flow timed out for
+     * reasons kept in memory.
+     */
+    public void recordClockOffset(long offsetMs, long uncertaintyMs, Instant measuredAt) {
+        this.clockOffsetMs = offsetMs;
+        this.clockUncertaintyMs = (int) Math.min(uncertaintyMs, Integer.MAX_VALUE);
+        this.clockMeasuredAt = measuredAt;
     }
 }

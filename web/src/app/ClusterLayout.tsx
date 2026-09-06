@@ -14,7 +14,9 @@ import { useDismissedNotice } from './useDismissedNotice.ts';
  * One cluster's screen: identity header, the health banner, and the routed
  * view. The per-cluster view nav lives in the sidebar now (ADR-0034), not a
  * strip here. Mounts the SSE stream for this cluster so the topology graph and
- * queue grid patch live (falls back to the 5s poll on two failures).
+ * queue grid patch live. The stream reconnects indefinitely and publishes its
+ * state to the header's freshness indicator (ADR-0052); while it is down the
+ * per-hook refetch intervals keep every view updating.
  */
 export function ClusterLayout() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
