@@ -38,14 +38,30 @@ const FPS = 10;
 
 password();
 
-/** Types into an editor at a speed a viewer can read rather than instantly. */
+/**
+ * Types into an editor at a speed a viewer can read rather than instantly.
+ *
+ * <p>Typing is the only part of a clip that is inherently paced: it is also the
+ * part that carries motion, so it stays slow enough to read while every static
+ * hold around it is cut to the beat it takes to register what changed.
+ */
 async function type(page: Page, text: string) {
-  await page.keyboard.type(text, { delay: 45 });
+  await page.keyboard.type(text, { delay: 28 });
 }
 
 /** Holds the last frame, so a GIF loop does not snap away from the payoff. */
 async function hold(page: Page, ms: number) {
   await page.waitForTimeout(ms);
+}
+
+/**
+ * Moves between views the way an operator does — the sidebar link, not a
+ * `goto`. A `goto` is a full document load: several seconds of blank frame and
+ * a reconnecting stream between every view, which is most of what made the
+ * first cut of this clip feel like a slideshow.
+ */
+async function navigate(page: Page, name: string | RegExp) {
+  await page.getByRole('link', { name, exact: typeof name === 'string' }).first().click();
 }
 
 async function encode(webm: string, name: string, skip: number) {
@@ -118,46 +134,53 @@ await clip('demo', async (page, clusterId, mark) => {
   await streamLive(page, 'demo');
   // Only now: everything before this is a login form and a reconnecting header.
   mark();
-  await hold(page, 4_000);
+  // Short: a GIF that opens on four seconds of a still frame reads as a
+  // screenshot, and a reader who thinks it is one never waits for the motion.
+  await hold(page, 2_200);
 
   // Every queue on every node, worst first — the view the bundled console cannot
   // produce at all.
-  await page.goto(`${BASE}/clusters/${clusterId}/queues`);
+  await navigate(page, 'Queues');
   await page.getByRole('row').nth(1).waitFor({ timeout: 30_000 });
-  await streamLive(page, 'demo');
-  await hold(page, 1_500);
+  await hold(page, 700);
   // Sorting by depth is the whole point of the view: the worst thing in the
   // cluster becomes the first row. The header is a button inside the columnheader.
   const depth = page.getByRole('button', { name: /^depth/i }).first();
   await depth.click().catch(() => console.warn('demo: no depth column to sort by'));
-  await hold(page, 1_200);
+  await hold(page, 600);
   await depth.click().catch(() => {}); // ascending, then descending
-  await hold(page, 3_000);
+  await hold(page, 1_800);
 
   // The dead-letter queues the seed really built, by rejecting messages.
-  await page.goto(`${BASE}/clusters/${clusterId}/dlq`);
+  await navigate(page, 'DLQ');
   // The DLQ view is cards, not a grid — waiting for a row here waits for a
   // timeout and puts twelve dead seconds in the middle of the clip.
   await page.getByText(/dead-letter queues/i).first().waitFor({ timeout: 20_000 });
-  await hold(page, 3_500);
+  await hold(page, 2_000);
 
-  await page.goto(`${BASE}/clusters/${clusterId}/metrics?range=15m`);
+  await navigate(page, 'Metrics');
   await page
     .locator('.recharts-area, .recharts-line')
     .first()
     .waitFor({ timeout: 30_000 })
     .catch(() => console.warn('demo: no plotted series yet — let the seed run longer'));
-  await hold(page, 4_500);
+  await hold(page, 1_800);
 });
 
 // ── 2. The SQL Console, on its own ───────────────────────────────────────────
-await clip('sql-console', async (page, clusterId, mark) => {
-  await page.goto(`${BASE}/clusters/${clusterId}/sql`);
+await clip('sql-console', async (page, _clusterId, mark) => {
+  // Through the queues first, the way an operator arrives: one management read
+  // settles the console's capability verdict, so the clip is not spent under a
+  // banner saying the answer is not known yet. Before `mark()`, so it costs the
+  // viewer nothing — and nothing is faked, the read really happens.
+  await navigate(page, 'Queues');
+  await page.getByRole('row').nth(1).waitFor({ timeout: 30_000 });
+  await navigate(page, 'SQL Console');
   const editor = page.getByRole('textbox', { name: /query/i });
   await editor.waitFor({ timeout: 30_000 });
   await streamLive(page, 'sql-console');
   mark();
-  await hold(page, 1_000);
+  await hold(page, 500);
 
   // Cheap first: the predicate pushes down into a JMS selector, and the plan
   // strip says so before anything is run.
@@ -166,20 +189,20 @@ await clip('sql-console', async (page, clusterId, mark) => {
   // middle of it.
   await page.keyboard.press('ControlOrMeta+a');
   await type(page, 'SELECT * FROM "ORDERS.*"\nWHERE props.tenant = \'acme\'\nLIMIT 200');
-  await hold(page, 2_500); // let the plan strip classify it
+  await hold(page, 1_400); // let the plan strip classify it
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }).catch(() => {});
   await page.mouse.wheel(0, 260);
-  await hold(page, 3_500);
+  await hold(page, 2_200);
 
   // Then the thing a JMS selector cannot do at all: read the body.
   await page.mouse.wheel(0, -260);
   await editor.click();
   await page.keyboard.press('ControlOrMeta+a');
   await type(page, 'SELECT * FROM "ORDERS.*"\nWHERE body->>\'orderId\' = \'4471\'\nLIMIT 50');
-  await hold(page, 3_000); // the plan strip now says "scan", which is the point
+  await hold(page, 1_600); // the plan strip now says "scan", which is the point
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }).catch(() => {});
   await page.mouse.wheel(0, 260);
-  await hold(page, 4_500);
+  await hold(page, 2_800);
 });
