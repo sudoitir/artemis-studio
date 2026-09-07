@@ -1,5 +1,5 @@
 import { SegmentedControl } from '@mantine/core';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 
 import { METRIC_RANGES, type MetricRange } from './ranges.ts';
 
@@ -13,7 +13,6 @@ const LABEL: Record<MetricRange, string> = {
 
 /** Writes the chosen window to the URL (non-negotiable #9) — shareable, bookmarkable. */
 export function RangePicker() {
-  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as { range?: MetricRange };
   const navigate = useNavigate();
   const current = search.range ?? '1h';
@@ -22,11 +21,18 @@ export function RangePicker() {
     <SegmentedControl
       size="xs"
       value={current}
+      // Merged into the existing search rather than replacing it: choosing a range
+      // must not silently drop a queue scope, and picking a relative range is how
+      // an operator leaves an absolute one.
       onChange={(value) =>
         navigate({
-          to: '/clusters/$clusterId/metrics',
-          params: { clusterId },
-          search: { range: value as MetricRange },
+          to: '.',
+          search: (prev: Record<string, unknown>) => ({
+            ...prev,
+            range: value as MetricRange,
+            from: undefined,
+            to: undefined,
+          }),
         })
       }
       data={METRIC_RANGES.map((r) => ({ label: LABEL[r], value: r }))}

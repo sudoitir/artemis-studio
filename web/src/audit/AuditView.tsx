@@ -2,14 +2,12 @@ import { useState } from 'react';
 import {
   Alert,
   Badge,
-  Button,
   Code,
-  Collapse,
+  Drawer,
   Group,
   Select,
   Skeleton,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -19,6 +17,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { useAudit, useUsers, type AuditEventView } from '../api/client.ts';
 import { useCan } from '../auth/useCan.ts';
+import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { Pager } from '../grid/Pager.tsx';
 
 const PAGE_SIZE = 100;
 
@@ -29,69 +29,70 @@ function outcome(o: string): { word: string; color: string } {
   return { word: 'pending', color: 'yellow' };
 }
 
-function Row({ e }: { e: AuditEventView }) {
-  const [open, setOpen] = useState(false);
-  const oc = outcome(e.outcome);
-  const expandable = Boolean(e.params || e.error);
-  return (
-    <>
-      <Table.Tr
-        onClick={expandable ? () => setOpen((v) => !v) : undefined}
-        style={{ cursor: expandable ? 'pointer' : undefined }}
-      >
-        <Table.Td>
-          <Text size="xs">{new Date(e.ts).toISOString().replace('T', ' ').replace('.000Z', 'Z')}</Text>
-        </Table.Td>
-        <Table.Td>
-          <Text size="xs">{e.username ?? 'anonymous'}</Text>
-        </Table.Td>
-        <Table.Td>
-          <Text size="xs" ff="monospace">
-            {e.action}
-          </Text>
-        </Table.Td>
-        <Table.Td>
-          <Text size="xs">
-            {e.targetName ?? '—'}
-            {e.dryRun ? (
-              <Text span size="xs" c="dimmed">
-                {' '}
-                · dry run
-              </Text>
-            ) : null}
-          </Text>
-        </Table.Td>
-        <Table.Td ta="end">
-          <Text size="xs">{e.affectedCount ?? '—'}</Text>
-        </Table.Td>
-        <Table.Td>
-          <Badge size="xs" variant="light" color={oc.color}>
-            {oc.word}
-          </Badge>
-        </Table.Td>
-      </Table.Tr>
-      {expandable ? (
-        <Table.Tr>
-          <Table.Td colSpan={6} p={0}>
-            <Collapse expanded={open}>
-              <Stack gap={4} p="xs">
-                {e.error ? (
-                  <Text size="xs" c="red">
-                    {e.error}
-                  </Text>
-                ) : null}
-                {e.params ? <Code block>{e.params}</Code> : null}
-                <Text size="xs" c="dimmed">
-                  request {e.requestId ?? '—'} · from {e.sourceIp ?? '—'}
-                </Text>
-              </Stack>
-            </Collapse>
-          </Table.Td>
-        </Table.Tr>
-      ) : null}
-    </>
-  );
+function auditKey(e: AuditEventView): string {
+  return `${e.ts}-${e.action}-${e.requestId}`;
 }
+
+function at(e: AuditEventView): string {
+  return new Date(e.ts).toISOString().replace('T', ' ').replace('.000Z', 'Z');
+}
+
+/**
+ * The params and error payload used to expand inline under the row; a
+ * virtualised grid has no row to expand under, and the drawer is the better home
+ * for a payload that is frequently taller than the viewport.
+ */
+const columns: GridColumn<AuditEventView>[] = [
+  { id: 'time', header: 'Time', accessor: at, width: 200 },
+  { id: 'user', header: 'User', accessor: (e) => e.username ?? 'anonymous', width: 160 },
+  {
+    id: 'action',
+    header: 'Action',
+    accessor: (e) => e.action,
+    cell: (e) => (
+      <Text size="xs" ff="monospace">
+        {e.action}
+      </Text>
+    ),
+  },
+  {
+    id: 'target',
+    header: 'Target',
+    accessor: (e) => e.targetName ?? '—',
+    cell: (e) => (
+      <Text size="xs">
+        {e.targetName ?? '—'}
+        {e.dryRun ? (
+          <Text span size="xs" c="dimmed">
+            {' '}
+            · dry run
+          </Text>
+        ) : null}
+      </Text>
+    ),
+  },
+  {
+    id: 'count',
+    header: 'Count',
+    accessor: (e) => e.affectedCount ?? '—',
+    numeric: true,
+    width: 90,
+  },
+  {
+    id: 'outcome',
+    header: 'Outcome',
+    accessor: (e) => outcome(e.outcome).word,
+    width: 110,
+    cell: (e) => {
+      const oc = outcome(e.outcome);
+      return (
+        <Badge size="xs" variant="light" color={oc.color}>
+          {oc.word}
+        </Badge>
+      );
+    },
+  },
+];
 
 /** The audit-log screen (non-negotiable #3): every mutating call, filterable, newest first. */
 export function AuditView() {
@@ -107,6 +108,7 @@ export function AuditView() {
   const canListUsers = can('user:admin');
   const users = useUsers(canListUsers);
 
+  const [selected, setSelected] = useState<AuditEventView | null>(null);
   const [user, setUser] = useState(search.user ?? '');
   const [debouncedUser] = useDebouncedValue(user, 250);
   const page = search.page ?? 1;
@@ -130,16 +132,11 @@ export function AuditView() {
 
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <Stack gap="sm">
-      <Group justify="space-between" align="flex-end">
-        <Title order={3}>Audit log</Title>
-        <Text size="xs" c="dimmed">
-          {total} event{total === 1 ? '' : 's'} · page {page} of {lastPage}
-        </Text>
-      </Group>
+      {/* The count and position live in the pager, stated once. */}
+      <Title order={3}>Audit log</Title>
 
       <Group gap="xs">
         {canListUsers ? (
@@ -209,47 +206,54 @@ export function AuditView() {
           the moment it runs.
         </Text>
       ) : (
-        <Table.ScrollContainer minWidth={720} type="native">
-          <Table stickyHeader highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Time</Table.Th>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Action</Table.Th>
-                <Table.Th>Target</Table.Th>
-                <Table.Th ta="end">Count</Table.Th>
-                <Table.Th>Outcome</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((e) => (
-                <Row key={`${e.ts}-${e.action}-${e.requestId}`} e={e} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <VirtualTable
+          columns={columns}
+          data={rows}
+          rowKey={auditKey}
+          onRowClick={setSelected}
+        />
       )}
 
-      {lastPage > 1 ? (
-        <Group justify="flex-end" gap="xs">
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page <= 1}
-            onClick={() => navigate({ to: '.', search: (p: Record<string, unknown>) => ({ ...p, page: page - 1 > 1 ? page - 1 : undefined }) })}
-          >
-            Previous
-          </Button>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page >= lastPage}
-            onClick={() => navigate({ to: '.', search: (p: Record<string, unknown>) => ({ ...p, page: page + 1 }) })}
-          >
-            Next
-          </Button>
-        </Group>
-      ) : null}
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onChange={(next) =>
+          navigate({
+            to: '.',
+            search: (p: Record<string, unknown>) => ({ ...p, page: next > 1 ? next : undefined }),
+          })
+        }
+        label="audit events"
+      />
+
+      <Drawer
+        opened={selected !== null}
+        onClose={() => setSelected(null)}
+        position="right"
+        size="lg"
+        title={selected ? selected.action : ''}
+      >
+        {selected ? (
+          <Stack gap="xs">
+            <Text size="xs" c="dimmed">
+              {at(selected)} · {selected.username ?? 'anonymous'} ·{' '}
+              {selected.targetName ?? 'no target'}
+              {selected.dryRun ? ' · dry run' : ''}
+            </Text>
+            {selected.error ? (
+              <Text size="xs" c="red">
+                {selected.error}
+              </Text>
+            ) : null}
+            {selected.params ? <Code block>{selected.params}</Code> : null}
+            <Text size="xs" c="dimmed">
+              request {selected.requestId ?? '—'} · from {selected.sourceIp ?? '—'}
+            </Text>
+          </Stack>
+        ) : null}
+      </Drawer>
+
     </Stack>
   );
 }

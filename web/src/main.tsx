@@ -14,6 +14,7 @@ import '@mantine/code-highlight/styles.css';
 import '@xyflow/react/dist/style.css';
 import './theme.css';
 
+import { mountRefetch } from './api/polling.ts';
 import { theme } from './theme.ts';
 import { createAppRouter } from './router.tsx';
 
@@ -48,9 +49,14 @@ async function loadShiki() {
 
 const shikiAdapter = createShikiAdapter(loadShiki);
 
+/**
+ * `refetchOnMount` goes through the pause seam (`api/polling.ts`), not a literal:
+ * pausing the intervals and leaving mounts alone means an operator who pauses and
+ * then navigates has silently unpaused (ADR-0052, ADR-0055).
+ */
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 5_000, refetchOnWindowFocus: false },
+    queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch() },
   },
 });
 

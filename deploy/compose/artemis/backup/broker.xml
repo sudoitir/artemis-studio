@@ -69,6 +69,11 @@
     <ha-policy>
       <replication>
         <backup>
+          <!-- Explicit pair group: with more than one replication pair in a
+               cluster, a backup with no group name will pair with whichever
+               primary has a free slot. The demo overlay adds a second pair, so
+               both sides of both pairs name their group. -->
+          <group-name>pair-a</group-name>
           <allow-failback>true</allow-failback>
         </backup>
       </replication>

@@ -1,0 +1,4 @@
+/* A difference between tiles has to be visible without reading digits. */
+.value {
+  font-variant-numeric: tabular-nums;
+}

@@ -213,10 +213,23 @@ jobs:
             artemis-studio-${{ steps.ver.outputs.version }}.jar
             artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
 
+      # Last in the job on purpose: the image and the GitHub release are already
+      # published by now, so a failure here cannot burn a version number — which
+      # is why it does not need `continue-on-error`, and why it had it. This
+      # step failed with `Forbidden` on every release while that flag reported
+      # the job green. The description API rejects a repo-scoped PAT: the
+      # credential needs read, write AND delete scope.
       - name: Push README to Docker Hub
-        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          # Its own file, not README.md: the repository landing page carries a
+          # roadmap, contributing notes and a trademark section that mean nothing
+          # to someone reading a tag list.
+          readme-filepath: docs/dockerhub.md
+          short-description: Cluster-wide management and observability for Apache ActiveMQ Artemis
+          # Docker Hub does not resolve repo-relative paths, so without this the
+          # screenshots render broken even when the push succeeds.
+          enable-url-completion: true

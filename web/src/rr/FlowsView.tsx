@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, Select, Stack, Tabs, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Select, Stack, Tabs, TextInput, Title } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster, useRrFlows } from '../api/client.ts';
+import { Pager } from '../grid/Pager.tsx';
 import { useClusterStream } from '../api/stream.ts';
 import { ExpectationsView } from './ExpectationsView.tsx';
 import { FlowDetail } from './FlowDetail.tsx';
@@ -26,6 +27,7 @@ export function FlowsView() {
     tab?: string;
     state?: string;
     address?: string;
+    page?: number;
   };
   const navigate = useNavigate();
 
@@ -42,9 +44,17 @@ export function FlowsView() {
   const setTab = (v: string | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: v ?? undefined }) });
 
+  const page = search.page ?? 1;
+  const setPage = (next: number) =>
+    navigate({
+      to: '.',
+      search: (prev: Record<string, unknown>) => ({ ...prev, page: next > 1 ? next : undefined }),
+    });
+
   const flows = useRrFlows(clusterId, {
     state: search.state,
     address: debouncedAddress || undefined,
+    page,
     size: PAGE_SIZE,
   });
 
@@ -83,7 +93,12 @@ export function FlowsView() {
             <TextInput
               placeholder="Filter by address"
               value={address}
-              onChange={(e) => setAddress(e.currentTarget.value)}
+              onChange={(e) => {
+                setAddress(e.currentTarget.value);
+                // A filter change invalidates the position: page 4 of the old
+                // result is page 4 of nothing.
+                if (page > 1) setPage(1);
+              }}
               size="xs"
               w={220}
             />
@@ -96,7 +111,11 @@ export function FlowsView() {
               onChange={(v) =>
                 navigate({
                   to: '.',
-                  search: (prev: Record<string, unknown>) => ({ ...prev, state: v || undefined }),
+                  search: (prev: Record<string, unknown>) => ({
+                    ...prev,
+                    state: v || undefined,
+                    page: undefined,
+                  }),
                 })
               }
               data={[
@@ -119,9 +138,13 @@ export function FlowsView() {
               <TracingDiagnostics clusterId={clusterId} />
             ) : (
               <>
-                <Text size="xs" c="dimmed">
-                  {flows.data?.count ?? 0} flow{(flows.data?.count ?? 0) === 1 ? '' : 's'}
-                </Text>
+                <Pager
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  total={flows.data?.count ?? 0}
+                  onChange={setPage}
+                  label="flows"
+                />
                 <FlowsTable flows={flows.data?.data ?? []} onSelect={setSelectedFlow} />
               </>
             )}

@@ -29,7 +29,12 @@ The `release` job in `.github/workflows/ci.yml` does all of it, with no manual s
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
 - creates a GitHub Release with that version's changelog file as the body and the
-  `artemis-studio-<version>.jar` + its `.sha256` attached.
+  `artemis-studio-<version>.jar` + its `.sha256` attached;
+- pushes `docs/dockerhub.md` as the Docker Hub repository description. That file
+  is the Hub's landing page and is **not** `README.md` — edit it when the run
+  instructions or the screenshots change. `DOCKERHUB_TOKEN` must be a PAT with
+  **read, write and delete** scope: the description endpoint rejects a
+  repo-scoped token with `Forbidden`, and the step no longer hides that.
 
 ## Dev channel (pre-stable)
 

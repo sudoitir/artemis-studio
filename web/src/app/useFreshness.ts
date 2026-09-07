@@ -63,7 +63,13 @@ export function useFreshness(): Freshness {
       return { lastUpdatedAt, isFetching, hasError, observed };
     };
 
-    const sync = () => setState((prev) => (same(prev, read()) ? prev : read()));
+    // One walk per cache event, not two. The cache notifies on every query state
+    // transition, and this walks every query in it — at a few hundred observed
+    // queries the second read was pure waste on the hottest path in the shell.
+    const sync = () => {
+      const next = read();
+      setState((prev) => (same(prev, next) ? prev : next));
+    };
 
     sync();
     return cache.subscribe(sync);

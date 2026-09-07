@@ -65,10 +65,32 @@ export interface PairGroupData extends Record<string, unknown> {
 
 export type TopologyNode = Node<BrokerNodeData> | Node<PairGroupData>;
 
+/**
+ * Above this many logical nodes the layout switches to its reduced-detail form
+ * (ADR-0056): each pair collapses to one box carrying the pair's summary, and the
+ * row wraps into a grid instead of running off to the right forever.
+ *
+ * Judgement, not measurement — a number in one place, expected to move the first
+ * time someone runs this against a genuinely large estate.
+ */
+export const DENSE_THRESHOLD = 24;
+
+/** Pairs per row once the layout wraps. */
+const DENSE_COLUMNS = 8;
+
+/** Row pitch for a collapsed box. */
+const DENSE_ROW_H = 140;
+
 export interface TopologyLayout {
   nodes: TopologyNode[];
   edges: Edge[];
   summary: string;
+  /**
+   * True when detail was reduced to fit the node count. The canvas states it —
+   * an operator who cannot tell whether they are seeing everything is worse off
+   * than one looking at a slow graph (ADR-0056).
+   */
+  dense: boolean;
 }
 
 /**
@@ -280,6 +302,72 @@ function layoutLogicalNode(
   return { nodes: [group, ...children], edges, width };
 }
 
+/**
+ * One logical node as a single box, for the reduced-detail layout.
+ *
+ * The pair's shape is what is lost, so the box has to say in words what the axis
+ * said in geometry: which endpoint is serving, how many stand behind it, and
+ * whether either of the two things that make a pair dangerous — split brain,
+ * replication behind — is true. A collapsed pair that hides a split brain would
+ * be worse than no graph at all.
+ */
+function collapsedNode(
+  logical: LogicalNodeView,
+  x: number,
+  y: number,
+  firingNodeIds: ReadonlySet<string>,
+): Node<BrokerNodeData> {
+  const axisStatus = axisStatusOf(logical);
+  const serving = logical.endpoints.filter((e) => e.active && !e.lastError);
+  const others = logical.endpoints.filter((e) => !(e.active && !e.lastError));
+  const head = serving[0] ?? others[0] ?? null;
+  const shortId = (logical.artemisNodeId ?? '—').slice(0, 8);
+
+  const kind: NodeKind =
+    axisStatus === 'critical' || axisStatus === 'suspected'
+      ? 'down'
+      : axisStatus === 'behind'
+        ? 'behind'
+        : serving.length > 0
+          ? 'live'
+          : 'down';
+
+  const statusWord =
+    axisStatus === 'critical'
+      ? `split brain — ${serving.length} serving`
+      : axisStatus === 'suspected'
+        ? 'split brain suspected'
+        : axisStatus === 'behind'
+          ? 'replication behind'
+          : serving.length === 0
+            ? 'nothing serving'
+            : `serving · ${others.length} standby`;
+
+  return {
+    id: `collapsed:${logical.artemisNodeId ?? shortId}`,
+    type: 'broker',
+    position: { x, y },
+    draggable: false,
+    connectable: false,
+    selectable: false,
+    data: {
+      name: head?.name ?? shortId,
+      kind,
+      statusWord,
+      shortId,
+      version: null,
+      address: null,
+      lastError: null,
+      offset: false,
+      unmanaged: false,
+      firing: logical.endpoints.some((e) => firingNodeIds.has(e.id)),
+      srSentence: `Node ${shortId}: ${statusWord}. ${logical.endpoints.length} endpoint${
+        logical.endpoints.length === 1 ? '' : 's'
+      }.`,
+    },
+  };
+}
+
 export function layout(
   topology: TopologyView,
   health: HealthView,
@@ -291,6 +379,19 @@ export function layout(
 
   const nodes: TopologyNode[] = [];
   const edges: Edge[] = [];
+  const dense = ordered.length > DENSE_THRESHOLD;
+
+  if (dense) {
+    // Wrapped into a grid rather than one endless row: at this count the strip is
+    // several screens wide and the operator can never see two nodes at once.
+    ordered.forEach((logical, i) => {
+      const column = i % DENSE_COLUMNS;
+      const row = Math.floor(i / DENSE_COLUMNS);
+      nodes.push(collapsedNode(logical, column * COL_W, row * DENSE_ROW_H, firingNodeIds));
+    });
+    return { nodes, edges, summary: summarise(topology, health), dense };
+  }
+
   let x = 0;
   for (const logical of ordered) {
     const part = layoutLogicalNode(logical, x, firingNodeIds);
@@ -299,7 +400,7 @@ export function layout(
     x += part.width + GROUP_GAP;
   }
 
-  return { nodes, edges, summary: summarise(topology, health) };
+  return { nodes, edges, summary: summarise(topology, health), dense };
 }
 
 function summarise(topology: TopologyView, health: HealthView): string {

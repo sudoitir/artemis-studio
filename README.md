@@ -229,6 +229,9 @@ commit messages in that release ([ADR-0051](docs/adr/0051-changelog-generated-fr
 The conventions live in [`.claude/rules/05-commits.md`](.claude/rules/05-commits.md)
 and [`.claude/rules/10-release.md`](.claude/rules/10-release.md).
 
+The Docker Hub page's own description is [`docs/dockerhub.md`](docs/dockerhub.md),
+pushed by the same release job — this README is not what appears there.
+
 ## How work happens
 
 Every feature goes through **OpenSpec** (`/opsx:propose` → `apply` → `archive`).

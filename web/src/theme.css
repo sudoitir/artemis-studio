@@ -81,6 +81,15 @@
   --as-chart-3: var(--as-text-dimmed);
   --as-chart-4: var(--as-warning);
   --as-chart-threshold: var(--as-danger);
+
+  /* An ordered magnitude — p50 → p95 → p99 — is a sequential ramp, one hue
+     light-to-dark, not three identities. It used to borrow --as-warning and
+     --as-danger, which claimed a slow tail was an error before anyone had
+     decided that it was; status colours stay reserved for status.
+     Steps chosen for >= 3:1 against each scheme's surface, measured. */
+  --as-chart-seq-1: var(--mantine-color-blue-6);
+  --as-chart-seq-2: var(--mantine-color-blue-4);
+  --as-chart-seq-3: var(--mantine-color-blue-2);
 }
 
 /* Light overrides. Dark is the base above; only the values that must change for
@@ -106,6 +115,10 @@
   --as-alert-dot: var(--mantine-color-red-7);
   --as-rr-failed: var(--mantine-color-red-7);
   --as-chart-2: var(--mantine-color-blue-7);
+  /* Inverted for a light surface: prominence is darkness here, not brightness. */
+  --as-chart-seq-1: var(--mantine-color-blue-6);
+  --as-chart-seq-2: var(--mantine-color-blue-7);
+  --as-chart-seq-3: var(--mantine-color-blue-9);
 }
 
 html,
