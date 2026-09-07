@@ -2185,6 +2185,24 @@
         }
       }
     },
+    "/api/v1/time" : {
+      "get" : {
+        "tags" : [ "time-controller" ],
+        "operationId" : "now",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stream" : {
       "get" : {
         "tags" : [ "stream-controller" ],
@@ -4858,6 +4876,16 @@
             "type" : "string"
           }
         }
+      },
+      "TimeView" : {
+        "type" : "object",
+        "properties" : {
+          "nowMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "nowMs" ]
       },
       "SseEmitter" : {
         "type" : "object",

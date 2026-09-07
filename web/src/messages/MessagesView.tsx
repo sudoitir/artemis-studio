@@ -30,16 +30,14 @@ import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
 import { MessageDetailPanel } from './MessageDetailPanel.tsx';
 import { MessageActions } from './MessageActions.tsx';
 import { SendMessage } from './SendMessage.tsx';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 
 const PAGE_SIZE = 200;
 
-function ts(ms: number): string {
-  return ms > 0 ? new Date(ms).toISOString().replace('T', ' ').replace('.000Z', 'Z') : '—';
-}
-
 const columns: GridColumn<MessageSummaryView>[] = [
   { id: 'messageId', header: 'Message ID', accessor: (m) => m.messageId, sortKey: undefined, width: 150 },
-  { id: 'timestamp', header: 'Enqueued', accessor: (m) => ts(m.timestamp), width: 200 },
+  { id: 'timestamp', header: 'Enqueued', accessor: (m) => absoluteLabel(m.timestamp), width: 200 },
   { id: 'priority', header: 'Prio', accessor: (m) => m.priority, numeric: true, width: 70 },
   {
     id: 'durable',
@@ -78,6 +76,9 @@ const columns: GridColumn<MessageSummaryView>[] = [
  * (non-negotiable #5).
  */
 export function MessagesView() {
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
   const { clusterId, queueName } = useParams({ strict: false }) as {
     clusterId: string;
     queueName: string;

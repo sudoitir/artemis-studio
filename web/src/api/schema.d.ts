@@ -660,6 +660,22 @@ export interface paths {
         patch: operations["overrideNode"];
         trace?: never;
     };
+    "/api/v1/time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["now"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stream": {
         parameters: {
             query?: never;
@@ -1742,6 +1758,10 @@ export interface components {
         NodeOverrideRequest: {
             jolokiaUrl?: string;
             coreUrl?: string;
+        };
+        TimeView: {
+            /** Format: int64 */
+            nowMs: number;
         };
         SseEmitter: {
             /** Format: int64 */
@@ -4036,6 +4056,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["NodeEndpointView"];
+                };
+            };
+        };
+    };
+    now: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeView"];
                 };
             };
         };

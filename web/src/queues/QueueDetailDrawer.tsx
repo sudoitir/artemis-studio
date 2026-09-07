@@ -6,6 +6,7 @@ import { useMetrics, type QueueView } from "../api/client.ts";
 import { DepthChart } from "../metrics/DepthChart.tsx";
 import { QueueLifecycleActions } from "./QueueLifecycleActions.tsx";
 import { ThroughputChart } from "../metrics/ThroughputChart.tsx";
+import { serverNow } from "../app/time.ts";
 import { rangeSpec } from "../metrics/ranges.ts";
 
 /** The drawer always shows the last hour; a longer view is the metrics page's job. */
@@ -25,7 +26,7 @@ export function QueueDetailDrawer({
   // metrics view uses so the two agree about where a bucket starts (ADR-0055).
   const spec = rangeSpec(DRAWER_RANGE);
   const { from, to, fromMs, toMs } = useMemo(() => {
-    const end = Math.floor(Date.now() / spec.stepMs) * spec.stepMs;
+    const end = Math.floor(serverNow() / spec.stepMs) * spec.stepMs;
     const start = end - spec.windowMs;
     return {
       from: new Date(start).toISOString(),

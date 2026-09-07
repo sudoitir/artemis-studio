@@ -24,6 +24,7 @@ import {
 } from '../api/client.ts';
 import { RegisterClusterButton } from '../clusters/RegisterCluster.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
+import { DisplayPreferences } from './DisplayPreferences.tsx';
 import { NotificationChannels } from './NotificationChannels.tsx';
 import { IndexSubscriptions } from './IndexSubscriptions.tsx';
 
@@ -247,6 +248,20 @@ export function SettingsView() {
 
   return (
     <Stack gap="xl" maw={640}>
+      {/* First, and separate: the only section here that is yours alone. Placing it
+          above the shared, audited settings also reads as an escalation — personal,
+          then cluster-wide. */}
+      <div>
+        <Title order={3}>Display</Title>
+        <Text size="sm" c="dimmed" mb="sm">
+          Yours alone. Stored in this browser, applied immediately, and never sent to the server —
+          changing it needs no permission and affects nobody else&rsquo;s screen.
+        </Text>
+        <DisplayPreferences />
+      </div>
+
+      <Divider />
+
       <div>
         <Title order={3}>Operational configuration</Title>
         <Text size="sm" c="dimmed" mb="sm">
