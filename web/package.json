@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "shots": "node --experimental-strip-types scripts/shots.ts"
+    "shots": "node --experimental-strip-types scripts/shots.ts",
+    "demo": "node --experimental-strip-types scripts/demo.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

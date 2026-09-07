@@ -94,6 +94,12 @@ demo:
 shots:
     {{npm}} run shots
 
+# Record the README demo GIFs (product + SQL console) from a real session on :8080.
+# Same prerequisite as `shots`: ADMIN_PASSWORD=... just demo-gif
+[group('develop')]
+demo-gif:
+    {{npm}} run demo
+
 # Stop the dev stack and delete its volumes.
 [group('develop')]
 dev-down:

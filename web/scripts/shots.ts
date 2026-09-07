@@ -4,30 +4,32 @@
  *   ADMIN_PASSWORD=… npm --prefix web run shots      (or: just shots)
  *
  * Point it at whatever `just demo` left running. It signs in as a real operator
- * would, waits for each view's own evidence of having loaded — never a fixed
- * sleep, which produces a screenshot of a skeleton often enough to matter — and
- * writes over `docs/img/*.png`.
+ * would (`session.ts`), waits for each view's own evidence of having loaded —
+ * never a fixed sleep, which produces a screenshot of a skeleton often enough to
+ * matter — and writes over `docs/img/*.png`.
  *
- * The viewport is fixed so the four images crop identically in the README table,
- * and `deviceScaleFactor: 2` so they stay legible when GitHub scales them down.
+ * The viewport is fixed so the images crop identically in the README table, and
+ * `deviceScaleFactor: 2` so they stay legible when GitHub scales them down.
+ *
+ * The moving demo is `demo.ts`.
  */
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BASE, password, signIn, streamLive } from './session.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, '../../docs/img');
 
-const BASE = process.env.STUDIO ?? 'http://localhost:8080';
-const USER = process.env.ADMIN_USER ?? 'admin';
-const PASSWORD = process.env.ADMIN_PASSWORD;
+password(); // fail before launching a browser if it is missing
 
-if (!PASSWORD) {
-  console.error('set ADMIN_PASSWORD to the password `just dev-up` printed');
-  process.exit(1);
-}
-const password: string = PASSWORD;
+// A query with one pushdown predicate and one target wildcard: the plan strip
+// then has something to classify, which is the part of this screen worth showing.
+const SQL = `SELECT * FROM "ORDERS.*"
+WHERE props.tenant = 'acme'
+ORDER BY timestamp DESC
+LIMIT 200`;
 
 async function main() {
   await mkdir(OUT, { recursive: true });
@@ -38,23 +40,14 @@ async function main() {
     colorScheme: 'dark',
   });
 
-  await page.goto(`${BASE}/login`);
-  await page.getByRole('textbox', { name: 'Username' }).fill(USER);
-  // By role, not by label: the password field's visibility toggle carries the
-  // same accessible name.
-  await page.getByRole('textbox', { name: 'Password' }).fill(password);
-  await page.getByRole('button', { name: /sign in|log in/i }).click();
-  await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
-
-  const clusterLink = page.getByRole('link', { name: /demo/i }).first();
-  await clusterLink.click();
-  await page.waitForURL(/\/clusters\/[0-9a-f-]+/, { timeout: 30_000 });
-  const clusterId = new URL(page.url()).pathname.split('/')[2];
+  const clusterId = await signIn(page);
 
   const shots: Array<{
     file: string;
     path: string;
     height?: number;
+    /** Drives the view into the state worth photographing, before `ready`. */
+    before?: () => Promise<unknown>;
     ready: () => Promise<unknown>;
   }> = [
     {
@@ -80,6 +73,23 @@ async function main() {
         page.locator('.recharts-area, .recharts-line').first().waitFor({ timeout: 30_000 }),
     },
     {
+      file: 'sql.png',
+      path: `/clusters/${clusterId}/sql`,
+      height: 1100,
+      // The console is an empty form until a query has been run, so this one is
+      // driven rather than merely visited: an empty editor is a screenshot of
+      // nothing.
+      before: async () => {
+        await page.getByRole('textbox', { name: /query/i }).click();
+        // The console restores the last query, so a click leaves the cursor in
+        // the middle of it and typing would splice the two together.
+        await page.keyboard.press('ControlOrMeta+a');
+        await page.keyboard.type(SQL);
+        await page.getByRole('button', { name: 'Run', exact: true }).click();
+      },
+      ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
+    },
+    {
       file: 'governance.png',
       path: '/admin',
       ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
@@ -89,14 +99,9 @@ async function main() {
   for (const shot of shots) {
     await page.setViewportSize({ width: 1440, height: shot.height ?? 900 });
     await page.goto(`${BASE}${shot.path}`);
+    await shot.before?.();
     await shot.ready();
-    // The stream opens after the first paint, so without this every capture
-    // shows the header mid-reconnect — a product that looks broken in its own
-    // screenshots.
-    await page
-      .getByText('Live', { exact: true })
-      .waitFor({ timeout: 20_000 })
-      .catch(() => console.warn(`${shot.file}: stream not live at capture time`));
+    await streamLive(page, shot.file);
     // One more frame, so the entry transition is finished rather than halfway.
     await page.waitForTimeout(750);
     await page.screenshot({ path: resolve(OUT, shot.file) });
