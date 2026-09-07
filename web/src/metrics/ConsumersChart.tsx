@@ -1,6 +1,7 @@
 import { AreaChart } from '@mantine/charts';
 
 import type { MetricSeries } from '../api/client.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 import { CHART_HEIGHT } from './ChartPanel.tsx';
 import {
   formatExact,
@@ -26,6 +27,8 @@ export function ConsumersChart({
   to: number;
   syncId: string;
 }) {
+  // Axis ticks and tooltips are formatted in the display zone (`app/timezone.ts`).
+  useDisplayZone();
   const data = mergeByTimestamp([{ name: 'consumers', series }]);
 
   return (

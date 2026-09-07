@@ -1,17 +1,8 @@
 import { Table, Text } from '@mantine/core';
 
 import type { FlowView } from '../api/client.ts';
+import { elapsedLabel, useServerNow } from '../app/time.ts';
 import { stateColorVar, stateLabel } from './rrState.ts';
-
-function age(from: string): string {
-  const ms = Date.now() - new Date(from).getTime();
-  if (ms < 1_000) return '0s';
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h`;
-}
 
 /** One flow's state, address, correlation id, age, and latency (or none yet). */
 export function FlowsTable({
@@ -21,6 +12,10 @@ export function FlowsTable({
   flows: FlowView[];
   onSelect: (flowId: string) => void;
 }) {
+  // Ticking, and on Studio's clock rather than the workstation's — an age is a
+  // server timestamp subtracted from now, so the two must be the same clock.
+  const now = useServerNow();
+
   if (flows.length === 0) {
     return (
       <Text size="sm" c="dimmed">
@@ -60,7 +55,7 @@ export function FlowsTable({
                 </Text>
               </Table.Td>
               <Table.Td>
-                <Text size="xs">{age(f.requestedAt)}</Text>
+                <Text size="xs">{elapsedLabel(now - Date.parse(f.requestedAt))}</Text>
               </Table.Td>
               <Table.Td>
                 <Text size="xs">{f.latencyMs != null ? `${f.latencyMs}ms` : '—'}</Text>

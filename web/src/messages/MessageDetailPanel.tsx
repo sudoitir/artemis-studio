@@ -17,6 +17,8 @@ import { CodeHighlight } from '@mantine/code-highlight';
 import { useMessageDetail } from '../api/client.ts';
 import { HexDump } from './HexDump.tsx';
 import { detectPayload, messageTypeName, unavailableMessage } from './payload.ts';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 
 /**
  * Raises the per-message body/property cap. Mirrors
@@ -181,6 +183,9 @@ export function MessageDetailPanel({
 }) {
   const detail = useMessageDetail(clusterId, queueName, messageId, node, filter);
   const m = detail.data;
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
 
   return (
     <Drawer
@@ -232,7 +237,7 @@ export function MessageDetailPanel({
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs">
-                    {m.timestamp > 0 ? new Date(m.timestamp).toISOString() : '—'}
+                    {absoluteLabel(m.timestamp)}
                   </Text>
                 </Table.Td>
               </Table.Tr>
@@ -244,7 +249,7 @@ export function MessageDetailPanel({
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs">
-                    {m.expiration > 0 ? new Date(m.expiration).toISOString() : 'never'}
+                    {m.expiration > 0 ? absoluteLabel(m.expiration) : 'never'}
                   </Text>
                 </Table.Td>
               </Table.Tr>

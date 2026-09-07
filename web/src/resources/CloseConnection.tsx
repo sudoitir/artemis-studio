@@ -13,7 +13,7 @@ import { CapabilityGate } from '../shared/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
 import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
 import { NodeOutcomeSummary } from '../shared/NodeOutcomeSummary.tsx';
-import { elapsedLabel, useNow } from '../app/useFreshness.ts';
+import { elapsedLabel, toServerMs, useServerNow } from '../app/time.ts';
 
 const PERMISSION_LABEL = "Close client connections, sessions and an address's consumers";
 
@@ -135,7 +135,7 @@ function CloseDialog({
   const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
   const [result, setResult] = useState<ConnectionCloseView | null>(null);
   const [previewFailed, setPreviewFailed] = useState<string | null>(null);
-  const now = useNow();
+  const now = useServerNow();
 
   const start = () => {
     setPreview(null);
@@ -176,7 +176,7 @@ function CloseDialog({
             where the decision is made rather than only in the header. */}
         {fetchedAt ? (
           <Text size="xs" c="dimmed">
-            This row was read {elapsedLabel(now - fetchedAt)} ago. The check below is taken now,
+            This row was read {elapsedLabel(now - toServerMs(fetchedAt))} ago. The check below is taken now,
             against the broker.
           </Text>
         ) : null}

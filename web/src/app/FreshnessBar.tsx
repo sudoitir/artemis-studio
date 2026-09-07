@@ -12,7 +12,9 @@ import {
   usePollingPaused,
 } from '../api/polling.ts';
 import { useStreamStatus } from '../api/stream.ts';
-import { elapsedLabel, useFreshness, useNow } from './useFreshness.ts';
+import { absoluteLabel, elapsedLabel, toServerMs, useServerNow } from './time.ts';
+import { useDisplayZone } from './timezone.ts';
+import { useFreshness } from './useFreshness.ts';
 
 export type FreshnessState = 'live' | 'polling' | 'reconnecting' | 'offline' | 'paused';
 
@@ -47,7 +49,9 @@ export function FreshnessBar() {
   const stream = useStreamStatus();
   const paused = usePollingPaused();
   const pending = usePendingChange();
-  const now = useNow();
+  const now = useServerNow();
+  // The tooltip below is an absolute timestamp, so this view follows the zone.
+  useDisplayZone();
 
   // Resuming must actually restart the intervals. TanStack re-reads
   // `refetchInterval` when a query re-renders, not when a module-level flag
@@ -101,7 +105,10 @@ export function FreshnessBar() {
             : 'polling';
 
   const label = LABELS[state];
-  const updated = lastUpdatedAt === null ? null : new Date(lastUpdatedAt);
+  // `dataUpdatedAt` is TanStack's own `Date.now()`. Normalised onto Studio's
+  // timeline here, at the one boundary it enters, so the subtraction below is
+  // not a comparison between two different clocks (`time.ts`).
+  const updated = lastUpdatedAt === null ? null : new Date(toServerMs(lastUpdatedAt));
 
   return (
     <Group gap="xs" wrap="nowrap" className={styles.bar}>
@@ -114,7 +121,7 @@ export function FreshnessBar() {
       {updated && observed > 0 ? (
         <Text size="xs" c="dimmed" className={`${styles.label} ${styles.elapsed}`}>
           ·{' '}
-          <time dateTime={updated.toISOString()} title={updated.toLocaleString()}>
+          <time dateTime={updated.toISOString()} title={absoluteLabel(updated.getTime())}>
             updated {elapsedLabel(now - updated.getTime())} ago
           </time>
         </Text>

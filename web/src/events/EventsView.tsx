@@ -22,6 +22,8 @@ import { useClusterStream } from '../api/stream.ts';
 import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
 import { Pager } from '../grid/Pager.tsx';
 import styles from './EventsView.module.css';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 
 const LIVE_BUFFER_MAX = 500;
 
@@ -57,7 +59,7 @@ function family(type: string): { word: string; color: string } {
 
 /** UTC, second precision — a broker event's useful comparison is to another one. */
 function occurredAt(e: BrokerEventView): string {
-  return new Date(e.occurredAt).toISOString().replace('T', ' ').replace('.000Z', 'Z');
+  return absoluteLabel(e.occurredAt);
 }
 
 function subjectOf(e: BrokerEventView): string {
@@ -98,6 +100,9 @@ const columns: GridColumn<BrokerEventView>[] = [
 
 /** The events screen: this cluster's activemq.notifications history, newest first. */
 export function EventsView() {
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as {
     type?: string;

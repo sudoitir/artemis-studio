@@ -25,6 +25,7 @@ import {
   useTokens,
   type TokenGrantRequest,
 } from '../api/client.ts';
+import { serverNow } from '../app/time.ts';
 import { useCan } from '../auth/useCan.ts';
 
 const GLOBAL = 'GLOBAL';
@@ -122,7 +123,7 @@ export function ApiKeysPanel() {
                   <Badge size="xs" color="red" variant="light">
                     revoked
                   </Badge>
-                ) : t.expiresAt && new Date(t.expiresAt) < new Date() ? (
+                ) : t.expiresAt && Date.parse(t.expiresAt) < serverNow() ? (
                   <Badge size="xs" color="orange" variant="light">
                     expired
                   </Badge>

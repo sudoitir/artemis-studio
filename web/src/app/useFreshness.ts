@@ -77,31 +77,3 @@ export function useFreshness(): Freshness {
 
   return state;
 }
-
-/**
- * A clock that ticks only to re-render a relative label.
- *
- * Separate from {@link useFreshness} because the two change for different
- * reasons: the freshness state changes when data arrives, the label changes
- * because time passed. Merging them would re-render the bar every second even
- * when nothing about the data moved.
- */
-export function useNow(intervalMs = 1_000): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
-
-/** `4s`, `3m`, `2h` — short enough to sit in a header without wrapping. */
-export function elapsedLabel(ms: number): string {
-  const seconds = Math.max(0, Math.round(ms / 1_000));
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.round(hours / 24)}d`;
-}

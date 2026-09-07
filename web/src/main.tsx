@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 import './theme.css';
 
 import { mountRefetch } from './api/polling.ts';
+import { startServerTimeSync } from './app/time.ts';
 import { theme } from './theme.ts';
 import { createAppRouter } from './router.tsx';
 
@@ -59,6 +60,11 @@ const queryClient = new QueryClient({
     queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch() },
   },
 });
+
+// Learn Studio's clock before anything renders a duration. Started outside React
+// so it survives StrictMode's double-mount and is not tied to any one route
+// (`app/time.ts`); it never rejects, so nothing downstream has to handle it.
+startServerTimeSync();
 
 const router = createAppRouter(queryClient);
 

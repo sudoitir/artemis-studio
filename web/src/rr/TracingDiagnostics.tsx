@@ -1,14 +1,12 @@
 import { Alert, Anchor, List, Stack, Table, Text } from '@mantine/core';
 
+import { elapsedLabel, useServerNow } from '../app/time.ts';
 import { useRrDiagnostics, type ExpectationDiagnosticsView } from '../api/client.ts';
 
-/** `4s`, `3m` — how long ago, short enough for a table cell. */
+/** `4s ago`, `3m ago` — the shared duration label, plus the word. */
 function ago(iso: string | null | undefined, now: number): string {
   if (!iso) return 'never';
-  const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.round(seconds / 60);
-  return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
+  return `${elapsedLabel(now - Date.parse(iso))} ago`;
 }
 
 /**
@@ -68,7 +66,7 @@ export function ExpectationStatus({
  */
 export function TracingDiagnostics({ clusterId }: { clusterId: string }) {
   const diagnostics = useRrDiagnostics(clusterId);
-  const now = Date.now();
+  const now = useServerNow();
 
   if (diagnostics.isPending) {
     return (

@@ -1,7 +1,30 @@
 import dayjs from 'dayjs';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
 
 import type { MetricSeries } from '../api/client.ts';
+import { displayZone } from '../app/timezone.ts';
 import { rangeSpec, type MetricRange } from './ranges.ts';
+
+// Both plugins, and `utc` first: dayjs's `timezone` is built on top of it.
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
+
+/**
+ * Format an instant in the operator's chosen zone.
+ *
+ * Bare `dayjs(ms).format(...)` renders in the browser's zone, which used to leave
+ * the charts and the tables disagreeing on every deployment where the two differed
+ * — the axis in local time, every table in UTC, and nothing saying so. Everything
+ * that renders a metric timestamp goes through here.
+ */
+export function formatInZone(ms: number, pattern: string): string {
+  try {
+    return dayjs(ms).tz(displayZone()).format(pattern);
+  } catch {
+    return dayjs(ms).utc().format(pattern);
+  }
+}
 
 /**
  * The one place the metric charts agree about time (ADR-0055).
@@ -38,12 +61,12 @@ const TOOLTIP_FORMAT: Record<MetricRange, string> = {
 
 export function tickFormatter(range: MetricRange): (ms: number) => string {
   const format = TICK_FORMAT[range] ?? TICK_FORMAT['1h'];
-  return (ms) => dayjs(ms).format(format);
+  return (ms) => formatInZone(ms, format);
 }
 
 export function labelFormatter(range: MetricRange): (ms: number) => string {
   const format = TOOLTIP_FORMAT[range] ?? TOOLTIP_FORMAT['1h'];
-  return (ms) => dayjs(ms).format(format);
+  return (ms) => formatInZone(ms, format);
 }
 
 /**
