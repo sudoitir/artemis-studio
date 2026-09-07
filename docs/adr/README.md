@@ -70,3 +70,4 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0058](0058-sql-console-query-model.md) | The SQL Console is a restricted dialect parsed to an AST and validated against a whitelist; predicates split into selector pushdown and residual scan; `SELECT`-only (extends 0021, 0022) |
 | [0059](0059-message-index-is-opt-in-and-disposable.md) | The message index is opt-in per queue, retention-bounded, disposable, and treated as retained payload (qualifies 0033) |
 | [0060](0060-sampled-tail-is-not-a-capture.md) | A live tail is polled, never consuming or mutating, and states permanently that it is a sample (extends 0058, 0003) |
+| [0061](0061-docs-site-vitepress-on-github-pages.md) | The documentation site is VitePress under `site/`, deployed to GitHub Pages by its own Actions workflow; `docs/` stays the single source and the README is trilingual |
