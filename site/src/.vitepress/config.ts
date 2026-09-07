@@ -33,6 +33,10 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   sitemap: { hostname: ORIGIN },
+  // Everything else is checked, and a broken link fails the build: the reference
+  // tree is copied from `docs/` and a rename there must not ship a 404. The one
+  // exception is the address Studio itself listens on, which is not ours to reach.
+  ignoreDeadLinks: [/^http:\/\/localhost:8080/],
   head: [
     ['link', { rel: 'icon', href: `${BASE}img/topology.png` }],
     ['meta', { name: 'theme-color', content: '#0b7285' }],
