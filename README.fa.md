@@ -22,12 +22,8 @@
 
 </div>
 
-<div dir="rtl" align="right">
-
 > [!WARNING]
 > **نسخهٔ آلفا.** در حال توسعهٔ فعال و هنوز کامل نیست. ایمیج‌های منتشرشده buildهای dev پیش از پایدار هستند (`sudoit1/artemis-studio:dev` — هنوز بدون `:latest`). تغییرات ناسازگار را انتظار داشته باشید.
-
-</div>
 
 ![Artemis Studio: توپولوژی، جدول صف‌ها در همهٔ نودها، صف dead-letter و نمودارها](docs/img/demo.gif)
 
@@ -52,10 +48,10 @@ just up          # Studio و Postgres، با کلیدهای تولیدشده و 
 
 سپس <http://localhost:8080> را باز کنید. `just up` رمز تولیدشدهٔ `admin` را یک بار چاپ می‌کند؛ در اولین ورود مجبور می‌شوید تغییرش دهید.
 
-<details>
-<summary>بدون <code>just</code>، یا روی Postgres خودتان</summary>
-
 </div>
+
+<details>
+<summary dir="rtl">بدون <code>just</code>، یا روی Postgres خودتان</summary>
 
 ```bash
 base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
@@ -77,7 +73,11 @@ docker run -p 8080:8080 \
 
 هر متغیر، الزام reverse proxy برای جریان SSE، و بازیابی اولین ورود، همه در [راهنمای پیکربندی](https://sudoitir.github.io/artemis-studio/fa/guide/configuration) آمده‌اند.
 
+</div>
+
 </details>
+
+<div dir="rtl" align="right">
 
 ## SQL روی پیام‌هایتان
 
