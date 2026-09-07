@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.mcp;
 
+import io.github.sudoitir.artemisstudio.service.ConnectionCloseKind;
 import io.github.sudoitir.artemisstudio.service.LifecycleKind;
 import io.github.sudoitir.artemisstudio.service.MessageAction;
 import io.github.sudoitir.artemisstudio.service.ResourceKind;
@@ -179,6 +180,30 @@ final class McpToolCatalog {
                                             + "than a failure. Re-running after a partial application converges."),
                             Param.note("dryRun", DRY_RUN),
                             Param.note("confirm", CONFIRM))),
+            new Entry(
+                    "connection_action",
+                    Posture.MUTATE,
+                    "Close a connection, a session, a consumer's connection, or an address's consumers.",
+                    List.of(
+                            Param.values("kind", names(ConnectionCloseKind.values()), null),
+                            Param.note(
+                                    "target",
+                                    "The connection, session or consumer id from list_resources, or the address "
+                                            + "for address_consumers. Ids are node-local: nodeId is required for "
+                                            + "every kind but address_consumers, and comes from the same row."),
+                            Param.note(
+                                    "kind.ephemeral",
+                                    "A close is not idempotent and is never retried. A target that has already "
+                                            + "gone answers alreadyGone=true, which is a success — the requested "
+                                            + "state holds. Do not re-issue it: the identifier may since have been "
+                                            + "reissued to a different application."),
+                            Param.note("dryRun", DRY_RUN),
+                            Param.note(
+                                    "confirm",
+                                    "The client id or remote address the preview reported, or the address for "
+                                            + "address_consumers — never the opaque connection id. Preview first "
+                                            + "to learn it."),
+                            Param.note("override", OVERRIDE))),
             new Entry(
                     "send_message",
                     Posture.MUTATE,

@@ -66,3 +66,4 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0054](0054-mcp-discovery-is-a-tool-not-a-resource.md) | MCP discovery is the `studio_help` tool, not an optional resource; one catalogue generates the schemas, help, resource and server instructions (supersedes 0050) |
 | [0055](0055-time-proportional-metric-charts.md) | Metric charts carry time on the x-axis, not array position; a relative window advances quantized to the bucket (extends 0033) |
 | [0056](0056-bounded-views-and-topology-level-of-detail.md) | Every view is bounded and says so; the topology canvas degrades by level of detail above a node threshold (extends 0020) |
+| [0057](0057-connection-identifiers-are-node-local.md) | Connection identifiers are node-local and ephemeral: a close by id names a node, a vanished target is a success, and the confirmation names the client (extends 0049) |

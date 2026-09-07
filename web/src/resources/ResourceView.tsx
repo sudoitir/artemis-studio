@@ -18,6 +18,7 @@ import {
   type SessionView,
 } from '../api/client.ts';
 import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
 import { Pager } from '../grid/Pager.tsx';
 import type { ApiError } from '../api/client.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -26,13 +27,39 @@ const PAGE_SIZE = 200;
 
 type Kind = 'addresses' | 'consumers' | 'sessions' | 'connections' | 'producers';
 
+/** What a row action needs that the row itself does not carry. */
+interface RowContext {
+  clusterId: string;
+  /** When the rows on screen were fetched, in epoch ms. A close depends on it. */
+  fetchedAt: number | null;
+}
+
 interface KindConfig<T> {
   hook: (id: string, p: ResourceParams) => UseQueryResult<PagedView<T>, ApiError>;
   columns: GridColumn<T>[];
   rowKey: (row: T) => string;
   filter: string;
   noun: string;
+  /**
+   * The action this row's finding implies, rendered in a trailing column. Kept
+   * beside the row rather than behind a selection or a detail pane, so the thing
+   * an operator has just been told about and the verb that acts on it are one
+   * click apart.
+   */
+  action?: (row: T, ctx: RowContext) => React.ReactNode;
 }
+
+/** The trailing action column. Fixed width; the action names itself, the header does not. */
+const ACTION_COL = <T,>(
+  render: (row: T, ctx: RowContext) => React.ReactNode,
+  ctx: RowContext,
+): GridColumn<T> => ({
+  id: 'action',
+  header: 'Action',
+  accessor: () => '',
+  cell: (row) => render(row, ctx),
+  width: 90,
+});
 
 const NODE_COL = <T extends { nodeName: string }>(): GridColumn<T> => ({
   id: 'node',
@@ -61,6 +88,7 @@ const CONFIG: {
       { id: 'depth', header: 'Messages', accessor: (r) => r.messageCount, numeric: true, width: 120 },
       NODE_COL<AddressView>(),
     ],
+    action: (row, ctx) => <CloseAddressConsumersAction clusterId={ctx.clusterId} address={row.name} />,
   },
   consumers: {
     hook: useConsumers,
@@ -88,6 +116,17 @@ const CONFIG: {
       { id: 'status', header: 'Status', accessor: (r) => r.status ?? '', width: 90 },
       NODE_COL<ConsumerView>(),
     ],
+    action: (row, ctx) => (
+      <CloseConnectionAction
+        clusterId={ctx.clusterId}
+        kind="consumer"
+        nodeId={row.nodeId}
+        nodeName={row.nodeName}
+        targetId={row.consumerId ?? ''}
+        rowLabel={row.queueName ?? row.consumerId ?? ''}
+        fetchedAt={ctx.fetchedAt}
+      />
+    ),
   },
   sessions: {
     hook: useSessions,
@@ -114,6 +153,17 @@ const CONFIG: {
       },
       NODE_COL<SessionView>(),
     ],
+    action: (row, ctx) => (
+      <CloseConnectionAction
+        clusterId={ctx.clusterId}
+        kind="session"
+        nodeId={row.nodeId}
+        nodeName={row.nodeName}
+        targetId={row.sessionId ?? ''}
+        rowLabel={row.user ?? row.sessionId ?? ''}
+        fetchedAt={ctx.fetchedAt}
+      />
+    ),
   },
   connections: {
     hook: useConnections,
@@ -138,6 +188,17 @@ const CONFIG: {
       },
       NODE_COL<ConnectionView>(),
     ],
+    action: (row, ctx) => (
+      <CloseConnectionAction
+        clusterId={ctx.clusterId}
+        kind="connection"
+        nodeId={row.nodeId}
+        nodeName={row.nodeName}
+        targetId={row.connectionId ?? ''}
+        rowLabel={row.clientId || row.remoteAddress || row.connectionId || ''}
+        fetchedAt={ctx.fetchedAt}
+      />
+    ),
   },
   producers: {
     hook: useProducers,
@@ -184,6 +245,11 @@ export function ResourceView({ kind }: { kind: Kind }) {
     size: PAGE_SIZE,
   });
 
+  const fetchedAt = query.dataUpdatedAt > 0 ? query.dataUpdatedAt : null;
+  const columns = config.action
+    ? [...config.columns, ACTION_COL(config.action, { clusterId, fetchedAt })]
+    : config.columns;
+
   const setSort = (sort: string | undefined) =>
     navigate({
       to: '.',
@@ -226,7 +292,7 @@ export function ResourceView({ kind }: { kind: Kind }) {
         </Stack>
       ) : (
         <VirtualTable
-          columns={config.columns}
+          columns={columns}
           data={rows}
           sort={search.sort}
           onSortChange={setSort}

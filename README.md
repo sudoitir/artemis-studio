@@ -253,7 +253,7 @@ OpenSpec (`/opsx:propose` → `apply` → `archive`); significant decisions get 
 |  | Task |
 |--|------|
 | [x] | Queue and address lifecycle — create, destroy, reconfigure, pause and resume across a cluster ([ADR-0049](docs/adr/0049-cluster-wide-topology-mutation.md)) |
-| [ ] | Connection and consumer control |
+| [x] | Connection and consumer control — close a connection, a session, or an address's consumers ([ADR-0057](docs/adr/0057-connection-identifiers-are-node-local.md)) |
 | [ ] | Divert and bridge management |
 | [ ] | Declared desired state and drift detection |
 

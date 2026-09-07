@@ -18,10 +18,28 @@ import classes from './NodeOutcomeSummary.module.css';
 export function NodeOutcomeSummary({
   outcome,
   destructive = false,
+  alreadyLabel,
+  countNoun = 'message',
+  verbFuture = 'would destroy',
+  verbPast = 'destroyed',
 }: {
   outcome: LifecycleOutcomeView;
   /** A destroy shows the message counts; a pause has none worth a column. */
   destructive?: boolean;
+  /**
+   * What `ALREADY` means for this command. It defaults to the lifecycle wording,
+   * but a connection close needs "already gone" — "already in this state" reads
+   * as though the operator had asked for something else.
+   */
+  alreadyLabel?: string;
+  /**
+   * What the counts are counting, and the verb for them. Defaults to the queue
+   * delete's wording; a connection close affects consumers, not messages, and
+   * saying "destroyed" there would overstate what happened.
+   */
+  countNoun?: string;
+  verbFuture?: string;
+  verbPast?: string;
 }) {
   const verdict = verdictFor(outcome);
 
@@ -33,8 +51,8 @@ export function NodeOutcomeSummary({
         </Text>
         {destructive ? (
           <Text size="xs" className={classes.total}>
-            {outcome.dryRun ? 'would destroy ' : 'destroyed '}
-            {outcome.totalAffected.toLocaleString()} message
+            {outcome.dryRun ? `${verbFuture} ` : `${verbPast} `}
+            {outcome.totalAffected.toLocaleString()} {countNoun}
             {outcome.totalAffected === 1 ? '' : 's'}
           </Text>
         ) : null}
@@ -42,15 +60,28 @@ export function NodeOutcomeSummary({
 
       <div className={classes.rows}>
         {outcome.nodes.map((node) => (
-          <NodeRow key={node.nodeId} node={node} destructive={destructive} />
+          <NodeRow
+            key={node.nodeId}
+            node={node}
+            destructive={destructive}
+            alreadyLabel={alreadyLabel}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function NodeRow({ node, destructive }: { node: NodeOutcomeView; destructive: boolean }) {
-  const { text, tone } = statusWords(node.status);
+function NodeRow({
+  node,
+  destructive,
+  alreadyLabel,
+}: {
+  node: NodeOutcomeView;
+  destructive: boolean;
+  alreadyLabel?: string;
+}) {
+  const { text, tone } = statusWords(node.status, alreadyLabel);
   return (
     <>
       <div className={classes.row}>
@@ -106,7 +137,10 @@ function verdictFor(outcome: LifecycleOutcomeView): { text: string; tone?: 'warn
  * A node's state as words. `ALREADY` is deliberately worded as a success — it
  * means the node is in the requested state, which is what was asked for.
  */
-function statusWords(status: NodeOutcomeView['status']): {
+function statusWords(
+  status: NodeOutcomeView['status'],
+  alreadyLabel?: string,
+): {
   text: string;
   tone?: 'warning' | 'danger';
 } {
@@ -116,7 +150,7 @@ function statusWords(status: NodeOutcomeView['status']): {
     case 'APPLIED':
       return { text: 'applied' };
     case 'ALREADY':
-      return { text: 'already in this state' };
+      return { text: alreadyLabel ?? 'already in this state' };
     case 'SKIPPED_NOT_LIVE':
       return { text: 'skipped — not live', tone: 'warning' };
     case 'FAILED':

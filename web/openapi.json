@@ -1354,6 +1354,156 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/nodes/{nodeId}/sessions/{sessionId}/close" : {
+      "post" : {
+        "tags" : [ "connection-control-controller" ],
+        "operationId" : "closeSession",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "sessionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConnectionCloseView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/nodes/{nodeId}/consumers/{consumerId}/close" : {
+      "post" : {
+        "tags" : [ "connection-control-controller" ],
+        "operationId" : "closeConsumerConnection",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "consumerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConnectionCloseView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/nodes/{nodeId}/connections/{connectionId}/close" : {
+      "post" : {
+        "tags" : [ "connection-control-controller" ],
+        "operationId" : "closeConnection",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "connectionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConnectionCloseView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/alerts/rules" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
@@ -1489,6 +1639,56 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/addresses/{address}/consumers/close" : {
+      "post" : {
+        "tags" : [ "connection-control-controller" ],
+        "operationId" : "closeAddressConsumers",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "address",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        }, {
+          "name" : "override",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConnectionCloseView"
                 }
               }
             }
@@ -4015,6 +4215,65 @@
             "type" : "string"
           }
         }
+      },
+      "ConnectionCloseView" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "CONNECTION", "SESSION", "CONSUMER", "ADDRESS_CONSUMERS" ]
+          },
+          "subject" : {
+            "type" : "string",
+            "description" : "The id or address the close was aimed at."
+          },
+          "alreadyGone" : {
+            "type" : "boolean"
+          },
+          "target" : {
+            "$ref" : "#/components/schemas/ConnectionTargetView"
+          },
+          "outcome" : {
+            "$ref" : "#/components/schemas/LifecycleOutcomeView"
+          }
+        },
+        "required" : [ "alreadyGone", "kind", "outcome", "subject" ]
+      },
+      "ConnectionTargetView" : {
+        "type" : "object",
+        "properties" : {
+          "connectionId" : {
+            "type" : "string"
+          },
+          "clientId" : {
+            "type" : [ "string", "null" ]
+          },
+          "remoteAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "user" : {
+            "type" : [ "string", "null" ]
+          },
+          "protocol" : {
+            "type" : [ "string", "null" ]
+          },
+          "sessionCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "consumerCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "messagesInTransit" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "confirmToken" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "confirmToken", "connectionId", "consumerCount", "sessionCount" ]
       },
       "CreateAddressRequest" : {
         "type" : "object",

@@ -125,8 +125,54 @@ per-node count and is evaluated against the ADR-0022 bulk cap with the same
 - **DLQ amplification.** D4's disclosure, plus the fact that the DLQ view already
   exists to see the result.
 
+## Groundwork — measured, not remembered
+
+Signatures read from `ActiveMQServerControl` in `artemis-core-client 2.56.0`
+(`javap` over the jar in the local repository), not from documentation or memory:
+
+```
+boolean closeConnectionWithID(String connectionID)
+boolean closeSessionWithID(String connectionID, String sessionID)
+boolean closeSessionWithID(String connectionID, String sessionID, boolean force)
+boolean closeConsumerConnectionsForAddress(String address)
+String  listConnections(String options, int page, int size)
+String  listSessions(String options, int page, int size)
+String  listConsumers(String options, int page, int size)
+```
+
+Row fields, from the fixtures captured against a live broker in Phase 0
+(`src/test/resources/jolokia/list-*.json`) and the upstream management guide:
+
+| List | Fields this change uses |
+| --- | --- |
+| `listConnections` | `connectionID`, `clientID`, `remoteAddress`, `users`, `protocol`, `sessionCount` |
+| `listSessions` | `id`, `connectionID`, `clientID`, `user`, `consumerCount` |
+| `listConsumers` | `id`, `session`, `address`, **`messagesInTransit`** — the in-flight count D4 needs |
+
+A consumer row names its `session` but **not** its `connectionID`, which is why a
+consumer-rooted close walks consumer → session → connection server-side rather
+than inferring the connection from the remote address.
+
+**What the broker returns for an id that does not exist** (task 2): all three
+close operations answer `false`. They do not raise, and there is no `AMQ…` code —
+so `ALREADY_GONE` is a successful response carrying a `false` value, and
+`ManagementRefusal` plays no part in this path. The pre-close read establishes it
+first; the boolean confirms it for a target that vanished in between.
+
+Reads use the broker's own management filter
+(`{"field":…,"operation":"EQUALS","value":…}` as the `options` argument) so one
+row comes back rather than a full connection dump on a busy node.
+
 ## Open for refinement
 
 D5's stance and D1's asymmetry are the two most likely to be argued with, and both
 should be. Revise this file together with `tasks.md` and the spec deltas if they
 move.
+
+**Resolved during implementation.** The ADR number is **0057**, not 0050 —
+0050–0056 were taken by changes that landed after this proposal was written. The
+result type is ADR-0049's `LifecycleOutcome` rather than a parallel vocabulary,
+with a single entry for a node-scoped close, so the UI reuses
+`shared/NodeOutcomeSummary.tsx` for all four kinds. A fourth kind, `CONSUMER`,
+was added: the consumers view's rows carry a consumer id and no connection id,
+and the spec requires the action to be on that row.

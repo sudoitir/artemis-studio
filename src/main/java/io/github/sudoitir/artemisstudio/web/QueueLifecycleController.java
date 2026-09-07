@@ -3,13 +3,11 @@ package io.github.sudoitir.artemisstudio.web;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.service.Attempt;
 import io.github.sudoitir.artemisstudio.service.LifecycleOutcome;
-import io.github.sudoitir.artemisstudio.service.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.service.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateAddressRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleViews.LifecycleOutcomeView;
-import io.github.sudoitir.artemisstudio.web.dto.LifecycleViews.NodeOutcomeView;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -130,32 +128,6 @@ public class QueueLifecycleController {
                     case Attempt.Failed<LifecycleOutcome> failed ->
                         throw new BrokerConnectionException(failed.kind(), failed.detail());
                 };
-        return new LifecycleOutcomeView(
-                outcome.dryRun(),
-                outcome.cap(),
-                outcome.overCap(),
-                isPartial(outcome),
-                outcome.totalAffected(),
-                outcome.nodes().stream()
-                        .map(n -> new NodeOutcomeView(
-                                n.nodeId(), n.nodeName(), n.status().name(), n.affected(), n.error()))
-                        .toList());
-    }
-
-    /**
-     * Whether the command landed unevenly: at least one node changed or was already
-     * in the requested state, and at least one did not receive it or refused it.
-     * Computed here rather than in the UI so every client agrees on what "partial"
-     * means.
-     */
-    private static boolean isPartial(LifecycleOutcome outcome) {
-        if (outcome.dryRun()) {
-            return false;
-        }
-        boolean anySettled = outcome.nodes().stream()
-                .anyMatch(n -> n.status() == NodeStatus.APPLIED || n.status() == NodeStatus.ALREADY);
-        boolean anyNot = outcome.nodes().stream()
-                .anyMatch(n -> n.status() == NodeStatus.FAILED || n.status() == NodeStatus.SKIPPED_NOT_LIVE);
-        return anySettled && anyNot;
+        return LifecycleOutcomeView.of(outcome);
     }
 }

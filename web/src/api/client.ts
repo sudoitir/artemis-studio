@@ -62,6 +62,10 @@ export type NodeOutcomeView = Schemas['NodeOutcomeView'];
 export type CreateQueueRequest = Schemas['CreateQueueRequest'];
 export type UpdateQueueRequest = Schemas['UpdateQueueRequest'];
 export type CreateAddressRequest = Schemas['CreateAddressRequest'];
+export type ConnectionCloseView = Schemas['ConnectionCloseView'];
+export type ConnectionTargetView = Schemas['ConnectionTargetView'];
+/** The four closes `connection-control` exposes; the first three are node-scoped. */
+export type ConnectionCloseKind = 'connection' | 'session' | 'consumer' | 'address-consumers';
 export type ConfigSectionView = Schemas['ConfigSectionView'];
 export type ConfigEntryView = Schemas['ConfigEntryView'];
 export type DlqAddress = Schemas['DlqAddress'];
@@ -671,6 +675,62 @@ export function useDeleteAddress(clusterId: string, address: string) {
     request(
       `${lifecycleBase(clusterId)}/addresses/${encodeURIComponent(address)}${lifecycleQuery(dryRun)}`,
       { method: 'DELETE' },
+    ),
+  );
+}
+
+// ── connection control (ADR-0057) ──────────────────────────────────────────
+
+/**
+ * Closing a connection, a session, the connection behind a consumer, or every
+ * consumer connection on an address.
+ *
+ * <p>A by-id close names the **node** the identifier was issued by — the one
+ * mutating call in Studio that is not cluster-wide, because a connection id
+ * means nothing on another node. Only the address-scoped close names the
+ * cluster.
+ *
+ * <p>A real run invalidates the three views a close changes at once. A preview
+ * invalidates nothing: it mutated nothing, and refetching would cost a broker
+ * round trip to learn what we already know.
+ */
+function useCloseMutation<V extends LifecycleVars>(
+  clusterId: string,
+  send: (vars: V) => Promise<ConnectionCloseView>,
+) {
+  const qc = useQueryClient();
+  return useMutation<ConnectionCloseView, ApiError, V>({
+    mutationFn: send,
+    onSuccess: (result) => {
+      if (result.outcome.dryRun) return;
+      for (const topic of ['connections', 'sessions', 'consumers'] as const) {
+        qc.invalidateQueries({ queryKey: keys.topic(clusterId, topic) });
+      }
+    },
+  });
+}
+
+/** `connection` | `session` | `consumer`, all node-scoped by the id's issuing node. */
+export function useCloseNodeTarget(
+  clusterId: string,
+  kind: Exclude<ConnectionCloseKind, 'address-consumers'>,
+  nodeId: string,
+  targetId: string,
+) {
+  return useCloseMutation<LifecycleVars>(clusterId, ({ dryRun }) =>
+    request(
+      `${lifecycleBase(clusterId)}/nodes/${nodeId}/${kind}s/${encodeURIComponent(targetId)}/close${lifecycleQuery(dryRun)}`,
+      { method: 'POST' },
+    ),
+  );
+}
+
+/** Every consumer connection bound to an address, on every live node. Capped. */
+export function useCloseAddressConsumers(clusterId: string, address: string) {
+  return useCloseMutation<LifecycleVars>(clusterId, ({ dryRun, override }) =>
+    request(
+      `${lifecycleBase(clusterId)}/addresses/${encodeURIComponent(address)}/consumers/close${lifecycleQuery(dryRun, override)}`,
+      { method: 'POST' },
     ),
   );
 }
