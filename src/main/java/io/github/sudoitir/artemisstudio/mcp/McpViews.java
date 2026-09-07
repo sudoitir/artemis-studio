@@ -67,6 +67,30 @@ public final class McpViews {
     public record ClockVerdict(
             String verdict, Long worstOffsetMs, Long uncertaintyMs, List<String> skewedNodes, Instant measuredAt) {}
 
+    /**
+     * One close's result (ADR-0057).
+     *
+     * @param alreadyGone the target was not there to close — a success, and the
+     *     field that stops a model retrying onto whatever now holds that identifier
+     * @param label the client id or remote address that was closed, which stays
+     *     meaningful after the connection id stops resolving
+     * @param messagesInTransit in-flight messages returned to their queues with an
+     *     increased delivery count; null when the broker did not report it
+     */
+    public record CloseOutcome(
+            String kind,
+            String subject,
+            boolean dryRun,
+            boolean alreadyGone,
+            String label,
+            Long sessionCount,
+            Long consumerCount,
+            Long messagesInTransit,
+            long cap,
+            boolean overCap,
+            List<LifecycleNode> nodes,
+            String message) {}
+
     /** A cluster the calling key can see, as {@code studio://clusters} lists it. */
     public record ClusterEntry(UUID clusterId, String cluster, String level, int nodeCount, UUID environmentId) {}
 

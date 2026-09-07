@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.web.dto;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.service.LifecycleOutcome;
+import io.github.sudoitir.artemisstudio.service.LifecycleOutcome.NodeStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.UUID;
@@ -64,5 +66,29 @@ public final class LifecycleViews {
             @Schema(requiredMode = REQUIRED, description = "Total messages destroyed, or that would be.")
             long totalAffected,
 
-            @Schema(requiredMode = REQUIRED) List<NodeOutcomeView> nodes) {}
+            @Schema(requiredMode = REQUIRED) List<NodeOutcomeView> nodes) {
+
+        /**
+         * The wire shape of one fan-out result. {@code partial} is computed here
+         * rather than in each client so every one of them agrees on what "landed
+         * unevenly" means: at least one node changed or was already in the requested
+         * state, and at least one did not receive it or refused it.
+         */
+        public static LifecycleOutcomeView of(LifecycleOutcome outcome) {
+            boolean anySettled = outcome.nodes().stream()
+                    .anyMatch(n -> n.status() == NodeStatus.APPLIED || n.status() == NodeStatus.ALREADY);
+            boolean anyNot = outcome.nodes().stream()
+                    .anyMatch(n -> n.status() == NodeStatus.FAILED || n.status() == NodeStatus.SKIPPED_NOT_LIVE);
+            return new LifecycleOutcomeView(
+                    outcome.dryRun(),
+                    outcome.cap(),
+                    outcome.overCap(),
+                    !outcome.dryRun() && anySettled && anyNot,
+                    outcome.totalAffected(),
+                    outcome.nodes().stream()
+                            .map(n -> new NodeOutcomeView(
+                                    n.nodeId(), n.nodeName(), n.status().name(), n.affected(), n.error()))
+                            .toList());
+        }
+    }
 }
