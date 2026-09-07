@@ -19,6 +19,8 @@ import { useAudit, useUsers, type AuditEventView } from '../api/client.ts';
 import { useCan } from '../auth/useCan.ts';
 import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
 import { Pager } from '../grid/Pager.tsx';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 
 const PAGE_SIZE = 100;
 
@@ -34,7 +36,7 @@ function auditKey(e: AuditEventView): string {
 }
 
 function at(e: AuditEventView): string {
-  return new Date(e.ts).toISOString().replace('T', ' ').replace('.000Z', 'Z');
+  return absoluteLabel(e.ts);
 }
 
 /**
@@ -96,6 +98,9 @@ const columns: GridColumn<AuditEventView>[] = [
 
 /** The audit-log screen (non-negotiable #3): every mutating call, filterable, newest first. */
 export function AuditView() {
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as {
     user?: string;

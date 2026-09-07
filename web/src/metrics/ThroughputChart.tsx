@@ -1,6 +1,7 @@
 import { CompositeChart } from '@mantine/charts';
 
 import type { MetricSeries } from '../api/client.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 import { CHART_HEIGHT } from './ChartPanel.tsx';
 import {
   formatRate,
@@ -35,6 +36,8 @@ export function ThroughputChart({
   to: number;
   syncId: string;
 }) {
+  // Axis ticks and tooltips are formatted in the display zone (`app/timezone.ts`).
+  useDisplayZone();
   const data = mergeByTimestamp([
     { name: 'added', series: added },
     { name: 'acked', series: acked },

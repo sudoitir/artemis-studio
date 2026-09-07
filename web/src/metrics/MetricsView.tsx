@@ -3,7 +3,7 @@ import { Alert, Anchor, Badge, Card, Group, Spoiler, Stack, Text, Title } from '
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useMetrics, type MetricSeries } from '../api/client.ts';
-import { useNow } from '../app/useFreshness.ts';
+import { useServerNow } from '../app/time.ts';
 import { rangeSpec, type MetricRange } from './ranges.ts';
 import { RangePicker } from './RangePicker.tsx';
 import { ChartPanel } from './ChartPanel.tsx';
@@ -44,7 +44,7 @@ export function MetricsView() {
   // Ticks at the bucket width, not at a second: the window can only move when a
   // new bucket exists, and a key that changed every second would mint a cache
   // entry a second.
-  const tick = useNow(spec.stepMs);
+  const tick = useServerNow(spec.stepMs);
 
   const { from, to } = useMemo(() => {
     if (!live) return { from: search.from!, to: search.to! };

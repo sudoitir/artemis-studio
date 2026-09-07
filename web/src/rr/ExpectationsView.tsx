@@ -14,6 +14,7 @@ import { notifications } from '@mantine/notifications';
 
 import styles from './ExpectationsView.module.css';
 
+import { useServerNow } from '../app/time.ts';
 import { AddressPicker } from '../queues/AddressPicker.tsx';
 import { ReplyAddressesHelp, ReplyAddressesInput } from './ReplyAddressesInput.tsx';
 import {
@@ -73,6 +74,8 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
   const create = useCreateRrExpectation(clusterId);
   const update = useUpdateRrExpectation(clusterId);
   const remove = useDeleteRrExpectation(clusterId);
+  // Hoisted out of the row map: one clock read per render, not one per row.
+  const now = useServerNow();
 
   const [requestAddress, setRequestAddress] = useState('');
   const [replyAddresses, setReplyAddresses] = useState<string[]>([]);
@@ -218,7 +221,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
                   <Table.Td>
                     <ExpectationStatus
                       status={diagnostics.data?.expectations.find((d) => d.expectationId === e.id)}
-                      now={Date.now()}
+                      now={now}
                     />
                   </Table.Td>
                   <Table.Td>{e.capturePayload ? 'yes' : 'no'}</Table.Td>

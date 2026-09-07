@@ -3,11 +3,16 @@ import { Badge, Button, Group, Table, Text } from '@mantine/core';
 
 import { useAlertHistory } from '../api/client.ts';
 import { severityTone } from './severity.ts';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 
 const PAGE_SIZE = 50;
 
 /** Every past firing and resolution for this cluster, newest first (alerting spec). */
 export function HistoryPanel({ clusterId }: { clusterId: string }) {
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
   const [page, setPage] = useState(1);
   const history = useAlertHistory(clusterId, page, PAGE_SIZE);
 
@@ -62,13 +67,11 @@ export function HistoryPanel({ clusterId }: { clusterId: string }) {
                   </Badge>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="xs">{new Date(f.startedAt).toISOString().replace('T', ' ').replace('.000Z', 'Z')}</Text>
+                  <Text size="xs">{absoluteLabel(f.startedAt)}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs" c={f.resolvedAt ? undefined : 'dimmed'}>
-                    {f.resolvedAt
-                      ? new Date(f.resolvedAt).toISOString().replace('T', ' ').replace('.000Z', 'Z')
-                      : 'still firing'}
+                    {f.resolvedAt ? absoluteLabel(f.resolvedAt) : 'still firing'}
                   </Text>
                 </Table.Td>
               </Table.Tr>

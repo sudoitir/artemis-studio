@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import { offerPing } from '../app/time.ts';
 import { keys, type BrokerEventView } from './client.ts';
 import { isPollingPaused, markPendingChange } from './polling.ts';
 
@@ -160,8 +161,15 @@ export function useClusterStream(
         heard();
       };
 
-      // Every frame is evidence the connection is alive, whatever it carries.
-      source.addEventListener(PING, heard);
+      // Every frame is evidence the connection is alive, whatever it carries. The
+      // keep-alive carries one thing more: `SseHub.heartbeat` puts the server's
+      // clock in it, so the client is told the time every twenty seconds for free.
+      // It is a drift detector only — a ping cannot measure its own latency, so it
+      // must never teach the offset estimate (`app/time.ts`).
+      source.addEventListener(PING, (e) => {
+        heard();
+        offerPing((e as MessageEvent).data);
+      });
 
       for (const topic of wanted) {
         if (topic === 'events') {

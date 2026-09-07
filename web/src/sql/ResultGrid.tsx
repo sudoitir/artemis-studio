@@ -2,14 +2,12 @@ import { useMemo } from 'react';
 import { Badge, Group, Text } from '@mantine/core';
 
 import type { SqlRowView } from '../api/client.ts';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
 import { VerifyOnBroker } from './VerifyOnBroker.tsx';
 import { rowKey } from './useSqlTail.ts';
 import classes from './ResultGrid.module.css';
-
-function ts(ms?: number): string {
-  return ms && ms > 0 ? new Date(ms).toISOString().replace('T', ' ').replace('.000Z', 'Z') : '—';
-}
 
 function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
   return [
@@ -37,7 +35,7 @@ function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
     { id: 'node', header: 'Node', accessor: (r) => r.nodeName ?? '', width: 150 },
     { id: 'queue', header: 'Queue', accessor: (r) => r.queueName ?? '' },
     { id: 'messageId', header: 'Message ID', accessor: (r) => r.messageId ?? '', width: 150 },
-    { id: 'timestamp', header: 'Enqueued', accessor: (r) => ts(r.timestamp), width: 200 },
+    { id: 'timestamp', header: 'Enqueued', accessor: (r) => absoluteLabel(r.timestamp), width: 200 },
     { id: 'priority', header: 'Prio', accessor: (r) => r.priority ?? 0, numeric: true, width: 70 },
     { id: 'size', header: 'Size', accessor: (r) => r.size ?? 0, numeric: true, width: 90 },
     {
@@ -96,6 +94,9 @@ export function ResultGrid({
   freshKeys?: ReadonlySet<string>;
 }) {
   const columns = useMemo(() => columnsFor(clusterId), [clusterId]);
+  // The Enqueued column is an absolute timestamp, so this view follows the
+  // display zone (`app/timezone.ts`).
+  useDisplayZone();
   return (
     <VirtualTable
       columns={columns}

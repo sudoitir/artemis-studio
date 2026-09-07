@@ -2,9 +2,14 @@ import { Badge, Stack, Table, Text } from '@mantine/core';
 
 import { useFiringAlerts } from '../api/client.ts';
 import { severityTone } from './severity.ts';
+import { absoluteLabel } from '../app/time.ts';
+import { useDisplayZone } from '../app/timezone.ts';
 
 /** Currently firing alerts for this cluster, newest first (alerting spec). */
 export function FiringPanel({ clusterId }: { clusterId: string }) {
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
   const firing = useFiringAlerts(clusterId);
 
   if (firing.isPending) {
@@ -60,7 +65,7 @@ export function FiringPanel({ clusterId }: { clusterId: string }) {
               </Table.Td>
               <Table.Td>{f.value ?? '—'}</Table.Td>
               <Table.Td>
-                <Text size="xs">{new Date(f.startedAt).toISOString().replace('T', ' ').replace('.000Z', 'Z')}</Text>
+                <Text size="xs">{absoluteLabel(f.startedAt)}</Text>
               </Table.Td>
             </Table.Tr>
           );

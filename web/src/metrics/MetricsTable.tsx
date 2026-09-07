@@ -1,8 +1,8 @@
 import { Table, Text } from '@mantine/core';
-import dayjs from 'dayjs';
 
 import type { MetricSeries } from '../api/client.ts';
-import { mergeByTimestamp } from './axis.ts';
+import { useDisplayZone } from '../app/timezone.ts';
+import { formatInZone, mergeByTimestamp } from './axis.ts';
 import styles from './StatRow.module.css';
 
 /**
@@ -20,6 +20,8 @@ export function MetricsTable({
   format: (name: string, value: number) => string;
 }) {
   const rows = mergeByTimestamp(columns.map((c) => ({ name: c.name, series: c.series }))).reverse();
+  // Timestamps below are formatted in the display zone, read from module state.
+  useDisplayZone();
 
   if (rows.length === 0) {
     return (
@@ -46,7 +48,7 @@ export function MetricsTable({
           {rows.map((row) => (
             <Table.Tr key={row.ts}>
               <Table.Td className={styles.value}>
-                {dayjs(row.ts).format('MMM D HH:mm:ss')}
+                {formatInZone(row.ts, 'MMM D HH:mm:ss')}
               </Table.Td>
               {columns.map((c) => (
                 <Table.Td key={c.name} ta="end" className={styles.value}>
