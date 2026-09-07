@@ -11,9 +11,6 @@ hero:
   name: Artemis Studio
   text: یک کنسول برای همهٔ کلاسترهای Artemis
   tagline: توپولوژی زنده، صف‌ها در همهٔ نودها، عملیات امن روی پیام‌ها و SQL روی پیام‌ها — برای هر کلاستر Apache ActiveMQ Artemis که اجرا می‌کنید، از یک نمونهٔ واحد.
-  image:
-    src: /img/topology.png
-    alt: توپولوژی زندهٔ live/backup در یک کلاستر
   actions:
     - theme: brand
       text: شروع سریع

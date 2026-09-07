@@ -11,9 +11,6 @@ hero:
   name: Artemis Studio
   text: 一个控制台，管理你所有的 Artemis 集群
   tagline: 实时拓扑、跨节点队列、安全的消息操作，以及对消息的 SQL 查询——一个实例覆盖你运行的每一个 Apache ActiveMQ Artemis 集群。
-  image:
-    src: /img/topology.png
-    alt: 集群的实时主备拓扑
   actions:
     - theme: brand
       text: 快速开始

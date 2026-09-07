@@ -11,9 +11,6 @@ hero:
   name: Artemis Studio
   text: One console for every Artemis cluster
   tagline: Live topology, cross-node queues, safe message operations, and SQL over your messages — across every Apache ActiveMQ Artemis cluster you run, from one instance.
-  image:
-    src: /img/topology.png
-    alt: Live/backup topology across a cluster
   actions:
     - theme: brand
       text: Quickstart

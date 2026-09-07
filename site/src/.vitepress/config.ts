@@ -38,7 +38,7 @@ export default defineConfig({
   // exception is the address Studio itself listens on, which is not ours to reach.
   ignoreDeadLinks: [/^http:\/\/localhost:8080/],
   head: [
-    ['link', { rel: 'icon', href: `${BASE}img/topology.png` }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${BASE}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#0b7285' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'Artemis Studio' }],
@@ -169,7 +169,7 @@ export default defineConfig({
   },
 
   themeConfig: {
-    logo: '/img/topology.png',
+    logo: '/favicon.svg',
     search: { provider: 'local' },
     socialLinks: [{ icon: 'github', link: REPO }],
     footer: {
