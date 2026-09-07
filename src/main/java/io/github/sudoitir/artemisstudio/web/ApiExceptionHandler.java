@@ -8,6 +8,9 @@ import io.github.sudoitir.artemisstudio.service.ConflictException;
 import io.github.sudoitir.artemisstudio.service.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.service.MustChangePasswordException;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
+import io.github.sudoitir.artemisstudio.sql.CostRefusedException;
+import io.github.sudoitir.artemisstudio.sql.SqlConsoleService;
+import io.github.sudoitir.artemisstudio.sql.SqlSyntaxException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +74,49 @@ class ApiExceptionHandler {
         problem.setType(URI.create(TYPE_BASE + "bulk-cap-exceeded"));
         problem.setTitle("Safety cap exceeded");
         problem.setProperty("affectedCount", e.affectedCount());
+        problem.setProperty("cap", e.cap());
+        return problem;
+    }
+
+    /**
+     * A query that is not in the dialect (ADR-0058 D2). The offending token and the
+     * near match travel as properties so the editor can put the caret on the word.
+     */
+    @ExceptionHandler(SqlSyntaxException.class)
+    ProblemDetail onSqlSyntax(SqlSyntaxException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "sql-syntax"));
+        problem.setTitle("That is not the console's dialect");
+        if (e.offending() != null) {
+            problem.setProperty("offending", e.offending());
+        }
+        if (e.suggestion() != null) {
+            problem.setProperty("suggestion", e.suggestion());
+        }
+        return problem;
+    }
+
+    /**
+     * A query refused before its first broker call (ADR-0058 D6). It carries the
+     * estimate, the ceiling and the way to narrow it, because "too expensive" with no
+     * number is not something an operator can act on.
+     */
+    @ExceptionHandler(CostRefusedException.class)
+    ProblemDetail onCostRefused(CostRefusedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "query-too-expensive"));
+        problem.setTitle("Query refused before it was started");
+        problem.setProperty("estimate", e.estimate());
+        problem.setProperty("ceiling", e.ceiling());
+        problem.setProperty("hint", e.hint());
+        return problem;
+    }
+
+    @ExceptionHandler(SqlConsoleService.TooManyQueriesException.class)
+    ProblemDetail onTooManyQueries(SqlConsoleService.TooManyQueriesException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "too-many-queries"));
+        problem.setTitle("Too many queries at once");
         problem.setProperty("cap", e.cap());
         return problem;
     }

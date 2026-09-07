@@ -62,6 +62,18 @@ export type NodeOutcomeView = Schemas['NodeOutcomeView'];
 export type CreateQueueRequest = Schemas['CreateQueueRequest'];
 export type UpdateQueueRequest = Schemas['UpdateQueueRequest'];
 export type CreateAddressRequest = Schemas['CreateAddressRequest'];
+export type SqlQueryRequest = Schemas['SqlQueryRequest'];
+export type SqlPlanView = Schemas['PlanView'];
+export type SqlResultView = Schemas['ResultView'];
+export type SqlRowView = Schemas['RowView'];
+export type SqlTargetView = Schemas['TargetView'];
+export type SqlNoticeView = Schemas['NoticeView'];
+export type SqlBoundView = Schemas['BoundView'];
+export type SqlNodeOutcomeView = Schemas['SqlNodeOutcomeView'];
+export type SqlTailStatusView = Schemas['TailStatusView'];
+export type SqlVerifyView = Schemas['VerifyView'];
+export type SqlIndexSubscriptionView = Schemas['IndexSubscriptionView'];
+export type SqlIndexSubscriptionRequest = Schemas['IndexSubscriptionRequest'];
 export type ConnectionCloseView = Schemas['ConnectionCloseView'];
 export type ConnectionTargetView = Schemas['ConnectionTargetView'];
 /** The four closes `connection-control` exposes; the first three are node-scoped. */
@@ -140,6 +152,13 @@ export class ApiError extends Error {
   readonly title: string;
   readonly brokerErrorKind?: string;
   readonly fieldErrors: { field: string; message: string }[];
+  /**
+   * The whole `problem+json` body. Handlers attach extra properties to a problem
+   * — the offending token on a syntax error, the estimate and ceiling on a
+   * refused query — and a message with the number left out is not something an
+   * operator can act on.
+   */
+  readonly problem: Record<string, unknown>;
 
   constructor(status: number, body: Record<string, unknown>) {
     super(
@@ -154,6 +173,7 @@ export class ApiError extends Error {
     this.brokerErrorKind = body.brokerErrorKind as string | undefined;
     this.fieldErrors =
       (body.errors as { field: string; message: string }[] | undefined) ?? [];
+    this.problem = body;
   }
 }
 
@@ -250,6 +270,8 @@ export const keys = {
   environments: ['environments'] as const,
   tokens: ['tokens'] as const,
   oidcMappings: ['oidc', 'mappings'] as const,
+  sqlPlan: (id: string, sql: string) => ['clusters', id, 'sql', 'plan', sql] as const,
+  sqlIndex: (id: string) => ['clusters', id, 'sql', 'index'] as const,
 };
 
 // ── queries ────────────────────────────────────────────────────────────────
@@ -1352,3 +1374,106 @@ export function useDeleteOidcMapping() {
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
   });
 }
+
+
+// ── SQL Console (ADR-0058) ─────────────────────────────────────────────────
+
+/**
+ * Plan a query without running it. Contacts no broker, so it is safe to call
+ * while the operator types — the caller debounces the text it passes in.
+ *
+ * <p>A rejected query is a 400 carrying the offending token, which is the whole
+ * point of calling this: it is how the editor reports a syntax error inline. It
+ * is never retried, because the same text will be rejected the same way.
+ */
+export function useSqlPlan(
+  clusterId: string,
+  sql: string,
+): UseQueryResult<SqlPlanView, ApiError> {
+  return useQuery({
+    queryKey: keys.sqlPlan(clusterId, sql),
+    queryFn: () =>
+      request<SqlPlanView>(`/clusters/${clusterId}/sql/plan`, {
+        method: 'POST',
+        body: JSON.stringify({ sql }),
+      }),
+    enabled: sql.trim().length > 0,
+    retry: false,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Ask the broker whether one indexed row is still on its queue.
+ *
+ * <p>A mutation rather than a query, because it costs a broker read and answers
+ * about a moment rather than about a resource: caching the verdict would be
+ * caching a claim that expires the instant it is made.
+ */
+export function useVerifyOnBroker(clusterId: string) {
+  return useMutation<SqlVerifyView, ApiError, SqlRowView>({
+    mutationFn: (row) =>
+      request<SqlVerifyView>(`/clusters/${clusterId}/sql/verify`, {
+        method: 'POST',
+        body: JSON.stringify({
+          nodeId: row.nodeId,
+          queueName: row.queueName,
+          messageId: row.messageId,
+          timestamp: row.timestamp,
+        }),
+      }),
+  });
+}
+
+// ── message index subscriptions (ADR-0059) ─────────────────────────────────
+
+export function useIndexSubscriptions(
+  clusterId: string,
+): UseQueryResult<SqlIndexSubscriptionView[], ApiError> {
+  return useQuery({
+    queryKey: keys.sqlIndex(clusterId),
+    queryFn: () => request<SqlIndexSubscriptionView[]>(`/clusters/${clusterId}/sql/index`),
+  });
+}
+
+export function useCreateIndexSubscription(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<SqlIndexSubscriptionView, ApiError, SqlIndexSubscriptionRequest>({
+    mutationFn: (body) =>
+      request(`/clusters/${clusterId}/sql/index`, { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+  });
+}
+
+export function useUpdateIndexSubscription(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    SqlIndexSubscriptionView,
+    ApiError,
+    { id: string; body: SqlIndexSubscriptionRequest }
+  >({
+    mutationFn: ({ id, body }) =>
+      request(`/clusters/${clusterId}/sql/index/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+  });
+}
+
+/** Deletes the subscription and everything it captured; resolves with how much was destroyed. */
+export function useDeleteIndexSubscription(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<{ messagesDestroyed: number }, ApiError, string>({
+    mutationFn: (id) => request(`/clusters/${clusterId}/sql/index/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+  });
+}
+
+/*
+ * Running a query is not here: it is a stream, in `sql/useSqlTail.ts`. Execution
+ * and the live tail share one path so that progress, per-node outcomes and
+ * cancellation have one implementation, and abandoning a query actually stops the
+ * broker reads.
+ */

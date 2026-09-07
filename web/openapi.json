@@ -791,6 +791,145 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/sql/verify" : {
+      "post" : {
+        "tags" : [ "sql-controller" ],
+        "operationId" : "verify",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VerifyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerifyView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/sql/plan" : {
+      "post" : {
+        "tags" : [ "sql-controller" ],
+        "operationId" : "plan",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SqlQueryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/sql/index" : {
+      "get" : {
+        "tags" : [ "sql-index-controller" ],
+        "operationId" : "list_6",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/IndexSubscriptionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "sql-index-controller" ],
+        "operationId" : "create_5",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IndexSubscriptionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IndexSubscriptionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/rr/expectations" : {
       "get" : {
         "tags" : [ "request-reply-controller" ],
@@ -1699,7 +1838,7 @@
     "/api/v1/channels" : {
       "get" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "list_6",
+        "operationId" : "list_7",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -1718,7 +1857,7 @@
       },
       "post" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "create_5",
+        "operationId" : "create_6",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1816,6 +1955,84 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/MeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/sql/index/{id}" : {
+      "delete" : {
+        "tags" : [ "sql-index-controller" ],
+        "operationId" : "delete_3",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeletedView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "sql-index-controller" ],
+        "operationId" : "update_3",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IndexSubscriptionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IndexSubscriptionView"
                 }
               }
             }
@@ -2014,7 +2231,7 @@
     "/api/v1/settings" : {
       "get" : {
         "tags" : [ "settings-controller" ],
-        "operationId" : "list_7",
+        "operationId" : "list_8",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -2078,7 +2295,7 @@
       },
       "delete" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "delete_3",
+        "operationId" : "delete_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2115,6 +2332,49 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/TopologyView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/sql/stream" : {
+      "get" : {
+        "tags" : [ "sql-stream-controller" ],
+        "operationId" : "stream_1",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "sql",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : ""
+          }
+        }, {
+          "name" : "tail",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "A stream of row, node, done, tail and failed frames.",
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StreamFrameView"
                 }
               }
             }
@@ -2566,7 +2826,7 @@
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "list_8",
+        "operationId" : "list_9",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2814,7 +3074,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -3094,7 +3354,7 @@
     "/api/v1/oidc/mappings/{mappingId}" : {
       "delete" : {
         "tags" : [ "oidc-mapping-controller" ],
-        "operationId" : "delete_4",
+        "operationId" : "delete_5",
         "parameters" : [ {
           "name" : "mappingId",
           "in" : "path",
@@ -3981,6 +4241,206 @@
         },
         "required" : [ "clusterId", "level", "liveEndpointNames", "notes", "replicationBehind", "splitBrain" ]
       },
+      "VerifyRequest" : {
+        "type" : "object",
+        "description" : "Which indexed row to look for on the live broker.",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "messageId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "timestamp" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "VerifyView" : {
+        "type" : "object",
+        "description" : "Whether an indexed row is still on the broker.",
+        "properties" : {
+          "presence" : {
+            "type" : "string",
+            "description" : "PRESENT, GONE or UNKNOWN. UNKNOWN is not GONE: a read that could not settle the question is never reported as an absence."
+          },
+          "detail" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SqlQueryRequest" : {
+        "type" : "object",
+        "description" : "A query to plan or run.",
+        "properties" : {
+          "sql" : {
+            "type" : "string"
+          }
+        }
+      },
+      "NoticeView" : {
+        "type" : "object",
+        "description" : "Something true about a plan or result that changes how it should be read.",
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PlanView" : {
+        "type" : "object",
+        "description" : "What a query will do, worked out without contacting a broker.",
+        "properties" : {
+          "source" : {
+            "type" : "string",
+            "description" : "BROKER or INDEX — which backend will answer."
+          },
+          "targets" : {
+            "type" : "array",
+            "description" : "The queue-and-node pairs the query will read.",
+            "items" : {
+              "$ref" : "#/components/schemas/TargetView"
+            }
+          },
+          "selector" : {
+            "type" : "string",
+            "description" : "The JMS selector the broker will evaluate, if any."
+          },
+          "requiresScan" : {
+            "type" : "boolean",
+            "description" : "Whether any predicate forces messages to be read and examined."
+          },
+          "pushedDown" : {
+            "type" : "array",
+            "description" : "The predicates the broker evaluates. These cost nothing.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "scanned" : {
+            "type" : "array",
+            "description" : "The predicates Studio evaluates. These cost a scan.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "estimatedMessagesExamined" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "How many messages the query is expected to examine."
+          },
+          "effectiveLimit" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "The row limit that will actually apply, after the server cap."
+          },
+          "notices" : {
+            "type" : "array",
+            "description" : "Everything true about this plan the operator has to be told.",
+            "items" : {
+              "$ref" : "#/components/schemas/NoticeView"
+            }
+          }
+        }
+      },
+      "TargetView" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "messageCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "IndexSubscriptionRequest" : {
+        "type" : "object",
+        "description" : "A request to start capturing a queue's messages into the index.",
+        "properties" : {
+          "queuePattern" : {
+            "type" : "string"
+          },
+          "retentionDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "intervalMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "IndexSubscriptionView" : {
+        "type" : "object",
+        "description" : "One index subscription and what it currently holds.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "queuePattern" : {
+            "type" : "string"
+          },
+          "retentionDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "intervalMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "captureFrom" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "messagesHeld" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "How many messages this subscription is currently holding."
+          },
+          "bytesHeld" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Approximate bytes of message payload held."
+          },
+          "oldestObservedAt" : {
+            "type" : "string",
+            "description" : "The oldest observation still held, or null when nothing is held."
+          }
+        }
+      },
       "CreateExpectationRequest" : {
         "type" : "object",
         "properties" : {
@@ -4490,6 +4950,247 @@
           }
         },
         "required" : [ "health", "id", "name", "nodeCount", "updatedAt" ]
+      },
+      "BoundView" : {
+        "type" : "object",
+        "description" : "A limit the query ran into, which is why it stopped.",
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "ProblemDetail" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "format" : "uri"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string",
+            "format" : "uri"
+          },
+          "properties" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        }
+      },
+      "ResultView" : {
+        "type" : "object",
+        "description" : "A finished query, without its rows: those arrived as row frames.",
+        "properties" : {
+          "nodes" : {
+            "type" : "array",
+            "description" : "Every target's outcome, including the ones that did not answer.",
+            "items" : {
+              "$ref" : "#/components/schemas/SqlNodeOutcomeView"
+            }
+          },
+          "boundsReached" : {
+            "type" : "array",
+            "description" : "Empty when the query ran to completion.",
+            "items" : {
+              "$ref" : "#/components/schemas/BoundView"
+            }
+          },
+          "notices" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NoticeView"
+            }
+          },
+          "partial" : {
+            "type" : "boolean",
+            "description" : "True when a bound was hit or a node did not answer."
+          },
+          "plan" : {
+            "$ref" : "#/components/schemas/PlanView"
+          }
+        }
+      },
+      "RowView" : {
+        "type" : "object",
+        "description" : "A message, and where it came from.",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The node holding the message. Identity is (node, queue, messageId)."
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "messageId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "messageType" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "durable" : {
+            "type" : "boolean"
+          },
+          "priority" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "timestamp" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "expiration" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "jmsType" : {
+            "type" : "string"
+          },
+          "correlationId" : {
+            "type" : "string"
+          },
+          "groupId" : {
+            "type" : "string"
+          },
+          "userId" : {
+            "type" : "string"
+          },
+          "replyTo" : {
+            "type" : "string"
+          },
+          "body" : {
+            "type" : "string"
+          },
+          "bodyTruncated" : {
+            "type" : "boolean",
+            "description" : "The management channel cut this body, so a body predicate may be a false negative."
+          },
+          "properties" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "BROKER or INDEX — an INDEX row may have been consumed since."
+          },
+          "observedAt" : {
+            "type" : "string",
+            "description" : "When the index observed it. Null for a live broker row."
+          },
+          "lastSeenAt" : {
+            "type" : "string",
+            "description" : "When the index last still saw it on its queue."
+          }
+        }
+      },
+      "SqlNodeOutcomeView" : {
+        "type" : "object",
+        "description" : "What one node contributed, including nothing and why.",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "ANSWERED, FAILED or NOT_READ."
+          },
+          "examined" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "matched" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "servedBy" : {
+            "type" : "string",
+            "description" : "JOLOKIA or CORE — the channel that served this node."
+          },
+          "detail" : {
+            "type" : "string"
+          }
+        }
+      },
+      "StreamFrameView" : {
+        "type" : "object",
+        "description" : "One frame on the query stream. The SSE event name says which field is set.",
+        "properties" : {
+          "row" : {
+            "$ref" : "#/components/schemas/RowView"
+          },
+          "node" : {
+            "$ref" : "#/components/schemas/SqlNodeOutcomeView"
+          },
+          "done" : {
+            "$ref" : "#/components/schemas/ResultView"
+          },
+          "tail" : {
+            "$ref" : "#/components/schemas/TailStatusView"
+          },
+          "error" : {
+            "$ref" : "#/components/schemas/ProblemDetail"
+          }
+        }
+      },
+      "TailStatusView" : {
+        "type" : "object",
+        "description" : "What a live tail has seen, and what it can prove it missed.",
+        "properties" : {
+          "enqueued" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Messages enqueued on the tailed queues since the tail started."
+          },
+          "shown" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Rows this tail has delivered."
+          },
+          "polls" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastPollAt" : {
+            "type" : "string"
+          },
+          "everyMessageMatches" : {
+            "type" : "boolean",
+            "description" : "True when the query has no predicate, so enqueued minus shown is exactly the number that passed through unobserved. When false the difference also holds messages that simply did not match."
+          }
+        }
       },
       "ResourceQuery" : {
         "type" : "object",
@@ -6009,6 +6710,16 @@
           }
         },
         "required" : [ "clusterId", "firing" ]
+      },
+      "DeletedView" : {
+        "type" : "object",
+        "description" : "How many captured messages the deletion destroyed.",
+        "properties" : {
+          "messagesDestroyed" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
       }
     }
   }

@@ -13,6 +13,7 @@ import { HomeView } from './app/HomeView.tsx';
 import { TopologyView } from './topology/TopologyView.tsx';
 import { QueuesView } from './queues/QueuesView.tsx';
 import { MessagesView } from './messages/MessagesView.tsx';
+import { SqlConsoleView } from './sql/SqlConsoleView.tsx';
 import { AuditView } from './audit/AuditView.tsx';
 import { ConfigDiffView } from './config/ConfigDiffView.tsx';
 import { DlqView } from './dlq/DlqView.tsx';
@@ -141,6 +142,34 @@ const messagesRoute = createRoute({
   path: 'queues/$queueName/messages',
   component: MessagesView,
   validateSearch: validateMessagesSearch,
+  errorComponent: RouteError,
+});
+
+/**
+ * The SQL Console's navigable state (ADR-0058). The query text is the whole of
+ * it: the source is the `FROM` qualifier inside that text, so a separate `source`
+ * parameter would give one fact two owners and let them drift. `live` is the
+ * other half of what is being viewed: a console linked while tailing opens
+ * tailing.
+ */
+export interface SqlSearch {
+  q?: string;
+  live?: boolean;
+}
+
+function validateSqlSearch(raw: Record<string, unknown>): SqlSearch {
+  const out: SqlSearch = {};
+  if (typeof raw.q === 'string' && raw.q) out.q = raw.q;
+  // Only the true case is carried, so an idle console has a clean address.
+  if (raw.live === true || raw.live === 'true') out.live = true;
+  return out;
+}
+
+const sqlRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'sql',
+  component: SqlConsoleView,
+  validateSearch: validateSqlSearch,
   errorComponent: RouteError,
 });
 
@@ -285,6 +314,7 @@ const routeTree = rootRoute.addChildren([
     topologyRoute,
     queuesRoute,
     messagesRoute,
+    sqlRoute,
     metricsRoute,
     alertsRoute,
     auditRoute,

@@ -15,6 +15,13 @@
     "shots": "node --experimental-strip-types scripts/shots.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.4",
+    "@codemirror/view": "^6.43.11",
+    "@lezer/highlight": "^1.2.3",
     "@mantine/charts": "9.6.0",
     "@mantine/code-highlight": "9.6.0",
     "@mantine/core": "9.6.0",
@@ -28,6 +35,7 @@
     "@tanstack/react-table": "9.2.4",
     "@tanstack/react-virtual": "^3.14.10",
     "@xyflow/react": "12.11.6",
+    "codemirror": "^6.0.2",
     "dayjs": "^1.11.13",
     "react": "19.2.0",
     "react-dom": "19.2.0",

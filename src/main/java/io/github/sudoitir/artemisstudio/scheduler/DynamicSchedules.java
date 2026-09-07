@@ -1,13 +1,17 @@
 package io.github.sudoitir.artemisstudio.scheduler;
 
 import io.github.sudoitir.artemisstudio.broker.core.RrSampler;
+import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.persist.BrokerEventReaper;
 import io.github.sudoitir.artemisstudio.persist.BrokerEventWriter;
+import io.github.sudoitir.artemisstudio.persist.MessageIndexPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.persist.MetricPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.RrFlowReaper;
 import io.github.sudoitir.artemisstudio.service.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.service.SettingsService;
+import io.github.sudoitir.artemisstudio.sql.MessageIndexCapture;
+import io.github.sudoitir.artemisstudio.sql.SqlTailPoller;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.DependsOn;
@@ -48,6 +52,10 @@ public class DynamicSchedules implements SchedulingConfigurer {
     private final SseHub sseHub;
     private final ClockOffsetService clockOffsets;
     private final MonotonicClockWatch monotonicClockWatch;
+    private final SqlTailPoller sqlTailPoller;
+    private final MessageIndexCapture messageIndexCapture;
+    private final MessageIndexPartitionMaintainer messageIndexPartitions;
+    private final ArtemisStudioProperties properties;
 
     @Override
     public void configureTasks(ScheduledTaskRegistrar registrar) {
@@ -64,11 +72,28 @@ public class DynamicSchedules implements SchedulingConfigurer {
                 clockOffsets::refresh, DynamicTriggers.fixedDelay(() -> ClockOffsetService.REFRESH_INTERVAL));
         registrar.addTriggerTask(
                 monotonicClockWatch::check, DynamicTriggers.fixedDelay(() -> MonotonicClockWatch.INTERVAL));
+        // The tail cadence is a property rather than a setting: it is the interval at
+        // which an operator's own open query re-reads a broker, floored by
+        // `sql.min-tail-interval` so no configuration can turn it into a hot loop. The
+        // tick is free when nobody is tailing.
+        registrar.addTriggerTask(
+                sqlTailPoller::tick,
+                DynamicTriggers.fixedDelay(() -> properties.sql().tailInterval()));
+        // Reconciling index subscriptions is a database read, not a broker call: it
+        // decides which tails should exist, and the tick above is what reads. A
+        // subscription created in Settings therefore starts capturing within one pass
+        // rather than at the next restart.
+        registrar.addTriggerTask(
+                messageIndexCapture::reconcile, DynamicTriggers.fixedDelay(() -> MessageIndexCapture.RECONCILE));
 
         // Housekeeping crons.
         registrar.addTriggerTask(metricReaper::reap, DynamicTriggers.cron(settings::metricReaperCron));
         registrar.addTriggerTask(eventReaper::reap, DynamicTriggers.cron(settings::eventsReaperCron));
         registrar.addTriggerTask(rrFlowReaper::reap, DynamicTriggers.cron(settings::rrReaperCron));
         registrar.addTriggerTask(partitionMaintainer::maintain, DynamicTriggers.cron(settings::metricPartitionCron));
+        // One partition-maintenance hour for both partitioned tables — the setting is
+        // "when Studio may take brief exclusive locks on its own tables", and there is
+        // no reason for the index to want a different answer than the metrics.
+        registrar.addTriggerTask(messageIndexPartitions::maintain, DynamicTriggers.cron(settings::metricPartitionCron));
     }
 }

@@ -1,0 +1,88 @@
+package io.github.sudoitir.artemisstudio.sql;
+
+import io.github.sudoitir.artemisstudio.broker.MessageTransport.Channel;
+import io.github.sudoitir.artemisstudio.sql.QueryAst.Source;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * What a query produced, and everything it could not see. The second half is the
+ * part that matters: a result that does not say what it missed is read as complete,
+ * and an operator mid-incident acts on that.
+ */
+public record QueryResult(
+        List<Row> rows, List<NodeOutcome> nodes, List<Bound> boundsReached, List<QueryPlan.Notice> notices) {
+
+    /**
+     * One message. Identity is {@code (node, queue, messageId)} — a message id is
+     * issued by, and meaningful only on, the node holding it (cf. ADR-0057), so the
+     * id alone is never a cluster-wide handle.
+     *
+     * @param source which backend produced this row, so the UI never has to guess
+     * @param observedAt when the index saw it; null for a live broker row
+     * @param lastSeenAt when the index last still saw it on its queue; null for a live row
+     * @param bodyTruncated the management channel cut the body, so a body predicate
+     *     evaluated against it may be a false negative
+     */
+    public record Row(
+            UUID nodeId,
+            String nodeName,
+            String queueName,
+            String address,
+            long messageId,
+            int messageType,
+            boolean durable,
+            int priority,
+            long timestamp,
+            long expiration,
+            long size,
+            String jmsType,
+            String correlationId,
+            String groupId,
+            String userId,
+            String replyTo,
+            String body,
+            boolean bodyTruncated,
+            Map<String, Object> properties,
+            Source source,
+            Instant observedAt,
+            Instant lastSeenAt) {}
+
+    /**
+     * What one node contributed. A node that failed is reported here rather than
+     * being left out of the result — an absent node is not an absence of messages.
+     */
+    public record NodeOutcome(
+            UUID nodeId,
+            String nodeName,
+            String queueName,
+            Status status,
+            long examined,
+            long matched,
+            Channel servedBy,
+            String detail) {
+
+        public enum Status {
+            ANSWERED,
+            FAILED,
+            /** The query stopped before this target was read, because a bound was reached. */
+            NOT_READ
+        }
+    }
+
+    /** A limit the query ran into. Reaching one makes the result partial, and it says so. */
+    public record Bound(Kind kind, long value) {
+        public enum Kind {
+            SCAN_CAP,
+            ROW_LIMIT,
+            TIMEOUT,
+            TARGET_CAP
+        }
+    }
+
+    public boolean isPartial() {
+        return !boundsReached.isEmpty() || nodes.stream().anyMatch(n -> n.status() != NodeOutcome.Status.ANSWERED);
+    }
+}

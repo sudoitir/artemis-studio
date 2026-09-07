@@ -40,5 +40,6 @@
     <include file="db/changelog/changes/018-audit-outcome-detail.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/019-management-write-evidence.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/020-clock-skew-and-latency-source.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/021-message-index.sql" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

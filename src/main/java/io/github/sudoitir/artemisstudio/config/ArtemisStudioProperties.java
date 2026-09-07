@@ -31,6 +31,7 @@ public record ArtemisStudioProperties(
         Alerting alerting,
         Security security,
         Mcp mcp,
+        Sql sql,
         Sse sse) {
 
     public ArtemisStudioProperties {
@@ -66,6 +67,17 @@ public record ArtemisStudioProperties(
                         Duration.ofMinutes(10));
         security = security != null ? security : new Security(Duration.ofHours(8), "groups", null);
         mcp = mcp != null ? mcp : new Mcp(25, 100);
+        sql = sql != null
+                ? sql
+                : new Sql(
+                        50,
+                        50_000L,
+                        2_000,
+                        250_000L,
+                        Duration.ofSeconds(30),
+                        2,
+                        Duration.ofSeconds(5),
+                        Duration.ofSeconds(1));
         sse = sse != null ? sse : new Sse(Duration.ofSeconds(20));
     }
 
@@ -104,6 +116,39 @@ public record ArtemisStudioProperties(
      * {@code ?override=true} behind the UI's typed confirmation.
      */
     public record Safety(@DefaultValue("1000") int bulkCap) {}
+
+    /**
+     * The SQL Console's bounds (ADR-0058 D6). Every one of these exists so that a
+     * query is a bounded amount of broker load, and every one of them is reported
+     * when it is reached — a bounded result that does not say it is bounded reads as
+     * a complete one.
+     *
+     * @param maxTargets how many queues one query may fan out to
+     * @param scanCap how many messages one query may examine before it stops
+     * @param maxRows how many rows one query may return
+     * @param costCeiling the estimate above which a query is refused rather than started
+     * @param timeout wall clock for one query, after which it returns what it has
+     * @param maxConcurrentQueries how many queries one operator may have running
+     * @param tailInterval how often a live tail re-reads its targets
+     * @param minTailInterval the floor on {@code tailInterval}, so a tail cannot be
+     *     turned into a load generator
+     */
+    public record Sql(
+            @DefaultValue("50") int maxTargets,
+            @DefaultValue("50000") long scanCap,
+            @DefaultValue("2000") int maxRows,
+            @DefaultValue("250000") long costCeiling,
+            @DefaultValue("30s") Duration timeout,
+            @DefaultValue("2") int maxConcurrentQueries,
+            @DefaultValue("5s") Duration tailInterval,
+            @DefaultValue("1s") Duration minTailInterval) {
+
+        public Sql {
+            if (tailInterval.compareTo(minTailInterval) < 0) {
+                tailInterval = minTailInterval;
+            }
+        }
+    }
 
     /**
      * Broker-event history (ADR-0028). Everything here except

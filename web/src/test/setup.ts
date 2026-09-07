@@ -157,3 +157,12 @@ class DOMMatrixReadOnlyStub {
   }
 }
 window.DOMMatrixReadOnly ??= DOMMatrixReadOnlyStub as unknown as typeof DOMMatrixReadOnly;
+
+// jsdom's Range implements neither getClientRects nor getBoundingClientRect, and
+// CodeMirror measures its own text with a Range on first layout. Without these
+// the SQL Console editor throws inside a requestAnimationFrame callback, which
+// surfaces as an unhandled exception rather than a test failure.
+Range.prototype.getClientRects ??= () =>
+  ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }) as unknown as DOMRectList;
+Range.prototype.getBoundingClientRect ??= () =>
+  ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON() {} }) as DOMRect;

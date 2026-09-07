@@ -67,3 +67,6 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0055](0055-time-proportional-metric-charts.md) | Metric charts carry time on the x-axis, not array position; a relative window advances quantized to the bucket (extends 0033) |
 | [0056](0056-bounded-views-and-topology-level-of-detail.md) | Every view is bounded and says so; the topology canvas degrades by level of detail above a node threshold (extends 0020) |
 | [0057](0057-connection-identifiers-are-node-local.md) | Connection identifiers are node-local and ephemeral: a close by id names a node, a vanished target is a success, and the confirmation names the client (extends 0049) |
+| [0058](0058-sql-console-query-model.md) | The SQL Console is a restricted dialect parsed to an AST and validated against a whitelist; predicates split into selector pushdown and residual scan; `SELECT`-only (extends 0021, 0022) |
+| [0059](0059-message-index-is-opt-in-and-disposable.md) | The message index is opt-in per queue, retention-bounded, disposable, and treated as retained payload (qualifies 0033) |
+| [0060](0060-sampled-tail-is-not-a-capture.md) | A live tail is polled, never consuming or mutating, and states permanently that it is a sample (extends 0058, 0003) |

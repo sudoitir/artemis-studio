@@ -1,0 +1,24 @@
+/* A row the live tail has just delivered. The tint fades out over the same window
+   the hook keeps the key for, so the highlight ends by itself rather than by a
+   second timer that could disagree with the first. */
+.fresh {
+  background: var(--as-grid-row-fresh);
+  animation: fade 4s ease-out forwards;
+}
+
+@keyframes fade {
+  from {
+    background: var(--as-grid-row-fresh);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/* Reduced motion keeps the mark and drops the transition: the information is the
+   highlight, not the fade, and removing the class is what ends it either way. */
+@media (prefers-reduced-motion: reduce) {
+  .fresh {
+    animation: none;
+  }
+}

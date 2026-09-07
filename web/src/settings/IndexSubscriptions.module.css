@@ -1,0 +1,4 @@
+/* A held-message count is compared between rows, so the digits must line up. */
+.numeric {
+  font-variant-numeric: tabular-nums;
+}

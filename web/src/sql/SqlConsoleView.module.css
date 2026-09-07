@@ -1,0 +1,30 @@
+/* The console: editor, then what the query will do, then what it did. A single
+   column on purpose — an operator reads it top to bottom once, and a side pane
+   would only compete with the plan for the attention that belongs there. */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.hint {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+/* The screen-reader announcement of an outcome. Visually hidden, never
+   `display: none` — a hidden live region is not announced at all. */
+.announcement {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
