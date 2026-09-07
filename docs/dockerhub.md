@@ -1,11 +1,12 @@
 # Artemis Studio
 
-**Cluster-wide management and observability for Apache ActiveMQ Artemis.**
+**One console for every Apache ActiveMQ Artemis cluster you run.**
 
 The bundled Hawtio console manages one broker at a time and has no idea a cluster
 exists. Artemis Studio is the other thing: one instance across many clusters —
 live/backup topology, cross-node queues and addresses in a single table, safe
-message operations, and first-class request-reply tracing.
+message operations, first-class request-reply tracing, and SQL over your
+messages.
 
 It works against your **existing** brokers. No `broker.xml` rewrite beyond
 enabling the management endpoints you almost certainly already run.
@@ -14,7 +15,8 @@ enabling the management endpoints you almost certainly already run.
 > **pre-stable dev builds** — the `:dev` tag is the moving pointer and there is no
 > `:latest` yet. Expect breaking changes.
 
-**Source, issues and full documentation:**
+**Documentation:** [sudoitir.github.io/artemis-studio](https://sudoitir.github.io/artemis-studio/)
+&nbsp;·&nbsp; **Source and issues:**
 [github.com/sudoitir/artemis-studio](https://github.com/sudoitir/artemis-studio)
 
 
@@ -22,9 +24,9 @@ enabling the management endpoints you almost certainly already run.
 
 | Cluster topology | Cross-node queues |
 |---|---|
-| [![Live/backup topology with replication and shared-NodeID axis](docs/img/topology.png)](docs/img/topology.png) | [![Every queue across every node in one virtualized grid](docs/img/queues.png)](docs/img/queues.png) |
+| [![Live/backup topology with replication and shared-NodeID axis](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/topology.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/topology.png) | [![Every queue across every node in one virtualized grid](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/queues.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/queues.png) |
 | **Metrics and charts** | **Governance (RBAC, environments, tokens, SSO)** |
-| [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
+| [![Depth, throughput and consumer charts from partitioned Postgres](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/metrics.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/governance.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/governance.png) |
 
 ---
 
