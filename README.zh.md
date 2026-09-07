@@ -27,7 +27,21 @@
 > **Alpha 阶段。** 仍在积极开发中，功能尚未完备。已发布的镜像都是预发布的 dev 构建
 > （`sudoit1/artemis-studio:dev`，暂无 `:latest`）。请预期会有破坏性变更。
 
-![Artemis Studio：拓扑、跨节点队列表格、死信队列与图表](docs/img/demo.gif)
+## 用 SQL 查询你的消息
+
+Artemis 回答不了*"订单 4471 去哪了？"*。它唯一的服务端过滤器是 JMS selector：只看消息头——**永远看不到消息体**——而且一次只作用于一个节点上的一个队列。
+
+```sql
+SELECT * FROM "ORDER.*"
+WHERE body->>'orderId' = '4471'
+LIMIT 50
+```
+
+![SQL 控制台：一条跨集群所有队列的查询，执行前已给出代价分类，随后是实时 tail](docs/img/sql-console.gif)
+
+一个受限的只读方言——仅 `SELECT`，解析为 AST 并对照固定的列目录做校验，因此完全无法表达任何变更操作。消息头谓词会变成 JMS selector，不花代价；消息体谓词则是一次扫描。**计划条会在查询执行之前告诉你属于哪一类**，超过成本上限的查询会被拒绝并给出估算值，而不是被截断——截断后的结果一眼看去与完整结果无法区分。
+
+再加上实时 tail（是轮询，绝非消费），以及可选启用、受保留期约束的索引，用于查询已被消费掉的消息。[了解更多 →](https://sudoitir.github.io/artemis-studio/zh/guide/sql-console)
 
 ## 为什么需要它
 
@@ -67,21 +81,7 @@ docker run -p 8080:8080 \
 
 </details>
 
-## 用 SQL 查询你的消息
-
-Artemis 回答不了*"订单 4471 去哪了？"*。它唯一的服务端过滤器是 JMS selector：只看消息头——**永远看不到消息体**——而且一次只作用于一个节点上的一个队列。
-
-```sql
-SELECT * FROM "ORDER.*"
-WHERE body->>'orderId' = '4471'
-LIMIT 50
-```
-
-![SQL 控制台：一条跨集群所有队列的查询，执行前已给出代价分类，随后是实时 tail](docs/img/sql-console.gif)
-
-一个受限的只读方言——仅 `SELECT`，解析为 AST 并对照固定的列目录做校验，因此完全无法表达任何变更操作。消息头谓词会变成 JMS selector，不花代价；消息体谓词则是一次扫描。**计划条会在查询执行之前告诉你属于哪一类**，超过成本上限的查询会被拒绝并给出估算值，而不是被截断——截断后的结果一眼看去与完整结果无法区分。
-
-再加上实时 tail（是轮询，绝非消费），以及可选启用、受保留期约束的索引，用于查询已被消费掉的消息。[了解更多 →](https://sudoitir.github.io/artemis-studio/zh/guide/sql-console)
+![Artemis Studio：拓扑、跨节点队列表格、死信队列与图表](docs/img/demo.gif)
 
 ## 它还能做什么
 

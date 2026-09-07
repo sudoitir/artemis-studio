@@ -29,7 +29,30 @@ and SQL over your messages — from a single instance.
 > are pre-stable dev builds (`sudoit1/artemis-studio:dev` — no `:latest` yet).
 > Expect breaking changes.
 
-![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue and the charts](docs/img/demo.gif)
+## SQL over your messages
+
+Artemis cannot answer *"where did order 4471 go?"*. Its only server-side filter
+is a JMS selector: message headers only — **never the body** — one queue, one
+node at a time.
+
+```sql
+SELECT * FROM "ORDER.*"
+WHERE body->>'orderId' = '4471'
+LIMIT 50
+```
+
+![The SQL Console: a query across every queue in the cluster, its cost classified before it runs, then a live tail](docs/img/sql-console.gif)
+
+A restricted, read-only dialect — `SELECT` only, parsed to an AST and validated
+against a fixed column catalogue, so no mutation is expressible at all. Header
+predicates become a JMS selector and cost nothing; body predicates are a scan.
+**The plan strip says which, before the query runs**, and a query over the cost
+ceiling is refused with the estimate rather than truncated — a truncated result
+is indistinguishable from a complete one at a glance.
+
+Add a live tail (a poll, never a consume) and an opt-in retention-bounded index
+for messages that have already been consumed.
+[More →](https://sudoitir.github.io/artemis-studio/guide/sql-console)
 
 ## Why
 
@@ -77,30 +100,7 @@ recovery are in the [configuration guide](https://sudoitir.github.io/artemis-stu
 
 </details>
 
-## SQL over your messages
-
-Artemis cannot answer *"where did order 4471 go?"*. Its only server-side filter
-is a JMS selector: message headers only — **never the body** — one queue, one
-node at a time.
-
-```sql
-SELECT * FROM "ORDER.*"
-WHERE body->>'orderId' = '4471'
-LIMIT 50
-```
-
-![The SQL Console: a query across every queue in the cluster, its cost classified before it runs, then a live tail](docs/img/sql-console.gif)
-
-A restricted, read-only dialect — `SELECT` only, parsed to an AST and validated
-against a fixed column catalogue, so no mutation is expressible at all. Header
-predicates become a JMS selector and cost nothing; body predicates are a scan.
-**The plan strip says which, before the query runs**, and a query over the cost
-ceiling is refused with the estimate rather than truncated — a truncated result
-is indistinguishable from a complete one at a glance.
-
-Add a live tail (a poll, never a consume) and an opt-in retention-bounded index
-for messages that have already been consumed.
-[More →](https://sudoitir.github.io/artemis-studio/guide/sql-console)
+![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue and the charts](docs/img/demo.gif)
 
 ## What else it does
 
