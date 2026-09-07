@@ -1,0 +1,15 @@
+{
+  "name": "artemis-studio-site",
+  "private": true,
+  "type": "module",
+  "description": "Artemis Studio documentation site (ADR-0061)",
+  "scripts": {
+    "prepare-docs": "node --experimental-strip-types scripts/prepare-docs.ts",
+    "dev": "npm run prepare-docs && vitepress dev src",
+    "build": "npm run prepare-docs && vitepress build src",
+    "preview": "vitepress preview src"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

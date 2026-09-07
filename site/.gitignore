@@ -1,0 +1,7 @@
+node_modules/
+# Generated from docs/ and changelog/ by scripts/prepare-docs.ts — never committed,
+# so the site cannot publish a stale copy of a decision record (ADR-0061 D3).
+src/reference/
+src/public/img/
+src/.vitepress/cache/
+src/.vitepress/dist/

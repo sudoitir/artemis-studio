@@ -1,0 +1,73 @@
+/* Artemis Studio site theme.
+ *
+ * Two jobs only: give the brand its accent, and make the Persian locale read
+ * correctly. Everything else is the VitePress default theme, on purpose —
+ * ADR-0061 D1 chose it so there would be less to own, and a fork of its CSS
+ * would give that back.
+ *
+ * Logical properties throughout (`inline-start`, never `left`), per the
+ * project's eighth non-negotiable and because the RTL locale depends on it.
+ */
+
+:root {
+  --vp-c-brand-1: #0c8599;
+  --vp-c-brand-2: #1098ad;
+  --vp-c-brand-3: #15aabf;
+  --vp-c-brand-soft: rgba(16, 152, 173, 0.14);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #15aabf, #5f3dc4);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #15aabf40, #5f3dc440);
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+.dark {
+  --vp-c-brand-1: #3bc9db;
+  --vp-c-brand-2: #22b8cf;
+  --vp-c-brand-3: #15aabf;
+}
+
+/* A screenshot on a docs page is evidence, not decoration: give it the frame
+ * that separates it from the page in both colour schemes. */
+.vp-doc img:not([src$='.svg']) {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+}
+
+/* ── Persian ──────────────────────────────────────────────────────────────
+ * `dir="rtl"` on <html> handles flow. What it does not handle is the script:
+ * the default stack has no Persian face, so `ی` and `ک` fall back to an Arabic
+ * form that a Persian reader reads as wrong rather than as foreign. */
+html[dir='rtl'] {
+  --vp-font-family-base: 'Vazirmatn', 'Noto Naskh Arabic', 'IRANSans', 'Tahoma', ui-sans-serif,
+    system-ui, sans-serif;
+  line-height: 1.9;
+}
+
+/* Code, commands, identifiers and URLs are LTR even inside Persian prose —
+ * a shell command mirrored into RTL is not a shell command. */
+html[dir='rtl'] .vp-doc code,
+html[dir='rtl'] .vp-doc pre,
+html[dir='rtl'] div[class*='language-'],
+html[dir='rtl'] .vp-code-group {
+  direction: ltr;
+  text-align: start;
+}
+
+html[dir='rtl'] .vp-doc table {
+  direction: rtl;
+}
+
+/* The default theme anchors these to the physical left. */
+html[dir='rtl'] .vp-doc blockquote {
+  border-inline-start: 2px solid var(--vp-c-divider);
+  border-inline-end: none;
+  padding-inline-start: 16px;
+  padding-inline-end: 0;
+}
+
+html[dir='rtl'] .vp-doc ul,
+html[dir='rtl'] .vp-doc ol {
+  padding-inline-start: 1.25rem;
+  padding-inline-end: 0;
+}
