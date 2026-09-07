@@ -44,67 +44,102 @@ export function NodeOutcomeSummary({
   const verdict = verdictFor(outcome);
 
   return (
+    <OutcomeSummary
+      verdict={verdict.text}
+      verdictTone={verdict.tone}
+      total={
+        destructive
+          ? `${outcome.dryRun ? verbFuture : verbPast} ${outcome.totalAffected.toLocaleString()} ${countNoun}${
+              outcome.totalAffected === 1 ? '' : 's'
+            }`
+          : undefined
+      }
+      rows={outcome.nodes.map((node) => {
+        const { text, tone } = statusWords(node.status, alreadyLabel);
+        return {
+          key: node.nodeId,
+          name: node.nodeName,
+          count: destructive && node.affected != null ? node.affected.toLocaleString() : undefined,
+          status: text,
+          tone,
+          detail: node.error,
+        };
+      })}
+    />
+  );
+}
+
+/** One node's contribution, already in the words the caller's command uses. */
+export interface OutcomeRow {
+  key: string;
+  name: string;
+  /** A right-aligned figure, when the command has one worth comparing between nodes. */
+  count?: string;
+  status: string;
+  tone?: 'warning' | 'danger';
+  /** A failure's reason, or anything else that needs a second line. */
+  detail?: string | null;
+}
+
+/**
+ * The per-node result as a shape, without an opinion about what the command was.
+ *
+ * <p>{@link NodeOutcomeSummary} is this with the lifecycle vocabulary; the SQL
+ * Console is this with a query's. Both go through here so a fan-out result reads
+ * the same wherever it appears — which is the point of the house rule, and is
+ * lost the moment a second screen re-implements the layout with its own spacing.
+ */
+export function OutcomeSummary({
+  verdict,
+  verdictTone,
+  total,
+  rows,
+}: {
+  verdict: string;
+  verdictTone?: 'warning' | 'danger';
+  total?: string;
+  rows: OutcomeRow[];
+}) {
+  return (
     <div className={classes.summary}>
       <div className={classes.headline}>
-        <Text size="sm" className={classes.verdict} data-tone={verdict.tone}>
-          {verdict.text}
+        <Text size="sm" className={classes.verdict} data-tone={verdictTone}>
+          {verdict}
         </Text>
-        {destructive ? (
+        {total ? (
           <Text size="xs" className={classes.total}>
-            {outcome.dryRun ? `${verbFuture} ` : `${verbPast} `}
-            {outcome.totalAffected.toLocaleString()} {countNoun}
-            {outcome.totalAffected === 1 ? '' : 's'}
+            {total}
           </Text>
         ) : null}
       </div>
 
       <div className={classes.rows}>
-        {outcome.nodes.map((node) => (
-          <NodeRow
-            key={node.nodeId}
-            node={node}
-            destructive={destructive}
-            alreadyLabel={alreadyLabel}
-          />
+        {rows.map((row) => (
+          <div key={row.key}>
+            <div className={classes.row}>
+              <Text size="sm" className={classes.node}>
+                {row.name}
+              </Text>
+              <div className={classes.state}>
+                {row.count != null ? (
+                  <Text size="xs" className={classes.count}>
+                    {row.count}
+                  </Text>
+                ) : null}
+                <Text size="xs" className={classes.status} data-tone={row.tone}>
+                  {row.status}
+                </Text>
+              </div>
+            </div>
+            {row.detail ? (
+              <Text size="xs" className={classes.error}>
+                {row.detail}
+              </Text>
+            ) : null}
+          </div>
         ))}
       </div>
     </div>
-  );
-}
-
-function NodeRow({
-  node,
-  destructive,
-  alreadyLabel,
-}: {
-  node: NodeOutcomeView;
-  destructive: boolean;
-  alreadyLabel?: string;
-}) {
-  const { text, tone } = statusWords(node.status, alreadyLabel);
-  return (
-    <>
-      <div className={classes.row}>
-        <Text size="sm" className={classes.node}>
-          {node.nodeName}
-        </Text>
-        <div className={classes.state}>
-          {destructive && node.affected != null ? (
-            <Text size="xs" className={classes.count}>
-              {node.affected.toLocaleString()}
-            </Text>
-          ) : null}
-          <Text size="xs" className={classes.status} data-tone={tone}>
-            {text}
-          </Text>
-        </div>
-      </div>
-      {node.error ? (
-        <Text size="xs" className={classes.error}>
-          {node.error}
-        </Text>
-      ) : null}
-    </>
   );
 }
 

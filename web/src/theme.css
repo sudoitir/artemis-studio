@@ -56,6 +56,22 @@
   --as-grid-row-hover: var(--mantine-color-default-hover);
   --as-grid-num: var(--as-text);
   --as-grid-stale: var(--as-text-dimmed);
+  /* A row a live tail has just delivered. A tint, not a text colour: it fades out
+     on its own, and it is never the only signal that a row is new — the row also
+     enters at the head of the table and the tail's counter moves. Low enough alpha
+     that the body text over it keeps its contrast: measured, dimmed text on this
+     tint is 4.56:1 and body text 7.97:1, both over the AA floor. 0.16 was visibly
+     nicer and put dimmed text at 4.21:1, which is not a trade a console makes. */
+  --as-grid-row-fresh: rgba(77, 171, 247, 0.12);
+
+  /* SQL Console editor (CodeMirror). Four token roles, no more — the dialect has
+     keywords, strings, numbers and identifiers, and an identifier reads as body
+     text on purpose so the eye lands on what the operator typed, not on syntax.
+     Measured on the dark body: 6.96:1, 9.57:1, 5.12:1. */
+  --as-code-keyword: var(--mantine-color-blue-4);
+  --as-code-string: var(--mantine-color-teal-4);
+  --as-code-number: var(--mantine-color-violet-4);
+  --as-code-comment: var(--as-text-dimmed);
 
   /* Topology graph (React Flow). */
   --as-graph-node-bg: var(--mantine-color-body);
@@ -115,6 +131,13 @@
   --as-alert-dot: var(--mantine-color-red-7);
   --as-rr-failed: var(--mantine-color-red-7);
   --as-chart-2: var(--mantine-color-blue-7);
+  --as-grid-row-fresh: rgba(28, 126, 214, 0.1);
+  /* Editor tokens are body text, so the AA 4.5:1 floor applies to all three.
+     The dark-scheme steps measure 1.80–3.36:1 on white, so none of them can be
+     reused; these are the first steps down each ramp that clear the floor. */
+  --as-code-keyword: var(--mantine-color-blue-8); /* 5.02:1 on white */
+  --as-code-string: var(--mantine-color-teal-9); /* 5.00:1 on white */
+  --as-code-number: var(--mantine-color-violet-9); /* 7.12:1 on white */
   /* Inverted for a light surface: prominence is darkness here, not brightness. */
   --as-chart-seq-1: var(--mantine-color-blue-6);
   --as-chart-seq-2: var(--mantine-color-blue-7);

@@ -56,6 +56,8 @@ interface VirtualTableProps<T> {
   onRowClick?: (row: T) => void;
   rowKey: (row: T) => string;
   emptyLabel?: React.ReactNode;
+  /** An extra class per row, for state the caller owns — a live tail's fresh rows. */
+  rowClassName?: (row: T) => string | undefined;
   /** Opt-in leading checkbox column. Selection state is owned by the caller (ephemeral React state). */
   selectable?: boolean;
   selected?: ReadonlySet<string>;
@@ -87,6 +89,7 @@ export function VirtualTable<T>({
   onRowClick,
   rowKey,
   emptyLabel,
+  rowClassName,
   selectable,
   selected,
   onToggleRow,
@@ -261,7 +264,7 @@ export function VirtualTable<T>({
                 role="row"
                 aria-rowindex={vi.index + 2}
                 data-selected={selected?.has(key) || undefined}
-                className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ""}`}
+                className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ""} ${rowClassName?.(original) ?? ""}`}
                 onClick={onRowClick ? () => onRowClick(original) : undefined}
                 style={{ transform: `translateY(${vi.start}px)` }}
               >

@@ -1,0 +1,56 @@
+/* The plan, stated before the query runs. One strip, scanned left to right:
+   where it will read, what it will cost, and what it cannot promise. Colour
+   appears only on a notice — a cheap plan against a covered queue is
+   monochrome, like every other healthy view in the console. */
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.25rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.label {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.value {
+  color: var(--as-text);
+  font-size: var(--mantine-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A scan is the one fact on this strip that costs the broker something. It is
+   never the only signal — the word "scan" is right there — but it is worth the
+   eye landing on it. */
+.value[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.predicates {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.predicate {
+  font-family: var(--mantine-font-family-monospace);
+  color: var(--as-text);
+}

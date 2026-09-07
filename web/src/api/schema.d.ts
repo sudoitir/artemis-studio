@@ -260,6 +260,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/sql/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/sql/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/sql/index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_6"];
+        put?: never;
+        post: operations["create_5"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/rr/expectations": {
         parameters: {
             query?: never;
@@ -491,9 +539,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -564,6 +612,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/sql/index/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_3"];
+        options?: never;
+        head?: never;
+        patch: operations["update_3"];
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/queues/{queueName}": {
         parameters: {
             query?: never;
@@ -619,7 +683,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -654,7 +718,7 @@ export interface paths {
         get: operations["get"];
         put?: never;
         post?: never;
-        delete: operations["delete_3"];
+        delete: operations["delete_4"];
         options?: never;
         head?: never;
         patch?: never;
@@ -668,6 +732,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["topology"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/sql/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stream_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -843,7 +923,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -939,7 +1019,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1070,7 +1150,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["delete_4"];
+        delete: operations["delete_5"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1380,6 +1460,102 @@ export interface components {
             replicationBehind: boolean;
             notes: string[];
         };
+        /** @description Which indexed row to look for on the live broker. */
+        VerifyRequest: {
+            /** Format: uuid */
+            nodeId?: string;
+            queueName?: string;
+            /** Format: int64 */
+            messageId?: number;
+            /** Format: int64 */
+            timestamp?: number;
+        };
+        /** @description Whether an indexed row is still on the broker. */
+        VerifyView: {
+            /** @description PRESENT, GONE or UNKNOWN. UNKNOWN is not GONE: a read that could not settle the question is never reported as an absence. */
+            presence?: string;
+            detail?: string;
+        };
+        /** @description A query to plan or run. */
+        SqlQueryRequest: {
+            sql?: string;
+        };
+        /** @description Something true about a plan or result that changes how it should be read. */
+        NoticeView: {
+            kind?: string;
+            detail?: string;
+        };
+        /** @description What a query will do, worked out without contacting a broker. */
+        PlanView: {
+            /** @description BROKER or INDEX — which backend will answer. */
+            source?: string;
+            /** @description The queue-and-node pairs the query will read. */
+            targets?: components["schemas"]["TargetView"][];
+            /** @description The JMS selector the broker will evaluate, if any. */
+            selector?: string;
+            /** @description Whether any predicate forces messages to be read and examined. */
+            requiresScan?: boolean;
+            /** @description The predicates the broker evaluates. These cost nothing. */
+            pushedDown?: string[];
+            /** @description The predicates Studio evaluates. These cost a scan. */
+            scanned?: string[];
+            /**
+             * Format: int64
+             * @description How many messages the query is expected to examine.
+             */
+            estimatedMessagesExamined?: number;
+            /**
+             * Format: int32
+             * @description The row limit that will actually apply, after the server cap.
+             */
+            effectiveLimit?: number;
+            /** @description Everything true about this plan the operator has to be told. */
+            notices?: components["schemas"]["NoticeView"][];
+        };
+        TargetView: {
+            /** Format: uuid */
+            nodeId?: string;
+            nodeName?: string;
+            queueName?: string;
+            address?: string;
+            /** Format: int64 */
+            messageCount?: number;
+        };
+        /** @description A request to start capturing a queue's messages into the index. */
+        IndexSubscriptionRequest: {
+            queuePattern?: string;
+            /** Format: int32 */
+            retentionDays?: number;
+            /** Format: int64 */
+            intervalMs?: number;
+            enabled?: boolean;
+        };
+        /** @description One index subscription and what it currently holds. */
+        IndexSubscriptionView: {
+            /** Format: uuid */
+            id?: string;
+            queuePattern?: string;
+            /** Format: int32 */
+            retentionDays?: number;
+            /** Format: int64 */
+            intervalMs?: number;
+            captureFrom?: string;
+            createdAt?: string;
+            createdBy?: string;
+            enabled?: boolean;
+            /**
+             * Format: int64
+             * @description How many messages this subscription is currently holding.
+             */
+            messagesHeld?: number;
+            /**
+             * Format: int64
+             * @description Approximate bytes of message payload held.
+             */
+            bytesHeld?: number;
+            /** @description The oldest observation still held, or null when nothing is held. */
+            oldestObservedAt?: string;
+        };
         CreateExpectationRequest: {
             requestAddress: string;
             replyAddresses?: string[];
@@ -1602,6 +1778,119 @@ export interface components {
             updatedAt: string;
             /** Format: uuid */
             environmentId?: string | null;
+        };
+        /** @description A limit the query ran into, which is why it stopped. */
+        BoundView: {
+            kind?: string;
+            /** Format: int64 */
+            value?: number;
+        };
+        ProblemDetail: {
+            /** Format: uri */
+            type?: string;
+            title?: string;
+            /** Format: int32 */
+            status?: number;
+            detail?: string;
+            /** Format: uri */
+            instance?: string;
+            properties?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description A finished query, without its rows: those arrived as row frames. */
+        ResultView: {
+            /** @description Every target's outcome, including the ones that did not answer. */
+            nodes?: components["schemas"]["SqlNodeOutcomeView"][];
+            /** @description Empty when the query ran to completion. */
+            boundsReached?: components["schemas"]["BoundView"][];
+            notices?: components["schemas"]["NoticeView"][];
+            /** @description True when a bound was hit or a node did not answer. */
+            partial?: boolean;
+            plan?: components["schemas"]["PlanView"];
+        };
+        /** @description A message, and where it came from. */
+        RowView: {
+            /**
+             * Format: uuid
+             * @description The node holding the message. Identity is (node, queue, messageId).
+             */
+            nodeId?: string;
+            nodeName?: string;
+            queueName?: string;
+            address?: string;
+            /** Format: int64 */
+            messageId?: number;
+            /** Format: int32 */
+            messageType?: number;
+            durable?: boolean;
+            /** Format: int32 */
+            priority?: number;
+            /** Format: int64 */
+            timestamp?: number;
+            /** Format: int64 */
+            expiration?: number;
+            /** Format: int64 */
+            size?: number;
+            jmsType?: string;
+            correlationId?: string;
+            groupId?: string;
+            userId?: string;
+            replyTo?: string;
+            body?: string;
+            /** @description The management channel cut this body, so a body predicate may be a false negative. */
+            bodyTruncated?: boolean;
+            properties?: {
+                [key: string]: unknown;
+            };
+            /** @description BROKER or INDEX — an INDEX row may have been consumed since. */
+            source?: string;
+            /** @description When the index observed it. Null for a live broker row. */
+            observedAt?: string;
+            /** @description When the index last still saw it on its queue. */
+            lastSeenAt?: string;
+        };
+        /** @description What one node contributed, including nothing and why. */
+        SqlNodeOutcomeView: {
+            /** Format: uuid */
+            nodeId?: string;
+            nodeName?: string;
+            queueName?: string;
+            /** @description ANSWERED, FAILED or NOT_READ. */
+            status?: string;
+            /** Format: int64 */
+            examined?: number;
+            /** Format: int64 */
+            matched?: number;
+            /** @description JOLOKIA or CORE — the channel that served this node. */
+            servedBy?: string;
+            detail?: string;
+        };
+        /** @description One frame on the query stream. The SSE event name says which field is set. */
+        StreamFrameView: {
+            row?: components["schemas"]["RowView"];
+            node?: components["schemas"]["SqlNodeOutcomeView"];
+            done?: components["schemas"]["ResultView"];
+            tail?: components["schemas"]["TailStatusView"];
+            error?: components["schemas"]["ProblemDetail"];
+        };
+        /** @description What a live tail has seen, and what it can prove it missed. */
+        TailStatusView: {
+            /**
+             * Format: int64
+             * @description Messages enqueued on the tailed queues since the tail started.
+             */
+            enqueued?: number;
+            /**
+             * Format: int64
+             * @description Rows this tail has delivered.
+             */
+            shown?: number;
+            /** Format: int64 */
+            polls?: number;
+            lastPollAt?: string;
+            /** @description True when the query has no predicate, so enqueued minus shown is exactly the number that passed through unobserved. When false the difference also holds messages that simply did not match. */
+            everyMessageMatches?: boolean;
         };
         ResourceQuery: {
             q?: string;
@@ -2207,6 +2496,11 @@ export interface components {
             clusterId: string;
             /** Format: int64 */
             firing: number;
+        };
+        /** @description How many captured messages the deletion destroyed. */
+        DeletedView: {
+            /** Format: int64 */
+            messagesDestroyed?: number;
         };
     };
     responses: never;
@@ -2868,6 +3162,106 @@ export interface operations {
             };
         };
     };
+    verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerifyView"];
+                };
+            };
+        };
+    };
+    plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SqlQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PlanView"];
+                };
+            };
+        };
+    };
+    list_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IndexSubscriptionView"][];
+                };
+            };
+        };
+    };
+    create_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IndexSubscriptionView"];
+                };
+            };
+        };
+    };
     listExpectations: {
         parameters: {
             query?: never;
@@ -3386,7 +3780,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -3406,7 +3800,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -3510,6 +3904,56 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    delete_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DeletedView"];
+                };
+            };
+        };
+    };
+    update_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IndexSubscriptionView"];
                 };
             };
         };
@@ -3621,7 +4065,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -3683,7 +4127,7 @@ export interface operations {
             };
         };
     };
-    delete_3: {
+    delete_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -3721,6 +4165,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TopologyView"];
+                };
+            };
+        };
+    };
+    stream_1: {
+        parameters: {
+            query?: {
+                sql?: string;
+                tail?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A stream of row, node, done, tail and failed frames. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["StreamFrameView"];
                 };
             };
         };
@@ -3973,7 +4442,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: {
                 type?: string;
@@ -4120,7 +4589,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: {
                 user?: string;
@@ -4301,7 +4770,7 @@ export interface operations {
             };
         };
     };
-    delete_4: {
+    delete_5: {
         parameters: {
             query?: never;
             header?: never;

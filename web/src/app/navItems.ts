@@ -13,6 +13,7 @@ import {
   IconSend,
   IconSettings,
   IconSitemap,
+  IconTerminal2,
   IconUsers,
   type Icon,
 } from '@tabler/icons-react';
@@ -30,6 +31,7 @@ export interface NavItemDef {
 export const NAV_ITEMS: NavItemDef[] = [
   { path: 'topology', label: 'Topology', icon: IconSitemap },
   { path: 'queues', label: 'Queues', icon: IconListDetails },
+  { path: 'sql', label: 'SQL Console', icon: IconTerminal2 },
   { path: 'metrics', label: 'Metrics', icon: IconChartLine },
   { path: 'alerts', label: 'Alerts', icon: IconBell },
   { path: 'addresses', label: 'Addresses', icon: IconAt },

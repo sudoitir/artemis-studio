@@ -25,6 +25,7 @@ import {
 import { RegisterClusterButton } from '../clusters/RegisterCluster.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
 import { NotificationChannels } from './NotificationChannels.tsx';
+import { IndexSubscriptions } from './IndexSubscriptions.tsx';
 
 /**
  * The settings form is generated from the API, not from a list kept here. Every
@@ -291,6 +292,18 @@ export function SettingsView() {
           expand with the reason and the exact <code>broker.xml</code> change to close the gap.
         </Text>
         {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} /> : null}
+      </div>
+
+      <Divider />
+
+      <div>
+        <Title order={3}>Message index</Title>
+        <Text size="sm" c="dimmed" mb="sm">
+          Which queues the SQL Console keeps a searchable copy of, so a question can be answered
+          after the message has been consumed. Off by default: an index holds message payload, and
+          starting one is a deliberate, audited choice with a retention period attached.
+        </Text>
+        <IndexSubscriptions />
       </div>
 
       <Divider />
