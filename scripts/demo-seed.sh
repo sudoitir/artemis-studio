@@ -138,6 +138,22 @@ say "building a dead-letter backlog"
 produce artemis-primary DLQ 240 0
 produce artemis-secondary DLQ 90 0
 
+say "sending a few JSON orders, so the SQL Console has a body to search"
+# The CLI's --message-size produces filler, and a body predicate over filler
+# demonstrates nothing. These go through Studio's own send-message endpoint —
+# the same audited path an operator uses — so the console's headline query,
+# `body->>'orderId' = ...`, has something real to find.
+for id in 4471 4472 4473 4474 4475 4476 4477 4478; do
+  tenant=$([ $((id % 2)) -eq 0 ] && echo acme || echo globex)
+  api POST "/clusters/$cluster/queues/ORDERS.inbound/messages" -d "{
+    \"type\": 3,
+    \"durable\": true,
+    \"body\": \"{\\\"orderId\\\": \\\"$id\\\", \\\"tenant\\\": \\\"$tenant\\\", \\\"total\\\": $((id % 97 + 12)).50, \\\"currency\\\": \\\"EUR\\\"}\",
+    \"headers\": {\"priority\": 9},
+    \"properties\": {\"tenant\": \"$tenant\", \"orderId\": \"$id\"}
+  }" >/dev/null || true
+done
+
 say "seeding governance: environments, a scoped role, and two operators"
 # The administration screen is only legible with more than one account in it, and
 # a scoped grant is the thing that is hard to picture from a description.

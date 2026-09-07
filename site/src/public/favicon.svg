@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Artemis Studio">
+  <!-- Two live nodes and their backups, which is the product in one glyph. -->
+  <rect width="32" height="32" rx="7" fill="#0b1418"/>
+  <g stroke="#15aabf" stroke-width="2" stroke-linecap="round">
+    <path d="M9 11h14"/>
+    <path d="M9 11v10"/>
+    <path d="M23 11v10"/>
+  </g>
+  <circle cx="9" cy="11" r="3.2" fill="#3bc9db"/>
+  <circle cx="23" cy="11" r="3.2" fill="#3bc9db"/>
+  <circle cx="9" cy="21" r="3.2" fill="#0b1418" stroke="#15aabf" stroke-width="2"/>
+  <circle cx="23" cy="21" r="3.2" fill="#0b1418" stroke="#15aabf" stroke-width="2"/>
+</svg>

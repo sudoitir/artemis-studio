@@ -175,8 +175,9 @@ export function SqlConsoleView() {
 
       {gate.kind === 'allowed' && gate.uncertain ? (
         <Alert color="gray" variant="light" title="Not yet established for this connection">
-          No management read has been attempted here yet, so Studio cannot say for certain that
-          browsing will work. The console is offered anyway — the first query settles it.
+          No message operation has been attempted here yet, so Studio cannot say for certain that
+          browsing will work. The console is offered anyway rather than blocked on the absence of
+          evidence.
         </Alert>
       ) : null}
 

@@ -62,10 +62,15 @@
   color: var(--as-text-dimmed);
 }
 
+/* The box is pinned to the slot `layout.ts` reserved for it (NODE_W x NODE_H).
+   Its content is variable — a name can wrap, an unreachable endpoint carries an
+   error sentence — and the layout's pixels are not negotiable, so the two
+   variable lines clamp instead of pushing the box over the standby below it. */
 .node {
   position: relative;
   z-index: 1;
-  inline-size: 190px;
+  inline-size: 260px;
+  block-size: 132px;
   padding: 10px 12px;
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-sm);
@@ -73,6 +78,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
 }
 
 /* React Flow owns `transform` on its own node wrapper, so the promotion
@@ -111,6 +117,12 @@
 .name {
   font-weight: 600;
   font-size: var(--mantine-font-size-sm);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -189,8 +201,14 @@
 
 .addr {
   font-size: 11px;
+  line-height: 1.35;
   color: var(--as-text-dimmed);
   word-break: break-all;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .handle {
