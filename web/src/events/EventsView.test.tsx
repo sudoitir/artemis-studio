@@ -56,7 +56,7 @@ function event(over: Record<string, unknown> = {}) {
 }
 
 describe('EventsView', () => {
-  it('lists events and expands a row to show the raw props', async () => {
+  it('lists events and opens a row to show the raw props', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
       http.get('*/api/v1/clusters/c1/events', () =>
@@ -74,7 +74,10 @@ describe('EventsView', () => {
     renderWithProviders(<EventsView />);
 
     expect(await screen.findByText('CONSUMER_CREATED')).toBeInTheDocument();
-    await user.click(screen.getByText('CONSUMER_CREATED'));
+    // The grid is virtualised, so the payload lives in a drawer rather than in a
+    // row expanded underneath. Row 1 is the header.
+    const rows = await screen.findAllByRole('row');
+    await user.click(rows[1]);
     expect(await screen.findByText(/_AMQ_Address/)).toBeInTheDocument();
   });
 

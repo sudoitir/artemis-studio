@@ -4,6 +4,7 @@ set shell := ["bash", "-uc"]
 set dotenv-load := true
 
 compose_dev  := "docker compose -f deploy/compose/compose.dev.yaml"
+compose_demo := "docker compose -f deploy/compose/compose.dev.yaml -f deploy/compose/compose.demo.yaml"
 compose_prod := "docker compose -f deploy/compose/compose.prod.yaml"
 mvn          := "./mvnw"
 npm          := "npm --prefix web"
@@ -79,10 +80,24 @@ dev-up:
     @{{compose_dev}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
         || echo "→ admin account already exists (reset with 'just dev-down' then 'just dev-up')"
 
+# Dev stack plus a second live/backup pair, filled with realistic traffic.
+# Needs the admin password `just dev-up` printed: ADMIN_PASSWORD=... just demo
+[group('develop')]
+demo:
+    {{compose_demo}} up --build -d
+    @echo "→ waiting for all four brokers…"
+    @timeout 180 bash -c 'until {{compose_demo}} ps --format json | grep -c healthy | grep -qv "^[0-3]$"; do sleep 3; done' || true
+    COMPOSE="{{compose_demo}}" ./scripts/demo-seed.sh
+
+# Capture the README screenshots against whatever is running on :8080.
+[group('develop')]
+shots:
+    {{npm}} run shots
+
 # Stop the dev stack and delete its volumes.
 [group('develop')]
 dev-down:
-    {{compose_dev}} down -v
+    {{compose_demo}} down -v
 
 # Tail dev stack logs (all services, or `just dev-logs studio`).
 [group('develop')]

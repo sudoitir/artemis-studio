@@ -1,28 +1,48 @@
-import { Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
-import dayjs from 'dayjs';
 
 import type { MetricSeries } from '../api/client.ts';
+import { CHART_HEIGHT } from './ChartPanel.tsx';
+import {
+  formatExact,
+  gridProps,
+  labelFormatter,
+  mergeByTimestamp,
+  timeAxisProps,
+  yAxisProps,
+} from './axis.ts';
+import type { MetricRange } from './ranges.ts';
 
 /** Consumer count, step-shaped — a drop to zero next to a depth climb is the classic incident. */
-export function ConsumersChart({ series, syncId }: { series: MetricSeries | undefined; syncId: string }) {
-  if (!series || series.points.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No consumer samples in this window yet.
-      </Text>
-    );
-  }
-  const data = series.points.map((p) => ({ ts: dayjs(p.ts).format('MMM D HH:mm'), consumers: p.value }));
+export function ConsumersChart({
+  series,
+  range,
+  from,
+  to,
+  syncId,
+}: {
+  series: MetricSeries | undefined;
+  range: MetricRange;
+  from: number;
+  to: number;
+  syncId: string;
+}) {
+  const data = mergeByTimestamp([{ name: 'consumers', series }]);
+
   return (
     <AreaChart
-      h={220}
+      h={CHART_HEIGHT}
       data={data}
       dataKey="ts"
       curveType="step"
       connectNulls={false}
+      withDots={false}
       areaChartProps={{ syncId }}
-      series={[{ name: 'consumers', color: 'var(--as-chart-1)' }]}
+      valueFormatter={formatExact}
+      xAxisProps={timeAxisProps(range, from, to)}
+      yAxisProps={yAxisProps({ integral: true })}
+      gridProps={gridProps()}
+      tooltipProps={{ labelFormatter: (label) => labelFormatter(range)(Number(label)) }}
+      series={[{ name: 'consumers', label: 'Consumers', color: 'var(--as-chart-1)' }]}
       gridAxis="y"
     />
   );

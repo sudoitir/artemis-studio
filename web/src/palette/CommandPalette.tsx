@@ -39,7 +39,7 @@ export function CommandPalette() {
             id: 'refresh-data',
             label: 'Refresh data',
             description: 'Refetch everything on this screen',
-            onClick: () => refreshActiveQueries(qc),
+            onClick: () => void refreshActiveQueries(qc),
           },
           {
             id: 'toggle-auto-refresh',

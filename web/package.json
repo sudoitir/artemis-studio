@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "shots": "node --experimental-strip-types scripts/shots.ts"
   },
   "dependencies": {
     "@mantine/charts": "9.6.0",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.37.0",
+    "@playwright/test": "^1.63.0",
     "@tanstack/router-plugin": "1.168.35",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.3",

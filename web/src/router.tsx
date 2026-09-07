@@ -167,6 +167,8 @@ function validateRrSearch(raw: Record<string, unknown>): Record<string, unknown>
   for (const k of ['tab', 'state', 'address'] as const) {
     if (typeof raw[k] === 'string' && raw[k]) out[k] = raw[k];
   }
+  const page = Number(raw.page);
+  if (Number.isFinite(page) && page > 1) out.page = Math.floor(page);
   return out;
 }
 
@@ -182,10 +184,15 @@ export interface MetricsSearch {
   range?: MetricRange;
   from?: string;
   to?: string;
+  /** Queue name to scope the series to; absent means cluster-wide. */
+  subject?: string;
 }
 
 function validateMetricsSearch(raw: Record<string, unknown>): MetricsSearch {
   const out: MetricsSearch = {};
+  // The scope survives a range change and an absolute window alike, so it is read
+  // before either branch returns.
+  if (typeof raw.subject === 'string' && raw.subject) out.subject = raw.subject;
   if (typeof raw.from === 'string' && raw.from && typeof raw.to === 'string' && raw.to) {
     out.from = raw.from;
     out.to = raw.to;

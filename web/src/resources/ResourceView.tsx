@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -18,6 +18,7 @@ import {
   type SessionView,
 } from '../api/client.ts';
 import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { Pager } from '../grid/Pager.tsx';
 import type { ApiError } from '../api/client.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
 
@@ -204,7 +205,6 @@ export function ResourceView({ kind }: { kind: Kind }) {
 
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <Stack gap="sm">
@@ -216,10 +216,6 @@ export function ResourceView({ kind }: { kind: Kind }) {
           w={280}
           size="xs"
         />
-        <Text size="xs" c="dimmed">
-          {total} {config.noun}
-          {total === 1 ? '' : 's'} · page {page} of {lastPage}
-        </Text>
       </Group>
 
       {query.isPending && rows.length === 0 ? (
@@ -244,21 +240,13 @@ export function ResourceView({ kind }: { kind: Kind }) {
         />
       )}
 
-      {lastPage > 1 ? (
-        <Group justify="flex-end" gap="xs">
-          <Button size="xs" variant="default" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            Previous
-          </Button>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page >= lastPage}
-            onClick={() => setPage(page + 1)}
-          >
-            Next
-          </Button>
-        </Group>
-      ) : null}
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onChange={setPage}
+        label={`${config.noun}s`}
+      />
     </Stack>
   );
 }

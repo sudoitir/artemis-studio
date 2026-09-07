@@ -2,15 +2,13 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
-  Button,
   Code,
-  Collapse,
+  Drawer,
   Group,
   Select,
   Skeleton,
   Stack,
   Switch,
-  Table,
   Text,
   TextInput,
   Title,
@@ -21,6 +19,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster, useEvents, type BrokerEventView } from '../api/client.ts';
 import { useClusterStream } from '../api/stream.ts';
+import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { Pager } from '../grid/Pager.tsx';
 import styles from './EventsView.module.css';
 
 const LIVE_BUFFER_MAX = 500;
@@ -55,57 +55,46 @@ function family(type: string): { word: string; color: string } {
   return { word: 'other', color: 'gray' };
 }
 
-function Row({ e }: { e: BrokerEventView }) {
-  const [open, setOpen] = useState(false);
-  const fam = family(e.type);
-  const hasProps = e.props && Object.keys(e.props).length > 0;
-  return (
-    <>
-      <Table.Tr
-        onClick={hasProps ? () => setOpen((v) => !v) : undefined}
-        style={{ cursor: hasProps ? 'pointer' : undefined }}
-      >
-        <Table.Td>
-          <Text size="xs">
-            {new Date(e.occurredAt).toISOString().replace('T', ' ').replace('.000Z', 'Z')}
-          </Text>
-        </Table.Td>
-        <Table.Td>
-          <Group gap={6} wrap="nowrap">
-            <Badge size="xs" variant="light" color={fam.color}>
-              {fam.word}
-            </Badge>
-            <Text size="xs" ff="monospace">
-              {e.type}
-            </Text>
-          </Group>
-        </Table.Td>
-        <Table.Td>
-          <Text size="xs">{e.address ?? '—'}</Text>
-        </Table.Td>
-        <Table.Td>
-          <Text size="xs">
-            {e.consumerName ?? e.sessionName ?? e.connectionName ?? e.routingName ?? '—'}
-          </Text>
-        </Table.Td>
-        <Table.Td>
-          <Text size="xs">{e.remoteAddress ?? '—'}</Text>
-        </Table.Td>
-      </Table.Tr>
-      {hasProps ? (
-        <Table.Tr>
-          <Table.Td colSpan={5} p={0}>
-            <Collapse expanded={open}>
-              <Code block className={styles.props}>
-                {JSON.stringify(e.props, null, 2)}
-              </Code>
-            </Collapse>
-          </Table.Td>
-        </Table.Tr>
-      ) : null}
-    </>
-  );
+/** UTC, second precision — a broker event's useful comparison is to another one. */
+function occurredAt(e: BrokerEventView): string {
+  return new Date(e.occurredAt).toISOString().replace('T', ' ').replace('.000Z', 'Z');
 }
+
+function subjectOf(e: BrokerEventView): string {
+  return e.consumerName ?? e.sessionName ?? e.connectionName ?? e.routingName ?? '—';
+}
+
+/**
+ * The props payload used to expand inline under its row. A virtualised grid has
+ * no row to expand under — and a drawer is the better home anyway: the JSON is
+ * frequently taller than the viewport, which an inline `Collapse` handled by
+ * pushing every row below it off the screen.
+ */
+const columns: GridColumn<BrokerEventView>[] = [
+  { id: 'time', header: 'Time', accessor: occurredAt, width: 200 },
+  {
+    id: 'type',
+    header: 'Type',
+    accessor: (e) => e.type,
+    width: 280,
+    cell: (e) => {
+      const fam = family(e.type);
+      return (
+        <Group gap={6} wrap="nowrap">
+          <Badge size="xs" variant="light" color={fam.color}>
+            {fam.word}
+          </Badge>
+          <Text size="xs" ff="monospace">
+            {e.type}
+          </Text>
+        </Group>
+      );
+    },
+  },
+  { id: 'address', header: 'Address', accessor: (e) => e.address ?? '—' },
+  { id: 'subject', header: 'Subject', accessor: subjectOf },
+  { id: 'remote', header: 'Remote', accessor: (e) => e.remoteAddress ?? '—', width: 180 },
+];
 
 /** The events screen: this cluster's activemq.notifications history, newest first. */
 export function EventsView() {
@@ -124,6 +113,7 @@ export function EventsView() {
   const [debouncedAddress] = useDebouncedValue(address, 250);
   const page = search.page ?? 1;
 
+  const [selected, setSelected] = useState<BrokerEventView | null>(null);
   const [live, setLive] = useState(true);
   const [buffer, setBuffer] = useState<BrokerEventView[]>([]);
   const onEvent = useCallback((e: BrokerEventView) => {
@@ -148,7 +138,6 @@ export function EventsView() {
 
   const total = query.data?.count ?? 0;
   const dropped = query.data?.dropped ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // On page 1 with no filter, merge the live buffer over the fetched history,
   // newest first, de-duplicated on seq.
@@ -192,9 +181,6 @@ export function EventsView() {
             checked={live}
             onChange={(e) => setLive(e.currentTarget.checked)}
           />
-          <Text size="xs" c="dimmed">
-            {total} event{total === 1 ? '' : 's'} · page {page} of {lastPage}
-          </Text>
         </Group>
       </Group>
 
@@ -243,59 +229,53 @@ export function EventsView() {
           cluster's brokers shows up here as it happens.
         </Text>
       ) : (
-        <Table.ScrollContainer minWidth={720} type="native">
-          <Table stickyHeader highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Time</Table.Th>
-                <Table.Th>Type</Table.Th>
-                <Table.Th>Address</Table.Th>
-                <Table.Th>Subject</Table.Th>
-                <Table.Th>Remote</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((e) => (
-                <Row key={e.seq} e={e} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <VirtualTable
+          columns={columns}
+          data={rows}
+          rowKey={(e) => String(e.seq)}
+          onRowClick={setSelected}
+        />
       )}
 
-      {lastPage > 1 ? (
-        <Group justify="flex-end" gap="xs">
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page <= 1}
-            onClick={() =>
-              navigate({
-                to: '.',
-                search: (p: Record<string, unknown>) => ({
-                  ...p,
-                  page: page - 1 > 1 ? page - 1 : undefined,
-                }),
-              })
-            }
-          >
-            Previous
-          </Button>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page >= lastPage}
-            onClick={() =>
-              navigate({
-                to: '.',
-                search: (p: Record<string, unknown>) => ({ ...p, page: page + 1 }),
-              })
-            }
-          >
-            Next
-          </Button>
-        </Group>
-      ) : null}
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onChange={(next) =>
+          navigate({
+            to: '.',
+            search: (p: Record<string, unknown>) => ({ ...p, page: next > 1 ? next : undefined }),
+          })
+        }
+        label="events"
+      />
+
+      <Drawer
+        opened={selected !== null}
+        onClose={() => setSelected(null)}
+        position="right"
+        size="lg"
+        title={selected ? selected.type : ''}
+      >
+        {selected ? (
+          <Stack gap="xs">
+            <Text size="xs" c="dimmed">
+              {occurredAt(selected)} · {selected.address ?? 'no address'} ·{' '}
+              {subjectOf(selected)}
+            </Text>
+            {selected.props && Object.keys(selected.props).length > 0 ? (
+              <Code block className={styles.props}>
+                {JSON.stringify(selected.props, null, 2)}
+              </Code>
+            ) : (
+              <Text size="sm" c="dimmed">
+                This notification carried no properties.
+              </Text>
+            )}
+          </Stack>
+        ) : null}
+      </Drawer>
+
     </Stack>
   );
 }

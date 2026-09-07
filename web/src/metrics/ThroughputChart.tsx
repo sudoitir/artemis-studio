@@ -1,59 +1,62 @@
-import { Text } from '@mantine/core';
 import { CompositeChart } from '@mantine/charts';
-import dayjs from 'dayjs';
 
 import type { MetricSeries } from '../api/client.ts';
+import { CHART_HEIGHT } from './ChartPanel.tsx';
+import {
+  formatRate,
+  gridProps,
+  labelFormatter,
+  mergeByTimestamp,
+  timeAxisProps,
+  yAxisProps,
+} from './axis.ts';
+import type { MetricRange } from './ranges.ts';
 
 /**
  * `messagesAdded` vs `messagesAcked`, both already rates (msg/s) from the API —
- * divergence between the two lines *is* the backlog signal. The two series can
- * carry slightly different bucket sets (a metric with no samples in a bucket
- * just omits the point), so they are merged by timestamp rather than assumed
- * to line up index-for-index.
+ * divergence between the two lines *is* the backlog signal, which is why they
+ * share one axis and are never split into two panels.
  *
- * ponytail: syncId keeps cross-chart tooltips aligned by index, so a bucket
- * present in this chart but absent from a sibling chart can shift the sync by
- * one point. Acceptable for now — revisit if it's ever visibly wrong.
+ * This is also the one chart where the two series are separate identities, so it
+ * is the one that spends a colour.
  */
 export function ThroughputChart({
   added,
   acked,
+  range,
+  from,
+  to,
   syncId,
 }: {
   added: MetricSeries | undefined;
   acked: MetricSeries | undefined;
+  range: MetricRange;
+  from: number;
+  to: number;
   syncId: string;
 }) {
-  if ((!added || added.points.length === 0) && (!acked || acked.points.length === 0)) {
-    return (
-      <Text size="sm" c="dimmed">
-        No throughput samples in this window yet.
-      </Text>
-    );
-  }
-  const rows = new Map<string, { ts: string; added?: number; acked?: number }>();
-  for (const p of added?.points ?? []) {
-    const label = dayjs(p.ts).format('MMM D HH:mm');
-    rows.set(p.ts, { ...rows.get(p.ts), ts: label, added: p.value });
-  }
-  for (const p of acked?.points ?? []) {
-    const label = dayjs(p.ts).format('MMM D HH:mm');
-    rows.set(p.ts, { ...rows.get(p.ts), ts: label, acked: p.value });
-  }
-  const data = [...rows.keys()].sort().map((k) => rows.get(k)!);
+  const data = mergeByTimestamp([
+    { name: 'added', series: added },
+    { name: 'acked', series: acked },
+  ]);
 
   return (
     <CompositeChart
-      h={220}
+      h={CHART_HEIGHT}
       data={data}
       dataKey="ts"
       withLegend
       connectNulls={false}
+      withDots={false}
       composedChartProps={{ syncId }}
-      valueFormatter={(v) => `${v.toFixed(1)} msg/s`}
+      valueFormatter={(v) => `${formatRate(v)} msg/s`}
+      xAxisProps={timeAxisProps(range, from, to)}
+      yAxisProps={yAxisProps()}
+      gridProps={gridProps()}
+      tooltipProps={{ labelFormatter: (label) => labelFormatter(range)(Number(label)) }}
       series={[
-        { name: 'added', color: 'var(--as-chart-1)', type: 'line' },
-        { name: 'acked', color: 'var(--as-chart-2)', type: 'line' },
+        { name: 'added', label: 'Added', color: 'var(--as-chart-1)', type: 'line' },
+        { name: 'acked', label: 'Acked', color: 'var(--as-chart-2)', type: 'line' },
       ]}
       gridAxis="y"
     />

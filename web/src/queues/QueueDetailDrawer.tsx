@@ -1,12 +1,15 @@
 import { useMemo } from "react";
 import { Badge, Button, Drawer, Group, Stack, Table, Text } from "@mantine/core";
-import { Link, useParams } from "@tanstack/react-router";
-import dayjs from "dayjs";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 
 import { useMetrics, type QueueView } from "../api/client.ts";
 import { DepthChart } from "../metrics/DepthChart.tsx";
 import { QueueLifecycleActions } from "./QueueLifecycleActions.tsx";
 import { ThroughputChart } from "../metrics/ThroughputChart.tsx";
+import { rangeSpec } from "../metrics/ranges.ts";
+
+/** The drawer always shows the last hour; a longer view is the metrics page's job. */
+const DRAWER_RANGE = "1h" as const;
 
 /** Per-node breakdown for one queue row, its lifecycle actions, and a jump into the message browser. */
 export function QueueDetailDrawer({
@@ -17,10 +20,20 @@ export function QueueDetailDrawer({
   onClose: () => void;
 }) {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const { from, to } = useMemo(() => {
-    const now = dayjs();
-    return { from: now.subtract(1, "hour").toISOString(), to: now.toISOString() };
-  }, []);
+  const navigate = useNavigate();
+  // The drawer's own window is a fixed hour, quantized to the same bucket the
+  // metrics view uses so the two agree about where a bucket starts (ADR-0055).
+  const spec = rangeSpec(DRAWER_RANGE);
+  const { from, to, fromMs, toMs } = useMemo(() => {
+    const end = Math.floor(Date.now() / spec.stepMs) * spec.stepMs;
+    const start = end - spec.windowMs;
+    return {
+      from: new Date(start).toISOString(),
+      to: new Date(end).toISOString(),
+      fromMs: start,
+      toMs: end,
+    };
+  }, [spec.stepMs, spec.windowMs]);
   const metrics = useMetrics(
     clusterId,
     {
@@ -56,15 +69,33 @@ export function QueueDetailDrawer({
                 {queue.nodesPresent}/{queue.nodesTotal} nodes
               </Badge>
             </Group>
-            <Button
-              size="xs"
-              variant="light"
-              component={Link}
-              to={`/clusters/${clusterId}/queues/${encodeURIComponent(queue.queueName)}/messages`}
-              onClick={onClose}
-            >
-              Browse messages
-            </Button>
+            <Group gap="xs">
+              {/* Navigated rather than linked: the untyped router cannot type a
+                  search reducer on `Link`, and the whole point here is to carry
+                  `?subject=` across. */}
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => {
+                  onClose();
+                  void navigate({
+                    to: `/clusters/${clusterId}/metrics`,
+                    search: { subject: queue.queueName } as never,
+                  });
+                }}
+              >
+                History
+              </Button>
+              <Button
+                size="xs"
+                variant="light"
+                component={Link}
+                to={`/clusters/${clusterId}/queues/${encodeURIComponent(queue.queueName)}/messages`}
+                onClick={onClose}
+              >
+                Browse messages
+              </Button>
+            </Group>
           </Group>
 
           <QueueLifecycleActions clusterId={clusterId} queue={queue} onClose={onClose} />
@@ -108,13 +139,26 @@ export function QueueDetailDrawer({
             <Text size="xs" fw={600} c="dimmed">
               Depth · last hour
             </Text>
-            <DepthChart series={byName("messageCount")} syncId={syncId} />
+            <DepthChart
+              series={byName("messageCount")}
+              range={DRAWER_RANGE}
+              from={fromMs}
+              to={toMs}
+              syncId={syncId}
+            />
           </Stack>
           <Stack gap={4}>
             <Text size="xs" fw={600} c="dimmed">
               Throughput · last hour
             </Text>
-            <ThroughputChart added={byName("messagesAdded")} acked={byName("messagesAcked")} syncId={syncId} />
+            <ThroughputChart
+              added={byName("messagesAdded")}
+              acked={byName("messagesAcked")}
+              range={DRAWER_RANGE}
+              from={fromMs}
+              to={toMs}
+              syncId={syncId}
+            />
           </Stack>
         </Stack>
       ) : null}

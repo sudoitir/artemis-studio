@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { IconPlayerPause, IconPlayerPlay, IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,14 @@ import { useStreamStatus } from '../api/stream.ts';
 import { elapsedLabel, useFreshness, useNow } from './useFreshness.ts';
 
 export type FreshnessState = 'live' | 'polling' | 'reconnecting' | 'offline' | 'paused';
+
+/**
+ * How long the refresh control stays busy at minimum.
+ *
+ * A refetch that resolves in 40ms otherwise produces a flicker an operator reads
+ * as "nothing happened", and acknowledgement is the control's whole job.
+ */
+const MIN_BUSY_MS = 350;
 
 const LABELS: Record<FreshnessState, string> = {
   live: 'Live',
@@ -35,7 +43,7 @@ const LABELS: Record<FreshnessState, string> = {
  */
 export function FreshnessBar() {
   const qc = useQueryClient();
-  const { lastUpdatedAt, isFetching, hasError, observed } = useFreshness();
+  const { lastUpdatedAt, hasError, observed } = useFreshness();
   const stream = useStreamStatus();
   const paused = usePollingPaused();
   const pending = usePendingChange();
@@ -50,8 +58,35 @@ export function FreshnessBar() {
   useEffect(() => {
     const resumed = wasPaused.current && !paused;
     wasPaused.current = paused;
-    if (resumed) refreshActiveQueries(qc);
+    if (resumed) void refreshActiveQueries(qc);
   }, [paused, qc]);
+
+  // The control's busy state is the operator's refresh, not the cache's
+  // `isFetching` — that is true on every background poll, so binding to it made
+  // the icon a spinner every five seconds and the acknowledgement meaningless.
+  // The freshness label keeps reporting all fetching; that is the label's job.
+  const [refreshing, setRefreshing] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    // Reassigned on mount, not only on unmount: StrictMode mounts twice, and an
+    // `alive` left false by the first cleanup would strand the busy state on.
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  const refresh = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const settled = Promise.all([
+      refreshActiveQueries(qc),
+      new Promise((resolve) => setTimeout(resolve, MIN_BUSY_MS)),
+    ]);
+    void settled.finally(() => {
+      if (alive.current) setRefreshing(false);
+    });
+  }, [qc, refreshing]);
 
   const state: FreshnessState = paused
     ? 'paused'
@@ -72,12 +107,12 @@ export function FreshnessBar() {
     <Group gap="xs" wrap="nowrap" className={styles.bar}>
       <StateAnnouncement state={state} />
       <span className={styles.dot} data-state={state} aria-hidden="true" />
-      <Text size="xs" c="dimmed" className={styles.label}>
+      <Text size="xs" c="dimmed" className={`${styles.label} ${styles.state}`}>
         {label}
         {state === 'paused' && pending ? ' · new data available' : null}
       </Text>
       {updated && observed > 0 ? (
-        <Text size="xs" c="dimmed" className={styles.label}>
+        <Text size="xs" c="dimmed" className={`${styles.label} ${styles.elapsed}`}>
           ·{' '}
           <time dateTime={updated.toISOString()} title={updated.toLocaleString()}>
             updated {elapsedLabel(now - updated.getTime())} ago
@@ -89,15 +124,19 @@ export function FreshnessBar() {
           variant="subtle"
           size="sm"
           aria-label="Refresh data"
-          loading={isFetching}
-          onClick={() => refreshActiveQueries(qc)}
+          loading={refreshing}
+          onClick={refresh}
         >
           <IconRefresh size={16} />
         </ActionIcon>
       </Tooltip>
+      {/* Paused is carried three ways, none of them colour: the pressed fill
+          here, `aria-pressed`, and the word in the label beside it. A healthy
+          screen stays near-monochrome, and paused is not an error. */}
       <Tooltip label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'} withArrow>
         <ActionIcon
           variant="subtle"
+          className={paused ? styles.pressed : undefined}
           size="sm"
           aria-label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'}
           aria-pressed={paused}

@@ -5,6 +5,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster, useQueues, type QueueView } from '../api/client.ts';
 import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { Pager } from '../grid/Pager.tsx';
 import { QueueDetailDrawer } from './QueueDetailDrawer.tsx';
 import { CreateQueueForm } from './CreateQueueForm.tsx';
 import { useCan } from '../auth/useCan.ts';
@@ -137,7 +138,6 @@ export function QueuesView() {
 
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <Stack gap="sm">
@@ -150,9 +150,7 @@ export function QueuesView() {
           size="xs"
         />
         <Group gap="xs">
-          <Text size="xs" c="dimmed">
-            {total} queue{total === 1 ? '' : 's'} · page {page} of {lastPage}
-          </Text>
+          {/* The count and position live in the pager, stated once. */}
           {mayCreate ? (
             <Button size="xs" onClick={() => setCreateOpen(true)}>
               New queue
@@ -233,21 +231,13 @@ export function QueuesView() {
         />
       )}
 
-      {lastPage > 1 ? (
-        <Group justify="flex-end" gap="xs">
-          <Button size="xs" variant="default" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            Previous
-          </Button>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page >= lastPage}
-            onClick={() => setPage(page + 1)}
-          >
-            Next
-          </Button>
-        </Group>
-      ) : null}
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onChange={setPage}
+        label="queues"
+      />
 
       <QueueDetailDrawer queue={selected} onClose={() => setSelected(null)} />
       <CreateQueueForm
