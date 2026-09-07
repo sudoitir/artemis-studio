@@ -71,7 +71,11 @@ function BrokerNode({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
-        <span className={styles.name}>{d.name}</span>
+        {/* Clamped to two lines in CSS so the box keeps its slot; the title
+            and the aria-label both still carry the whole name. */}
+        <span className={styles.name} title={d.name}>
+          {d.name}
+        </span>
         {d.firing ? (
           <span className={styles.alertDot} title="An alert is firing on this node" />
         ) : null}
@@ -82,7 +86,11 @@ function BrokerNode({ data }: NodeProps) {
         <span className={styles.word}>{d.statusWord}</span>
       </div>
       {d.address ? <span className={styles.addr}>{d.address}</span> : null}
-      {d.lastError ? <span className={styles.addr}>{d.lastError}</span> : null}
+      {d.lastError ? (
+        <span className={styles.addr} title={d.lastError}>
+          {d.lastError}
+        </span>
+      ) : null}
       <Handle type="source" position={Position.Bottom} className={styles.handle} />
     </div>
   );
@@ -95,7 +103,9 @@ function UnmanagedNode({ id, data }: NodeProps) {
     <div className={styles.node} data-kind="unmanaged" tabIndex={0} aria-label={d.srSentence}>
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
-        <span className={styles.name}>{d.address ?? d.name}</span>
+        <span className={styles.name} title={d.address ?? d.name}>
+          {d.address ?? d.name}
+        </span>
       </div>
       <div className={styles.body}>
         <span className={styles.mark} data-kind="unmanaged" aria-hidden="true" />

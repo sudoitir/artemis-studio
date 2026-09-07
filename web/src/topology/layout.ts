@@ -27,15 +27,24 @@ import type { HealthView, LogicalNodeView, NodeEndpointView, TopologyView } from
  * action attached.
  */
 
-/** Box geometry. Children are positioned relative to their group. */
-export const NODE_W = 190;
+/**
+ * Box geometry. Children are positioned relative to their group.
+ *
+ * <p>These are absolute pixels the canvas cannot negotiate with, so the box has
+ * to be exactly `NODE_H` tall whatever it contains — `TopologyGraph.module.css`
+ * pins it there and clamps the two variable-length lines (the name, the last
+ * error) to fit. An endpoint with a long name and an error message used to grow
+ * past its slot and sit on top of the standby box below it.
+ */
+export const NODE_W = 260;
+export const NODE_H = 132;
 export const GROUP_PAD = 20;
 export const GROUP_GAP = 44;
-export const LIVE_Y = 40;
-export const BACKUP_Y = 200;
-export const AXIS_Y = 170;
-export const GROUP_H = 320;
-const SPLIT_BRAIN_DX = 150;
+export const LIVE_Y = 36;
+export const BACKUP_Y = 216;
+export const AXIS_Y = 186;
+export const GROUP_H = BACKUP_Y + NODE_H + GROUP_PAD;
+const SPLIT_BRAIN_DX = NODE_W + 20;
 
 /** Column pitch for a single-endpoint-wide group; kept for callers that lay out by column. */
 export const COL_W = NODE_W + 2 * GROUP_PAD + GROUP_GAP;
