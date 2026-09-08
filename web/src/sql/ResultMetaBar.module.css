@@ -1,0 +1,16 @@
+/* One bar, not a stack of alerts. It sits directly above the grid and never
+   grows tall enough to push it off screen — the disclosure scrolls inside the
+   results pane instead. */
+.bar {
+  padding-block: 0.4rem;
+  padding-inline: 0.6rem;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface-raised);
+}
+
+.detail {
+  padding-block-start: 0.5rem;
+  margin-block-start: 0.5rem;
+  border-block-start: 1px solid var(--as-border);
+}

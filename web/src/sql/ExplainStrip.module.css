@@ -37,7 +37,7 @@
 /* A scan is the one fact on this strip that costs the broker something. It is
    never the only signal — the word "scan" is right there — but it is worth the
    eye landing on it. */
-.value[data-tone='warning'] {
+.value[data-tone="warning"] {
   color: var(--as-warning);
 }
 

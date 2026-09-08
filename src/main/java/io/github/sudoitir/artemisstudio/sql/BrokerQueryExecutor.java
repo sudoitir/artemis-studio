@@ -411,6 +411,8 @@ public class BrokerQueryExecutor {
                 Map.copyOf(properties),
                 Source.BROKER,
                 null,
+                null,
+                null,
                 null);
     }
 

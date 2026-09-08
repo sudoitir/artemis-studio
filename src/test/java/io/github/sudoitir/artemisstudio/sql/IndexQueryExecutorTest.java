@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.artemisstudio.persist.MessageIndexWriter;
 import io.github.sudoitir.artemisstudio.sql.QueryAst.Source;
@@ -87,6 +88,8 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 properties,
                 Source.BROKER,
                 null,
+                null,
+                null,
                 null);
     }
 
@@ -103,6 +106,7 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 List.of(),
                 0,
                 ast.limit() == null ? 100 : ast.limit(),
+                false,
                 List.of());
     }
 
@@ -189,5 +193,114 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
         assertThat(result.boundsReached())
                 .singleElement()
                 .satisfies(bound -> assertThat(bound.kind()).isEqualTo(QueryResult.Bound.Kind.ROW_LIMIT));
+    }
+
+    // ---- full text (ADR-0063) -------------------------------------------
+
+    @Test
+    void findsAQuotedPhraseAndHonoursAnExclusion() {
+        writer.observe(CLUSTER, message(20, "order 4471 shipped to acme", Map.of()), Instant.now());
+        writer.observe(CLUSTER, message(21, "order 4471 cancelled by acme", Map.of()), Instant.now());
+        writer.observe(CLUSTER, message(22, "order 9902 shipped", Map.of()), Instant.now());
+
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('\"order 4471\"') LIMIT 10"))
+                .extracting(Row::messageId)
+                .containsExactlyInAnyOrder(20L, 21L);
+
+        // `-word` excludes, the way it does in a search box. websearch_to_tsquery is
+        // what makes that free rather than a dialect of its own.
+        assertThat(
+                        run(
+                                "SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('order 4471 -cancelled') LIMIT 10"))
+                .extracting(Row::messageId)
+                .containsExactly(20L);
+    }
+
+    @Test
+    void ordersByHowWellEachRowMatched() {
+        writer.observe(CLUSTER, message(30, "acme", Map.of()), Instant.now());
+        writer.observe(CLUSTER, message(31, "acme acme acme order acme", Map.of()), Instant.now());
+
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('acme')"
+                        + " ORDER BY match_rank DESC LIMIT 10"))
+                .extracting(Row::messageId)
+                .containsExactly(31L, 30L);
+    }
+
+    @Test
+    void refusesToRankWithoutSomethingToRankAgainst() {
+        assertThatThrownBy(() -> run("SELECT * FROM index.\"ORDER.IN\" ORDER BY match_rank DESC LIMIT 10"))
+                .isInstanceOf(SqlSyntaxException.class)
+                .hasMessageContaining("no MATCH()");
+    }
+
+    @Test
+    void aBinaryBodyIsNotFullTextSearchable() {
+        // A BytesMessage body is stored base64, and to_tsvector over base64 is garbage
+        // that would bloat the index for no retrieval value — so it is not indexed, and
+        // the query's own predicate is what keeps that consistent rather than accidental.
+        Row binary = new Row(
+                NODE,
+                "primary",
+                "ORDER.IN",
+                "ORDER.IN",
+                40,
+                4,
+                true,
+                4,
+                Instant.now().toEpochMilli(),
+                0,
+                4,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "acme",
+                false,
+                Map.of(),
+                Source.BROKER,
+                null,
+                null,
+                null,
+                null);
+        writer.observe(CLUSTER, binary, Instant.now());
+
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('acme') LIMIT 10"))
+                .isEmpty();
+    }
+
+    @Test
+    void theFunctionalGinIndexIsActuallyChosen() {
+        // A full-text feature that silently sequential-scans is worse than none: it
+        // looks like it works right up to the volume where it matters.
+        for (long id = 100; id < 400; id++) {
+            writer.observe(CLUSTER, message(id, "order " + id + " shipped to acme", Map.of()), Instant.now());
+        }
+        jdbc.execute("ANALYZE message_index");
+
+        String plan = String.join(
+                "\n",
+                jdbc.queryForList(
+                        "EXPLAIN SELECT * FROM message_index WHERE cluster_id = ?"
+                                + " AND (message_type <> 4 AND to_tsvector('simple', body)"
+                                + " @@ websearch_to_tsquery('simple', ?))",
+                        String.class,
+                        CLUSTER,
+                        "order 250"));
+
+        // The partition's own child index carries a generated name, so the assertion
+        // is on the access path rather than on the parent index's name: a Bitmap Index
+        // Scan whose condition is the tsvector match is exactly "the GIN index was
+        // used", and a sequential scan could not produce either line.
+        assertThat(plan).contains("Bitmap Index Scan").contains("to_tsvector");
+        // Tomorrow's partitions are empty and are scanned at zero cost — that is
+        // Postgres being right, not the index being missed. What matters is that the
+        // partition actually holding the rows is reached through the index.
+        String populated = plan.lines()
+                .filter(line -> line.contains("Bitmap Index Scan"))
+                .findFirst()
+                .orElse("");
+        assertThat(populated).contains("to_tsvector");
     }
 }

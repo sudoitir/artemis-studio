@@ -828,6 +828,43 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/sql/query" : {
+      "post" : {
+        "tags" : [ "sql-controller" ],
+        "operationId" : "query",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SqlExecuteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SqlQueryTicketView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/sql/plan" : {
       "post" : {
         "tags" : [ "sql-controller" ],
@@ -1643,6 +1680,83 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/diverts" : {
+      "get" : {
+        "tags" : [ "routing-controller" ],
+        "operationId" : "diverts",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ResourceQuery"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewDivertView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "routing-controller" ],
+        "operationId" : "createDivert",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateDivertRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DivertMutationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/alerts/rules" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
@@ -2370,20 +2484,12 @@
             "format" : "uuid"
           }
         }, {
-          "name" : "sql",
+          "name" : "queryId",
           "in" : "query",
           "required" : false,
           "schema" : {
             "type" : "string",
             "default" : ""
-          }
-        }, {
-          "name" : "tail",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "boolean",
-            "default" : false
           }
         } ],
         "responses" : {
@@ -3089,6 +3195,40 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/bridges" : {
+      "get" : {
+        "tags" : [ "routing-controller" ],
+        "operationId" : "bridges",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ResourceQuery"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewBridgeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
@@ -3385,6 +3525,48 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/diverts/{name}" : {
+      "delete" : {
+        "tags" : [ "routing-controller" ],
+        "operationId" : "deleteDivert",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "name",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
           }
         }
       }
@@ -4293,6 +4475,31 @@
           }
         }
       },
+      "SqlExecuteRequest" : {
+        "type" : "object",
+        "description" : "A query to execute, and whether to keep tailing after the first pass.",
+        "properties" : {
+          "sql" : {
+            "type" : "string"
+          },
+          "tail" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "SqlQueryTicketView" : {
+        "type" : "object",
+        "description" : "A short-lived, single-use reference to a query. The stream is opened by this reference so the query text never appears in a URL.",
+        "properties" : {
+          "queryId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expiresAt" : {
+            "type" : "string"
+          }
+        }
+      },
       "SqlQueryRequest" : {
         "type" : "object",
         "description" : "A query to plan or run.",
@@ -4361,6 +4568,10 @@
             "format" : "int32",
             "description" : "The row limit that will actually apply, after the server cap."
           },
+          "captured" : {
+            "type" : "boolean",
+            "description" : "True when every target of this query is captured on the node it is read from, which is what lets the console claim the result is everything the address routed rather than everything a poll happened to see."
+          },
           "notices" : {
             "type" : "array",
             "description" : "Everything true about this plan the operator has to be told.",
@@ -4409,6 +4620,64 @@
           },
           "enabled" : {
             "type" : "boolean"
+          },
+          "mode" : {
+            "type" : "string",
+            "description" : "SAMPLE polls the queue and records what it saw; CAPTURE installs a divert-fed tap on every live node and records everything the address routed. CAPTURE mutates broker routing and needs capture:write.",
+            "enum" : [ "SAMPLE", "CAPTURE" ]
+          },
+          "ringSize" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Messages the capture queue holds before the broker drops the oldest."
+          },
+          "filterString" : {
+            "type" : "string",
+            "description" : "An Artemis filter applied by the divert, narrowing both load and exposure."
+          },
+          "maxBytes" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Payload bytes this subscription may hold before it degrades."
+          },
+          "maxRate" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Messages per second this subscription may ingest."
+          },
+          "bodyCapBytes" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Bytes of body stored per message; a longer body is stored truncated."
+          }
+        }
+      },
+      "CaptureNodeView" : {
+        "type" : "object",
+        "description" : "What capture is doing on one node. Per node, because a tap is a node-local object.",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "ACTIVE", "DEGRADED", "FAILED" ]
+          },
+          "detail" : {
+            "type" : "string",
+            "description" : "Why it is in that state, in the words to show the operator."
+          },
+          "capturedFrom" : {
+            "type" : "string",
+            "description" : "When this node started being captured. Null when it never has been."
+          },
+          "droppedEstimate" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         }
       },
@@ -4456,6 +4725,40 @@
           "oldestObservedAt" : {
             "type" : "string",
             "description" : "The oldest observation still held, or null when nothing is held."
+          },
+          "notCapturing" : {
+            "type" : "string",
+            "description" : "Why this subscription is recording nothing, or null when it is running. An empty index and a subscription whose pattern matches no queue look identical from a query, so the reason is stated here."
+          },
+          "mode" : {
+            "type" : "string",
+            "description" : "SAMPLE or CAPTURE. A sampled subscription records what a poll saw; a captured one records what the address routed."
+          },
+          "ringSize" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "filterString" : {
+            "type" : "string"
+          },
+          "maxBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "maxRate" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "bodyCapBytes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodes" : {
+            "type" : "array",
+            "description" : "Capture state per node. Empty for a sampled subscription. A node missing from this list is one capture has not reached, which is not the same as one that is capturing nothing.",
+            "items" : {
+              "$ref" : "#/components/schemas/CaptureNodeView"
+            }
           }
         }
       },
@@ -4752,6 +5055,58 @@
           }
         },
         "required" : [ "confirmToken", "connectionId", "consumerCount", "sessionCount" ]
+      },
+      "CreateDivertRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "The divert's unique name on each node.",
+            "minLength" : 1
+          },
+          "routingName" : {
+            "type" : [ "string", "null" ],
+            "description" : "The routing name; defaults to the divert's name."
+          },
+          "address" : {
+            "type" : "string",
+            "description" : "The address whose messages are diverted.",
+            "minLength" : 1
+          },
+          "forwardingAddress" : {
+            "type" : "string",
+            "description" : "The address messages are diverted to.",
+            "minLength" : 1
+          },
+          "exclusive" : {
+            "type" : "boolean",
+            "default" : false,
+            "description" : "Take the message rather than copy it. Exclusive diverts are evaluated before non-exclusive ones."
+          },
+          "filter" : {
+            "type" : [ "string", "null" ],
+            "description" : "A filter limiting which messages are diverted."
+          },
+          "routingType" : {
+            "type" : [ "string", "null" ],
+            "description" : "Routing type applied to the diverted copy.",
+            "enum" : [ "ANYCAST", "MULTICAST", "PASS", "STRIP" ]
+          }
+        },
+        "required" : [ "address", "forwardingAddress", "name" ]
+      },
+      "DivertMutationView" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "$ref" : "#/components/schemas/LifecycleOutcomeView"
+          },
+          "brokerXml" : {
+            "type" : "string",
+            "description" : "The <divert> element that would make this broker's own configuration carry the divert. A divert created over management persists across restarts but is absent from configuration, and this is what closes that gap."
+          }
+        },
+        "required" : [ "brokerXml", "outcome" ]
       },
       "CreateAddressRequest" : {
         "type" : "object",
@@ -5134,6 +5489,15 @@
           "lastSeenAt" : {
             "type" : "string",
             "description" : "When the index last still saw it on its queue."
+          },
+          "origin" : {
+            "type" : "string",
+            "description" : "SAMPLED or CAPTURED for an indexed row, null for a live one. A sampled row says a poll saw this message; a captured one says the address routed it."
+          },
+          "sourceMessageId" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "The message's id on its source queue, for a captured row. Null when the broker did not copy _AMQ_ORIG_MESSAGE_ID, which is what makes verifying it against the live broker impossible."
           }
         }
       },
@@ -6291,6 +6655,100 @@
         },
         "required" : [ "addresses", "settingsAvailable" ]
       },
+      "DivertView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "routingName" : {
+            "type" : [ "string", "null" ]
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "forwardingAddress" : {
+            "type" : "string"
+          },
+          "filter" : {
+            "type" : [ "string", "null" ]
+          },
+          "routingType" : {
+            "type" : [ "string", "null" ]
+          },
+          "transformerClassName" : {
+            "type" : [ "string", "null" ]
+          },
+          "exclusive" : {
+            "type" : "boolean",
+            "description" : "Exclusive diverts take the message rather than copying it, and Artemis evaluates them before non-exclusive ones. The difference between traffic being duplicated and traffic being taken away."
+          },
+          "retroactiveResource" : {
+            "type" : "boolean"
+          },
+          "owner" : {
+            "type" : [ "string", "null" ],
+            "description" : "What in Studio owns this divert, when Studio's own records say it does: MESSAGE_CAPTURE for a capture tap, OPERATOR for one created through the routing screen. Null means Studio has no record of it, which is not a claim that it came from broker configuration."
+          },
+          "captureSubscriptionId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself."
+          },
+          "nodesPresent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodesTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "perNode" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeRef"
+            }
+          }
+        },
+        "required" : [ "address", "exclusive", "forwardingAddress", "name", "nodesPresent", "nodesTotal", "perNode", "retroactiveResource" ]
+      },
+      "NodeRef" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "nodeId", "nodeName" ]
+      },
+      "PagedViewDivertView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DivertView"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "count", "data", "page", "pageSize" ]
+      },
       "ConsumerView" : {
         "type" : "object",
         "properties" : {
@@ -6527,6 +6985,123 @@
           }
         },
         "required" : [ "active", "available", "nodeId", "nodeName", "reducedSurface" ]
+      },
+      "BridgeNodeCell" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "started" : {
+            "type" : "boolean"
+          },
+          "connected" : {
+            "type" : "boolean"
+          },
+          "messagesAcknowledged" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "messagesPendingAcknowledgement" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "connected", "messagesAcknowledged", "messagesPendingAcknowledgement", "nodeId", "nodeName", "started" ]
+      },
+      "BridgeView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "queueName" : {
+            "type" : [ "string", "null" ]
+          },
+          "forwardingAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "filterString" : {
+            "type" : [ "string", "null" ]
+          },
+          "discoveryGroupName" : {
+            "type" : [ "string", "null" ]
+          },
+          "transformerClassName" : {
+            "type" : [ "string", "null" ]
+          },
+          "staticConnectors" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "messagesAcknowledged" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "messagesPendingAcknowledgement" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "started" : {
+            "type" : "boolean",
+            "description" : "Started on at least one node. A bridge started on some nodes and not others is a divergence the operator needs to see, so this is 'any', not 'all' — perNode says which."
+          },
+          "connected" : {
+            "type" : "boolean",
+            "description" : "Connected to its target on at least one node. Started and connected are different facts: a started bridge that cannot reach its target is the state 'is this bridge actually running' is really asking about."
+          },
+          "useDuplicateDetection" : {
+            "type" : "boolean"
+          },
+          "highlyAvailable" : {
+            "type" : "boolean"
+          },
+          "nodesPresent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodesTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "perNode" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BridgeNodeCell"
+            }
+          }
+        },
+        "required" : [ "connected", "highlyAvailable", "messagesAcknowledged", "messagesPendingAcknowledgement", "name", "nodesPresent", "nodesTotal", "perNode", "started", "staticConnectors", "useDuplicateDetection" ]
+      },
+      "PagedViewBridgeView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BridgeView"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "count", "data", "page", "pageSize" ]
       },
       "AuditEventView" : {
         "type" : "object",

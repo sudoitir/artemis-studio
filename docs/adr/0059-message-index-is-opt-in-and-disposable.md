@@ -1,6 +1,6 @@
 # ADR-0059: The message index is opt-in, retention-bounded and disposable
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0062](0062-message-capture-is-a-divert-into-a-ring-bounded-queue.md)
 - **Date**: 2026-09-07
 - **Deciders**: Artemis Studio maintainers
 

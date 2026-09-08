@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.service.SettingsService;
 import io.github.sudoitir.artemisstudio.web.dto.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.web.dto.AlertViews.AlertRuleView;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateAddressRequest;
+import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.web.dto.MessageRequests.MessageActionRequest;
@@ -162,12 +163,14 @@ public class McpTuningTools {
             Boolean purgeOnNoConsumers,
             Boolean exclusive,
             Boolean nonDestructive,
-            Long ringSize) {}
+            Long ringSize,
+            String forwardingAddress,
+            String routingName) {}
 
     /**
-     * Queue and address lifecycle, as <b>one</b> tool discriminated by {@code kind}
-     * rather than eight — the tool-count budget the MCP capability sets is a real
-     * constraint, and eight near-identical verbs would spend it for nothing.
+     * Queue, address and divert lifecycle, as <b>one</b> tool discriminated by
+     * {@code kind} rather than ten — the tool-count budget the MCP capability sets is
+     * a real constraint, and ten near-identical verbs would spend it for nothing.
      *
      * <p>Delegates to {@link io.github.sudoitir.artemisstudio.service.QueueLifecycleService},
      * so the permission check, the bulk cap and the audit row are the same ones the
@@ -218,12 +221,14 @@ public class McpTuningTools {
                     case RESET_QUEUE_COUNTER -> lifecycle.resetCounter(id, subject, dry);
                     case CREATE_ADDRESS -> lifecycle.createAddress(id, addressRequest(subject, body), dry);
                     case DELETE_ADDRESS -> lifecycle.deleteAddress(id, subject, dry);
+                    case CREATE_DIVERT -> lifecycle.createDivert(id, divertRequest(subject, body), dry);
+                    case DELETE_DIVERT -> lifecycle.deleteDivert(id, subject, dry);
                 }));
     }
 
     private static QueueConfigBody parseConfig(String raw) {
         if (raw == null || raw.isBlank()) {
-            return new QueueConfigBody(null, null, null, null, null, null, null, null, null);
+            return new QueueConfigBody(null, null, null, null, null, null, null, null, null, null, null);
         }
         return McpErrors.parse("config", raw, QueueConfigBody.class);
     }
@@ -254,6 +259,26 @@ public class McpTuningTools {
                 body.exclusive(),
                 body.nonDestructive(),
                 body.ringSize());
+    }
+
+    /**
+     * A divert from the shared config body. The result of creating one says that it
+     * persists on the broker and is absent from that broker's configuration
+     * (ADR-0065) — an agent acting on Studio's behalf must not report it as
+     * temporary any more than the UI may.
+     */
+    private static CreateDivertRequest divertRequest(String name, QueueConfigBody body) {
+        if (body.address() == null || body.forwardingAddress() == null) {
+            throw McpErrors.invalidParams("create_divert needs config with at least address and forwardingAddress.");
+        }
+        return new CreateDivertRequest(
+                name,
+                body.routingName(),
+                body.address(),
+                body.forwardingAddress(),
+                body.exclusive(),
+                body.filter(),
+                body.routingType());
     }
 
     private static CreateAddressRequest addressRequest(String name, QueueConfigBody body) {

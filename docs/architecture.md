@@ -181,6 +181,68 @@ Deadlines come from `_AMQ_EXPIRE` / `JMSExpiration`, else a per-address
 `rr_expectation`. Correlation is event-driven; payload capture is sampled and
 bounded so tracing never becomes the load.
 
+## The SQL Console, the message index and message capture
+
+The console is one editor over three sources of the same shape (ADR-0058): a live
+broker read, the persisted `message_index`, and a live tail of either. `SELECT ...
+FROM broker."ORDER.#"` fans out to every serving node, pushes down what Artemis'
+own filter syntax can express, and evaluates the rest in Studio. Every bound it
+reaches — target cap, scan cap, row cap, timeout — is reported in words, because a
+bounded result that does not say so reads as a complete one.
+
+**Two ways a message reaches the index, and they make different claims.**
+
+- **Sampled** (ADR-0060). A poll browses the queue against a `(timestamp, messageId)`
+  high-water mark and records what it saw. Complete only for messages that sit still
+  long enough to be seen. A queue that drains faster than the interval is invisible,
+  which the console states permanently and non-dismissably on every sampled tail.
+- **Captured** (ADR-0062). A non-exclusive divert copies the address into a
+  Studio-owned queue, drained by a Core consumer. Complete for what the address
+  routed, whether or not anything consumed it in between.
+
+```
+source address ──non-exclusive divert──► artemis-studio.capture.<instance>.<address>.<sub>
+      (per node)                              ring-size N, address-full-policy=DROP,
+                                              expiry-delay, non-durable
+                                                       │
+                                              Core consumer (CorePool, CLIENT_ACKNOWLEDGE)
+                                                       │
+                                                  CaptureBus
+                                     ┌─────────────────┼─────────────────┐
+                                 live tail      message_index     request-reply
+```
+
+The tap is bounded by construction, which is what makes it safe to leave running:
+the ring drops the oldest message rather than growing, `DROP` keeps the broker from
+paging or blocking on Studio's account, and `expiry-delay` with
+`auto-create-expiry-resources=false` bounds it in age too. None of those objects
+disappears on a broker restart (ADR-0065 — measured, not assumed), so **every
+removal is an explicit act**: `CaptureReconciler` is the only thing that takes a tap
+away.
+
+That reconciler is the whole lifecycle. Desired state is the `CAPTURE` subscriptions
+in Postgres, resolved through the same planner an operator's own query uses; actual
+state is each live node's divert names filtered to this Studio's instance id. One
+idempotent loop is simultaneously the install path, the crash-recovery path, the
+failover path (a promoted backup carries no divert, and the next pass installs one)
+and the removal path. It acts on drift only, through `NodeCallLimiter`, and takes a
+per-cluster Postgres advisory lock so two instances of the same Studio cannot fight.
+
+Two preflight refusals, both because the alternative fails silently: an **exclusive
+divert** already on the source address would shadow ours and capture nothing, and a
+capture queue Studio cannot **restrict with a `security-setting`** would be an
+unguarded second copy of production payload. Both refuse with the `broker.xml` that
+would change the answer.
+
+Identity comes from Studio's own state first (D2): the capture queue names the source
+address, so a captured row is found by the **original** queue name without depending
+on a broker header. `_AMQ_ORIG_MESSAGE_ID` supplies the source message id on top; when
+it is absent, "verify on broker" is offered and disabled with the reason, never hidden.
+
+Capture is address-scoped and says so. A divert copies at address routing, before
+multicast fan-out, so for an address with several bound queues the index holds one
+row and genuinely cannot say which subscriptions received it.
+
 ## Safety and audit
 
 Every mutating endpoint accepts `?dryRun=true` and returns the affected count

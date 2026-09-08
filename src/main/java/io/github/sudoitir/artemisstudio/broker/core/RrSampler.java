@@ -57,6 +57,7 @@ public class RrSampler {
     private final ClockOffsetService clocks;
     private final QueueTargetResolver queueTargets;
     private final RrSamplerHealth health;
+    private final io.github.sudoitir.artemisstudio.broker.capture.CaptureCoverage captureCoverage;
 
     /** Per expectation-and-node, when its last failure was logged. */
     private final Map<String, Instant> lastReported = new ConcurrentHashMap<>();
@@ -154,24 +155,36 @@ public class RrSampler {
         int browsed = 0;
         int emitted = 0;
 
-        for (BrowsedMessage m : browse(clusterId, node, expectation.getRequestAddress(), tick)) {
-            browsed += 1;
-            emitted += 1;
-            target.accept(new Observation.RequestSeen(
-                    clusterId,
-                    node.getId(),
-                    Instant.now(),
-                    expectation.getRequestAddress(),
-                    String.valueOf(m.messageId()),
-                    correlationOf(expectation, m),
-                    m.replyTo() != null ? CoreDestinationName.extract(m.replyTo()) : null,
-                    m.expiration(),
-                    m.bodyPreview(),
-                    Map.of(),
-                    enqueuedAt(node, m)));
+        // A captured address is already delivering every message to the correlator
+        // through CaptureBus, so browsing it here would be broker load for facts
+        // Studio already has (ADR-0062). Sampling continues for everything else, and
+        // for this address on any node capture has not reached.
+        if (captureCoverage.isCaptured(clusterId, node.getId(), expectation.getRequestAddress())) {
+            tick.skipped(node.getName(), "captured on this node; correlation comes from the capture stream");
+        } else {
+            for (BrowsedMessage m : browse(clusterId, node, expectation.getRequestAddress(), tick)) {
+                browsed += 1;
+                emitted += 1;
+                target.accept(new Observation.RequestSeen(
+                        clusterId,
+                        node.getId(),
+                        Instant.now(),
+                        expectation.getRequestAddress(),
+                        String.valueOf(m.messageId()),
+                        correlationOf(expectation, m),
+                        m.replyTo() != null ? CoreDestinationName.extract(m.replyTo()) : null,
+                        m.expiration(),
+                        m.bodyPreview(),
+                        Map.of(),
+                        enqueuedAt(node, m)));
+            }
         }
 
         for (String replyAddress : replyTargets) {
+            if (captureCoverage.isCaptured(clusterId, node.getId(), replyAddress)) {
+                tick.skipped(node.getName(), "captured on this node; correlation comes from the capture stream");
+                continue;
+            }
             for (BrowsedMessage m : browse(clusterId, node, replyAddress, tick)) {
                 browsed += 1;
                 emitted += 1;

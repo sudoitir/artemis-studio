@@ -54,7 +54,8 @@ public class IndexQueryExecutor {
         StringBuilder sql = new StringBuilder("""
                 SELECT observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                        priority, message_type, queue_name, address, node_name, correlation_id, group_id,
-                       user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable
+                       user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
+                       origin, orig_address, source_message_id, body_truncated
                   FROM message_index
                  WHERE cluster_id = ?
                 """);
@@ -75,7 +76,9 @@ public class IndexQueryExecutor {
             binds.addAll(where.binds());
         }
 
-        sql.append(orderBy(plan.ast().orderBy()));
+        Sql order = orderBy(plan.ast().orderBy(), matchTerms(plan.ast().where()));
+        sql.append(order.text());
+        binds.addAll(order.binds());
         sql.append(" LIMIT ?");
         binds.add(plan.effectiveLimit() + 1);
 
@@ -134,6 +137,7 @@ public class IndexQueryExecutor {
             }
             case Predicate.Like like -> like(like);
             case Predicate.Between between -> between(between);
+            case Predicate.Match match -> match(match);
         };
     }
 
@@ -185,6 +189,30 @@ public class IndexQueryExecutor {
         return new Sql(text, binds);
     }
 
+    /**
+     * {@code MATCH(body, 'terms')} against the functional GIN index (ADR-0063).
+     *
+     * <p>The {@code message_type} test is not a filter an operator asked for — it is
+     * the index's own predicate, repeated so Postgres can use it. The index covers
+     * text-ish bodies only, because {@code to_tsvector} over base64 produces garbage
+     * tokens and bloats the index for no retrieval value; a {@code BytesMessage} is
+     * therefore not full-text searchable, and the console says so rather than
+     * returning a quietly short list.
+     *
+     * <p>{@code websearch_to_tsquery} rather than {@code to_tsquery}: it accepts what
+     * an operator types into a search box — quoted phrases, {@code -exclusion},
+     * {@code or} — and treats malformed input as no match rather than raising.
+     */
+    private Sql match(Predicate.Match match) {
+        return new Sql(
+                "(message_type <> " + BINARY_MESSAGE_TYPE
+                        + " AND to_tsvector('simple', body) @@ websearch_to_tsquery('simple', ?))",
+                List.of(match.terms()));
+    }
+
+    /** Artemis' numeric type for a {@code BytesMessage}, whose body is stored base64. */
+    private static final int BINARY_MESSAGE_TYPE = 4;
+
     // ---- terms ----------------------------------------------------------
 
     /**
@@ -201,6 +229,10 @@ public class IndexQueryExecutor {
                 Sql inner = term(fold.inner());
                 yield new Sql((fold.upper() ? "upper(" : "lower(") + inner.text() + ')', inner.binds());
             }
+            case Term.MatchRank ignored ->
+                // Only reachable through ORDER BY, which compiles it with the query's
+                // own MATCH() terms. A rank in a predicate has nothing to rank against.
+                throw new SqlSyntaxException("match_rank can only be used in ORDER BY.", "match_rank");
         };
     }
 
@@ -224,6 +256,9 @@ public class IndexQueryExecutor {
             case BODY -> "body";
             case OBSERVED_AT -> "observed_at";
             case LAST_SEEN_AT -> "last_seen_at";
+            case ORIGIN -> "origin";
+            case ORIG_ADDRESS -> "orig_address";
+            case SOURCE_MESSAGE_ID -> "source_message_id";
         };
     }
 
@@ -251,18 +286,58 @@ public class IndexQueryExecutor {
         return column.column() == Column.TIMESTAMP || column.column() == Column.EXPIRATION;
     }
 
-    private String orderBy(List<Order> orders) {
+    /**
+     * {@code ORDER BY}, with {@code match_rank} compiled against the query's own
+     * {@code MATCH()} terms.
+     *
+     * <p>Ranking without a {@code MATCH()} is refused rather than ignored. There is
+     * nothing to rank against, so silently ordering by something else would answer a
+     * different question than the one asked.
+     */
+    private Sql orderBy(List<Order> orders, String matchTerms) {
         if (orders.isEmpty()) {
-            return " ORDER BY observed_at DESC";
+            return new Sql(" ORDER BY observed_at DESC", List.of());
         }
         List<String> fragments = new ArrayList<>();
+        List<Object> binds = new ArrayList<>();
         for (Order order : orders) {
-            if (order.term() instanceof Term.ColumnTerm column) {
-                fragments.add(columnName(column.column())
-                        + (order.direction() == QueryAst.Direction.DESC ? " DESC" : " ASC"));
+            String direction = order.direction() == QueryAst.Direction.DESC ? " DESC" : " ASC";
+            if (order.term() instanceof Term.MatchRank) {
+                if (matchTerms == null) {
+                    throw new SqlSyntaxException(
+                            "match_rank ranks how well a row matched MATCH(), and this query has no MATCH()."
+                                    + " Add MATCH(body, 'terms') to the WHERE clause, or order by another column.",
+                            "match_rank");
+                }
+                fragments.add("ts_rank_cd(to_tsvector('simple', body), websearch_to_tsquery('simple', ?))" + direction);
+                binds.add(matchTerms);
+            } else if (order.term() instanceof Term.ColumnTerm column) {
+                fragments.add(columnName(column.column()) + direction);
             }
         }
-        return fragments.isEmpty() ? " ORDER BY observed_at DESC" : " ORDER BY " + String.join(", ", fragments);
+        return fragments.isEmpty()
+                ? new Sql(" ORDER BY observed_at DESC", List.of())
+                : new Sql(" ORDER BY " + String.join(", ", fragments), binds);
+    }
+
+    /** The first MATCH() terms in a predicate tree, or null when there is none. */
+    private static String matchTerms(Predicate predicate) {
+        return switch (predicate) {
+            case null -> null;
+            case Predicate.Match match -> match.terms();
+            case Predicate.And and -> firstMatch(and.parts());
+            case Predicate.Or or -> firstMatch(or.parts());
+            case Predicate.Not not -> matchTerms(not.inner());
+            default -> null;
+        };
+    }
+
+    private static String firstMatch(List<Predicate> parts) {
+        return parts.stream()
+                .map(IndexQueryExecutor::matchTerms)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     // ---- mapping --------------------------------------------------------
@@ -286,11 +361,13 @@ public class IndexQueryExecutor {
                 rs.getString("user_id"),
                 rs.getString("reply_to"),
                 rs.getString("body"),
-                false,
+                rs.getBoolean("body_truncated"),
                 properties(rs.getString("props")),
                 Source.INDEX,
                 instant(rs.getTimestamp("observed_at")),
-                instant(rs.getTimestamp("last_seen_at")));
+                instant(rs.getTimestamp("last_seen_at")),
+                rs.getString("origin"),
+                rs.getObject("source_message_id", Long.class));
     }
 
     private Instant instant(Timestamp timestamp) {

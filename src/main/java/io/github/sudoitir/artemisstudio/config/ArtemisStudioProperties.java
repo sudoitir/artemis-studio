@@ -32,6 +32,7 @@ public record ArtemisStudioProperties(
         Security security,
         Mcp mcp,
         Sql sql,
+        Capture capture,
         Sse sse) {
 
     public ArtemisStudioProperties {
@@ -78,6 +79,7 @@ public record ArtemisStudioProperties(
                         2,
                         Duration.ofSeconds(5),
                         Duration.ofSeconds(1));
+        capture = capture != null ? capture : new Capture("amq", Duration.ofSeconds(30), Duration.ofHours(24));
         sse = sse != null ? sse : new Sse(Duration.ofSeconds(20));
     }
 
@@ -235,5 +237,24 @@ public record ArtemisStudioProperties(
      * because the value that keeps a stream open is a property of whatever proxy
      * sits in front of Studio, which the operator knows and the image does not.
      */
+    /**
+     * Divert-based message capture (ADR-0062).
+     *
+     * @param brokerRole the broker role Studio's own connection holds. It is what the
+     *     capture queue's {@code security-setting} grants consume to, and Studio cannot
+     *     discover it — the broker exposes no "who am I" read — so it is stated here and
+     *     verified by whether the consumer can actually attach.
+     * @param reconcileInterval how often desired and actual capture state are converged.
+     *     Not a per-queue poll: one pass reads each live node's divert names once.
+     * @param expiry how long a message may sit in a capture queue before the broker drops
+     *     it. With {@code auto-create-expiry-resources=false} this bounds an abandoned tap
+     *     in age, which — since the divert survives a restart (ADR-0065) — is the half of
+     *     the bound that {@code ring-size} cannot provide.
+     */
+    public record Capture(
+            @DefaultValue("amq") String brokerRole,
+            @DefaultValue("30s") Duration reconcileInterval,
+            @DefaultValue("24h") Duration expiry) {}
+
     public record Sse(@DefaultValue("20s") Duration heartbeatInterval) {}
 }

@@ -36,13 +36,25 @@ public class CorePool {
 
     /** A pooled {@link Connection} + a fresh {@link Session} on it; closing returns both to the pool. */
     public PooledSession borrow(UUID clusterId, String coreUrl, CoreConnectionSettings settings) throws JMSException {
+        return borrow(clusterId, coreUrl, settings, Session.AUTO_ACKNOWLEDGE);
+    }
+
+    /**
+     * As {@link #borrow(UUID, String, CoreConnectionSettings)}, with the session's
+     * acknowledge mode chosen by the caller. Message capture borrows
+     * {@code CLIENT_ACKNOWLEDGE} so a batch is acknowledged only once its rows are
+     * committed to Postgres — an auto-acknowledged consumer would lose whatever was
+     * in flight when Studio stopped, which is exactly the loss capture exists to end.
+     */
+    public PooledSession borrow(UUID clusterId, String coreUrl, CoreConnectionSettings settings, int acknowledgeMode)
+            throws JMSException {
         String key = clusterId + "|" + coreUrl;
         JmsPoolConnectionFactory pool = pools.computeIfAbsent(key, k -> buildPool(clusterId, coreUrl, settings));
         Connection connection = settings.hasCredentials()
                 ? pool.createConnection(settings.username(), settings.password())
                 : pool.createConnection();
         connection.start();
-        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Session session = connection.createSession(false, acknowledgeMode);
         return new PooledSession(connection, session);
     }
 

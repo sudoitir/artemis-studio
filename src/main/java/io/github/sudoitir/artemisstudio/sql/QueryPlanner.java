@@ -109,6 +109,7 @@ public class QueryPlanner {
                 describe(split.scan()),
                 estimate,
                 limit,
+                source == Source.INDEX && coverage.isCaptured(clusterId, targets),
                 List.copyOf(notices));
     }
 
@@ -283,6 +284,8 @@ public class QueryPlanner {
             case Predicate.IsNull isNull -> collectTerm(isNull.term(), into);
             case Predicate.Like like -> collectTerm(like.term(), into);
             case Predicate.Between between -> collectTerm(between.term(), into);
+            // MATCH() reads the stored body, which only the index has.
+            case Predicate.Match ignored -> into.add("MATCH(body, ...)");
         }
     }
 
@@ -296,6 +299,7 @@ public class QueryPlanner {
             case Term.CaseFold fold -> collectTerm(fold.inner(), into);
             case Term.PropertyTerm ignored -> {}
             case Term.JsonTerm ignored -> {}
+            case Term.MatchRank ignored -> into.add("match_rank");
         }
     }
 
@@ -348,6 +352,7 @@ public class QueryPlanner {
                         || between.high() instanceof QueryAst.Literal.RelativeTime;
             case Predicate.IsNull ignored -> false;
             case Predicate.Like ignored -> false;
+            case Predicate.Match ignored -> false;
         };
     }
 

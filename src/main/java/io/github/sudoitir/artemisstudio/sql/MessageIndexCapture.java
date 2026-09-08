@@ -52,11 +52,29 @@ public class MessageIndexCapture {
     /** Running captures, by subscription id. */
     private final Map<UUID, Capture> running = new ConcurrentHashMap<>();
 
+    /**
+     * Why a subscription is not capturing, by subscription id. A pattern that matches
+     * nothing and a pattern that matches a busy queue both produce an empty index, and
+     * without this they are indistinguishable — the operator is left reading an empty
+     * result as an answer about their broker rather than about their subscription.
+     */
+    private final Map<UUID, String> notCapturing = new ConcurrentHashMap<>();
+
     private record Capture(SqlTailPoller.Tail tail, String fingerprint) {}
+
+    /** The reason this subscription is not capturing, or empty when it is. */
+    public java.util.Optional<String> notCapturingReason(UUID subscriptionId) {
+        return java.util.Optional.ofNullable(notCapturing.get(subscriptionId));
+    }
 
     /** Registered with {@code DynamicSchedules}; the tail poller does the actual reading. */
     public void reconcile() {
-        List<MessageIndexSubscriptionEntity> enabled = subscriptions.findByEnabledTrue();
+        // A CAPTURE subscription is drained by the capture consumer, not polled here.
+        // Running both would double the broker load and write the same message twice,
+        // once as SAMPLED and once as CAPTURED (ADR-0062).
+        List<MessageIndexSubscriptionEntity> enabled = subscriptions.findByEnabledTrue().stream()
+                .filter(s -> s.getMode() != io.github.sudoitir.artemisstudio.persist.CaptureMode.CAPTURE)
+                .toList();
         Set<UUID> wanted = enabled.stream()
                 .map(MessageIndexSubscriptionEntity::getId)
                 .collect(java.util.stream.Collectors.toSet());
@@ -69,14 +87,21 @@ public class MessageIndexCapture {
             return true;
         });
 
+        notCapturing.keySet().retainAll(wanted);
+
         for (MessageIndexSubscriptionEntity subscription : enabled) {
             try {
                 start(subscription);
             } catch (RuntimeException e) {
                 // A pattern that resolves to nothing, a cluster that is unreachable, a
                 // planner refusal: none of them may stop the other subscriptions, and
-                // all of them are retried on the next pass.
-                log.debug("Index capture for {} could not start", subscription.getQueuePattern(), e);
+                // all of them are retried on the next pass. But none of them may be
+                // silent either — an operator reading an empty index has to be able to
+                // tell "nothing matched the pattern" from "nothing was on the queue".
+                String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                if (notCapturing.put(subscription.getId(), reason) == null) {
+                    log.warn("Index capture for {} is not running: {}", subscription.getQueuePattern(), reason, e);
+                }
             }
         }
     }
@@ -101,6 +126,10 @@ public class MessageIndexCapture {
         QueryPlan plan =
                 planner.plan(clusterId, parser.parse("SELECT * FROM broker.\"" + subscription.getQueuePattern() + '"'));
         if (plan.targets().isEmpty()) {
+            notCapturing.put(
+                    subscription.getId(),
+                    "the pattern '" + subscription.getQueuePattern()
+                            + "' matches no queue on any node of this cluster, so nothing is being indexed");
             return;
         }
         String fingerprint = plan.targets().stream()
@@ -125,6 +154,7 @@ public class MessageIndexCapture {
                 Duration.ofMillis(subscription.getIntervalMs()),
                 true);
         running.put(subscription.getId(), new Capture(tail, fingerprint));
+        notCapturing.remove(subscription.getId());
         log.info(
                 "Indexing {} on {} target(s), every {} ms",
                 subscription.getQueuePattern(),

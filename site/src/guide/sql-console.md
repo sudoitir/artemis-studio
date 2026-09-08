@@ -80,7 +80,13 @@ property as `props.<name>`.
 Target (free): `queue`, `address`, `node`.
 
 Scan: `body`, `messageId`, `messageType`, `replyTo`, and — on the index only —
-`observedAt` and `lastSeenAt`.
+`observedAt`, `lastSeenAt`, `origin`, `origAddress` and `sourceMessageId`.
+
+Over the index, `MATCH (body) AGAINST ('terms')` is full-text search over stored
+bodies, served from a GIN index rather than scanned, and `ORDER BY match_rank`
+ranks by how well each row matched. Quoted phrases, `-exclusion` and `or` work as
+they do in a search box. Binary bodies are not full-text indexed, so a
+`BytesMessage` is never a match — use `LIKE` for those.
 
 A JSON field inside the body is `body->>'orderId'`. The only functions the
 dialect accepts are `now()`, `lower()`, `upper()`, plus `interval` in a relative
@@ -102,6 +108,11 @@ SELECT * FROM "ORDER.IN" WHERE props.tenant = 'acme' LIMIT 200;
 -- A scan. Narrow it with a header predicate first.
 SELECT * FROM "ORDER.IN" WHERE body LIKE '%4471%' LIMIT 50;
 
+-- Full-text over stored bodies, ranked. Index only.
+SELECT * FROM index."ORDER.*"
+WHERE MATCH (body) AGAINST ('"order 4471" -cancelled')
+ORDER BY match_rank DESC LIMIT 50;
+
 -- A time window, quantized and skew-corrected.
 SELECT * FROM "ORDER.*"
 WHERE timestamp > now() - interval '2 hours'
@@ -116,12 +127,27 @@ exists so a question can be asked about a message that has already been consumed
 retained payload for the purposes of access control and deletion, and dropping
 it costs history, never truth.
 
+It fills in one of two ways, and they make different claims:
+
+| Mode | What a row means |
+|---|---|
+| **Sampled** | A poll of this queue saw this message. A message that arrived and was consumed between two polls was never recorded. |
+| **Captured** | The address routed this message. Whether anything consumed it in between makes no difference. |
+
+Capture changes routing on your brokers, so it is a deliberate act with its own
+permission and its own page: [Message capture](/guide/message-capture).
+
 ## The live tail
 
 The tail is a **poll**, never a consume. It cannot mutate anything and it does
 not compete with your consumers. It says so permanently in the UI, because a
 sampled tail that reads as a complete capture is a way to conclude a message was
 never sent.
+
+A tail over captured queues makes the stronger claim, and says a different thing:
+every message the address routed appears, whether or not it was consumed
+immediately. The two are never worded the same way — one node without a tap and
+it is a sampled tail again, with the gap named.
 
 ## Acting on a result
 
@@ -134,4 +160,7 @@ safety contract wrong.
 
 - [ADR-0058](/reference/adr/0058-sql-console-query-model) — the dialect, AST validation, the predicate split
 - [ADR-0059](/reference/adr/0059-message-index-is-opt-in-and-disposable) — the index
-- [ADR-0060](/reference/adr/0060-sampled-tail-is-not-a-capture) — the tail
+- [ADR-0060](/reference/adr/0060-sampled-tail-is-not-a-capture) — the sampled tail
+- [ADR-0062](/reference/adr/0062-message-capture-is-a-divert-into-a-ring-bounded-queue) — capture
+- [ADR-0063](/reference/adr/0063-postgres-full-text-over-the-message-index) — full-text search
+- [ADR-0064](/reference/adr/0064-query-execution-is-post-then-stream) — how a query is executed

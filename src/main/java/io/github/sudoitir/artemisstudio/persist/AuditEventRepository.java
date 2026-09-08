@@ -15,6 +15,15 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
     List<AuditEventEntity> findByClusterIdOrderByTsDesc(UUID clusterId);
 
     /**
+     * Every non-preview audit row for one target type on a cluster, oldest first, so
+     * a caller can fold them into "what does Studio still own". Used by the routing
+     * view, which has no other record of the diverts Studio created: the broker keeps
+     * none (ADR-0065 D2), so Studio's own audit trail is the only honest source of
+     * ownership for an operator-created divert.
+     */
+    List<AuditEventEntity> findByClusterIdAndTargetTypeAndDryRunFalseOrderByTsAsc(UUID clusterId, String targetType);
+
+    /**
      * Filtered, newest-first page for the audit-log screen. String filters are
      * optional ({@code null} drops the predicate); the caller always passes a
      * {@code from}/{@code to} window (widened to sentinels when unset) — Postgres

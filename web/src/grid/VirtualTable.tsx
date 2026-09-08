@@ -64,6 +64,12 @@ interface VirtualTableProps<T> {
   onToggleRow?: (key: string) => void;
   /** Header select-all across the loaded page. `allSelected` is the current state; the caller flips it. */
   onToggleAll?: (keys: string[], allSelected: boolean) => void;
+  /**
+   * Called when the grid's own scroll leaves or returns to the top. A live feed
+   * that prepends rows moves the content under a reader who has scrolled away, so
+   * the caller needs to know in order to hold new rows back.
+   */
+  onAtTopChange?: (atTop: boolean) => void;
 }
 
 /**
@@ -94,6 +100,7 @@ export function VirtualTable<T>({
   selected,
   onToggleRow,
   onToggleAll,
+  onAtTopChange,
 }: VirtualTableProps<T>) {
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
@@ -179,7 +186,10 @@ export function VirtualTable<T>({
     <div
       ref={scrollRef}
       className={styles.scroll}
-      onScroll={reveal ? () => setReveal(null) : undefined}
+      onScroll={(e) => {
+        if (reveal) setReveal(null);
+        onAtTopChange?.(e.currentTarget.scrollTop <= 4);
+      }}
     >
       <div
         className={styles.grid}
@@ -202,11 +212,16 @@ export function VirtualTable<T>({
           aria-rowindex={1}
         >
           {selectable ? (
-            <div role="columnheader" className={`${styles.cell} ${styles.headCell}`}>
+            <div
+              role="columnheader"
+              className={`${styles.cell} ${styles.headCell}`}
+            >
               <Checkbox
                 size="xs"
                 aria-label={
-                  allSelected ? "Deselect all on this page" : "Select all on this page"
+                  allSelected
+                    ? "Deselect all on this page"
+                    : "Select all on this page"
                 }
                 checked={allSelected}
                 indeterminate={selectedCount > 0 && !allSelected}

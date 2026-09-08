@@ -35,8 +35,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * {@code GET /api/v1/clusters/{id}/sql/stream?sql=…&tail=…} — the console's one
- * execution path (ADR-0058).
+ * {@code GET /api/v1/clusters/{id}/sql/stream?queryId=…} — the console's one
+ * execution path (ADR-0058), opened by reference (ADR-0064).
+ *
+ * <p>The query text is not in the URL, and cannot be: the caller posts it to
+ * {@code /sql/query} and receives a short-lived, single-use reference to open here.
+ * An {@code EventSource} can only issue a GET, and a predicate in a URL is a
+ * predicate in every proxy access log on the path.
  *
  * <p>Per-request delivery does not belong on the cluster stream: its payload depends
  * on parameters this client alone supplied, and no other subscriber shares it. It is
@@ -65,6 +70,7 @@ public class SqlStreamController {
     private final ClusterAccessGuard clusterAccess;
     private final SseHub hub;
     private final ApiExceptionHandler problems;
+    private final SqlQueryTickets tickets;
 
     /** Execution runs off the request thread; the emitter is returned immediately. */
     private final ExecutorService queries = Executors.newVirtualThreadPerTaskExecutor();
@@ -79,8 +85,7 @@ public class SqlStreamController {
             // Defaulted rather than required: a required parameter is rejected by the
             // framework before the permission check runs, which would answer 400 for a
             // cluster the caller cannot see and confirm that it exists.
-            @RequestParam(defaultValue = "") String sql,
-            @RequestParam(defaultValue = "false") boolean tail,
+            @RequestParam(defaultValue = "") String queryId,
             HttpServletResponse response) {
         clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
         response.setHeader("X-Accel-Buffering", "no");
@@ -99,15 +104,45 @@ public class SqlStreamController {
         // The permission check and the audit actor both read the security context, and
         // a virtual thread starts with an empty one.
         SecurityContext security = SecurityContextHolder.getContext();
+        SqlQueryTickets.Ticket ticket = redeem(queryId, clusterId, session);
+        if (ticket == null) {
+            return emitter;
+        }
         queries.execute(() -> {
             SecurityContextHolder.setContext(security);
             try {
-                run(clusterId, sql, tail, session);
+                run(clusterId, ticket.sql(), ticket.tail(), session);
             } finally {
                 SecurityContextHolder.clearContext();
             }
         });
         return emitter;
+    }
+
+    /**
+     * Exchange the reference for the query it stands for (ADR-0064). A reference that
+     * has expired, been used, or belongs to someone else is reported as a refusal
+     * frame rather than a 404, for the same reason every other refusal here is: an
+     * {@code EventSource} cannot read the body of a non-200.
+     */
+    private SqlQueryTickets.Ticket redeem(String queryId, UUID clusterId, Session session) {
+        SqlQueryTickets.Ticket ticket = null;
+        try {
+            ticket = tickets.redeem(UUID.fromString(queryId), clusterId, SqlQueryTickets.currentOwner())
+                    .orElse(null);
+        } catch (IllegalArgumentException ignored) {
+            // Not a reference at all; the message below is the same either way.
+        }
+        if (ticket == null) {
+            ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.GONE,
+                    "This query reference is no longer valid. A reference is single use and expires after a"
+                            + " minute; run the query again.");
+            problem.setTitle("The query could not be run");
+            session.send("failed", problem);
+            session.complete();
+        }
+        return ticket;
     }
 
     private void run(UUID clusterId, String sql, boolean tail, Session session) {

@@ -12,128 +12,134 @@ import {
   useQuery,
   useQueryClient,
   type UseQueryResult,
-} from '@tanstack/react-query';
-import { clearDismissedNotices } from '../app/useDismissedNotice.ts';
-import { poll } from './polling.ts';
-import type { components } from './schema.d.ts';
+} from "@tanstack/react-query";
+import { clearDismissedNotices } from "../app/useDismissedNotice.ts";
+import { poll } from "./polling.ts";
+import type { components } from "./schema.d.ts";
 
-const BASE = '/api/v1';
+const BASE = "/api/v1";
 
-type Schemas = components['schemas'];
+type Schemas = components["schemas"];
 
 // ── generated DTO aliases ──────────────────────────────────────────────────
 
-export type CapabilityView = Schemas['CapabilityView'];
-export type CapabilitiesView = Schemas['CapabilitiesView'];
-export type NodeEndpointView = Schemas['NodeEndpointView'];
-export type LogicalNodeView = Schemas['LogicalNodeView'];
-export type TopologyView = Schemas['TopologyView'];
-export type HealthView = Schemas['HealthView'];
-export type ClusterSummary = Schemas['ClusterSummary'];
-export type ClusterDetail = Schemas['ClusterDetail'];
-export type RegisterPreview = Schemas['RegisterPreview'];
-export type RegisterClusterRequest = Schemas['RegisterClusterRequest'];
-export type QueueView = Schemas['QueueView'];
-export type QueueNodeCell = Schemas['QueueNodeCell'];
-export type AddressView = Schemas['AddressView'];
-export type ConsumerView = Schemas['ConsumerView'];
-export type SessionView = Schemas['SessionView'];
-export type ConnectionView = Schemas['ConnectionView'];
-export type ProducerView = Schemas['ProducerView'];
-export type SettingValue = Schemas['SettingValue'];
-export type SettingsResponse = Schemas['SettingsResponse'];
-export type MessageSummaryView = Schemas['MessageSummaryView'];
-export type MessageDetailView = Schemas['MessageDetailView'];
-export type MessagePageView = Schemas['MessagePageView'];
-export type AffectedView = Schemas['AffectedView'];
-export type DryRunView = Schemas['DryRunView'];
-export type SendMessageRequest = Schemas['SendMessageRequest'];
-export type MessageActionRequest = Schemas['MessageActionRequest'];
-export type MessageActionKind = 'move' | 'retry' | 'delete' | 'expire';
-export type AuditEventView = Schemas['AuditEventView'];
-export type AuditPageView = Schemas['AuditPageView'];
-export type DlqView = Schemas['DlqView'];
-export type ConfigDiffView = Schemas['ConfigDiffView'];
-export type NodeConfigView = Schemas['NodeConfigView'];
-export type NodeConfigSectionView = Schemas['NodeConfigSectionView'];
-export type NodeConfigEntryView = Schemas['NodeConfigEntryView'];
-export type LifecycleOutcomeView = Schemas['LifecycleOutcomeView'];
-export type NodeOutcomeView = Schemas['NodeOutcomeView'];
-export type CreateQueueRequest = Schemas['CreateQueueRequest'];
-export type UpdateQueueRequest = Schemas['UpdateQueueRequest'];
-export type CreateAddressRequest = Schemas['CreateAddressRequest'];
-export type SqlQueryRequest = Schemas['SqlQueryRequest'];
-export type SqlPlanView = Schemas['PlanView'];
-export type SqlResultView = Schemas['ResultView'];
-export type SqlRowView = Schemas['RowView'];
-export type SqlTargetView = Schemas['TargetView'];
-export type SqlNoticeView = Schemas['NoticeView'];
-export type SqlBoundView = Schemas['BoundView'];
-export type SqlNodeOutcomeView = Schemas['SqlNodeOutcomeView'];
-export type SqlTailStatusView = Schemas['TailStatusView'];
-export type SqlVerifyView = Schemas['VerifyView'];
-export type SqlIndexSubscriptionView = Schemas['IndexSubscriptionView'];
-export type SqlIndexSubscriptionRequest = Schemas['IndexSubscriptionRequest'];
-export type ConnectionCloseView = Schemas['ConnectionCloseView'];
-export type ConnectionTargetView = Schemas['ConnectionTargetView'];
+export type CapabilityView = Schemas["CapabilityView"];
+export type CapabilitiesView = Schemas["CapabilitiesView"];
+export type NodeEndpointView = Schemas["NodeEndpointView"];
+export type LogicalNodeView = Schemas["LogicalNodeView"];
+export type TopologyView = Schemas["TopologyView"];
+export type HealthView = Schemas["HealthView"];
+export type ClusterSummary = Schemas["ClusterSummary"];
+export type ClusterDetail = Schemas["ClusterDetail"];
+export type RegisterPreview = Schemas["RegisterPreview"];
+export type RegisterClusterRequest = Schemas["RegisterClusterRequest"];
+export type QueueView = Schemas["QueueView"];
+export type QueueNodeCell = Schemas["QueueNodeCell"];
+export type AddressView = Schemas["AddressView"];
+export type ConsumerView = Schemas["ConsumerView"];
+export type SessionView = Schemas["SessionView"];
+export type ConnectionView = Schemas["ConnectionView"];
+export type ProducerView = Schemas["ProducerView"];
+export type SettingValue = Schemas["SettingValue"];
+export type SettingsResponse = Schemas["SettingsResponse"];
+export type MessageSummaryView = Schemas["MessageSummaryView"];
+export type MessageDetailView = Schemas["MessageDetailView"];
+export type MessagePageView = Schemas["MessagePageView"];
+export type AffectedView = Schemas["AffectedView"];
+export type DryRunView = Schemas["DryRunView"];
+export type SendMessageRequest = Schemas["SendMessageRequest"];
+export type MessageActionRequest = Schemas["MessageActionRequest"];
+export type MessageActionKind = "move" | "retry" | "delete" | "expire";
+export type AuditEventView = Schemas["AuditEventView"];
+export type AuditPageView = Schemas["AuditPageView"];
+export type DlqView = Schemas["DlqView"];
+export type ConfigDiffView = Schemas["ConfigDiffView"];
+export type NodeConfigView = Schemas["NodeConfigView"];
+export type NodeConfigSectionView = Schemas["NodeConfigSectionView"];
+export type NodeConfigEntryView = Schemas["NodeConfigEntryView"];
+export type LifecycleOutcomeView = Schemas["LifecycleOutcomeView"];
+export type NodeOutcomeView = Schemas["NodeOutcomeView"];
+export type CreateQueueRequest = Schemas["CreateQueueRequest"];
+export type UpdateQueueRequest = Schemas["UpdateQueueRequest"];
+export type CreateAddressRequest = Schemas["CreateAddressRequest"];
+export type DivertView = Schemas["DivertView"];
+export type BridgeView = Schemas["BridgeView"];
+export type BridgeNodeCell = Schemas["BridgeNodeCell"];
+export type CreateDivertRequest = Schemas["CreateDivertRequest"];
+export type DivertMutationView = Schemas["DivertMutationView"];
+export type SqlQueryRequest = Schemas["SqlQueryRequest"];
+export type SqlPlanView = Schemas["PlanView"];
+export type SqlResultView = Schemas["ResultView"];
+export type SqlRowView = Schemas["RowView"];
+export type SqlTargetView = Schemas["TargetView"];
+export type SqlNoticeView = Schemas["NoticeView"];
+export type SqlBoundView = Schemas["BoundView"];
+export type SqlNodeOutcomeView = Schemas["SqlNodeOutcomeView"];
+export type SqlTailStatusView = Schemas["TailStatusView"];
+export type SqlVerifyView = Schemas["VerifyView"];
+export type SqlIndexSubscriptionView = Schemas["IndexSubscriptionView"];
+export type SqlIndexSubscriptionRequest = Schemas["IndexSubscriptionRequest"];
+export type ConnectionCloseView = Schemas["ConnectionCloseView"];
+export type ConnectionTargetView = Schemas["ConnectionTargetView"];
 /** The four closes `connection-control` exposes; the first three are node-scoped. */
-export type ConnectionCloseKind = 'connection' | 'session' | 'consumer' | 'address-consumers';
-export type ConfigSectionView = Schemas['ConfigSectionView'];
-export type ConfigEntryView = Schemas['ConfigEntryView'];
-export type DlqAddress = Schemas['DlqAddress'];
-export type DlqQueue = Schemas['DlqQueue'];
-export type BrokerEventView = Schemas['BrokerEventView'];
-export type BrokerEventPageView = Schemas['BrokerEventPageView'];
-export type ExpectationView = Schemas['ExpectationView'];
-export type CreateExpectationRequest = Schemas['CreateExpectationRequest'];
-export type UpdateExpectationRequest = Schemas['UpdateExpectationRequest'];
-export type FlowView = Schemas['FlowView'];
-export type FlowPageView = Schemas['FlowPageView'];
-export type RrEventView = Schemas['RrEventView'];
-export type AddressStatsView = Schemas['AddressStatsView'];
-export type StatsResponse = Schemas['StatsResponse'];
-export type RrDiagnosticsView = Schemas['RrDiagnosticsView'];
-export type ExpectationDiagnosticsView = Schemas['ExpectationDiagnosticsView'];
-export type TracingReasonView = Schemas['TracingReasonView'];
-export type MetricPoint = Schemas['MetricPoint'];
-export type MetricSeries = Schemas['MetricSeries'];
-export type MetricSeriesResponse = Schemas['MetricSeriesResponse'];
-export type AlertRuleView = Schemas['AlertRuleView'];
-export type AlertRuleRequest = Schemas['AlertRuleRequest'];
-export type AlertFiringView = Schemas['AlertFiringView'];
-export type AlertFiringPageView = Schemas['AlertFiringPageView'];
-export type NotificationChannelView = Schemas['NotificationChannelView'];
-export type NotificationChannelRequest = Schemas['NotificationChannelRequest'];
-export type ClusterFiringCountView = Schemas['ClusterFiringCountView'];
+export type ConnectionCloseKind =
+  "connection" | "session" | "consumer" | "address-consumers";
+export type ConfigSectionView = Schemas["ConfigSectionView"];
+export type ConfigEntryView = Schemas["ConfigEntryView"];
+export type DlqAddress = Schemas["DlqAddress"];
+export type DlqQueue = Schemas["DlqQueue"];
+export type BrokerEventView = Schemas["BrokerEventView"];
+export type BrokerEventPageView = Schemas["BrokerEventPageView"];
+export type ExpectationView = Schemas["ExpectationView"];
+export type CreateExpectationRequest = Schemas["CreateExpectationRequest"];
+export type UpdateExpectationRequest = Schemas["UpdateExpectationRequest"];
+export type FlowView = Schemas["FlowView"];
+export type FlowPageView = Schemas["FlowPageView"];
+export type RrEventView = Schemas["RrEventView"];
+export type AddressStatsView = Schemas["AddressStatsView"];
+export type StatsResponse = Schemas["StatsResponse"];
+export type RrDiagnosticsView = Schemas["RrDiagnosticsView"];
+export type ExpectationDiagnosticsView = Schemas["ExpectationDiagnosticsView"];
+export type TracingReasonView = Schemas["TracingReasonView"];
+export type MetricPoint = Schemas["MetricPoint"];
+export type MetricSeries = Schemas["MetricSeries"];
+export type MetricSeriesResponse = Schemas["MetricSeriesResponse"];
+export type AlertRuleView = Schemas["AlertRuleView"];
+export type AlertRuleRequest = Schemas["AlertRuleRequest"];
+export type AlertFiringView = Schemas["AlertFiringView"];
+export type AlertFiringPageView = Schemas["AlertFiringPageView"];
+export type NotificationChannelView = Schemas["NotificationChannelView"];
+export type NotificationChannelRequest = Schemas["NotificationChannelRequest"];
+export type ClusterFiringCountView = Schemas["ClusterFiringCountView"];
 
 // ── identity-and-sessions / authorization / environments / api-tokens / oidc-sso ──
 
-export type LoginRequest = Schemas['LoginRequest'];
-export type ChangePasswordRequest = Schemas['ChangePasswordRequest'];
-export type MeView = Schemas['MeView'];
-export type ProviderView = Schemas['ProviderView'];
-export type GrantView = Schemas['GrantView'];
-export type UserView = Schemas['UserView'];
-export type CreateUserRequest = Schemas['CreateUserRequest'];
-export type SetDisabledRequest = Schemas['SetDisabledRequest'];
-export type GrantRequest = Schemas['GrantRequest'];
-export type GrantSummary = Schemas['GrantSummary'];
-export type RoleView = Schemas['RoleView'];
-export type RoleRequest = Schemas['RoleRequest'];
-export type PermissionView = Schemas['PermissionView'];
-export type EnvironmentView = Schemas['EnvironmentView'];
-export type EnvironmentRequest = Schemas['EnvironmentRequest'];
-export type TokenView = Schemas['TokenView'];
-export type CreatedTokenView = Schemas['CreatedTokenView'];
-export type CreateTokenRequest = Schemas['CreateTokenRequest'];
-export type TokenGrantRequest = Schemas['TokenGrantRequest'];
-export type OidcMappingView = Schemas['OidcMappingView'];
-export type OidcMappingRequest = Schemas['OidcMappingRequest'];
+export type LoginRequest = Schemas["LoginRequest"];
+export type ChangePasswordRequest = Schemas["ChangePasswordRequest"];
+export type MeView = Schemas["MeView"];
+export type ProviderView = Schemas["ProviderView"];
+export type GrantView = Schemas["GrantView"];
+export type UserView = Schemas["UserView"];
+export type CreateUserRequest = Schemas["CreateUserRequest"];
+export type SetDisabledRequest = Schemas["SetDisabledRequest"];
+export type GrantRequest = Schemas["GrantRequest"];
+export type GrantSummary = Schemas["GrantSummary"];
+export type RoleView = Schemas["RoleView"];
+export type RoleRequest = Schemas["RoleRequest"];
+export type PermissionView = Schemas["PermissionView"];
+export type EnvironmentView = Schemas["EnvironmentView"];
+export type EnvironmentRequest = Schemas["EnvironmentRequest"];
+export type TokenView = Schemas["TokenView"];
+export type CreatedTokenView = Schemas["CreatedTokenView"];
+export type CreateTokenRequest = Schemas["CreateTokenRequest"];
+export type TokenGrantRequest = Schemas["TokenGrantRequest"];
+export type OidcMappingView = Schemas["OidcMappingView"];
+export type OidcMappingRequest = Schemas["OidcMappingRequest"];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
-export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
-export type SplitBrain = 'NONE' | 'SUSPECTED' | 'CRITICAL';
-export type HealthLevel = 'OK' | 'DEGRADED' | 'CRITICAL' | 'UNKNOWN';
+export type CapabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
+export type SplitBrain = "NONE" | "SUSPECTED" | "CRITICAL";
+export type HealthLevel = "OK" | "DEGRADED" | "CRITICAL" | "UNKNOWN";
 
 /** Generic paged envelope (`PagedView<T>` on the backend). */
 export interface PagedView<T> {
@@ -166,10 +172,10 @@ export class ApiError extends Error {
         (body.title as string) ??
         `Request failed (${status})`,
     );
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
-    this.type = (body.type as string) ?? 'about:blank';
-    this.title = (body.title as string) ?? 'Error';
+    this.type = (body.type as string) ?? "about:blank";
+    this.title = (body.title as string) ?? "Error";
     this.brokerErrorKind = body.brokerErrorKind as string | undefined;
     this.fieldErrors =
       (body.errors as { field: string; message: string }[] | undefined) ?? [];
@@ -180,27 +186,29 @@ export class ApiError extends Error {
 /** Reads the `XSRF-TOKEN` cookie Spring Security's `CookieCsrfTokenRepository` sets (identity-and-sessions spec). */
 function csrfToken(): string | undefined {
   return document.cookie
-    .split('; ')
-    .find((row) => row.startsWith('XSRF-TOKEN='))
-    ?.split('=')[1];
+    .split("; ")
+    .find((row) => row.startsWith("XSRF-TOKEN="))
+    ?.split("=")[1];
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = (init?.method ?? 'GET').toUpperCase();
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
-  if (method !== 'GET' && method !== 'HEAD') {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (method !== "GET" && method !== "HEAD") {
     const token = csrfToken();
-    if (token) headers['X-XSRF-TOKEN'] = token;
+    if (token) headers["X-XSRF-TOKEN"] = token;
   }
   const res = await fetch(`${BASE}${path}`, {
-    credentials: 'same-origin',
+    credentials: "same-origin",
     headers: { ...headers, ...init?.headers },
     ...init,
   });
-  if (res.status === 401 && !window.location.pathname.startsWith('/login')) {
+  if (res.status === 401 && !window.location.pathname.startsWith("/login")) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
-    window.location.assign('/login');
+    window.location.assign("/login");
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
@@ -212,12 +220,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── query keys ─────────────────────────────────────────────────────────────
 
 export type ResourceKind =
-  | 'queues'
-  | 'addresses'
-  | 'consumers'
-  | 'sessions'
-  | 'connections'
-  | 'producers';
+  | "queues"
+  | "addresses"
+  | "consumers"
+  | "sessions"
+  | "connections"
+  | "producers"
+  | "diverts"
+  | "bridges";
 
 export interface ResourceParams {
   q?: string;
@@ -228,50 +238,69 @@ export interface ResourceParams {
 
 function resourceSearch(params: ResourceParams): string {
   const sp = new URLSearchParams();
-  if (params.q) sp.set('q', params.q);
-  if (params.sort) sp.set('sort', params.sort);
-  if (params.page && params.page > 1) sp.set('page', String(params.page));
-  if (params.size) sp.set('size', String(params.size));
+  if (params.q) sp.set("q", params.q);
+  if (params.sort) sp.set("sort", params.sort);
+  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  if (params.size) sp.set("size", String(params.size));
   const s = sp.toString();
-  return s ? `?${s}` : '';
+  return s ? `?${s}` : "";
 }
 
 export const keys = {
-  all: ['clusters'] as const,
-  detail: (id: string) => ['clusters', id] as const,
-  topology: (id: string) => ['clusters', id, 'topology'] as const,
-  health: (id: string) => ['clusters', id, 'health'] as const,
+  all: ["clusters"] as const,
+  detail: (id: string) => ["clusters", id] as const,
+  topology: (id: string) => ["clusters", id, "topology"] as const,
+  health: (id: string) => ["clusters", id, "health"] as const,
   resource: (id: string, kind: ResourceKind, params: ResourceParams = {}) =>
-    ['clusters', id, kind, params] as const,
+    ["clusters", id, kind, params] as const,
   /** The TanStack Query key a signal stream topic invalidates (the `events` topic carries data, not a signal). */
   topic: (
     id: string,
-    topic: 'topology' | 'health' | 'queues' | 'consumers' | 'sessions' | 'connections',
-  ) => ['clusters', id, topic] as const,
-  messages: (
+    topic:
+      | "topology"
+      | "health"
+      | "queues"
+      | "consumers"
+      | "sessions"
+      | "connections",
+  ) => ["clusters", id, topic] as const,
+  messages: (id: string, queueName: string, params: MessageBrowseParams = {}) =>
+    ["clusters", id, "queues", queueName, "messages", params] as const,
+  message: (
     id: string,
     queueName: string,
-    params: MessageBrowseParams = {},
-  ) => ['clusters', id, 'queues', queueName, 'messages', params] as const,
-  message: (id: string, queueName: string, messageId: string, node?: string, filter?: string) =>
-    ['clusters', id, 'queues', queueName, 'messages', messageId, { node, filter }] as const,
-  metrics: (id: string, params: MetricsParams) => ['clusters', id, 'metrics', params] as const,
-  alertRules: (id: string) => ['clusters', id, 'alerts', 'rules'] as const,
-  alertFiring: (id: string) => ['clusters', id, 'alerts', 'firing'] as const,
+    messageId: string,
+    node?: string,
+    filter?: string,
+  ) =>
+    [
+      "clusters",
+      id,
+      "queues",
+      queueName,
+      "messages",
+      messageId,
+      { node, filter },
+    ] as const,
+  metrics: (id: string, params: MetricsParams) =>
+    ["clusters", id, "metrics", params] as const,
+  alertRules: (id: string) => ["clusters", id, "alerts", "rules"] as const,
+  alertFiring: (id: string) => ["clusters", id, "alerts", "firing"] as const,
   alertHistory: (id: string, page: number, size: number) =>
-    ['clusters', id, 'alerts', 'history', page, size] as const,
-  channels: ['channels'] as const,
-  firingCounts: ['alerts', 'firing'] as const,
-  me: ['auth', 'me'] as const,
-  authProviders: ['auth', 'providers'] as const,
-  users: ['users'] as const,
-  roles: ['roles'] as const,
-  permissions: ['permissions'] as const,
-  environments: ['environments'] as const,
-  tokens: ['tokens'] as const,
-  oidcMappings: ['oidc', 'mappings'] as const,
-  sqlPlan: (id: string, sql: string) => ['clusters', id, 'sql', 'plan', sql] as const,
-  sqlIndex: (id: string) => ['clusters', id, 'sql', 'index'] as const,
+    ["clusters", id, "alerts", "history", page, size] as const,
+  channels: ["channels"] as const,
+  firingCounts: ["alerts", "firing"] as const,
+  me: ["auth", "me"] as const,
+  authProviders: ["auth", "providers"] as const,
+  users: ["users"] as const,
+  roles: ["roles"] as const,
+  permissions: ["permissions"] as const,
+  environments: ["environments"] as const,
+  tokens: ["tokens"] as const,
+  oidcMappings: ["oidc", "mappings"] as const,
+  sqlPlan: (id: string, sql: string) =>
+    ["clusters", id, "sql", "plan", sql] as const,
+  sqlIndex: (id: string) => ["clusters", id, "sql", "index"] as const,
 };
 
 // ── queries ────────────────────────────────────────────────────────────────
@@ -279,7 +308,7 @@ export const keys = {
 export function useClusters(): UseQueryResult<ClusterSummary[], ApiError> {
   return useQuery({
     queryKey: keys.all,
-    queryFn: () => request<ClusterSummary[]>('/clusters'),
+    queryFn: () => request<ClusterSummary[]>("/clusters"),
     refetchInterval: poll(5_000),
   });
 }
@@ -288,14 +317,16 @@ export function useCluster(
   id: string | null,
 ): UseQueryResult<ClusterDetail, ApiError> {
   return useQuery({
-    queryKey: id ? keys.detail(id) : ['clusters', 'none'],
+    queryKey: id ? keys.detail(id) : ["clusters", "none"],
     queryFn: () => request<ClusterDetail>(`/clusters/${id}`),
     enabled: id !== null,
     refetchInterval: poll(5_000),
   });
 }
 
-export function useTopology(id: string): UseQueryResult<TopologyView, ApiError> {
+export function useTopology(
+  id: string,
+): UseQueryResult<TopologyView, ApiError> {
   return useQuery({
     queryKey: keys.topology(id),
     queryFn: () => request<TopologyView>(`/clusters/${id}/topology`),
@@ -316,7 +347,7 @@ export function useQueues(
   params: ResourceParams = {},
 ): UseQueryResult<PagedView<QueueView>, ApiError> {
   return useQuery({
-    queryKey: keys.resource(id, 'queues', params),
+    queryKey: keys.resource(id, "queues", params),
     queryFn: () =>
       request<PagedView<QueueView>>(
         `/clusters/${id}/queues${resourceSearch(params)}`,
@@ -326,7 +357,7 @@ export function useQueues(
     // `/clusters//queues`, which is a 400 — and an errored observed query puts
     // the whole shell into its offline state, so every cluster-less screen
     // claimed Studio had lost the brokers.
-    enabled: id !== '',
+    enabled: id !== "",
     refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
   });
@@ -347,23 +378,27 @@ function useResource<T>(
 }
 
 export const useAddresses = (id: string, p: ResourceParams = {}) =>
-  useResource<AddressView>(id, 'addresses', p);
+  useResource<AddressView>(id, "addresses", p);
 export const useConsumers = (id: string, p: ResourceParams = {}) =>
-  useResource<ConsumerView>(id, 'consumers', p);
+  useResource<ConsumerView>(id, "consumers", p);
 export const useSessions = (id: string, p: ResourceParams = {}) =>
-  useResource<SessionView>(id, 'sessions', p);
+  useResource<SessionView>(id, "sessions", p);
 export const useConnections = (id: string, p: ResourceParams = {}) =>
-  useResource<ConnectionView>(id, 'connections', p);
+  useResource<ConnectionView>(id, "connections", p);
 export const useProducers = (id: string, p: ResourceParams = {}) =>
-  useResource<ProducerView>(id, 'producers', p);
+  useResource<ProducerView>(id, "producers", p);
+export const useDiverts = (id: string, p: ResourceParams = {}) =>
+  useResource<DivertView>(id, "diverts", p);
+export const useBridges = (id: string, p: ResourceParams = {}) =>
+  useResource<BridgeView>(id, "bridges", p);
 
 // ── mutations ──────────────────────────────────────────────────────────────
 
 export function useCheckConnection() {
   return useMutation<RegisterPreview, ApiError, RegisterClusterRequest>({
     mutationFn: (body) =>
-      request('/clusters?dryRun=true', {
-        method: 'POST',
+      request("/clusters?dryRun=true", {
+        method: "POST",
         body: JSON.stringify(body),
       }),
   });
@@ -373,7 +408,7 @@ export function useRegisterCluster() {
   const qc = useQueryClient();
   return useMutation<ClusterDetail, ApiError, RegisterClusterRequest>({
     mutationFn: (body) =>
-      request('/clusters', { method: 'POST', body: JSON.stringify(body) }),
+      request("/clusters", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });
 }
@@ -382,7 +417,7 @@ export function useRediscover(clusterId: string) {
   const qc = useQueryClient();
   return useMutation<TopologyView, ApiError, void>({
     mutationFn: () =>
-      request(`/clusters/${clusterId}/rediscover`, { method: 'POST' }),
+      request(`/clusters/${clusterId}/rediscover`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
   });
 }
@@ -396,7 +431,7 @@ export function useOverrideNodeUrl(clusterId: string) {
   >({
     mutationFn: ({ nodeId, jolokiaUrl, coreUrl }) =>
       request(`/clusters/${clusterId}/nodes/${nodeId}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify({ jolokiaUrl, coreUrl }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
@@ -406,19 +441,19 @@ export function useOverrideNodeUrl(clusterId: string) {
 export function useDeleteCluster() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (id) => request(`/clusters/${id}`, { method: 'DELETE' }),
+    mutationFn: (id) => request(`/clusters/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });
 }
 
 // ── settings ───────────────────────────────────────────────────────────────
 
-const SETTINGS_KEY = ['settings'] as const;
+const SETTINGS_KEY = ["settings"] as const;
 
 export function useSettings(): UseQueryResult<SettingsResponse, ApiError> {
   return useQuery({
     queryKey: SETTINGS_KEY,
-    queryFn: () => request<SettingsResponse>('/settings'),
+    queryFn: () => request<SettingsResponse>("/settings"),
   });
 }
 
@@ -427,7 +462,7 @@ export function useUpdateSetting() {
   return useMutation<void, ApiError, { key: string; value: string }>({
     mutationFn: ({ key, value }) =>
       request(`/settings/${encodeURIComponent(key)}`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify({ value }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
@@ -438,7 +473,7 @@ export function useResetSetting() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
     mutationFn: (key) =>
-      request(`/settings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+      request(`/settings/${encodeURIComponent(key)}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
   });
 }
@@ -454,12 +489,12 @@ export interface MessageBrowseParams {
 
 function messageSearch(params: MessageBrowseParams): string {
   const sp = new URLSearchParams();
-  if (params.node) sp.set('node', params.node);
-  if (params.filter) sp.set('filter', params.filter);
-  if (params.page && params.page > 1) sp.set('page', String(params.page));
-  if (params.size) sp.set('size', String(params.size));
+  if (params.node) sp.set("node", params.node);
+  if (params.filter) sp.set("filter", params.filter);
+  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  if (params.size) sp.set("size", String(params.size));
   const s = sp.toString();
-  return s ? `?${s}` : '';
+  return s ? `?${s}` : "";
 }
 
 export function useMessages(
@@ -485,14 +520,20 @@ export function useMessageDetail(
   filter?: string,
 ): UseQueryResult<MessageDetailView, ApiError> {
   return useQuery({
-    queryKey: keys.message(clusterId, queueName, messageId ?? 'none', node, filter),
+    queryKey: keys.message(
+      clusterId,
+      queueName,
+      messageId ?? "none",
+      node,
+      filter,
+    ),
     queryFn: () => {
       const sp = new URLSearchParams();
-      if (node) sp.set('node', node);
-      if (filter) sp.set('filter', filter);
+      if (node) sp.set("node", node);
+      if (filter) sp.set("filter", filter);
       const qs = sp.toString();
       return request<MessageDetailView>(
-        `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages/${messageId}${qs ? `?${qs}` : ''}`,
+        `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages/${messageId}${qs ? `?${qs}` : ""}`,
       );
     },
     enabled: messageId !== null,
@@ -509,13 +550,17 @@ function messagesBase(clusterId: string, queueName: string) {
   return `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages`;
 }
 
-function mutationQuery(node?: string, dryRun?: boolean, override?: boolean): string {
+function mutationQuery(
+  node?: string,
+  dryRun?: boolean,
+  override?: boolean,
+): string {
   const sp = new URLSearchParams();
-  if (node) sp.set('node', node);
-  if (dryRun) sp.set('dryRun', 'true');
-  if (override) sp.set('override', 'true');
+  if (node) sp.set("node", node);
+  if (dryRun) sp.set("dryRun", "true");
+  if (override) sp.set("override", "true");
   const s = sp.toString();
-  return s ? `?${s}` : '';
+  return s ? `?${s}` : "";
 }
 
 export interface SendVars {
@@ -528,15 +573,18 @@ export function useSendMessage(clusterId: string, queueName: string) {
   const qc = useQueryClient();
   return useMutation<AffectedView | DryRunView, ApiError, SendVars>({
     mutationFn: ({ body, node, dryRun }) =>
-      request(`${messagesBase(clusterId, queueName)}${mutationQuery(node, dryRun)}`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      request(
+        `${messagesBase(clusterId, queueName)}${mutationQuery(node, dryRun)}`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      ),
     onSuccess: (result) => {
       // DryRunView carries `cap`; AffectedView does not. Only a real run changes state.
-      if ('cap' in result) return;
+      if ("cap" in result) return;
       qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
     },
   });
 }
@@ -555,13 +603,13 @@ export function useMessageAction(clusterId: string, queueName: string) {
     mutationFn: ({ action, body, node, dryRun, override }) =>
       request(
         `${messagesBase(clusterId, queueName)}/actions/${action}${mutationQuery(node, dryRun, override)}`,
-        { method: 'POST', body: JSON.stringify(body) },
+        { method: "POST", body: JSON.stringify(body) },
       ),
     onSuccess: (result) => {
       // DryRunView carries `cap`; AffectedView does not. Only a real run changes state.
-      if ('cap' in result) return;
+      if ("cap" in result) return;
       qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
     },
   });
 }
@@ -576,14 +624,17 @@ export function usePurgeQueue(clusterId: string, queueName: string) {
   const qc = useQueryClient();
   return useMutation<AffectedView | DryRunView, ApiError, PurgeVars>({
     mutationFn: ({ node, dryRun, override }) =>
-      request(`${messagesBase(clusterId, queueName)}${mutationQuery(node, dryRun, override)}`, {
-        method: 'DELETE',
-      }),
+      request(
+        `${messagesBase(clusterId, queueName)}${mutationQuery(node, dryRun, override)}`,
+        {
+          method: "DELETE",
+        },
+      ),
     onSuccess: (result) => {
       // DryRunView carries `cap`; AffectedView does not. Only a real run changes state.
-      if ('cap' in result) return;
+      if ("cap" in result) return;
       qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
     },
   });
 }
@@ -604,10 +655,10 @@ const lifecycleBase = (clusterId: string) => `/clusters/${clusterId}`;
 
 function lifecycleQuery(dryRun?: boolean, override?: boolean): string {
   const params = new URLSearchParams();
-  if (dryRun) params.set('dryRun', 'true');
-  if (override) params.set('override', 'true');
+  if (dryRun) params.set("dryRun", "true");
+  if (override) params.set("override", "true");
   const q = params.toString();
-  return q ? `?${q}` : '';
+  return q ? `?${q}` : "";
 }
 
 /**
@@ -623,8 +674,8 @@ function useLifecycleMutation<V extends LifecycleVars>(
     mutationFn: send,
     onSuccess: (result) => {
       if (result.dryRun) return;
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "addresses") });
     },
   });
 }
@@ -634,10 +685,54 @@ export function useCreateQueue(clusterId: string) {
     clusterId,
     ({ body, dryRun }) =>
       request(`${lifecycleBase(clusterId)}/queues${lifecycleQuery(dryRun)}`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(body),
       }),
   );
+}
+
+/**
+ * Create a divert across the cluster. The response carries the `broker.xml` that
+ * would make the broker's own configuration match, built from the submitted
+ * values — with `dryRun` it is the preview, so the blast radius and the
+ * configuration arrive together and neither can be skipped past.
+ */
+export function useCreateDivert(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    DivertMutationView,
+    ApiError,
+    LifecycleVars & { body: CreateDivertRequest }
+  >({
+    mutationFn: ({ body, dryRun }) =>
+      request(`${lifecycleBase(clusterId)}/diverts${lifecycleQuery(dryRun)}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (result) => {
+      if (result.outcome.dryRun) return;
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "diverts") });
+    },
+  });
+}
+
+/**
+ * Delete a divert across the cluster. Nothing else removes one — a divert created
+ * over management outlives the broker process — so this is the only path.
+ */
+export function useDeleteDivert(clusterId: string, name: string) {
+  const qc = useQueryClient();
+  return useMutation<LifecycleOutcomeView, ApiError, LifecycleVars>({
+    mutationFn: ({ dryRun }) =>
+      request(
+        `${lifecycleBase(clusterId)}/diverts/${encodeURIComponent(name)}${lifecycleQuery(dryRun)}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: (result) => {
+      if (result.dryRun) return;
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "diverts") });
+    },
+  });
 }
 
 export function useUpdateQueue(clusterId: string, queueName: string) {
@@ -646,17 +741,19 @@ export function useUpdateQueue(clusterId: string, queueName: string) {
     ({ body, dryRun }) =>
       request(
         `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${lifecycleQuery(dryRun)}`,
-        { method: 'PATCH', body: JSON.stringify(body) },
+        { method: "PATCH", body: JSON.stringify(body) },
       ),
   );
 }
 
 export function useDeleteQueue(clusterId: string, queueName: string) {
-  return useLifecycleMutation<LifecycleVars>(clusterId, ({ dryRun, override }) =>
-    request(
-      `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${lifecycleQuery(dryRun, override)}`,
-      { method: 'DELETE' },
-    ),
+  return useLifecycleMutation<LifecycleVars>(
+    clusterId,
+    ({ dryRun, override }) =>
+      request(
+        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${lifecycleQuery(dryRun, override)}`,
+        { method: "DELETE" },
+      ),
   );
 }
 
@@ -666,8 +763,8 @@ export function useSetQueuePaused(clusterId: string, queueName: string) {
     clusterId,
     ({ paused, dryRun }) =>
       request(
-        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}/${paused ? 'pause' : 'resume'}${lifecycleQuery(dryRun)}`,
-        { method: 'POST' },
+        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}/${paused ? "pause" : "resume"}${lifecycleQuery(dryRun)}`,
+        { method: "POST" },
       ),
   );
 }
@@ -676,7 +773,7 @@ export function useResetQueueCounter(clusterId: string, queueName: string) {
   return useLifecycleMutation<LifecycleVars>(clusterId, ({ dryRun }) =>
     request(
       `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}/reset-counter${lifecycleQuery(dryRun)}`,
-      { method: 'POST' },
+      { method: "POST" },
     ),
   );
 }
@@ -685,10 +782,13 @@ export function useCreateAddress(clusterId: string) {
   return useLifecycleMutation<LifecycleVars & { body: CreateAddressRequest }>(
     clusterId,
     ({ body, dryRun }) =>
-      request(`${lifecycleBase(clusterId)}/addresses${lifecycleQuery(dryRun)}`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      request(
+        `${lifecycleBase(clusterId)}/addresses${lifecycleQuery(dryRun)}`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      ),
   );
 }
 
@@ -696,7 +796,7 @@ export function useDeleteAddress(clusterId: string, address: string) {
   return useLifecycleMutation<LifecycleVars>(clusterId, ({ dryRun }) =>
     request(
       `${lifecycleBase(clusterId)}/addresses/${encodeURIComponent(address)}${lifecycleQuery(dryRun)}`,
-      { method: 'DELETE' },
+      { method: "DELETE" },
     ),
   );
 }
@@ -725,7 +825,7 @@ function useCloseMutation<V extends LifecycleVars>(
     mutationFn: send,
     onSuccess: (result) => {
       if (result.outcome.dryRun) return;
-      for (const topic of ['connections', 'sessions', 'consumers'] as const) {
+      for (const topic of ["connections", "sessions", "consumers"] as const) {
         qc.invalidateQueries({ queryKey: keys.topic(clusterId, topic) });
       }
     },
@@ -735,14 +835,14 @@ function useCloseMutation<V extends LifecycleVars>(
 /** `connection` | `session` | `consumer`, all node-scoped by the id's issuing node. */
 export function useCloseNodeTarget(
   clusterId: string,
-  kind: Exclude<ConnectionCloseKind, 'address-consumers'>,
+  kind: Exclude<ConnectionCloseKind, "address-consumers">,
   nodeId: string,
   targetId: string,
 ) {
   return useCloseMutation<LifecycleVars>(clusterId, ({ dryRun }) =>
     request(
       `${lifecycleBase(clusterId)}/nodes/${nodeId}/${kind}s/${encodeURIComponent(targetId)}/close${lifecycleQuery(dryRun)}`,
-      { method: 'POST' },
+      { method: "POST" },
     ),
   );
 }
@@ -752,7 +852,7 @@ export function useCloseAddressConsumers(clusterId: string, address: string) {
   return useCloseMutation<LifecycleVars>(clusterId, ({ dryRun, override }) =>
     request(
       `${lifecycleBase(clusterId)}/addresses/${encodeURIComponent(address)}/consumers/close${lifecycleQuery(dryRun, override)}`,
-      { method: 'POST' },
+      { method: "POST" },
     ),
   );
 }
@@ -763,8 +863,9 @@ export function useNodeConfig(
   nodeId: string | undefined,
 ): UseQueryResult<NodeConfigView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'nodes', nodeId, 'config'] as const,
-    queryFn: () => request<NodeConfigView>(`/clusters/${clusterId}/nodes/${nodeId}/config`),
+    queryKey: ["clusters", clusterId, "nodes", nodeId, "config"] as const,
+    queryFn: () =>
+      request<NodeConfigView>(`/clusters/${clusterId}/nodes/${nodeId}/config`),
     enabled: Boolean(nodeId),
   });
 }
@@ -786,14 +887,17 @@ export function useAudit(
   filter: AuditFilter = {},
 ): UseQueryResult<AuditPageView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'audit', filter],
+    queryKey: ["clusters", clusterId, "audit", filter],
     queryFn: () => {
       const sp = new URLSearchParams();
       for (const [k, v] of Object.entries(filter)) {
-        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
+        if (v !== undefined && v !== "" && !(k === "page" && v === 1))
+          sp.set(k, String(v));
       }
       const qs = sp.toString();
-      return request<AuditPageView>(`/clusters/${clusterId}/audit${qs ? `?${qs}` : ''}`);
+      return request<AuditPageView>(
+        `/clusters/${clusterId}/audit${qs ? `?${qs}` : ""}`,
+      );
     },
     refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
@@ -817,15 +921,16 @@ export function useEvents(
   filter: EventFilter = {},
 ): UseQueryResult<BrokerEventPageView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'events', filter],
+    queryKey: ["clusters", clusterId, "events", filter],
     queryFn: () => {
       const sp = new URLSearchParams();
       for (const [k, v] of Object.entries(filter)) {
-        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
+        if (v !== undefined && v !== "" && !(k === "page" && v === 1))
+          sp.set(k, String(v));
       }
       const qs = sp.toString();
       return request<BrokerEventPageView>(
-        `/clusters/${clusterId}/events${qs ? `?${qs}` : ''}`,
+        `/clusters/${clusterId}/events${qs ? `?${qs}` : ""}`,
       );
     },
     refetchInterval: poll(5_000),
@@ -835,7 +940,7 @@ export function useEvents(
 
 export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'dlq'],
+    queryKey: ["clusters", clusterId, "dlq"],
     queryFn: () => request<DlqView>(`/clusters/${clusterId}/dlq`),
     refetchInterval: poll(10_000),
   });
@@ -852,12 +957,15 @@ export function useConfigDiff(
   right: string | null,
 ): UseQueryResult<ConfigDiffView, ApiError> {
   const params = new URLSearchParams();
-  if (left) params.set('left', left);
-  if (right) params.set('right', right);
+  if (left) params.set("left", left);
+  if (right) params.set("right", right);
   const query = params.toString();
   return useQuery({
-    queryKey: ['clusters', clusterId, 'config-diff', left, right],
-    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${query ? `?${query}` : ''}`),
+    queryKey: ["clusters", clusterId, "config-diff", left, right],
+    queryFn: () =>
+      request<ConfigDiffView>(
+        `/clusters/${clusterId}/config-diff${query ? `?${query}` : ""}`,
+      ),
     staleTime: 30_000,
   });
 }
@@ -868,8 +976,9 @@ export function useRrExpectations(
   clusterId: string,
 ): UseQueryResult<ExpectationView[], ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'rr', 'expectations'],
-    queryFn: () => request<ExpectationView[]>(`/clusters/${clusterId}/rr/expectations`),
+    queryKey: ["clusters", clusterId, "rr", "expectations"],
+    queryFn: () =>
+      request<ExpectationView[]>(`/clusters/${clusterId}/rr/expectations`),
   });
 }
 
@@ -878,22 +987,34 @@ export function useCreateRrExpectation(clusterId: string) {
   return useMutation({
     mutationFn: (body: CreateExpectationRequest) =>
       request<ExpectationView>(`/clusters/${clusterId}/rr/expectations`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr', 'expectations'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: ["clusters", clusterId, "rr", "expectations"],
+      }),
   });
 }
 
 export function useUpdateRrExpectation(clusterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: UpdateExpectationRequest }) =>
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: UpdateExpectationRequest;
+    }) =>
       request<ExpectationView>(`/clusters/${clusterId}/rr/expectations/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr', 'expectations'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: ["clusters", clusterId, "rr", "expectations"],
+      }),
   });
 }
 
@@ -901,8 +1022,13 @@ export function useDeleteRrExpectation(clusterId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      request<void>(`/clusters/${clusterId}/rr/expectations/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clusters', clusterId, 'rr', 'expectations'] }),
+      request<void>(`/clusters/${clusterId}/rr/expectations/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: ["clusters", clusterId, "rr", "expectations"],
+      }),
   });
 }
 
@@ -921,14 +1047,17 @@ export function useRrFlows(
   filter: RrFlowFilter = {},
 ): UseQueryResult<FlowPageView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'rr', 'flows', filter],
+    queryKey: ["clusters", clusterId, "rr", "flows", filter],
     queryFn: () => {
       const sp = new URLSearchParams();
       for (const [k, v] of Object.entries(filter)) {
-        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
+        if (v !== undefined && v !== "" && !(k === "page" && v === 1))
+          sp.set(k, String(v));
       }
       const qs = sp.toString();
-      return request<FlowPageView>(`/clusters/${clusterId}/rr/flows${qs ? `?${qs}` : ''}`);
+      return request<FlowPageView>(
+        `/clusters/${clusterId}/rr/flows${qs ? `?${qs}` : ""}`,
+      );
     },
     refetchInterval: poll(5_000),
     placeholderData: (prev) => prev,
@@ -940,8 +1069,9 @@ export function useRrFlow(
   flowId: string | undefined,
 ): UseQueryResult<FlowView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'rr', 'flows', flowId],
-    queryFn: () => request<FlowView>(`/clusters/${clusterId}/rr/flows/${flowId}`),
+    queryKey: ["clusters", clusterId, "rr", "flows", flowId],
+    queryFn: () =>
+      request<FlowView>(`/clusters/${clusterId}/rr/flows/${flowId}`),
     enabled: !!flowId,
   });
 }
@@ -956,19 +1086,23 @@ export function useRrDiagnostics(
   clusterId: string,
 ): UseQueryResult<RrDiagnosticsView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'rr', 'diagnostics'],
-    queryFn: () => request<RrDiagnosticsView>(`/clusters/${clusterId}/rr/diagnostics`),
+    queryKey: ["clusters", clusterId, "rr", "diagnostics"],
+    queryFn: () =>
+      request<RrDiagnosticsView>(`/clusters/${clusterId}/rr/diagnostics`),
     refetchInterval: poll(15_000),
   });
 }
 
 export function useRrStats(
   clusterId: string,
-  window = 'PT15M',
+  window = "PT15M",
 ): UseQueryResult<StatsResponse, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'rr', 'stats', window],
-    queryFn: () => request<StatsResponse>(`/clusters/${clusterId}/rr/stats?window=${window}`),
+    queryKey: ["clusters", clusterId, "rr", "stats", window],
+    queryFn: () =>
+      request<StatsResponse>(
+        `/clusters/${clusterId}/rr/stats?window=${window}`,
+      ),
     refetchInterval: poll(10_000),
   });
 }
@@ -977,7 +1111,7 @@ export function useRrStats(
 
 export interface MetricsParams {
   metrics: string[];
-  subjectType?: 'CLUSTER' | 'QUEUE';
+  subjectType?: "CLUSTER" | "QUEUE";
   subject?: string;
   from: string;
   to: string;
@@ -1000,13 +1134,15 @@ export function useMetrics(
     enabled,
     queryFn: () => {
       const sp = new URLSearchParams();
-      for (const m of params.metrics) sp.append('metric', m);
-      if (params.subjectType) sp.set('subjectType', params.subjectType);
-      if (params.subject) sp.set('subject', params.subject);
-      sp.set('from', params.from);
-      sp.set('to', params.to);
-      if (params.step) sp.set('step', params.step);
-      return request<MetricSeriesResponse>(`/clusters/${clusterId}/metrics?${sp.toString()}`);
+      for (const m of params.metrics) sp.append("metric", m);
+      if (params.subjectType) sp.set("subjectType", params.subjectType);
+      if (params.subject) sp.set("subject", params.subject);
+      sp.set("from", params.from);
+      sp.set("to", params.to);
+      if (params.step) sp.set("step", params.step);
+      return request<MetricSeriesResponse>(
+        `/clusters/${clusterId}/metrics?${sp.toString()}`,
+      );
     },
     refetchInterval: poll(refetchMs),
     placeholderData: (prev) => prev,
@@ -1015,10 +1151,13 @@ export function useMetrics(
 
 // ── alerting (alerting spec, ADR-0035, ADR-0036) ───────────────────────────
 
-export function useAlertRules(clusterId: string): UseQueryResult<AlertRuleView[], ApiError> {
+export function useAlertRules(
+  clusterId: string,
+): UseQueryResult<AlertRuleView[], ApiError> {
   return useQuery({
     queryKey: keys.alertRules(clusterId),
-    queryFn: () => request<AlertRuleView[]>(`/clusters/${clusterId}/alerts/rules`),
+    queryFn: () =>
+      request<AlertRuleView[]>(`/clusters/${clusterId}/alerts/rules`),
   });
 }
 
@@ -1027,22 +1166,28 @@ export function useCreateAlertRule(clusterId: string) {
   return useMutation<AlertRuleView, ApiError, AlertRuleRequest>({
     mutationFn: (body) =>
       request<AlertRuleView>(`/clusters/${clusterId}/alerts/rules`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.alertRules(clusterId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.alertRules(clusterId) }),
   });
 }
 
 export function useUpdateAlertRule(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<AlertRuleView, ApiError, { ruleId: string; body: AlertRuleRequest }>({
+  return useMutation<
+    AlertRuleView,
+    ApiError,
+    { ruleId: string; body: AlertRuleRequest }
+  >({
     mutationFn: ({ ruleId, body }) =>
       request<AlertRuleView>(`/clusters/${clusterId}/alerts/rules/${ruleId}`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.alertRules(clusterId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.alertRules(clusterId) }),
   });
 }
 
@@ -1050,15 +1195,21 @@ export function useDeleteAlertRule(clusterId: string) {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
     mutationFn: (ruleId) =>
-      request<void>(`/clusters/${clusterId}/alerts/rules/${ruleId}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.alertRules(clusterId) }),
+      request<void>(`/clusters/${clusterId}/alerts/rules/${ruleId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.alertRules(clusterId) }),
   });
 }
 
-export function useFiringAlerts(clusterId: string): UseQueryResult<AlertFiringView[], ApiError> {
+export function useFiringAlerts(
+  clusterId: string,
+): UseQueryResult<AlertFiringView[], ApiError> {
   return useQuery({
     queryKey: keys.alertFiring(clusterId),
-    queryFn: () => request<AlertFiringView[]>(`/clusters/${clusterId}/alerts/firing`),
+    queryFn: () =>
+      request<AlertFiringView[]>(`/clusters/${clusterId}/alerts/firing`),
     refetchInterval: poll(15_000),
   });
 }
@@ -1079,28 +1230,37 @@ export function useAlertHistory(
 }
 
 /** Cross-cluster open-firing counts for the shell badge — polled, since the SSE stream is per-cluster. */
-export function useFiringCounts(enabled = true): UseQueryResult<ClusterFiringCountView[], ApiError> {
+export function useFiringCounts(
+  enabled = true,
+): UseQueryResult<ClusterFiringCountView[], ApiError> {
   return useQuery({
     queryKey: keys.firingCounts,
-    queryFn: () => request<ClusterFiringCountView[]>('/alerts/firing'),
+    queryFn: () => request<ClusterFiringCountView[]>("/alerts/firing"),
     refetchInterval: poll(30_000),
     enabled,
   });
 }
 
-export function useNotificationChannels(): UseQueryResult<NotificationChannelView[], ApiError> {
+export function useNotificationChannels(): UseQueryResult<
+  NotificationChannelView[],
+  ApiError
+> {
   return useQuery({
     queryKey: keys.channels,
-    queryFn: () => request<NotificationChannelView[]>('/channels'),
+    queryFn: () => request<NotificationChannelView[]>("/channels"),
   });
 }
 
 export function useCreateNotificationChannel() {
   const qc = useQueryClient();
-  return useMutation<NotificationChannelView, ApiError, NotificationChannelRequest>({
+  return useMutation<
+    NotificationChannelView,
+    ApiError,
+    NotificationChannelRequest
+  >({
     mutationFn: (body) =>
-      request<NotificationChannelView>('/channels', {
-        method: 'POST',
+      request<NotificationChannelView>("/channels", {
+        method: "POST",
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.channels }),
@@ -1116,7 +1276,7 @@ export function useUpdateNotificationChannel() {
   >({
     mutationFn: ({ channelId, body }) =>
       request<NotificationChannelView>(`/channels/${channelId}`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.channels }),
@@ -1126,7 +1286,8 @@ export function useUpdateNotificationChannel() {
 export function useDeleteNotificationChannel() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (channelId) => request<void>(`/channels/${channelId}`, { method: 'DELETE' }),
+    mutationFn: (channelId) =>
+      request<void>(`/channels/${channelId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.channels }),
   });
 }
@@ -1134,7 +1295,7 @@ export function useDeleteNotificationChannel() {
 export function useTestNotificationChannel() {
   return useMutation<void, ApiError, string>({
     mutationFn: (channelId) =>
-      request<void>(`/channels/${channelId}/test`, { method: 'POST' }),
+      request<void>(`/channels/${channelId}/test`, { method: "POST" }),
   });
 }
 
@@ -1143,11 +1304,11 @@ export function useRotateCredentials(clusterId: string) {
   return useMutation<
     void,
     ApiError,
-    { username: string; password: string; kind?: 'JOLOKIA_BASIC' | 'CORE' }
+    { username: string; password: string; kind?: "JOLOKIA_BASIC" | "CORE" }
   >({
     mutationFn: (body) =>
       request(`/clusters/${clusterId}/credentials`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
@@ -1160,7 +1321,7 @@ export function useRotateCredentials(clusterId: string) {
 export function useMe(): UseQueryResult<MeView, ApiError> {
   return useQuery({
     queryKey: keys.me,
-    queryFn: () => request<MeView>('/auth/me'),
+    queryFn: () => request<MeView>("/auth/me"),
     retry: false,
   });
 }
@@ -1169,7 +1330,7 @@ export function useMe(): UseQueryResult<MeView, ApiError> {
 export function useAuthProviders(): UseQueryResult<ProviderView[], ApiError> {
   return useQuery({
     queryKey: keys.authProviders,
-    queryFn: () => request<ProviderView[]>('/auth/providers'),
+    queryFn: () => request<ProviderView[]>("/auth/providers"),
     retry: false,
   });
 }
@@ -1177,7 +1338,11 @@ export function useAuthProviders(): UseQueryResult<ProviderView[], ApiError> {
 export function useLogin() {
   const qc = useQueryClient();
   return useMutation<MeView, ApiError, LoginRequest>({
-    mutationFn: (body) => request<MeView>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) =>
+      request<MeView>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: (me) => {
       // Whoever signs in next sees every notice again, including on a shared browser.
       clearDismissedNotices();
@@ -1189,7 +1354,7 @@ export function useLogin() {
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, void>({
-    mutationFn: () => request<void>('/auth/logout', { method: 'POST' }),
+    mutationFn: () => request<void>("/auth/logout", { method: "POST" }),
     onSuccess: () => {
       clearDismissedNotices();
       qc.setQueryData(keys.me, undefined);
@@ -1200,7 +1365,11 @@ export function useLogout() {
 export function useChangePassword() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, ChangePasswordRequest>({
-    mutationFn: (body) => request<void>('/auth/password', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) =>
+      request<void>("/auth/password", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     // The server clears `mustChangePassword` and re-authenticates the same
     // session, but the cached `me` still says the account is locked — without
     // this refetch RootLayout bounces the user straight back to /change-password.
@@ -1211,78 +1380,119 @@ export function useChangePassword() {
 // ── authorization: users, roles, permissions (ADR-0038) ─────────────────────
 
 export function useUsers(enabled = true): UseQueryResult<UserView[], ApiError> {
-  return useQuery({ queryKey: keys.users, queryFn: () => request<UserView[]>('/users'), enabled });
+  return useQuery({
+    queryKey: keys.users,
+    queryFn: () => request<UserView[]>("/users"),
+    enabled,
+  });
 }
 
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation<UserView, ApiError, CreateUserRequest>({
-    mutationFn: (body) => request<UserView>('/users', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) =>
+      request<UserView>("/users", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
   });
 }
 
 export function useSetUserDisabled() {
   const qc = useQueryClient();
-  return useMutation<UserView, ApiError, { userId: string; disabled: boolean }>({
-    mutationFn: ({ userId, disabled }) =>
-      request<UserView>(`/users/${userId}/disabled`, {
-        method: 'PUT',
-        body: JSON.stringify({ disabled } satisfies SetDisabledRequest),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
-  });
+  return useMutation<UserView, ApiError, { userId: string; disabled: boolean }>(
+    {
+      mutationFn: ({ userId, disabled }) =>
+        request<UserView>(`/users/${userId}/disabled`, {
+          method: "PUT",
+          body: JSON.stringify({ disabled } satisfies SetDisabledRequest),
+        }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+    },
+  );
 }
 
 export function useAddGrant() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, { userId: string; body: GrantRequest }>({
     mutationFn: ({ userId, body }) =>
-      request<void>(`/users/${userId}/grants`, { method: 'POST', body: JSON.stringify(body) }),
+      request<void>(`/users/${userId}/grants`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
   });
 }
 
 export function useRemoveGrant() {
   const qc = useQueryClient();
-  return useMutation<void, ApiError, { userId: string; roleId: string; scopeType: string; scopeId?: string }>({
+  return useMutation<
+    void,
+    ApiError,
+    { userId: string; roleId: string; scopeType: string; scopeId?: string }
+  >({
     mutationFn: ({ userId, roleId, scopeType, scopeId }) => {
-      const qs = new URLSearchParams({ scopeType, ...(scopeId ? { scopeId } : {}) });
-      return request<void>(`/users/${userId}/grants/${roleId}?${qs}`, { method: 'DELETE' });
+      const qs = new URLSearchParams({
+        scopeType,
+        ...(scopeId ? { scopeId } : {}),
+      });
+      return request<void>(`/users/${userId}/grants/${roleId}?${qs}`, {
+        method: "DELETE",
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
   });
 }
 
 export function useRoles(): UseQueryResult<RoleView[], ApiError> {
-  return useQuery({ queryKey: keys.roles, queryFn: () => request<RoleView[]>('/roles') });
+  return useQuery({
+    queryKey: keys.roles,
+    queryFn: () => request<RoleView[]>("/roles"),
+  });
 }
 
-export function usePermissionsCatalogue(): UseQueryResult<PermissionView[], ApiError> {
-  return useQuery({ queryKey: keys.permissions, queryFn: () => request<PermissionView[]>('/permissions') });
+export function usePermissionsCatalogue(): UseQueryResult<
+  PermissionView[],
+  ApiError
+> {
+  return useQuery({
+    queryKey: keys.permissions,
+    queryFn: () => request<PermissionView[]>("/permissions"),
+  });
 }
 
 export function useCreateRole() {
   const qc = useQueryClient();
   return useMutation<RoleView, ApiError, RoleRequest>({
-    mutationFn: (body) => request<RoleView>('/roles', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) =>
+      request<RoleView>("/roles", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
   });
 }
 
 export function useUpdateRole() {
   const qc = useQueryClient();
-  return useMutation<RoleView, ApiError, { roleId: string; body: RoleRequest }>({
-    mutationFn: ({ roleId, body }) =>
-      request<RoleView>(`/roles/${roleId}`, { method: 'PUT', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
-  });
+  return useMutation<RoleView, ApiError, { roleId: string; body: RoleRequest }>(
+    {
+      mutationFn: ({ roleId, body }) =>
+        request<RoleView>(`/roles/${roleId}`, {
+          method: "PUT",
+          body: JSON.stringify(body),
+        }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
+    },
+  );
 }
 
 export function useDeleteRole() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (roleId) => request<void>(`/roles/${roleId}`, { method: 'DELETE' }),
+    mutationFn: (roleId) =>
+      request<void>(`/roles/${roleId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.roles }),
   });
 }
@@ -1290,22 +1500,36 @@ export function useDeleteRole() {
 // ── environments ─────────────────────────────────────────────────────────────
 
 export function useEnvironments(): UseQueryResult<EnvironmentView[], ApiError> {
-  return useQuery({ queryKey: keys.environments, queryFn: () => request<EnvironmentView[]>('/environments') });
+  return useQuery({
+    queryKey: keys.environments,
+    queryFn: () => request<EnvironmentView[]>("/environments"),
+  });
 }
 
 export function useCreateEnvironment() {
   const qc = useQueryClient();
   return useMutation<EnvironmentView, ApiError, EnvironmentRequest>({
-    mutationFn: (body) => request<EnvironmentView>('/environments', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) =>
+      request<EnvironmentView>("/environments", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
   });
 }
 
 export function useUpdateEnvironment() {
   const qc = useQueryClient();
-  return useMutation<EnvironmentView, ApiError, { environmentId: string; body: EnvironmentRequest }>({
+  return useMutation<
+    EnvironmentView,
+    ApiError,
+    { environmentId: string; body: EnvironmentRequest }
+  >({
     mutationFn: ({ environmentId, body }) =>
-      request<EnvironmentView>(`/environments/${environmentId}`, { method: 'PUT', body: JSON.stringify(body) }),
+      request<EnvironmentView>(`/environments/${environmentId}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
   });
 }
@@ -1313,7 +1537,8 @@ export function useUpdateEnvironment() {
 export function useDeleteEnvironment() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (environmentId) => request<void>(`/environments/${environmentId}`, { method: 'DELETE' }),
+    mutationFn: (environmentId) =>
+      request<void>(`/environments/${environmentId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
   });
 }
@@ -1323,7 +1548,7 @@ export function useAssignClusterEnvironment(clusterId: string) {
   return useMutation<void, ApiError, string | null>({
     mutationFn: (environmentId) =>
       request<void>(`/clusters/${clusterId}/environment`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify({ environmentId }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
@@ -1333,13 +1558,20 @@ export function useAssignClusterEnvironment(clusterId: string) {
 // ── API tokens ───────────────────────────────────────────────────────────────
 
 export function useTokens(): UseQueryResult<TokenView[], ApiError> {
-  return useQuery({ queryKey: keys.tokens, queryFn: () => request<TokenView[]>('/tokens') });
+  return useQuery({
+    queryKey: keys.tokens,
+    queryFn: () => request<TokenView[]>("/tokens"),
+  });
 }
 
 export function useCreateToken() {
   const qc = useQueryClient();
   return useMutation<CreatedTokenView, ApiError, CreateTokenRequest>({
-    mutationFn: (body) => request<CreatedTokenView>('/tokens', { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body) =>
+      request<CreatedTokenView>("/tokens", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tokens }),
   });
 }
@@ -1347,7 +1579,8 @@ export function useCreateToken() {
 export function useRevokeToken() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (tokenId) => request<void>(`/tokens/${tokenId}`, { method: 'DELETE' }),
+    mutationFn: (tokenId) =>
+      request<void>(`/tokens/${tokenId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tokens }),
   });
 }
@@ -1355,14 +1588,20 @@ export function useRevokeToken() {
 // ── OIDC role mappings (oidc-sso spec) ──────────────────────────────────────
 
 export function useOidcMappings(): UseQueryResult<OidcMappingView[], ApiError> {
-  return useQuery({ queryKey: keys.oidcMappings, queryFn: () => request<OidcMappingView[]>('/oidc/mappings') });
+  return useQuery({
+    queryKey: keys.oidcMappings,
+    queryFn: () => request<OidcMappingView[]>("/oidc/mappings"),
+  });
 }
 
 export function useCreateOidcMapping() {
   const qc = useQueryClient();
   return useMutation<OidcMappingView, ApiError, OidcMappingRequest>({
     mutationFn: (body) =>
-      request<OidcMappingView>('/oidc/mappings', { method: 'POST', body: JSON.stringify(body) }),
+      request<OidcMappingView>("/oidc/mappings", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
   });
 }
@@ -1370,11 +1609,11 @@ export function useCreateOidcMapping() {
 export function useDeleteOidcMapping() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (mappingId) => request<void>(`/oidc/mappings/${mappingId}`, { method: 'DELETE' }),
+    mutationFn: (mappingId) =>
+      request<void>(`/oidc/mappings/${mappingId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
   });
 }
-
 
 // ── SQL Console (ADR-0058) ─────────────────────────────────────────────────
 
@@ -1394,7 +1633,7 @@ export function useSqlPlan(
     queryKey: keys.sqlPlan(clusterId, sql),
     queryFn: () =>
       request<SqlPlanView>(`/clusters/${clusterId}/sql/plan`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ sql }),
       }),
     enabled: sql.trim().length > 0,
@@ -1415,11 +1654,15 @@ export function useVerifyOnBroker(clusterId: string) {
   return useMutation<SqlVerifyView, ApiError, SqlRowView>({
     mutationFn: (row) =>
       request<SqlVerifyView>(`/clusters/${clusterId}/sql/verify`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({
           nodeId: row.nodeId,
           queueName: row.queueName,
-          messageId: row.messageId,
+          // A captured row's own messageId belongs to the diverted copy, which never
+          // existed on the source queue. The id to ask the broker about is the source
+          // one the divert copied across (ADR-0062 D2).
+          messageId:
+            row.origin === "CAPTURED" ? row.sourceMessageId : row.messageId,
           timestamp: row.timestamp,
         }),
       }),
@@ -1433,16 +1676,25 @@ export function useIndexSubscriptions(
 ): UseQueryResult<SqlIndexSubscriptionView[], ApiError> {
   return useQuery({
     queryKey: keys.sqlIndex(clusterId),
-    queryFn: () => request<SqlIndexSubscriptionView[]>(`/clusters/${clusterId}/sql/index`),
+    queryFn: () =>
+      request<SqlIndexSubscriptionView[]>(`/clusters/${clusterId}/sql/index`),
   });
 }
 
 export function useCreateIndexSubscription(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<SqlIndexSubscriptionView, ApiError, SqlIndexSubscriptionRequest>({
+  return useMutation<
+    SqlIndexSubscriptionView,
+    ApiError,
+    SqlIndexSubscriptionRequest
+  >({
     mutationFn: (body) =>
-      request(`/clusters/${clusterId}/sql/index`, { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+      request(`/clusters/${clusterId}/sql/index`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
   });
 }
 
@@ -1455,10 +1707,11 @@ export function useUpdateIndexSubscription(clusterId: string) {
   >({
     mutationFn: ({ id, body }) =>
       request(`/clusters/${clusterId}/sql/index/${id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
   });
 }
 
@@ -1466,8 +1719,10 @@ export function useUpdateIndexSubscription(clusterId: string) {
 export function useDeleteIndexSubscription(clusterId: string) {
   const qc = useQueryClient();
   return useMutation<{ messagesDestroyed: number }, ApiError, string>({
-    mutationFn: (id) => request(`/clusters/${clusterId}/sql/index/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+    mutationFn: (id) =>
+      request(`/clusters/${clusterId}/sql/index/${id}`, { method: "DELETE" }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
   });
 }
 

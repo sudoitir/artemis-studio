@@ -41,5 +41,7 @@
     <include file="db/changelog/changes/019-management-write-evidence.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/020-clock-skew-and-latency-source.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/021-message-index.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/022-message-capture.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/023-message-index-fulltext.sql" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

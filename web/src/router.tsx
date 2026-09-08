@@ -20,6 +20,7 @@ import { DlqView } from './dlq/DlqView.tsx';
 import { EventsView } from './events/EventsView.tsx';
 import { FlowsView } from './rr/FlowsView.tsx';
 import { ResourceView } from './resources/ResourceView.tsx';
+import { RoutingView } from './routing/RoutingView.tsx';
 import { SettingsView } from './settings/SettingsView.tsx';
 import { MetricsView } from './metrics/MetricsView.tsx';
 import { METRIC_RANGES, type MetricRange } from './metrics/ranges.ts';
@@ -296,6 +297,18 @@ const resourceRoutes = resourceKinds.map((kind) =>
   }),
 );
 
+/** Routing carries one extra piece of navigable state: which of its two tabs is open. */
+const routingRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'routing',
+  component: RoutingView,
+  validateSearch: (raw: Record<string, unknown>) => {
+    const base = validateResourceSearch(raw);
+    return raw.tab === 'bridges' ? { ...base, tab: 'bridges' as const } : base;
+  },
+  errorComponent: RouteError,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'settings',
@@ -323,6 +336,7 @@ const routeTree = rootRoute.addChildren([
     eventsRoute,
     rrRoute,
     ...resourceRoutes,
+    routingRoute,
     settingsRoute,
   ]),
 ]);

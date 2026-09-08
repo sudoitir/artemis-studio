@@ -63,6 +63,26 @@ public class ManagementRefusal extends RuntimeException {
      * not one of the known management refusals and should be treated as a
      * connection-level failure instead.
      */
+    /**
+     * Turn a failed response into the right exception: a {@link ManagementRefusal} when
+     * the broker explained itself with a code we know, and a connection-level
+     * {@link BrokerConnectionException} otherwise. Authorization refusals never reach
+     * here — the client raises {@code UNAUTHORIZED} from the HTTP status first, which is
+     * what {@code managementWrite} keys off (ADR-0049 D5).
+     */
+    public static void require(JolokiaResponse res, String operation) {
+        if (res.ok()) {
+            return;
+        }
+        ManagementRefusal refusal = classify(res.error(), operation);
+        if (refusal != null) {
+            throw refusal;
+        }
+        throw new BrokerConnectionException(
+                BrokerConnectionException.Kind.BAD_RESPONSE,
+                operation + " failed: " + (res.error() != null ? res.error() : "status " + res.status()));
+    }
+
     static ManagementRefusal classify(String error, String operation) {
         if (error == null) {
             return null;
