@@ -110,6 +110,10 @@ public class PredicateSplitter {
                         // ILIKE has no selector equivalent, and an approximate translation
                         // would silently change the result set — so it is a scan (D4).
                         like.caseInsensitive() ? Evaluation.SCAN : classify(like.term());
+                    // Postgres evaluates it from a GIN index, so it is not a scan of
+                    // the broker's messages — but it is not pushdown either, because
+                    // no broker can evaluate it at all.
+                    case Predicate.Match ignored -> Evaluation.SCAN;
                 };
         // Eligible in principle is not the same as renderable in fact: a property
         // name a selector cannot spell, or an ordering comparison on the durability
@@ -127,6 +131,7 @@ public class PredicateSplitter {
             case Term.PropertyTerm ignored -> Evaluation.PUSHDOWN;
             case Term.JsonTerm ignored -> Evaluation.SCAN;
             case Term.CaseFold ignored -> Evaluation.SCAN;
+            case Term.MatchRank ignored -> Evaluation.SCAN;
         };
     }
 

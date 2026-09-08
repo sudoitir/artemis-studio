@@ -26,6 +26,9 @@ final class TargetPredicateEvaluator {
             case Predicate.IsNull isNull -> (value(isNull.term(), target) == null) != isNull.negated();
             case Predicate.Like like -> like(like, target);
             case Predicate.Between ignored -> true;
+            // A target is a queue on a node; nothing about it can be full-text
+            // searched, so this predicate excludes no target.
+            case Predicate.Match ignored -> true;
         };
     }
 

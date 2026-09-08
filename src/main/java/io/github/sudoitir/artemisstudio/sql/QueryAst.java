@@ -53,6 +53,14 @@ public record QueryAst(
 
         /** {@code lower(x)} / {@code upper(x)}. Always a scan — no selector equivalent. */
         record CaseFold(Term inner, boolean upper) implements Term {}
+
+        /**
+         * {@code match_rank} — how well a row matched the query's {@code MATCH()},
+         * from {@code ts_rank_cd}. Orderable and nothing else: it is a property of the
+         * comparison, not of the message, so it has no value to compare against and no
+         * meaning without a {@code MATCH()} in the same query.
+         */
+        record MatchRank() implements Term {}
     }
 
     // ---- literals ------------------------------------------------------
@@ -127,5 +135,17 @@ public record QueryAst(
                 implements Predicate {}
 
         record Between(Term term, Literal low, Literal high, boolean negated) implements Predicate {}
+
+        /**
+         * {@code MATCH(body, 'terms')} — full-text search over the stored body
+         * (ADR-0063). Index-only, and deliberately not expressible against a live
+         * broker: there is no selector for it and no way to approximate one that would
+         * not silently mean something different.
+         *
+         * <p>{@code terms} is a {@code websearch_to_tsquery} string, so quoted phrases,
+         * {@code -exclusion} and {@code or} work the way an operator expects from a
+         * search box, and a syntax error in it is a no-match rather than an error.
+         */
+        record Match(String terms) implements Predicate {}
     }
 }

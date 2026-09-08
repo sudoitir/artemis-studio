@@ -83,6 +83,10 @@ public class SelectorRenderer {
                 identifier(isNull.term()) + (isNull.negated() ? " IS NOT NULL" : " IS NULL");
             case Predicate.Like like -> like(like);
             case Predicate.Between between -> between(between, now);
+            // No JMS selector expresses full-text search, and an approximation would
+            // silently mean something else — so it is unrenderable, not translated.
+            case Predicate.Match ignored ->
+                throw new UnrenderableSelectorException("a selector cannot express MATCH()");
         };
     }
 
@@ -152,6 +156,8 @@ public class SelectorRenderer {
                 }
                 yield selectorId;
             }
+            case Term.MatchRank ignored ->
+                throw new UnrenderableSelectorException("a selector cannot express match_rank");
             case Term.PropertyTerm property -> {
                 if (!IDENTIFIER.matcher(property.name()).matches()) {
                     throw new UnrenderableSelectorException(

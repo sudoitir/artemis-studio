@@ -52,6 +52,11 @@ public class MessagePredicate {
             case Predicate.IsNull isNull -> (resolve(isNull.term(), message, context) == null) != isNull.negated();
             case Predicate.Like like -> like(like, message, context);
             case Predicate.Between between -> between(between, message, context);
+            // Unreachable: the planner refuses MATCH() against a live broker before a
+            // message is ever read. Answering false here would silently drop rows; a
+            // failure says which layer let it through.
+            case Predicate.Match ignored ->
+                throw new IllegalStateException("MATCH() cannot be evaluated against a broker message");
         };
     }
 
@@ -151,6 +156,7 @@ public class MessagePredicate {
             case Term.ColumnTerm column -> column(column.column(), message, context);
             case Term.PropertyTerm property -> property(property.name(), message);
             case Term.JsonTerm path -> jsonPath(path.path(), message);
+            case Term.MatchRank ignored -> null;
             case Term.CaseFold fold -> {
                 Object inner = resolve(fold.inner(), message, context);
                 yield inner == null
@@ -182,7 +188,7 @@ public class MessagePredicate {
             case BODY -> message.body();
             // An observation column has no meaning against a live broker; the planner
             // rejects the query before it gets here, so this is a backstop.
-            case OBSERVED_AT, LAST_SEEN_AT -> null;
+            case OBSERVED_AT, LAST_SEEN_AT, ORIGIN, ORIG_ADDRESS, SOURCE_MESSAGE_ID -> null;
         };
     }
 

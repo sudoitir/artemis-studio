@@ -112,7 +112,29 @@ public final class ColumnCatalogue {
                 Evaluation.SCAN,
                 null,
                 true,
-                "When the index last still saw it on its queue.");
+                "When the index last still saw it on its queue."),
+        ORIGIN(
+                "origin",
+                Type.STRING,
+                Evaluation.SCAN,
+                null,
+                true,
+                "SAMPLED or CAPTURED. A sampled row says a poll saw the message; a captured one says"
+                        + " the address routed it."),
+        ORIG_ADDRESS(
+                "origAddress",
+                Type.STRING,
+                Evaluation.SCAN,
+                null,
+                true,
+                "The address the broker said a captured copy came from, when it said so."),
+        SOURCE_MESSAGE_ID(
+                "sourceMessageId",
+                Type.STRING,
+                Evaluation.SCAN,
+                null,
+                true,
+                "A captured message's id on its source queue. Null when the broker did not copy it.");
 
         private final String sqlName;
         private final Type type;

@@ -243,11 +243,48 @@ public class SqlQueryParser {
             case InExpression in -> in(in);
             case Between between -> between(between);
             case ComparisonOperator cmp -> compare(cmp);
+            case net.sf.jsqlparser.expression.operators.relational.FullTextSearch fts -> match(fts);
             default ->
                 throw new SqlSyntaxException(
                         "That is not something the dialect can evaluate. Open the help for the operators it accepts.",
                         e.toString());
         };
+    }
+
+    /**
+     * {@code MATCH (body) AGAINST ('terms')} — full-text search over the stored body
+     * (ADR-0063).
+     *
+     * <p>This spelling rather than {@code MATCH(body, 'terms')} for a measured reason:
+     * {@code MATCH} is a reserved word in the SQL grammar this parser implements, and
+     * the two-argument call cannot be parsed at all — it fails on the comma. The
+     * {@code AGAINST} form is the grammar's own, so the dialect gains full-text search
+     * without a fork of the parser or a pre-pass over the operator's text.
+     */
+    private Predicate match(net.sf.jsqlparser.expression.operators.relational.FullTextSearch fts) {
+        List<net.sf.jsqlparser.schema.Column> columns =
+                fts.getMatchColumns() == null ? List.of() : new ArrayList<>(fts.getMatchColumns());
+        if (columns.size() != 1) {
+            throw new SqlSyntaxException("MATCH searches one column: MATCH (body) AGAINST ('terms').", fts.toString());
+        }
+        Term target = columnTerm(columns.getFirst());
+        if (!(target instanceof Term.ColumnTerm column) || column.column() != Column.BODY) {
+            throw new SqlSyntaxException(
+                    "MATCH searches the body column: MATCH (body) AGAINST ('terms').",
+                    columns.getFirst().toString());
+        }
+        if (!(fts.getAgainstValue() instanceof StringValue terms)) {
+            throw new SqlSyntaxException(
+                    "MATCH's terms are a quoted string: MATCH (body) AGAINST ('order 4471').",
+                    String.valueOf(fts.getAgainstValue()));
+        }
+        if (fts.getSearchModifier() != null) {
+            throw new SqlSyntaxException(
+                    "The dialect has no search modifiers; the terms themselves carry the syntax"
+                            + " — quoted phrases, -exclusion and or.",
+                    fts.getSearchModifier());
+        }
+        return new Predicate.Match(terms.getValue());
     }
 
     private Predicate parenthesised(ParenthesedExpressionList<?> list) {
@@ -342,6 +379,11 @@ public class SqlQueryParser {
         String table =
                 column.getTable() == null ? null : unquote(column.getTable().getName());
         String name = unquote(column.getColumnName());
+        // Not a catalogue column: match_rank is a property of the comparison a
+        // MATCH() makes, so it exists only where one does and only in ORDER BY.
+        if (table == null && "match_rank".equalsIgnoreCase(name)) {
+            return new Term.MatchRank();
+        }
         if (table != null && ColumnCatalogue.PROPERTY_PREFIX.equalsIgnoreCase(table)) {
             if (name.isBlank()) {
                 throw new SqlSyntaxException("An application property needs a name, as props.<name>.", "props");

@@ -39,6 +39,7 @@ final class PredicateText {
                         + literal(between.low())
                         + " AND "
                         + literal(between.high());
+            case Predicate.Match match -> "MATCH(body, '" + match.terms() + "')";
         };
     }
 
@@ -48,6 +49,7 @@ final class PredicateText {
             case Term.PropertyTerm property -> "props." + property.name();
             case Term.JsonTerm json -> "body->>'" + json.path() + "'";
             case Term.CaseFold fold -> (fold.upper() ? "upper(" : "lower(") + term(fold.inner()) + ")";
+            case Term.MatchRank ignored -> "match_rank";
         };
     }
 
