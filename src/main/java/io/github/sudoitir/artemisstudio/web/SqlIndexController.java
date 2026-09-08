@@ -1,8 +1,11 @@
 package io.github.sudoitir.artemisstudio.web;
 
+import io.github.sudoitir.artemisstudio.persist.CaptureMode;
+import io.github.sudoitir.artemisstudio.persist.MessageCaptureNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.sql.MessageIndexService;
 import io.github.sudoitir.artemisstudio.sql.MessageIndexService.Subscription;
+import io.github.sudoitir.artemisstudio.web.dto.SqlViews.CaptureNodeView;
 import io.github.sudoitir.artemisstudio.web.dto.SqlViews.IndexSubscriptionRequest;
 import io.github.sudoitir.artemisstudio.web.dto.SqlViews.IndexSubscriptionView;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -33,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SqlIndexController {
 
     private final MessageIndexService index;
+    private final io.github.sudoitir.artemisstudio.broker.capture.CaptureReconciler capture;
 
     @GetMapping
     public List<IndexSubscriptionView> list(@PathVariable UUID clusterId) {
@@ -41,27 +45,45 @@ public class SqlIndexController {
 
     @PostMapping
     public IndexSubscriptionView create(@PathVariable UUID clusterId, @RequestBody IndexSubscriptionRequest request) {
-        return toView(index.create(
-                clusterId,
-                request.queuePattern(),
-                request.intervalMs() == null ? 5000L : request.intervalMs(),
-                request.retentionDays() == null ? 7 : request.retentionDays()));
+        return toView(index.create(clusterId, toSpec(request)));
     }
 
     @PatchMapping("/{id}")
     public IndexSubscriptionView update(
             @PathVariable UUID clusterId, @PathVariable UUID id, @RequestBody IndexSubscriptionRequest request) {
-        return toView(index.update(clusterId, id, request.enabled(), request.intervalMs(), request.retentionDays()));
+        return toView(index.update(clusterId, id, toSpec(request)));
     }
 
     /** Deletes the subscription and everything it captured, and says how much that was. */
     @DeleteMapping("/{id}")
     public DeletedView delete(@PathVariable UUID clusterId, @PathVariable UUID id) {
-        return new DeletedView(index.delete(clusterId, id));
+        MessageIndexService.Deleted deleted = index.delete(clusterId, id);
+        if (deleted.hadCapture()) {
+            // Once the deletion has committed, so the sweep sees an empty desired
+            // state and the broker calls are not inside that transaction.
+            capture.reconcileCluster(clusterId);
+        }
+        return new DeletedView(deleted.messagesDestroyed());
     }
 
     @Schema(description = "How many captured messages the deletion destroyed.")
     public record DeletedView(long messagesDestroyed) {}
+
+    private static MessageIndexService.Spec toSpec(IndexSubscriptionRequest request) {
+        return new MessageIndexService.Spec(
+                request.queuePattern(),
+                request.intervalMs(),
+                request.retentionDays(),
+                request.enabled(),
+                request.mode() == null
+                        ? null
+                        : CaptureMode.valueOf(request.mode().toUpperCase()),
+                request.ringSize(),
+                request.filterString(),
+                request.maxBytes(),
+                request.maxRate(),
+                request.bodyCapBytes());
+    }
 
     private static IndexSubscriptionView toView(Subscription subscription) {
         MessageIndexSubscriptionEntity entity = subscription.entity();
@@ -76,7 +98,28 @@ public class SqlIndexController {
                 entity.isEnabled(),
                 subscription.footprint().messages(),
                 subscription.footprint().payloadBytes(),
-                iso(subscription.footprint().oldest()));
+                iso(subscription.footprint().oldest()),
+                subscription.notCapturing(),
+                entity.getMode().name(),
+                entity.getRingSize(),
+                entity.getFilterString(),
+                entity.getMaxBytes(),
+                entity.getMaxRate(),
+                entity.getBodyCapBytes(),
+                subscription.nodes().stream()
+                        .map(SqlIndexController::toNodeView)
+                        .toList());
+    }
+
+    private static CaptureNodeView toNodeView(MessageIndexService.CaptureNode node) {
+        MessageCaptureNodeEntity state = node.state();
+        return new CaptureNodeView(
+                state.getNodeId(),
+                node.nodeName(),
+                state.getCaptureState().name(),
+                state.getCaptureDetail(),
+                iso(state.getCapturedFrom()),
+                state.getDroppedEstimate());
     }
 
     private static String iso(Instant instant) {

@@ -125,7 +125,16 @@ class RrSamplerTest {
         RrSamplerHealth health = new RrSamplerHealth(java.time.Clock.systemUTC());
 
         return new Fixture(
-                new RrSampler(expectations, nodeRepo, transport, provider, resolver, clocks, queueTargets, health),
+                new RrSampler(
+                        expectations,
+                        nodeRepo,
+                        transport,
+                        provider,
+                        resolver,
+                        clocks,
+                        queueTargets,
+                        health,
+                        mock(io.github.sudoitir.artemisstudio.broker.capture.CaptureCoverage.class)),
                 seen,
                 health);
     }

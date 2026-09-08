@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.scheduler;
 
+import io.github.sudoitir.artemisstudio.broker.capture.CaptureReconciler;
 import io.github.sudoitir.artemisstudio.broker.core.RrSampler;
 import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.persist.BrokerEventReaper;
@@ -54,6 +55,7 @@ public class DynamicSchedules implements SchedulingConfigurer {
     private final MonotonicClockWatch monotonicClockWatch;
     private final SqlTailPoller sqlTailPoller;
     private final MessageIndexCapture messageIndexCapture;
+    private final CaptureReconciler captureReconciler;
     private final MessageIndexPartitionMaintainer messageIndexPartitions;
     private final ArtemisStudioProperties properties;
 
@@ -85,6 +87,13 @@ public class DynamicSchedules implements SchedulingConfigurer {
         // rather than at the next restart.
         registrar.addTriggerTask(
                 messageIndexCapture::reconcile, DynamicTriggers.fixedDelay(() -> MessageIndexCapture.RECONCILE));
+        // Capture's converge loop. Unlike the sampled reconcile above this one does
+        // make broker calls — it reads each live node's divert names and installs what
+        // is missing — so it is a per-node permit through NodeCallLimiter, acts only on
+        // drift, and is the failover path as well as the install path (ADR-0062 D4).
+        registrar.addTriggerTask(
+                captureReconciler::reconcile,
+                DynamicTriggers.fixedDelay(() -> properties.capture().reconcileInterval()));
 
         // Housekeeping crons.
         registrar.addTriggerTask(metricReaper::reap, DynamicTriggers.cron(settings::metricReaperCron));

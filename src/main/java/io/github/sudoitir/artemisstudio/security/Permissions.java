@@ -26,6 +26,15 @@ public final class Permissions {
     public static final String QUEUE_DELETE = "queue:delete";
     public static final String QUEUE_UPDATE = "queue:update";
     public static final String QUEUE_PAUSE = "queue:pause";
+    public static final String DIVERT_WRITE = "divert:write";
+
+    /**
+     * Turning message capture on. Not {@code settings:write}: capture mutates broker
+     * routing on a schedule and creates a second copy of production payload, which is
+     * a different authority from changing how often Studio polls.
+     */
+    public static final String CAPTURE_WRITE = "capture:write";
+
     public static final String CONNECTION_CLOSE = "connection:close";
     public static final String ALERT_READ = "alert:read";
     public static final String ALERT_WRITE = "alert:write";
@@ -50,6 +59,8 @@ public final class Permissions {
         m.put(QUEUE_DELETE, "Destroy queues and addresses");
         m.put(QUEUE_UPDATE, "Change a queue's configuration");
         m.put(QUEUE_PAUSE, "Pause and resume queues");
+        m.put(DIVERT_WRITE, "Create and delete diverts");
+        m.put(CAPTURE_WRITE, "Turn message capture on and off");
         m.put(CONNECTION_CLOSE, "Close client connections, sessions and an address's consumers");
         m.put(ALERT_READ, "View alert rules and firings");
         m.put(ALERT_WRITE, "Create, edit, or delete alert rules and channels");

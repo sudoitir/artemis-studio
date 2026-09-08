@@ -1,6 +1,6 @@
 # ADR-0060: A live tail is a sample, and says so permanently
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0062](0062-message-capture-is-a-divert-into-a-ring-bounded-queue.md)
 - **Date**: 2026-09-07
 - **Deciders**: Artemis Studio maintainers
 

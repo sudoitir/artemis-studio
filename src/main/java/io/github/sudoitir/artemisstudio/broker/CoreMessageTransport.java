@@ -140,7 +140,13 @@ public class CoreMessageTransport implements MessageTransport {
         }
     }
 
-    private static BrowsedMessage toBrowsed(Message m) throws JMSException {
+    /**
+     * The one JMS-message-to-{@link BrowsedMessage} mapping in the product. Public
+     * because message capture drains the same messages through a consumer rather than
+     * a browser, and a second mapper would be a second set of rules about what a
+     * property's type is and when a body is text.
+     */
+    public static BrowsedMessage toBrowsed(Message m) throws JMSException {
         String body;
         BodyEncoding encoding;
         if (m instanceof TextMessage text) {

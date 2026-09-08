@@ -31,7 +31,10 @@ class MessageIndexCoverageTest {
     @BeforeEach
     void setUp() {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
-        coverage = new MessageIndexCoverage(subscriptions);
+        coverage = new MessageIndexCoverage(
+                subscriptions,
+                mock(io.github.sudoitir.artemisstudio.persist.MessageCaptureNodeRepository.class),
+                mock(io.github.sudoitir.artemisstudio.persist.QueueSnapshotRepository.class));
     }
 
     private MessageIndexSubscriptionEntity subscription(String pattern, Instant captureFrom, int retentionDays) {
