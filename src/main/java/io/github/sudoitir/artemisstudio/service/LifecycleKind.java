@@ -10,6 +10,11 @@ import io.github.sudoitir.artemisstudio.security.Permissions;
  * <p>Holding a message-level permission implies none of these. Purging a queue and
  * destroying one are different authorities: one empties a resource the operator
  * keeps, the other removes the resource itself.
+ *
+ * <p>A divert changes where traffic goes rather than what a queue holds, so it has
+ * its own authority ({@code divert:write}) and not the queue ones. Deleting one
+ * destroys no messages, but it is marked destructive because it silently changes
+ * routing for every producer on the source address and cannot be noticed by them.
  */
 public enum LifecycleKind {
     CREATE_QUEUE("CREATE_QUEUE", "QUEUE", Permissions.QUEUE_CREATE, false),
@@ -19,7 +24,9 @@ public enum LifecycleKind {
     RESUME_QUEUE("RESUME_QUEUE", "QUEUE", Permissions.QUEUE_PAUSE, false),
     RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", "QUEUE", Permissions.QUEUE_UPDATE, false),
     CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", Permissions.QUEUE_CREATE, false),
-    DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", Permissions.QUEUE_DELETE, true);
+    DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", Permissions.QUEUE_DELETE, true),
+    CREATE_DIVERT("CREATE_DIVERT", "DIVERT", Permissions.DIVERT_WRITE, false),
+    DELETE_DIVERT("DELETE_DIVERT", "DIVERT", Permissions.DIVERT_WRITE, true);
 
     private final String auditName;
     private final String targetType;

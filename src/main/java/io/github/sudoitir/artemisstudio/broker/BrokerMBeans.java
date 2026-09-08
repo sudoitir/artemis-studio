@@ -39,6 +39,16 @@ public final class BrokerMBeans {
                 + ",queue=" + quote(queue);
     }
 
+    /** All divert MBeans under a broker. A divert is a sub-component of its source address. */
+    public static String divertsPattern(String brokerObjectName) {
+        return brokerObjectName + ",component=addresses,address=*,subcomponent=diverts,divert=*";
+    }
+
+    /** All bridge MBeans under a broker. */
+    public static String bridgesPattern(String brokerObjectName) {
+        return brokerObjectName + ",component=bridges,name=*";
+    }
+
     private static String quote(String value) {
         return '"' + value + '"';
     }

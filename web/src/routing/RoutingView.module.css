@@ -1,0 +1,23 @@
+/* The direction of a divert, as one legible object rather than two columns. */
+.direction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+.endpoint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The arrow carries the direction. It is decorative: the accessible name on the
+ * row's direction cell spells the relationship out in words, because an arrow
+ * glyph is not something a screen reader can be relied on to convey.
+ */
+.arrow {
+  color: var(--as-text-dimmed);
+  flex: none;
+}

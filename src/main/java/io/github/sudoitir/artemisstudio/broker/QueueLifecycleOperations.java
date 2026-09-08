@@ -212,23 +212,7 @@ public class QueueLifecycleOperations {
 
     // ---- helpers --------------------------------------------------------
 
-    /**
-     * Turn a failed response into the right exception: a {@link ManagementRefusal}
-     * when the broker explained itself with a code we know, and a connection-level
-     * {@link BrokerConnectionException} otherwise. Authorization refusals never
-     * reach here — the client raises {@code UNAUTHORIZED} from the HTTP status
-     * first, which is what {@code managementWrite} keys off (D5).
-     */
     private static void require(JolokiaResponse res, String operation) {
-        if (res.ok()) {
-            return;
-        }
-        ManagementRefusal refusal = ManagementRefusal.classify(res.error(), operation);
-        if (refusal != null) {
-            throw refusal;
-        }
-        throw new BrokerConnectionException(
-                BrokerConnectionException.Kind.BAD_RESPONSE,
-                operation + " failed: " + (res.error() != null ? res.error() : "status " + res.status()));
+        ManagementRefusal.require(res, operation);
     }
 }

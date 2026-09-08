@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.broker.QueueLifecycleOperations;
+import io.github.sudoitir.artemisstudio.broker.routing.DivertOperations;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
@@ -18,6 +19,7 @@ import io.github.sudoitir.artemisstudio.service.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.service.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateAddressRequest;
+import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.web.dto.LifecycleRequests.UpdateQueueRequest;
 import java.util.ArrayList;
@@ -36,7 +38,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Queue and address lifecycle across a cluster (ADR-0049).
+ * Queue, address and divert lifecycle across a cluster (ADR-0049).
  *
  * <p>A command names a <em>cluster</em>, not a node. Artemis cluster nodes each own
  * their own queues, so "create this queue on the cluster" is N management calls
@@ -61,6 +63,7 @@ public class QueueLifecycleService {
     private final QueueSnapshotRepository queueSnapshots;
     private final BrokerConnections connections;
     private final QueueLifecycleOperations ops;
+    private final DivertOperations divertOps;
     private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
@@ -196,6 +199,49 @@ public class QueueLifecycleService {
                 }
                 throw e;
             }
+            return NodeStatus.APPLIED;
+        });
+    }
+
+    // ---- diverts ---------------------------------------------------------
+
+    /**
+     * Create a divert on every live node. A divert exists per node, so this is the
+     * same fan-out every other topology mutation uses, with the same per-node
+     * outcomes and the same preview.
+     *
+     * <p>A node that already has a divert by this name reports {@code ALREADY}. The
+     * configuration is not compared the way {@code createQueue} compares a queue's:
+     * unlike a queue, a divert is cheap to delete and recreate, and the routing spec
+     * makes that the only way to change one — so a mismatched name is a thing for the
+     * operator to look at, not something to reconcile silently.
+     */
+    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
+    public Attempt<LifecycleOutcome> createDivert(UUID clusterId, CreateDivertRequest req, boolean dryRun) {
+        Map<String, Object> config = DivertOperations.divertConfig(
+                req.name(),
+                req.routingName(),
+                req.address(),
+                req.forwardingAddress(),
+                Boolean.TRUE.equals(req.exclusive()),
+                req.filter(),
+                req.routingType());
+        return run(clusterId, LifecycleKind.CREATE_DIVERT, req.name(), config, dryRun, false, (client, broker) -> {
+            divertOps.createDivert(client, broker, config);
+            return NodeStatus.APPLIED;
+        });
+    }
+
+    /**
+     * Delete a divert from every live node. Nothing else removes one — a divert
+     * created over management outlives the broker process (ADR-0065) — so this is
+     * the only path, and the confirmation says so rather than implying a restart
+     * would do it.
+     */
+    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
+    public Attempt<LifecycleOutcome> deleteDivert(UUID clusterId, String name, boolean dryRun) {
+        return run(clusterId, LifecycleKind.DELETE_DIVERT, name, Map.of(), dryRun, false, (client, broker) -> {
+            divertOps.destroyDivert(client, broker, name);
             return NodeStatus.APPLIED;
         });
     }

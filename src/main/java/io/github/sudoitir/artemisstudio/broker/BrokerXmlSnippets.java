@@ -41,6 +41,43 @@ public final class BrokerXmlSnippets {
             """;
 
     /** Both snippets, in the order they appear in {@code broker.xml}. */
+    /**
+     * The {@code <divert>} that would make a broker's configuration carry a divert
+     * Studio created over management. Built from the operator's own entered values so
+     * it can be pasted rather than retyped.
+     *
+     * <p>This is not a warning that the divert is temporary — it is not (ADR-0065).
+     * It is what closes the gap between a broker that is diverting and a broker
+     * configuration that says nothing about it.
+     */
+    public static String forDivert(
+            String name,
+            String routingName,
+            String address,
+            String forwardingAddress,
+            boolean exclusive,
+            String filter,
+            String routingType) {
+        StringBuilder xml = new StringBuilder();
+        xml.append("<diverts>\n");
+        xml.append("  <divert name=\"").append(name).append("\">\n");
+        xml.append("    <routing-name>")
+                .append(routingName == null || routingName.isBlank() ? name : routingName)
+                .append("</routing-name>\n");
+        xml.append("    <address>").append(address).append("</address>\n");
+        xml.append("    <forwarding-address>").append(forwardingAddress).append("</forwarding-address>\n");
+        if (filter != null && !filter.isBlank()) {
+            xml.append("    <filter string=\"").append(filter).append("\"/>\n");
+        }
+        if (routingType != null && !routingType.isBlank()) {
+            xml.append("    <routing-type>").append(routingType.toUpperCase()).append("</routing-type>\n");
+        }
+        xml.append("    <exclusive>").append(exclusive).append("</exclusive>\n");
+        xml.append("  </divert>\n");
+        xml.append("</diverts>\n");
+        return xml.toString();
+    }
+
     public static String forNotifications() {
         return NOTIFICATION_PLUGIN + "\n" + NOTIFICATIONS_SECURITY_SETTING;
     }
