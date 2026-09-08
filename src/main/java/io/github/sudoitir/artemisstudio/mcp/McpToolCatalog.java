@@ -162,16 +162,21 @@ final class McpToolCatalog {
             new Entry(
                     "queue_lifecycle",
                     Posture.MUTATE,
-                    "Create, update, pause, resume or destroy a queue or address, cluster-wide.",
+                    "Create, update, pause, resume or destroy a queue, address or divert, cluster-wide.",
                     List.of(
                             Param.values("kind", names(LifecycleKind.values()), null),
                             Param.shape(
                                     "config",
                                     "{ address, routingType (ANYCAST|MULTICAST), durable, filter, maxConsumers, "
-                                            + "purgeOnNoConsumers, exclusive, nonDestructive, ringSize }",
+                                            + "purgeOnNoConsumers, exclusive, nonDestructive, ringSize, "
+                                            + "forwardingAddress, routingName }",
                                     "create_queue needs at least address and routingType. On update_queue only "
                                             + "the fields you send change; address, routingType, name and durable "
-                                            + "cannot change on a live queue. create_address reads routingType only."),
+                                            + "cannot change on a live queue. create_address reads routingType only. "
+                                            + "create_divert needs at least address and forwardingAddress; a divert "
+                                            + "created this way persists across broker restarts and will not appear "
+                                            + "in the broker's own configuration, and there is no update_divert — "
+                                            + "change one by deleting it and creating the replacement."),
                             Param.note(
                                     "kind.fanout",
                                     "A command targets the cluster and fans out to every live node. The result "

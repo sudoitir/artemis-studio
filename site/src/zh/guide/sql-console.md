@@ -57,7 +57,9 @@ Schema 限定符在查询文本自身中选择后端，因此一条被粘贴进�
 
 Target（免费）：`queue`、`address`、`node`。
 
-Scan：`body`、`messageId`、`messageType`、`replyTo`，以及仅索引可用的 `observedAt` 与 `lastSeenAt`。
+Scan：`body`、`messageId`、`messageType`、`replyTo`，以及仅索引可用的 `observedAt`、`lastSeenAt`、`origin`、`origAddress` 与 `sourceMessageId`。
+
+在索引上，`MATCH (body) AGAINST ('terms')` 是对已存储消息体的全文检索，走 GIN 索引而非扫描；`ORDER BY match_rank` 按匹配程度排序。引号短语、`-排除` 和 `or` 的行为与搜索框一致。二进制消息体不建全文索引，所以 `BytesMessage` 永远不会命中——那种情况请用 `LIKE`。
 
 消息体中的 JSON 字段写作 `body->>'orderId'`。该方言只接受 `now()`、`lower()`、`upper()` 这三个函数，以及相对时间中的 `interval`。相对时间会经由每个节点实测的时钟偏移做归一化，因此时钟有偏差的 Broker 也能给出正确答案。
 
@@ -85,6 +87,15 @@ ORDER BY timestamp DESC LIMIT 500;
 ## 可选的索引
 
 消息索引**按队列选择性开启**，受保留期约束，且可丢弃。它的存在是为了能对一条已经被消费掉的消息提问——而 Broker 对此已经（正确地）一无所知。在访问控制与删除的意义上，它被当作留存的载荷对待；丢掉它只会损失历史，绝不会损失真相。
+
+索引有两种填充方式，它们的声明并不相同：
+
+| 模式 | 一行意味着什么 |
+|---|---|
+| **采样** | 一次轮询在这个队列上看到了这条消息。在两次轮询之间到达又被消费掉的消息从未被记录。 |
+| **捕获** | 这个 address 路由了这条消息。中间是否有人消费掉它没有区别。 |
+
+捕获会改变 broker 的路由，因此它是一个需要单独权限的显式动作，也有自己的页面：[消息捕获](/zh/guide/message-capture)。
 
 ## 实时 tail
 

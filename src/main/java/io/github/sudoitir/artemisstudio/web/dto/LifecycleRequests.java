@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-/** Request bodies for the queue and address lifecycle API (ADR-0049). */
+/** Request bodies for the queue, address and divert lifecycle API (ADR-0049, ADR-0065). */
 public final class LifecycleRequests {
 
     private LifecycleRequests() {}
@@ -90,4 +90,48 @@ public final class LifecycleRequests {
                     description = "Comma-separated routing types the address supports.",
                     allowableValues = {"ANYCAST", "MULTICAST", "ANYCAST,MULTICAST"})
             String routingTypes) {}
+
+    /**
+     * A divert to create. Studio does not offer an in-place update: Artemis'
+     * {@code updateDivert} replaces the configuration, and a partially applied
+     * change presented as atomic is exactly what the routing spec forbids. Changing
+     * a divert is a delete and a create, each confirmed and audited on its own.
+     *
+     * <p>Nothing here is temporary. A divert created over management survives a
+     * broker restart (ADR-0065), so what the operator is told is that it will not
+     * appear in the configuration their broker will next deploy — and the
+     * {@code broker.xml} that would close that gap is generated from these values.
+     */
+    public record CreateDivertRequest(
+            @NotBlank @Schema(description = "The divert's unique name on each node.")
+            String name,
+
+            @Schema(nullable = true, description = "The routing name; defaults to the divert's name.")
+            String routingName,
+
+            @NotBlank @Schema(description = "The address whose messages are diverted.")
+            String address,
+
+            @NotBlank @Schema(description = "The address messages are diverted to.")
+            String forwardingAddress,
+
+            @Schema(
+                    description = "Take the message rather than copy it. Exclusive diverts are"
+                            + " evaluated before non-exclusive ones.",
+                    defaultValue = "false")
+            Boolean exclusive,
+
+            @Schema(nullable = true, description = "A filter limiting which messages are diverted.")
+            String filter,
+
+            @Schema(
+                    nullable = true,
+                    description = "Routing type applied to the diverted copy.",
+                    allowableValues = {"ANYCAST", "MULTICAST", "PASS", "STRIP"})
+            String routingType) {
+
+        public CreateDivertRequest {
+            exclusive = exclusive != null && exclusive;
+        }
+    }
 }

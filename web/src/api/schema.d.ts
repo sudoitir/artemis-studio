@@ -276,6 +276,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/sql/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/sql/plan": {
         parameters: {
             query?: never;
@@ -478,6 +494,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["closeConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/diverts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["diverts"];
+        put?: never;
+        post: operations["createDivert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1028,6 +1060,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/bridges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["bridges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/audit": {
         parameters: {
             query?: never;
@@ -1167,6 +1215,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_5"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/diverts/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteDivert"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1492,6 +1556,17 @@ export interface components {
             presence?: string;
             detail?: string;
         };
+        /** @description A query to execute, and whether to keep tailing after the first pass. */
+        SqlExecuteRequest: {
+            sql?: string;
+            tail?: boolean;
+        };
+        /** @description A short-lived, single-use reference to a query. The stream is opened by this reference so the query text never appears in a URL. */
+        SqlQueryTicketView: {
+            /** Format: uuid */
+            queryId?: string;
+            expiresAt?: string;
+        };
         /** @description A query to plan or run. */
         SqlQueryRequest: {
             sql?: string;
@@ -1525,6 +1600,8 @@ export interface components {
              * @description The row limit that will actually apply, after the server cap.
              */
             effectiveLimit?: number;
+            /** @description True when every target of this query is captured on the node it is read from, which is what lets the console claim the result is everything the address routed rather than everything a poll happened to see. */
+            captured?: boolean;
             /** @description Everything true about this plan the operator has to be told. */
             notices?: components["schemas"]["NoticeView"][];
         };
@@ -1545,6 +1622,47 @@ export interface components {
             /** Format: int64 */
             intervalMs?: number;
             enabled?: boolean;
+            /**
+             * @description SAMPLE polls the queue and records what it saw; CAPTURE installs a divert-fed tap on every live node and records everything the address routed. CAPTURE mutates broker routing and needs capture:write.
+             * @enum {string}
+             */
+            mode?: "SAMPLE" | "CAPTURE";
+            /**
+             * Format: int64
+             * @description Messages the capture queue holds before the broker drops the oldest.
+             */
+            ringSize?: number;
+            /** @description An Artemis filter applied by the divert, narrowing both load and exposure. */
+            filterString?: string;
+            /**
+             * Format: int64
+             * @description Payload bytes this subscription may hold before it degrades.
+             */
+            maxBytes?: number;
+            /**
+             * Format: int32
+             * @description Messages per second this subscription may ingest.
+             */
+            maxRate?: number;
+            /**
+             * Format: int32
+             * @description Bytes of body stored per message; a longer body is stored truncated.
+             */
+            bodyCapBytes?: number;
+        };
+        /** @description What capture is doing on one node. Per node, because a tap is a node-local object. */
+        CaptureNodeView: {
+            /** Format: uuid */
+            nodeId?: string;
+            nodeName?: string;
+            /** @enum {string} */
+            state?: "PENDING" | "ACTIVE" | "DEGRADED" | "FAILED";
+            /** @description Why it is in that state, in the words to show the operator. */
+            detail?: string;
+            /** @description When this node started being captured. Null when it never has been. */
+            capturedFrom?: string;
+            /** Format: int64 */
+            droppedEstimate?: number;
         };
         /** @description One index subscription and what it currently holds. */
         IndexSubscriptionView: {
@@ -1571,6 +1689,21 @@ export interface components {
             bytesHeld?: number;
             /** @description The oldest observation still held, or null when nothing is held. */
             oldestObservedAt?: string;
+            /** @description Why this subscription is recording nothing, or null when it is running. An empty index and a subscription whose pattern matches no queue look identical from a query, so the reason is stated here. */
+            notCapturing?: string;
+            /** @description SAMPLE or CAPTURE. A sampled subscription records what a poll saw; a captured one records what the address routed. */
+            mode?: string;
+            /** Format: int64 */
+            ringSize?: number;
+            filterString?: string;
+            /** Format: int64 */
+            maxBytes?: number;
+            /** Format: int32 */
+            maxRate?: number;
+            /** Format: int32 */
+            bodyCapBytes?: number;
+            /** @description Capture state per node. Empty for a sampled subscription. A node missing from this list is one capture has not reached, which is not the same as one that is capturing nothing. */
+            nodes?: components["schemas"]["CaptureNodeView"][];
         };
         CreateExpectationRequest: {
             requestAddress: string;
@@ -1713,6 +1846,33 @@ export interface components {
             /** Format: int64 */
             messagesInTransit?: number | null;
             confirmToken: string;
+        };
+        CreateDivertRequest: {
+            /** @description The divert's unique name on each node. */
+            name: string;
+            /** @description The routing name; defaults to the divert's name. */
+            routingName?: string | null;
+            /** @description The address whose messages are diverted. */
+            address: string;
+            /** @description The address messages are diverted to. */
+            forwardingAddress: string;
+            /**
+             * @description Take the message rather than copy it. Exclusive diverts are evaluated before non-exclusive ones.
+             * @default false
+             */
+            exclusive: boolean;
+            /** @description A filter limiting which messages are diverted. */
+            filter?: string | null;
+            /**
+             * @description Routing type applied to the diverted copy.
+             * @enum {string|null}
+             */
+            routingType?: "ANYCAST" | "MULTICAST" | "PASS" | "STRIP" | null;
+        };
+        DivertMutationView: {
+            outcome: components["schemas"]["LifecycleOutcomeView"];
+            /** @description The <divert> element that would make this broker's own configuration carry the divert. A divert created over management persists across restarts but is absent from configuration, and this is what closes that gap. */
+            brokerXml: string;
         };
         CreateAddressRequest: {
             /** @description The address name. */
@@ -1869,6 +2029,13 @@ export interface components {
             observedAt?: string;
             /** @description When the index last still saw it on its queue. */
             lastSeenAt?: string;
+            /** @description SAMPLED or CAPTURED for an indexed row, null for a live one. A sampled row says a poll saw this message; a captured one says the address routed it. */
+            origin?: string;
+            /**
+             * Format: int64
+             * @description The message's id on its source queue, for a captured row. Null when the broker did not copy _AMQ_ORIG_MESSAGE_ID, which is what makes verifying it against the live broker impossible.
+             */
+            sourceMessageId?: number;
         };
         /** @description What one node contributed, including nothing and why. */
         SqlNodeOutcomeView: {
@@ -2346,6 +2513,44 @@ export interface components {
             addresses: components["schemas"]["DlqAddress"][];
             settingsAvailable: boolean;
         };
+        DivertView: {
+            name: string;
+            routingName?: string | null;
+            address: string;
+            forwardingAddress: string;
+            filter?: string | null;
+            routingType?: string | null;
+            transformerClassName?: string | null;
+            /** @description Exclusive diverts take the message rather than copying it, and Artemis evaluates them before non-exclusive ones. The difference between traffic being duplicated and traffic being taken away. */
+            exclusive: boolean;
+            retroactiveResource: boolean;
+            /** @description What in Studio owns this divert, when Studio's own records say it does: MESSAGE_CAPTURE for a capture tap, OPERATOR for one created through the routing screen. Null means Studio has no record of it, which is not a claim that it came from broker configuration. */
+            owner?: string | null;
+            /**
+             * Format: uuid
+             * @description The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself.
+             */
+            captureSubscriptionId?: string | null;
+            /** Format: int32 */
+            nodesPresent: number;
+            /** Format: int32 */
+            nodesTotal: number;
+            perNode: components["schemas"]["NodeRef"][];
+        };
+        NodeRef: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+        };
+        PagedViewDivertView: {
+            data: components["schemas"]["DivertView"][];
+            /** Format: int64 */
+            count: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
         ConsumerView: {
             /** Format: uuid */
             nodeId: string;
@@ -2434,6 +2639,50 @@ export interface components {
             active: boolean;
             reducedSurface: boolean;
             unavailableReason?: string | null;
+        };
+        BridgeNodeCell: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            started: boolean;
+            connected: boolean;
+            /** Format: int64 */
+            messagesAcknowledged: number;
+            /** Format: int64 */
+            messagesPendingAcknowledgement: number;
+        };
+        BridgeView: {
+            name: string;
+            queueName?: string | null;
+            forwardingAddress?: string | null;
+            filterString?: string | null;
+            discoveryGroupName?: string | null;
+            transformerClassName?: string | null;
+            staticConnectors: string[];
+            /** Format: int64 */
+            messagesAcknowledged: number;
+            /** Format: int64 */
+            messagesPendingAcknowledgement: number;
+            /** @description Started on at least one node. A bridge started on some nodes and not others is a divergence the operator needs to see, so this is 'any', not 'all' — perNode says which. */
+            started: boolean;
+            /** @description Connected to its target on at least one node. Started and connected are different facts: a started bridge that cannot reach its target is the state 'is this bridge actually running' is really asking about. */
+            connected: boolean;
+            useDuplicateDetection: boolean;
+            highlyAvailable: boolean;
+            /** Format: int32 */
+            nodesPresent: number;
+            /** Format: int32 */
+            nodesTotal: number;
+            perNode: components["schemas"]["BridgeNodeCell"][];
+        };
+        PagedViewBridgeView: {
+            data: components["schemas"]["BridgeView"][];
+            /** Format: int64 */
+            count: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
         };
         AuditEventView: {
             /** Format: date-time */
@@ -3208,6 +3457,32 @@ export interface operations {
             };
         };
     };
+    query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SqlExecuteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SqlQueryTicketView"];
+                };
+            };
+        };
+    };
     plan: {
         parameters: {
             query?: never;
@@ -3670,6 +3945,58 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConnectionCloseView"];
+                };
+            };
+        };
+    };
+    diverts: {
+        parameters: {
+            query: {
+                query: components["schemas"]["ResourceQuery"];
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewDivertView"];
+                };
+            };
+        };
+    };
+    createDivert: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDivertRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DivertMutationView"];
                 };
             };
         };
@@ -4212,8 +4539,7 @@ export interface operations {
     stream_1: {
         parameters: {
             query?: {
-                sql?: string;
-                tail?: boolean;
+                queryId?: string;
             };
             header?: never;
             path: {
@@ -4629,6 +4955,30 @@ export interface operations {
             };
         };
     };
+    bridges: {
+        parameters: {
+            query: {
+                query: components["schemas"]["ResourceQuery"];
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewBridgeView"];
+                };
+            };
+        };
+    };
     list_10: {
         parameters: {
             query?: {
@@ -4827,6 +5177,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    deleteDivert: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
             };
         };
     };

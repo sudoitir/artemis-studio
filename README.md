@@ -50,8 +50,11 @@ predicates become a JMS selector and cost nothing; body predicates are a scan.
 ceiling is refused with the estimate rather than truncated — a truncated result
 is indistinguishable from a complete one at a glance.
 
-Add a live tail (a poll, never a consume) and an opt-in retention-bounded index
-for messages that have already been consumed.
+Add a live tail, and — opt-in, per queue — **complete capture**: a non-exclusive
+divert copies the address into a ring-bounded queue Studio owns and drains, so a
+message that arrived and was consumed between two polls is still there to query.
+Bounded on the broker by construction, restricted to Studio's own role, and removed
+only when you say so.
 [More →](https://sudoitir.github.io/artemis-studio/guide/sql-console)
 
 ## Why
@@ -181,9 +184,7 @@ the MCP server, and the SQL Console. What is left:
 
 |  | |
 |--|--|
-| [ ] | Divert and bridge management |
 | [ ] | Declared desired state and drift detection |
-| [ ] | Multi-instance HA — a Postgres advisory lock per cluster |
 | [ ] | Helm chart |
 | [ ] | Message replay from a captured payload |
 | [ ] | ArkMQ operator integration, JMX transport, saved views, scheduled reports |
