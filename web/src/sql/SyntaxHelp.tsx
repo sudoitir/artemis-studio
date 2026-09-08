@@ -1,6 +1,22 @@
-import { Button, Code, Divider, Group, Modal, Stack, Table, Text, Title } from '@mantine/core';
+import {
+  Button,
+  Code,
+  Divider,
+  Group,
+  Modal,
+  Stack,
+  Table,
+  Text,
+  Title,
+} from "@mantine/core";
 
-import { COLUMNS, EVALUATION_WORDS, EXAMPLES, FUNCTIONS } from './catalogue.ts';
+import {
+  COLUMNS,
+  EVALUATION_WORDS,
+  EXAMPLES,
+  FULL_TEXT,
+  FUNCTIONS,
+} from "./catalogue.ts";
 
 /**
  * The dialect, in the page rather than behind a documentation link. An operator
@@ -22,28 +38,37 @@ export function SyntaxHelp({
   onLoadExample: (sql: string) => void;
 }) {
   return (
-    <Modal opened={opened} onClose={onClose} title="The console's dialect" size="xl">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="The console's dialect"
+      size="xl"
+    >
       <Stack gap="lg">
         <Stack gap="xs">
           <Text size="sm">
-            A restricted subset of SQL: <Code>SELECT</Code> only, one <Code>FROM</Code>, no join, no
-            subquery, no union. It cannot express a mutation — acting on a result row goes back
-            through the message operations, which carry their own dry run and audit record.
+            A restricted subset of SQL: <Code>SELECT</Code> only, one{" "}
+            <Code>FROM</Code>, no join, no subquery, no union. It cannot express
+            a mutation — acting on a result row goes back through the message
+            operations, which carry their own dry run and audit record.
           </Text>
           <Text size="sm">
-            A queue name is not a SQL identifier — <Code>ORDER.IN</Code> is a reserved word and a
-            dot — so it is always double-quoted. Wildcards are Artemis&apos;, not SQL&apos;s:{' '}
-            <Code>*</Code> matches one dot-delimited level and <Code>#</Code> matches many.
+            A queue name is not a SQL identifier — <Code>ORDER.IN</Code> is a
+            reserved word and a dot — so it is always double-quoted. Wildcards
+            are Artemis&apos;, not SQL&apos;s: <Code>*</Code> matches one
+            dot-delimited level and <Code>#</Code> matches many.
           </Text>
         </Stack>
 
         <Stack gap="xs">
           <Title order={5}>Where the query reads</Title>
           <Text size="sm">
-            The schema qualifier picks the backend. <Code>FROM broker.&quot;Q&quot;</Code> reads the
-            live brokers — current truth. <Code>FROM index.&quot;Q&quot;</Code> reads the historical
-            index, which still holds messages that have since been consumed, and only covers queues
-            with a subscription. <Code>FROM &quot;Q&quot;</Code> lets the planner choose, and the
+            The schema qualifier picks the backend.{" "}
+            <Code>FROM broker.&quot;Q&quot;</Code> reads the live brokers —
+            current truth. <Code>FROM index.&quot;Q&quot;</Code> reads the
+            historical index, which still holds messages that have since been
+            consumed, and only covers queues with a subscription.{" "}
+            <Code>FROM &quot;Q&quot;</Code> lets the planner choose, and the
             plan says which it picked.
           </Text>
         </Stack>
@@ -51,16 +76,19 @@ export function SyntaxHelp({
         <Stack gap="xs">
           <Title order={5}>What a predicate costs</Title>
           <Text size="sm">
-            This is the one thing worth knowing before running anything. A predicate over a header or
-            an application property becomes a JMS selector, so the broker filters and Studio never
-            sees the messages that did not match. A predicate over the body cannot be pushed down at
-            all: every message the broker returns has to be read and examined. The plan strip above
-            the editor says which of the two your query is, before it runs.
+            This is the one thing worth knowing before running anything. A
+            predicate over a header or an application property becomes a JMS
+            selector, so the broker filters and Studio never sees the messages
+            that did not match. A predicate over the body cannot be pushed down
+            at all: every message the broker returns has to be read and
+            examined. The plan strip above the editor says which of the two your
+            query is, before it runs.
           </Text>
           <Text size="sm">
-            One trap worth stating: a predicate that is free on its own stops being free inside an{' '}
-            <Code>OR</Code> with a body predicate. Pushing down one side of an <Code>OR</Code> would
-            narrow the set the other side gets to see, so the whole disjunction is scanned.
+            One trap worth stating: a predicate that is free on its own stops
+            being free inside an <Code>OR</Code> with a body predicate. Pushing
+            down one side of an <Code>OR</Code> would narrow the set the other
+            side gets to see, so the whole disjunction is scanned.
           </Text>
         </Stack>
 
@@ -90,7 +118,7 @@ export function SyntaxHelp({
                   <Table.Td>
                     <Text size="xs">
                       {c.description}
-                      {c.indexOnly ? ' Index only.' : ''}
+                      {c.indexOnly ? " Index only." : ""}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -98,13 +126,20 @@ export function SyntaxHelp({
             </Table.Tbody>
           </Table>
           <Text size="sm">
-            Application properties are addressed by name as <Code>props.tenant</Code>, and a JSON
-            field inside the body as <Code>body-&gt;&gt;&apos;orderId&apos;</Code>. The only
-            functions the dialect accepts are{' '}
+            Application properties are addressed by name as{" "}
+            <Code>props.tenant</Code>, and a JSON field inside the body as{" "}
+            <Code>body-&gt;&gt;&apos;orderId&apos;</Code>. The only functions
+            the dialect accepts are{" "}
             {FUNCTIONS.map((f) => (
               <Code key={f}>{f}()</Code>
             ))}
             , plus <Code>interval</Code> in a relative time.
+          </Text>
+          <Text size="sm">
+            Over the index, <Code>{FULL_TEXT.predicate}</Code> searches stored
+            bodies, and <Code>{FULL_TEXT.rank}</Code> orders by how well each
+            row matched — it needs a <Code>MATCH()</Code> in the same query to
+            rank against. {FULL_TEXT.note}
           </Text>
         </Stack>
 

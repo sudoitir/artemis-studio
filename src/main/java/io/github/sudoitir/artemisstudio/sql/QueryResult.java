@@ -48,7 +48,20 @@ public record QueryResult(
             Map<String, Object> properties,
             Source source,
             Instant observedAt,
-            Instant lastSeenAt) {}
+            Instant lastSeenAt,
+            /**
+             * SAMPLED or CAPTURED for an index row, null for a live broker row
+             * (ADR-0062). The two are different claims: a sampled row says a poll saw
+             * this message, a captured row says the address routed it.
+             */
+            String origin,
+            /**
+             * The message's id on its <em>source</em> queue, for a captured row. Null
+             * when the broker did not copy {@code _AMQ_ORIG_MESSAGE_ID}, which leaves
+             * the row perfectly usable and only makes verifying it against the live
+             * broker impossible — stated, never hidden.
+             */
+            Long sourceMessageId) {}
 
     /**
      * What one node contributed. A node that failed is reported here rather than

@@ -36,6 +36,7 @@ public class SqlViewMapper {
                 plan.scanned(),
                 plan.estimatedMessagesExamined(),
                 plan.effectiveLimit(),
+                plan.captured(),
                 notices(plan.notices()));
     }
 
@@ -73,7 +74,9 @@ public class SqlViewMapper {
                 row.properties(),
                 row.source().name(),
                 text(row.observedAt()),
-                text(row.lastSeenAt()));
+                text(row.lastSeenAt()),
+                row.origin(),
+                row.sourceMessageId());
     }
 
     public SqlNodeOutcomeView toView(QueryResult.NodeOutcome outcome) {

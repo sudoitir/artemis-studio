@@ -33,6 +33,9 @@ class MessageIndexPartitionMaintainerTest extends PostgresIntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private MessageIndexSubscriptionRepository subscriptions;
+
     private Row message(long id) {
         return new Row(
                 UUID.randomUUID(),
@@ -55,6 +58,8 @@ class MessageIndexPartitionMaintainerTest extends PostgresIntegrationTest {
                 false,
                 Map.of(),
                 Source.BROKER,
+                null,
+                null,
                 null,
                 null);
     }
@@ -89,5 +94,39 @@ class MessageIndexPartitionMaintainerTest extends PostgresIntegrationTest {
         Long remaining =
                 jdbc.queryForObject("SELECT count(*) FROM message_index WHERE cluster_id = ?", Long.class, CLUSTER);
         assertThat(remaining).isEqualTo(1);
+    }
+
+    /**
+     * Disabling a subscription pauses recording; it does not consent to what was
+     * already captured being destroyed early. Retention is therefore computed over
+     * every subscription that exists, not only the enabled ones — which is what
+     * {@code findAll()} gives and what this test exists to keep giving. A refactor to
+     * {@code findByEnabledTrue()} would look like a tidy-up and would silently shorten
+     * a disabled subscription's payload to the no-subscription floor.
+     */
+    @Test
+    void keepsWhatADisabledSubscriptionCaptured() {
+        UUID clusterId = UUID.randomUUID();
+        jdbc.update("INSERT INTO cluster (id, name) VALUES (?, ?)", clusterId, "disabled-retention");
+
+        MessageIndexSubscriptionEntity subscription = new MessageIndexSubscriptionEntity();
+        subscription.setId(UUID.randomUUID());
+        subscription.setClusterId(clusterId);
+        subscription.setQueuePattern("ORDER.IN");
+        subscription.setIntervalMs(5000);
+        subscription.setRetentionDays(30);
+        subscription.setCaptureFrom(Instant.now().minus(Duration.ofDays(10)));
+        subscription.setCreatedAt(Instant.now().minus(Duration.ofDays(10)));
+        subscription.setEnabled(false);
+        subscriptions.saveAndFlush(subscription);
+
+        writer.observe(clusterId, message(11), Instant.now().minus(Duration.ofDays(5)));
+        writer.observe(clusterId, message(12), Instant.now());
+
+        maintainer.maintain();
+
+        Long remaining =
+                jdbc.queryForObject("SELECT count(*) FROM message_index WHERE cluster_id = ?", Long.class, clusterId);
+        assertThat(remaining).isEqualTo(2);
     }
 }

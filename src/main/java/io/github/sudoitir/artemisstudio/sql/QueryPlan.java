@@ -21,6 +21,13 @@ public record QueryPlan(
         List<String> scanned,
         long estimatedMessagesExamined,
         int effectiveLimit,
+        /**
+         * Whether every target of this query is captured on the node it will be read
+         * from (ADR-0062). It is what lets the console make the stronger claim — "this
+         * is everything the address routed" — and, when false, what stops it making
+         * that claim for a result that is partly sampled.
+         */
+        boolean captured,
         List<Notice> notices) {
 
     /**
@@ -67,7 +74,20 @@ public record QueryPlan(
              */
             BODY_TRUNCATED,
             /** A node's browse changed channel mid-query, so fidelity is not uniform. */
-            CHANNEL_CHANGED
+            CHANNEL_CHANGED,
+            /**
+             * The rows come from a divert, which copies at address routing and before
+             * multicast fan-out (ADR-0062 D3). They are what the address routed; which
+             * of its bound queues received them is not recorded and cannot be.
+             */
+            ADDRESS_SCOPED_CAPTURE,
+            /**
+             * Capture is not running on every node this query reads from, so the
+             * result is complete for some nodes and sampled — or absent — for others.
+             * The notice names them, because an average over nodes is a lie about all
+             * of them.
+             */
+            CAPTURE_NODE_GAP
         }
     }
 

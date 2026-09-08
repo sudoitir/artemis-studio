@@ -29,6 +29,10 @@ export const theme = createTheme({
   primaryShade: { light: 6, dark: 5 },
   colors: { pine },
   defaultRadius: 'md',
+  // Every Mantine transition — the console's disclosure included — is disabled when
+  // the operating system says to reduce motion. Doing it here rather than per
+  // component means a new component honours it by default rather than by review.
+  respectReducedMotion: true,
   fontFamily:
     'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   fontFamilyMonospace:

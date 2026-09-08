@@ -28,3 +28,63 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* The console owns the viewport below the header: an editor pane, a handle, and a
+   results pane that takes what is left. The old single scrolling column pushed the
+   grid below the fold the moment a result had anything to say about itself, which
+   is precisely when an operator needs to see both. */
+.split {
+  display: grid;
+  grid-template-rows: minmax(
+      0,
+      calc(var(--as-editor-fraction) * 100%)
+    ) auto minmax(0, 1fr);
+  block-size: calc(100dvh - 12rem);
+  min-block-size: 24rem;
+  gap: 0.5rem;
+}
+
+.editorPane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+/* Wide target, thin line. The cursor says it resizes; the slider role and arrow
+   keys are what make it reachable without a pointer. */
+.handle {
+  position: relative;
+  block-size: 0.75rem;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.handle::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: 1px;
+  background: var(--as-border);
+}
+
+.handle:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+
+.resultPane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+/* The grid gets whatever the pane has left, and scrolls inside itself. */
+.resultStack {
+  min-block-size: 0;
+  flex: 1;
+}
