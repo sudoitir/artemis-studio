@@ -178,16 +178,33 @@ with a `.sha256`, and its notes are generated from the commit messages
 
 ## Roadmap
 
-Phases 0–8 are done: topology, cross-node views, message operations, the audit
-trail, the Core client and request-reply tracing, metrics, alerting, governance,
-the MCP server, and the SQL Console. What is left:
+## Roadmap
 
-|  | |
-|--|--|
-| [ ] | Declared desired state and drift detection |
-| [ ] | Helm chart |
-| [ ] | Message replay from a captured payload |
-| [ ] | ArkMQ operator integration, JMX transport, saved views, scheduled reports |
+|     |                                                                                                                              |
+|-----|------------------------------------------------------------------------------------------------------------------------------|
+| [ ] | **A · Data governance:** sensitive header/property masking, PII auto-classification, and role-based redaction                |
+| [ ] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                               |
+| [ ] | **A · Observability export:** OpenTelemetry metrics                                                                          |
+| [ ] | **A · Message lineage:** track messages across queues, diverts, bridges, DLQs, and captured payloads                         |
+| [ ] | **A · Consumer health:** depth trends, consumption velocity, and slow-consumer root-cause context                            |
+| [ ] | **B · CLI:** automation for clusters, queues, SQL queries, message operations, and API tokens                                |
+| [ ] | **B · Saved views:** shareable views with role visibility and cluster-scoped defaults                                        |
+| [ ] | **B · Routing builder:** visual builder for diverts, bridges, and transformers                                               |
+| [ ] | **B · Bulk operations:** multi-queue operations with dry-run, capped execution, typed confirmation, and audit                |
+| [ ] | **B · Operator UX:** row context menus, navigation enhancements, and flow-split monitoring views                             |
+| [ ] | **B · Performance hardening:** SQL pushdown, SSE backpressure, virtualized grids, batched broker calls, and retention tuning |
+| [ ] | **C · Compliance tooling:** content/PII search and predicate-based message deletion with audit                               |
+| [ ] | **C · SLA tracking:** queue depth, request-reply latency, and consumption-violation tracking                                 |
+| [ ] | **C · Environment promotion:** compare and promote queues, addresses, and routing definitions across environments            |
+| [ ] | **C · Drift detection:** declared desired state with advisory drift detection, never auto-reconciled                         |
+| [ ] | **C · Capacity forecasting:** predict queue growth and broker pressure from metric history                                   |
+| [ ] | **C · Audit export:** filtered audit-trail export and retention controls                                                     |
+| [ ] | **D · SQL processors:** filter and transform, aggregation; joins only if a safe Artemis model is proven                      |
+| [ ] | **D · Message replay:** replay captured payloads as single, batch, or transformed messages                                   |
+| [ ] | **D · Flow visualization:** client connectivity and message-flow visualization                                               |
+| [ ] | **D · ArkMQ operator:** Kubernetes-native cluster discovery and registration                                                 |
+| [ ] | **E · Schema detection:** message schema inference and payload structure catalog                                             |
+| [ ] | **E · Scheduled reports:** CSV/JSON reports with distribution lists and alert-attached reports                               |
 
 ## Licence
 
