@@ -129,19 +129,6 @@ Java 25 · Spring Boot 4.1 · PostgreSQL + Liquibase · React 19 + Vite + Mantin
 
 每一次推送到 `main` 都会发布一个版本。采用 CalVer `YYYY.MM.PATCH`，Docker Hub 上有三个标签——`2026.09.3`（不可变）、`2026.09`（当月最新）、`dev`（全局最新）。在首个稳定版之前不会发布 `:latest`。每个版本还会附上可运行的 jar 及其 `.sha256`，发布说明由该版本的提交信息生成（[`changelog/`](changelog/)）。
 
-## 路线图
-
-阶段 0–8 已完成：拓扑、跨节点视图、消息操作、审计链路、Core 客户端与请求-应答追踪、指标、告警、治理、MCP 服务器，以及 SQL 控制台。剩下的部分：
-
-|  | |
-|--|--|
-| [ ] | Divert 与 bridge 管理 |
-| [ ] | 声明式期望状态与漂移检测 |
-| [ ] | 多实例 HA——每个集群一把 Postgres advisory lock |
-| [ ] | Helm chart |
-| [ ] | 从捕获的载荷重放消息 |
-| [ ] | ArkMQ operator 集成、JMX 传输、可保存视图、定时报表 |
-
 ## 许可证
 
 [Apache-2.0](LICENSE)——与 Artemis 本身相同的许可证。
