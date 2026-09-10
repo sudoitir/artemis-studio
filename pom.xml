@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.0</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -33,7 +33,7 @@
         <!-- Pinned; verified against Maven Central during workspace setup. -->
         <artemis.version>2.56.0</artemis.version>
         <testcontainers.version>2.0.5</testcontainers.version>
-        <spotless.version>3.10.1</spotless.version>
+        <spotless.version>3.10.2</spotless.version>
         <palantir-java-format.version>2.97.0</palantir-java-format.version>
 
         <!-- Lombok version comes from the Spring Boot BOM. MapStruct and the
@@ -41,7 +41,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <!-- springdoc 3.x is the Spring Boot 4 line (ADR-0019). -->
-        <springdoc.version>3.1.0</springdoc.version>
+        <springdoc.version>3.1.1</springdoc.version>
         <!-- MCP server (ADR-0045). 2.0.1, never 2.0.0: that release's STREAMABLE
              transport retained sessions without bound (CVE-2026-59279). -->
         <spring-ai.version>2.0.1</spring-ai.version>
