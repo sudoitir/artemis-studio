@@ -20,7 +20,7 @@ COPY --from=web /web/dist/ ./src/main/resources/static/
 RUN mvn -q -B clean package -DskipTests
 
 # ── 3. Runtime (Ubuntu 26.04 LTS "resolute") ─────────────────────────────────
-FROM eclipse-temurin:25-jre-resolute AS runtime
+FROM eclipse-temurin:26-jre-resolute AS runtime
 RUN groupadd -r studio && useradd -r -g studio studio \
     && apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
