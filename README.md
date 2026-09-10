@@ -205,7 +205,7 @@ with a `.sha256`, and its notes are generated from the commit messages
 | [ ] | **D · ArkMQ operator:** Kubernetes-native cluster discovery and registration                                                 |
 | [ ] | **E · Schema detection:** message schema inference and payload structure catalog                                             |
 | [ ] | **E · Scheduled reports:** CSV/JSON reports with distribution lists and alert-attached reports                               |
-
+| [ ] | **E · Claude Plugin: Claude:** Code plugin with skills and MCP to assist in developing Artemis-based applications            |
 ## Licence
 
 [Apache-2.0](LICENSE) — the same licence as Artemis itself.
