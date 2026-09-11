@@ -14,7 +14,8 @@ export type Topic =
   | 'sessions'
   | 'connections'
   | 'rr'
-  | 'alerts';
+  | 'alerts'
+  | 'config';
 
 /** What the UI reports about the live connection (ADR-0052). */
 export type StreamStatus = 'connecting' | 'live' | 'reconnecting' | 'offline';
@@ -192,8 +193,15 @@ export function useClusterStream(
             invalidate(qc, ['clusters', clusterId, 'alerts']);
             invalidate(qc, ['alerts', 'firing']);
           });
+        } else if (topic === 'config') {
+          // A drift evaluation or an apply finished; the declaration view carries
+          // both, so one key covers the tabs.
+          source.addEventListener('config', () => {
+            heard();
+            invalidate(qc, keys.brokerConfig(clusterId));
+          });
         } else if (SIGNAL_TOPICS.includes(topic)) {
-          const signalTopic = topic as Exclude<Topic, 'events' | 'rr' | 'alerts'>;
+          const signalTopic = topic as Exclude<Topic, 'events' | 'rr' | 'alerts' | 'config'>;
           source.addEventListener(signalTopic, () => {
             heard();
             invalidate(qc, keys.topic(clusterId, signalTopic));

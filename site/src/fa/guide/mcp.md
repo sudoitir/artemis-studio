@@ -7,7 +7,7 @@ description: Artemis Studio از Model Context Protocol پشتیبانی می‌
 
 Studio از [Model Context Protocol](https://modelcontextprotocol.io) پشتیبانی می‌کند، پس یک دستیار می‌تواند *«چرا `ORDERS.DLQ` انباشته شده»* را روی کلاسترهای واقعی شما پاسخ دهد، به‌جای حدس‌زدن.
 
-سطح در معرض، حدود دوازده ابزار **مبتنی بر قصد** است — `cluster_health`، `diagnose_queue`، `queue_action` — نه آینه‌ای از REST API. یک آینه، context مدل را صرف لوله‌کشی می‌کند و سرهم‌کردن تشخیص را به خودش وامی‌گذارد؛ این ابزارها به‌جایش به شکل خودِ پرسش‌ها ساخته شده‌اند ([ADR-0045](/reference/adr/0045-mcp-server-is-a-capability-surface)، انگلیسی).
+سطح در معرض، شانزده ابزار **مبتنی بر قصد** است — `diagnose`، `message_action`، `broker_config_change` — نه آینه‌ای از REST API. یک آینه، context مدل را صرف لوله‌کشی می‌کند و سرهم‌کردن تشخیص را به خودش وامی‌گذارد؛ این ابزارها به‌جایش به شکل خودِ پرسش‌ها ساخته شده‌اند ([ADR-0045](/reference/adr/0045-mcp-server-is-a-capability-surface)، انگلیسی).
 
 ## گرفتن یک کلید
 
@@ -43,19 +43,23 @@ curl -s https://studio.example.com/mcp \
 
 | نوع | نام | برای |
 |---|---|---|
-| Tool | `cluster_health` | نقش HA هر نود، split-brain، تأخیر replication، هشدارهای فعال |
-| Tool | `list_resources` | صف‌ها، آدرس‌ها، مصرف‌کننده‌ها، نشست‌ها، اتصال‌ها، تولیدکننده‌ها |
-| Tool | `diagnose_queue` | یک صف از ابتدا تا انتها: عمق، روند، مصرف‌کننده‌ها، DLQ، رویدادها |
+| Tool | `studio_help` | خودِ فهرست: هر ابزار، وضعیت و پارامترهایش |
+| Tool | `diagnose` | یک کلاستر (نقش HA هر نود، split-brain، تأخیر replication، هشدارهای فعال) یا یک صف از ابتدا تا انتها |
+| Tool | `list_resources` | صف‌ها، آدرس‌ها، مصرف‌کننده‌ها، نشست‌ها، اتصال‌ها، تولیدکننده‌ها، divertها، bridgeها |
 | Tool | `metric_series` | یک سری زمانی سطل‌بندی‌شده برای یک سنجه |
 | Tool | `config_diff` | تفاوت‌های پیکربندی طبقه‌بندی‌شده میان دو نود |
-| Tool | `browse_messages` / `message_body` | اول هدرها، سپس یک بدنه بر اساس id |
+| Tool | `broker_config` | اعلامیهٔ کلاستر، انحراف هر نود، قطعهٔ `broker.xml`، یا اعمال‌های گذشته |
+| Tool | `browse_messages` | هدرها، یا یک بدنه بر اساس id |
 | Tool | `trace_request_reply` | جریان‌ها، آمار تأخیر و timeout، انتظارات پیکربندی‌شده |
 | Tool | `activity_log` | رویدادهای بروکر، یا مسیر ممیزی خود Studio |
-| Tool | `queue_action` | انتقال / retry / حذف / انقضا / purge |
+| Tool | `message_action` | انتقال / retry / حذف / انقضا / purge |
+| Tool | `queue_lifecycle` | ساخت، به‌روزرسانی، توقف، ازسرگیری یا نابودی یک صف، آدرس یا divert |
+| Tool | `broker_config_change` | اعلام یک پیکربندی، یا اعمال آن اول روی قناری با تصدیق خطرها بر اساس شناسه |
+| Tool | `connection_action` | بستن یک اتصال، نشست، مصرف‌کننده یا مصرف‌کننده‌های یک آدرس |
 | Tool | `send_message` | صف‌کردن یک پیام |
 | Tool | `alert_rule` / `studio_setting` | قواعد هشدار؛ تنظیمات عملیاتی |
-| Resource | `studio://clusters`، `studio://permissions` | این کلید چه می‌بیند و چه می‌تواند بکند |
-| Resource | `cluster://{id}/topology`، `cluster://{id}/capabilities` | نودها؛ اتصال از چه پشتیبانی می‌کند، به‌همراه `broker.xml` لازم برای باقی |
+| Resource | `studio://clusters`، `studio://permissions`، `studio://tools` | این کلید چه می‌بیند و چه می‌تواند بکند |
+| Resource | `cluster://{id}/topology`، `cluster://{id}/capabilities`، `cluster://{id}/nodes/{nodeId}/settings` | نودها؛ اتصال از چه پشتیبانی می‌کند، به‌همراه `broker.xml` لازم برای باقی؛ تنظیمات مؤثر یک نود |
 | Prompt | `triage_cluster`، `investigate_queue`، `before_you_purge`، `tune_scrape_load` | runbookها |
 
 ## قرارداد ایمنی

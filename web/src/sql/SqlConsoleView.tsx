@@ -486,7 +486,7 @@ export function SqlConsoleView() {
               >
                 {gate.reason}
               </Alert>
-              <CapabilityLedger capabilities={cluster.data.capabilities} />
+              <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} />
             </Stack>
           ) : null}
 

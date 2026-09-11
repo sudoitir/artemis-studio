@@ -43,5 +43,6 @@
     <include file="db/changelog/changes/021-message-index.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/022-message-capture.sql" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/023-message-index-fulltext.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/024-broker-configuration.sql" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

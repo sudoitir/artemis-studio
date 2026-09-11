@@ -57,6 +57,12 @@ public class ManagementRefusal extends RuntimeException {
     static final String ROUTING_TYPE_IMMUTABLE = "AMQ229211";
     /** Invalid message filter. */
     static final String INVALID_FILTER = "AMQ229020";
+    /** No binding for a divert — destroying one that is already gone (§15 M4). */
+    static final String DIVERT_ABSENT = "AMQ229012";
+    /** An address-setting JSON document the broker could not parse (§15 M1). */
+    static final String SETTING_PARSE = "Error while parsing MetaData";
+    /** An address-setting pair the broker refuses after parsing (§15 M1). */
+    static final String PAGE_SIZE_VS_MAX = "pageSize has to be lower than maxSizeBytes";
 
     /**
      * Classify a failed Jolokia response, or return {@code null} when the error is
@@ -103,6 +109,20 @@ public class ManagementRefusal extends RuntimeException {
         }
         if (error.contains(INVALID_FILTER)) {
             return new ManagementRefusal(Kind.ARGUMENT, "Invalid message filter.");
+        }
+        if (error.contains(DIVERT_ABSENT)) {
+            return new ManagementRefusal(Kind.ALREADY, "Already absent: " + error);
+        }
+        if (error.contains(SETTING_PARSE)) {
+            String field = error.replaceAll(".*name='([^']*)'.*", "$1");
+            return new ManagementRefusal(
+                    Kind.ARGUMENT,
+                    "The broker could not parse the value of "
+                            + (field.equals(error) ? "an address-setting key" : field) + ".");
+        }
+        if (error.contains(PAGE_SIZE_VS_MAX)) {
+            return new ManagementRefusal(
+                    Kind.ARGUMENT, "page-size-bytes must be lower than max-size-bytes; the broker refused the pair.");
         }
         return null;
     }

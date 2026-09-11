@@ -206,7 +206,7 @@ export function MessagesView() {
           This connection cannot browse messages. The reason and the exact{' '}
           <code>broker.xml</code> change are below.
         </Alert>
-        <CapabilityLedger capabilities={cluster.data.capabilities} />
+        <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} />
       </Stack>
     );
   }

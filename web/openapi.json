@@ -334,6 +334,68 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "get",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDeclarationView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "save",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveDeclarationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDeclarationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/alerts/rules/{ruleId}" : {
       "put" : {
         "tags" : [ "alerts-controller" ],
@@ -1757,6 +1819,154 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config/import-xml" : {
+      "post" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "importXml",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/xml" : {
+              "schema" : {
+                "type" : "string"
+              }
+            },
+            "text/xml" : {
+              "schema" : {
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigImportResultView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/drift/evaluate" : {
+      "post" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "evaluate",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDriftReportView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/apply" : {
+      "post" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "apply",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : true
+          }
+        }, {
+          "name" : "override",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApplyRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigApplyOutcomeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/adopt" : {
+      "post" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "adopt",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigAdoptionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/alerts/rules" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
@@ -2299,6 +2509,43 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config/mode" : {
+      "patch" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "configure",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConfigureRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDeclarationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/time" : {
       "get" : {
         "tags" : [ "time-controller" ],
@@ -2402,7 +2649,7 @@
     "/api/v1/clusters/{clusterId}" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "get",
+        "operationId" : "get_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -3118,6 +3365,234 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PagedViewConnectionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/revisions" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "revisions",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConfigRevisionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/revisions/{number}" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "revision",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "number",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigRevisionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/export-xml" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "exportXml",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "revision",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/xml" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/drift" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "drift",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDriftReportView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/catalogue" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "catalogue",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigCatalogueView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/applies" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "applies",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConfigApplyHistoryView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/applies/{id}" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "applyDetail",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigApplyDetailView"
                 }
               }
             }
@@ -3862,6 +4337,311 @@
           }
         },
         "required" : [ "password", "username" ]
+      },
+      "ConfigAddressSettingView" : {
+        "type" : "object",
+        "description" : "One address-setting match; values are keyed by the catalogue's JSON names and hold only declared keys",
+        "properties" : {
+          "match" : {
+            "type" : "string"
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        },
+        "required" : [ "match", "values" ]
+      },
+      "ConfigAddressView" : {
+        "type" : "object",
+        "description" : "An address and the queues bound to it",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "routingTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ANYCAST", "MULTICAST" ]
+            }
+          },
+          "queues" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigQueueView"
+            }
+          }
+        },
+        "required" : [ "name", "queues", "routingTypes" ]
+      },
+      "ConfigDivertView" : {
+        "type" : "object",
+        "description" : "One divert",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "forwardingAddress" : {
+            "type" : "string"
+          },
+          "filter" : {
+            "type" : [ "string", "null" ]
+          },
+          "exclusive" : {
+            "type" : "boolean"
+          },
+          "routingType" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "STRIP", "PASS", "ANYCAST", "MULTICAST" ]
+          },
+          "transformerClassName" : {
+            "type" : [ "string", "null" ]
+          },
+          "transformerProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "address", "exclusive", "forwardingAddress", "name", "transformerProperties" ]
+      },
+      "ConfigDocumentView" : {
+        "type" : "object",
+        "description" : "A cluster's declared configuration: the four sections the management API can apply",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "addresses" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigAddressView"
+            }
+          },
+          "addressSettings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigAddressSettingView"
+            }
+          },
+          "securitySettings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigSecuritySettingView"
+            }
+          },
+          "diverts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigDivertView"
+            }
+          }
+        },
+        "required" : [ "addressSettings", "addresses", "diverts", "securitySettings", "version" ]
+      },
+      "ConfigQueueView" : {
+        "type" : "object",
+        "description" : "A queue as the create action accepts it; a null field is not declared",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "routingType" : {
+            "type" : "string",
+            "enum" : [ "ANYCAST", "MULTICAST" ]
+          },
+          "filter" : {
+            "type" : [ "string", "null" ]
+          },
+          "durable" : {
+            "type" : "boolean"
+          },
+          "maxConsumers" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "purgeOnNoConsumers" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "exclusive" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "nonDestructive" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "ringSize" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          }
+        },
+        "required" : [ "durable", "name", "routingType" ]
+      },
+      "ConfigSecuritySettingView" : {
+        "type" : "object",
+        "description" : "One security-setting match: permission type (send, consume, …) to the roles holding it",
+        "properties" : {
+          "match" : {
+            "type" : "string"
+          },
+          "permissions" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "match", "permissions" ]
+      },
+      "SaveDeclarationRequest" : {
+        "type" : "object",
+        "description" : "Save a new revision. expectedRevision is the revision that was edited; a stale one is refused",
+        "properties" : {
+          "document" : {
+            "$ref" : "#/components/schemas/ConfigDocumentView"
+          },
+          "expectedRevision" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "The revision this edit was made against; 0 or null for a first save"
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "document" ]
+      },
+      "ConfigDeclarationView" : {
+        "type" : "object",
+        "description" : "A cluster's declaration: the current revision, how it is applied, and each node's last evaluation",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clusterName" : {
+            "type" : "string"
+          },
+          "declared" : {
+            "type" : "boolean",
+            "description" : "False until the first revision is saved"
+          },
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "0 while undeclared"
+          },
+          "document" : {
+            "$ref" : "#/components/schemas/ConfigDocumentView"
+          },
+          "applyMode" : {
+            "type" : "string",
+            "enum" : [ "STUDIO_MANAGED", "CONFIG_MANAGED" ]
+          },
+          "reportUndeclared" : {
+            "type" : "boolean"
+          },
+          "undeclaredExclusions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "updatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "updatedBy" : {
+            "type" : [ "string", "null" ]
+          },
+          "source" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "EDIT", "IMPORT_XML", "ADOPT", "MCP" ]
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeStateView"
+            }
+          }
+        },
+        "required" : [ "applyMode", "clusterId", "clusterName", "declared", "document", "nodes", "reportUndeclared", "revision", "undeclaredExclusions" ]
+      },
+      "ConfigDriftFindingView" : {
+        "type" : "object",
+        "description" : "One way a node differs from the declaration; declared beside observed",
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "section" : {
+            "type" : [ "string", "null" ]
+          },
+          "key" : {
+            "type" : [ "string", "null" ]
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "declared" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "observed" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        },
+        "required" : [ "declared", "detail", "kind", "observed" ]
+      },
+      "ConfigNodeStateView" : {
+        "type" : "object",
+        "description" : "One node's last drift evaluation",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "live" : {
+            "type" : "boolean"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "IN_SYNC", "DRIFTED", "NOT_EVALUATED", "UNREACHABLE" ]
+          },
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "verifiedRevision" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "evaluatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "findings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigDriftFindingView"
+            }
+          }
+        },
+        "required" : [ "findings", "live", "nodeId", "nodeName", "state" ]
       },
       "AlertRuleRequest" : {
         "type" : "object",
@@ -5108,6 +5888,405 @@
         },
         "required" : [ "brokerXml", "outcome" ]
       },
+      "ConfigFieldErrorView" : {
+        "type" : "object",
+        "description" : "A problem with one field of the declaration",
+        "properties" : {
+          "field" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "field", "message" ]
+      },
+      "ConfigImportResultView" : {
+        "type" : "object",
+        "description" : "What a pasted broker.xml produced: the document, what could not be carried, and errors",
+        "properties" : {
+          "document" : {
+            "$ref" : "#/components/schemas/ConfigDocumentView"
+          },
+          "unsupported" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigUnsupportedView"
+            }
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigFieldErrorView"
+            }
+          }
+        },
+        "required" : [ "document", "errors", "unsupported" ]
+      },
+      "ConfigUnsupportedView" : {
+        "type" : "object",
+        "description" : "An element the import saw and did not carry, by path",
+        "properties" : {
+          "path" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "path", "reason" ]
+      },
+      "ConfigDriftReportView" : {
+        "type" : "object",
+        "description" : "A drift evaluation of every node against the current revision",
+        "properties" : {
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "evaluatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Null until an evaluation has run"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeStateView"
+            }
+          }
+        },
+        "required" : [ "nodes", "revision" ]
+      },
+      "ApplyRequest" : {
+        "type" : "object",
+        "description" : "What an apply should consider. Every field is optional; the default is the current revision on every live node",
+        "properties" : {
+          "revision" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "Refused when it is not the current revision"
+          },
+          "nodeIds" : {
+            "type" : [ "array", "null" ],
+            "description" : "Live nodes to target; empty for all",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "uniqueItems" : true
+          },
+          "canaryNodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "The node to apply first"
+          },
+          "removeUndeclared" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Also remove settings and diverts Studio did not apply"
+          },
+          "acknowledgedHazards" : {
+            "type" : [ "array", "null" ],
+            "description" : "High hazard identifiers the operator acknowledged",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "expectedPlanHash" : {
+            "type" : [ "string", "null" ],
+            "description" : "The planHash that was previewed; a real run refuses when it changed"
+          }
+        }
+      },
+      "ConfigApplyOutcomeView" : {
+        "type" : "object",
+        "description" : "The outcome of an apply, dry or real; the same shape for preview and result",
+        "properties" : {
+          "applyId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "dryRun" : {
+            "type" : "boolean"
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "DRY_RUN", "APPLIED", "HALTED", "FAILED" ]
+          },
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "plan" : {
+            "$ref" : "#/components/schemas/ConfigPlanView"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeApplyView"
+            }
+          },
+          "stepCap" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "overCap" : {
+            "type" : "boolean"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "auditEventId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          }
+        },
+        "required" : [ "dryRun", "nodes", "outcome", "overCap", "plan", "revision", "stepCap", "summary" ]
+      },
+      "ConfigFindingView" : {
+        "type" : "object",
+        "description" : "Something the plan noticed and will not act on",
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "section" : {
+            "type" : [ "string", "null" ]
+          },
+          "key" : {
+            "type" : [ "string", "null" ]
+          },
+          "detail" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "detail", "kind", "nodeId", "nodeName" ]
+      },
+      "ConfigHazardView" : {
+        "type" : "object",
+        "description" : "A consequence stated before any write; High ones must be acknowledged by id",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "hazardClass" : {
+            "type" : "string",
+            "enum" : [ "LOW", "MEDIUM", "HIGH" ]
+          },
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "section" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "hazardClass", "id", "key", "kind", "message", "nodeId", "nodeName", "section" ]
+      },
+      "ConfigNodeApplyView" : {
+        "type" : "object",
+        "description" : "One node's steps and what happened to each",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "live" : {
+            "type" : "boolean"
+          },
+          "canary" : {
+            "type" : "boolean"
+          },
+          "unavailableReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigStepApplyView"
+            }
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "canary", "live", "nodeId", "nodeName", "steps" ]
+      },
+      "ConfigNodePlanView" : {
+        "type" : "object",
+        "description" : "One node's ordered steps",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "live" : {
+            "type" : "boolean"
+          },
+          "unavailableReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigStepView"
+            }
+          }
+        },
+        "required" : [ "live", "nodeId", "nodeName", "steps" ]
+      },
+      "ConfigPlanView" : {
+        "type" : "object",
+        "description" : "What an apply would do: ordered steps per node, hazards, findings, and the hash a real run must name",
+        "properties" : {
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodePlanView"
+            }
+          },
+          "hazards" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigHazardView"
+            }
+          },
+          "findings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigFindingView"
+            }
+          },
+          "planHash" : {
+            "type" : "string"
+          },
+          "stepCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "canaryNodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "findings", "hazards", "nodes", "planHash", "stepCount" ]
+      },
+      "ConfigStepApplyView" : {
+        "type" : "object",
+        "description" : "One step's outcome on one node, in words",
+        "properties" : {
+          "stepId" : {
+            "type" : "string"
+          },
+          "section" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "op" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "FAILED", "NOT_ATTEMPTED", "SKIPPED_NOT_LIVE" ]
+          },
+          "verified" : {
+            "type" : "string",
+            "enum" : [ "NOT_VERIFIED", "VERIFIED", "UNVERIFIABLE", "MISMATCH" ]
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "description", "key", "op", "section", "status", "stepId", "verified" ]
+      },
+      "ConfigStepView" : {
+        "type" : "object",
+        "description" : "One management write; before and after as the broker reports them",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "op" : {
+            "type" : "string",
+            "enum" : [ "ADD", "REPLACE", "REMOVE" ]
+          },
+          "section" : {
+            "type" : "string",
+            "enum" : [ "ADDRESS", "QUEUE", "ADDRESS_SETTING", "SECURITY_SETTING", "DIVERT" ]
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "before" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "after" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "already" : {
+            "type" : "boolean",
+            "description" : "True when the node already matches and nothing is written"
+          },
+          "description" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "after", "already", "before", "description", "id", "key", "op", "section" ]
+      },
+      "ConfigAdoptionView" : {
+        "type" : "object",
+        "description" : "A declaration built from what the live nodes are running, for review before saving",
+        "properties" : {
+          "document" : {
+            "$ref" : "#/components/schemas/ConfigDocumentView"
+          },
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "disagreements" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "disagreements", "document", "notes" ]
+      },
       "CreateAddressRequest" : {
         "type" : "object",
         "properties" : {
@@ -5231,6 +6410,27 @@
             "type" : "string"
           }
         }
+      },
+      "ConfigureRequest" : {
+        "type" : "object",
+        "description" : "How the cluster's configuration is applied and what drift reports",
+        "properties" : {
+          "applyMode" : {
+            "type" : "string",
+            "enum" : [ "STUDIO_MANAGED", "CONFIG_MANAGED" ],
+            "pattern" : "STUDIO_MANAGED|CONFIG_MANAGED"
+          },
+          "reportUndeclared" : {
+            "type" : "boolean"
+          },
+          "undeclaredExclusions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "applyMode", "reportUndeclared", "undeclaredExclusions" ]
       },
       "TimeView" : {
         "type" : "object",
@@ -6867,6 +8067,146 @@
           }
         },
         "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "ConfigRevisionView" : {
+        "type" : "object",
+        "description" : "One saved revision",
+        "properties" : {
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          },
+          "document" : {
+            "$ref" : "#/components/schemas/ConfigDocumentView"
+          }
+        },
+        "required" : [ "createdAt", "createdBy", "document", "revision", "source" ]
+      },
+      "ConfigAddressSettingKeyView" : {
+        "type" : "object",
+        "description" : "One address-setting key: its two names, type, allowed values and hazard class",
+        "properties" : {
+          "jsonName" : {
+            "type" : "string"
+          },
+          "xmlName" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "BOOLEAN", "INT", "LONG", "DOUBLE", "STRING", "ENUM" ]
+          },
+          "allowedValues" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "hazardClass" : {
+            "type" : "string",
+            "enum" : [ "LOW", "MEDIUM", "HIGH" ]
+          },
+          "applicable" : {
+            "type" : "boolean",
+            "description" : "False for keys a runtime write may not carry"
+          }
+        },
+        "required" : [ "allowedValues", "applicable", "hazardClass", "jsonName", "type", "xmlName" ]
+      },
+      "ConfigCatalogueView" : {
+        "type" : "object",
+        "description" : "What the form needs to know about every address-setting key and permission type",
+        "properties" : {
+          "addressSettingKeys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigAddressSettingKeyView"
+            }
+          },
+          "permissionTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "addressSettingKeys", "permissionTypes" ]
+      },
+      "ConfigApplyHistoryView" : {
+        "type" : "object",
+        "description" : "One past apply",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "revisionId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "DRY_RUN", "APPLIED", "HALTED", "FAILED" ]
+          },
+          "summary" : {
+            "type" : [ "string", "null" ]
+          },
+          "actor" : {
+            "type" : "string"
+          },
+          "canaryNodeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "dryRun" : {
+            "type" : "boolean"
+          },
+          "auditEventId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          }
+        },
+        "required" : [ "actor", "dryRun", "id", "outcome", "revisionId", "startedAt" ]
+      },
+      "ConfigApplyDetailView" : {
+        "type" : "object",
+        "description" : "One past apply with the plan that was shown and the per-node outcome",
+        "properties" : {
+          "apply" : {
+            "$ref" : "#/components/schemas/ConfigApplyHistoryView"
+          },
+          "plan" : {
+            "$ref" : "#/components/schemas/ConfigPlanView"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeApplyView"
+            }
+          }
+        },
+        "required" : [ "apply", "nodes", "plan" ]
       },
       "ConfigDiffView" : {
         "type" : "object",

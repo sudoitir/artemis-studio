@@ -51,17 +51,38 @@ public class ClusterLock {
      *     reconciling", not "something is wrong".
      */
     public boolean runIfHeld(UUID clusterId, Runnable work) {
+        return runIfHeld(clusterId, Scope.RECONCILE, work);
+    }
+
+    /**
+     * What a lock guards. Each scope is its own advisory-lock namespace, so a
+     * configuration apply refusing to run "because another apply is in progress" is
+     * telling the truth and is not merely colliding with a reconcile pass.
+     */
+    public enum Scope {
+        RECONCILE(NAMESPACE),
+        CONFIG_APPLY(NAMESPACE + 1);
+
+        private final int namespace;
+
+        Scope(int namespace) {
+            this.namespace = namespace;
+        }
+    }
+
+    public boolean runIfHeld(UUID clusterId, Scope scope, Runnable work) {
+        int namespace = scope.namespace;
         int key = key(clusterId);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(true);
-            if (!call(connection, "SELECT pg_try_advisory_lock(?, ?)", key)) {
+            if (!call(connection, "SELECT pg_try_advisory_lock(?, ?)", namespace, key)) {
                 log.debug("Cluster {} is being reconciled by another instance; skipping this pass", clusterId);
                 return false;
             }
             try {
                 work.run();
             } finally {
-                call(connection, "SELECT pg_advisory_unlock(?, ?)", key);
+                call(connection, "SELECT pg_advisory_unlock(?, ?)", namespace, key);
             }
             return true;
         } catch (SQLException e) {
@@ -70,9 +91,9 @@ public class ClusterLock {
         }
     }
 
-    private boolean call(Connection connection, String sql, int key) throws SQLException {
+    private boolean call(Connection connection, String sql, int namespace, int key) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, NAMESPACE);
+            statement.setInt(1, namespace);
             statement.setInt(2, key);
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next() && rs.getBoolean(1);

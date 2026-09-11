@@ -112,6 +112,37 @@ export type NotificationChannelView = Schemas["NotificationChannelView"];
 export type NotificationChannelRequest = Schemas["NotificationChannelRequest"];
 export type ClusterFiringCountView = Schemas["ClusterFiringCountView"];
 
+// ── broker-configuration (ADR-0067) ──────────────────────────────────────
+
+export type ConfigDocumentView = Schemas["ConfigDocumentView"];
+export type ConfigAddressView = Schemas["ConfigAddressView"];
+export type ConfigQueueView = Schemas["ConfigQueueView"];
+export type ConfigAddressSettingView = Schemas["ConfigAddressSettingView"];
+export type ConfigSecuritySettingView = Schemas["ConfigSecuritySettingView"];
+export type ConfigDivertView = Schemas["ConfigDivertView"];
+export type ConfigDeclarationView = Schemas["ConfigDeclarationView"];
+export type ConfigNodeStateView = Schemas["ConfigNodeStateView"];
+export type ConfigDriftFindingView = Schemas["ConfigDriftFindingView"];
+export type ConfigDriftReportView = Schemas["ConfigDriftReportView"];
+export type ConfigRevisionView = Schemas["ConfigRevisionView"];
+export type ConfigImportResultView = Schemas["ConfigImportResultView"];
+export type ConfigAdoptionView = Schemas["ConfigAdoptionView"];
+export type ConfigPlanView = Schemas["ConfigPlanView"];
+export type ConfigNodePlanView = Schemas["ConfigNodePlanView"];
+export type ConfigStepView = Schemas["ConfigStepView"];
+export type ConfigHazardView = Schemas["ConfigHazardView"];
+export type ConfigFindingView = Schemas["ConfigFindingView"];
+export type ConfigApplyOutcomeView = Schemas["ConfigApplyOutcomeView"];
+export type ConfigNodeApplyView = Schemas["ConfigNodeApplyView"];
+export type ConfigStepApplyView = Schemas["ConfigStepApplyView"];
+export type ConfigApplyHistoryView = Schemas["ConfigApplyHistoryView"];
+export type ConfigApplyDetailView = Schemas["ConfigApplyDetailView"];
+export type ConfigCatalogueView = Schemas["ConfigCatalogueView"];
+export type ConfigAddressSettingKeyView = Schemas["ConfigAddressSettingKeyView"];
+export type SaveDeclarationRequest = Schemas["SaveDeclarationRequest"];
+export type ConfigureRequest = Schemas["ConfigureRequest"];
+export type ConfigApplyRequest = Schemas["ApplyRequest"];
+
 // ── identity-and-sessions / authorization / environments / api-tokens / oidc-sso ──
 
 export type LoginRequest = Schemas["LoginRequest"];
@@ -301,6 +332,8 @@ export const keys = {
   sqlPlan: (id: string, sql: string) =>
     ["clusters", id, "sql", "plan", sql] as const,
   sqlIndex: (id: string) => ["clusters", id, "sql", "index"] as const,
+  /** The declaration, its drift and its history: one key, since one SSE signal covers all three. */
+  brokerConfig: (id: string) => ["clusters", id, "config"] as const,
 };
 
 // ── queries ────────────────────────────────────────────────────────────────
@@ -1723,6 +1756,179 @@ export function useDeleteIndexSubscription(clusterId: string) {
       request(`/clusters/${clusterId}/sql/index/${id}`, { method: "DELETE" }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+  });
+}
+
+// ── broker-configuration (ADR-0067) ──────────────────────────────────────
+
+const configBase = (clusterId: string) => `/clusters/${clusterId}/config`;
+
+/** The declaration with each node's last evaluation; `declared: false` is the empty state, not an error. */
+export function useBrokerConfig(
+  clusterId: string,
+): UseQueryResult<ConfigDeclarationView, ApiError> {
+  return useQuery({
+    queryKey: keys.brokerConfig(clusterId),
+    queryFn: () => request<ConfigDeclarationView>(configBase(clusterId)),
+    refetchInterval: poll(30_000),
+  });
+}
+
+export function useBrokerConfigCatalogue(
+  clusterId: string,
+): UseQueryResult<ConfigCatalogueView, ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "catalogue"],
+    queryFn: () =>
+      request<ConfigCatalogueView>(`${configBase(clusterId)}/catalogue`),
+    staleTime: Infinity,
+  });
+}
+
+export function useBrokerConfigRevisions(
+  clusterId: string,
+): UseQueryResult<ConfigRevisionView[], ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "revisions"],
+    queryFn: () =>
+      request<ConfigRevisionView[]>(`${configBase(clusterId)}/revisions`),
+  });
+}
+
+export function useBrokerConfigApplies(
+  clusterId: string,
+): UseQueryResult<ConfigApplyHistoryView[], ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "applies"],
+    queryFn: () =>
+      request<ConfigApplyHistoryView[]>(`${configBase(clusterId)}/applies`),
+  });
+}
+
+export function useBrokerConfigApply(
+  clusterId: string,
+  id: number | null,
+): UseQueryResult<ConfigApplyDetailView, ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "applies", id],
+    queryFn: () =>
+      request<ConfigApplyDetailView>(`${configBase(clusterId)}/applies/${id}`),
+    enabled: id !== null,
+  });
+}
+
+/** The exported `<core>` fragment, as text. Fetched on demand: it is a copy target, not a view. */
+export async function fetchBrokerConfigXml(
+  clusterId: string,
+  revision?: number,
+): Promise<string> {
+  const query = revision ? `?revision=${revision}` : "";
+  const res = await fetch(`${BASE}${configBase(clusterId)}/export-xml${query}`, {
+    credentials: "same-origin",
+    headers: { accept: "application/xml" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let body: Record<string, unknown> = {};
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      /* not a problem body */
+    }
+    throw new ApiError(res.status, body);
+  }
+  return res.text();
+}
+
+/**
+ * Save a revision. `expectedRevision` is the one that was edited; a stale one is
+ * refused with 409 `stale-revision` so two operators cannot silently overwrite
+ * each other. A real save invalidates the whole config key: declared, drift
+ * (now measured against a revision that no longer exists) and history.
+ */
+export function useSaveBrokerConfig(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<ConfigDeclarationView, ApiError, SaveDeclarationRequest>({
+    mutationFn: (body) =>
+      request(configBase(clusterId), {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+  });
+}
+
+export function useConfigureBrokerConfig(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<ConfigDeclarationView, ApiError, ConfigureRequest>({
+    mutationFn: (body) =>
+      request(`${configBase(clusterId)}/mode`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+  });
+}
+
+/** Parse a pasted `broker.xml` (or fragment). Nothing is saved: the result is previewed first. */
+export function useImportBrokerConfigXml(clusterId: string) {
+  return useMutation<ConfigImportResultView, ApiError, string>({
+    mutationFn: (xml) =>
+      request(`${configBase(clusterId)}/import-xml`, {
+        method: "POST",
+        headers: { "content-type": "application/xml" },
+        body: xml,
+      }),
+  });
+}
+
+/** Build a declaration from what the live nodes run. Nothing is saved. */
+export function useAdoptBrokerConfig(clusterId: string) {
+  return useMutation<ConfigAdoptionView, ApiError, void>({
+    mutationFn: () =>
+      request(`${configBase(clusterId)}/adopt`, { method: "POST" }),
+  });
+}
+
+/** Evaluate every live node now; the stored state is what `useBrokerConfig` shows afterwards. */
+export function useEvaluateBrokerConfigDrift(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<ConfigDriftReportView, ApiError, void>({
+    mutationFn: () =>
+      request(`${configBase(clusterId)}/drift/evaluate`, { method: "POST" }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+  });
+}
+
+/**
+ * Plan (`dryRun`) or apply the declaration. Mirrors the lifecycle mutations: a
+ * dry run changes nothing and invalidates nothing; a real run invalidates the
+ * config key (drift and history moved) and the resources the steps may have
+ * created. The result shape is the same either way, so the preview and the
+ * result are comparable.
+ */
+export function useApplyBrokerConfig(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    ConfigApplyOutcomeView,
+    ApiError,
+    LifecycleVars & { body: ConfigApplyRequest }
+  >({
+    mutationFn: ({ body, dryRun, override }) =>
+      request(
+        `${configBase(clusterId)}/apply${lifecycleQuery(dryRun, override)}`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: (result) => {
+      if (result.dryRun) return;
+      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "addresses") });
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "diverts") });
+    },
   });
 }
 

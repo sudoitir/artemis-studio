@@ -715,3 +715,35 @@ those slices rested on; two of them could have changed the shape of the feature.
   gains a `paused` column (a new changeset — `005-broker-cache.sql` is released)
   and `SlowConsumerCondition` excludes paused queues from its universe. No extra
   broker call: the field is in the page Studio already reads.
+
+## 15. Broker configuration — declare, apply, verify
+
+Measured 2026-09-11 against the dev pair (`apache/activemq-artemis:2.44.0`, the newest
+image published at the time; `primary` :8161 / `backup` :8261, replication with
+failback). Every probe object was removed afterwards and the pair was left as found.
+The six questions the design of change `07-broker-configuration` (ADR-0067) depends on.
+
+| # | Question | Verdict |
+|---|---|---|
+| M1 | Which keys does `getAddressSettingsAsJSON` echo, and how are unknown keys treated? | **Every key that is set anywhere in the match hierarchy.** A full 49-key entry written with `addAddressSettings(String,String)` read back with all 49; the dev `#` (which `broker.xml` sets sparsely) reads back 18; an address no pattern matches also reads 18 — the `#` entry. So a *declared* key is always readable after apply, and a key that is set nowhere is simply absent (the broker default is not reported). The JSON names are the `AddressSettings` field names (`addressFullMessagePolicy`, `maxSizeBytes`, `redeliveryMultiplier`, `pageFullMessagePolicy`, `configDeleteQueues`, …). **Unknown keys are silently ignored** (`{"noSuchKeyXyz":1}` → 200, entry stored without it). A bad enum value is refused: `500 java.lang.RuntimeException: Error while parsing MetaData{type=…AddressFullMessagePolicy, name='addressFullMessagePolicy'}` — the field name is recoverable from the message. `pageSizeBytes ≥ maxSizeBytes` is refused with `IllegalStateException: pageSize has to be lower than maxSizeBytes` **and the previous entry is left intact** — the check runs against the *merged* page size, so a declaration that sets `maxSizeBytes` without `pageSizeBytes` is checked against the inherited page size. |
+| M2 | Is `addAddressSettings` on an existing match replace or merge? | **Replace.** After a 49-key entry, writing `{addressFullMessagePolicy, maxSizeBytes, redistributionDelay}` to the same match read back 19 keys: `maxDeliveryAttempts` (was 3) gone, `autoCreateQueues` (was false) back to the `#` value `true`. The operation's own return value is the stored literal entry as JSON — useful at write time only. |
+| M3 | Do runtime-applied settings reach the backup? | **Yes, through the journal, visible only once the backup is active.** While passive the backup answered `getAddressSettingsAsJSON` / `getRolesAsJSON` / `DivertNames` from its own `broker.xml` (no probe objects). After `docker stop` of the primary the promoted backup reported the address setting (`DROP`, `52428800`), the security setting (`other-role`), the divert and the durable queue. After failback the primary still had all of them. Consequence: apply targets live nodes only, backups are stated to inherit, and drift is evaluated on the live member — after a failover it is the promoted node that is evaluated. |
+| M4 | Refusal shapes. | `createDivert(String)` on an existing name → **200, silently no change** (a second call with `exclusive=true` left `Exclusive=false`); `updateDivert(String)` → 200 and also left `Exclusive` unchanged — not relied on. `destroyDivert` on an absent name → `AMQ229012: No binding for divert …` (`ActiveMQInternalErrorException`). `removeAddressSettings` / `removeSecuritySettings` on an absent match → 200 (idempotent). `createQueue(String,boolean)` with `ignoreIfExists=false` on an existing queue → `AMQ229019`. |
+| M5 | Does a wildcard literal resolve its own entry? Are security settings merged? | `getAddressSettingsAsJSON("probe.m1.#")` returned the `probe.m1.#` entry merged over `#`, and `"probe.m1.concrete"` returned the same values — the literal match string is a valid probe. `getRolesAsJSON(match)` returns the role set of the **single most specific** security match; the `amq` role from `#` is not merged in. Re-adding a security match replaces its role set. |
+| M6 | `createQueue(json, ignoreIfExists=true)` on a queue whose config differs? | **200, returns the existing configuration, changes nothing** (a `filter-string` in the request was not applied). So "exists but differs" is detectable from the return value without a second read. |
+| M7 | Do the `view` and `edit` role lists of the 13-String `addSecuritySettings` arm persist? | **Accepted, never reported.** `addSecuritySettings("probe.view.#", "amq" × 12)` → 200, and `getRolesAsJSON("probe.view.#")` read back `view: false, edit: false` for `amq` while the other ten types were `true`. The console's own operation list registers both the 11- and 13-String arms, so the arm is real; whatever it stores for those two types is invisible over management. Consequence: Studio sends them, excludes them from the already/verify/drift comparison (`PermissionType.echoed()`), and says so in the security-setting editor — otherwise every declaration carrying `view` or `edit` would report drift nobody can close. |
+
+### Consequences carried into the design
+
+- The catalogue does not need a per-key "echoed" flag; verification compares every
+  declared key against the read-back and reports a key absent from the read-back as
+  unverifiable (it should not happen for a declared key — if it does, that is a
+  finding, not a silent pass).
+- Replace semantics are real (M2): the plan shows before → after for every echoed key
+  of the match and flags undeclared keys that will change (`UNINTENDED_KEY_CHANGE`).
+- Validation must be strict on Studio's side (M1): the broker will not tell an operator
+  about a misspelt key. `pageSizeBytes < maxSizeBytes` is validated against the merged
+  page size read in the plan.
+- A divert that exists with different properties is a delete + create step pair
+  (M4), never a second `createDivert`, which would report success and change nothing.
+- Backups are neither targeted nor reported as missing (M3).

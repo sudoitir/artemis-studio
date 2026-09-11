@@ -120,7 +120,7 @@ export function ClusterLayout() {
               One or more features are limited by this connection. Each row below expands with the
               reason and the <code>broker.xml</code> change that closes the gap.
             </Text>
-            <CapabilityLedger capabilities={data.capabilities} />
+            <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />
           </Stack>
         </Alert>
       ) : null}

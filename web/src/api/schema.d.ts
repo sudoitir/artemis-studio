@@ -116,6 +116,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put: operations["save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/alerts/rules/{ruleId}": {
         parameters: {
             query?: never;
@@ -516,6 +532,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config/import-xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["importXml"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/drift/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["evaluate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["adopt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/alerts/rules": {
         parameters: {
             query?: never;
@@ -692,6 +772,22 @@ export interface paths {
         patch: operations["overrideNode"];
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["configure"];
+        trace?: never;
+    };
     "/api/v1/time": {
         parameters: {
             query?: never;
@@ -763,7 +859,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get"];
+        get: operations["get_1"];
         put?: never;
         post?: never;
         delete: operations["delete_4"];
@@ -1020,6 +1116,118 @@ export interface paths {
             cookie?: never;
         };
         get: operations["connections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["revisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/revisions/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["revision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/export-xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportXml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["drift"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalogue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/applies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["applies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/applies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["applyDetail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1340,6 +1548,127 @@ export interface components {
             username: string;
             password: string;
             kind?: string;
+        };
+        /** @description One address-setting match; values are keyed by the catalogue's JSON names and hold only declared keys */
+        ConfigAddressSettingView: {
+            match: string;
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description An address and the queues bound to it */
+        ConfigAddressView: {
+            name: string;
+            routingTypes: ("ANYCAST" | "MULTICAST")[];
+            queues: components["schemas"]["ConfigQueueView"][];
+        };
+        /** @description One divert */
+        ConfigDivertView: {
+            name: string;
+            address: string;
+            forwardingAddress: string;
+            filter?: string | null;
+            exclusive: boolean;
+            /** @enum {string|null} */
+            routingType?: "STRIP" | "PASS" | "ANYCAST" | "MULTICAST" | null;
+            transformerClassName?: string | null;
+            transformerProperties: {
+                [key: string]: string;
+            };
+        };
+        /** @description A cluster's declared configuration: the four sections the management API can apply */
+        ConfigDocumentView: {
+            /** Format: int32 */
+            version: number;
+            addresses: components["schemas"]["ConfigAddressView"][];
+            addressSettings: components["schemas"]["ConfigAddressSettingView"][];
+            securitySettings: components["schemas"]["ConfigSecuritySettingView"][];
+            diverts: components["schemas"]["ConfigDivertView"][];
+        };
+        /** @description A queue as the create action accepts it; a null field is not declared */
+        ConfigQueueView: {
+            name: string;
+            /** @enum {string} */
+            routingType: "ANYCAST" | "MULTICAST";
+            filter?: string | null;
+            durable: boolean;
+            /** Format: int32 */
+            maxConsumers?: number | null;
+            purgeOnNoConsumers?: boolean | null;
+            exclusive?: boolean | null;
+            nonDestructive?: boolean | null;
+            /** Format: int64 */
+            ringSize?: number | null;
+        };
+        /** @description One security-setting match: permission type (send, consume, …) to the roles holding it */
+        ConfigSecuritySettingView: {
+            match: string;
+            permissions: {
+                [key: string]: string[];
+            };
+        };
+        /** @description Save a new revision. expectedRevision is the revision that was edited; a stale one is refused */
+        SaveDeclarationRequest: {
+            document: components["schemas"]["ConfigDocumentView"];
+            /**
+             * Format: int32
+             * @description The revision this edit was made against; 0 or null for a first save
+             */
+            expectedRevision?: number | null;
+            note?: string | null;
+        };
+        /** @description A cluster's declaration: the current revision, how it is applied, and each node's last evaluation */
+        ConfigDeclarationView: {
+            /** Format: uuid */
+            clusterId: string;
+            clusterName: string;
+            /** @description False until the first revision is saved */
+            declared: boolean;
+            /**
+             * Format: int32
+             * @description 0 while undeclared
+             */
+            revision: number;
+            document: components["schemas"]["ConfigDocumentView"];
+            /** @enum {string} */
+            applyMode: "STUDIO_MANAGED" | "CONFIG_MANAGED";
+            reportUndeclared: boolean;
+            undeclaredExclusions: string[];
+            /** Format: date-time */
+            updatedAt?: string | null;
+            updatedBy?: string | null;
+            /** @enum {string|null} */
+            source?: "EDIT" | "IMPORT_XML" | "ADOPT" | "MCP" | null;
+            note?: string | null;
+            nodes: components["schemas"]["ConfigNodeStateView"][];
+        };
+        /** @description One way a node differs from the declaration; declared beside observed */
+        ConfigDriftFindingView: {
+            kind: string;
+            section?: string | null;
+            key?: string | null;
+            detail: string;
+            declared: {
+                [key: string]: unknown;
+            };
+            observed: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description One node's last drift evaluation */
+        ConfigNodeStateView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            live: boolean;
+            /** @enum {string} */
+            state: "IN_SYNC" | "DRIFTED" | "NOT_EVALUATED" | "UNREACHABLE";
+            detail?: string | null;
+            /** Format: int32 */
+            verifiedRevision?: number | null;
+            /** Format: date-time */
+            evaluatedAt?: string | null;
+            findings: components["schemas"]["ConfigDriftFindingView"][];
         };
         AlertRuleRequest: {
             name: string;
@@ -1874,6 +2203,163 @@ export interface components {
             /** @description The <divert> element that would make this broker's own configuration carry the divert. A divert created over management persists across restarts but is absent from configuration, and this is what closes that gap. */
             brokerXml: string;
         };
+        /** @description A problem with one field of the declaration */
+        ConfigFieldErrorView: {
+            field: string;
+            message: string;
+        };
+        /** @description What a pasted broker.xml produced: the document, what could not be carried, and errors */
+        ConfigImportResultView: {
+            document: components["schemas"]["ConfigDocumentView"];
+            unsupported: components["schemas"]["ConfigUnsupportedView"][];
+            errors: components["schemas"]["ConfigFieldErrorView"][];
+        };
+        /** @description An element the import saw and did not carry, by path */
+        ConfigUnsupportedView: {
+            path: string;
+            reason: string;
+        };
+        /** @description A drift evaluation of every node against the current revision */
+        ConfigDriftReportView: {
+            /** Format: int32 */
+            revision: number;
+            /**
+             * Format: date-time
+             * @description Null until an evaluation has run
+             */
+            evaluatedAt?: string | null;
+            nodes: components["schemas"]["ConfigNodeStateView"][];
+        };
+        /** @description What an apply should consider. Every field is optional; the default is the current revision on every live node */
+        ApplyRequest: {
+            /**
+             * Format: int32
+             * @description Refused when it is not the current revision
+             */
+            revision?: number | null;
+            /** @description Live nodes to target; empty for all */
+            nodeIds?: string[] | null;
+            /**
+             * Format: uuid
+             * @description The node to apply first
+             */
+            canaryNodeId?: string | null;
+            /** @description Also remove settings and diverts Studio did not apply */
+            removeUndeclared?: boolean | null;
+            /** @description High hazard identifiers the operator acknowledged */
+            acknowledgedHazards?: string[] | null;
+            /** @description The planHash that was previewed; a real run refuses when it changed */
+            expectedPlanHash?: string | null;
+        };
+        /** @description The outcome of an apply, dry or real; the same shape for preview and result */
+        ConfigApplyOutcomeView: {
+            /** Format: int64 */
+            applyId?: number | null;
+            dryRun: boolean;
+            /** @enum {string} */
+            outcome: "DRY_RUN" | "APPLIED" | "HALTED" | "FAILED";
+            /** Format: int32 */
+            revision: number;
+            plan: components["schemas"]["ConfigPlanView"];
+            nodes: components["schemas"]["ConfigNodeApplyView"][];
+            /** Format: int32 */
+            stepCap: number;
+            overCap: boolean;
+            summary: string;
+            /** Format: int64 */
+            auditEventId?: number | null;
+        };
+        /** @description Something the plan noticed and will not act on */
+        ConfigFindingView: {
+            kind: string;
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            section?: string | null;
+            key?: string | null;
+            detail: string;
+        };
+        /** @description A consequence stated before any write; High ones must be acknowledged by id */
+        ConfigHazardView: {
+            id: string;
+            kind: string;
+            /** @enum {string} */
+            hazardClass: "LOW" | "MEDIUM" | "HIGH";
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            section: string;
+            key: string;
+            message: string;
+        };
+        /** @description One node's steps and what happened to each */
+        ConfigNodeApplyView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            live: boolean;
+            canary: boolean;
+            unavailableReason?: string | null;
+            steps: components["schemas"]["ConfigStepApplyView"][];
+            note?: string | null;
+        };
+        /** @description One node's ordered steps */
+        ConfigNodePlanView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            live: boolean;
+            unavailableReason?: string | null;
+            steps: components["schemas"]["ConfigStepView"][];
+        };
+        /** @description What an apply would do: ordered steps per node, hazards, findings, and the hash a real run must name */
+        ConfigPlanView: {
+            nodes: components["schemas"]["ConfigNodePlanView"][];
+            hazards: components["schemas"]["ConfigHazardView"][];
+            findings: components["schemas"]["ConfigFindingView"][];
+            planHash: string;
+            /** Format: int32 */
+            stepCount: number;
+            /** Format: uuid */
+            canaryNodeId?: string | null;
+        };
+        /** @description One step's outcome on one node, in words */
+        ConfigStepApplyView: {
+            stepId: string;
+            section: string;
+            key: string;
+            op: string;
+            description: string;
+            /** @enum {string} */
+            status: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "FAILED" | "NOT_ATTEMPTED" | "SKIPPED_NOT_LIVE";
+            /** @enum {string} */
+            verified: "NOT_VERIFIED" | "VERIFIED" | "UNVERIFIABLE" | "MISMATCH";
+            error?: string | null;
+        };
+        /** @description One management write; before and after as the broker reports them */
+        ConfigStepView: {
+            id: string;
+            /** @enum {string} */
+            op: "ADD" | "REPLACE" | "REMOVE";
+            /** @enum {string} */
+            section: "ADDRESS" | "QUEUE" | "ADDRESS_SETTING" | "SECURITY_SETTING" | "DIVERT";
+            key: string;
+            before: {
+                [key: string]: unknown;
+            };
+            after: {
+                [key: string]: unknown;
+            };
+            /** @description True when the node already matches and nothing is written */
+            already: boolean;
+            description: string;
+        };
+        /** @description A declaration built from what the live nodes are running, for review before saving */
+        ConfigAdoptionView: {
+            document: components["schemas"]["ConfigDocumentView"];
+            notes: string[];
+            disagreements: string[];
+        };
         CreateAddressRequest: {
             /** @description The address name. */
             name: string;
@@ -1918,6 +2404,13 @@ export interface components {
         NodeOverrideRequest: {
             jolokiaUrl?: string;
             coreUrl?: string;
+        };
+        /** @description How the cluster's configuration is applied and what drift reports */
+        ConfigureRequest: {
+            /** @enum {string} */
+            applyMode: "STUDIO_MANAGED" | "CONFIG_MANAGED";
+            reportUndeclared: boolean;
+            undeclaredExclusions: string[];
         };
         TimeView: {
             /** Format: int64 */
@@ -2596,6 +3089,60 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
+        /** @description One saved revision */
+        ConfigRevisionView: {
+            /** Format: int32 */
+            revision: number;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: string;
+            source: string;
+            note?: string | null;
+            document: components["schemas"]["ConfigDocumentView"];
+        };
+        /** @description One address-setting key: its two names, type, allowed values and hazard class */
+        ConfigAddressSettingKeyView: {
+            jsonName: string;
+            xmlName: string;
+            /** @enum {string} */
+            type: "BOOLEAN" | "INT" | "LONG" | "DOUBLE" | "STRING" | "ENUM";
+            allowedValues: string[];
+            /** @enum {string} */
+            hazardClass: "LOW" | "MEDIUM" | "HIGH";
+            /** @description False for keys a runtime write may not carry */
+            applicable: boolean;
+        };
+        /** @description What the form needs to know about every address-setting key and permission type */
+        ConfigCatalogueView: {
+            addressSettingKeys: components["schemas"]["ConfigAddressSettingKeyView"][];
+            permissionTypes: string[];
+        };
+        /** @description One past apply */
+        ConfigApplyHistoryView: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            /** Format: int64 */
+            revisionId: number;
+            /** @enum {string} */
+            outcome: "DRY_RUN" | "APPLIED" | "HALTED" | "FAILED";
+            summary?: string | null;
+            actor: string;
+            /** Format: uuid */
+            canaryNodeId?: string | null;
+            dryRun: boolean;
+            /** Format: int64 */
+            auditEventId?: number | null;
+        };
+        /** @description One past apply with the plan that was shown and the per-node outcome */
+        ConfigApplyDetailView: {
+            apply: components["schemas"]["ConfigApplyHistoryView"];
+            plan: components["schemas"]["ConfigPlanView"];
+            nodes: components["schemas"]["ConfigNodeApplyView"][];
+        };
         /** @description Broker configuration compared across two nodes */
         ConfigDiffView: {
             /** Format: uuid */
@@ -3035,6 +3582,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDeclarationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
             };
         };
     };
@@ -4001,6 +4596,106 @@ export interface operations {
             };
         };
     };
+    importXml: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/xml": string;
+                "text/xml": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigImportResultView"];
+                };
+            };
+        };
+    };
+    evaluate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDriftReportView"];
+                };
+            };
+        };
+    };
+    apply: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+                override?: boolean;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigApplyOutcomeView"];
+                };
+            };
+        };
+    };
+    adopt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigAdoptionView"];
+                };
+            };
+        };
+    };
     rules: {
         parameters: {
             query?: never;
@@ -4387,6 +5082,32 @@ export interface operations {
             };
         };
     };
+    configure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+        };
+    };
     now: {
         parameters: {
             query?: never;
@@ -4472,7 +5193,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4904,6 +5625,166 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewConnectionView"];
+                };
+            };
+        };
+    };
+    revisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigRevisionView"][];
+                };
+            };
+        };
+    };
+    revision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigRevisionView"];
+                };
+            };
+        };
+    };
+    exportXml: {
+        parameters: {
+            query?: {
+                revision?: number;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
+    drift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDriftReportView"];
+                };
+            };
+        };
+    };
+    catalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigCatalogueView"];
+                };
+            };
+        };
+    };
+    applies: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigApplyHistoryView"][];
+                };
+            };
+        };
+    };
+    applyDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigApplyDetailView"];
                 };
             };
         };

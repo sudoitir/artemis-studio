@@ -129,6 +129,11 @@ delivered, and expired notifications.
 - **THEN** it shows the reason and the `broker.xml` snippet rather than hiding
   the related controls
 
+#### Scenario: A snippet the declaration can apply links there
+
+- **WHEN** a registered cluster's capability snippet consists, wholly or in part, of address or security settings
+- **THEN** the ledger states which part the declared configuration can apply over the management API and which still needs `broker.xml`, and links into the cluster's configuration with the snippet offered for import
+
 ### Requirement: Native slow-consumer detection is reported three-state with its snippet
 
 The system SHALL report whether the broker's own slow-consumer detection is configured,
