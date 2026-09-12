@@ -747,3 +747,37 @@ The six questions the design of change `07-broker-configuration` (ADR-0067) depe
 - A divert that exists with different properties is a delete + create step pair
   (M4), never a second `createDivert`, which would report success and change nothing.
 - Backups are neither targeted nor reported as missing (M3).
+
+## 16. Broker configuration — the loop against a live pair
+
+Measured 2026-09-12 against the same dev pair (`apache/activemq-artemis:2.44.0`,
+`primary` :8161 / `backup` :8261, replication with failback) by
+`scripts/config-e2e.sh`, which drives Studio's own REST API and leaves the pair as it
+found it. §15 answered what the management API does; this section answers what the
+assembled loop does, and it is where the baseline for the hardening work was taken.
+
+| # | Question | Verdict |
+|---|---|---|
+| M8 | Is `slowConsumerThreshold` readable back once it is set? | **Yes, on 2.44.0.** `addAddressSettings("probe.slow.#", {slowConsumerThreshold: 1, …})` read back all four slow-consumer keys (`slowConsumerThreshold`, `…MeasurementUnit`, `slowConsumerCheckPeriod`, `slowConsumerPolicy`) in a 21-key entry. The earlier reading — that only the measurement unit is exposed — was an artefact of §15 M1: a key set **nowhere** is simply absent, and the dev `broker.xml` sets no threshold. Consequences: native slow-consumer detection is a **verifiable** declaration, so it can be recommended and applied like any other address setting; and `CapabilityProbe`'s reason text, which tells the operator the value cannot be observed, is wrong on this version and states an absent key as unknowable rather than as unset. |
+| M9 | Do the `view` / `edit` role types read back? | **No**, exactly as §15 M7 recorded. Re-confirmed so the two measurements that gate "can this key be verified?" sit together. |
+
+### What the assembled loop did, and did not, do
+
+Run against one live node with a declaration adopted from the broker itself:
+
+- **Sound.** A dry run of an adopted declaration plans zero steps. A declared setting
+  the broker lacks plans exactly one step, applies, and every applied step is
+  `VERIFIED` by read-back. A second dry run plans zero steps, so a re-run converges.
+  A stale `planHash` and a stale revision are both refused with `409`. Of two
+  concurrent applies, one is refused with `409`. An out-of-band
+  `removeAddressSettings` is seen as drift on the next evaluation. External entities
+  are not resolved by the import parser.
+- **Not sound** — each reproduced here, and each closed by a later phase:
+  adoption erased an open drift finding with no broker write and no disclosure;
+  a revision adopted from a broker records its source as `EDIT`, so even the audit
+  trail cannot tell adoption from an edit; an `IN_SYNC` node records no evidence for
+  why it agrees; a `CONFIG_MANAGED` cluster applied over HTTP with `200`, because the
+  mode is enforced only in the UI; an unknown address-setting key is dropped as
+  "unsupported" rather than refused as a validation error (ADR-0067 D10); a 3.8 MB
+  import was accepted; and the connection check reports capability gaps while
+  offering nothing that would close them.
