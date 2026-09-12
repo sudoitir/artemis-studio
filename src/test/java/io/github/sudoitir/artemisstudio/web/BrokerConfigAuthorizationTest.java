@@ -137,6 +137,19 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void declaringTheRecommendationsNeedsConfigWrite() throws Exception {
+        // Reading them is a read; turning them into a revision is an edit. A caller
+        // who can only read must not be able to move the declaration.
+        assertThat(status(
+                        MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/config/recommendations/declare")
+                                .with(csrf())
+                                .with(authentication(callerWith(Permissions.CLUSTER_READ)))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}")))
+                .isEqualTo(404);
+    }
+
+    @Test
     void anInvalidDeclarationIsRefusedWithTheFieldNamed() throws Exception {
         var result = mvc.perform(MockMvcRequestBuilders.put("/api/v1/clusters/" + clusterId + "/config")
                         .with(csrf())

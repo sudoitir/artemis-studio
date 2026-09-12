@@ -138,6 +138,9 @@ export type ConfigStepApplyView = Schemas["ConfigStepApplyView"];
 export type ConfigApplyHistoryView = Schemas["ConfigApplyHistoryView"];
 export type ConfigApplyDetailView = Schemas["ConfigApplyDetailView"];
 export type ConfigCatalogueView = Schemas["ConfigCatalogueView"];
+export type ConfigRecommendationsView = Schemas["ConfigRecommendationsView"];
+export type ConfigRecommendationView = Schemas["ConfigRecommendationView"];
+export type DeclareRecommendedRequest = Schemas["DeclareRecommendedRequest"];
 export type ConfigAddressSettingKeyView = Schemas["ConfigAddressSettingKeyView"];
 export type SaveDeclarationRequest = Schemas["SaveDeclarationRequest"];
 export type ConfigureRequest = Schemas["ConfigureRequest"];
@@ -1881,6 +1884,47 @@ export function useImportBrokerConfigXml(clusterId: string) {
         headers: { "content-type": "application/xml" },
         body: xml,
       }),
+  });
+}
+
+/**
+ * What the capability probe suggests declaring. A read of the brokers, so it is
+ * fetched on demand rather than kept warm: the answer changes only when an apply
+ * or a broker.xml edit changes it, and both invalidate the config key.
+ */
+export function useBrokerConfigRecommendations(
+  clusterId: string,
+  enabled = true,
+): UseQueryResult<ConfigRecommendationsView, ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "recommendations"],
+    queryFn: () =>
+      request<ConfigRecommendationsView>(
+        `${configBase(clusterId)}/recommendations`,
+      ),
+    enabled,
+  });
+}
+
+/**
+ * Declare the appliable recommendations as a new revision. Nothing reaches a
+ * broker: the caller opens the plan next and applies it through the ordinary
+ * gates.
+ */
+export function useDeclareRecommended(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    ConfigDeclarationView,
+    ApiError,
+    DeclareRecommendedRequest
+  >({
+    mutationFn: (body) =>
+      request(`${configBase(clusterId)}/recommendations/declare`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
   });
 }
 

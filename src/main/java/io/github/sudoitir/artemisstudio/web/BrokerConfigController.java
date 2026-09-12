@@ -5,12 +5,14 @@ import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigApplyRequest;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigApplyService;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigDriftService;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigRecommendationService;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigService;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigService.Source;
 import io.github.sudoitir.artemisstudio.service.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigRequests.ApplyRequest;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigRequests.ConfigureRequest;
+import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigRequests.DeclareRecommendedRequest;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigRequests.SaveDeclarationRequest;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.AdoptionView;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.ApplyDetailView;
@@ -22,6 +24,7 @@ import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.DriftReportVie
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.ImportResultView;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.NodeApplyView;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.PlanView;
+import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.RecommendationsView;
 import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews.RevisionView;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -61,6 +64,7 @@ public class BrokerConfigController {
     private final BrokerConfigService config;
     private final BrokerConfigDriftService drift;
     private final BrokerConfigApplyService apply;
+    private final BrokerConfigRecommendationService recommendations;
     private final ClusterAccessGuard clusterAccess;
 
     // ---- declaration ------------------------------------------------------
@@ -120,6 +124,26 @@ public class BrokerConfigController {
     @PostMapping("/adopt")
     public AdoptionView adopt(@PathVariable UUID clusterId) {
         return AdoptionView.of(config.adopt(clusterId));
+    }
+
+    // ---- recommendations (ADR-0068) ---------------------------------------
+
+    /** What the capability probe suggests declaring, and what still needs broker.xml. */
+    @GetMapping("/recommendations")
+    public RecommendationsView recommendations(@PathVariable UUID clusterId) {
+        return RecommendationsView.of(recommendations.recommend(clusterId));
+    }
+
+    /**
+     * Declare the appliable recommendations as a new revision. Nothing is written to
+     * a broker: the caller opens the plan and applies it through the ordinary gates.
+     */
+    @PostMapping("/recommendations/declare")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeclarationView declareRecommended(
+            @PathVariable UUID clusterId, @RequestBody(required = false) DeclareRecommendedRequest request) {
+        DeclareRecommendedRequest body = request == null ? new DeclareRecommendedRequest(null, null) : request;
+        return DeclarationView.of(recommendations.declare(clusterId, body.capabilities(), body.roles()));
     }
 
     /** Static, but cluster-addressed: an ungranted caller must not learn the cluster exists. */

@@ -1819,6 +1819,42 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config/recommendations/declare" : {
+      "post" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "declareRecommended",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeclareRecommendedRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigDeclarationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/config/import-xml" : {
       "post" : {
         "tags" : [ "broker-config-controller" ],
@@ -3437,6 +3473,33 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config/recommendations" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "recommendations",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigRecommendationsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/config/export-xml" : {
       "get" : {
         "tags" : [ "broker-config-controller" ],
@@ -4519,8 +4582,8 @@
           "source" : {
             "type" : [ "string", "null" ],
             "description" : "Where this document came from; defaults to EDIT. ADOPT records that the declaration was taken from the running cluster, which is what lets drift say why a node agrees",
-            "enum" : [ "EDIT", "IMPORT_XML", "ADOPT" ],
-            "pattern" : "EDIT|IMPORT_XML|ADOPT"
+            "enum" : [ "EDIT", "IMPORT_XML", "ADOPT", "RECOMMENDED" ],
+            "pattern" : "EDIT|IMPORT_XML|ADOPT|RECOMMENDED"
           },
           "confirm" : {
             "type" : [ "string", "null" ],
@@ -5071,6 +5134,75 @@
         },
         "required" : [ "reason", "status" ]
       },
+      "ConfigRecommendationView" : {
+        "type" : "object",
+        "description" : "One capability gap and what would close it",
+        "properties" : {
+          "capability" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "rationale" : {
+            "type" : "string"
+          },
+          "appliable" : {
+            "type" : "boolean",
+            "description" : "Whether Studio can write this over the management API, or the operator must edit broker.xml and restart"
+          },
+          "section" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "ADDRESS_SETTING", "SECURITY_SETTING" ]
+          },
+          "match" : {
+            "type" : [ "string", "null" ]
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : { },
+            "description" : "The whole entry that would be written, the node's current keys included — a runtime write replaces the entry rather than merging"
+          },
+          "roles" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "description" : "Permission type to role names, prefilled from the broker"
+          },
+          "keys" : {
+            "type" : "array",
+            "description" : "The keys this recommendation itself sets",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "manualSnippet" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
+      },
+      "ConfigRecommendationsView" : {
+        "type" : "object",
+        "description" : "What the capability probe suggests declaring, and what still needs a broker.xml edit",
+        "properties" : {
+          "seededFrom" : {
+            "type" : [ "string", "null" ],
+            "description" : "The node the current values were read from; null when none could be read"
+          },
+          "recommendations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigRecommendationView"
+            }
+          }
+        },
+        "required" : [ "recommendations" ]
+      },
       "LogicalNodeView" : {
         "type" : "object",
         "properties" : {
@@ -5161,9 +5293,13 @@
           },
           "topology" : {
             "$ref" : "#/components/schemas/TopologyView"
+          },
+          "recommendations" : {
+            "$ref" : "#/components/schemas/ConfigRecommendationsView",
+            "description" : "What the probe suggests declaring once the cluster is registered, seeded from what the reachable node is running"
           }
         },
-        "required" : [ "capabilities", "discoveredNodes", "reachableSeeds", "topology" ]
+        "required" : [ "capabilities", "discoveredNodes", "reachableSeeds", "recommendations", "topology" ]
       },
       "TopologyView" : {
         "type" : "object",
@@ -5907,6 +6043,31 @@
           }
         },
         "required" : [ "brokerXml", "outcome" ]
+      },
+      "DeclareRecommendedRequest" : {
+        "type" : "object",
+        "description" : "Declare the capability probe's recommendations as a new revision. Nothing is applied; the plan is opened next",
+        "properties" : {
+          "capabilities" : {
+            "type" : [ "array", "null" ],
+            "description" : "Capability names to take; empty or null takes every appliable one",
+            "items" : {
+              "type" : "string"
+            },
+            "uniqueItems" : true
+          },
+          "roles" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              },
+              "uniqueItems" : true
+            },
+            "description" : "Roles for a recommended security setting, keyed by its match. Overrides the prefill read from the broker"
+          }
+        }
       },
       "ConfigFieldErrorView" : {
         "type" : "object",

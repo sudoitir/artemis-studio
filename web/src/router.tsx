@@ -269,16 +269,14 @@ const configDiffRoute = createRoute({
 
 /** The declaration's navigable state: which tab is open, and which editor (ADR-0067). */
 export interface ConfigurationSearch {
-  tab?: 'declared' | 'drift' | 'history';
+  tab?: 'declared' | 'drift' | 'history' | 'recommended';
   section?: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts';
   item?: string;
-  /** A capability whose broker.xml snippet should be offered for import (from the capability ledger). */
-  import?: 'notifications' | 'messageIo' | 'slowConsumerDetection';
 }
 
 function validateConfigurationSearch(raw: Record<string, unknown>): ConfigurationSearch {
   const out: ConfigurationSearch = {};
-  if (typeof raw.tab === 'string' && ['declared', 'drift', 'history'].includes(raw.tab)) {
+  if (typeof raw.tab === 'string' && ['declared', 'drift', 'history', 'recommended'].includes(raw.tab)) {
     out.tab = raw.tab as ConfigurationSearch['tab'];
   }
   if (
@@ -288,9 +286,6 @@ function validateConfigurationSearch(raw: Record<string, unknown>): Configuratio
     out.section = raw.section as ConfigurationSearch['section'];
   }
   if (typeof raw.item === 'string' && raw.item) out.item = raw.item;
-  if (typeof raw.import === 'string' && ['notifications', 'messageIo', 'slowConsumerDetection'].includes(raw.import)) {
-    out.import = raw.import as ConfigurationSearch['import'];
-  }
   return out;
 }
 

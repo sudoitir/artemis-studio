@@ -320,3 +320,43 @@ run time differs, so that what was confirmed is what runs.
 
 - **WHEN** a node's settings change between the preview and the confirmation
 - **THEN** the run is refused and the operator is told to preview again
+
+### Requirement: The capability probe's recommendations are declared, never auto-applied
+
+The system SHALL turn the capability probe's appliable gaps into a declaration the
+operator can save in one action, and SHALL NOT write anything to a broker in doing
+so. The saved revision records its source as `RECOMMENDED`, so the audit trail
+distinguishes it from a hand edit, an import, and an adoption.
+
+Applying that revision is the ordinary apply, with the ordinary plan, hazards,
+canary and typed confirmation (D8): the recommendation is a suggestion, and the
+operator is still the one who acts.
+
+A recommended security setting SHALL be prefilled with the roles the broker
+currently reports for that address, editable before it is declared, and SHALL be
+refused when it would name no role at all — a block granting nobody anything
+applies cleanly and does nothing.
+
+#### Scenario: Declaring the recommendations writes nothing to a broker
+
+- **WHEN** an operator declares the recommended configuration
+- **THEN** a new revision is saved with source `RECOMMENDED`, no broker is written,
+  and the operator is taken to the plan for that revision
+
+#### Scenario: Two recommendations on one match are one entry
+
+- **WHEN** more than one recommendation targets the same address-setting match
+- **THEN** they are merged into a single declared entry, so neither replaces the
+  other's keys when it is applied
+
+#### Scenario: A security setting with no roles is refused
+
+- **WHEN** a recommended security setting would be declared with no role named
+- **THEN** it is refused with that reason, rather than saved as a block that grants
+  nobody anything
+
+#### Scenario: Declaring needs the edit authority
+
+- **WHEN** a caller who may read the cluster but not edit its configuration declares
+  the recommendations
+- **THEN** the request is refused, the same as any other edit

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,12 +29,12 @@ public final class BrokerConfigRequests {
 
             @Schema(nullable = true) String note,
 
-            @Pattern(regexp = "EDIT|IMPORT_XML|ADOPT") @Schema(
+            @Pattern(regexp = "EDIT|IMPORT_XML|ADOPT|RECOMMENDED") @Schema(
                     nullable = true,
                     description = "Where this document came from; defaults to EDIT. ADOPT records that the"
                             + " declaration was taken from the running cluster, which is what lets drift say"
                             + " why a node agrees",
-                    allowableValues = {"EDIT", "IMPORT_XML", "ADOPT"})
+                    allowableValues = {"EDIT", "IMPORT_XML", "ADOPT", "RECOMMENDED"})
             String source,
 
             @Schema(
@@ -75,4 +76,17 @@ public final class BrokerConfigRequests {
                     nullable = true,
                     description = "The planHash that was previewed; a real run refuses when it changed")
             String expectedPlanHash) {}
+
+    @Schema(
+            description = "Declare the capability probe's recommendations as a new revision."
+                    + " Nothing is applied; the plan is opened next")
+    public record DeclareRecommendedRequest(
+            @Schema(nullable = true, description = "Capability names to take; empty or null takes every appliable one")
+            Set<String> capabilities,
+
+            @Schema(
+                    nullable = true,
+                    description = "Roles for a recommended security setting, keyed by its match."
+                            + " Overrides the prefill read from the broker")
+            Map<String, Set<String>> roles) {}
 }

@@ -47,7 +47,12 @@ public final class BrokerConfigValidator {
             AddressSettingKey.MAX_READ_PAGE_BYTES,
             AddressSettingKey.MAX_READ_PAGE_MESSAGES,
             AddressSettingKey.PREFETCH_PAGE_BYTES,
-            AddressSettingKey.PREFETCH_PAGE_MESSAGES);
+            AddressSettingKey.PREFETCH_PAGE_MESSAGES,
+            // -1 is how the broker's own documentation disables the management
+            // truncation cap, and it is the value the capability snippet has always
+            // told operators to paste. Refusing it here made the one setting Studio
+            // recommends for whole message bodies undeclarable.
+            AddressSettingKey.MANAGEMENT_MESSAGE_ATTRIBUTE_SIZE_LIMIT);
 
     private BrokerConfigValidator() {}
 

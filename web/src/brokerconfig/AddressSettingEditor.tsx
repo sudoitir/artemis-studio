@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Button, Collapse, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Chip, Collapse, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
 
+import { useDlq } from '../api/client.ts';
 import type {
   ConfigAddressSettingKeyView,
   ConfigAddressSettingView,
@@ -115,6 +116,45 @@ export function AddressSettingEditor({
   const [advanced, setAdvanced] = useState(false);
   const [filter, setFilter] = useState('');
   const matchRef = useRef<HTMLInputElement>(null);
+
+  // Templates are built from this cluster's own dead-letter and expiry addresses,
+  // never from invented names: a prefilled DLQ that does not exist declares a
+  // policy that silently routes nowhere.
+  const dlq = useDlq(declaration.clusterId);
+  const deadLetter = dlq.data?.addresses.find((a) => a.kind === 'dead-letter')?.address;
+  const expiry = dlq.data?.addresses.find((a) => a.kind === 'expiry')?.address;
+  const templates = [
+    deadLetter
+      ? {
+          id: 'retry-then-dlq',
+          label: 'Retry, then dead-letter',
+          description: `Three delayed redeliveries, then ${deadLetter}.`,
+          values: {
+            maxDeliveryAttempts: '3',
+            redeliveryDelay: '5000',
+            redeliveryMultiplier: '2',
+            maxRedeliveryDelay: '60000',
+            deadLetterAddress: deadLetter,
+          } as Values,
+        }
+      : null,
+    deadLetter
+      ? {
+          id: 'dlq-policy',
+          label: 'Dead-letter only',
+          description: `Undeliverable messages go to ${deadLetter}, first failure.`,
+          values: { maxDeliveryAttempts: '1', deadLetterAddress: deadLetter } as Values,
+        }
+      : null,
+    expiry
+      ? {
+          id: 'expiry-policy',
+          label: 'Expiry',
+          description: `Expired messages go to ${expiry} rather than being dropped.`,
+          values: { expiryAddress: expiry } as Values,
+        }
+      : null,
+  ].filter((t): t is { id: string; label: string; description: string; values: Values } => t !== null);
 
   useEffect(() => {
     if (!opened) return;
@@ -285,6 +325,31 @@ export function AddressSettingEditor({
         error={errorFor('match')}
         required
       />
+
+      {templates.length > 0 ? (
+        <Stack gap={4}>
+          <Text size="xs" fw={600}>
+            Start from a template
+          </Text>
+          <Group gap="xs" wrap="wrap">
+            {templates.map((t) => (
+              <Chip
+                key={t.id}
+                size="xs"
+                checked={false}
+                onClick={() => setValues((prev) => ({ ...prev, ...t.values }))}
+                title={t.description}
+              >
+                {t.label}
+              </Chip>
+            ))}
+          </Group>
+          <Text size="xs" c="dimmed">
+            Fills the fields below from this cluster's own{' '}
+            {[deadLetter, expiry].filter(Boolean).join(' and ')} — nothing is saved until you do.
+          </Text>
+        </Stack>
+      ) : null}
 
       <Text size="xs" c="dimmed">
         Applying replaces the broker's whole entry for this match. A key not declared here is not kept — it falls

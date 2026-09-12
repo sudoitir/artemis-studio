@@ -133,6 +133,13 @@ else
 fi
 pass "signed in as $ADMIN_USER"
 
+# The run applies to the catch-all address setting, and addAddressSettings replaces
+# the entry rather than merging into it (notes §15 M2). Keep what the broker had so
+# cleanup can put it back: without this the second run starts from the first run's
+# output and its recommendations are already closed.
+BASELINE_CATCHALL=$(broker_exec artemis-primary 'getAddressSettingsAsJSON(java.lang.String)' '#' \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['value'])" 2>/dev/null || echo "")
+
 # ── 1. first launch → register ────────────────────────────────────────────────
 
 say "1. registering the dev pair"
@@ -147,8 +154,11 @@ check=$(api POST '/clusters?dryRun=true' -d "{
 }")
 note "connection check: $(py "json.dumps(d)[:200]" <<<"$check" 2>/dev/null || echo unparsed)"
 # The check is where a first-launch operator meets their capability gaps.
-if py "'recommend' in json.dumps(d).lower()" <<<"$check" | grep -q True; then
-  pass "P-9 the connection check offers recommended configuration"
+if py "any(r['appliable'] for r in d['recommendations']['recommendations'])" <<<"$check" 2>/dev/null | grep -q True; then
+  pass "P-9 the connection check offers recommended configuration Studio can apply"
+  note "     seeded from: $(py "d['recommendations']['seededFrom']" <<<"$check")"
+  note "     appliable:   $(py "', '.join(r['capability'] for r in d['recommendations']['recommendations'] if r['appliable'])" <<<"$check")"
+  note "     manual:      $(py "', '.join(r['capability'] for r in d['recommendations']['recommendations'] if not r['appliable'])" <<<"$check")"
 else
   fail "P-9 the connection check reports gaps but offers nothing to apply — copy-only"
 fi
@@ -429,7 +439,7 @@ probe=$(broker_exec artemis-primary 'getAddressSettingsAsJSON(java.lang.String)'
 # the body reads \"slowConsumerThreshold\":1, and a pattern with a bare quote misses.
 if grep -q 'slowConsumerThreshold' <<<"$probe"; then
   pass "M8 slowConsumerThreshold IS echoed once set — the key is verifiable, and a plan may declare it"
-  note "     CapabilityProbe's reason text still says the opposite (defect P-10)"
+  note "     CapabilityProbe reports an absent threshold as 'off' on this basis (P-10 closed)"
 else
   note "M8 slowConsumerThreshold is not echoed even when set — UNVERIFIABLE;"
   note "   a plan that sets it must say so rather than report MISMATCH forever"
@@ -458,10 +468,73 @@ else
   note "M9 view reads back as '$viewvalue' after being granted — unverifiable, as notes §15 M7 recorded"
 fi
 
+# ── 8. capability gaps close from the declaration ─────────────────────────────
+
+say "8. declaring the capability probe's recommendations (P-9)"
+recs=$(api GET "/clusters/$CLUSTER/config/recommendations")
+appliable=$(py "', '.join(r['capability'] for r in d['recommendations'] if r['appliable'])" <<<"$recs" 2>/dev/null || echo "")
+note "appliable: ${appliable:-none}; seeded from $(py "d['seededFrom']" <<<"$recs" 2>/dev/null || echo unknown)"
+
+# The entry must carry the keys the node already has: addAddressSettings replaces
+# the entry, so a recommendation holding only its own keys would silently reset
+# everything else on '#' (notes §15 M2).
+if [ -n "$appliable" ]; then
+  if py "any(len(r['values']) > len(r['keys']) for r in d['recommendations'] if r['appliable'] and r['section'] == 'ADDRESS_SETTING')" <<<"$recs" 2>/dev/null | grep -q True; then
+    pass "a recommended address setting carries the node's existing keys, not only its own"
+  else
+    fail "a recommended address setting carries only its own keys — applying it would reset the rest"
+  fi
+else
+  note "nothing left to recommend — this broker already has every appliable setting"
+fi
+
+if [ -n "$appliable" ]; then
+  declared=$(api POST "/clusters/$CLUSTER/config/recommendations/declare" -d '{}')
+  revnow=$(py "d['revision']" <<<"$declared" 2>/dev/null || echo "")
+  src=$(py "d['source']" <<<"$declared" 2>/dev/null || echo "")
+  if [ "$src" = "RECOMMENDED" ]; then
+    pass "declared as revision $revnow, source RECOMMENDED — the audit trail says where it came from"
+  else
+    fail "declaring the recommendations recorded source '$src'"
+  fi
+
+  plan=$(api POST "/clusters/$CLUSTER/config/apply?dryRun=true" -d '{}')
+  steps=$(py "d['plan']['stepCount']" <<<"$plan" 2>/dev/null || echo 0)
+  if [ "$steps" -gt 0 ]; then
+    pass "the recommendations produce a real plan ($steps steps) — nothing written yet"
+  else
+    fail "the recommendations produced an empty plan"
+  fi
+  h=$(py "d['plan']['planHash']" <<<"$plan")
+  # Every High hazard must be acknowledged by id, the same gate the UI puts a
+  # checkbox on; a plan that replaces an address setting usually carries one.
+  hz=$(py "json.dumps([z['id'] for z in d['plan']['hazards'] if z['hazardClass'] == 'HIGH'])" <<<"$plan")
+  note "hazards: $(py "', '.join(z['hazardClass'] + ' ' + z['kind'] for z in d['plan']['hazards']) or 'none'" <<<"$plan")"
+  applied=$(api POST "/clusters/$CLUSTER/config/apply?dryRun=false" -d "{\"expectedPlanHash\": \"$h\", \"acknowledgedHazards\": $hz}")
+  outcome=$(py "d['outcome']" <<<"$applied" 2>/dev/null || echo unparsed)
+  if [ "$outcome" = "APPLIED" ]; then
+    pass "the recommended configuration applied and verified by read-back"
+  else
+    fail "applying the recommended configuration ended $outcome"
+  fi
+
+  after=$(api GET "/clusters/$CLUSTER/config/recommendations")
+  left=$(py "', '.join(r['capability'] for r in d['recommendations'] if r['appliable'])" <<<"$after" 2>/dev/null || echo "")
+  if [ -z "$left" ]; then
+    pass "the probe re-run finds no appliable gap left"
+  else
+    note "still appliable after the apply: $left"
+    note "   (a gap whose verdict also needs a broker-plugin cannot close from here)"
+  fi
+fi
+
 # ── done ──────────────────────────────────────────────────────────────────────
 
 say "cleaning up"
 broker_exec artemis-primary 'removeSecuritySettings(java.lang.String)' 'CONFIG.E2E.ROLES' >/dev/null 2>&1
+# Put the catch-all back as it was found, so the next run measures the same broker.
+[ -n "$BASELINE_CATCHALL" ] && broker_exec artemis-primary \
+  'addAddressSettings(java.lang.String,java.lang.String)' '#' "$BASELINE_CATCHALL" >/dev/null 2>&1
 rm -f /tmp/config-e2e-a.code
 
 printf '\n'

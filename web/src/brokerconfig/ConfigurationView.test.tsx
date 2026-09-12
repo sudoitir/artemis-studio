@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../test/render.tsx';
 import { server } from '../test/setup.ts';
-import { baseHandlers, cluster, declaration, NODE_A, NODE_B } from './fixtures.ts';
+import { baseHandlers, declaration, NODE_A, NODE_B } from './fixtures.ts';
 
 const search: Record<string, unknown> = {};
 vi.mock('@tanstack/react-router', () => ({
@@ -140,47 +140,98 @@ describe('ConfigurationView', () => {
     expect(within(dialog).getByText(/cannot be applied over the management API/)).toBeInTheDocument();
   });
 
-  it('opens the import drawer on the ledger snippet and merges it into the declaration by default', async () => {
-    const snippet = '<address-setting match="#"><slow-consumer-threshold>1</slow-consumer-threshold></address-setting>';
-    const withSnippet = {
-      ...cluster(),
-      capabilities: {
-        ...cluster().capabilities,
-        slowConsumerDetection: { status: 'UNKNOWN', reason: 'cannot tell', brokerXmlSnippet: snippet },
-      },
-    };
+  it('recommends the settings the probe found, seeded from the node, and declares the chosen ones', async () => {
+    const declared = vi.fn();
     server.use(
-      // First match wins within one use(): the cluster override goes before the base handlers.
-      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(withSnippet)),
       ...baseHandlers(),
-      http.post('*/api/v1/clusters/c1/config/import-xml', () =>
+      http.get('*/api/v1/clusters/c1/config/recommendations', () =>
         HttpResponse.json({
-          document: {
-            version: 1,
-            addresses: [],
-            addressSettings: [{ match: '#', values: { slowConsumerThreshold: 1 } }],
-            securitySettings: [],
-            diverts: [],
-          },
-          unsupported: [],
-          errors: [],
+          seededFrom: 'broker-1',
+          recommendations: [
+            {
+              capability: 'slowConsumerDetection',
+              title: 'Let the broker detect slow consumers',
+              rationale: 'The broker sees each consumer’s own delivery rate.',
+              appliable: true,
+              section: 'ADDRESS_SETTING',
+              match: '#',
+              values: { maxDeliveryAttempts: 7, slowConsumerThreshold: 1 },
+              roles: {},
+              keys: ['slowConsumerThreshold'],
+              manualSnippet: null,
+            },
+            {
+              capability: 'notifications',
+              title: 'Emit connection and session events',
+              rationale: 'NotificationActiveMQServerPlugin is a broker-plugin.',
+              appliable: false,
+              section: null,
+              match: null,
+              values: {},
+              roles: {},
+              keys: [],
+              manualSnippet: '<broker-plugins/>',
+            },
+          ],
         }),
       ),
+      http.post('*/api/v1/clusters/c1/config/recommendations/declare', async ({ request }) => {
+        declared((await request.json()) as unknown);
+        return HttpResponse.json(declaration(), { status: 201 });
+      }),
     );
-    search.import = 'slowConsumerDetection';
+    search.tab = 'recommended';
     const user = userEvent.setup();
     renderWithProviders(<ConfigurationView />);
 
-    const dialog = await screen.findByRole('dialog', { name: 'Import broker.xml' });
-    expect(within(dialog).getByRole('textbox', { name: /broker\.xml/ })).toHaveValue(snippet);
-    expect(within(dialog).getByRole('radio', { name: 'Merge into it' })).toBeChecked();
-    // The hand-off parameter is consumed so a reload does not reopen the drawer.
-    expect(search.import).toBeUndefined();
+    // The whole entry is shown, not only the key being changed: a runtime write
+    // replaces the entry, so the keys it keeps are part of what is confirmed.
+    expect(await screen.findAllByText('slowConsumerThreshold')).not.toHaveLength(0);
+    expect(screen.getByText('maxDeliveryAttempts')).toBeInTheDocument();
+    expect(screen.getByText('(unchanged)')).toBeInTheDocument();
+    expect(screen.getByText(/as broker-1 runs it today/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Preview import' }));
-    // The fixture declaration already has orders.#; merging adds # and keeps it.
-    await waitFor(() => expect(within(dialog).getByText('After merging')).toBeInTheDocument());
-    expect(within(dialog).getByText(/Address settings: 2 recognised — 1 added, 0 changed, 1 unchanged/)).toBeInTheDocument();
+    // A gap Studio cannot close is named with its snippet, never omitted.
+    expect(screen.getByText('Emit connection and session events')).toBeInTheDocument();
+    expect(screen.getByText(/These still need a broker.xml edit/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Declare & open the plan/ }));
+    await waitFor(() => expect(declared).toHaveBeenCalled());
+    expect(declared.mock.calls[0][0]).toMatchObject({ capabilities: ['slowConsumerDetection'] });
+  });
+
+  it('will not declare a security setting that would grant nobody anything', async () => {
+    server.use(
+      ...baseHandlers(),
+      http.get('*/api/v1/clusters/c1/config/recommendations', () =>
+        HttpResponse.json({
+          seededFrom: null,
+          recommendations: [
+            {
+              capability: 'notifications',
+              title: 'Let Studio subscribe to broker notifications',
+              rationale: 'A Core subscriber needs three permissions.',
+              appliable: true,
+              section: 'SECURITY_SETTING',
+              match: 'activemq.notifications',
+              values: {},
+              roles: { consume: [], createNonDurableQueue: [] },
+              keys: ['consume'],
+              manualSnippet: null,
+            },
+          ],
+        }),
+      ),
+    );
+    search.tab = 'recommended';
+    renderWithProviders(<ConfigurationView />);
+
+    expect(await screen.findByText(/At least one role, or this grants nobody anything/)).toBeInTheDocument();
+    // Disabled with the reason beside it, never hidden.
+    expect(screen.getByRole('button', { name: /Declare & open the plan/ })).toBeDisabled();
+    expect(screen.getByText(/would grant nobody anything/)).toBeInTheDocument();
+    // No node could be read, so the panel says the entries are unseeded.
+    expect(screen.getByText(/No node could be read/)).toBeInTheDocument();
   });
 
   it('says why an in-sync node agrees, and says so when nothing recorded it', async () => {
@@ -246,5 +297,36 @@ describe('ConfigurationView', () => {
     expect(save).toBeDisabled();
     await user.type(within(dialog).getByRole('textbox', { name: /Type "prod"/ }), 'prod');
     expect(save).toBeEnabled();
+  });
+
+  it('offers address-setting templates built from the cluster\'s own DLQ, and saves nothing until asked', async () => {
+    server.use(
+      ...baseHandlers(),
+      http.get('*/api/v1/clusters/c1/dlq', () =>
+        HttpResponse.json({
+          settingsAvailable: true,
+          addresses: [
+            { address: 'ORDERS.DLQ', kind: 'dead-letter', queues: [] },
+            { address: 'ORDERS.EXPIRY', kind: 'expiry', queues: [] },
+          ],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    search.section = 'addressSettings';
+    renderWithProviders(<ConfigurationView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add address setting' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New address setting' });
+
+    // The names come from the cluster, never invented: a prefilled DLQ that does
+    // not exist declares a policy that routes nowhere.
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'Retry, then dead-letter' }));
+    expect(within(dialog).getByRole('textbox', { name: /dead-letter-address/ })).toHaveValue('ORDERS.DLQ');
+    // The other keys of the template land too; only the ones this fixture's
+    // catalogue knows are rendered as fields.
+    expect(within(dialog).getByText(/Fills the fields below from this cluster's own ORDERS.DLQ and ORDERS.EXPIRY/))
+        .toBeInTheDocument();
+    delete search.section;
   });
 });

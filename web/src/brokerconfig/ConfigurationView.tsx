@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Button, Group, Skeleton, Stack, Tabs, Text } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
-import { useBrokerConfig, useBrokerConfigCatalogue, useCluster } from '../api/client.ts';
+import {
+  useBrokerConfig,
+  useBrokerConfigCatalogue,
+  useBrokerConfigRecommendations,
+  useCluster,
+} from '../api/client.ts';
 import { absoluteLabel } from '../app/time.ts';
 import { useDisplayZone } from '../app/timezone.ts';
 import { useCan } from '../auth/useCan.ts';
@@ -14,19 +19,13 @@ import { DeclaredTab } from './DeclaredTab.tsx';
 import { DriftTab } from './DriftTab.tsx';
 import { HistoryTab } from './HistoryTab.tsx';
 import { ModeControl } from './ModeControl.tsx';
+import { RecommendedConfiguration } from './RecommendedConfiguration.tsx';
 import { AdoptDrawer, ExportXmlDrawer, ImportXmlDrawer } from './XmlDrawers.tsx';
 import { CONFIG_MANAGED_REASON, type Section } from './words.ts';
 
 type Drawer = 'adopt' | 'import' | 'export' | null;
 
 export const WRITE_PERMISSION_LABEL = 'Edit declared configuration';
-
-/** The revision note and drawer lead for a snippet handed over from the capability ledger. */
-const IMPORT_LABEL: Record<NonNullable<ConfigurationSearch['import']>, string> = {
-  notifications: 'Declared from the Live events setup snippet',
-  messageIo: 'Declared from the Message browse setup snippet',
-  slowConsumerDetection: 'Declared from the Slow-consumer detection setup snippet',
-};
 
 /**
  * A cluster's declared configuration (ADR-0067): what it should run, how far
@@ -44,26 +43,12 @@ export function ConfigurationView() {
   const declaration = useBrokerConfig(clusterId);
   const catalogue = useBrokerConfigCatalogue(clusterId);
   const cluster = useCluster(clusterId);
+  const recommendations = useBrokerConfigRecommendations(clusterId, tab === 'recommended');
   const { can, loading } = useCan();
   const [drawer, setDrawer] = useState<Drawer>(null);
 
   const setSearch = (patch: Partial<ConfigurationSearch>) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
-
-  // Arrived from the capability ledger with a snippet to declare: open the import
-  // drawer on it once the declaration is known, and drop the parameter so a reload
-  // or a shared link does not reopen it.
-  const importSnippet = search.import ? cluster.data?.capabilities[search.import]?.brokerXmlSnippet : undefined;
-  const importLabel = search.import ? IMPORT_LABEL[search.import] : undefined;
-  const [handoff, setHandoff] = useState<{ xml: string; note: string } | null>(null);
-  useEffect(() => {
-    if (!search.import || !declaration.data || !cluster.data) return;
-    if (importSnippet) setHandoff({ xml: importSnippet, note: importLabel ?? 'From the capability ledger' });
-    setDrawer('import');
-    setSearch({ import: undefined });
-    // Runs once per hand-off; the search patch above ends it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search.import, declaration.data, cluster.data]);
 
   if (declaration.isError) {
     return (
@@ -168,6 +153,7 @@ export function ConfigurationView() {
           <Tabs.Tab value="declared">Declared</Tabs.Tab>
           <Tabs.Tab value="drift">Drift</Tabs.Tab>
           <Tabs.Tab value="history">History</Tabs.Tab>
+          <Tabs.Tab value="recommended">Recommended</Tabs.Tab>
         </Tabs.List>
       </Tabs>
 
@@ -179,6 +165,18 @@ export function ConfigurationView() {
           openSection={search.section as Section | undefined}
           onSectionChange={(section) => setSearch({ section })}
         />
+      ) : tab === 'recommended' ? (
+        <RecommendedTab
+          clusterId={clusterId}
+          query={recommendations}
+          disabledReason={
+            d.applyMode === 'CONFIG_MANAGED'
+              ? CONFIG_MANAGED_REASON
+              : writeGate.kind === 'blocked'
+                ? writeGate.reason
+                : undefined
+          }
+        />
       ) : tab === 'drift' ? (
         <DriftTab declaration={d} canEvaluate={d.declared} catalogue={catalogue.data} />
       ) : (
@@ -189,14 +187,45 @@ export function ConfigurationView() {
       <ImportXmlDrawer
         declaration={d}
         opened={drawer === 'import'}
-        onClose={() => {
-          setDrawer(null);
-          setHandoff(null);
-        }}
-        initialXml={handoff?.xml}
-        initialNote={handoff?.note}
+        onClose={() => setDrawer(null)}
       />
       <ExportXmlDrawer declaration={d} opened={drawer === 'export'} onClose={() => setDrawer(null)} />
     </Stack>
+  );
+}
+
+/**
+ * The recommendations tab. A probe of the live brokers, so it has a pending and
+ * an unreachable state of its own: an empty panel would read as "nothing to
+ * configure", which is the opposite of what an unreadable cluster means.
+ */
+function RecommendedTab({
+  clusterId,
+  query,
+  disabledReason,
+}: {
+  clusterId: string;
+  query: ReturnType<typeof useBrokerConfigRecommendations>;
+  disabledReason?: string;
+}) {
+  if (query.isError) {
+    return (
+      <Alert color="red" variant="light" title={query.error.title}>
+        {query.error.message} Studio could not assess this cluster, so it has nothing to recommend — this is not the
+        same as having nothing to recommend.
+      </Alert>
+    );
+  }
+  if (!query.data) {
+    return (
+      <Stack gap={4}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} height={30} />
+        ))}
+      </Stack>
+    );
+  }
+  return (
+    <RecommendedConfiguration clusterId={clusterId} recommendations={query.data} disabledReason={disabledReason} />
   );
 }

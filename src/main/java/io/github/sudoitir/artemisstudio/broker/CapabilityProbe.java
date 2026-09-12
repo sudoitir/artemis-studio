@@ -30,6 +30,17 @@ public class CapabilityProbe {
 
     private static final String NOTIFICATIONS_ADDRESS = "activemq.notifications";
 
+    /**
+     * In {@code messageIo}'s reason exactly when the broker is still truncating
+     * management-returned bodies. A separate fact from the capability's status,
+     * which is about authority: a connection that can read and write messages
+     * perfectly well still truncates them until the cap is lifted. Shared so the
+     * recommendation that lifts it (ADR-0068) tests for the same string the probe
+     * writes, and stops recommending it once it is gone.
+     */
+    public static final String TRUNCATING =
+            "truncates oversized body/property values at" + " management-message-attribute-size-limit";
+
     public BrokerCapabilities probe(JolokiaBrokerClient client, SubscriptionVerdict notificationVerdict) {
         return probe(client, notificationVerdict, Optional.empty());
     }
@@ -54,8 +65,11 @@ public class CapabilityProbe {
 
         CapabilityAssessment write = recordedWrite.orElseGet(CapabilityProbe::probeManagementWrite);
         CapabilityAssessment notifications = assessNotifications(client, notificationVerdict);
-        CapabilityAssessment messageIo = assessMessageIo(write);
-        CapabilityAssessment slowConsumers = assessSlowConsumerDetection(client);
+        // One read of the catch-all address setting answers two questions; asking
+        // twice would double the cost of every capability probe for nothing.
+        JsonNode catchAll = catchAllSettings(client);
+        CapabilityAssessment messageIo = assessMessageIo(write, catchAll);
+        CapabilityAssessment slowConsumers = assessSlowConsumerDetection(catchAll);
         return new BrokerCapabilities(read, write, notifications, messageIo, slowConsumers);
     }
 
@@ -149,25 +163,38 @@ public class CapabilityProbe {
     }
 
     /**
-     * Whether the broker runs its own slow-consumer detection (ADR-0044). The
-     * slice-0 spike against Artemis 2.44 confirmed {@code getAddressSettingsAsJSON}
-     * returns 18 fields, of which the only slow-consumer one is
-     * {@code slowConsumerThresholdMeasurementUnit} — the threshold, check period and
-     * policy are not exposed. So the honest answer is normally UNKNOWN: Studio cannot
-     * tell a configured threshold from an absent one, and saying "off" would be a
-     * guess. The branches for a broker version that does expose it are here so that
-     * the day it does, the answer improves without a code change elsewhere.
+     * Whether the broker runs its own slow-consumer detection (ADR-0044).
+     *
+     * <p>The slice-0 spike read this as "the threshold is never exposed", and the
+     * probe reported UNKNOWN forever on that basis. Measuring it directly against
+     * 2.44.0 ({@code docs/broker-management-notes.md} §16 M8) showed the opposite:
+     * {@code getAddressSettingsAsJSON} <em>does</em> echo {@code slowConsumerThreshold}
+     * once one is set. The spike had only ever looked at a broker that had none, and
+     * §15 M1 is the rest of the explanation — a key nobody set is simply absent from
+     * the answer, not reported as a default.
+     *
+     * <p>So an absent threshold now means "none is configured", which is a fact the
+     * operator can act on, rather than "Studio cannot tell", which left a permanent
+     * unanswerable row in the ledger. A broker old enough not to echo it at all would
+     * be reported as off when it is on; that is the one case this trades away, and
+     * the reason text names it.
      */
-    private CapabilityAssessment assessSlowConsumerDetection(JolokiaBrokerClient client) {
-        try {
-            JsonNode settings = client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
+    private CapabilityAssessment assessSlowConsumerDetection(JsonNode settings) {
+        if (settings == UNREADABLE) {
+            return CapabilityAssessment.unknown(
+                    "Could not read the catch-all address setting to assess slow-consumer detection.",
+                    BrokerXmlSnippets.forSlowConsumerDetection());
+        }
+        {
             JsonNode threshold = settings == null ? null : settings.get("slowConsumerThreshold");
             if (threshold == null || threshold.isNull()) {
-                return CapabilityAssessment.unknown(
-                        "This broker's management surface does not expose slow-consumer-threshold"
-                                + " (only slowConsumerThresholdMeasurementUnit), so Studio cannot tell whether"
-                                + " native detection is configured. Studio's own ackRatePerConsumer alert rule"
-                                + " works either way, but resolves to a queue on a node, never to one consumer.",
+                return CapabilityAssessment.unavailable(
+                        "No slow-consumer-threshold is set on the catch-all address setting, so the broker"
+                                + " does its own detection on nothing. A broker that has one reports it here"
+                                + " (measured on 2.44.0); a much older one may not echo it at all, in which case"
+                                + " it is configured and this row is wrong. Studio's own ackRatePerConsumer alert"
+                                + " rule works either way, but resolves to a queue on a node, never to one"
+                                + " consumer.",
                         BrokerXmlSnippets.forSlowConsumerDetection());
             }
             long value = threshold.asLong(-1L);
@@ -182,10 +209,17 @@ public class CapabilityProbe {
                     + (unit == null || unit.isNull() ? "" : " " + unit.asString())
                     + (policy == null || policy.isNull() ? "" : ", policy " + policy.asString())
                     + ". The broker's own CONSUMER_SLOW notification is authoritative and names the consumer.");
+        }
+    }
+
+    /** A sentinel for "the read failed", distinct from "the broker returned nothing". */
+    private static final JsonNode UNREADABLE = tools.jackson.databind.node.MissingNode.getInstance();
+
+    private JsonNode catchAllSettings(JolokiaBrokerClient client) {
+        try {
+            return client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
         } catch (BrokerConnectionException e) {
-            return CapabilityAssessment.unknown(
-                    "Could not read address settings to assess slow-consumer detection: " + e.getMessage(),
-                    BrokerXmlSnippets.forSlowConsumerDetection());
+            return UNREADABLE;
         }
     }
 
@@ -195,12 +229,21 @@ public class CapabilityProbe {
      * just because no write has been attempted yet: that would hide working buttons
      * behind an absence of evidence, which is the opposite of what D5 is for.
      */
-    private CapabilityAssessment assessMessageIo(CapabilityAssessment write) {
+    private CapabilityAssessment assessMessageIo(CapabilityAssessment write, JsonNode settings) {
+        boolean capped = truncationCapped(settings);
         String what = "Through Jolokia: browse, send, move/retry/delete/expire and purge. Bodies are"
-                + " carried as text and the broker truncates oversized body/property values (disclosed"
-                + " per message); faithful binary message I/O needs the Core client.";
+                + " carried as text"
+                + (capped
+                        ? " and the broker " + TRUNCATING + " (disclosed per message)"
+                        : " and management-message-attribute-size-limit is -1, so whole bodies come back")
+                + "; faithful binary message I/O needs the Core client.";
         return switch (write.status()) {
-            case AVAILABLE -> CapabilityAssessment.available("Available. " + what);
+            case AVAILABLE ->
+                capped
+                        ? CapabilityAssessment.available(
+                                "Available, with bodies truncated. " + what,
+                                BrokerXmlSnippets.MESSAGE_ATTRIBUTE_SIZE_LIMIT)
+                        : CapabilityAssessment.available("Available. " + what);
             case UNKNOWN ->
                 CapabilityAssessment.unknown(
                         "Offered, but not yet established — it needs the same management-write authority,"
@@ -211,6 +254,19 @@ public class CapabilityProbe {
                         "Needs management-write access, which this connection has been refused.",
                         BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING);
         };
+    }
+
+    /**
+     * Whether the broker still truncates management-returned bodies. The key reads
+     * back once it is set — the apply engine verifies it that way — so an absent
+     * value means the default cap is in force, not that the answer is unknowable.
+     */
+    private static boolean truncationCapped(JsonNode settings) {
+        if (settings == null || settings == UNREADABLE) {
+            return true;
+        }
+        JsonNode limit = settings.get("managementMessageAttributeSizeLimit");
+        return limit == null || limit.isNull() || limit.asLong(0L) >= 0;
     }
 
     private boolean hasCoreAcceptor(JolokiaBrokerClient client) {

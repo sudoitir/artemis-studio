@@ -96,4 +96,26 @@ class BrokerConfigValidatorTest {
                         "diverts[0].forwardingAddress",
                         "diverts[0].routingType");
     }
+
+    @Test
+    void managementMessageAttributeSizeLimitTakesMinusOneForNoCap() {
+        // -1 is the documented way to disable the truncation cap, and the value the
+        // capability snippet has always told operators to paste. Refusing it made the
+        // one setting Studio recommends for whole message bodies undeclarable.
+        BrokerConfigDocument doc = new BrokerConfigDocument(
+                1,
+                List.of(),
+                List.of(new AddressSettingDecl("#", Map.of("managementMessageAttributeSizeLimit", -1))),
+                List.of(),
+                List.of());
+        assertThat(BrokerConfigValidator.validate(doc)).isEmpty();
+
+        BrokerConfigDocument worse = new BrokerConfigDocument(
+                1,
+                List.of(),
+                List.of(new AddressSettingDecl("#", Map.of("managementMessageAttributeSizeLimit", -2))),
+                List.of(),
+                List.of());
+        assertThat(BrokerConfigValidator.validate(worse)).hasSize(1);
+    }
 }

@@ -64,7 +64,9 @@ public class BrokerConfigService {
         EDIT,
         IMPORT_XML,
         ADOPT,
-        MCP
+        MCP,
+        /** Derived from the capability probe's recommendations and saved on the operator's word (ADR-0068). */
+        RECOMMENDED
     }
 
     private final BrokerConfigDeclarationRepository declarations;

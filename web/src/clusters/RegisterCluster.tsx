@@ -26,6 +26,7 @@ import {
   useRegisterCluster,
   type RegisterClusterRequest,
 } from '../api/client.ts';
+import { RecommendedConfiguration } from '../brokerconfig/RecommendedConfiguration.tsx';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import { normaliseSeeds } from './normaliseSeeds.ts';
 import { RegisterCanvas } from './RegisterCanvas.tsx';
@@ -118,6 +119,9 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   // account the broker refuses — the failure that otherwise surfaces after
   // registration, where it reads as a broken cluster rather than a typo.
   const checkPassed = check.isSuccess && checkedThis;
+  const hasRecommendations = Boolean(
+    check.data?.recommendations.recommendations.some((r) => r.appliable),
+  );
   const registerBlockedReason = !valid
     ? null
     : check.isPending
@@ -262,6 +266,17 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
 
           {check.isSuccess ? <CapabilityLedger capabilities={check.data.capabilities} /> : null}
 
+          {/*
+            The same panel the cluster's Recommended tab shows, previewed before
+            anything is saved — seeded from the node the check reached, so the
+            operator sees the actual entries rather than a generic snippet. It
+            cannot declare yet: there is no cluster for a revision to belong to.
+            Registering lands on that tab with the same panel, armed.
+          */}
+          {check.isSuccess && check.data.recommendations.recommendations.some((r) => r.appliable) ? (
+            <RecommendedConfiguration recommendations={check.data.recommendations} />
+          ) : null}
+
           <Group justify="flex-end" gap="sm" align="center">
             {registerBlockedReason ? (
               <Text size="xs" c="dimmed">
@@ -292,7 +307,13 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
                     });
                     setF(EMPTY);
                     onRegistered?.();
-                    navigate({ to: `/clusters/${detail.id}/topology` });
+                    // Land on the one action the operator is most likely to take
+                    // next, when the check found one. Topology otherwise.
+                    navigate({
+                      to: hasRecommendations
+                        ? `/clusters/${detail.id}/configuration?tab=recommended`
+                        : `/clusters/${detail.id}/topology`,
+                    });
                   },
                 })
               }

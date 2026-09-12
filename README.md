@@ -126,7 +126,9 @@ recovery are in the [configuration guide](https://sudoitir.github.io/artemis-stu
 - **[Broker configuration](https://sudoitir.github.io/artemis-studio/guide/broker-configuration)**
   — declare the address settings, security settings, diverts and queues a cluster
   should run; apply them canary-first with every hazard stated before a write, or
-  export a `broker.xml` fragment; see each node's drift from the declaration.
+  export a `broker.xml` fragment; see each node's drift from the declaration. The
+  capability gaps Studio can close over the management API become a declaration in
+  one action, seeded from what the node is running.
 - **Governance** — authentication everywhere, a role/permission model scoped
   global → environment → cluster, API tokens, optional OIDC/SSO, and an audit
   event written in the same transaction as the command.

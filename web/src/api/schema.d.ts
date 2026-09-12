@@ -532,6 +532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config/recommendations/declare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["declareRecommended"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/config/import-xml": {
         parameters: {
             query?: never;
@@ -1156,6 +1172,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recommendations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/config/export-xml": {
         parameters: {
             query?: never;
@@ -1620,7 +1652,7 @@ export interface components {
              * @description Where this document came from; defaults to EDIT. ADOPT records that the declaration was taken from the running cluster, which is what lets drift say why a node agrees
              * @enum {string|null}
              */
-            source?: "EDIT" | "IMPORT_XML" | "ADOPT" | null;
+            source?: "EDIT" | "IMPORT_XML" | "ADOPT" | "RECOMMENDED" | null;
             /** @description The cluster's name. Required for an ADOPT that would close open drift findings, because adopting closes them without writing to any broker */
             confirm?: string | null;
         };
@@ -1828,6 +1860,34 @@ export interface components {
             reason: string;
             brokerXmlSnippet?: string | null;
         };
+        /** @description One capability gap and what would close it */
+        ConfigRecommendationView: {
+            capability: string;
+            title: string;
+            rationale: string;
+            /** @description Whether Studio can write this over the management API, or the operator must edit broker.xml and restart */
+            appliable: boolean;
+            /** @enum {string|null} */
+            section?: "ADDRESS_SETTING" | "SECURITY_SETTING" | null;
+            match?: string | null;
+            /** @description The whole entry that would be written, the node's current keys included — a runtime write replaces the entry rather than merging */
+            values: {
+                [key: string]: unknown;
+            };
+            /** @description Permission type to role names, prefilled from the broker */
+            roles: {
+                [key: string]: string[];
+            };
+            /** @description The keys this recommendation itself sets */
+            keys: string[];
+            manualSnippet?: string | null;
+        };
+        /** @description What the capability probe suggests declaring, and what still needs a broker.xml edit */
+        ConfigRecommendationsView: {
+            /** @description The node the current values were read from; null when none could be read */
+            seededFrom?: string | null;
+            recommendations: components["schemas"]["ConfigRecommendationView"][];
+        };
         LogicalNodeView: {
             artemisNodeId?: string | null;
             splitBrain: string;
@@ -1860,6 +1920,8 @@ export interface components {
             /** Format: int32 */
             discoveredNodes: number;
             topology: components["schemas"]["TopologyView"];
+            /** @description What the probe suggests declaring once the cluster is registered, seeded from what the reachable node is running */
+            recommendations: components["schemas"]["ConfigRecommendationsView"];
         };
         TopologyView: {
             /** Format: uuid */
@@ -2219,6 +2281,15 @@ export interface components {
             outcome: components["schemas"]["LifecycleOutcomeView"];
             /** @description The <divert> element that would make this broker's own configuration carry the divert. A divert created over management persists across restarts but is absent from configuration, and this is what closes that gap. */
             brokerXml: string;
+        };
+        /** @description Declare the capability probe's recommendations as a new revision. Nothing is applied; the plan is opened next */
+        DeclareRecommendedRequest: {
+            /** @description Capability names to take; empty or null takes every appliable one */
+            capabilities?: string[] | null;
+            /** @description Roles for a recommended security setting, keyed by its match. Overrides the prefill read from the broker */
+            roles?: {
+                [key: string]: string[];
+            } | null;
         };
         /** @description A problem with one field of the declaration */
         ConfigFieldErrorView: {
@@ -4622,6 +4693,32 @@ export interface operations {
             };
         };
     };
+    declareRecommended: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeclareRecommendedRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+        };
+    };
     importXml: {
         parameters: {
             query?: never;
@@ -5696,6 +5793,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigRevisionView"];
+                };
+            };
+        };
+    };
+    recommendations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigRecommendationsView"];
                 };
             };
         };

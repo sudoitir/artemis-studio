@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.domain.brokerconfig.Violation;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigApplyOutcome;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigDriftService;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigRecommendations;
 import io.github.sudoitir.artemisstudio.service.BrokerConfigService;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -791,4 +792,76 @@ public final class BrokerConfigViews {
 
             @Schema(requiredMode = REQUIRED, description = "False for keys a runtime write may not carry")
             boolean applicable) {}
+
+    // ---- recommendations (ADR-0068) ---------------------------------------
+
+    @Schema(
+            name = "ConfigRecommendationsView",
+            description = "What the capability probe suggests declaring, and what still needs a broker.xml edit")
+    public record RecommendationsView(
+            @Schema(
+                    nullable = true,
+                    description = "The node the current values were read from; null when none could be read")
+            String seededFrom,
+
+            @Schema(requiredMode = REQUIRED) List<RecommendationView> recommendations) {
+
+        public static RecommendationsView of(BrokerConfigRecommendations.Recommendations r) {
+            return new RecommendationsView(
+                    r.seededFrom(),
+                    r.recommendations().stream().map(RecommendationView::of).toList());
+        }
+    }
+
+    @Schema(name = "ConfigRecommendationView", description = "One capability gap and what would close it")
+    public record RecommendationView(
+            @Schema(requiredMode = REQUIRED) String capability,
+            @Schema(requiredMode = REQUIRED) String title,
+            @Schema(requiredMode = REQUIRED) String rationale,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether Studio can write this over the management API, or the"
+                            + " operator must edit broker.xml and restart")
+            boolean appliable,
+
+            @Schema(
+                    nullable = true,
+                    allowableValues = {"ADDRESS_SETTING", "SECURITY_SETTING"})
+            String section,
+
+            @Schema(nullable = true) String match,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The whole entry that would be written, the node's current keys"
+                            + " included — a runtime write replaces the entry rather than merging")
+            Map<String, Object> values,
+
+            @Schema(requiredMode = REQUIRED, description = "Permission type to role names, prefilled from the broker")
+            Map<String, List<String>> roles,
+
+            @Schema(requiredMode = REQUIRED, description = "The keys this recommendation itself sets")
+            List<String> keys,
+
+            @Schema(nullable = true) String manualSnippet) {
+
+        public static RecommendationView of(BrokerConfigRecommendations.Recommendation r) {
+            Map<String, List<String>> roles = new LinkedHashMap<>();
+            r.roles()
+                    .forEach((type, names) ->
+                            roles.put(type.xmlName(), names.stream().sorted().toList()));
+            return new RecommendationView(
+                    r.capability(),
+                    r.title(),
+                    r.rationale(),
+                    r.appliable(),
+                    r.section() == null ? null : r.section().name(),
+                    r.match(),
+                    r.values(),
+                    roles,
+                    r.keys(),
+                    r.manualSnippet());
+        }
+    }
 }

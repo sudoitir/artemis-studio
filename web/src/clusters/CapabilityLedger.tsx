@@ -17,10 +17,13 @@ const LABELS: Record<Key, string> = {
 
 /**
  * The capabilities whose snippet is — at least in part — an address or security
- * setting, which the declared configuration can apply over the management API
- * instead of an operator editing broker.xml by hand. The `<broker-plugins>` half of
- * the notifications snippet is static; the import preview says so rather than
- * dropping it (ADR-0067 D1).
+ * setting, which Studio can apply over the management API instead of an operator
+ * editing broker.xml by hand (ADR-0068).
+ *
+ * The link goes to the recommendations panel rather than handing the raw snippet
+ * to the XML importer: the panel seeds each entry from what the node is running,
+ * which a pasted fragment cannot do, and a runtime write replaces the entry
+ * rather than merging into it (notes §15 M2).
  */
 const DECLARABLE: Partial<Record<Key, string>> = {
   notifications:
@@ -93,8 +96,8 @@ export function CapabilityLedger({
                   {cap.brokerXmlSnippet && clusterId && DECLARABLE[key] ? (
                     <Text size="xs" mt="xs">
                       {DECLARABLE[key]}{' '}
-                      <Anchor component={Link} to={`/clusters/${clusterId}/configuration?import=${key}`} size="xs">
-                        Declare it in Configuration
+                      <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=recommended`} size="xs">
+                        Declare &amp; apply it
                       </Anchor>
                     </Text>
                   ) : null}

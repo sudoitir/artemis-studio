@@ -96,4 +96,42 @@ describe('ApplyView', () => {
     expect(confirm).toBeInTheDocument();
     expect(screen.getByText(/Would apply 2 steps/)).toBeInTheDocument();
   });
+
+  it('filters a long plan by section and key without changing what will run', async () => {
+    // A plan over a cluster is a long list and the operator is looking for one
+    // match; the filter is a view, so the step numbers and the counted total stay
+    // the plan's own.
+    const twoKeys = (() => {
+      const base = plan();
+      const second = {
+        ...base.nodes[0].steps[0],
+        stepId: 'ADDRESS_SETTING:payments.#:REPLACE',
+        key: 'payments.#',
+        description: 'Replace address setting payments.#',
+      };
+      return {
+        ...base,
+        plan: { ...base.plan, stepCount: 4 },
+        nodes: base.nodes.map((n) => ({ ...n, steps: [n.steps[0], second] })),
+      } as ConfigApplyOutcomeView;
+    })();
+    server.use(
+      ...baseHandlers(),
+      http.post('*/api/v1/clusters/c1/config/apply', () => HttpResponse.json(twoKeys)),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ApplyView />);
+
+    await screen.findByRole('checkbox', { name: /payments\.#/ });
+    expect(screen.getAllByText('Replace address setting orders.#').length).toBe(2);
+
+    await user.click(screen.getByRole('checkbox', { name: 'payments.#' }));
+    await waitFor(() => expect(screen.queryByText('Replace address setting orders.#')).not.toBeInTheDocument());
+    // The step keeps its number in the plan, not its place in the filtered view.
+    expect(screen.getAllByText('broker-1 — canary — 1 of 2 steps shown').length).toBe(1);
+    expect(screen.getByText('Show all 4 steps')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Show all 4 steps'));
+    expect(screen.getAllByText('Replace address setting orders.#').length).toBe(2);
+  });
 });
