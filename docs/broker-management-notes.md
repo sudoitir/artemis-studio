@@ -761,6 +761,34 @@ assembled loop does, and it is where the baseline for the hardening work was tak
 | M8 | Is `slowConsumerThreshold` readable back once it is set? | **Yes, on 2.44.0.** `addAddressSettings("probe.slow.#", {slowConsumerThreshold: 1, …})` read back all four slow-consumer keys (`slowConsumerThreshold`, `…MeasurementUnit`, `slowConsumerCheckPeriod`, `slowConsumerPolicy`) in a 21-key entry. The earlier reading — that only the measurement unit is exposed — was an artefact of §15 M1: a key set **nowhere** is simply absent, and the dev `broker.xml` sets no threshold. Consequences: native slow-consumer detection is a **verifiable** declaration, so it can be recommended and applied like any other address setting; and `CapabilityProbe`'s reason text, which tells the operator the value cannot be observed, is wrong on this version and states an absent key as unknowable rather than as unset. |
 | M9 | Do the `view` / `edit` role types read back? | **No**, exactly as §15 M7 recorded. Re-confirmed so the two measurements that gate "can this key be verified?" sit together. |
 
+### M10 — what the loop costs a broker that is busy
+
+Measured 2026-09-12, same dev pair, one live node, on a developer laptop — so the
+absolute numbers are worth nothing and the *comparison* is the measurement. An
+Artemis CLI producer and consumer ran 512-byte messages through `LOAD.PROOF` for
+the whole run; three 30-second windows were sampled in A/B/A order, where B ran
+dry runs, real applies over a 20-match declaration, and drift evaluations back to
+back with no pause at all.
+
+| Window | Studio | Broker CPU | Consumer throughput |
+| --- | --- | --- | --- |
+| A1 | idle | 150% | 467 msg/s |
+| B | applies + evaluations, continuous | 115% | 433 msg/s |
+| A2 | idle | 136% | 467 msg/s |
+
+A2 reproduced A1 exactly (+0.0%), so the run does not drift over its own length
+and B's **−7.1%** is attributable to the loop rather than to the queue getting
+deeper. Broker CPU *fell* in window B while throughput fell with it, which is the
+signature of contention — the management calls and the dispatch path waiting on
+each other — not of Studio consuming the CPU the broker needed.
+
+Read it as a worst case that the product never asks for: window B issues applies
+continuously, while the shipped default evaluates once per `config.drift-interval`
+(5 minutes) and applies only when an operator asks. The per-evaluation bound is
+unchanged — at most two batched reads per live node — and every write now takes a
+`NodeCallLimiter` permit of its own, which it did not before: a client was charged
+one permit and then issued a POST per step on it, so a fifty-step plan spent one.
+
 ### What the assembled loop did, and did not, do
 
 Run against one live node with a declaration adopted from the broker itself:
@@ -772,7 +800,8 @@ Run against one live node with a declaration adopted from the broker itself:
   concurrent applies, one is refused with `409`. An out-of-band
   `removeAddressSettings` is seen as drift on the next evaluation. External entities
   are not resolved by the import parser.
-- **Not sound** — each reproduced here, and each closed by a later phase:
+- **Not sound at the baseline** — each reproduced here, and each closed in the
+  phases that followed:
   adoption erased an open drift finding with no broker write and no disclosure;
   a revision adopted from a broker records its source as `EDIT`, so even the audit
   trail cannot tell adoption from an edit; an `IN_SYNC` node records no evidence for

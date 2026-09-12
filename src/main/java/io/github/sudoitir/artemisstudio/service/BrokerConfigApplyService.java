@@ -21,11 +21,14 @@ import io.github.sudoitir.artemisstudio.domain.brokerconfig.Plan.Op;
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.Plan.Section;
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.Plan.Step;
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.PlanOptions;
+import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainRegistry;
+import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity.Outcome;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyRepository;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigDeclarationEntity.ApplyMode;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.Basis;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.State;
@@ -89,6 +92,7 @@ public class BrokerConfigApplyService {
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final ClusterLock lock;
+    private final SplitBrainRegistry splitBrain;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
 
@@ -228,6 +232,18 @@ public class BrokerConfigApplyService {
 
     private BrokerConfigApplyOutcome run(UUID clusterId, BrokerConfigApplyRequest request) {
         Prepared p = prepare(clusterId, request);
+        preflight(clusterId, p);
+        if (p.revision.header().mode() == ApplyMode.CONFIG_MANAGED) {
+            // ADR-0067 D2 makes this the config-managed cluster's whole promise: Studio
+            // does not write to it. The UI disables the control with the reason, but the
+            // UI is not the enforcement point — an MCP tool or a plain POST reached the
+            // engine and applied. A dry run is still allowed: a plan is a comparison.
+            throw new ConflictException(
+                    "config-managed",
+                    "This cluster's configuration is managed outside Studio, so Studio will not write to it."
+                            + " Export the broker.xml fragment and deploy it with your own tooling, or switch the"
+                            + " cluster to Studio-managed first.");
+        }
         if (request.expectedPlanHash() != null && !request.expectedPlanHash().equals(p.plan.planHash())) {
             throw new ConflictException(
                     "plan-changed",
@@ -404,6 +420,9 @@ public class BrokerConfigApplyService {
                 continue;
             }
             try {
+                // Every write is a management POST and is rate-limited like every other
+                // one; the client was charged a single permit when it was opened.
+                reads.permit(node.nodeId());
                 StepStatus status = execute(client, broker, p.revision.document(), s);
                 capabilities.recordWriteSucceeded(clusterId);
                 steps.add(stepApply(s, status, Verification.NOT_VERIFIED, null));
@@ -513,6 +532,51 @@ public class BrokerConfigApplyService {
                 ? "Read-back after the apply does not match the declaration; the run halted here."
                 : "Applied and verified by reading the node back.";
         return new NodeApply(node.nodeId(), node.nodeName(), true, canary, null, out, note);
+    }
+
+    /**
+     * What must be true of the cluster before Studio writes to it.
+     *
+     * <p>Only for a real run: a dry run is a comparison, and the cluster an operator
+     * most needs to read a plan for is the one that is currently unwell. Two
+     * conditions refuse, and both are about writing to a broker that is in the middle
+     * of deciding who it is:
+     *
+     * <ul>
+     *   <li>a node this run would write to is no longer live — the plan was computed
+     *       against a topology that has since changed;
+     *   <li>the cluster is in split-brain, corroborated or suspected, where "the live
+     *       node" is not a single answer and a setting can land on the member that
+     *       loses.
+     * </ul>
+     */
+    private void preflight(UUID clusterId, Prepared p) {
+        List<String> notLive = p.plan.nodes().stream()
+                .filter(NodePlan::readable)
+                .filter(n -> !n.steps().isEmpty())
+                .map(n -> p.nodes.get(n.nodeId()))
+                .filter(e -> e != null && !Boolean.TRUE.equals(e.getActive()))
+                .map(BrokerNodeEntity::getName)
+                .toList();
+        if (!notLive.isEmpty()) {
+            throw new ConflictException(
+                    "target-not-live",
+                    "The plan targets " + String.join(", ", notLive)
+                            + ", which is no longer live. The cluster moved since the preview; preview again.");
+        }
+        List<String> unstable = p.nodes.values().stream()
+                .filter(n -> n.getArtemisNodeId() != null)
+                .filter(n -> splitBrain.statusFor(clusterId, n.getArtemisNodeId()) != SplitBrainStatus.NONE)
+                .map(BrokerNodeEntity::getName)
+                .distinct()
+                .toList();
+        if (!unstable.isEmpty()) {
+            throw new ConflictException(
+                    "cluster-unstable",
+                    "This cluster is in split-brain (" + String.join(", ", unstable)
+                            + "), so which node is authoritative is not settled. A setting applied now can land on"
+                            + " the member that loses. Resolve the split first.");
+        }
     }
 
     /**

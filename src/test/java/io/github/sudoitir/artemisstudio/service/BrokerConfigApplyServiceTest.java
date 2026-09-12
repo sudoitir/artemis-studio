@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -20,9 +21,12 @@ import io.github.sudoitir.artemisstudio.domain.brokerconfig.BrokerConfigDocument
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.BrokerConfigDocument.AddressSettingDecl;
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.ObservedNodeConfig;
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.Plan;
+import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainRegistry;
+import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity.Outcome;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigDeclarationEntity.ApplyMode;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.Basis;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.State;
@@ -53,6 +57,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
  * The apply contract (ADR-0067 D3, D4, D7, D12): canary first, verified by a
@@ -94,8 +99,14 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
     @Autowired
     BrokerConfigNodeStateRepository nodeStates;
 
+    @Autowired
+    SplitBrainRegistry splitBrain;
+
     @MockitoBean
     BrokerConnections connections;
+
+    @MockitoSpyBean
+    io.github.sudoitir.artemisstudio.scheduler.NodeCallLimiter limiter;
 
     @MockitoBean
     BrokerConfigOperations ops;
@@ -516,6 +527,61 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         assertThat(adoption.closes()).isNotEmpty();
         assertThat(adoption.closes()).allMatch(c -> c.nodeId().equals(secondId));
         assertThat(adoption.notes()).anyMatch(n -> n.contains("no broker will be written"));
+    }
+
+    // ---- refusals the UI must not be the only one making ----------------------
+
+    @Test
+    void aConfigManagedClusterIsRefusedByTheEngineNotOnlyByTheScreen() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        config.configure(clusterId, ApplyMode.CONFIG_MANAGED, false, List.of());
+
+        // A dry run still works: a plan is a comparison, and a config-managed cluster
+        // is exactly the one whose drift an operator needs to read.
+        BrokerConfigApplyOutcome preview = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
+        assertThat(preview.plan().stepCount()).isEqualTo(2);
+
+        assertThatThrownBy(() -> apply.apply(clusterId, confirmed(preview)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("managed outside Studio");
+        verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void aSplitBrainClusterIsRefusedBeforeAnythingIsWritten() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        BrokerConfigApplyOutcome preview = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
+
+        splitBrain.publish(
+                clusterId, Map.of(nodes.findById(firstId).orElseThrow().getArtemisNodeId(), SplitBrainStatus.CRITICAL));
+        try {
+            assertThatThrownBy(() -> apply.apply(clusterId, confirmed(preview)))
+                    .isInstanceOf(ConflictException.class)
+                    .hasMessageContaining("split-brain");
+            verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
+        } finally {
+            splitBrain.forget(clusterId);
+        }
+    }
+
+    @Test
+    void everyWriteTakesItsOwnRateLimitPermit() throws InterruptedException {
+        // Three matches on two live nodes: six writes, and the limiter must be charged
+        // for each of them rather than once per node when the client is opened.
+        BrokerConfigDocument doc = new BrokerConfigDocument(
+                1,
+                List.of(),
+                List.of(
+                        new AddressSettingDecl("a.#", Map.of("maxDeliveryAttempts", 5)),
+                        new AddressSettingDecl("b.#", Map.of("maxDeliveryAttempts", 5)),
+                        new AddressSettingDecl("c.#", Map.of("maxDeliveryAttempts", 5))),
+                List.of(),
+                List.of());
+        config.save(clusterId, doc, null, "test", Source.EDIT);
+
+        apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
+
+        verify(limiter, atLeast(6)).acquire(any());
     }
 
     // ---- helpers ----------------------------------------------------------

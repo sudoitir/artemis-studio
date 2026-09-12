@@ -40,6 +40,13 @@ import javax.xml.stream.XMLStreamWriter;
  */
 public final class BrokerXmlCodec {
 
+    /**
+     * The largest fragment an import will parse. A real {@code broker.xml} is a few
+     * tens of kilobytes; this is a bound on the work one request can ask for, not a
+     * judgement about anyone's configuration.
+     */
+    static final int MAX_IMPORT_CHARS = 256 * 1024;
+
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{[^}]*}");
     private static final Set<String> SECTIONS = Set.of("addresses", "address-settings", "security-settings", "diverts");
     private static final Set<String> QUEUE_CHILDREN = Set.of(
@@ -64,6 +71,18 @@ public final class BrokerXmlCodec {
         if (xml == null || xml.isBlank()) {
             return new ParseResult(
                     BrokerConfigDocument.empty(), List.of(), List.of(new Violation("", "Nothing to import.")));
+        }
+        if (xml.length() > MAX_IMPORT_CHARS) {
+            // A broker.xml is kilobytes; anything at this scale is a mistake or an attempt
+            // to make the parser the expensive part of a request. Refused before parsing.
+            return new ParseResult(
+                    BrokerConfigDocument.empty(),
+                    List.of(),
+                    List.of(new Violation(
+                            "",
+                            "This is " + (xml.length() / 1024) + " KiB; the largest import Studio accepts is "
+                                    + (MAX_IMPORT_CHARS / 1024) + " KiB. Paste the <core> fragment you mean to"
+                                    + " declare rather than a whole configuration tree.")));
         }
         Parser p = new Parser();
         try {
@@ -268,7 +287,14 @@ public final class BrokerXmlCodec {
                 String cp = sp + "/" + child;
                 AddressSettingKey key = AddressSettingKey.byXmlName(child).orElse(null);
                 if (key == null) {
-                    unsupported.add(new Unsupported(cp, "Not an address-setting key Studio knows; not carried."));
+                    // ADR-0067 D10: refused, not dropped. The broker accepts an unknown key
+                    // and does nothing with it, so carrying the import on would declare a
+                    // setting that can never be applied and can never drift — and a typo
+                    // ('max-size-byte') would look exactly like a success.
+                    errors.add(new Violation(
+                            cp,
+                            "'" + child + "' is not an address-setting key Studio knows. Correct the spelling, or"
+                                    + " remove it: a broker accepts an unknown key and silently ignores it."));
                     skip();
                     continue;
                 }

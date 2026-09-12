@@ -62,9 +62,14 @@ class BrokerXmlCodecTest {
                         "configuration/core/name",
                         "configuration/core/persist-delivery-count-before-delivery",
                         "configuration/core/ha-policy",
-                        "configuration/core/address-settings/address-setting[match=orders.#]/not-a-real-key",
                         "configuration/core/address-settings/address-setting[match=orders.reply.#]/config-delete-queues",
                         "configuration/core/security-settings/security-setting-plugin");
+        // An element Studio cannot apply is listed; a key that is meant to be an
+        // address setting and is not one is an error, because the broker would take it
+        // and do nothing (ADR-0067 D10).
+        assertThat(result.errors())
+                .extracting(Violation::path)
+                .contains("configuration/core/address-settings/address-setting[match=orders.#]/not-a-real-key");
         // global-max-size is unsupported AND a placeholder; it is listed as unsupported
         // (the element is skipped before its value is read), which is the honest answer.
         assertThat(result.unsupported()).anyMatch(u -> u.path().endsWith("/global-max-size"));
@@ -148,6 +153,47 @@ class BrokerXmlCodecTest {
         assertThat(xml).contains("string=\"name = &quot;x&quot; AND size &lt; 5\"");
         assertThat(BrokerXmlCodec.parse(xml).document().diverts().getFirst().filter())
                 .isEqualTo("name = \"x\" AND size < 5");
+    }
+
+    @Test
+    void anUnknownAddressSettingKeyIsRefusedRatherThanDropped() {
+        // A broker takes an unknown key and ignores it (§15 M1), so a typo that was
+        // carried as merely "unsupported" produced a declaration that looked applied,
+        // could never drift, and did nothing. ADR-0067 D10: it is a validation error.
+        ParseResult result = BrokerXmlCodec.parse("""
+                <address-settings>
+                  <address-setting match="#">
+                    <max-size-byte>10</max-size-byte>
+                  </address-setting>
+                </address-settings>
+                """);
+        assertThat(result.errors()).hasSize(1);
+        assertThat(result.errors().getFirst().message()).contains("max-size-byte", "silently ignores");
+        assertThat(result.unsupported()).isEmpty();
+    }
+
+    @Test
+    void anImportLargerThanTheCapIsRefusedBeforeItIsParsed() {
+        String huge = "<address-settings>"
+                + "<address-setting match=\"a.#\"><max-delivery-attempts>1</max-delivery-attempts></address-setting>"
+                        .repeat(4000)
+                + "</address-settings>";
+        ParseResult result = BrokerXmlCodec.parse(huge);
+        assertThat(result.errors()).hasSize(1);
+        assertThat(result.errors().getFirst().message()).contains("KiB");
+        assertThat(result.document().addressSettings()).isEmpty();
+    }
+
+    @Test
+    void anExternalEntityIsNotResolved() {
+        ParseResult result = BrokerXmlCodec.parse("""
+                <?xml version="1.0"?>
+                <!DOCTYPE x [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+                <address-settings><address-setting match="&xxe;"/></address-settings>
+                """);
+        // Whatever it does with the DOCTYPE, it must not read the file.
+        assertThat(result.document().addressSettings())
+                .allSatisfy(s -> assertThat(s.match()).doesNotContain("root:"));
     }
 
     @Test

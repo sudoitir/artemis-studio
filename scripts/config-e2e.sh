@@ -365,7 +365,7 @@ printf '%s' '<core><address-settings><address-setting match="#"><max-size-byte>1
 code=$(xml_import_status "/clusters/$CLUSTER/config/import-xml" "$unknown")
 body=$(xml_import "/clusters/$CLUSTER/config/import-xml" "$unknown")
 note "unknown-key import returned $code"
-if py "any('max-size-byte' in json.dumps(v) for v in d.get('violations', []))" <<<"$body" | grep -q True; then
+if py "any('max-size-byte' in json.dumps(v) for v in d.get('errors', []))" <<<"$body" | grep -q True; then
   pass "P-8 an unknown address-setting key is a violation"
 else
   fail "P-8 an unknown key ('max-size-byte') is reported as merely unsupported, not refused (ADR-0067 D10)"
@@ -391,11 +391,13 @@ import sys
 sys.stdout.write('<core><address-settings>')
 sys.stdout.write('<address-setting match=\"A.#\"><max-delivery-attempts>1</max-delivery-attempts></address-setting>' * 40000)
 sys.stdout.write('</address-settings></core>')" >"$bigfile"
-code=$(xml_import_status "/clusters/$CLUSTER/config/import-xml" "$bigfile")
-if [ "$code" = "413" ] || [ "$code" = "422" ]; then
-  pass "P-7 an oversized import is refused ($code)"
+# A preview reports what it refuses in `errors` and answers 200, the same shape
+# malformed XML already uses; the refusal is the errors list, not the status.
+body=$(xml_import "/clusters/$CLUSTER/config/import-xml" "$bigfile")
+if py "any('KiB' in json.dumps(v) for v in d.get('errors', []))" <<<"$body" | grep -q True; then
+  pass "P-7 an oversized import is refused by the size cap"
 else
-  fail "P-7 a $(wc -c <"$bigfile")-byte import was accepted with $code — no size cap"
+  fail "P-7 a $(wc -c <"$bigfile")-byte import was accepted — no size cap"
 fi
 rm -f "$bigfile"
 
@@ -408,7 +410,7 @@ if ! py "'sections' in d or 'document' in d or 'unsupported' in d" <<<"$body" | 
   fail "round-trip import did not return a parse result: $(head -c 200 <<<"$body")"
 fi
 unsupported=$(py "len(d.get('unsupported', []))" <<<"$body" 2>/dev/null || echo '?')
-violations=$(py "len(d.get('violations', []))" <<<"$body" 2>/dev/null || echo '?')
+violations=$(py "len(d.get('errors', []))" <<<"$body" 2>/dev/null || echo '?')
 expect "Studio's own export imports without violations" "0" "$violations"
 rm -f "$roundtrip"
 note "round-trip reported $unsupported unsupported element(s)"

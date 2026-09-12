@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -85,11 +86,35 @@ public class BrokerConfigDriftService {
             Basis basis,
             Long basisRef) {}
 
-    /** Evaluate now, on an operator's request. */
+    /**
+     * Evaluate now, on an operator's request.
+     *
+     * <p>Single-flight like the scheduled pass: without the lock two evaluations of
+     * the same cluster read the same nodes twice and raced to write the same rows,
+     * last one winning.
+     */
     @Transactional
     public Report evaluate(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return evaluateInternal(clusterId);
+        AtomicReference<Report> report = new AtomicReference<>();
+        boolean ran = lock.runIfHeld(clusterId, ClusterLock.Scope.CONFIG_DRIFT, () -> {
+            if (applyInFlight(clusterId)) {
+                return;
+            }
+            report.set(evaluateInternal(clusterId));
+        });
+        if (!ran) {
+            throw new ConflictException(
+                    "evaluation-in-progress",
+                    "An evaluation of this cluster is already running. Its result will appear when it finishes.");
+        }
+        if (report.get() == null) {
+            throw new ConflictException(
+                    "apply-in-progress",
+                    "A configuration apply is running on this cluster. A node read while it is half applied would"
+                            + " be reported as drifted; evaluate again when the apply has finished.");
+        }
+        return report.get();
     }
 
     /** The scheduled pass: every declared cluster, under the cluster lock, never throwing. */
@@ -97,11 +122,34 @@ public class BrokerConfigDriftService {
         for (var header : declarations.findAll()) {
             UUID clusterId = header.getClusterId();
             try {
-                lock.runIfHeld(clusterId, () -> evaluateInternal(clusterId));
+                lock.runIfHeld(clusterId, ClusterLock.Scope.CONFIG_DRIFT, () -> {
+                    if (applyInFlight(clusterId)) {
+                        log.debug("Skipping drift evaluation for cluster {}: an apply is running", clusterId);
+                        return;
+                    }
+                    evaluateInternal(clusterId);
+                });
             } catch (RuntimeException e) {
                 log.warn("Drift evaluation for cluster {} failed: {}", clusterId, e.getMessage());
             }
         }
+    }
+
+    /**
+     * Whether an apply holds the cluster right now.
+     *
+     * <p>A node read in the middle of an apply is half written by definition, and
+     * recording that as DRIFTED raises an alert about work that is going correctly.
+     * Skipping is safe because the apply publishes its own evaluation when it
+     * commits.
+     *
+     * <p>ponytail: probe-then-act, so an apply starting in the microseconds after the
+     * probe is still evaluated through. The post-apply evaluation corrects the row,
+     * so the window costs at most one transient reading; holding CONFIG_APPLY for the
+     * whole pass would make evaluation block applies, which is the worse trade.
+     */
+    private boolean applyInFlight(UUID clusterId) {
+        return lock.isHeld(clusterId, ClusterLock.Scope.CONFIG_APPLY);
     }
 
     /**

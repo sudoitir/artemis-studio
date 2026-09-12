@@ -61,7 +61,13 @@ public class ClusterLock {
      */
     public enum Scope {
         RECONCILE(NAMESPACE),
-        CONFIG_APPLY(NAMESPACE + 1);
+        CONFIG_APPLY(NAMESPACE + 1),
+        /**
+         * Drift evaluation. Its own namespace because it is neither: sharing
+         * {@code RECONCILE} made a drift pass and the capture reconciler wait for each
+         * other for no reason, while leaving two drift passes free to stack.
+         */
+        CONFIG_DRIFT(NAMESPACE + 2);
 
         private final int namespace;
 

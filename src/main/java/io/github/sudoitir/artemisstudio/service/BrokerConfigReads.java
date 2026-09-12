@@ -61,13 +61,25 @@ public class BrokerConfigReads {
 
     /** A client for one node, after a limiter permit; a write path uses this too. */
     public JolokiaBrokerClient client(UUID clusterId, BrokerNodeEntity node) {
+        permit(node.getId());
+        return connections.forCluster(clusterId, node.getJolokiaUrl());
+    }
+
+    /**
+     * One per-node permit, for a caller that already holds a client.
+     *
+     * <p>The permit belongs to the call, not to the connection: an apply takes one
+     * client and then issues a POST per step on it, so charging only the client left
+     * a fifty-step plan spending a single permit and sending fifty requests as fast
+     * as the broker would take them (non-negotiable #1).
+     */
+    public void permit(UUID nodeId) {
         try {
-            limiter.acquire(node.getId());
+            limiter.acquire(nodeId);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
         }
-        return connections.forCluster(clusterId, node.getJolokiaUrl());
     }
 }
