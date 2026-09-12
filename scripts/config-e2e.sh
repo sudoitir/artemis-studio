@@ -192,7 +192,8 @@ fi
 
 say "saving the adopted document as revision 1"
 doc=$(py "json.dumps(d['document'])" <<<"$adoption")
-saved=$(api PUT "/clusters/$CLUSTER/config" -d "{\"document\": $doc, \"expectedRevision\": 0, \"note\": \"adopted by config-e2e\"}")
+saved=$(api PUT "/clusters/$CLUSTER/config" \
+  -d "{\"document\": $doc, \"expectedRevision\": 0, \"note\": \"adopted by config-e2e\", \"source\": \"ADOPT\"}")
 REVISION=$(py "d['revision']" <<<"$saved" 2>/dev/null || echo "")
 [ -n "$REVISION" ] || die "save returned no revision: $saved"
 pass "revision $REVISION saved"
@@ -283,16 +284,24 @@ drifted=$(py "sum(1 for n in d['nodes'] if n['state']=='DRIFTED')" <<<"$report")
 say "adopting while drift is open"
 adoption=$(api POST "/clusters/$CLUSTER/config/adopt")
 doc3=$(py "json.dumps(d['document'])" <<<"$adoption")
+closes=$(py "len(d['closes'])" <<<"$adoption")
+[ "$closes" -ge 1 ] && pass "P-1 the preview names the $closes finding(s) it would close" \
+  || fail "P-1 drift is open but the adoption preview closes nothing"
+
+# Unconfirmed, it is refused: the effect is indistinguishable from an apply and
+# the meaning is its opposite — the broker keeps doing whatever it is doing.
+code=$(status PUT "/clusters/$CLUSTER/config" \
+  -d "{\"document\": $doc3, \"expectedRevision\": $REVISION, \"note\": \"adopt over open drift\", \"source\": \"ADOPT\"}")
+expect "P-1 an unconfirmed adoption over open drift is refused" "409" "$code"
+
 api PUT "/clusters/$CLUSTER/config" \
-  -d "{\"document\": $doc3, \"expectedRevision\": $REVISION, \"note\": \"adopt over open drift\"}" >/dev/null
+  -d "{\"document\": $doc3, \"expectedRevision\": $REVISION, \"note\": \"adopt over open drift\",
+       \"source\": \"ADOPT\", \"confirm\": \"$CLUSTER_NAME\"}" >/dev/null
 report=$(api POST "/clusters/$CLUSTER/config/drift/evaluate")
 after=$(py "sum(1 for n in d['nodes'] if n['state']=='DRIFTED')" <<<"$report")
-note "drifted nodes after adoption: $after (was $drifted) — the broker was NOT written"
-if [ "$after" -lt "$drifted" ]; then
-  fail "P-1 adoption erased $((drifted - after)) drift finding(s) with no broker write and no disclosure"
-else
-  pass "P-1 adoption did not silently erase drift"
-fi
+note "drifted nodes after a confirmed adoption: $after (was $drifted) — the broker was NOT written"
+basis=$(py "next((n.get('basis') for n in d['nodes'] if n['state']=='IN_SYNC'), 'none')" <<<"$report")
+expect "P-1 the node now says it agrees because it was adopted" "ADOPTED" "$basis"
 REVISION=$(api GET "/clusters/$CLUSTER/config" | py "d['revision']")
 
 # ── 5. concurrency, caps, modes ───────────────────────────────────────────────

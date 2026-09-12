@@ -88,7 +88,7 @@ export function DriftTab({
       ) : null}
 
       {declaration.nodes.map((node) => (
-        <NodeFindings key={node.nodeId} node={node} catalogue={catalogue} />
+        <NodeFindings key={node.nodeId} node={node} clusterId={declaration.clusterId} catalogue={catalogue} />
       ))}
 
       <Text size="xs" c="dimmed">
@@ -101,7 +101,43 @@ export function DriftTab({
   );
 }
 
-function NodeFindings({ node, catalogue }: { node: ConfigNodeStateView; catalogue?: ConfigCatalogueView }) {
+/**
+ * Why an agreeing node agrees. "In sync" after an adoption and "in sync" after a
+ * verified apply look identical and mean opposite things — one says Studio wrote
+ * the values and read them back, the other says the declaration was copied from
+ * whatever the broker happened to be doing. A node that agrees for no recorded
+ * reason says that too, rather than implying the stronger one.
+ */
+function SyncEvidence({ node, clusterId }: { node: ConfigNodeStateView; clusterId: string }) {
+  if (node.state !== 'IN_SYNC') return null;
+  if (!node.basis) {
+    return (
+      <Text size="xs" c="dimmed">
+        No record of why it agrees.
+      </Text>
+    );
+  }
+  const words = {
+    VERIFIED_APPLY: node.basisRef ? `Verified by apply #${node.basisRef}` : 'Verified by an apply',
+    ADOPTED: node.basisRef ? `Adopted as revision ${node.basisRef}; no broker was written` : 'Adopted from this cluster',
+    OBSERVED_MATCH: 'Observed to match; Studio has not written to this node',
+  }[node.basis];
+  return (
+    <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=history`} size="xs">
+      {words}
+    </Anchor>
+  );
+}
+
+function NodeFindings({
+  node,
+  clusterId,
+  catalogue,
+}: {
+  node: ConfigNodeStateView;
+  clusterId: string;
+  catalogue?: ConfigCatalogueView;
+}) {
   const state = nodeStateWords(node.state);
   const groups = new Map<string, typeof node.findings>();
   for (const f of node.findings) {
@@ -125,6 +161,7 @@ function NodeFindings({ node, catalogue }: { node: ConfigNodeStateView; catalogu
             {node.detail}
           </Text>
         ) : null}
+        <SyncEvidence node={node} clusterId={clusterId} />
       </Group>
       {kinds.map((kind) => (
         <Table key={kind} fz="xs" verticalSpacing={4} withTableBorder>

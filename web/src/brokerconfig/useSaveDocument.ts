@@ -8,9 +8,18 @@ import { useSaveBrokerConfig, type ConfigDeclarationView, type ConfigDocumentVie
 export function useSaveDocument(declaration: ConfigDeclarationView, onSaved: () => void) {
   const save = useSaveBrokerConfig(declaration.clusterId);
   return {
-    save: (document: ConfigDocumentView, note: string) =>
+    /**
+     * `source` records where the document came from. An adoption must say so: it is
+     * the one save that closes drift findings without any broker being written, and
+     * the server refuses it without `confirm` when it would.
+     */
+    save: (
+      document: ConfigDocumentView,
+      note: string,
+      provenance?: { source: 'EDIT' | 'IMPORT_XML' | 'ADOPT'; confirm?: string },
+    ) =>
       save.mutate(
-        { document, expectedRevision: declaration.revision, note },
+        { document, expectedRevision: declaration.revision, note, ...provenance },
         { onSuccess: onSaved },
       ),
     isPending: save.isPending,

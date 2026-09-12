@@ -26,6 +26,10 @@ import io.github.sudoitir.artemisstudio.persist.AuditService;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity.Outcome;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyRepository;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.Basis;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.State;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigOwnedItemEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigOwnedItemRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
@@ -77,6 +81,7 @@ public class BrokerConfigApplyService {
     private final BrokerConfigOperations ops;
     private final BrokerConfigApplyRepository applies;
     private final BrokerConfigOwnedItemRepository ownedItems;
+    private final BrokerConfigNodeStateRepository nodeStates;
     private final BrokerConfigDriftService drift;
     private final ClusterAccessGuard clusterAccess;
     private final CapabilityLedger capabilities;
@@ -280,6 +285,7 @@ public class BrokerConfigApplyService {
             }
             NodeApply result = applyTo(clusterId, p, node, lockoutGuard, event.getId());
             results.add(result);
+            recordNodeState(clusterId, p.revision.revision(), row.getId(), result);
             applied += result.steps().stream()
                     .filter(s -> s.status() == StepStatus.APPLIED)
                     .count();
@@ -507,6 +513,53 @@ public class BrokerConfigApplyService {
                 ? "Read-back after the apply does not match the declaration; the run halted here."
                 : "Applied and verified by reading the node back.";
         return new NodeApply(node.nodeId(), node.nodeName(), true, canary, null, out, note);
+    }
+
+    /**
+     * Write what the apply itself learned about this node into the drift state.
+     *
+     * <p>A read-back that did not match is drift, and it is drift the moment it is
+     * seen: leaving it to the post-apply evaluation meant a mismatch that halted a
+     * run could still leave the node reading IN_SYNC if that evaluation was skipped,
+     * raced or threw — and the CONFIG_DRIFT condition reads this table, so the alert
+     * went unraised too. A clean verify records the strongest basis there is; the
+     * evaluation that follows preserves it for as long as the revision stands.
+     */
+    private void recordNodeState(UUID clusterId, int revision, long applyId, NodeApply result) {
+        if (result.unavailableReason() != null) {
+            return;
+        }
+        boolean mismatch = result.steps().stream().anyMatch(s -> s.verified() == Verification.MISMATCH);
+        boolean failed = result.steps().stream().anyMatch(s -> s.status() == StepStatus.FAILED);
+        if (!mismatch && !failed) {
+            writeNodeState(
+                    clusterId,
+                    result.nodeId(),
+                    State.IN_SYNC,
+                    "Matches revision " + revision + ". "
+                            + BrokerConfigDriftService.why(Basis.VERIFIED_APPLY, revision),
+                    revision,
+                    Basis.VERIFIED_APPLY,
+                    applyId);
+            return;
+        }
+        String detail = result.steps().stream()
+                .filter(s -> s.verified() == Verification.MISMATCH)
+                .findFirst()
+                .map(s -> "Read-back after apply #" + applyId + " did not match: " + s.description())
+                .orElseGet(() -> "Apply #" + applyId + " failed on this node; what it wrote is not the declaration.");
+        writeNodeState(clusterId, result.nodeId(), State.DRIFTED, detail, revision, null, applyId);
+    }
+
+    private void writeNodeState(
+            UUID clusterId, UUID nodeId, State state, String detail, int revision, Basis basis, Long basisRef) {
+        BrokerConfigNodeStateEntity.Key key = new BrokerConfigNodeStateEntity.Key();
+        key.setClusterId(clusterId);
+        key.setNodeId(nodeId);
+        BrokerConfigNodeStateEntity row =
+                nodeStates.findById(key).orElseGet(() -> new BrokerConfigNodeStateEntity(clusterId, nodeId));
+        row.record(state, detail, revision, "[]", basis, basisRef);
+        nodeStates.save(row);
     }
 
     private static boolean echoesEveryDeclaredKey(BrokerConfigDocument doc, String match, ObservedNodeConfig after) {

@@ -23,7 +23,10 @@ import io.github.sudoitir.artemisstudio.domain.brokerconfig.Plan;
 import io.github.sudoitir.artemisstudio.persist.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.persist.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigApplyEntity.Outcome;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.Basis;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.State;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
@@ -87,6 +90,9 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     ClusterLock lock;
+
+    @Autowired
+    BrokerConfigNodeStateRepository nodeStates;
 
     @MockitoBean
     BrokerConnections connections;
@@ -383,6 +389,135 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 .anyMatch(f -> f.kind() == Plan.FindingKind.DIVERGENT && MATCH.equals(f.key()));
     }
 
+    @Test
+    void anInSyncNodeRecordsWhyItAgrees() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
+
+        // The apply itself is the strongest evidence, and it survives later evaluations.
+        assertThat(basis(drift.evaluate(clusterId), firstId)).isEqualTo(Basis.VERIFIED_APPLY);
+        assertThat(basis(drift.evaluate(clusterId), firstId)).isEqualTo(Basis.VERIFIED_APPLY);
+        assertThat(report(drift.evaluate(clusterId), firstId).detail()).contains("read it back");
+    }
+
+    @Test
+    void aDeclarationThatMatchesWithoutAnApplyIsObservedNotVerified() {
+        // The broker already holds it; the declaration is written to agree with it.
+        broker.computeIfAbsent(firstId, k -> new HashMap<>()).put(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        broker.computeIfAbsent(secondId, k -> new HashMap<>()).put(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+
+        BrokerConfigDriftService.Report report = drift.evaluate(clusterId);
+        assertThat(state(report, firstId)).isEqualTo(State.IN_SYNC);
+        assertThat(basis(report, firstId)).isEqualTo(Basis.OBSERVED_MATCH);
+        assertThat(report(report, firstId).detail()).contains("has not written");
+    }
+
+    @Test
+    void anAdoptedDeclarationSaysSoRatherThanClaimingAVerifiedApply() {
+        broker.computeIfAbsent(firstId, k -> new HashMap<>()).put(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        broker.computeIfAbsent(secondId, k -> new HashMap<>()).put(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        BrokerConfigDocument doc = new BrokerConfigDocument(
+                1,
+                List.of(),
+                List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 10_485_760L))),
+                List.of(),
+                List.of());
+        config.save(clusterId, doc, null, "adopted", Source.ADOPT);
+
+        BrokerConfigDriftService.Report report = drift.evaluate(clusterId);
+        assertThat(basis(report, firstId)).isEqualTo(Basis.ADOPTED);
+        assertThat(report(report, firstId).detail()).contains("no broker was written");
+    }
+
+    @Test
+    void aVerificationMismatchMarksTheNodeDriftedWithoutWaitingForAnEvaluation() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        // The write reports success and changes nothing, so the read-back disagrees.
+        doAnswer(inv -> null).when(ops).addAddressSettings(any(), anyString(), anyString(), any());
+
+        BrokerConfigApplyOutcome outcome =
+                apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
+
+        assertThat(only(node(outcome, firstId)).verified()).isEqualTo(Verification.MISMATCH);
+        // Read the stored row, not a fresh evaluation: the alert condition reads this
+        // table, and before this the row was only ever written by the evaluation that
+        // follows an apply — so a mismatch went unrecorded whenever that was skipped or
+        // threw. The apply writes it now; the evaluation afterwards refines the detail
+        // with the findings it computed, which is why only the state is asserted here.
+        assertThat(storedState(firstId)).isEqualTo(State.DRIFTED);
+        assertThat(storedRow(firstId).basis()).isNull();
+    }
+
+    @Test
+    void adoptingOverOpenDriftIsRefusedWithoutTheClusterName() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
+        broker.get(secondId).put(MATCH, Map.of("maxSizeBytes", 1L));
+        drift.evaluate(clusterId);
+
+        BrokerConfigDocument asRunning = new BrokerConfigDocument(
+                1, List.of(), List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 1L))), List.of(), List.of());
+
+        assertThatThrownBy(() -> config.save(clusterId, asRunning, null, "adopt", Source.ADOPT, null))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("without writing to any broker");
+
+        // Named, it goes through: the operator has said the cluster is what is right.
+        String name = clusters.findById(clusterId).orElseThrow().getName();
+        assertThat(config.save(clusterId, asRunning, null, "adopt", Source.ADOPT, name)
+                        .source())
+                .isEqualTo(Source.ADOPT);
+    }
+
+    @Test
+    void anEditIsNotHeldToTheAdoptionConfirmation() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
+        broker.get(secondId).put(MATCH, Map.of("maxSizeBytes", 1L));
+        drift.evaluate(clusterId);
+
+        // An ordinary edit may still change the declaration while drift is open; only
+        // adoption — which closes findings by copying the cluster — needs the name.
+        BrokerConfigDocument edited = new BrokerConfigDocument(
+                1,
+                List.of(),
+                List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 20_971_520L))),
+                List.of(),
+                List.of());
+        assertThat(config.save(clusterId, edited, null, "edit", Source.EDIT).revision())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void adoptionPreviewNamesTheFindingsItWouldClose() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
+        broker.get(secondId).put(MATCH, Map.of("maxSizeBytes", 1L));
+        drift.evaluate(clusterId);
+
+        when(ops.readForAdoption(any(), any(), anyString())).thenAnswer(inv -> {
+            UUID nodeId = inv.getArgument(1);
+            return new ObservedNodeConfig(
+                    nodeId,
+                    inv.getArgument(2),
+                    true,
+                    Map.of(),
+                    Map.of(),
+                    broker.getOrDefault(nodeId, Map.of()),
+                    Map.of(),
+                    Map.of(),
+                    Map.of(),
+                    null);
+        });
+
+        BrokerConfigService.Adoption adoption = config.adopt(clusterId);
+
+        assertThat(adoption.closes()).isNotEmpty();
+        assertThat(adoption.closes()).allMatch(c -> c.nodeId().equals(secondId));
+        assertThat(adoption.notes()).anyMatch(n -> n.contains("no broker will be written"));
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     private static StepApply only(NodeApply n) {
@@ -391,10 +526,29 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
     }
 
     private static State state(BrokerConfigDriftService.Report r, UUID nodeId) {
+        return report(r, nodeId).state();
+    }
+
+    private static Basis basis(BrokerConfigDriftService.Report r, UUID nodeId) {
+        return report(r, nodeId).basis();
+    }
+
+    private static BrokerConfigDriftService.NodeReport report(BrokerConfigDriftService.Report r, UUID nodeId) {
         return r.nodes().stream()
                 .filter(n -> n.nodeId().equals(nodeId))
                 .findFirst()
-                .orElseThrow()
-                .state();
+                .orElseThrow();
+    }
+
+    /** What the drift table holds, which is what the CONFIG_DRIFT condition reads. */
+    private State storedState(UUID nodeId) {
+        return storedRow(nodeId).state();
+    }
+
+    private BrokerConfigNodeStateEntity storedRow(UUID nodeId) {
+        return nodeStates.findByClusterId(clusterId).stream()
+                .filter(s -> s.getNodeId().equals(nodeId))
+                .findFirst()
+                .orElseThrow();
     }
 }

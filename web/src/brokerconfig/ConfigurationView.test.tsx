@@ -182,4 +182,69 @@ describe('ConfigurationView', () => {
     await waitFor(() => expect(within(dialog).getByText('After merging')).toBeInTheDocument());
     expect(within(dialog).getByText(/Address settings: 2 recognised — 1 added, 0 changed, 1 unchanged/)).toBeInTheDocument();
   });
+
+  it('says why an in-sync node agrees, and says so when nothing recorded it', async () => {
+    server.use(
+      ...baseHandlers(
+        declaration({
+          nodes: [
+            { ...NODE_A, state: 'IN_SYNC', basis: 'ADOPTED', basisRef: 3 },
+            { ...NODE_B, state: 'IN_SYNC', basis: null, basisRef: null },
+          ],
+        }),
+      ),
+    );
+    search.tab = 'drift';
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    // Adoption and a verified apply both read "in sync"; only one of them means
+    // Studio wrote anything, so the difference is on the screen.
+    expect(await screen.findByRole('link', { name: /Adopted as revision 3; no broker was written/ })).toBeInTheDocument();
+    expect(screen.getByText('No record of why it agrees.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Evaluate now' }));
+    delete search.tab; // the mock's search object is shared across tests
+  });
+
+  it('makes an adoption that closes drift name what it erases and type the cluster to confirm', async () => {
+    server.use(
+      ...baseHandlers(),
+      http.post('*/api/v1/clusters/c1/config/adopt', () =>
+        HttpResponse.json({
+          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [] },
+          notes: ['1 open drift finding(s) will be closed by adopting this document, and no broker will be written'],
+          disagreements: [],
+          closes: [
+            {
+              nodeId: 'n-b',
+              nodeName: 'broker-2',
+              finding: {
+                kind: 'DIVERGENT',
+                section: 'ADDRESS_SETTING',
+                key: 'orders.#',
+                detail: 'maxSizeBytes differs from the declaration',
+                declared: {},
+                observed: {},
+              },
+            },
+          ],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Adopt from cluster' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Adopt from cluster' });
+
+    expect(await within(dialog).findByText(/Closes 1 open drift finding with zero broker writes/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/broker-2: maxSizeBytes differs/)).toBeInTheDocument();
+
+    // Saving is armed only by the cluster's name: the effect looks like an apply
+    // and the meaning is its opposite.
+    const save = within(dialog).getByRole('button', { name: 'Save as revision 4' });
+    expect(save).toBeDisabled();
+    await user.type(within(dialog).getByRole('textbox', { name: /Type "prod"/ }), 'prod');
+    expect(save).toBeEnabled();
+  });
 });

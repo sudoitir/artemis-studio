@@ -298,7 +298,18 @@ public final class BrokerConfigViews {
             @Schema(nullable = true) String detail,
             @Schema(nullable = true) Integer verifiedRevision,
             @Schema(nullable = true) Instant evaluatedAt,
-            @Schema(requiredMode = REQUIRED) List<DriftFindingView> findings) {
+            @Schema(requiredMode = REQUIRED) List<DriftFindingView> findings,
+
+            @Schema(
+                    nullable = true,
+                    description = "Why an IN_SYNC node agrees: Studio applied and read it back, the"
+                            + " declaration was adopted from this cluster, or an evaluation simply found"
+                            + " them equal. Null unless the node is IN_SYNC",
+                    allowableValues = {"VERIFIED_APPLY", "ADOPTED", "OBSERVED_MATCH"})
+            String basis,
+
+            @Schema(nullable = true, description = "The apply id or revision number the basis points at")
+            Long basisRef) {
         static NodeStateView of(BrokerConfigService.NodeState s) {
             return new NodeStateView(
                     s.nodeId(),
@@ -308,7 +319,9 @@ public final class BrokerConfigViews {
                     s.detail(),
                     s.verifiedRevision(),
                     s.evaluatedAt(),
-                    s.findings().stream().map(DriftFindingView::of).toList());
+                    s.findings().stream().map(DriftFindingView::of).toList(),
+                    s.basis() == null ? null : s.basis().name(),
+                    s.basisRef());
         }
 
         static NodeStateView of(BrokerConfigDriftService.NodeReport r, Instant at, int revision) {
@@ -325,7 +338,9 @@ public final class BrokerConfigViews {
                             ? revision
                             : null,
                     at,
-                    r.findings().stream().map(DriftFindingView::of).toList());
+                    r.findings().stream().map(DriftFindingView::of).toList(),
+                    r.basis() == null ? null : r.basis().name(),
+                    r.basisRef());
         }
     }
 
@@ -441,9 +456,31 @@ public final class BrokerConfigViews {
     public record AdoptionView(
             @Schema(requiredMode = REQUIRED) DocumentView document,
             @Schema(requiredMode = REQUIRED) List<String> notes,
-            @Schema(requiredMode = REQUIRED) List<String> disagreements) {
+            @Schema(requiredMode = REQUIRED) List<String> disagreements,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Drift findings this adoption would close without writing to any broker."
+                            + " Non-empty means the save needs the cluster's name as confirmation")
+            List<ClosedFindingView> closes) {
         public static AdoptionView of(BrokerConfigService.Adoption a) {
-            return new AdoptionView(DocumentView.of(a.document()), a.notes(), a.disagreements());
+            return new AdoptionView(
+                    DocumentView.of(a.document()),
+                    a.notes(),
+                    a.disagreements(),
+                    a.closes().stream().map(ClosedFindingView::of).toList());
+        }
+    }
+
+    @Schema(
+            name = "ConfigClosedFindingView",
+            description = "A drift finding an adoption would erase, and the node that reported it")
+    public record ClosedFindingView(
+            @Schema(requiredMode = REQUIRED) UUID nodeId,
+            @Schema(requiredMode = REQUIRED) String nodeName,
+            @Schema(requiredMode = REQUIRED) DriftFindingView finding) {
+        static ClosedFindingView of(BrokerConfigService.ClosedFinding c) {
+            return new ClosedFindingView(c.nodeId(), c.nodeName(), DriftFindingView.of(c.finding()));
         }
     }
 

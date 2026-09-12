@@ -12,6 +12,7 @@ import {
   type ConfigDocumentView,
   type ConfigImportResultView,
 } from '../api/client.ts';
+import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
 import { mergeDocuments } from './document.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 
@@ -304,6 +305,9 @@ export function AdoptDrawer({
   }, [opened]);
 
   const result = adopt.data;
+  const closes = result?.closes ?? [];
+  const saveAdoption = (confirm?: string) =>
+    result && save(result.document, 'Adopted from the running cluster', { source: 'ADOPT', confirm });
   return (
     <Drawer opened={opened} onClose={onClose} title="Adopt from cluster" position="right" size="xl" padding="md">
       <Stack gap="md">
@@ -336,6 +340,22 @@ export function AdoptDrawer({
                   </List>
                 </Alert>
               ) : null}
+              {closes.length > 0 ? (
+                <Alert color="yellow" variant="light" title={`Closes ${closes.length} open drift finding${closes.length === 1 ? '' : 's'} with zero broker writes`}>
+                  <Text size="xs" mb={4}>
+                    Adopting declares what the cluster already runs, so these findings disappear because the
+                    declaration moved — not because anything was fixed. Apply the current declaration instead if
+                    the cluster is what is wrong.
+                  </Text>
+                  <List size="xs" spacing={2}>
+                    {closes.map((c, i) => (
+                      <List.Item key={i}>
+                        {c.nodeName}: {c.finding.detail}
+                      </List.Item>
+                    ))}
+                  </List>
+                </Alert>
+              ) : null}
               {result.notes.length > 0 ? (
                 <List size="xs" spacing={2}>
                   {result.notes.map((n, i) => (
@@ -351,19 +371,26 @@ export function AdoptDrawer({
             {error.message}
           </Alert>
         ) : null}
-        <Group justify="flex-end" gap="xs">
-          <Button variant="default" size="xs" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="xs"
+        {closes.length > 0 ? (
+          <ConfirmByTyping
+            token={declaration.clusterName}
+            label={`Type "${declaration.clusterName}" to record that closing these findings is intended`}
+            confirmLabel={`Save as revision ${declaration.revision + 1}`}
+            color="yellow"
             loading={isPending}
             disabled={!result}
-            onClick={() => result && save(result.document, 'Adopted from the running cluster')}
-          >
-            {`Save as revision ${declaration.revision + 1}`}
-          </Button>
-        </Group>
+            onConfirm={() => saveAdoption(declaration.clusterName)}
+          />
+        ) : (
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" size="xs" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="xs" loading={isPending} disabled={!result} onClick={() => saveAdoption()}>
+              {`Save as revision ${declaration.revision + 1}`}
+            </Button>
+          </Group>
+        )}
       </Stack>
     </Drawer>
   );

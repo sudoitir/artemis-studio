@@ -70,6 +70,34 @@ public class ClusterLock {
         }
     }
 
+    /**
+     * Whether someone else currently holds this cluster's lock in this scope.
+     *
+     * <p>Answered by taking the lock and letting it go again, which is the only
+     * question Postgres will answer about an advisory lock without a catalogue scan.
+     * The answer is therefore a moment in the past: a caller that acts on it races
+     * anything that takes the lock immediately afterwards. That is tolerable where
+     * the consequence of losing the race is bounded and self-correcting — refusing
+     * an adoption, or skipping a drift pass that runs again on the next interval —
+     * and it is not a substitute for holding the lock around work that must be
+     * exclusive.
+     */
+    public boolean isHeld(UUID clusterId, Scope scope) {
+        int key = key(clusterId);
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(true);
+            if (!call(connection, "SELECT pg_try_advisory_lock(?, ?)", scope.namespace, key)) {
+                return true;
+            }
+            call(connection, "SELECT pg_advisory_unlock(?, ?)", scope.namespace, key);
+            return false;
+        } catch (SQLException e) {
+            // A database Studio cannot reach is not evidence that an apply is running.
+            log.debug("Could not probe the {} lock for cluster {}: {}", scope, clusterId, e.getMessage());
+            return false;
+        }
+    }
+
     public boolean runIfHeld(UUID clusterId, Scope scope, Runnable work) {
         int namespace = scope.namespace;
         int key = key(clusterId);

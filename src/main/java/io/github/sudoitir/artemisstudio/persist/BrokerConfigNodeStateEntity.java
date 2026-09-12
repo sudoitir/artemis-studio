@@ -35,6 +35,20 @@ public class BrokerConfigNodeStateEntity {
         UNREACHABLE
     }
 
+    /**
+     * Why a node agrees with the declaration (changeset 025). The three are not equal
+     * evidence, and a screen that shows only the state cannot tell them apart: an
+     * adoption closes every finding on a broker nobody wrote to.
+     */
+    public enum Basis {
+        /** Studio wrote the values and its read-back matched. {@code basisRef} is the apply id. */
+        VERIFIED_APPLY,
+        /** The declaration was taken from what the broker already ran. {@code basisRef} is the revision. */
+        ADOPTED,
+        /** An evaluation found them equal; Studio wrote nothing. The honest answer for CONFIG_MANAGED. */
+        OBSERVED_MATCH
+    }
+
     @Id
     @Column(name = "cluster_id", nullable = false, updatable = false)
     private UUID clusterId;
@@ -61,21 +75,36 @@ public class BrokerConfigNodeStateEntity {
     @Column(name = "evaluated_at", nullable = false)
     private Instant evaluatedAt = Instant.now();
 
+    /** Why the node is in this state; null for everything but {@code IN_SYNC}. */
+    @Column(name = "basis")
+    private String basis;
+
+    /** The apply id or revision number the basis points at; null for {@code OBSERVED_MATCH}. */
+    @Column(name = "basis_ref")
+    private Long basisRef;
+
     public BrokerConfigNodeStateEntity(UUID clusterId, UUID nodeId) {
         this.clusterId = clusterId;
         this.nodeId = nodeId;
     }
 
-    public void record(State state, String detail, Integer verifiedRevision, String findingsJson) {
+    public void record(
+            State state, String detail, Integer verifiedRevision, String findingsJson, Basis basis, Long basisRef) {
         this.state = state.name();
         this.detail = detail;
         this.verifiedRevision = verifiedRevision;
         this.findings = findingsJson;
         this.evaluatedAt = Instant.now();
+        this.basis = basis == null ? null : basis.name();
+        this.basisRef = basisRef;
     }
 
     public State state() {
         return State.valueOf(state);
+    }
+
+    public Basis basis() {
+        return basis == null ? null : Basis.valueOf(basis);
     }
 
     @Getter

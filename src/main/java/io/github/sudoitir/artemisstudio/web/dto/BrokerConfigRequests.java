@@ -26,7 +26,21 @@ public final class BrokerConfigRequests {
                     description = "The revision this edit was made against; 0 or null for a first save")
             Integer expectedRevision,
 
-            @Schema(nullable = true) String note) {}
+            @Schema(nullable = true) String note,
+
+            @Pattern(regexp = "EDIT|IMPORT_XML|ADOPT") @Schema(
+                    nullable = true,
+                    description = "Where this document came from; defaults to EDIT. ADOPT records that the"
+                            + " declaration was taken from the running cluster, which is what lets drift say"
+                            + " why a node agrees",
+                    allowableValues = {"EDIT", "IMPORT_XML", "ADOPT"})
+            String source,
+
+            @Schema(
+                    nullable = true,
+                    description = "The cluster's name. Required for an ADOPT that would close open drift"
+                            + " findings, because adopting closes them without writing to any broker")
+            String confirm) {}
 
     @Schema(description = "How the cluster's configuration is applied and what drift reports")
     public record ConfigureRequest(

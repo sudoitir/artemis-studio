@@ -14,12 +14,14 @@ import io.github.sudoitir.artemisstudio.domain.brokerconfig.Plan.Step;
 import io.github.sudoitir.artemisstudio.domain.brokerconfig.PlanOptions;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigDeclarationRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.Basis;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity.State;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigOwnedItemEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigOwnedItemRepository;
 import io.github.sudoitir.artemisstudio.persist.ClusterLock;
 import io.github.sudoitir.artemisstudio.security.Permissions;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigService.Source;
 import io.github.sudoitir.artemisstudio.sse.SseHub;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -74,7 +76,14 @@ public class BrokerConfigDriftService {
     public record Report(int revision, Instant evaluatedAt, List<NodeReport> nodes) {}
 
     public record NodeReport(
-            UUID nodeId, String nodeName, boolean live, State state, String detail, List<DriftFinding> findings) {}
+            UUID nodeId,
+            String nodeName,
+            boolean live,
+            State state,
+            String detail,
+            List<DriftFinding> findings,
+            Basis basis,
+            Long basisRef) {}
 
     /** Evaluate now, on an operator's request. */
     @Transactional
@@ -132,15 +141,18 @@ public class BrokerConfigDriftService {
         List<NodeReport> reports = new ArrayList<>();
         Instant now = Instant.now();
         for (ObservedNodeConfig node : observed) {
-            NodeReport report = report(node, plan, revision.revision());
             BrokerConfigNodeStateEntity row = nodeStates
                     .findById(key(clusterId, node.nodeId()))
                     .orElseGet(() -> new BrokerConfigNodeStateEntity(clusterId, node.nodeId()));
+            NodeReport report =
+                    report(node, plan, revision.revision(), basis(row, revision.revision(), revision.source()));
             row.record(
                     report.state(),
                     report.detail(),
                     report.state() == State.IN_SYNC || report.state() == State.DRIFTED ? revision.revision() : null,
-                    mapper.writeValueAsString(report.findings()));
+                    mapper.writeValueAsString(report.findings()),
+                    report.basis(),
+                    report.basisRef());
             nodeStates.save(row);
             reports.add(report);
         }
@@ -162,8 +174,43 @@ public class BrokerConfigDriftService {
         }
     }
 
+    /**
+     * Why a node that matches the declaration matches it (changeset 025).
+     *
+     * <p>An apply records {@code VERIFIED_APPLY} against the revision it wrote, and
+     * that is the strongest evidence there is, so it survives every later evaluation
+     * of the same revision. Failing that, a declaration adopted from the cluster
+     * matches because it was copied from it — the broker was never written. Anything
+     * else is an evaluation that simply found them equal, which is what a
+     * CONFIG_MANAGED cluster's agreement always is.
+     */
+    private static Basis basis(BrokerConfigNodeStateEntity row, int revision, Source source) {
+        if (row.basis() == Basis.VERIFIED_APPLY
+                && row.getVerifiedRevision() != null
+                && row.getVerifiedRevision() == revision) {
+            return Basis.VERIFIED_APPLY;
+        }
+        return source == Source.ADOPT ? Basis.ADOPTED : Basis.OBSERVED_MATCH;
+    }
+
+    /**
+     * The evidence, in the words the drift tab shows. Never silent: a node that
+     * agrees says why it agrees, so "in sync" after an adoption cannot be mistaken
+     * for "in sync" after an apply.
+     */
+    static String why(Basis basis, int revision) {
+        if (basis == null) {
+            return "";
+        }
+        return switch (basis) {
+            case VERIFIED_APPLY -> "Studio applied it and read it back.";
+            case ADOPTED -> "Revision " + revision + " was adopted from this cluster; no broker was written.";
+            case OBSERVED_MATCH -> "This evaluation found them equal; Studio has not written to this node.";
+        };
+    }
+
     /** Read the planner's answer for one node as drift. */
-    static NodeReport report(ObservedNodeConfig node, Plan plan, int revision) {
+    static NodeReport report(ObservedNodeConfig node, Plan plan, int revision, Basis basisIfInSync) {
         if (!plan.valid()) {
             return new NodeReport(
                     node.nodeId(),
@@ -172,7 +219,9 @@ public class BrokerConfigDriftService {
                     State.NOT_EVALUATED,
                     "The declaration cannot be compared: "
                             + plan.violations().getFirst().message(),
-                    List.of());
+                    List.of(),
+                    null,
+                    null);
         }
         if (!node.live()) {
             return new NodeReport(
@@ -181,11 +230,20 @@ public class BrokerConfigDriftService {
                     false,
                     State.NOT_EVALUATED,
                     "Not live. A backup inherits what its primary holds once it becomes active.",
-                    List.of());
+                    List.of(),
+                    null,
+                    null);
         }
         if (node.unavailableReason() != null) {
             return new NodeReport(
-                    node.nodeId(), node.nodeName(), true, State.UNREACHABLE, node.unavailableReason(), List.of());
+                    node.nodeId(),
+                    node.nodeName(),
+                    true,
+                    State.UNREACHABLE,
+                    node.unavailableReason(),
+                    List.of(),
+                    null,
+                    null);
         }
         List<DriftFinding> findings = new ArrayList<>();
         NodePlan mine = plan.nodes().stream()
@@ -228,8 +286,12 @@ public class BrokerConfigDriftService {
             }
         }
         State state = deduped.isEmpty() ? State.IN_SYNC : State.DRIFTED;
-        String detail = state == State.IN_SYNC ? "Matches revision " + revision + "." : deduped.size() + " findings.";
-        return new NodeReport(node.nodeId(), node.nodeName(), true, state, detail, deduped);
+        Basis basis = state == State.IN_SYNC ? basisIfInSync : null;
+        String detail = state == State.IN_SYNC
+                ? "Matches revision " + revision + ". " + why(basis, revision)
+                : deduped.size() + " findings.";
+        Long basisRef = basis == Basis.ADOPTED ? (long) revision : null;
+        return new NodeReport(node.nodeId(), node.nodeName(), true, state, detail, deduped, basis, basisRef);
     }
 
     Set<OwnedItem> owned(UUID clusterId) {

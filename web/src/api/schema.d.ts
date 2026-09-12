@@ -1616,6 +1616,13 @@ export interface components {
              */
             expectedRevision?: number | null;
             note?: string | null;
+            /**
+             * @description Where this document came from; defaults to EDIT. ADOPT records that the declaration was taken from the running cluster, which is what lets drift say why a node agrees
+             * @enum {string|null}
+             */
+            source?: "EDIT" | "IMPORT_XML" | "ADOPT" | null;
+            /** @description The cluster's name. Required for an ADOPT that would close open drift findings, because adopting closes them without writing to any broker */
+            confirm?: string | null;
         };
         /** @description A cluster's declaration: the current revision, how it is applied, and each node's last evaluation */
         ConfigDeclarationView: {
@@ -1669,6 +1676,16 @@ export interface components {
             /** Format: date-time */
             evaluatedAt?: string | null;
             findings: components["schemas"]["ConfigDriftFindingView"][];
+            /**
+             * @description Why an IN_SYNC node agrees: Studio applied and read it back, the declaration was adopted from this cluster, or an evaluation simply found them equal. Null unless the node is IN_SYNC
+             * @enum {string|null}
+             */
+            basis?: "VERIFIED_APPLY" | "ADOPTED" | "OBSERVED_MATCH" | null;
+            /**
+             * Format: int64
+             * @description The apply id or revision number the basis points at
+             */
+            basisRef?: number | null;
         };
         AlertRuleRequest: {
             name: string;
@@ -2359,6 +2376,15 @@ export interface components {
             document: components["schemas"]["ConfigDocumentView"];
             notes: string[];
             disagreements: string[];
+            /** @description Drift findings this adoption would close without writing to any broker. Non-empty means the save needs the cluster's name as confirmation */
+            closes: components["schemas"]["ConfigClosedFindingView"][];
+        };
+        /** @description A drift finding an adoption would erase, and the node that reported it */
+        ConfigClosedFindingView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            finding: components["schemas"]["ConfigDriftFindingView"];
         };
         CreateAddressRequest: {
             /** @description The address name. */

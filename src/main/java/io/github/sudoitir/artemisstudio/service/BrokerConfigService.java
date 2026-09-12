@@ -24,6 +24,7 @@ import io.github.sudoitir.artemisstudio.persist.BrokerConfigRevisionEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerConfigRevisionRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.ClusterEntity;
+import io.github.sudoitir.artemisstudio.persist.ClusterLock;
 import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.persist.QueueSnapshotRepository;
@@ -73,6 +74,7 @@ public class BrokerConfigService {
     private final QueueSnapshotRepository queueSnapshots;
     private final BrokerConfigReads reads;
     private final BrokerConfigOperations ops;
+    private final ClusterLock lock;
     private final ClusterAccessGuard clusterAccess;
     private final AuditService audit;
     private final ActorResolver actorResolver;
@@ -104,7 +106,9 @@ public class BrokerConfigService {
             String detail,
             Integer verifiedRevision,
             Instant evaluatedAt,
-            List<BrokerConfigDriftService.DriftFinding> findings) {}
+            List<BrokerConfigDriftService.DriftFinding> findings,
+            BrokerConfigNodeStateEntity.Basis basis,
+            Long basisRef) {}
 
     public record Revision(
             int revision,
@@ -115,8 +119,23 @@ public class BrokerConfigService {
             String note,
             BrokerConfigDocument document) {}
 
-    /** What adoption produced, for review before it is saved. */
-    public record Adoption(BrokerConfigDocument document, List<String> notes, List<String> disagreements) {}
+    /**
+     * What adoption produced, for review before it is saved.
+     *
+     * <p>{@code closes} is the part an operator must see before confirming: adoption
+     * declares what the cluster is already running, so every open drift finding
+     * disappears on the next evaluation — not because a broker was written, but
+     * because the declaration moved to meet it. A preview that shows only the
+     * document reads exactly like a successful apply.
+     */
+    public record Adoption(
+            BrokerConfigDocument document,
+            List<String> notes,
+            List<String> disagreements,
+            List<ClosedFinding> closes) {}
+
+    /** One drift finding an adoption would erase, and the node that reported it. */
+    public record ClosedFinding(UUID nodeId, String nodeName, BrokerConfigDriftService.DriftFinding finding) {}
 
     // ---- read ------------------------------------------------------------
 
@@ -189,11 +208,17 @@ public class BrokerConfigService {
                 .findById(clusterId)
                 .flatMap(h -> revisions
                         .findById(h.getCurrentRevisionId())
-                        .map(r -> new CurrentRevision(r.getId(), r.getRevision(), parse(r.getDocument()), h)));
+                        .map(r -> new CurrentRevision(
+                                r.getId(), r.getRevision(), parse(r.getDocument()), h, Source.valueOf(r.getSource()))));
     }
 
     public record CurrentRevision(
-            long id, int revision, BrokerConfigDocument document, BrokerConfigDeclarationEntity header) {}
+            long id,
+            int revision,
+            BrokerConfigDocument document,
+            BrokerConfigDeclarationEntity header,
+            /** How this revision came to exist; drift reads it to explain an IN_SYNC node. */
+            Source source) {}
 
     // ---- write -----------------------------------------------------------
 
@@ -206,10 +231,45 @@ public class BrokerConfigService {
     @Transactional
     public Declaration save(
             UUID clusterId, BrokerConfigDocument document, Integer expectedRevision, String note, Source source) {
+        return save(clusterId, document, expectedRevision, note, source, null);
+    }
+
+    /**
+     * As above, with the typed confirmation an adoption needs.
+     *
+     * <p>An adoption that would close open drift findings is refused without the
+     * cluster's name, because it is indistinguishable in its effect from an apply
+     * and opposite in its meaning: the broker keeps whatever it is doing. It is also
+     * refused while an apply holds the cluster, so that a run in flight cannot have
+     * the declaration it is applying moved underneath it.
+     */
+    @Transactional
+    public Declaration save(
+            UUID clusterId,
+            BrokerConfigDocument document,
+            Integer expectedRevision,
+            String note,
+            Source source,
+            String confirm) {
         clusterAccess.requireCluster(clusterId, Permissions.CONFIG_WRITE);
         List<Violation> violations = BrokerConfigValidator.validate(document);
         if (!violations.isEmpty()) {
             throw new BrokerConfigInvalidException(violations);
+        }
+        if (source == Source.ADOPT) {
+            List<ClosedFinding> closes = openFindings(clusterId);
+            if (!closes.isEmpty() && !clusterName(clusterId).equals(confirm)) {
+                throw new ConflictException(
+                        "adoption-unconfirmed",
+                        "Adopting this document closes " + closes.size() + " open drift finding(s) without writing"
+                                + " to any broker. Confirm with the cluster's name to record that as intended.");
+            }
+            if (lock.isHeld(clusterId, ClusterLock.Scope.CONFIG_APPLY)) {
+                throw new ConflictException(
+                        "apply-in-progress",
+                        "A configuration apply is running on this cluster. Adopting now would move the"
+                                + " declaration it is applying. Wait for it to finish.");
+            }
         }
         Optional<BrokerConfigDeclarationEntity> header = declarations.findById(clusterId);
         int currentNumber = header.map(h -> revisions
@@ -445,7 +505,25 @@ public class BrokerConfigService {
                 settingDecls,
                 securityDecls,
                 new ArrayList<>(diverts.values()));
-        return new Adoption(doc, notes, disagreements);
+        List<ClosedFinding> closes = openFindings(clusterId);
+        if (!closes.isEmpty()) {
+            notes.add(closes.size() + " open drift finding(s) will be closed by adopting this document, and no"
+                    + " broker will be written: the declaration moves to match the cluster. Apply the current"
+                    + " declaration instead if the cluster is what is wrong.");
+        }
+        return new Adoption(doc, notes, disagreements, closes);
+    }
+
+    /** Every drift finding currently recorded against the cluster, node by node. */
+    private List<ClosedFinding> openFindings(UUID clusterId) {
+        List<ClosedFinding> out = new ArrayList<>();
+        for (NodeState node : nodeStates(clusterId)) {
+            if (node.state() != BrokerConfigNodeStateEntity.State.DRIFTED) {
+                continue;
+            }
+            node.findings().forEach(f -> out.add(new ClosedFinding(node.nodeId(), node.nodeName(), f)));
+        }
+        return out;
     }
 
     // ---- helpers ---------------------------------------------------------
@@ -485,7 +563,9 @@ public class BrokerConfigService {
                         "Not evaluated yet.",
                         null,
                         null,
-                        List.of()));
+                        List.of(),
+                        null,
+                        null));
             } else {
                 out.add(new NodeState(
                         node.getId(),
@@ -496,7 +576,9 @@ public class BrokerConfigService {
                         s.getVerifiedRevision(),
                         s.getEvaluatedAt(),
                         mapper.readValue(
-                                s.getFindings(), new TypeReference<List<BrokerConfigDriftService.DriftFinding>>() {})));
+                                s.getFindings(), new TypeReference<List<BrokerConfigDriftService.DriftFinding>>() {}),
+                        s.basis(),
+                        s.getBasisRef()));
             }
         }
         return out;

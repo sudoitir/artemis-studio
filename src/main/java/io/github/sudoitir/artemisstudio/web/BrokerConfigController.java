@@ -75,7 +75,12 @@ public class BrokerConfigController {
     @ResponseStatus(HttpStatus.CREATED)
     public DeclarationView save(@PathVariable UUID clusterId, @Valid @RequestBody SaveDeclarationRequest request) {
         return DeclarationView.of(config.save(
-                clusterId, request.document().toDocument(), request.expectedRevision(), request.note(), Source.EDIT));
+                clusterId,
+                request.document().toDocument(),
+                request.expectedRevision(),
+                request.note(),
+                request.source() == null ? Source.EDIT : Source.valueOf(request.source()),
+                request.confirm()));
     }
 
     @PatchMapping("/mode")
