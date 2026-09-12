@@ -214,4 +214,64 @@ public final class McpViews {
             Instant startedAt,
             Long latencyMs,
             String state) {}
+
+    // ---- broker_config ----------------------------------------------------
+
+    /** A cluster's declaration, as a model reads it: the header and the document itself. */
+    public record ConfigDeclaration(
+            boolean declared,
+            int revision,
+            String applyMode,
+            String updatedBy,
+            Instant updatedAt,
+            Object document,
+            List<ConfigNodeState> nodes) {}
+
+    /** One node's last drift evaluation. */
+    public record ConfigNodeState(
+            String node,
+            boolean live,
+            String state,
+            String detail,
+            Instant evaluatedAt,
+            List<ConfigFinding> findings) {}
+
+    /** One thing a node does differently from the declaration. */
+    public record ConfigFinding(String kind, String section, String key, String detail) {}
+
+    /** One past apply. */
+    public record ConfigApply(
+            long id,
+            Instant startedAt,
+            boolean dryRun,
+            String outcome,
+            String summary,
+            String actor,
+            Long auditEventId) {}
+
+    /**
+     * What an apply — dry or real — produced. {@code acknowledge} lists exactly the
+     * hazard identifiers a real run must carry; {@code message} is the one sentence
+     * an agent should relay.
+     */
+    public record ConfigApplyOutcome(
+            boolean dryRun,
+            String outcome,
+            int revision,
+            String planHash,
+            String canary,
+            int stepCount,
+            int stepCap,
+            boolean overCap,
+            List<ConfigHazard> hazards,
+            List<String> acknowledge,
+            List<ConfigNodeApply> nodes,
+            String message) {}
+
+    public record ConfigHazard(String id, String hazardClass, String node, String message) {}
+
+    public record ConfigNodeApply(String node, boolean canary, String note, List<ConfigStep> steps) {}
+
+    public record ConfigStep(
+            String id, String op, String section, String key, String status, String verified, String error) {}
 }

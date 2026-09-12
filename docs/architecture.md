@@ -267,6 +267,25 @@ browser would not be a cap. The dry-run count itself is a broker-side estimate
 (`countMessages(filter)` for a selector, the id count for an id list, the queue's
 `MessageCount` for a purge or retry-all), labelled point-in-time.
 
+**Broker configuration** (ADR-0067). A cluster's declared address settings,
+security settings, diverts and queues live in Postgres (`broker_config_*`,
+changeset 024), versioned on every save. `BrokerConfigApplyService` is a
+separate engine from the queue lifecycle because its fan-out is deliberately
+not a fan-out: a plan is computed per live node from at most two batched reads
+(diff-driven, `ALREADY` where the read-back matches), hazards are classified
+before any write and the High ones must be acknowledged by id, then the canary
+node receives every step and is read back before the next node is touched.
+The first failure halts the run — remaining nodes report `NOT_ATTEMPTED`,
+nothing is rolled back, and re-running converges. A real run names the plan
+hash it previewed and is refused (`409 plan-changed`) if the cluster moved; a
+Postgres advisory lock (`ClusterLock.Scope.CONFIG_APPLY`) refuses a concurrent
+apply. Studio removes only what it applied, never destroys a queue or address,
+never writes `broker.xml` and never calls `reloadConfigurationFile`.
+`BrokerConfigDriftService` evaluates every live node on a schedule
+(`config.drift-interval`) and after every apply; it writes state, publishes the
+`config` SSE topic and feeds the `CONFIG_DRIFT` alert condition — evaluation is
+scheduled, action never is.
+
 **DLQ view.** Dead-letter and expiry addresses are read from the broker's own
 `getAddressSettingsAsJSON` — never guessed from names (ADR-0022, D8). The view
 lists the `queue_snapshot` rows on those addresses with per-node depth and a
@@ -275,8 +294,8 @@ If the settings read fails the view says exactly that and infers nothing.
 
 ## MCP surface
 
-`POST /mcp` is a second inbound edge onto the same services (ADR-0045): around
-thirteen intent-shaped tools, four resources and four runbook prompts, mounted by
+`POST /mcp` is a second inbound edge onto the same services (ADR-0045): sixteen
+intent-shaped tools, six resources and four runbook prompts, mounted by
 Spring AI's WebMVC starter as a stateless Streamable HTTP transport. It is an
 adapter and nothing more — `mcp/**` holds argument coercion, its own lean
 projections and the error mapping, and calls the same `service/**` methods the

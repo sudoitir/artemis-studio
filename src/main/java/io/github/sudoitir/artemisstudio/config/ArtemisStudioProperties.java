@@ -33,7 +33,8 @@ public record ArtemisStudioProperties(
         Mcp mcp,
         Sql sql,
         Capture capture,
-        Sse sse) {
+        Sse sse,
+        BrokerConfig brokerConfig) {
 
     public ArtemisStudioProperties {
         branding = branding != null ? branding : new Branding("Artemis Studio");
@@ -81,6 +82,7 @@ public record ArtemisStudioProperties(
                         Duration.ofSeconds(1));
         capture = capture != null ? capture : new Capture("amq", Duration.ofSeconds(30), Duration.ofHours(24));
         sse = sse != null ? sse : new Sse(Duration.ofSeconds(20));
+        brokerConfig = brokerConfig != null ? brokerConfig : new BrokerConfig(Duration.ofMinutes(5), 100);
     }
 
     public record Branding(@DefaultValue("Artemis Studio") String productName) {}
@@ -257,4 +259,15 @@ public record ArtemisStudioProperties(
             @DefaultValue("24h") Duration expiry) {}
 
     public record Sse(@DefaultValue("20s") Duration heartbeatInterval) {}
+
+    /**
+     * Declared broker configuration (ADR-0067). {@code driftInterval} paces the
+     * scheduled comparison of every live node against its cluster's declaration —
+     * one batched read per node per pass; {@code applyStepCap} is the most management
+     * writes one apply may issue before it needs an explicit override, the
+     * configuration counterpart of the bulk cap.
+     */
+    public record BrokerConfig(
+            @DefaultValue("5m") Duration driftInterval,
+            @DefaultValue("100") int applyStepCap) {}
 }

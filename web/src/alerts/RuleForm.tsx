@@ -19,6 +19,7 @@ import {
   GAUGE_METRICS,
   METRIC_NOTES,
   RATE_METRICS,
+  CONFIG_DRIFT_TEMPLATE,
   SLOW_CONSUMER_TEMPLATE,
   STATE_CONDITIONS,
   metricKind,
@@ -77,6 +78,13 @@ export function RuleForm({
     setSeverity(SLOW_CONSUMER_TEMPLATE.severity);
   };
 
+  const applyConfigDriftTemplate = () => {
+    setName(CONFIG_DRIFT_TEMPLATE.name);
+    setStateCondition(CONFIG_DRIFT_TEMPLATE.stateCondition);
+    setForSeconds(CONFIG_DRIFT_TEMPLATE.forSeconds);
+    setSeverity(CONFIG_DRIFT_TEMPLATE.severity);
+  };
+
   const valid =
     name.trim() &&
     severity &&
@@ -131,6 +139,17 @@ export function RuleForm({
             style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
           >
             Start from the slow-consumer template
+          </Anchor>
+        ) : null}
+        {kind === 'STATE' && !initial ? (
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            onClick={applyConfigDriftTemplate}
+            style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
+          >
+            Start from the configuration-drift template
           </Anchor>
         ) : null}
 

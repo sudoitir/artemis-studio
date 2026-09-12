@@ -6,6 +6,8 @@ import io.github.sudoitir.artemisstudio.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.service.AlertService;
 import io.github.sudoitir.artemisstudio.service.AuditQueryService;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigApplyService;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigService;
 import io.github.sudoitir.artemisstudio.service.BrokerEventService;
 import io.github.sudoitir.artemisstudio.service.ClusterService;
 import io.github.sudoitir.artemisstudio.service.ConfigDiffService;
@@ -56,6 +58,8 @@ public class McpDiagnosticTools {
     private final PagedListService lists;
     private final MetricQueryService metrics;
     private final ConfigDiffService configDiff;
+    private final BrokerConfigService brokerConfig;
+    private final BrokerConfigApplyService brokerConfigApply;
     private final MessageService messages;
     private final RequestReplyService requestReply;
     private final RrMetrics rrMetrics;
@@ -443,6 +447,75 @@ public class McpDiagnosticTools {
                     + "slow-consumer-policy on the address and diagnose for the broker's own verdict";
         }
         return "none observed";
+    }
+
+    // ---- broker_config ----------------------------------------------------
+
+    public enum ConfigReadKind {
+        DECLARATION,
+        DRIFT,
+        XML,
+        APPLIES
+    }
+
+    /**
+     * A cluster's declared configuration and what the brokers make of it (ADR-0067):
+     * the declaration, the last drift evaluation per node, the {@code broker.xml}
+     * fragment, or the apply history — one tool, one {@code kind}.
+     */
+    @McpTool(
+            name = "broker_config",
+            description =
+                    "A cluster's declared broker configuration: declaration, drift per node, XML fragment, or applies.",
+            annotations =
+                    @McpTool.McpAnnotations(
+                            readOnlyHint = true,
+                            destructiveHint = false,
+                            idempotentHint = true,
+                            openWorldHint = false))
+    public McpSchema.CallToolResult brokerConfig(
+            @McpToolParam(required = true) String clusterId, @McpToolParam(required = false) String kind) {
+        UUID id = McpArgs.uuid("clusterId", clusterId);
+        ConfigReadKind what = McpArgs.enumOf(ConfigReadKind.class, "kind", kind, ConfigReadKind.DECLARATION);
+        return McpErrors.guard(() -> switch (what) {
+            case DECLARATION -> declaration(brokerConfig.get(id), true);
+            case DRIFT -> declaration(brokerConfig.get(id), false);
+            case XML -> brokerConfig.exportXml(id, null);
+            case APPLIES ->
+                brokerConfigApply.history(id, 20).stream()
+                        .map(a -> new McpViews.ConfigApply(
+                                a.getId(),
+                                a.getStartedAt(),
+                                a.isDryRun(),
+                                a.getOutcome(),
+                                a.getSummary(),
+                                a.getActor(),
+                                a.getAuditEventId()))
+                        .toList();
+        });
+    }
+
+    static McpViews.ConfigDeclaration declaration(BrokerConfigService.Declaration d, boolean withDocument) {
+        List<McpViews.ConfigNodeState> nodes = d.nodes().stream()
+                .map(n -> new McpViews.ConfigNodeState(
+                        n.nodeName(),
+                        n.live(),
+                        n.state().name(),
+                        n.detail(),
+                        n.evaluatedAt(),
+                        n.findings().stream()
+                                .map(f -> new McpViews.ConfigFinding(
+                                        f.kind().name(), f.section().name(), f.key(), f.detail()))
+                                .toList()))
+                .toList();
+        return new McpViews.ConfigDeclaration(
+                d.declared(),
+                d.revision(),
+                d.applyMode() == null ? null : d.applyMode().name(),
+                d.updatedBy(),
+                d.updatedAt(),
+                withDocument ? d.document() : null,
+                nodes);
     }
 
     // ---- config_diff ------------------------------------------------------

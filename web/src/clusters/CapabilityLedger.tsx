@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Collapse } from '@mantine/core';
+import { Anchor, Collapse, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
+import { Link } from '@tanstack/react-router';
 import type { CapabilitiesView, CapabilityView } from '../api/client.ts';
 import styles from './CapabilityLedger.module.css';
 
@@ -12,6 +13,24 @@ const LABELS: Record<Key, string> = {
   notifications: 'Live events',
   messageIo: 'Message browse and send',
   slowConsumerDetection: 'Slow-consumer detection',
+};
+
+/**
+ * The capabilities whose snippet is — at least in part — an address or security
+ * setting, which Studio can apply over the management API instead of an operator
+ * editing broker.xml by hand (ADR-0068).
+ *
+ * The link goes to the recommendations panel rather than handing the raw snippet
+ * to the XML importer: the panel seeds each entry from what the node is running,
+ * which a pasted fragment cannot do, and a runtime write replaces the entry
+ * rather than merging into it (notes §15 M2).
+ */
+const DECLARABLE: Partial<Record<Key, string>> = {
+  notifications:
+    'The security setting can be applied from the declared configuration; the plugin still needs broker.xml.',
+  messageIo: 'This address setting can be applied from the declared configuration, no broker.xml edit needed.',
+  slowConsumerDetection:
+    'The address and security settings can be applied from the declared configuration; the plugin still needs broker.xml.',
 };
 
 const ORDER: Key[] = [
@@ -28,7 +47,14 @@ const ORDER: Key[] = [
  * expand, disclosing the reason and — where a `broker.xml` change would close
  * the gap — the exact snippet to paste.
  */
-export function CapabilityLedger({ capabilities }: { capabilities: CapabilitiesView }) {
+export function CapabilityLedger({
+  capabilities,
+  clusterId,
+}: {
+  capabilities: CapabilitiesView;
+  /** When the cluster is registered, snippets that are declarable link into its configuration. */
+  clusterId?: string;
+}) {
   const [open, setOpen] = useState<Key | null>(null);
 
   return (
@@ -66,6 +92,14 @@ export function CapabilityLedger({ capabilities }: { capabilities: CapabilitiesV
                       code={cap.brokerXmlSnippet.trimEnd()}
                       language="xml"
                     />
+                  ) : null}
+                  {cap.brokerXmlSnippet && clusterId && DECLARABLE[key] ? (
+                    <Text size="xs" mt="xs">
+                      {DECLARABLE[key]}{' '}
+                      <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=recommended`} size="xs">
+                        Declare &amp; apply it
+                      </Anchor>
+                    </Text>
                   ) : null}
                 </div>
               </Collapse>

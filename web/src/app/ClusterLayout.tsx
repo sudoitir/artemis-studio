@@ -5,7 +5,7 @@ import { Outlet, useParams } from '@tanstack/react-router';
 import styles from './ClusterLayout.module.css';
 
 import { useCluster, useRediscover } from '../api/client.ts';
-import { useClusterStream } from '../api/stream.ts';
+import { DEFAULT_TOPICS, useClusterStream } from '../api/stream.ts';
 import { RemoveCluster } from '../clusters/AddManagementUrl.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
 import { useDismissedNotice } from './useDismissedNotice.ts';
@@ -24,7 +24,12 @@ export function ClusterLayout() {
   const rediscover = useRediscover(clusterId);
   const [removing, setRemoving] = useState(false);
 
-  useClusterStream(clusterId);
+  // `config` rides along with the default topics rather than being mounted by the
+  // configuration screen: a second EventSource would open a second connection and
+  // fight over the shared stream-status store. The server only emits on this topic
+  // when an apply or a drift evaluation finishes, and an invalidation of a key no
+  // mounted query holds costs nothing.
+  useClusterStream(clusterId, [...DEFAULT_TOPICS, 'config']);
 
   const caps = data?.capabilities;
   // Nag only on a real, actionable gap. UNKNOWN is not one: since ADR-0049 D5
@@ -120,7 +125,7 @@ export function ClusterLayout() {
               One or more features are limited by this connection. Each row below expands with the
               reason and the <code>broker.xml</code> change that closes the gap.
             </Text>
-            <CapabilityLedger capabilities={data.capabilities} />
+            <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />
           </Stack>
         </Alert>
       ) : null}

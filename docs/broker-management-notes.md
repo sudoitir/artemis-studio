@@ -715,3 +715,98 @@ those slices rested on; two of them could have changed the shape of the feature.
   gains a `paused` column (a new changeset — `005-broker-cache.sql` is released)
   and `SlowConsumerCondition` excludes paused queues from its universe. No extra
   broker call: the field is in the page Studio already reads.
+
+## 15. Broker configuration — declare, apply, verify
+
+Measured 2026-09-11 against the dev pair (`apache/activemq-artemis:2.44.0`, the newest
+image published at the time; `primary` :8161 / `backup` :8261, replication with
+failback). Every probe object was removed afterwards and the pair was left as found.
+The six questions the design of change `07-broker-configuration` (ADR-0067) depends on.
+
+| # | Question | Verdict |
+|---|---|---|
+| M1 | Which keys does `getAddressSettingsAsJSON` echo, and how are unknown keys treated? | **Every key that is set anywhere in the match hierarchy.** A full 49-key entry written with `addAddressSettings(String,String)` read back with all 49; the dev `#` (which `broker.xml` sets sparsely) reads back 18; an address no pattern matches also reads 18 — the `#` entry. So a *declared* key is always readable after apply, and a key that is set nowhere is simply absent (the broker default is not reported). The JSON names are the `AddressSettings` field names (`addressFullMessagePolicy`, `maxSizeBytes`, `redeliveryMultiplier`, `pageFullMessagePolicy`, `configDeleteQueues`, …). **Unknown keys are silently ignored** (`{"noSuchKeyXyz":1}` → 200, entry stored without it). A bad enum value is refused: `500 java.lang.RuntimeException: Error while parsing MetaData{type=…AddressFullMessagePolicy, name='addressFullMessagePolicy'}` — the field name is recoverable from the message. `pageSizeBytes ≥ maxSizeBytes` is refused with `IllegalStateException: pageSize has to be lower than maxSizeBytes` **and the previous entry is left intact** — the check runs against the *merged* page size, so a declaration that sets `maxSizeBytes` without `pageSizeBytes` is checked against the inherited page size. |
+| M2 | Is `addAddressSettings` on an existing match replace or merge? | **Replace.** After a 49-key entry, writing `{addressFullMessagePolicy, maxSizeBytes, redistributionDelay}` to the same match read back 19 keys: `maxDeliveryAttempts` (was 3) gone, `autoCreateQueues` (was false) back to the `#` value `true`. The operation's own return value is the stored literal entry as JSON — useful at write time only. |
+| M3 | Do runtime-applied settings reach the backup? | **Yes, through the journal, visible only once the backup is active.** While passive the backup answered `getAddressSettingsAsJSON` / `getRolesAsJSON` / `DivertNames` from its own `broker.xml` (no probe objects). After `docker stop` of the primary the promoted backup reported the address setting (`DROP`, `52428800`), the security setting (`other-role`), the divert and the durable queue. After failback the primary still had all of them. Consequence: apply targets live nodes only, backups are stated to inherit, and drift is evaluated on the live member — after a failover it is the promoted node that is evaluated. |
+| M4 | Refusal shapes. | `createDivert(String)` on an existing name → **200, silently no change** (a second call with `exclusive=true` left `Exclusive=false`); `updateDivert(String)` → 200 and also left `Exclusive` unchanged — not relied on. `destroyDivert` on an absent name → `AMQ229012: No binding for divert …` (`ActiveMQInternalErrorException`). `removeAddressSettings` / `removeSecuritySettings` on an absent match → 200 (idempotent). `createQueue(String,boolean)` with `ignoreIfExists=false` on an existing queue → `AMQ229019`. |
+| M5 | Does a wildcard literal resolve its own entry? Are security settings merged? | `getAddressSettingsAsJSON("probe.m1.#")` returned the `probe.m1.#` entry merged over `#`, and `"probe.m1.concrete"` returned the same values — the literal match string is a valid probe. `getRolesAsJSON(match)` returns the role set of the **single most specific** security match; the `amq` role from `#` is not merged in. Re-adding a security match replaces its role set. |
+| M6 | `createQueue(json, ignoreIfExists=true)` on a queue whose config differs? | **200, returns the existing configuration, changes nothing** (a `filter-string` in the request was not applied). So "exists but differs" is detectable from the return value without a second read. |
+| M7 | Do the `view` and `edit` role lists of the 13-String `addSecuritySettings` arm persist? | **Accepted, never reported.** `addSecuritySettings("probe.view.#", "amq" × 12)` → 200, and `getRolesAsJSON("probe.view.#")` read back `view: false, edit: false` for `amq` while the other ten types were `true`. The console's own operation list registers both the 11- and 13-String arms, so the arm is real; whatever it stores for those two types is invisible over management. Consequence: Studio sends them, excludes them from the already/verify/drift comparison (`PermissionType.echoed()`), and says so in the security-setting editor — otherwise every declaration carrying `view` or `edit` would report drift nobody can close. |
+
+### Consequences carried into the design
+
+- The catalogue does not need a per-key "echoed" flag; verification compares every
+  declared key against the read-back and reports a key absent from the read-back as
+  unverifiable (it should not happen for a declared key — if it does, that is a
+  finding, not a silent pass).
+- Replace semantics are real (M2): the plan shows before → after for every echoed key
+  of the match and flags undeclared keys that will change (`UNINTENDED_KEY_CHANGE`).
+- Validation must be strict on Studio's side (M1): the broker will not tell an operator
+  about a misspelt key. `pageSizeBytes < maxSizeBytes` is validated against the merged
+  page size read in the plan.
+- A divert that exists with different properties is a delete + create step pair
+  (M4), never a second `createDivert`, which would report success and change nothing.
+- Backups are neither targeted nor reported as missing (M3).
+
+## 16. Broker configuration — the loop against a live pair
+
+Measured 2026-09-12 against the same dev pair (`apache/activemq-artemis:2.44.0`,
+`primary` :8161 / `backup` :8261, replication with failback) by
+`scripts/config-e2e.sh`, which drives Studio's own REST API and leaves the pair as it
+found it. §15 answered what the management API does; this section answers what the
+assembled loop does, and it is where the baseline for the hardening work was taken.
+
+| # | Question | Verdict |
+|---|---|---|
+| M8 | Is `slowConsumerThreshold` readable back once it is set? | **Yes, on 2.44.0.** `addAddressSettings("probe.slow.#", {slowConsumerThreshold: 1, …})` read back all four slow-consumer keys (`slowConsumerThreshold`, `…MeasurementUnit`, `slowConsumerCheckPeriod`, `slowConsumerPolicy`) in a 21-key entry. The earlier reading — that only the measurement unit is exposed — was an artefact of §15 M1: a key set **nowhere** is simply absent, and the dev `broker.xml` sets no threshold. Consequences: native slow-consumer detection is a **verifiable** declaration, so it can be recommended and applied like any other address setting; and `CapabilityProbe`'s reason text, which tells the operator the value cannot be observed, is wrong on this version and states an absent key as unknowable rather than as unset. |
+| M9 | Do the `view` / `edit` role types read back? | **No**, exactly as §15 M7 recorded. Re-confirmed so the two measurements that gate "can this key be verified?" sit together. |
+
+### M10 — what the loop costs a broker that is busy
+
+Measured 2026-09-12, same dev pair, one live node, on a developer laptop — so the
+absolute numbers are worth nothing and the *comparison* is the measurement. An
+Artemis CLI producer and consumer ran 512-byte messages through `LOAD.PROOF` for
+the whole run; three 30-second windows were sampled in A/B/A order, where B ran
+dry runs, real applies over a 20-match declaration, and drift evaluations back to
+back with no pause at all.
+
+| Window | Studio | Broker CPU | Consumer throughput |
+| --- | --- | --- | --- |
+| A1 | idle | 150% | 467 msg/s |
+| B | applies + evaluations, continuous | 115% | 433 msg/s |
+| A2 | idle | 136% | 467 msg/s |
+
+A2 reproduced A1 exactly (+0.0%), so the run does not drift over its own length
+and B's **−7.1%** is attributable to the loop rather than to the queue getting
+deeper. Broker CPU *fell* in window B while throughput fell with it, which is the
+signature of contention — the management calls and the dispatch path waiting on
+each other — not of Studio consuming the CPU the broker needed.
+
+Read it as a worst case that the product never asks for: window B issues applies
+continuously, while the shipped default evaluates once per `config.drift-interval`
+(5 minutes) and applies only when an operator asks. The per-evaluation bound is
+unchanged — at most two batched reads per live node — and every write now takes a
+`NodeCallLimiter` permit of its own, which it did not before: a client was charged
+one permit and then issued a POST per step on it, so a fifty-step plan spent one.
+
+### What the assembled loop did, and did not, do
+
+Run against one live node with a declaration adopted from the broker itself:
+
+- **Sound.** A dry run of an adopted declaration plans zero steps. A declared setting
+  the broker lacks plans exactly one step, applies, and every applied step is
+  `VERIFIED` by read-back. A second dry run plans zero steps, so a re-run converges.
+  A stale `planHash` and a stale revision are both refused with `409`. Of two
+  concurrent applies, one is refused with `409`. An out-of-band
+  `removeAddressSettings` is seen as drift on the next evaluation. External entities
+  are not resolved by the import parser.
+- **Not sound at the baseline** — each reproduced here, and each closed in the
+  phases that followed:
+  adoption erased an open drift finding with no broker write and no disclosure;
+  a revision adopted from a broker records its source as `EDIT`, so even the audit
+  trail cannot tell adoption from an edit; an `IN_SYNC` node records no evidence for
+  why it agrees; a `CONFIG_MANAGED` cluster applied over HTTP with `200`, because the
+  mode is enforced only in the UI; an unknown address-setting key is dropped as
+  "unsupported" rather than refused as a validation error (ADR-0067 D10); a 3.8 MB
+  import was accepted; and the connection check reports capability gaps while
+  offering nothing that would close them.

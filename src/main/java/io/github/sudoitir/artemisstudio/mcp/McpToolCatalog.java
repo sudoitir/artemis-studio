@@ -186,6 +186,54 @@ final class McpToolCatalog {
                             Param.note("dryRun", DRY_RUN),
                             Param.note("confirm", CONFIRM))),
             new Entry(
+                    "broker_config",
+                    Posture.READ,
+                    "A cluster's declared broker configuration, its drift per node, its XML fragment or its applies.",
+                    List.of(Param.values(
+                            "kind",
+                            List.of("declaration", "drift", "xml", "applies"),
+                            "Default declaration. drift is the last stored evaluation per node; it "
+                                    + "compares every node with the declaration, not nodes with each other "
+                                    + "(that is config_diff)."))),
+            new Entry(
+                    "broker_config_change",
+                    Posture.MUTATE,
+                    "Declare a cluster's broker configuration, or apply it to every live node canary-first.",
+                    List.of(
+                            Param.values("op", List.of("declare", "apply"), null),
+                            Param.shape(
+                                    "document",
+                                    "{ version: 1, addresses: [{ name, routingTypes, queues: [{ name, routingType, "
+                                            + "filter, durable, maxConsumers, purgeOnNoConsumers, exclusive, "
+                                            + "nonDestructive, ringSize }] }], addressSettings: [{ match, "
+                                            + "values: { <key>: value } }], securitySettings: [{ match, "
+                                            + "permissions: { <permission>: [role] } }], diverts: [{ name, address, "
+                                            + "forwardingAddress, filter, exclusive, routingType }] }",
+                                    "declare only: the same shape broker_config kind=declaration returns. Keys "
+                                            + "come from the address-setting catalogue; an unknown key is refused, "
+                                            + "never ignored. Alternatively send xml, a broker.xml <core> fragment; "
+                                            + "unsupported elements are listed and not applied. declare saves a "
+                                            + "revision and applies nothing."),
+                            Param.note(
+                                    "op.apply",
+                                    "A dry run returns the plan: steps per live node with before and after, the "
+                                            + "hazards with their identifiers and class, the canary and planHash. "
+                                            + "The real run must send that planHash as expectedPlanHash and every "
+                                            + "High hazard id in acknowledge (comma-separated). It applies to the "
+                                            + "canary, reads it back, then continues node by node and halts on the "
+                                            + "first failure; the rest report NOT_ATTEMPTED, nothing is rolled "
+                                            + "back, re-running converges. Studio never destroys a queue or "
+                                            + "address this way and removes only settings it applied unless "
+                                            + "removeUndeclared=true."),
+                            Param.note(
+                                    "nodeIds",
+                                    "Comma-separated node ids to target; omit for every live node. The canary "
+                                            + "is the first targeted live node by name; choosing another is a "
+                                            + "UI-only option."),
+                            Param.note("dryRun", DRY_RUN),
+                            Param.note("confirm", "Required to turn dryRun off; must equal the cluster's name."),
+                            Param.note("override", OVERRIDE))),
+            new Entry(
                     "connection_action",
                     Posture.MUTATE,
                     "Close a connection, a session, a consumer's connection, or an address's consumers.",

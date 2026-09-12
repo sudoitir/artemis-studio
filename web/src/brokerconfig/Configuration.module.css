@@ -1,0 +1,122 @@
+/* State in words; colour only where something is wrong (frontend rule). */
+.state {
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+}
+
+.state[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.state[data-tone='danger'] {
+  color: var(--as-danger);
+}
+
+/*
+ * A node's state as a chip: the same words as `.state`, boxed so a column of
+ * nodes can be scanned without reading. The border carries the tone as well as
+ * the text colour, because on a near-monochrome healthy view the box is what the
+ * eye finds first — and it still says the state in words (frontend rule).
+ */
+.chip {
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  padding: 0 0.375rem;
+  line-height: 1.5;
+}
+
+.chip[data-tone='warning'] {
+  color: var(--as-warning);
+  border-color: var(--as-warning);
+}
+
+.chip[data-tone='danger'] {
+  color: var(--as-danger);
+  border-color: var(--as-danger);
+}
+
+.keys {
+  overflow-wrap: anywhere;
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.actionCell {
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* The declared and observed values side by side, so a difference is a glance. */
+.compare {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* The apply flow's step indicator. The current step is bold; done steps are dimmed. */
+.steps {
+  display: flex;
+  gap: 1rem;
+  color: var(--as-text-dimmed);
+}
+
+.step[data-current='true'] {
+  color: var(--as-text);
+  font-weight: 600;
+}
+
+.hazard {
+  border-inline-start: 2px solid var(--as-border);
+  padding-inline-start: 0.75rem;
+}
+
+.hazard[data-class='HIGH'] {
+  border-inline-start-color: var(--as-danger);
+}
+
+.before,
+.after {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.before {
+  color: var(--as-text-dimmed);
+}
+
+/* A declared item's keys beside their values: a definition list, not a JSON blob. */
+.kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 0.75rem;
+  row-gap: 0.125rem;
+}
+
+.kvRow {
+  display: contents;
+}
+
+.kvKey {
+  color: var(--as-text-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.kvValue {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* In a drift finding, a key that agrees on both sides is context; one that differs is the finding. */
+.kv[data-diff] .kvRow:not([data-differs]) .kvValue,
+.kv[data-diff] .kvRow:not([data-differs]) .kvKey {
+  color: var(--as-text-dimmed);
+}
+
+.kv[data-diff] .kvRow[data-differs] .kvValue {
+  font-weight: 600;
+}

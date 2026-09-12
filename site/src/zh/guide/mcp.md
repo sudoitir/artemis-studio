@@ -7,7 +7,7 @@ description: Artemis Studio 支持 Model Context Protocol，让助手在与人�
 
 Studio 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此助手可以针对你真实的集群回答*"为什么 `ORDERS.DLQ` 堆积了"*，而不是靠猜。
 
-它暴露的是十余个**意图化**工具——`cluster_health`、`diagnose_queue`、`queue_action`——而不是 REST API 的镜像。镜像会把模型的上下文耗在管道细节上，再把诊断工作丢回给它；这里的工具是按问题的形状设计的（[ADR-0045](/reference/adr/0045-mcp-server-is-a-capability-surface)，英文）。
+它暴露的是十六个**意图化**工具——`diagnose`、`message_action`、`broker_config_change`——而不是 REST API 的镜像。镜像会把模型的上下文耗在管道细节上，再把诊断工作丢回给它；这里的工具是按问题的形状设计的（[ADR-0045](/reference/adr/0045-mcp-server-is-a-capability-surface)，英文）。
 
 ## 获取密钥
 
@@ -43,19 +43,23 @@ curl -s https://studio.example.com/mcp \
 
 | 类型 | 名称 | 用途 |
 |---|---|---|
-| Tool | `cluster_health` | 每个节点的 HA 角色、脑裂、复制延迟、正在触发的告警 |
-| Tool | `list_resources` | 队列、地址、消费者、会话、连接、生产者 |
-| Tool | `diagnose_queue` | 一个队列的全链路：堆积、趋势、消费者、DLQ、事件 |
+| Tool | `studio_help` | 目录本身：每个工具、它的姿态与参数 |
+| Tool | `diagnose` | 一个集群（每个节点的 HA 角色、脑裂、复制延迟、正在触发的告警）或一个队列的全链路 |
+| Tool | `list_resources` | 队列、地址、消费者、会话、连接、生产者、divert、bridge |
 | Tool | `metric_series` | 单个指标的分桶时间序列 |
 | Tool | `config_diff` | 两个节点之间已分类的配置差异 |
-| Tool | `browse_messages` / `message_body` | 先看消息头，再按 id 取单条消息体 |
+| Tool | `broker_config` | 集群的声明、每个节点的漂移、`broker.xml` 片段，或历史应用 |
+| Tool | `browse_messages` | 消息头，或按 id 取单条消息体 |
 | Tool | `trace_request_reply` | 流、延迟与超时统计、已配置的预期 |
 | Tool | `activity_log` | Broker 事件，或 Studio 自身的审计链路 |
-| Tool | `queue_action` | 移动 / 重投 / 删除 / 过期 / 清空 |
+| Tool | `message_action` | 移动 / 重投 / 删除 / 过期 / 清空 |
+| Tool | `queue_lifecycle` | 创建、更新、暂停、恢复或销毁队列、地址或 divert |
+| Tool | `broker_config_change` | 声明一份配置，或以金丝雀优先、按 id 确认危害的方式应用它 |
+| Tool | `connection_action` | 关闭连接、会话、消费者或某个地址的全部消费者 |
 | Tool | `send_message` | 投递一条消息 |
 | Tool | `alert_rule` / `studio_setting` | 告警规则；运维设置 |
-| Resource | `studio://clusters`、`studio://permissions` | 这把密钥能看到什么、能做什么 |
-| Resource | `cluster://{id}/topology`、`cluster://{id}/capabilities` | 节点；连接支持什么，以及启用其余部分所需的 `broker.xml` |
+| Resource | `studio://clusters`、`studio://permissions`、`studio://tools` | 这把密钥能看到什么、能做什么 |
+| Resource | `cluster://{id}/topology`、`cluster://{id}/capabilities`、`cluster://{id}/nodes/{nodeId}/settings` | 节点；连接支持什么，以及启用其余部分所需的 `broker.xml`；单个节点的生效设置 |
 | Prompt | `triage_cluster`、`investigate_queue`、`before_you_purge`、`tune_scrape_load` | 运行手册 |
 
 ## 安全契约

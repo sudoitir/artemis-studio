@@ -123,6 +123,12 @@ recovery are in the [configuration guide](https://sudoitir.github.io/artemis-stu
   outcomes.
 - **Request-reply tracing** — requests correlated to replies across addresses and
   nodes, with latency and timeout statistics against declared expectations.
+- **[Broker configuration](https://sudoitir.github.io/artemis-studio/guide/broker-configuration)**
+  — declare the address settings, security settings, diverts and queues a cluster
+  should run; apply them canary-first with every hazard stated before a write, or
+  export a `broker.xml` fragment; see each node's drift from the declaration. The
+  capability gaps Studio can close over the management API become a declaration in
+  one action, seeded from what the node is running.
 - **Governance** — authentication everywhere, a role/permission model scoped
   global → environment → cluster, API tokens, optional OIDC/SSO, and an audit
   event written in the same transaction as the command.
@@ -166,7 +172,7 @@ Java 25 · Spring Boot 4.1 · PostgreSQL with Liquibase · React 19 + Vite +
 Mantine 9 · TanStack Router/Query/Table · React Flow · Jolokia HTTP first with
 the Artemis Core client second · SSE · one container image.
 [Architecture](https://sudoitir.github.io/artemis-studio/reference/architecture) ·
-[all 61 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
+[all 67 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
 
 ## Releases
 
@@ -195,7 +201,8 @@ with a `.sha256`, and its notes are generated from the commit messages
 | [ ] | **C · Compliance tooling:** content/PII search and predicate-based message deletion with audit                                                                                                   |
 | [ ] | **C · SLA tracking:** queue depth, request-reply latency, and consumption-violation tracking                                                                                                     |
 | [ ] | **C · Environment promotion:** compare and promote queues, addresses, and routing definitions across environments                                                                                |
-| [ ] | **C · Drift detection:** declared desired state with advisory drift detection, never auto-reconciled                                                                                             |
+| [x] | **C · Broker configuration:** declared address settings, security settings, diverts and queues per cluster; applied canary-first over management or exported as `broker.xml`; advisory drift, never auto-reconciled |
+| [ ] | **C · Static configuration verification:** compare the parts of `broker.xml` the management API cannot apply — `global-max-size`, `<ha-policy>`, acceptors — against a declared expectation                    |
 | [ ] | **C · Capacity forecasting:** predict queue growth and broker pressure from metric history                                                                                                       |
 | [ ] | **C · Audit export:** filtered audit-trail export and retention controls                                                                                                                         |
 | [ ] | **D · SQL processors:** filter and transform, aggregation; joins only if a safe Artemis model is proven                                                                                          |
