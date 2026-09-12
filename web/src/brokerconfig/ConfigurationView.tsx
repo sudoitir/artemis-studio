@@ -14,6 +14,7 @@ import { useCan } from '../auth/useCan.ts';
 import { CapabilityGate } from '../shared/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
 import type { ConfigurationSearch } from '../router.tsx';
+import { AdoptionSuggestion } from './AdoptionSuggestion.tsx';
 import { APPLY_PERMISSION_LABEL } from './ApplyView.tsx';
 import { DeclaredTab } from './DeclaredTab.tsx';
 import { DriftTab } from './DriftTab.tsx';
@@ -130,6 +131,15 @@ export function ConfigurationView() {
           </CapabilityGate>
         </Group>
       </Group>
+
+      {!d.declared ? (
+        <AdoptionSuggestion
+          declaration={d}
+          onAdopt={() => setDrawer('adopt')}
+          canWrite={writeGate.kind !== 'blocked'}
+          blockedReason={writeGate.kind === 'blocked' ? writeGate.reason : undefined}
+        />
+      ) : null}
 
       {!d.declared ? (
         <Alert variant="light" color="gray" title="Declare what this cluster should run">

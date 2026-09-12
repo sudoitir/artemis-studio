@@ -272,6 +272,11 @@ expect "second dry run plans zero steps" "0" "$(py "d['plan']['stepCount']" <<<"
 # ── 4. drift ──────────────────────────────────────────────────────────────────
 
 say "4. drift evaluation after a verified apply"
+# The screen reads "last evaluated 4m ago" against this; an age with no cadence
+# beside it cannot be told apart from a scheduler that has stopped.
+cadence=$(py "d['driftIntervalSeconds']" <<<"$(api GET "/clusters/$CLUSTER/config")")
+[ "$cadence" -gt 0 ] && pass "the declaration carries the cadence it is evaluated on (${cadence}s)" \
+  || fail "the declaration does not say how often it is evaluated"
 report=$(api POST "/clusters/$CLUSTER/config/drift/evaluate")
 drifted=$(py "sum(1 for n in d['nodes'] if n['state']=='DRIFTED')" <<<"$report")
 expect "no node drifted right after a verified apply" "0" "$drifted"

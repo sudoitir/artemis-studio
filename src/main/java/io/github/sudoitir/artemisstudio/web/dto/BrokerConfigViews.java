@@ -262,11 +262,17 @@ public final class BrokerConfigViews {
 
             @Schema(
                     nullable = true,
-                    allowableValues = {"EDIT", "IMPORT_XML", "ADOPT", "MCP"})
+                    allowableValues = {"EDIT", "IMPORT_XML", "ADOPT", "MCP", "RECOMMENDED"})
             String source,
 
             @Schema(nullable = true) String note,
-            @Schema(requiredMode = REQUIRED) List<NodeStateView> nodes) {
+            @Schema(requiredMode = REQUIRED) List<NodeStateView> nodes,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "How often the scheduled pass evaluates this cluster, in seconds"
+                            + " (config.drift-interval)")
+            long driftIntervalSeconds) {
         public static DeclarationView of(BrokerConfigService.Declaration d) {
             return new DeclarationView(
                     d.clusterId(),
@@ -281,7 +287,8 @@ public final class BrokerConfigViews {
                     d.updatedBy(),
                     d.source() == null ? null : d.source().name(),
                     d.note(),
-                    d.nodes().stream().map(NodeStateView::of).toList());
+                    d.nodes().stream().map(NodeStateView::of).toList(),
+                    d.driftIntervalSeconds());
         }
     }
 

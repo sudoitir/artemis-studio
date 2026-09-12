@@ -20,7 +20,7 @@ export type Topic =
 /** What the UI reports about the live connection (ADR-0052). */
 export type StreamStatus = 'connecting' | 'live' | 'reconnecting' | 'offline';
 
-const DEFAULT_TOPICS: Topic[] = ['topology', 'health', 'queues'];
+export const DEFAULT_TOPICS: Topic[] = ['topology', 'health', 'queues'];
 
 /** Signal topics invalidate a query key; `events` carries data and has no key. */
 const SIGNAL_TOPICS: Topic[] = [

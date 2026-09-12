@@ -4637,7 +4637,7 @@
           },
           "source" : {
             "type" : [ "string", "null" ],
-            "enum" : [ "EDIT", "IMPORT_XML", "ADOPT", "MCP" ]
+            "enum" : [ "EDIT", "IMPORT_XML", "ADOPT", "MCP", "RECOMMENDED" ]
           },
           "note" : {
             "type" : [ "string", "null" ]
@@ -4647,9 +4647,14 @@
             "items" : {
               "$ref" : "#/components/schemas/ConfigNodeStateView"
             }
+          },
+          "driftIntervalSeconds" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "How often the scheduled pass evaluates this cluster, in seconds (config.drift-interval)"
           }
         },
-        "required" : [ "applyMode", "clusterId", "clusterName", "declared", "document", "nodes", "reportUndeclared", "revision", "undeclaredExclusions" ]
+        "required" : [ "applyMode", "clusterId", "clusterName", "declared", "document", "driftIntervalSeconds", "nodes", "reportUndeclared", "revision", "undeclaredExclusions" ]
       },
       "ConfigDriftFindingView" : {
         "type" : "object",

@@ -1773,7 +1773,15 @@ export function useBrokerConfig(
   return useQuery({
     queryKey: keys.brokerConfig(clusterId),
     queryFn: () => request<ConfigDeclarationView>(configBase(clusterId)),
-    refetchInterval: poll(30_000),
+    // Paced by the cluster's own `config.drift-interval`, because nothing on this
+    // view changes between scheduled passes except an edit made in another tab.
+    // Never slower than 30s, so an edit is not invisible for five minutes on a
+    // default-configured cluster; never faster, so a tightened interval is
+    // followed. An apply or an evaluation finishing arrives over SSE either way.
+    refetchInterval: (query) => {
+      const seconds = query.state.data?.driftIntervalSeconds;
+      return poll(Math.min(30_000, Math.max(5_000, (seconds ?? 30) * 1_000)))();
+    },
   });
 }
 

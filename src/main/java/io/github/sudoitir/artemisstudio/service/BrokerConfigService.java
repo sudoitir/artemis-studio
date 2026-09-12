@@ -78,6 +78,7 @@ public class BrokerConfigService {
     private final BrokerConfigOperations ops;
     private final ClusterLock lock;
     private final ClusterAccessGuard clusterAccess;
+    private final SettingsService settings;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final ObjectMapper mapper;
@@ -97,7 +98,14 @@ public class BrokerConfigService {
             String updatedBy,
             Source source,
             String note,
-            List<NodeState> nodes) {}
+            List<NodeState> nodes,
+            /**
+             * How often the scheduled pass evaluates this cluster, in seconds. On the
+             * declaration because the screen showing "last evaluated" is the one that has
+             * to say when the next one is due — a relative age with no cadence beside it
+             * cannot be read as either fresh or stalled.
+             */
+            long driftIntervalSeconds) {}
 
     /** The latest evaluation of one node, as stored. */
     public record NodeState(
@@ -163,7 +171,8 @@ public class BrokerConfigService {
                     null,
                     null,
                     null,
-                    nodes);
+                    nodes,
+                    driftIntervalSeconds());
         }
         BrokerConfigDeclarationEntity h = header.get();
         BrokerConfigRevisionEntity current = revisions
@@ -183,7 +192,12 @@ public class BrokerConfigService {
                 current.getCreatedBy(),
                 Source.valueOf(current.getSource()),
                 current.getNote(),
-                nodes);
+                nodes,
+                driftIntervalSeconds());
+    }
+
+    private long driftIntervalSeconds() {
+        return Math.max(1, settings.configDriftInterval().toSeconds());
     }
 
     @Transactional(readOnly = true)

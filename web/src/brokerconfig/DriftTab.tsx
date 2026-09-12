@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Group, Stack, Table, Text } from '@mantine/core';
+import { Alert, Anchor, Button, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import {
@@ -7,12 +7,27 @@ import {
   type ConfigDeclarationView,
   type ConfigNodeStateView,
 } from '../api/client.ts';
-import { absoluteLabel } from '../app/time.ts';
+import { absoluteLabel, elapsedLabel, serverNow, useServerNow } from '../app/time.ts';
 import { useDisplayZone } from '../app/timezone.ts';
 import classes from './Configuration.module.css';
 import { findingKindWords, findingRows, nodeStateWords, wireSectionLabel } from './words.ts';
 
 const KIND_ORDER = ['MISSING', 'DIVERGENT', 'DIVERGENT_QUEUE', 'DIVERGENT_ADDRESS', 'UNDECLARED', 'UNVERIFIABLE', 'NOT_EVALUATED'];
+
+/**
+ * How long ago, on Studio's clock, never the browser's (`app/time.ts`). Relative
+ * because the question an operator asks of this screen is "is this current?", and
+ * a wall-clock stamp only answers it after arithmetic they have to do themselves.
+ * The absolute instant stays one hover or one focus away.
+ */
+function ago(at: string): string {
+  return `${elapsedLabel(serverNow() - Date.parse(at))} ago`;
+}
+
+/** The scheduled cadence in the same shape as the age above it, so the two compare by eye. */
+function cadence(seconds: number): string {
+  return `evaluated about every ${elapsedLabel(seconds * 1_000)}`;
+}
 
 /**
  * Every live node measured against the declaration. The resolved state comes
@@ -30,6 +45,7 @@ export function DriftTab({
   catalogue?: ConfigCatalogueView;
 }) {
   useDisplayZone();
+  useServerNow();
   const evaluate = useEvaluateBrokerConfigDrift(declaration.clusterId);
   const live = declaration.nodes.filter((n) => n.live);
   const drifted = live.filter((n) => n.state === 'DRIFTED');
@@ -58,8 +74,16 @@ export function DriftTab({
             {summary}
           </Text>
           <Text size="xs" c="dimmed">
-            {latest ? `Last evaluated ${absoluteLabel(latest)}.` : 'Not evaluated yet.'} Evaluation runs on a
-            schedule and after every apply; nothing is ever changed by it.
+            {latest ? (
+              <Tooltip label={absoluteLabel(latest)} withArrow>
+                <span tabIndex={0}>Last evaluated {ago(latest)}</span>
+              </Tooltip>
+            ) : (
+              'Not evaluated yet'
+            )}
+            {' · '}
+            {cadence(declaration.driftIntervalSeconds)}. Evaluation runs on a schedule and after every apply; nothing
+            is ever changed by it.
           </Text>
         </Stack>
         <Button
@@ -153,9 +177,16 @@ function NodeFindings({
         <Text size="sm" fw={600}>
           {node.nodeName}
         </Text>
-        <Text size="xs" className={classes.state} data-tone={state.tone}>
+        <Text size="xs" className={classes.chip} data-tone={state.tone}>
           {node.live ? state.text : 'not live — backups inherit through replication and are not evaluated'}
         </Text>
+        {node.live && node.evaluatedAt ? (
+          <Tooltip label={absoluteLabel(node.evaluatedAt)} withArrow>
+            <Text size="xs" c="dimmed" tabIndex={0}>
+              {ago(node.evaluatedAt)}
+            </Text>
+          </Tooltip>
+        ) : null}
         {node.detail ? (
           <Text size="xs" c="dimmed">
             {node.detail}

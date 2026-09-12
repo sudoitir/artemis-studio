@@ -15,6 +15,7 @@ import {
 import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
 import { mergeDocuments } from './document.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
+import { WHY_NOT_AUTOMATIC } from './words.ts';
 
 /** How a parsed document compares with the current one, per section, in counts. */
 function sectionCounts(current: ConfigDocumentView, next: ConfigDocumentView) {
@@ -40,7 +41,7 @@ function sectionCounts(current: ConfigDocumentView, next: ConfigDocumentView) {
   ];
 }
 
-function CountsList({ current, next }: { current: ConfigDocumentView; next: ConfigDocumentView }) {
+export function CountsList({ current, next }: { current: ConfigDocumentView; next: ConfigDocumentView }) {
   return (
     <List size="xs" spacing={2}>
       {sectionCounts(current, next).map((c) => (
@@ -312,7 +313,8 @@ export function AdoptDrawer({
     <Drawer opened={opened} onClose={onClose} title="Adopt from cluster" position="right" size="xl" padding="md">
       <Stack gap="md">
         <Text size="xs" c="dimmed">
-          Reads every live node and builds a declaration from what they run. Nothing is saved until you choose to.
+          Reads every live node and builds a declaration from what they run. Nothing is saved until you choose to.{' '}
+          {WHY_NOT_AUTOMATIC}
         </Text>
         {adopt.isPending ? (
           <Text size="sm" aria-live="polite">

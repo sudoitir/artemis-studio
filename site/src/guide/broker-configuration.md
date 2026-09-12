@@ -51,6 +51,19 @@ never seen, which is exactly the kind of action that cannot be previewed.
 
 ## Getting a first declaration
 
+A cluster with live nodes and nothing declared opens on an offer: *Adopt what
+this cluster runs as revision 1*, with the counts it would declare per section
+and any disagreement between nodes named before you open anything. It is a read
+— the same batched read the drift pass makes — and it saves nothing. Pressing
+**Review and adopt as revision 1** opens the ordinary adoption preview, where
+the counts appear again beside the confirmation.
+
+Studio never adopts on its own. An adoption declares that whatever the brokers
+happen to be running right now is *intended*, including a setting someone
+changed by hand an hour ago and has not finished thinking about. Only an
+operator can say that, which is why drift stays advisory until one does
+(ADR-0067 D8) and why the offer is a suggestion rather than a default.
+
 Three ways in, from the Configuration view:
 
 1. **Adopt from cluster** reads every live node and builds a declaration from
@@ -160,7 +173,14 @@ demand. One batched, rate-limited read per node; nothing is ever changed by an
 evaluation.
 
 The Drift tab leads with the resolved state as a sentence — *All 3 live nodes
-match revision 7* — and, when something differs, groups the findings by kind
+match revision 7* — followed by how long ago that was measured and the cadence
+it is measured on: *Last evaluated 2m ago · evaluated about every 5m*. An age on
+its own cannot tell a fresh pass from a stopped scheduler, so the two are always
+together; the absolute instant is on the label, reachable by keyboard, and each
+node carries its own state chip and its own age. The tab updates itself as
+evaluations and applies complete, without a reload.
+
+When something differs, the tab groups the findings by kind
 with the declared value beside the observed one and the node named on every row:
 
 | Finding | Meaning |

@@ -73,6 +73,19 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
                 .isEqualTo(200);
     }
 
+    /**
+     * The screen showing "last evaluated 4m ago" has to say what the cadence is, or
+     * the age answers neither "is this fresh" nor "has the pass stopped".
+     */
+    @Test
+    void theDeclarationCarriesTheDriftCadenceItIsEvaluatedOn() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/clusters/" + clusterId + "/config")
+                        .with(authentication(callerWith(Permissions.CLUSTER_READ))))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath(
+                                "$.driftIntervalSeconds")
+                        .value(300));
+    }
+
     @Test
     void savingNeedsConfigWrite() throws Exception {
         assertThat(status(MockMvcRequestBuilders.put("/api/v1/clusters/" + clusterId + "/config")

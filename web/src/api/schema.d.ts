@@ -1677,9 +1677,14 @@ export interface components {
             updatedAt?: string | null;
             updatedBy?: string | null;
             /** @enum {string|null} */
-            source?: "EDIT" | "IMPORT_XML" | "ADOPT" | "MCP" | null;
+            source?: "EDIT" | "IMPORT_XML" | "ADOPT" | "MCP" | "RECOMMENDED" | null;
             note?: string | null;
             nodes: components["schemas"]["ConfigNodeStateView"][];
+            /**
+             * Format: int64
+             * @description How often the scheduled pass evaluates this cluster, in seconds (config.drift-interval)
+             */
+            driftIntervalSeconds: number;
         };
         /** @description One way a node differs from the declaration; declared beside observed */
         ConfigDriftFindingView: {

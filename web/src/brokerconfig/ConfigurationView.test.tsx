@@ -329,4 +329,64 @@ describe('ConfigurationView', () => {
         .toBeInTheDocument();
     delete search.section;
   });
+
+  it('suggests adopting the live nodes as revision 1, in counts, and adopts nothing on its own', async () => {
+    const saved = vi.fn();
+    server.use(
+      ...baseHandlers(
+        declaration({
+          declared: false,
+          revision: 0,
+          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [] },
+        }),
+      ),
+      http.post('*/api/v1/clusters/c1/config/adopt', () =>
+        HttpResponse.json({
+          document: {
+            version: 1,
+            addresses: [{ name: 'orders.request', routingTypes: ['ANYCAST'], queues: [] }],
+            addressSettings: [{ match: '#', values: { maxSizeBytes: 1 } }],
+            securitySettings: [],
+            diverts: [],
+          },
+          notes: [],
+          disagreements: ['address setting # differs between broker-1 and broker-2'],
+          closes: [],
+        }),
+      ),
+      http.put('*/api/v1/clusters/c1/config', async ({ request }) => {
+        saved(await request.json());
+        return HttpResponse.json(declaration(), { status: 201 });
+      }),
+    );
+    renderWithProviders(<ConfigurationView />);
+
+    expect(await screen.findByText('2 entries would be declared')).toBeInTheDocument();
+    expect(screen.getByText(/Addresses: 1 recognised — 1 added/)).toBeInTheDocument();
+    // A disagreement is named on the card, not discovered after opening the drawer.
+    expect(screen.getByText(/differs between broker-1 and broker-2/)).toBeInTheDocument();
+    // The reason auto-adoption is refused is on the screen, keyboard-reachable.
+    expect(screen.getByRole('button', { name: /Why does Studio not do this for me/ })).toBeInTheDocument();
+    // Previewing is a read. Nothing was saved by rendering the suggestion.
+    expect(saved).not.toHaveBeenCalled();
+  });
+
+  it('reads the drift evaluation as an age against the configured cadence', async () => {
+    const fourMinutesAgo = new Date(Date.now() - 4 * 60_000).toISOString();
+    server.use(
+      ...baseHandlers(
+        declaration({
+          driftIntervalSeconds: 300,
+          nodes: [{ ...NODE_A, evaluatedAt: fourMinutesAgo }, { ...NODE_B, evaluatedAt: fourMinutesAgo }],
+        }),
+      ),
+    );
+    search.tab = 'drift';
+    renderWithProviders(<ConfigurationView />);
+
+    // An age, not a wall-clock stamp: four minutes back, against a five-minute pass.
+    expect(await screen.findByText(/Last evaluated 4m ago/)).toBeInTheDocument();
+    expect(screen.getByText(/evaluated about every 5m/)).toBeInTheDocument();
+    delete search.tab;
+  });
 });

@@ -193,6 +193,16 @@ export function applyModeWords(mode: ConfigDeclarationView['applyMode']): string
   return mode === 'CONFIG_MANAGED' ? 'Managed outside Studio' : 'Managed by Studio';
 }
 
+/**
+ * Why adoption is never automatic. Shown wherever adoption is offered, because an
+ * operator who is told drift is advisory will reasonably ask why the product does
+ * not close it, and the answer is a decision (ADR-0067 D8), not an omission.
+ */
+export const WHY_NOT_AUTOMATIC =
+  'Studio will not adopt on its own. An adoption declares that whatever the brokers happen to be running right ' +
+  'now is intended — including a setting someone changed by hand an hour ago and has not finished thinking ' +
+  'about. Only an operator can say that, so drift stays advisory until one does (ADR-0067 D8).';
+
 export const CONFIG_MANAGED_REASON =
   "This cluster's broker.xml is owned by configuration management; applying here would drift from it. " +
   'Copy the broker.xml fragment instead, or change the mode in the declaration header if that is wrong.';

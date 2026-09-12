@@ -43,6 +43,7 @@ export function declaration(over: Partial<ConfigDeclarationView> = {}): ConfigDe
     source: 'EDIT',
     note: null,
     nodes: [NODE_A, NODE_B],
+    driftIntervalSeconds: 300,
     ...over,
   };
 }

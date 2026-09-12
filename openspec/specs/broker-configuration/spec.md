@@ -71,6 +71,16 @@ pattern they know.
 - **WHEN** two live nodes report different values for one key of one match
 - **THEN** the adopted declaration names both nodes and both values for that key instead of choosing one
 
+A cluster with live nodes and no declaration SHALL be offered an adoption, quantified
+before it is opened: how many entries per section it would declare and which nodes
+disagree. The offer SHALL state why the system does not adopt on its own, and SHALL NOT
+save a revision as a consequence of being shown.
+
+#### Scenario: The first run is offered an adoption it did not perform
+
+- **WHEN** an operator opens the configuration of a cluster with live nodes and no declaration
+- **THEN** the counts per section and any node disagreements are shown with the reason adoption is not automatic, and no revision exists until the operator confirms one
+
 ### Requirement: XML is an interchange format for the declaration
 
 The system SHALL parse a pasted `broker.xml` or `<core>` fragment into the declaration's
@@ -283,6 +293,18 @@ scheduled, rule-triggered or otherwise automatic reconciliation.
 
 A matching cluster SHALL be presented as a resolved state — every live node matching the
 named revision, with when it was evaluated — never as an empty table.
+
+When it was evaluated SHALL be presented as an age against the cluster's configured
+interval, with the absolute instant available without hover, so that a reading is
+interpretable without arithmetic: an age alone cannot distinguish a fresh pass from a
+stopped scheduler. Each node SHALL carry its own state and its own age. The view SHALL
+refresh from the evaluation stream as passes complete, and SHALL poll no slower than the
+configured interval when that stream is unavailable.
+
+#### Scenario: An age is readable against its cadence
+
+- **WHEN** a cluster evaluated four minutes ago is viewed with a five-minute interval configured
+- **THEN** the view reads "last evaluated 4m ago" beside the cadence it is evaluated on, and the absolute instant is reachable from the keyboard
 
 #### Scenario: A uniformly wrong cluster is caught
 
