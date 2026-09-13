@@ -8,7 +8,7 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeV
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -70,7 +70,7 @@ public class RoutingService {
     private final DivertOperations divertOps;
     private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
-    private final AuditEventRepository auditEvents;
+    private final AuditService audit;
 
     @Transactional(readOnly = true)
     public PagedView<DivertView> diverts(UUID clusterId, ResourceQuery query) {
@@ -263,8 +263,7 @@ public class RoutingService {
      */
     private Set<String> operatorOwnedDivertNames(UUID clusterId) {
         Set<String> owned = new LinkedHashSet<>();
-        List<AuditEventEntity> events =
-                auditEvents.findByClusterIdAndTargetTypeAndDryRunFalseOrderByTsAsc(clusterId, "DIVERT");
+        List<AuditEventEntity> events = audit.history(clusterId, "DIVERT");
         for (AuditEventEntity event : events) {
             if (event.getTargetName() == null) {
                 continue;

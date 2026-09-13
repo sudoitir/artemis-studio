@@ -1,8 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome;
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeOutcome;
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
@@ -10,22 +7,22 @@ import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -72,9 +69,9 @@ public class ConnectionControlService {
     private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
-    private final SettingsService settings;
     private final SseHub sseHub;
     private final ClusterAccessGuard clusterAccess;
+    private final BrokerCommands commands;
 
     /**
      * One close's result: what was found immediately before it, and what each node
@@ -231,114 +228,28 @@ public class ConnectionControlService {
         ConnectionCloseKind kind = ConnectionCloseKind.ADDRESS_CONSUMERS;
         clusterAccess.requireCluster(clusterId, kind.permission());
         String subject = requireId(kind, address);
-        List<Target> targets = liveTargets(clusterId);
-        long cap = settings.intValue(BrokerSettings.BULK_CAP);
-
-        AuditEventEntity event = audit.begin(
-                actorResolver.resolve(),
-                kind.auditName(),
-                kind.targetType(),
-                subject,
-                clusterId,
-                null,
-                Map.of("address", subject),
-                dryRun);
-
-        // Estimated across every live node before anything is closed, so the cap sees
-        // the whole blast radius and a preview reports a real per-node number.
-        Map<UUID, Long> estimates = new LinkedHashMap<>();
-        for (Target t : targets) {
-            if (!t.live()) {
-                continue;
-            }
-            try {
-                estimates.put(t.node().getId(), ops.countConsumersForAddress(clientFor(clusterId, t.node()), subject));
-            } catch (BrokerConnectionException e) {
-                estimates.put(t.node().getId(), null);
-            }
-        }
-        long total = estimates.values().stream()
-                .filter(Objects::nonNull)
-                .mapToLong(Long::longValue)
-                .sum();
-
-        // A node that could not be counted makes the total a floor, not a figure.
-        // Summing only the nodes that answered would let the cap pass on a number
-        // known to be incomplete — in exactly the situation where the operator most
-        // needs to be stopped. An unknown estimate therefore takes the same explicit
-        // override an over-cap one does.
-        boolean incomplete = estimates.containsValue(null);
-        boolean overCap = total > cap || incomplete;
-
-        List<NodeOutcome> outcomes = new ArrayList<>();
-        if (dryRun) {
-            for (Target t : targets) {
-                outcomes.add(
-                        t.live()
-                                ? new NodeOutcome(
-                                        t.node().getId(),
-                                        t.node().getName(),
-                                        NodeStatus.WOULD_APPLY,
-                                        estimates.get(t.node().getId()),
-                                        // Stated, never omitted: an absent count reads as
-                                        // zero, which is the wrong thing to infer here.
-                                        estimates.get(t.node().getId()) == null
-                                                ? "This node did not answer, so its consumer count is unknown."
-                                                : null)
-                                : NodeOutcome.skipped(t.node().getId(), t.node().getName()));
-            }
-            LifecycleOutcome outcome = new LifecycleOutcome(true, cap, overCap, outcomes);
-            audit.finish(event, false, total, null, new CloseDetail(null, outcomes));
-            return new Attempt.Ok<>(new CloseResult(kind, subject, null, outcome));
-        }
-
-        if (overCap && !override) {
-            String reason = incomplete
-                    ? "At least one node did not report its consumer count, so the blast radius is not known (" + total
-                            + " counted, cap " + cap + ")."
-                    : "Over the safety cap (" + total + " > " + cap + ").";
-            audit.finish(event, true, total, reason, new CloseDetail(null, outcomes));
-            throw new BulkCapExceededException(total, cap);
-        }
-
-        for (Target t : targets) {
-            if (!t.live()) {
-                outcomes.add(NodeOutcome.skipped(t.node().getId(), t.node().getName()));
-                continue;
-            }
-            UUID id = t.node().getId();
-            String name = t.node().getName();
-            try {
-                JolokiaBrokerClient client = clientFor(clusterId, t.node());
-                boolean closed =
-                        ops.closeConsumerConnectionsForAddress(client, client.resolveBrokerObjectName(), subject);
-                outcomes.add(new NodeOutcome(
-                        id,
-                        name,
-                        closed ? NodeStatus.APPLIED : NodeStatus.ALREADY,
-                        closed ? estimates.get(id) : 0L,
-                        null));
-            } catch (BrokerConnectionException e) {
-                // One node's failure does not abort the fan-out, and nothing is rolled
-                // back: a connection that has been closed cannot be reopened by Studio.
-                outcomes.add(NodeOutcome.failed(id, name, e.getMessage()));
-            }
-        }
-
-        LifecycleOutcome outcome = new LifecycleOutcome(false, cap, overCap, outcomes);
-        audit.finish(
-                event,
-                outcome.anyFailed(),
-                outcome.totalAffected(),
-                failureSummary(outcomes),
-                new CloseDetail(null, outcomes));
-        publishAfterCommit(clusterId);
+        LifecycleOutcome outcome = commands.run(Command.builder()
+                .clusterId(clusterId)
+                .permission(kind.permission())
+                .auditAction(kind.auditName())
+                .targetType(kind.targetType())
+                .targetName(subject)
+                .params(Map.of("address", subject))
+                .dryRun(dryRun)
+                .override(override)
+                .action((client, broker) -> ops.closeConsumerConnectionsForAddress(client, broker, subject)
+                        ? NodeStatus.APPLIED
+                        : NodeStatus.ALREADY)
+                // Each consumer it closes returns its in-flight messages to a queue, and a
+                // node that could not be counted leaves the blast radius unknown.
+                .estimate(new Estimate("consumer count", true, client -> ops.countConsumersForAddress(client, subject)))
+                .auditDetail(nodes -> new CloseDetail(null, nodes))
+                .signal(() -> publishTopics(clusterId))
+                .build());
         return new Attempt.Ok<>(new CloseResult(kind, subject, null, outcome));
     }
 
     // ---- plumbing --------------------------------------------------------
-
-    private record Target(BrokerNodeEntity node, boolean live) {}
 
     /**
      * A node-scoped close's outcome, in the same per-node shape a cluster-wide one
@@ -366,46 +277,6 @@ public class ConnectionControlService {
                 .orElseThrow(() -> new NotFoundException("node", nodeId));
     }
 
-    /**
-     * One target per logical node, live state from the polled {@code Active}
-     * attribute rather than configuration (non-negotiable #4) — the same rule the
-     * lifecycle fan-out follows.
-     */
-    private List<Target> liveTargets(UUID clusterId) {
-        Map<String, List<BrokerNodeEntity>> logical = new LinkedHashMap<>();
-        for (BrokerNodeEntity node : brokerNodes.findByClusterIdOrderByNameAsc(clusterId)) {
-            if (node.getJolokiaUrl() == null) {
-                continue;
-            }
-            String key = node.getArtemisNodeId() != null ? node.getArtemisNodeId() : "id:" + node.getId();
-            logical.computeIfAbsent(key, k -> new ArrayList<>()).add(node);
-        }
-        List<Target> targets = new ArrayList<>();
-        for (List<BrokerNodeEntity> group : logical.values()) {
-            group.stream()
-                    .filter(n -> Boolean.TRUE.equals(n.getActive()))
-                    .findFirst()
-                    .ifPresentOrElse(
-                            live -> targets.add(new Target(live, true)),
-                            () -> targets.add(new Target(group.get(0), false)));
-        }
-        if (targets.isEmpty()) {
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE,
-                    "This cluster has no node with a management URL, so nothing can be closed on it.");
-        }
-        return targets;
-    }
-
-    private static String failureSummary(List<NodeOutcome> outcomes) {
-        List<String> failed = outcomes.stream()
-                .filter(n -> n.status() == NodeStatus.FAILED)
-                .map(n -> n.nodeName() + ": " + n.error())
-                .sorted(Comparator.naturalOrder())
-                .toList();
-        return failed.isEmpty() ? null : String.join(" | ", failed);
-    }
-
     private JolokiaBrokerClient clientFor(UUID clusterId, BrokerNodeEntity node) {
         try {
             limiter.acquire(node.getId());
@@ -417,17 +288,19 @@ public class ConnectionControlService {
         return connections.forCluster(clusterId, node.getJolokiaUrl());
     }
 
+    private void publishTopics(UUID clusterId) {
+        sseHub.publish(clusterId, "connections");
+        sseHub.publish(clusterId, "sessions");
+        sseHub.publish(clusterId, "consumers");
+    }
+
     /**
      * A close changes the connection, session and consumer views at once, so all
      * three topics are nudged — a view left showing a connection that is gone is
      * exactly the staleness this feature exists to act on.
      */
     private void publishAfterCommit(UUID clusterId) {
-        Runnable publish = () -> {
-            sseHub.publish(clusterId, "connections");
-            sseHub.publish(clusterId, "sessions");
-            sseHub.publish(clusterId, "consumers");
-        };
+        Runnable publish = () -> publishTopics(clusterId);
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

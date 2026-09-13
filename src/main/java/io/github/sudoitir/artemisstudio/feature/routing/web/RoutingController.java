@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.routing.web;
 
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleViews.LifecycleOutcomeView;
@@ -13,6 +12,7 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertV
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerXmlSnippets;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

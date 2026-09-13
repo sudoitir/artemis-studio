@@ -2,8 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.queues.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome;
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeStatus;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.UUID;

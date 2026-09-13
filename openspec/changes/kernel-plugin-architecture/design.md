@@ -61,8 +61,8 @@ Module detection for the nested `kernel/`, `platform/` and `feature/` packages u
   - `kernel.security` (principal, grants, `@perm`, `ClusterAccessGuard`, actor, `SecretVault`, filter-chain assembly, users/roles/group mappings, identity SPI, `ScopeHierarchy` SPI);
   - `kernel.audit`, `kernel.settings`, `kernel.jobs`, `kernel.stream`.
 - **Platform**:
-  - `platform.broker` (Jolokia, Core pool, rate limiter, message transport, notification subscriptions, capability probe, clock skew, `BrokerCommands`);
-  - `platform.clusters` (registration, nodes, credentials, TLS, environments, discovery, HA, split-brain, serving nodes, capability ledger);
+  - `platform.broker` (Jolokia, Core pool, rate limiter, message transport, notification subscriptions, capability probe, clock skew);
+  - `platform.clusters` (registration, nodes, credentials, TLS, environments, discovery, HA, split-brain, serving nodes, capability ledger, `BrokerCommands`);
   - `platform.scrape` (tiered scraper, `queue_snapshot`, `metric_sample`);
   - `platform.mcp` (server, catalogue, help, resources, prompts). This is the only optional platform module.
 - **Features:** `queues`, `resources` (live views and connection control), `messages` (with DLQ), `routing`, `metrics`, `alerting` (with notification channels), `events`, `rr`, `sql` (console, message index, capture), `brokerconfig` (with config diff), `triage` (the cross-feature MCP `diagnose` and `activity_log` tools).
@@ -135,7 +135,7 @@ The remaining allowed feature → feature edges (backend `api`, frontend `index.
 Enforced by ArchUnit and Modulith:
 - Features may use only `@PreAuthorize` from Spring Security. Identity-provider modules may use what their SPI needs, and only redirect providers see `HttpSecurity`.
 - `@Entity`, repositories, `JdbcTemplate` and `EntityManager` are used only inside the owning module's `internal.persistence`.
-- Jolokia and Core client types stay internal to `platform.broker`. `NodeWriter` has a package-private constructor, so broker writes are reachable only inside `BrokerCommands`.
+- Jolokia and Core client types stay internal to `platform.broker`. Cluster-wide broker writes go through `BrokerCommands` (D8).
 - `SseEmitter` appears only in `kernel.stream` and in a module's own per-request stream controller (today only the SQL tail). A kernel wrapper for one consumer is not worth its indirection.
 - `@Scheduled`, `TaskScheduler` and `SchedulingConfigurer` appear only in `kernel.jobs` and `platform.scrape`.
 - No `ApplicationContext` or `BeanFactory` injection and no `@Enable*` in features.
@@ -169,19 +169,20 @@ No kernel, feature or frontend change is needed.
 
 ### D8. Broker writes through `BrokerCommands`
 
-`BrokerCommands.run(Command)` in `platform.broker::api` executes one fixed sequence:
+`BrokerCommands.run(Command)` in `platform.clusters` — beside the serving topology and capability ledger it needs — executes one fixed sequence for every cluster-wide broker write:
 1. `requireCluster`;
-2. `audit.begin` in the caller's transaction, before any broker call;
-3. per-node estimate;
-4. dry run → `WOULD_APPLY`;
-5. cap check (audited 422 refusal);
-6. rate-limited fan-out through `NodeWriter`;
-7. `audit.finish` with per-node detail;
-8. topic signal.
+2. one target per logical node, liveness polled;
+3. `audit.begin` in the caller's transaction, before any broker call;
+4. per-node estimate;
+5. dry run → `WOULD_APPLY`, stating any estimate that could not be made;
+6. cap check (audited 422 refusal);
+7. rate-limited fan-out, a node's failure being its outcome;
+8. `audit.finish` with per-node detail;
+9. topic signal after commit.
 
-It returns `SUCCEEDED | PARTIAL | FAILED | WOULD_APPLY` with per-node outcomes. `noRollbackFor` lives on the executor.
+It returns the per-node `LifecycleOutcome`. `noRollbackFor` lives on the executor.
 
-`QueueLifecycleService`, `MessageService`, `ConnectionControlService`, the destructive parts of `ClusterService`, `BrokerConfigApplyService` (step cap and hazard acknowledgement as a `CapPolicy`), `RoutingService` and `CaptureTap` all migrate. Non-broker mutations keep calling `AuditService`. `AuditCoverageTest` asserts every public mutating service method in a feature goes through one of the two.
+Queue, address and divert lifecycle and the address-scoped consumer close run through it. Message operations and node-scoped closes (one named node), the configuration apply (canary, verify, halt, step cap, hazard acknowledgement) and capture's divert reconciliation keep their own sequences; each still writes its audit row before the broker call. `RoutingService` reads divert ownership through `AuditService.history`. Non-broker mutations keep calling `AuditService`. `AuditCoverageTest` asserts every public mutating service method in a feature goes through one of the two.
 
 - *Alternative:* AOP-based auditing, rejected because it hides ordering. The audit row must exist before the broker call, and it records per-node detail that an aspect cannot see.
 

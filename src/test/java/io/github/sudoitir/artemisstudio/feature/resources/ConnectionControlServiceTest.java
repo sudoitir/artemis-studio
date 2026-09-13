@@ -10,8 +10,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeOutcome;
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlService.CloseResult;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
@@ -28,6 +26,8 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;

@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.queues;
+package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import java.util.List;
 import java.util.UUID;

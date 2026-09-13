@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,15 @@ public class AuditService {
                 nodeId,
                 paramsJson,
                 dryRun));
+    }
+
+    /**
+     * Every non-preview row for one target type on a cluster, oldest first, so a module
+     * can fold them into "what does Studio still own" — the routing view's only record
+     * of the diverts Studio created, because the broker keeps none (ADR-0065 D2).
+     */
+    public List<AuditEventEntity> history(UUID clusterId, String targetType) {
+        return events.findByClusterIdAndTargetTypeAndDryRunFalseOrderByTsAsc(clusterId, targetType);
     }
 
     public void succeed(AuditEventEntity event, long affectedCount) {

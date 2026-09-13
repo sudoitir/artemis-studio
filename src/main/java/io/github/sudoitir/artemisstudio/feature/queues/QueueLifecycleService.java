@@ -1,45 +1,33 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeOutcome;
-import io.github.sudoitir.artemisstudio.feature.queues.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateAddressRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
-import io.github.sudoitir.artemisstudio.kernel.security.Actor;
-import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAction;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeEstimate;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -65,22 +53,12 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class QueueLifecycleService {
 
-    private final BrokerNodeRepository brokerNodes;
     private final QueueSnapshotRepository queueSnapshots;
-    private final BrokerConnections connections;
     private final QueueLifecycleOperations ops;
     private final DivertOperations divertOps;
-    private final NodeCallLimiter limiter;
-    private final AuditService audit;
-    private final ActorResolver actorResolver;
-    private final SettingsService settings;
     private final SseHub sseHub;
-    private final ClusterAccessGuard clusterAccess;
-    private final CapabilityLedger capabilities;
+    private final BrokerCommands commands;
     private final ObjectMapper mapper;
-
-    /** One node the command will be applied to, with the client already resolved. */
-    private record Target(BrokerNodeEntity node, boolean live) {}
 
     // ---- entry points ----------------------------------------------------
 
@@ -254,18 +232,6 @@ public class QueueLifecycleService {
 
     // ---- the fan-out -----------------------------------------------------
 
-    /** What one node's attempt does; returns the status it reached. */
-    @FunctionalInterface
-    private interface NodeAction {
-        NodeStatus apply(JolokiaBrokerClient client, String brokerMbean);
-    }
-
-    /** How many messages this command would destroy on a node, for the cap check (D6). */
-    @FunctionalInterface
-    private interface NodeEstimate {
-        long apply(JolokiaBrokerClient client);
-    }
-
     private Attempt<LifecycleOutcome> run(
             UUID clusterId,
             LifecycleKind kind,
@@ -286,149 +252,19 @@ public class QueueLifecycleService {
             boolean override,
             NodeAction action,
             NodeEstimate estimate) {
-
-        clusterAccess.requireCluster(clusterId, kind.permission());
-        List<Target> targets = resolveTargets(clusterId);
-        long cap = settings.intValue(BrokerSettings.BULK_CAP);
-
-        AuditEventEntity event =
-                audit.begin(actor(), kind.auditName(), kind.targetType(), targetName, clusterId, null, params, dryRun);
-
-        List<NodeOutcome> outcomes = new ArrayList<>();
-        long total = 0;
-
-        // A destructive command is estimated across every live node first, so the cap
-        // is checked against the whole blast radius rather than one node at a time
-        // (D6) — and so a dry run reports a real number per node.
-        Map<UUID, Long> estimates = new LinkedHashMap<>();
-        if (estimate != null) {
-            for (Target t : targets) {
-                if (!t.live()) {
-                    continue;
-                }
-                try {
-                    estimates.put(t.node().getId(), estimate.apply(clientFor(clusterId, t.node())));
-                } catch (ManagementRefusal e) {
-                    // Nothing to destroy here — an absent queue counts as zero, and the
-                    // action below reports the node as ALREADY.
-                    estimates.put(t.node().getId(), 0L);
-                } catch (BrokerConnectionException e) {
-                    estimates.put(t.node().getId(), null);
-                }
-            }
-            total = estimates.values().stream()
-                    .filter(Objects::nonNull)
-                    .mapToLong(Long::longValue)
-                    .sum();
-        }
-        boolean overCap = estimate != null && total > cap;
-
-        if (dryRun) {
-            for (Target t : targets) {
-                outcomes.add(
-                        t.live()
-                                ? new NodeOutcome(
-                                        t.node().getId(),
-                                        t.node().getName(),
-                                        NodeStatus.WOULD_APPLY,
-                                        estimates.get(t.node().getId()),
-                                        null)
-                                : NodeOutcome.skipped(t.node().getId(), t.node().getName()));
-            }
-            LifecycleOutcome outcome = new LifecycleOutcome(true, cap, overCap, outcomes);
-            audit.finish(event, false, total, null, outcomes);
-            return new Attempt.Ok<>(outcome);
-        }
-
-        if (overCap && !override) {
-            String reason = "Over the safety cap (" + total + " > " + cap + ").";
-            audit.finish(event, true, total, reason, outcomes);
-            throw new BulkCapExceededException(total, cap);
-        }
-
-        for (Target t : targets) {
-            if (!t.live()) {
-                outcomes.add(NodeOutcome.skipped(t.node().getId(), t.node().getName()));
-                continue;
-            }
-            outcomes.add(
-                    applyTo(clusterId, t, kind, action, estimates.get(t.node().getId())));
-        }
-
-        LifecycleOutcome outcome = new LifecycleOutcome(false, cap, overCap, outcomes);
-        long affected = outcome.totalAffected();
-        audit.finish(event, outcome.anyFailed(), affected, failureSummary(outcomes), outcomes);
-        publishQueuesAfterCommit(clusterId);
-        return new Attempt.Ok<>(outcome);
-    }
-
-    /**
-     * One node's attempt. Every failure mode is caught and turned into a node
-     * outcome rather than aborting the fan-out: the nodes that succeeded are not
-     * reverted, and the divergence is what gets reported (D3).
-     */
-    private NodeOutcome applyTo(UUID clusterId, Target t, LifecycleKind kind, NodeAction action, Long estimated) {
-        UUID nodeId = t.node().getId();
-        String nodeName = t.node().getName();
-        try {
-            JolokiaBrokerClient client = clientFor(clusterId, t.node());
-            NodeStatus status = action.apply(client, client.resolveBrokerObjectName());
-            capabilities.recordWriteSucceeded(clusterId);
-            return new NodeOutcome(nodeId, nodeName, status, status == NodeStatus.APPLIED ? estimated : null, null);
-        } catch (ManagementRefusal e) {
-            if (e.kind() == ManagementRefusal.Kind.ALREADY) {
-                // The node is already in the requested state. The broker answered, so
-                // this is still evidence the connection can write.
-                capabilities.recordWriteSucceeded(clusterId);
-                return new NodeOutcome(nodeId, nodeName, NodeStatus.ALREADY, null, null);
-            }
-            // An argument refusal says the request is wrong, not that the connection
-            // cannot write — it must never disable the capability (D5).
-            return NodeOutcome.failed(nodeId, nodeName, e.getMessage());
-        } catch (BrokerConnectionException e) {
-            if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
-                capabilities.recordWriteRefused(clusterId, e.getMessage());
-            }
-            return NodeOutcome.failed(nodeId, nodeName, e.getMessage());
-        }
-    }
-
-    /**
-     * The nodes a command targets, one per <em>logical</em> node.
-     *
-     * <p>A primary and its synced backup share an Artemis NodeID and are one logical
-     * node; only one of them is live at a time, and the backup does not accept
-     * management writes. Targeting the pair twice would report a healthy backup as a
-     * skipped node on every command. Liveness comes from the polled {@code Active}
-     * attribute, never from configuration (non-negotiable #4).
-     */
-    private List<Target> resolveTargets(UUID clusterId) {
-        Map<String, List<BrokerNodeEntity>> logical = new LinkedHashMap<>();
-        for (BrokerNodeEntity node : brokerNodes.findByClusterIdOrderByNameAsc(clusterId)) {
-            if (node.getJolokiaUrl() == null) {
-                continue;
-            }
-            logical.computeIfAbsent(logicalKey(node), k -> new ArrayList<>()).add(node);
-        }
-        List<Target> targets = new ArrayList<>();
-        for (List<BrokerNodeEntity> group : logical.values()) {
-            group.stream()
-                    .filter(n -> Boolean.TRUE.equals(n.getActive()))
-                    .findFirst()
-                    .ifPresentOrElse(
-                            live -> targets.add(new Target(live, true)),
-                            () -> targets.add(new Target(group.get(0), false)));
-        }
-        if (targets.isEmpty()) {
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE,
-                    "This cluster has no node with a management URL, so nothing can be applied to it.");
-        }
-        return targets;
-    }
-
-    private static String logicalKey(BrokerNodeEntity n) {
-        return n.getArtemisNodeId() != null ? n.getArtemisNodeId() : "id:" + n.getId();
+        return new Attempt.Ok<>(commands.run(Command.builder()
+                .clusterId(clusterId)
+                .permission(kind.permission())
+                .auditAction(kind.auditName())
+                .targetType(kind.targetType())
+                .targetName(targetName)
+                .params(params)
+                .dryRun(dryRun)
+                .override(override)
+                .action(action)
+                .estimate(estimate == null ? null : new Estimate("message count", false, estimate))
+                .signal(() -> sseHub.publish(clusterId, "queues"))
+                .build()));
     }
 
     // ---- queue resolution ------------------------------------------------
@@ -587,48 +423,5 @@ public class QueueLifecycleService {
     private static String text(JsonNode node, String key) {
         JsonNode v = node.get(key);
         return v == null || v.isNull() ? "unset" : v.asString();
-    }
-
-    // ---- plumbing --------------------------------------------------------
-
-    private static String failureSummary(List<NodeOutcome> outcomes) {
-        List<String> failed = outcomes.stream()
-                .filter(n -> n.status() == NodeStatus.FAILED)
-                .map(n -> n.nodeName() + ": " + n.error())
-                .sorted(Comparator.naturalOrder())
-                .toList();
-        return failed.isEmpty() ? null : String.join(" | ", failed);
-    }
-
-    private JolokiaBrokerClient clientFor(UUID clusterId, BrokerNodeEntity node) {
-        acquire(node.getId());
-        return connections.forCluster(clusterId, node.getJolokiaUrl());
-    }
-
-    private void acquire(UUID nodeId) {
-        try {
-            limiter.acquire(nodeId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
-    }
-
-    private Actor actor() {
-        return actorResolver.resolve();
-    }
-
-    private void publishQueuesAfterCommit(UUID clusterId) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    sseHub.publish(clusterId, "queues");
-                }
-            });
-        } else {
-            sseHub.publish(clusterId, "queues");
-        }
     }
 }
