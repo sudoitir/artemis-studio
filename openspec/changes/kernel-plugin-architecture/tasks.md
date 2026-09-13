@@ -130,7 +130,7 @@ Each task below does the same four things:
 - [ ] 9.5 Create `kernel/routing/roots.ts` (`rootRoute`, `clusterRoute`, `adminRoute`) and `app/router.ts`, which composes feature routes and declares `Register`. Move search validators into their feature.
 - [x] 9.6 Create `kernel/shell/FeatureDisabled`: states the feature is disabled, names the property (from the manifest's `enabledProperty`), links back to the cluster. `FeatureGate` renders it in place of each cluster view whose feature is disabled.
 - [ ] 9.7 Split `api/client.ts` into `kernel/api` (request, `ApiError`, polling, key roots, generated schema) and per-feature `api.ts`. Remove the kernel's back-edges to `app/useDismissedNotice` and `app/time`.
-- [ ] 9.8 Replace the `stream.ts` topic if/else chain with a registry of feature-contributed topic handlers.
+- [x] 9.8 Replace the `stream.ts` topic if/else chain with a registry of feature-contributed topic handlers. The apply-progress store moves to `brokerconfig`; a view that keeps frames itself (the live events feed) takes them through `onFrame`.
 - [ ] 9.9 Move `ConfirmByTyping`, `NodeOutcomeSummary`, `CapabilityGate`, `VirtualTable` and `Pager` into `web/src/ui/`.
 - [ ] 9.10 Rebuild `RootLayout`, `ClusterLayout`, `HomeView`, `AdminView`, `AccountView`, `SettingsView`, `UserMenu` and `CommandPalette` as kernel shells that render contributions and slots.
 - [x] 9.11 Build `LoginView` from `/auth/providers`: a credential form, a provider choice when there is more than one credential provider, and one action per redirect provider.

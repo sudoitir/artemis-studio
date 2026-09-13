@@ -1,36 +1,16 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { offerPing } from '../app/time.ts';
-import { keys, type BrokerEventView } from './client.ts';
+import type { TopicHandler } from '../kernel/feature.ts';
+import { useFeatures } from '../kernel/features.ts';
 import { isPollingPaused, markPendingChange } from './polling.ts';
-
-export type Topic =
-  | 'topology'
-  | 'health'
-  | 'queues'
-  | 'events'
-  | 'consumers'
-  | 'sessions'
-  | 'connections'
-  | 'rr'
-  | 'alerts'
-  | 'config';
 
 /** What the UI reports about the live connection (ADR-0052). */
 export type StreamStatus = 'connecting' | 'live' | 'reconnecting' | 'offline';
 
-export const DEFAULT_TOPICS: Topic[] = ['topology', 'health', 'queues'];
-
-/** Signal topics invalidate a query key; `events` carries data and has no key. */
-const SIGNAL_TOPICS: Topic[] = [
-  'topology',
-  'health',
-  'queues',
-  'consumers',
-  'sessions',
-  'connections',
-];
+/** The topics the cluster layout keeps open; a view adds its own by mounting a stream. */
+export const DEFAULT_TOPICS = ['topology', 'health', 'queues'];
 
 /** The server's keep-alive (`SseHub.PING`). Not a topic — every subscriber gets it. */
 const PING = 'ping';
@@ -81,62 +61,6 @@ export function useStreamStatus(): StreamStatus | null {
   );
 }
 
-/** One node's position in a running apply, as the server last reported it. */
-export type ApplyProgress = {
-  applyId: number;
-  nodeId: string;
-  nodeName: string;
-  canary: boolean;
-  phase: 'APPLYING' | 'VERIFYING' | 'DONE' | 'HALTED' | 'UNREACHABLE';
-  done: number;
-  total: number;
-};
-
-/**
- * Apply progress as a store rather than a query.
- *
- * The frames arrive on the `config` topic while the apply's own POST is still in
- * flight, so there is no server-side resource to invalidate and nothing to
- * refetch — the response is the authoritative answer and lands when it lands.
- * Keyed by node, last frame wins; the apply screen clears it when it starts a
- * run so a previous apply's tail cannot be read as this one's progress.
- */
-let progress = new Map<string, ApplyProgress>();
-const progressListeners = new Set<() => void>();
-
-function publishProgress(frame: ApplyProgress) {
-  progress = new Map(progress).set(frame.nodeId, frame);
-  for (const l of progressListeners) l();
-}
-
-export function clearApplyProgress() {
-  if (progress.size === 0) return;
-  progress = new Map();
-  for (const l of progressListeners) l();
-}
-
-/**
- * Every node's latest frame, in the order the nodes were first heard from —
- * which is the order the apply walks them, canary first.
- *
- * Not filtered by apply id, because the caller cannot know the id until the POST
- * it is waiting on returns. Clearing at the start of a run is what scopes it, and
- * one apply per cluster at a time (ADR-0067 D12) is what makes that sound.
- */
-export function useApplyProgress(): ApplyProgress[] {
-  const all = useSyncExternalStore(
-    (listener) => {
-      progressListeners.add(listener);
-      return () => {
-        progressListeners.delete(listener);
-      };
-    },
-    () => progress,
-    () => progress,
-  );
-  return [...all.values()];
-}
-
 /** Capped exponential backoff with full jitter, so a restart is not stampeded. */
 function backoff(failures: number): number {
   const ceiling = Math.min(BACKOFF_CAP_MS, BACKOFF_FLOOR_MS * 2 ** (failures - 1));
@@ -160,12 +84,13 @@ function invalidate(qc: QueryClient, queryKey: readonly unknown[]) {
 /**
  * One `EventSource` per mounted cluster view (ADR-0003, ADR-0018, ADR-0027).
  *
- * - Signal topics are change signals, not data: each invalidates the matching
- *   TanStack Query key and the normal `queryFn` refetches.
- * - The `events` topic carries the full broker-event payload; there is no
- *   server-side resource behind a live feed, so it is handed to `onEvent`
- *   instead of invalidating. The browser echoes the last `id:` back as
- *   `Last-Event-ID` on reconnect, so missed events replay automatically.
+ * - Each topic's frames go to the handler its feature contributes (ADR-0070). A
+ *   signal topic's handler invalidates the matching TanStack Query keys and the
+ *   normal `queryFn` refetches; a topic of a disabled feature has no handler.
+ * - `onFrame` also hands the view every frame of the topics it mounted, for a topic
+ *   that carries data with no server-side resource behind it, such as the live
+ *   broker-event feed. The browser echoes the last `id:` back as `Last-Event-ID`
+ *   on reconnect, so missed events replay automatically.
  *
  * It reconnects indefinitely with capped exponential backoff and full jitter, and
  * treats silence as failure (ADR-0052): an intermediary that drops the connection
@@ -175,15 +100,23 @@ function invalidate(qc: QueryClient, queryKey: readonly unknown[]) {
  */
 export function useClusterStream(
   clusterId: string,
-  topics: Topic[] = DEFAULT_TOPICS,
-  onEvent?: (event: BrokerEventView) => void,
+  topics: string[] = DEFAULT_TOPICS,
+  onFrame?: (topic: string, data: string) => void,
 ): StreamStatus {
   const qc = useQueryClient();
   const topicKey = topics.join(',');
   const status = useStreamStatus();
 
+  // Read when a frame arrives rather than subscribed to: the feature list is rebuilt
+  // on every render, and re-subscribing on each would reconnect the stream.
+  const features = useFeatures();
+  const handlers = useRef<Record<string, TopicHandler>>({});
   useEffect(() => {
-    const wanted = topicKey.split(',') as Topic[];
+    handlers.current = Object.assign({}, ...features.map((feature) => feature.streamTopics ?? {}));
+  });
+
+  useEffect(() => {
+    const wanted = topicKey.split(',');
     publish('connecting');
     let failures = 0;
     let closed = false;
@@ -229,54 +162,12 @@ export function useClusterStream(
       });
 
       for (const topic of wanted) {
-        if (topic === 'events') {
-          source.addEventListener('events', (e) => {
-            heard();
-            try {
-              onEvent?.(JSON.parse((e as MessageEvent).data) as BrokerEventView);
-            } catch {
-              /* malformed frame — ignore */
-            }
-          });
-        } else if (topic === 'rr') {
-          source.addEventListener('rr', () => {
-            heard();
-            invalidate(qc, ['clusters', clusterId, 'rr']);
-          });
-        } else if (topic === 'alerts') {
-          source.addEventListener('alerts', () => {
-            heard();
-            invalidate(qc, ['clusters', clusterId, 'alerts']);
-            invalidate(qc, ['alerts', 'firing']);
-          });
-        } else if (topic === 'config') {
-          // A drift evaluation or an apply finished; the declaration view carries
-          // both, so one key covers the tabs.
-          source.addEventListener('config', (e) => {
-            heard();
-            // Two kinds share this topic. A progress frame is a running apply
-            // reporting where it has got to: it has no resource behind it, and
-            // invalidating on every step would refetch the declaration dozens of
-            // times during one apply. Anything else is the ordinary signal.
-            let frame: Partial<ApplyProgress> & { kind?: string } = {};
-            try {
-              frame = JSON.parse((e as MessageEvent).data);
-            } catch {
-              /* malformed frame — treat as a plain signal */
-            }
-            if (frame.kind === 'apply-progress' && frame.nodeId) {
-              publishProgress(frame as ApplyProgress);
-              return;
-            }
-            invalidate(qc, keys.brokerConfig(clusterId));
-          });
-        } else if (SIGNAL_TOPICS.includes(topic)) {
-          const signalTopic = topic as Exclude<Topic, 'events' | 'rr' | 'alerts' | 'config'>;
-          source.addEventListener(signalTopic, () => {
-            heard();
-            invalidate(qc, keys.topic(clusterId, signalTopic));
-          });
-        }
+        source.addEventListener(topic, (e) => {
+          heard();
+          const data = (e as MessageEvent).data as string;
+          handlers.current[topic]?.({ clusterId, data, invalidate: (queryKey) => invalidate(qc, queryKey) });
+          onFrame?.(topic, data);
+        });
       }
 
       source.onerror = () => {
@@ -294,7 +185,7 @@ export function useClusterStream(
       source?.close();
       publish(null);
     };
-  }, [clusterId, topicKey, qc, onEvent]);
+  }, [clusterId, topicKey, qc, onFrame]);
 
   return status ?? 'connecting';
 }

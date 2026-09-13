@@ -53,12 +53,23 @@ export interface NavContribution {
   Badge?: ComponentType<{ clusterId: string }>;
 }
 
+/** Handles one frame of a stream topic the feature owns (ADR-0070). */
+export type TopicHandler = (frame: {
+  clusterId: string;
+  /** The frame's payload, as the server sent it. */
+  data: string;
+  /** Invalidates a query key, or only marks it stale while refreshing is paused. */
+  invalidate: (queryKey: readonly unknown[]) => void;
+}) => void;
+
 /** What a frontend feature contributes to the shell (ADR-0070). */
 export interface StudioFeature {
   contract: typeof CONTRACT;
   id: FeatureId;
   nav?: NavContribution[];
   slots?: SlotContributions;
+  /** A handler per stream topic the feature's backend module declares. */
+  streamTopics?: Record<string, TopicHandler>;
 }
 
 export function defineFeature<T extends StudioFeature>(feature: T): T {

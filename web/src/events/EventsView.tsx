@@ -121,12 +121,21 @@ export function EventsView() {
   const [selected, setSelected] = useState<BrokerEventView | null>(null);
   const [live, setLive] = useState(true);
   const [buffer, setBuffer] = useState<BrokerEventView[]>([]);
-  const onEvent = useCallback((e: BrokerEventView) => {
+  // The events topic carries each event itself: there is no resource behind the
+  // live feed to refetch, so the frame goes straight into the buffer.
+  const onFrame = useCallback((topic: string, data: string) => {
+    if (topic !== 'events') return;
+    let e: BrokerEventView;
+    try {
+      e = JSON.parse(data) as BrokerEventView;
+    } catch {
+      return; // malformed frame — ignore
+    }
     setBuffer((prev) =>
       prev.some((x) => x.seq === e.seq) ? prev : [e, ...prev].slice(0, LIVE_BUFFER_MAX),
     );
   }, []);
-  useClusterStream(clusterId, live ? ['events'] : [], onEvent);
+  useClusterStream(clusterId, live ? ['events'] : [], onFrame);
 
   const setParam = (patch: Record<string, unknown>) =>
     navigate({

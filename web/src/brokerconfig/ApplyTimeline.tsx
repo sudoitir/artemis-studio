@@ -1,6 +1,6 @@
 import { Progress, Stack, Text } from '@mantine/core';
 
-import type { ApplyProgress } from '../api/stream.ts';
+import type { ApplyProgress } from './applyProgress.ts';
 import classes from './Configuration.module.css';
 
 const PHASE: Record<ApplyProgress['phase'], { text: string; tone?: 'warning' | 'danger' }> = {

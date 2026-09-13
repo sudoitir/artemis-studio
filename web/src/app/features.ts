@@ -20,13 +20,20 @@ import {
 } from '@tabler/icons-react';
 
 import { FiringBadge } from '../alerts/FiringBadge.tsx';
+import { keys } from '../api/client.ts';
+import { configTopic } from '../brokerconfig/applyProgress.ts';
 import { RegistrationRecommendations } from '../brokerconfig/RegistrationRecommendations.tsx';
-import { CONTRACT, defineFeature, type StudioFeature } from '../kernel/feature.ts';
+import { CONTRACT, defineFeature, type StudioFeature, type TopicHandler } from '../kernel/feature.ts';
 import { QueueHistoryPanels } from '../metrics/QueueHistoryPanels.tsx';
 import { LatencyCard } from '../rr/LatencyCard.tsx';
 
 const CLUSTER_READ = 'cluster:read';
 const MESSAGE_READ = 'message:read';
+
+/** A signal topic: the resource of the same name changed, so its queries refetch. */
+function signal(topic: 'topology' | 'health' | 'queues' | 'consumers' | 'sessions' | 'connections'): TopicHandler {
+  return ({ clusterId, invalidate }) => invalidate(keys.topic(clusterId, topic));
+}
 
 /**
  * The composition root (ADR-0069): the one list of frontend features. Each feature uses its
@@ -39,6 +46,7 @@ export const FEATURES: StudioFeature[] = [
     nav: [
       { group: 'observe', order: 10, label: 'Topology', icon: IconSitemap, path: 'topology', permission: CLUSTER_READ },
     ],
+    streamTopics: { topology: signal('topology'), health: signal('health') },
   }),
   defineFeature({
     contract: CONTRACT,
@@ -64,6 +72,12 @@ export const FEATURES: StudioFeature[] = [
         Badge: FiringBadge,
       },
     ],
+    streamTopics: {
+      alerts: ({ clusterId, invalidate }) => {
+        invalidate(['clusters', clusterId, 'alerts']);
+        invalidate(keys.firingCounts);
+      },
+    },
   }),
   defineFeature({
     contract: CONTRACT,
@@ -74,6 +88,9 @@ export const FEATURES: StudioFeature[] = [
     slots: {
       'metrics.panels': [{ id: 'rr-latency', order: 10, Component: LatencyCard }],
     },
+    streamTopics: {
+      rr: ({ clusterId, invalidate }) => invalidate(['clusters', clusterId, 'rr']),
+    },
   }),
   defineFeature({
     contract: CONTRACT,
@@ -81,6 +98,7 @@ export const FEATURES: StudioFeature[] = [
     nav: [
       { group: 'messaging', order: 10, label: 'Queues', icon: IconListDetails, path: 'queues', permission: CLUSTER_READ },
     ],
+    streamTopics: { queues: signal('queues') },
   }),
   defineFeature({
     contract: CONTRACT,
@@ -106,6 +124,11 @@ export const FEATURES: StudioFeature[] = [
       { group: 'resources', order: 40, label: 'Connections', icon: IconNetwork, path: 'connections', permission: CLUSTER_READ },
       { group: 'resources', order: 50, label: 'Producers', icon: IconSend, path: 'producers', permission: CLUSTER_READ },
     ],
+    streamTopics: {
+      consumers: signal('consumers'),
+      sessions: signal('sessions'),
+      connections: signal('connections'),
+    },
   }),
   defineFeature({
     contract: CONTRACT,
@@ -133,6 +156,7 @@ export const FEATURES: StudioFeature[] = [
         { id: 'brokerconfig-recommendations', order: 10, Component: RegistrationRecommendations },
       ],
     },
+    streamTopics: { config: configTopic },
   }),
   defineFeature({
     contract: CONTRACT,

@@ -1,14 +1,22 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FEATURES } from '../app/features.ts';
+import { clearApplyProgress, useApplyProgress } from '../brokerconfig/applyProgress.ts';
+import { FeatureProvider } from '../kernel/FeatureProvider.tsx';
 import { EventSourceStub } from '../test/setup.ts';
-import { clearApplyProgress, useApplyProgress, useClusterStream } from './stream.ts';
+import { useClusterStream } from './stream.ts';
 
-function wrapper({ children }: { children: ReactNode }) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+/** The stream routes each topic to the handler its feature contributes, so the features are provided. */
+function Wrapper({ children }: { children: ReactNode }) {
+  const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }));
+  return (
+    <QueryClientProvider client={qc}>
+      <FeatureProvider features={FEATURES}>{children}</FeatureProvider>
+    </QueryClientProvider>
+  );
 }
 
 /** Fail the newest stub the way an `EventSource` does: error, then closed. */
@@ -39,7 +47,7 @@ describe('useClusterStream', () => {
   it('keeps reconnecting past the failure count that used to make it give up', async () => {
     // It stopped at two consecutive failures and handed over to polling — which on
     // the screens that never poll meant handing over to nothing (ADR-0052).
-    const { result } = renderHook(() => useClusterStream('c1'), { wrapper });
+    const { result } = renderHook(() => useClusterStream('c1'), { wrapper: Wrapper });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -55,7 +63,7 @@ describe('useClusterStream', () => {
   });
 
   it('reports live again once the server comes back, with no reload', async () => {
-    const { result } = renderHook(() => useClusterStream('c1'), { wrapper });
+    const { result } = renderHook(() => useClusterStream('c1'), { wrapper: Wrapper });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -71,7 +79,7 @@ describe('useClusterStream', () => {
   it('reconnects when the stream falls silent, even with no error', async () => {
     // An intermediary that drops the connection without a clean close fires no
     // error at all. Missing the keep-alive is the only way to notice.
-    renderHook(() => useClusterStream('c1'), { wrapper });
+    renderHook(() => useClusterStream('c1'), { wrapper: Wrapper });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -86,7 +94,7 @@ describe('useClusterStream', () => {
   });
 
   it('a keep-alive frame counts as life, so a busy-but-quiet stream is left alone', async () => {
-    renderHook(() => useClusterStream('c1'), { wrapper });
+    renderHook(() => useClusterStream('c1'), { wrapper: Wrapper });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -109,7 +117,9 @@ describe('useClusterStream', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     const invalidate = vi.spyOn(qc, 'invalidateQueries');
     const withClient = ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <QueryClientProvider client={qc}>
+        <FeatureProvider features={FEATURES}>{children}</FeatureProvider>
+      </QueryClientProvider>
     );
     const { result } = renderHook(
       () => ({ stream: useClusterStream('c1', ['config']), progress: useApplyProgress() }),

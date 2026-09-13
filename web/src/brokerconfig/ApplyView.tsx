@@ -9,7 +9,7 @@ import {
   type ConfigApplyOutcomeView,
   type ConfigApplyRequest,
 } from '../api/client.ts';
-import { clearApplyProgress, useApplyProgress } from '../api/stream.ts';
+import { clearApplyProgress, useApplyProgress } from './applyProgress.ts';
 import { useCan } from '../auth/useCan.ts';
 import { CapabilityGate } from '../shared/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
