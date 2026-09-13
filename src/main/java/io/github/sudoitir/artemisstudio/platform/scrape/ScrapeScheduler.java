@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
@@ -55,7 +56,7 @@ import tools.jackson.databind.JsonNode;
 @DependsOn("settingsService")
 @RequiredArgsConstructor
 @Slf4j
-public class ScrapeScheduler implements SchedulingConfigurer {
+public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     /**
      * Registers the three tiers as trigger tasks whose {@code nextExecution}
@@ -69,6 +70,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
     @Override
     public void configureTasks(ScheduledTaskRegistrar registrar) {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        tierScheduler = scheduler;
         scheduler.setPoolSize(3);
         scheduler.setThreadNamePrefix("scrape-");
         scheduler.initialize();
@@ -106,9 +108,37 @@ public class ScrapeScheduler implements SchedulingConfigurer {
     private final ApplicationEventPublisher eventPublisher;
     private final JobStatuses jobStatuses;
 
+    /** The tiers' own pool, built when tasks are configured. */
+    private volatile ThreadPoolTaskScheduler tierScheduler;
+
     private record QueuesPage(List<QueueRow> rows, long count) {}
 
     // ---- tiers -------------------------------------------------------------
+
+    /** Pause the tiers. A tier already running finishes; the broker-call gate refuses what it starts. */
+    public void stopTiers() {
+        ThreadPoolTaskScheduler scheduler = tierScheduler;
+        if (scheduler != null) {
+            scheduler.stop();
+        }
+    }
+
+    /** Resume the tiers after a stopped context has been started. */
+    public void startTiers() {
+        ThreadPoolTaskScheduler scheduler = tierScheduler;
+        if (scheduler != null) {
+            scheduler.start();
+        }
+    }
+
+    /** The pool is not a bean, so nothing else ends its threads when the context closes. */
+    @Override
+    public void destroy() {
+        ThreadPoolTaskScheduler scheduler = tierScheduler;
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
+    }
 
     public void tierA() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {

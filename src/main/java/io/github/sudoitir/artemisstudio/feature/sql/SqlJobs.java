@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
+import io.github.sudoitir.artemisstudio.kernel.core.ShutdownStep;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
@@ -8,6 +10,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 class SqlJobs {
+
+    @Bean
+    ShutdownStep captureShutdown(CaptureConsumer consumer) {
+        return new ShutdownStep("capture", ShutdownPhases.SUBSCRIPTIONS, consumer::closeAll);
+    }
 
     /**
      * The tail cadence is a property rather than a setting: it is the interval at which

@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -169,8 +168,8 @@ public class CoreSubscriptionManager {
         }
     }
 
-    @PreDestroy
-    void shutdown() {
+    /** Close everything this holds open. Called at its shutdown phase. */
+    public void closeAll() {
         for (UUID nodeId : Set.copyOf(active.keySet())) {
             stop(nodeId);
         }

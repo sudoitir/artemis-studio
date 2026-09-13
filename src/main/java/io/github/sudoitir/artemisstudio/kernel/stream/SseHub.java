@@ -133,6 +133,18 @@ public class SseHub {
         }
     }
 
+    /** End every open stream and forget its subscribers. Clients reconnect to the next instance. */
+    public void closeAll() {
+        byCluster.forEach((clusterId, set) -> set.forEach(s -> {
+            try {
+                s.emitter().complete();
+            } catch (RuntimeException ignored) {
+                // already closed
+            }
+        }));
+        byCluster.clear();
+    }
+
     int subscriberCount(UUID clusterId) {
         Set<Subscriber> set = byCluster.get(clusterId);
         return set == null ? 0 : set.size();

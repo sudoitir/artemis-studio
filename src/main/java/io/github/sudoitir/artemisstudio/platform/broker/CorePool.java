@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import jakarta.annotation.PreDestroy;
 import jakarta.jms.Connection;
 import jakarta.jms.JMSException;
 import jakarta.jms.Session;
@@ -93,8 +92,8 @@ public class CorePool {
         }
     }
 
-    @PreDestroy
-    void shutdown() {
+    /** Close everything this holds open. Called at its shutdown phase. */
+    public void closeAll() {
         pools.values().forEach(JmsPoolConnectionFactory::stop);
         pools.clear();
         keysByCluster.clear();

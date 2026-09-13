@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
 import io.github.sudoitir.artemisstudio.platform.broker.CorePool.PooledSession;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreUrl;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
-import jakarta.annotation.PreDestroy;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.MessageConsumer;
@@ -146,8 +145,8 @@ public class CaptureConsumer {
         }
     }
 
-    @PreDestroy
-    void shutdown() {
+    /** Close everything this holds open. Called at its shutdown phase. */
+    public void closeAll() {
         running.values().forEach(Drain::close);
         running.clear();
     }

@@ -31,6 +31,7 @@ public class NodeCallLimiter {
     private final Map<UUID, Semaphore> perNode = new ConcurrentHashMap<>();
     private final Map<UUID, Duration> lastWait = new ConcurrentHashMap<>();
     private volatile int permitsPerSecond;
+    private volatile boolean closed;
 
     public NodeCallLimiter(RateLimitProperties properties) {
         this.permitsPerSecond = Math.max(1, properties.managementCallsPerSecond());
@@ -51,6 +52,11 @@ public class NodeCallLimiter {
      * drains within a tick and is topped back up each second.
      */
     public void acquire(UUID nodeId) throws InterruptedException {
+        if (closed) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.UNREACHABLE,
+                    "Studio is shutting down; no new broker call is started.");
+        }
         Semaphore sem = perNode.computeIfAbsent(nodeId, k -> new Semaphore(permitsPerSecond, true));
         long waitStarted = System.nanoTime();
         boolean acquired = sem.tryAcquire(1, 5, TimeUnit.SECONDS);
@@ -73,6 +79,16 @@ public class NodeCallLimiter {
                 sem.tryAcquire(-deficit);
             }
         });
+    }
+
+    /** Refuse every later call: Studio is shutting down (operational-health spec). */
+    public void close() {
+        closed = true;
+    }
+
+    /** Accept calls again after a stopped context has been started. */
+    public void open() {
+        closed = false;
     }
 
     /** How long the latest call to this node waited for a permit; zero before any. */
