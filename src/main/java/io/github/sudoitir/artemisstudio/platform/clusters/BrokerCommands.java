@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -122,7 +122,7 @@ public class BrokerCommands {
         List<Target> targets = targets(c.clusterId());
         long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 c.auditAction(),
                 c.targetType(),

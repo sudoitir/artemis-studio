@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.web;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditQueryService;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageView;
 import java.time.Instant;
 import java.util.UUID;

@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;

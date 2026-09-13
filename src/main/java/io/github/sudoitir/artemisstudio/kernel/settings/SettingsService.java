@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.settings;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
@@ -159,7 +159,7 @@ public class SettingsService {
         String value = unquote(rawValue);
         validate(spec, value);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_SETTING",
                 "SETTING",
@@ -182,7 +182,7 @@ public class SettingsService {
     public void reset(String key) {
         SettingDef spec = requireKnown(key);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "RESET_SETTING",
                 "SETTING",

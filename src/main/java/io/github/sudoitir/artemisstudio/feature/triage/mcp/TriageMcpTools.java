@@ -7,7 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.events.web.EventViews;
 import io.github.sudoitir.artemisstudio.feature.metrics.MetricQueryService;
 import io.github.sudoitir.artemisstudio.feature.resources.CrossNodeAggregator;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditQueryService;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;

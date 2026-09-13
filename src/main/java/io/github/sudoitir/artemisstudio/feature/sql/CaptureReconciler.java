@@ -4,8 +4,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -270,7 +270,7 @@ public class CaptureReconciler {
     }
 
     private void install(UUID clusterId, BrokerNodeEntity node, Desired desired) {
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 Actor.system(),
                 "INSTALL_CAPTURE",
                 "CAPTURE",
@@ -331,7 +331,7 @@ public class CaptureReconciler {
     }
 
     private void removeOrphan(UUID clusterId, BrokerNodeEntity node, JolokiaBrokerClient client, String name) {
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 Actor.system(), "REMOVE_CAPTURE", "CAPTURE", name, clusterId, node.getId(), Map.of(), false);
         try {
             consumers.stop(node.getId(), name);

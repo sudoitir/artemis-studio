@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.kernel.audit.internal;
+package io.github.sudoitir.artemisstudio.kernel.audit;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;

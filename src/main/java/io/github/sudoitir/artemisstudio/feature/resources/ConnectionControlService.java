@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -122,7 +122,7 @@ public class ConnectionControlService {
         String subject = requireId(kind, id);
         BrokerNodeEntity node = manageableNode(clusterId, nodeId);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 kind.auditName(),
                 kind.targetType(),

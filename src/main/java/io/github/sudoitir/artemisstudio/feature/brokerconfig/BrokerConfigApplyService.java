@@ -23,8 +23,8 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistenc
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemEntity;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -106,7 +106,7 @@ public class BrokerConfigApplyService {
                 actorResolver.resolve().displayName(),
                 p.plan.canaryNodeId(),
                 true));
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_APPLY,
                 "cluster",
@@ -265,7 +265,7 @@ public class BrokerConfigApplyService {
                 actorResolver.resolve().displayName(),
                 p.plan.canaryNodeId(),
                 false));
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_APPLY,
                 "cluster",
@@ -346,7 +346,7 @@ public class BrokerConfigApplyService {
                 actorResolver.resolve().displayName(),
                 p.plan.canaryNodeId(),
                 false));
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_APPLY,
                 "cluster",

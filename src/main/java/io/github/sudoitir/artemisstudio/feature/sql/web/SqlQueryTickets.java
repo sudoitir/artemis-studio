@@ -1,11 +1,13 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,11 +25,13 @@ import org.springframework.stereotype.Component;
  * store something whose whole value is that it is transient.
  */
 @Component
+@RequiredArgsConstructor
 public class SqlQueryTickets {
 
     /** Long enough for the browser to open the stream, short enough to be worthless if leaked. */
     private static final Duration TTL = Duration.ofMinutes(1);
 
+    private final ActorResolver actors;
     private final Map<UUID, Ticket> tickets = new ConcurrentHashMap<>();
 
     /**
@@ -54,12 +58,9 @@ public class SqlQueryTickets {
         return java.util.Objects.equals(ticket.owner(), owner) ? Optional.of(ticket) : Optional.empty();
     }
 
-    /** The authenticated name to bind a ticket to, or {@code "anonymous"} when there is none. */
-    public static String currentOwner() {
-        org.springframework.security.core.Authentication authentication =
-                org.springframework.security.core.context.SecurityContextHolder.getContext()
-                        .getAuthentication();
-        return authentication == null ? "anonymous" : authentication.getName();
+    /** The caller to bind a ticket to: the same name when it is issued and when it is redeemed. */
+    public String currentOwner() {
+        return actors.resolve().username();
     }
 
     private void expire() {

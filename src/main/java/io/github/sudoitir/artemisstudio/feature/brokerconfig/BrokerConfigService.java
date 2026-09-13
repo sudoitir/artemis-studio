@@ -12,8 +12,8 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistenc
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigRevisionEntity;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigRevisionRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -296,7 +296,7 @@ public class BrokerConfigService {
                     "Revision " + currentNumber + " was saved while you were editing revision " + expectedRevision
                             + ". Reload it and re-apply your edit.");
         }
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_EDIT,
                 "cluster",
@@ -339,7 +339,7 @@ public class BrokerConfigService {
                         .filter(s -> !s.isEmpty())
                         .distinct()
                         .toList();
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_CONFIGURE,
                 "cluster",

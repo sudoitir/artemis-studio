@@ -4,8 +4,8 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.No
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelView;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
@@ -56,7 +56,7 @@ public class NotificationChannelService {
             seal(channel, request.secret());
         }
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_NOTIFICATION_CHANNEL",
                 "NOTIFICATION_CHANNEL",
@@ -75,7 +75,7 @@ public class NotificationChannelService {
         validateKind(request.kind());
         NotificationChannelEntity channel = requireChannel(channelId);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_NOTIFICATION_CHANNEL",
                 "NOTIFICATION_CHANNEL",
@@ -101,7 +101,7 @@ public class NotificationChannelService {
     @Transactional
     public void delete(UUID channelId) {
         NotificationChannelEntity channel = requireChannel(channelId);
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_NOTIFICATION_CHANNEL",
                 "NOTIFICATION_CHANNEL",
@@ -119,7 +119,7 @@ public class NotificationChannelService {
     @Transactional
     public void test(UUID channelId) {
         NotificationChannelEntity channel = requireChannel(channelId);
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "TEST_NOTIFICATION_CHANNEL",
                 "NOTIFICATION_CHANNEL",

@@ -64,8 +64,7 @@ public class SqlController {
         clusterAccess.requireCluster(
                 clusterId, io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions.MESSAGE_READ);
         console.plan(clusterId, request.sql());
-        UUID id = tickets.issue(
-                clusterId, request.sql(), Boolean.TRUE.equals(request.tail()), SqlQueryTickets.currentOwner());
+        UUID id = tickets.issue(clusterId, request.sql(), Boolean.TRUE.equals(request.tail()), tickets.currentOwner());
         return new SqlQueryTicketView(
                 id, java.time.Instant.now().plusSeconds(60).toString());
     }

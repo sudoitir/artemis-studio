@@ -4,15 +4,16 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.A
 import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenGrantEntity;
 import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenGrantRepository;
 import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GrantLoader;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -25,7 +26,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +47,7 @@ public class ApiTokenService {
 
     private final ApiTokenRepository tokens;
     private final ApiTokenGrantRepository tokenGrants;
-    private final AppUserRepository users;
+    private final UserAccounts accounts;
     private final GrantLoader grantLoader;
     private final AuditService audit;
     private final ActorResolver actorResolver;
@@ -71,7 +71,7 @@ public class ApiTokenService {
                         entity.getId(), action, g.scopeType().name(), g.scopeId()));
             }
         }
-        io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, java.util.Map.of(), false);
         audit.succeed(event, 1);
         return new Minted(entity, plaintext);
@@ -89,7 +89,7 @@ public class ApiTokenService {
         }
         token.setRevokedAt(Instant.now());
         tokens.save(token);
-        io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "TOKEN_REVOKE",
                 "token",
@@ -122,11 +122,11 @@ public class ApiTokenService {
                 || !MessageDigest.isEqual(sha256(secret), token.getTokenHash())) {
             return null;
         }
-        var owner = users.findById(token.getUserId()).orElse(null);
-        if (owner == null || owner.isDisabled()) {
+        var owner = accounts.byId(token.getUserId()).orElse(null);
+        if (owner == null || owner.disabled()) {
             return null;
         }
-        Set<Grant> ownerGrants = grantLoader.loadFor(owner.getId());
+        Set<Grant> ownerGrants = grantLoader.loadFor(owner.id());
         Set<Grant> tokenGrantSet = new HashSet<>();
         for (ApiTokenGrantEntity g : tokenGrants.findByIdTokenId(token.getId())) {
             tokenGrantSet.add(
@@ -134,11 +134,13 @@ public class ApiTokenService {
         }
         Set<Grant> intersected = intersect(tokenGrantSet, ownerGrants);
         pendingLastUsed.put(token.getId(), Instant.now());
-        return new StudioPrincipal(owner.getId(), owner.getUsername(), intersected, false, token.getName());
+        return new StudioPrincipal(owner.id(), owner.username(), intersected, false, token.getName());
     }
 
-    /** At most one row-write per token per minute, however many requests it authenticates in that window. */
-    @Scheduled(fixedRate = 60_000)
+    /**
+     * At most one row-write per token per minute, however many requests it authenticates in that
+     * window. Driven by {@code ApiTokensJobs}.
+     */
     @Transactional
     public void flushLastUsed() {
         var snapshot = Map.copyOf(pendingLastUsed);

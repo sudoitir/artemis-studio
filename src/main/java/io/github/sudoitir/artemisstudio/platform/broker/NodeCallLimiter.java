@@ -7,7 +7,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -66,8 +65,7 @@ public class NodeCallLimiter {
         }
     }
 
-    /** Top every node's bucket back up to the current ceiling. Driven by its own tick. */
-    @Scheduled(fixedRate = 1000)
+    /** Top every node's bucket back up to the current ceiling. Driven every second by {@code BrokerJobs}. */
     public void refill() {
         int ceiling = permitsPerSecond;
         perNode.forEach((nodeId, sem) -> {

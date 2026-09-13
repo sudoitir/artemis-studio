@@ -46,8 +46,7 @@ class AuditCoverageTest {
             Map.entry("feature.rr.RrCorrelator", "records observed request-reply flows"),
             Map.entry("feature.rr.RrDeadlineSweep", "marks flows past their deadline"),
             Map.entry("feature.rr.RrFlowReaper", "trims request-reply flows past retention"),
-            Map.entry("feature.sql.CaptureLoss", "measures capture loss for the index view"),
-            Map.entry("feature.identitylocal.AdminBootstrap", "creates the first administrator at startup"));
+            Map.entry("feature.sql.CaptureLoss", "measures capture loss for the index view"));
 
     @Test
     void everyOperatorWriteInAFeatureIsAudited() {

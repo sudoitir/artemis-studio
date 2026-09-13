@@ -1,6 +1,5 @@
-package io.github.sudoitir.artemisstudio.kernel.security.internal;
+package io.github.sudoitir.artemisstudio.kernel.security;
 
-import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;

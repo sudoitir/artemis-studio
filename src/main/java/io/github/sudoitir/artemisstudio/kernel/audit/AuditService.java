@@ -17,8 +17,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>The caller runs inside a transaction, calls {@link #begin} <em>before</em>
  * the broker call, then {@link #succeed} or {@link #fail} — all in that one
  * transaction, so an action and its audit row commit or roll back together.
- * {@code begin} returns the managed entity; pass it back to record the outcome.
- * Until authentication lands (Phase 8) every actor is {@code 'system'}.
+ * {@code begin} returns the event; pass it back to record the outcome.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +27,7 @@ public class AuditService {
     private final ObjectMapper mapper;
     private final ScopeHierarchy clusters;
 
-    public AuditEventEntity begin(
+    public AuditEvent begin(
             Actor actor,
             String action,
             String targetType,
@@ -59,18 +58,20 @@ public class AuditService {
      * can fold them into "what does Studio still own" — the routing view's only record
      * of the diverts Studio created, because the broker keeps none (ADR-0065 D2).
      */
-    public List<AuditEventEntity> history(UUID clusterId, String targetType) {
-        return events.findByClusterIdAndTargetTypeAndDryRunFalseOrderByTsAsc(clusterId, targetType);
+    public List<AuditEvent> history(UUID clusterId, String targetType) {
+        return List.copyOf(events.findByClusterIdAndTargetTypeAndDryRunFalseOrderByTsAsc(clusterId, targetType));
     }
 
-    public void succeed(AuditEventEntity event, long affectedCount) {
-        event.markSuccess(affectedCount);
-        events.save(event);
+    public void succeed(AuditEvent event, long affectedCount) {
+        AuditEventEntity entity = entity(event);
+        entity.markSuccess(affectedCount);
+        events.save(entity);
     }
 
-    public void fail(AuditEventEntity event, String error) {
-        event.markFailure(error);
-        events.save(event);
+    public void fail(AuditEvent event, String error) {
+        AuditEventEntity entity = entity(event);
+        entity.markFailure(error);
+        events.save(entity);
     }
 
     /**
@@ -82,13 +83,19 @@ public class AuditService {
      * nodes applied — {@code detail} says which. Recording it as success because
      * most of it worked is the lie the audit log exists to prevent.
      */
-    public void finish(AuditEventEntity event, boolean anyFailed, long affectedCount, String error, Object detail) {
-        event.attachOutcomeDetail(detail == null ? null : mapper.writeValueAsString(detail));
+    public void finish(AuditEvent event, boolean anyFailed, long affectedCount, String error, Object detail) {
+        AuditEventEntity entity = entity(event);
+        entity.attachOutcomeDetail(detail == null ? null : mapper.writeValueAsString(detail));
         if (anyFailed) {
-            event.markFailure(error);
+            entity.markFailure(error);
         } else {
-            event.markSuccess(affectedCount);
+            entity.markSuccess(affectedCount);
         }
-        events.save(event);
+        events.save(entity);
+    }
+
+    /** Every {@link AuditEvent} is one this service began, so it is always the entity. */
+    private static AuditEventEntity entity(AuditEvent event) {
+        return (AuditEventEntity) event;
     }
 }

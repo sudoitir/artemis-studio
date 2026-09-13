@@ -2,8 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -69,7 +69,7 @@ public class SqlConsoleService {
             throw new TooManyQueriesException(properties.maxConcurrentQueries());
         }
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actor,
                 "sql.query",
                 "CLUSTER",

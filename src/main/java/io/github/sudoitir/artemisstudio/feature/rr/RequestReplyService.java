@@ -16,8 +16,8 @@ import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrDiagnosticsView
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrEventView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.TracingReasonView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.UpdateExpectationRequest;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -91,7 +91,7 @@ public class RequestReplyService {
                     "'" + request.requestAddress()
                             + "' is already traced on this cluster. Edit the existing expectation instead.");
         }
-        AuditEventEntity audited = audit.begin(
+        AuditEvent audited = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_RR_EXPECTATION",
                 "RR_EXPECTATION",
@@ -120,7 +120,7 @@ public class RequestReplyService {
                 .filter(e -> e.getClusterId().equals(clusterId))
                 .orElseThrow(() -> new NotFoundException("Request-reply expectation", expectationId));
 
-        AuditEventEntity audited = audit.begin(
+        AuditEvent audited = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_RR_EXPECTATION",
                 "RR_EXPECTATION",
@@ -149,7 +149,7 @@ public class RequestReplyService {
                 .filter(e -> e.getClusterId().equals(clusterId))
                 .orElseThrow(() -> new NotFoundException("Request-reply expectation", expectationId));
 
-        AuditEventEntity audited = audit.begin(
+        AuditEvent audited = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_RR_EXPECTATION",
                 "RR_EXPECTATION",

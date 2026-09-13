@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -27,7 +28,7 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class AuditEventEntity {
+public class AuditEventEntity implements AuditEvent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

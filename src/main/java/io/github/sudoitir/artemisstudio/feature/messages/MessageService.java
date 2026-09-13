@@ -5,8 +5,8 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.Sen
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageDetailView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessagePageView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageSummaryView;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -126,7 +126,7 @@ public class MessageService {
             UUID clusterId, String queueName, UUID nodeId, SendMessageRequest req, boolean dryRun) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_SEND);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
-        AuditEventEntity event = begin(
+        AuditEvent event = begin(
                 "SEND_MESSAGE", queueName, clusterId, resolved.node().getId(), Map.of("type", req.type()), dryRun);
         if (dryRun) {
             audit.succeed(event, 1);
@@ -181,7 +181,7 @@ public class MessageService {
         if (req.targetQueue() != null) {
             params.put("target", req.targetQueue());
         }
-        AuditEventEntity event = begin(action.auditName(), queueName, clusterId, node, params, dryRun);
+        AuditEvent event = begin(action.auditName(), queueName, clusterId, node, params, dryRun);
 
         if (action == MessageAction.MOVE
                 && (req.targetQueue() == null || req.targetQueue().isBlank())) {
@@ -233,7 +233,7 @@ public class MessageService {
         clusterAccess.requireCluster(clusterId, MessagePermissions.QUEUE_PURGE);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
-        AuditEventEntity event = begin("PURGE_QUEUE", queueName, clusterId, node, Map.of(), dryRun);
+        AuditEvent event = begin("PURGE_QUEUE", queueName, clusterId, node, Map.of(), dryRun);
         try {
             JolokiaBrokerClient client = clientFor(clusterId, resolved);
             String mbean = queueMbean(client, resolved, queueName);
@@ -335,7 +335,7 @@ public class MessageService {
                 client.resolveBrokerObjectName(), resolved.address(), queueName, resolved.routingType());
     }
 
-    private AuditEventEntity begin(
+    private AuditEvent begin(
             String action, String queueName, UUID clusterId, UUID node, Map<String, ?> params, boolean dryRun) {
         Actor actor = actorResolver.resolve();
         return audit.begin(actor, action, "QUEUE", queueName, clusterId, node, params, dryRun);

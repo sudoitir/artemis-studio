@@ -5,88 +5,41 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
-import java.util.Optional;
-import java.util.UUID;
+import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/** Task 3.13: bootstraps exactly once, on an empty {@code app_user}, never again on a populated one. */
+/** Task 3.13: bootstraps exactly once, when no account exists, never again once one does. */
 @ExtendWith(MockitoExtension.class)
 class AdminBootstrapTest {
 
     @Mock
-    AppUserRepository users;
-
-    @Mock
-    RoleRepository roles;
-
-    @Mock
-    UserRoleRepository userRoles;
+    UserAccounts accounts;
 
     @Mock
     PasswordEncoder passwordEncoder;
 
     @Test
-    void createsAnAdminWithAForcedPasswordChangeWhenNoUsersExist() {
-        when(users.count()).thenReturn(0L);
+    void createsTheFirstAdministratorWithAGeneratedPasswordWhenNoAccountExists() {
+        when(accounts.anyExist()).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("{bcrypt}hashed");
-        UUID adminUserId = UUID.randomUUID();
-        when(users.save(any())).thenAnswer(inv -> {
-            AppUserEntity saved = inv.getArgument(0);
-            setId(saved, adminUserId);
-            return saved;
-        });
-        UUID adminRoleId = UUID.randomUUID();
-        RoleEntity adminRole = new RoleEntity("ADMIN", true);
-        setRoleId(adminRole, adminRoleId);
-        when(roles.findByName("ADMIN")).thenReturn(Optional.of(adminRole));
+        when(accounts.createFirstAdministrator("admin", "{bcrypt}hashed")).thenReturn(true);
 
-        new AdminBootstrap(users, roles, userRoles, passwordEncoder).bootstrapIfEmpty();
+        new AdminBootstrap(accounts, passwordEncoder).bootstrapIfEmpty();
 
-        verify(users)
-                .save(org.mockito.ArgumentMatchers.argThat(u -> u.getUsername().equals("admin")
-                        && u.isMustChangePassword()
-                        && "{bcrypt}hashed".equals(u.getPasswordHash())));
-        verify(userRoles)
-                .save(org.mockito.ArgumentMatchers.argThat(ur ->
-                        ur.getUserId().equals(adminUserId) && ur.getRoleId().equals(adminRoleId)));
+        verify(accounts).createFirstAdministrator("admin", "{bcrypt}hashed");
     }
 
     @Test
     void doesNothingWhenAnAccountAlreadyExists() {
-        when(users.count()).thenReturn(1L);
+        when(accounts.anyExist()).thenReturn(true);
 
-        new AdminBootstrap(users, roles, userRoles, passwordEncoder).bootstrapIfEmpty();
+        new AdminBootstrap(accounts, passwordEncoder).bootstrapIfEmpty();
 
-        verify(users, never()).save(any());
-        verify(userRoles, never()).save(any());
-    }
-
-    private static void setId(AppUserEntity user, UUID id) {
-        try {
-            var field = AppUserEntity.class.getDeclaredField("id");
-            field.setAccessible(true);
-            field.set(user, id);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void setRoleId(RoleEntity role, UUID id) {
-        try {
-            var field = RoleEntity.class.getDeclaredField("id");
-            field.setAccessible(true);
-            field.set(role, id);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
+        verify(accounts, never()).createFirstAdministrator(any(), any());
+        verify(passwordEncoder, never()).encode(any());
     }
 }

@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
@@ -20,7 +20,7 @@ class AuthenticationAuditRecorder implements AuthenticationAudit {
     public Attempt loginAttempted(String username, HttpServletRequest request) {
         // No session exists yet, so the actor is the anonymous caller at this address.
         Actor anonymous = new Actor(Actor.ANONYMOUS, request.getRemoteAddr(), request.getHeader("X-Request-Id"), null);
-        AuditEventEntity event = audit.begin(anonymous, "LOGIN", "user", username, null, null, null, false);
+        AuditEvent event = audit.begin(anonymous, "LOGIN", "user", username, null, null, null, false);
         return new Attempt() {
             @Override
             public void failed(String reason) {

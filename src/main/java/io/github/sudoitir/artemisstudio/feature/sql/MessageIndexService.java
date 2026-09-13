@@ -5,8 +5,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -127,7 +127,7 @@ public class MessageIndexService {
         entity.setMode(mode);
         applyBounds(entity, spec);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "sql.index.create",
                 "CLUSTER",
@@ -173,7 +173,7 @@ public class MessageIndexService {
                         ? SqlPermissions.CAPTURE_WRITE
                         : SettingsPermissions.SETTINGS_WRITE);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "sql.index.update",
                 "CLUSTER",
@@ -222,7 +222,7 @@ public class MessageIndexService {
         clusterAccess.requireCluster(clusterId, permissionFor(entity.getMode()));
         Footprint before = footprint(entity);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "sql.index.delete",
                 "CLUSTER",

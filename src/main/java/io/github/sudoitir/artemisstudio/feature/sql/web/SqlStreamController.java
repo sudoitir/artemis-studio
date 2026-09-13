@@ -128,7 +128,7 @@ public class SqlStreamController {
     private SqlQueryTickets.Ticket redeem(String queryId, UUID clusterId, Session session) {
         SqlQueryTickets.Ticket ticket = null;
         try {
-            ticket = tickets.redeem(UUID.fromString(queryId), clusterId, SqlQueryTickets.currentOwner())
+            ticket = tickets.redeem(UUID.fromString(queryId), clusterId, tickets.currentOwner())
                     .orElse(null);
         } catch (IllegalArgumentException ignored) {
             // Not a reference at all; the message below is the same either way.

@@ -6,8 +6,8 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -55,7 +55,7 @@ public class AlertRuleService {
         rules.save(rule);
         bindChannels(rule.getId(), request.channelIds());
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_ALERT_RULE",
                 "ALERT_RULE",
@@ -74,7 +74,7 @@ public class AlertRuleService {
         AlertRuleEntity existing = requireRule(clusterId, ruleId);
         AlertRuleEntity updated = validated(request);
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_ALERT_RULE",
                 "ALERT_RULE",
@@ -107,7 +107,7 @@ public class AlertRuleService {
     public void delete(UUID clusterId, UUID ruleId) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity rule = requireRule(clusterId, ruleId);
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_ALERT_RULE",
                 "ALERT_RULE",

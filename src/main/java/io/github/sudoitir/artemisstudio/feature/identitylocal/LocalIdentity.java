@@ -1,11 +1,11 @@
 package io.github.sudoitir.artemisstudio.feature.identitylocal;
 
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
+import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GrantLoader;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
+import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts.Account;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
 
-    private final AppUserRepository users;
+    private final UserAccounts accounts;
     private final PasswordEncoder passwordEncoder;
     private final GrantLoader grantLoader;
 
@@ -42,17 +42,17 @@ class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
 
     @Override
     public Optional<StudioPrincipal> authenticate(String username, String password) {
-        AppUserEntity user = users.findByUsername(username).orElse(null);
+        Account user = accounts.byUsername(username).orElse(null);
         if (user == null
-                || user.isDisabled()
-                || user.getPasswordHash() == null
-                || !passwordEncoder.matches(password, user.getPasswordHash())) {
-            if (user != null && user.isDisabled()) {
+                || user.disabled()
+                || user.passwordHash() == null
+                || !passwordEncoder.matches(password, user.passwordHash())) {
+            if (user != null && user.disabled()) {
                 throw new DisabledException("Account disabled");
             }
             return Optional.empty();
         }
         return Optional.of(new StudioPrincipal(
-                user.getId(), user.getUsername(), grantLoader.loadFor(user.getId()), user.isMustChangePassword()));
+                user.id(), user.username(), grantLoader.loadFor(user.id()), user.mustChangePassword()));
     }
 }

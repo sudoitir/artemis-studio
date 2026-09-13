@@ -8,8 +8,8 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeN
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -266,8 +266,8 @@ public class RoutingService {
      */
     private Set<String> operatorOwnedDivertNames(UUID clusterId) {
         Set<String> owned = new LinkedHashSet<>();
-        List<AuditEventEntity> events = audit.history(clusterId, "DIVERT");
-        for (AuditEventEntity event : events) {
+        List<AuditEvent> events = audit.history(clusterId, "DIVERT");
+        for (AuditEvent event : events) {
             if (event.getTargetName() == null) {
                 continue;
             }

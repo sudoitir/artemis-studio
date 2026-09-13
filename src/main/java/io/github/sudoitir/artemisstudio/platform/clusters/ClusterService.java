@@ -4,8 +4,8 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperati
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigRecommendations;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -115,7 +115,7 @@ public class ClusterService {
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
     @Transactional
     public Attempt<RegisterPreview> checkConnection(RegisterClusterRequest request) {
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "REGISTER_CLUSTER",
                 "CLUSTER",
@@ -200,7 +200,7 @@ public class ClusterService {
         List<Probe> probes = connectAll(request);
         List<Probe> reachable = probes.stream().filter(Probe::ok).toList();
         if (reachable.isEmpty()) {
-            AuditEventEntity event = audit.begin(
+            AuditEvent event = audit.begin(
                     actorResolver.resolve(),
                     "REGISTER_CLUSTER",
                     "CLUSTER",
@@ -220,7 +220,7 @@ public class ClusterService {
                 null));
         UUID clusterId = cluster.getId();
 
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "REGISTER_CLUSTER",
                 "CLUSTER",
@@ -373,7 +373,7 @@ public class ClusterService {
     public Attempt<TopologyView> rediscover(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "REDISCOVER_CLUSTER",
                 "CLUSTER",
@@ -421,7 +421,7 @@ public class ClusterService {
         if (request.hasCoreUrl()) {
             params.put("coreUrl", request.coreUrl());
         }
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(), "OVERRIDE_NODE_URL", "NODE", node.getName(), clusterId, nodeId, params, false);
 
         if (request.hasJolokiaUrl()) {
@@ -445,7 +445,7 @@ public class ClusterService {
     public void rotateCredentials(UUID clusterId, String username, String password, String kind) {
         clusterAccess.requireCluster(clusterId, SettingsPermissions.SETTINGS_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "ROTATE_CREDENTIALS",
                 "CLUSTER",
@@ -470,7 +470,7 @@ public class ClusterService {
     public void delete(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
-        AuditEventEntity event = audit.begin(
+        AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_CLUSTER",
                 "CLUSTER",
@@ -508,7 +508,7 @@ public class ClusterService {
         return probes;
     }
 
-    private <T> Attempt<T> failed(AuditEventEntity event, BrokerConnectionException error) {
+    private <T> Attempt<T> failed(AuditEvent event, BrokerConnectionException error) {
         audit.fail(event, error.getMessage());
         return new Attempt.Failed<>(error.kind(), error.getMessage());
     }
