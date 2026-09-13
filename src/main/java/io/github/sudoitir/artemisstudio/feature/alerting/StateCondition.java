@@ -1,17 +1,18 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigNodeStateEntity;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigNodeStateRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeMapper;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth;
 import io.github.sudoitir.artemisstudio.platform.clusters.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.platform.clusters.LogicalNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;

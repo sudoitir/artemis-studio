@@ -1,5 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import java.time.Duration;

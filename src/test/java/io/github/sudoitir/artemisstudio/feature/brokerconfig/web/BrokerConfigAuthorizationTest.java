@@ -10,8 +10,8 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigPermiss
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.Set;
 import java.util.UUID;

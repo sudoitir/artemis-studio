@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities.CapabilityAssessment;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerXmlSnippets;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

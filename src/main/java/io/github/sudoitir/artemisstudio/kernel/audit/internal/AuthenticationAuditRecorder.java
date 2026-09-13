@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;

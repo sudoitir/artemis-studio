@@ -6,8 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.UUID;

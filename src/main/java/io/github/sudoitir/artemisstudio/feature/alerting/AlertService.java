@@ -1,5 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertFiringEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertFiringRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringPageView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ClusterFiringCountView;

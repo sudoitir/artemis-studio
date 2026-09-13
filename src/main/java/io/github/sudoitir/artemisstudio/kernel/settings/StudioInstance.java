@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.settings;
 
-import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingEntity;
-import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import jakarta.annotation.PostConstruct;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

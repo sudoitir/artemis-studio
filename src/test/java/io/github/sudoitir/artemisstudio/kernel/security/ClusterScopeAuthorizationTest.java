@@ -7,11 +7,11 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions;
 import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.ArrayList;
 import java.util.List;

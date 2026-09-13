@@ -7,6 +7,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

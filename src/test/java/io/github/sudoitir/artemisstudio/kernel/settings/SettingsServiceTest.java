@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
-import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;

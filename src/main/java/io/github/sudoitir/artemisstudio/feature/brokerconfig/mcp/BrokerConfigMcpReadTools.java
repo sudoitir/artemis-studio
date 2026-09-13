@@ -29,7 +29,7 @@ public class BrokerConfigMcpReadTools {
     private final BrokerConfigService brokerConfig;
     private final BrokerConfigApplyService brokerConfigApply;
     private final ConfigDiffService configDiff;
-    private final io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository nodeRepo;
+    private final io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository nodeRepo;
 
     public enum ConfigReadKind {
         DECLARATION,

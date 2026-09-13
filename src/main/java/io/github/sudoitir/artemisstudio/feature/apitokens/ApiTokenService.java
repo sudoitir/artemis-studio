@@ -1,5 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.apitokens;
 
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenEntity;
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenGrantEntity;
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenGrantRepository;
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -7,8 +11,8 @@ import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.GrantLoader;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -67,7 +71,7 @@ public class ApiTokenService {
                         entity.getId(), action, g.scopeType().name(), g.scopeId()));
             }
         }
-        io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity event = audit.begin(
+        io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity event = audit.begin(
                 actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, java.util.Map.of(), false);
         audit.succeed(event, 1);
         return new Minted(entity, plaintext);
@@ -85,7 +89,7 @@ public class ApiTokenService {
         }
         token.setRevokedAt(Instant.now());
         tokens.save(token);
-        io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity event = audit.begin(
+        io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
                 "TOKEN_REVOKE",
                 "token",

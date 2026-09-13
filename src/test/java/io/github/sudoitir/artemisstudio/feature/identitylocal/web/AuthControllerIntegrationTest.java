@@ -8,8 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

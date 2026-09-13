@@ -1,14 +1,14 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.DefaultRoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.DefaultRoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.GrantLoader;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;

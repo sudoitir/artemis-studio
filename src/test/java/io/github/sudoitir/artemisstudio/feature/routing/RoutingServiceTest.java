@@ -14,10 +14,10 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertV
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;

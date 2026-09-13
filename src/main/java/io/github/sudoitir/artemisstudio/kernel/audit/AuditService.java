@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import java.util.List;

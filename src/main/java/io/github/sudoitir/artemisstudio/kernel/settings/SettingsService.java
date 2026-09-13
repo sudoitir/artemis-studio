@@ -1,13 +1,13 @@
 package io.github.sudoitir.artemisstudio.kernel.settings;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
-import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingEntity;
-import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import java.time.Duration;
 import java.time.LocalDateTime;

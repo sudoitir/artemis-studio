@@ -2,8 +2,11 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventRepository;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowEntity;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
 import java.util.UUID;

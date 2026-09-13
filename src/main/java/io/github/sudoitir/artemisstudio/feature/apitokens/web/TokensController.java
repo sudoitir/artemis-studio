@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.apitokens.web;
 
-import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenEntity;
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenEntity;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.CreateTokenRequest;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.CreatedTokenView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenView;

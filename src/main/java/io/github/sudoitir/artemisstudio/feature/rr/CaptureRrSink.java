@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.CaptureBus;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreDestinationName;

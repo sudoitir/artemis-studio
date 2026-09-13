@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;

@@ -5,11 +5,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

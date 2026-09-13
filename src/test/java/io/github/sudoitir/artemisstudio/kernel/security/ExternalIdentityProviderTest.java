@@ -9,15 +9,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.DefaultRoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.DefaultRoleRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.List;
 import java.util.Optional;

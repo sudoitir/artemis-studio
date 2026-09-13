@@ -1,17 +1,21 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

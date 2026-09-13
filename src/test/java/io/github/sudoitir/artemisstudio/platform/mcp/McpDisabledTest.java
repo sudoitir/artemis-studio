@@ -6,10 +6,10 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RolePermissionRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.support.McpFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.modelcontextprotocol.server.McpStatelessSyncServer;

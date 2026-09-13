@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -14,6 +14,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;

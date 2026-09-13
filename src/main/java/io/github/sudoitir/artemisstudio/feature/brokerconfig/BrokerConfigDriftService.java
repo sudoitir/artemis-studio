@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigNodeStateEntity.Basis;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigNodeStateEntity.State;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperations.ReadScope;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService.Source;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Finding;
@@ -10,6 +8,13 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.NodePlan;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Op;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Section;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Step;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigDeclarationRepository;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity.Basis;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity.State;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemEntity;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemRepository;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;

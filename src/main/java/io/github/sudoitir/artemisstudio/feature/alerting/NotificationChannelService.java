@@ -1,9 +1,11 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelView;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;

@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
+import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventEntity;
+import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventRepository;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;

@@ -6,6 +6,8 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -31,7 +33,9 @@ class MessageIndexCoverageTest {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
         coverage = new MessageIndexCoverage(
                 subscriptions,
-                mock(io.github.sudoitir.artemisstudio.feature.sql.MessageCaptureNodeRepository.class),
+                mock(
+                        io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository
+                                .class),
                 mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots.class));
     }
 

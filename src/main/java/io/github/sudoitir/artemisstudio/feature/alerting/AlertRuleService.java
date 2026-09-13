@@ -1,9 +1,13 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;

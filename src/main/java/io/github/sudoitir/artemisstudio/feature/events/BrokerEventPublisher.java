@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
+import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventEntity;
 import java.util.List;
 
 /**

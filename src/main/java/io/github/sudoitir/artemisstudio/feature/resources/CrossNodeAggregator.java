@@ -5,8 +5,8 @@ import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.Queu
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;

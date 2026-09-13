@@ -11,8 +11,8 @@ import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
@@ -96,7 +96,7 @@ public class TriageMcpTools {
         // known to hold cluster:read on this id and the name is not a disclosure.
         String name = clusterRepo
                 .findById(clusterId)
-                .map(io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity::getName)
+                .map(io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity::getName)
                 .orElseThrow(
                         () -> new io.github.sudoitir.artemisstudio.kernel.core.NotFoundException("cluster", clusterId));
 

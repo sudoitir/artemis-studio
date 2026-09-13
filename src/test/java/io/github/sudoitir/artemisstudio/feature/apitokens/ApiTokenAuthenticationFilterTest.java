@@ -7,12 +7,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
 import java.util.List;

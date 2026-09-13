@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRegistered;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

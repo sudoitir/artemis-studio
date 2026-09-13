@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.List;
 import java.util.UUID;

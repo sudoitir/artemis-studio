@@ -1,5 +1,11 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventEntity;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventRepository;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowEntity;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowRepository;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.ClockDiagnosticsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.CreateExpectationRequest;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.ExpectationDiagnosticsView;
@@ -10,8 +16,8 @@ import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrDiagnosticsView
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrEventView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.TracingReasonView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.UpdateExpectationRequest;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -21,9 +27,9 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

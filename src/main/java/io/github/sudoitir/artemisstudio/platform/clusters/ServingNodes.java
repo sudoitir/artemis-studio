@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;

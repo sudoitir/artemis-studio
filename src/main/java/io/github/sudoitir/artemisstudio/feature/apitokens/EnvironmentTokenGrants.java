@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.apitokens;
 
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenGrantRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentRemoved;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;

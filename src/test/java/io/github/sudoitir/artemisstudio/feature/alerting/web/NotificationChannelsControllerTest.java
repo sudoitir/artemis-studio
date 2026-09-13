@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
-import io.github.sudoitir.artemisstudio.feature.alerting.NotificationChannelRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;

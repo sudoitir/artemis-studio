@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.AddressSettingKey;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplyEntity;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplyOutcome;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressDecl;
@@ -18,6 +17,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerXmlCodec;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.PermissionType;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Violation;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigApplyEntity;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -340,11 +340,11 @@ public final class BrokerConfigViews {
                     r.state().name(),
                     r.detail(),
                     r.state()
-                                            == io.github.sudoitir.artemisstudio.feature.brokerconfig
-                                                    .BrokerConfigNodeStateEntity.State.IN_SYNC
+                                            == io.github.sudoitir.artemisstudio.feature.brokerconfig.internal
+                                                    .persistence.BrokerConfigNodeStateEntity.State.IN_SYNC
                                     || r.state()
-                                            == io.github.sudoitir.artemisstudio.feature.brokerconfig
-                                                    .BrokerConfigNodeStateEntity.State.DRIFTED
+                                            == io.github.sudoitir.artemisstudio.feature.brokerconfig.internal
+                                                    .persistence.BrokerConfigNodeStateEntity.State.DRIFTED
                             ? revision
                             : null,
                     at,

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowRepository;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.AddressStatsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.StatsResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;

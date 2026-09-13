@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -16,11 +16,11 @@ import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

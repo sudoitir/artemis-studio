@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

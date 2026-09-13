@@ -2,6 +2,12 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingsView;

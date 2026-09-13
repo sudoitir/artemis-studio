@@ -1,6 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;

@@ -12,8 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
-import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
@@ -21,12 +21,12 @@ import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;

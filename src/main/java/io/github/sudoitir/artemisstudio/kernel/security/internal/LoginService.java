@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LoginService {
 
-    static final String DEFAULT_PROVIDER = "local";
+    public static final String DEFAULT_PROVIDER = "local";
 
     private final List<IdentityProviders> contributions;
     private final LoginAttemptLimiter limiter;

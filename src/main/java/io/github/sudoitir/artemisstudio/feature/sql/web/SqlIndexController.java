@@ -1,10 +1,10 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
 import io.github.sudoitir.artemisstudio.feature.sql.CaptureMode;
-import io.github.sudoitir.artemisstudio.feature.sql.MessageCaptureNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.MessageIndexService;
 import io.github.sudoitir.artemisstudio.feature.sql.MessageIndexService.Subscription;
-import io.github.sudoitir.artemisstudio.feature.sql.MessageIndexSubscriptionEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.CaptureNodeView;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.IndexSubscriptionRequest;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.IndexSubscriptionView;

@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplyEntity.Outcome;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigApplyEntity.Outcome;
 import java.util.List;
 import java.util.UUID;
 

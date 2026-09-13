@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;

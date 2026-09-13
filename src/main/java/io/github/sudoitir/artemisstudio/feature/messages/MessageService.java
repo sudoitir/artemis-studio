@@ -5,8 +5,8 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.Sen
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageDetailView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessagePageView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageSummaryView;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
@@ -30,8 +30,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseR
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.HashMap;

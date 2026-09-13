@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertStateEntity;
 import java.time.Duration;
 import java.time.Instant;
 

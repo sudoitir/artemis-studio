@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

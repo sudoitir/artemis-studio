@@ -2,11 +2,11 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig.web;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplyRequest;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplyService;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDeclarationEntity.ApplyMode;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDriftService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigRecommendationService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService.Source;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigDeclarationEntity.ApplyMode;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.ApplyRequest;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.ConfigureRequest;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.DeclareRecommendedRequest;

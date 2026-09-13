@@ -5,9 +5,9 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

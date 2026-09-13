@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
 import java.time.Instant;

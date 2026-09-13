@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
+import io.github.sudoitir.artemisstudio.platform.scrape.internal.persistence.QueueSnapshotEntity;
+import io.github.sudoitir.artemisstudio.platform.scrape.internal.persistence.QueueSnapshotRepository;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

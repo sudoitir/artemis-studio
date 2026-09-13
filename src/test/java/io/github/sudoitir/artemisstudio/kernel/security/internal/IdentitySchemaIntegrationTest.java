@@ -2,10 +2,16 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenEntity;
-import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentRepository;
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenEntity;
+import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.EnvironmentEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.EnvironmentRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
 import java.util.List;

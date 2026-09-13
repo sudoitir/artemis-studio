@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;

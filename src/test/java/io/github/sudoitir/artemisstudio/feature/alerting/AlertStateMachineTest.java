@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertStateMachine.Transition;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertStateMachine.TransitionKind;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertStateEntity;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

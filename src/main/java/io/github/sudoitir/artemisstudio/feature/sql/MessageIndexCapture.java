@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;

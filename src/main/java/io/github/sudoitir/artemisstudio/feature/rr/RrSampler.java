@@ -1,14 +1,16 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.feature.rr.QueueTargetResolver.QueueTarget;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
+import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreDestinationName;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;

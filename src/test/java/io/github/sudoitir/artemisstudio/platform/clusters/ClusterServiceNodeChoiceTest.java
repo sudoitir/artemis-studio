@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
