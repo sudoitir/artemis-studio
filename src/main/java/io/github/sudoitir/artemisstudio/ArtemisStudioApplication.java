@@ -16,7 +16,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * governance (auth, RBAC, environments). Remaining work is the Roadmap in
  * {@code README.md}; the living specs are under {@code openspec/}.
  */
-@SpringBootApplication
+@SpringBootApplication(
+        scanBasePackages = {
+            "io.github.sudoitir.artemisstudio.app",
+            "io.github.sudoitir.artemisstudio.kernel",
+            "io.github.sudoitir.artemisstudio.platform"
+        })
 @ConfigurationPropertiesScan
 @EnableScheduling
 public class ArtemisStudioApplication {

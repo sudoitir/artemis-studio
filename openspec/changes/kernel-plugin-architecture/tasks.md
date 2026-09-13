@@ -23,7 +23,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
   - an enabled feature requires a disabled one;
   - a contribution is declared twice;
   - a contract version does not match.
-- [ ] 2.3 Add `app/StudioFeatures` (composition root) and restrict `ArtemisStudioApplication` scanning to `kernel` and `platform`.
+- [x] 2.3 Add `app/StudioFeatures` (composition root) and restrict `ArtemisStudioApplication` scanning to `kernel` and `platform`.
 - [x] 2.4 Add `GET /api/v1/manifest` and a controller test covering enabled/disabled features, permission attribution and `401` when unauthenticated.
 - [x] 2.5 Add `FeatureContractTest` (contract mismatch fails, duplicate contributions fail) and `ManifestSnapshotTest`, which writes `web/manifest.snapshot.json`.
 - [x] 2.6 Map unmatched `/api/v1/**` paths under a disabled feature's declared prefixes to a `404` problem detail of type `feature-disabled` naming the property. Ensure the SPA fallback never answers `/api/**`.
