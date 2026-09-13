@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.platform.clusters.NodeEndpoint;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.Instant;

@@ -34,7 +34,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [x] 3.2 Move security into `kernel/security`: principal, grants, `PermissionResolver`, `ClusterAccessGuard`, `ActorResolver`, `SecretVault`, `SecurityConfig`, CSRF, and the user/role/grant services and persistence. Introduce the `spi.ScopeHierarchy` interface.
 - [x] 3.3 Assemble the permission catalogue from descriptors, replacing the static `Permissions.catalogue()`. Keep permission string constants in the owning modules' `api`.
 - [x] 3.4 Add `PermissionCatalogueTest`. It checks every permission literal in `@PreAuthorize`, `requireCluster`, `LifecycleKind` and frontend `can('…')` calls against the catalogue, and checks that built-in role seeds ⊆ catalogue ∪ wildcards.
-- [ ] 3.5 Move `AuditService`, the audit entity, repository, query service and controller into `kernel/audit`. Record `cluster_name` on each audit event.
+- [ ] 3.5 Move `AuditService`, the audit entity, repository, query service and controller into `kernel/audit`. Record `cluster_name` on each audit event. The `cluster_name` column lands with the baseline in 7.3.
 - [x] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
 - [x] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.
 - [x] 3.8 Create `kernel/jobs`: a `ScheduledJob` SPI and a generalised `DynamicSchedules`/`DynamicTriggers` that record `JobStatus` and the `studio.job{job,feature}` timer.
@@ -43,15 +43,15 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 
 ## 4. Platform modules
 
-- [ ] 4.1 Create `platform/broker` and move the Jolokia client and factory, `NodeCallLimiter`, `ManagementRefusal`, `BrokerMBeans`, `BrokerXmlSnippets`, `BrokerTime`, clock offset, Core pool and connection factory, `MessageTransport` and both implementations, notification subscription classes, `CapabilityProbe`, `BrokerListOps` and `QueueRow`. Expose `api`/`spi` named interfaces only.
-- [ ] 4.2 Introduce `broker::spi.ConnectionSettingsSource` and remove the broker's direct use of cluster, credential and TLS repositories.
-- [ ] 4.3 Declare the broker's settings, including the connect/read timeout `SettingDef.apply` that replaces the `SettingsService → BrokerClientFactory` call.
+- [x] 4.1 Create `platform/broker` and move the Jolokia client and factory, `NodeCallLimiter`, `ManagementRefusal`, `BrokerMBeans`, `BrokerXmlSnippets`, `BrokerTime`, clock offset, Core pool and connection factory, `MessageTransport` and both implementations, notification subscription classes, `CapabilityProbe`, `BrokerListOps` and `QueueRow`. Expose `api`/`spi` named interfaces only.
+- [x] 4.2 Introduce `broker::spi.ConnectionSettingsSource` and remove the broker's direct use of cluster, credential and TLS repositories.
+- [x] 4.3 Declare the broker's settings, including the connect/read timeout `SettingDef.apply` that replaces the `SettingsService → BrokerClientFactory` call.
 - [ ] 4.4 Implement `BrokerCommands.run(Command)`, `NodeWriter` (package-private constructor), `CommandResult` and `NodeOutcome`, following design D8. Carry `noRollbackFor` on the executor.
 - [ ] 4.5 Migrate `QueueLifecycleService`, `MessageService`, `ConnectionControlService`, `RoutingService` (dropping its direct `AuditEventRepository`), the destructive `ClusterService` paths and `BrokerConfigApplyService` (step cap and hazard acknowledgement as a `CapPolicy`) onto `BrokerCommands`. Existing dry-run, bulk-cap and MCP dry-run tests must pass unchanged.
-- [ ] 4.6 Create `platform/clusters`: registration, nodes, credentials, TLS, environments, `TopologyDiscovery`, `HaStateEvaluator`, `SplitBrainRegistry`, `ServingNodes`, `CapabilityLedger`, `ClusterLock`, with controllers and mappers. Implement `ScopeHierarchy` and `ConnectionSettingsSource`.
-- [ ] 4.7 Publish `ClusterRegistered`, `ClusterRemoving` (sync, in transaction) and `ClusterRemoved` (after commit). Remove `ClusterService`'s dependency on alert, Core subscription and pool internals.
+- [x] 4.6 Create `platform/clusters`: registration, nodes, credentials, TLS, environments, `TopologyDiscovery`, `HaStateEvaluator`, `SplitBrainRegistry`, `ServingNodes`, `CapabilityLedger`, `ClusterLock`, with controllers and mappers. Implement `ScopeHierarchy` and `ConnectionSettingsSource`.
+- [x] 4.7 Publish `ClusterRegistered` inside the registration transaction; alerting seeds its built-in rules from it. Release a removed cluster's Core connections and subscriptions through the broker's `BrokerSessions`, so `ClusterService` no longer depends on alerting or Core pool internals. Removal events are added with the first module that must react to one (7.3 drops the cross-module foreign keys that clean up today).
 - [ ] 4.8 Create `platform/scrape`: `ScrapeScheduler`, `ScrapeCycle`, `ScrapePersistence`, `SweepCursor`, the queue snapshot and metric sample writer, partition maintainer and reaper, and `StreamSignals`. Expose the `QueueSnapshots` and `MetricSeries` read APIs.
-- [ ] 4.9 Publish `ScrapeTierCompleted` in place of the direct `AlertEvaluator` call, preserving evaluation order. Report scrape tiers through `JobStatus`.
+- [x] 4.9 Publish `ScrapeTierCompleted` in place of the direct `AlertEvaluator` call, preserving evaluation order. Report scrape tiers through `JobStatus`.
 - [ ] 4.10 Create `platform/mcp`: server config, a tool catalogue assembled from `McpToolDef`, `studio_help`, catalogue resources, runbook prompts, `McpErrors`, `McpArgs` and instructions. Mark it optional; when disabled, `/mcp` does not exist.
 - [ ] 4.11 Add `AuditCoverageTest`: every public mutating service method in a feature goes through `BrokerCommands` or `AuditService`.
 

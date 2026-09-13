@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.kernel.core.CentralMapperConfig;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import java.util.List;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

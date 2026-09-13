@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
@@ -22,6 +23,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -74,7 +76,7 @@ class ScrapeSchedulerTest {
     io.github.sudoitir.artemisstudio.kernel.settings.SettingsService settings;
 
     @Mock
-    io.github.sudoitir.artemisstudio.feature.alerting.AlertEvaluator alertEvaluator;
+    org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     NodeCallLimiter limiter;
     ScrapeCycle scrapeCycle;
@@ -99,7 +101,8 @@ class ScrapeSchedulerTest {
                 metrics,
                 new StreamSignals(new SseHub()),
                 coreSubscriptions,
-                alertEvaluator);
+                eventPublisher,
+                new JobStatuses(new SimpleMeterRegistry()));
     }
 
     private JolokiaBrokerClient client(String... fixtures) {

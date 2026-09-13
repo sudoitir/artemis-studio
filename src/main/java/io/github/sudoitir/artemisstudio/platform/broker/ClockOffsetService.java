@@ -1,8 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -14,7 +12,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Turns per-node clock readings into a verdict an operator can act on (ADR-0053).
@@ -69,7 +66,7 @@ public class ClockOffsetService {
         }
     }
 
-    private final BrokerNodeRepository nodes;
+    private final NodeDirectory nodes;
     private final ClockOffsetRegistry registry;
     private final Clock clock;
     private final long toleranceMs;
@@ -82,7 +79,7 @@ public class ClockOffsetService {
     private final BrokerTime brokerTime;
 
     public ClockOffsetService(
-            BrokerNodeRepository nodes, ClockOffsetRegistry registry, Clock clock, BrokerProperties properties) {
+            NodeDirectory nodes, ClockOffsetRegistry registry, Clock clock, BrokerProperties properties) {
         this.nodes = nodes;
         this.registry = registry;
         this.clock = clock;
@@ -122,7 +119,6 @@ public class ClockOffsetService {
      * accumulate as a side effect of every Jolokia call, so this makes no broker
      * request at all and its cadence is unrelated to any node's.
      */
-    @Transactional
     public void refresh() {
         Map<String, ClockOffset> readings = registry.all();
         if (readings.isEmpty()) {
@@ -134,17 +130,17 @@ public class ClockOffsetService {
         Map<UUID, ClockOffset> nextByNode = new HashMap<>();
         Map<UUID, List<NodeSkew>> perCluster = new HashMap<>();
 
-        for (BrokerNodeEntity node : nodes.findAll()) {
-            ClockOffset offset = readings.get(node.getJolokiaUrl());
+        for (NodeDirectory.KnownNode node : nodes.nodes()) {
+            ClockOffset offset = readings.get(node.jolokiaUrl());
             if (offset == null) {
                 continue;
             }
-            nextByNode.put(node.getId(), offset);
-            node.recordClockOffset(offset.offsetMs(), offset.uncertaintyMs(), offset.measuredAt());
+            nextByNode.put(node.id(), offset);
             perCluster
-                    .computeIfAbsent(node.getClusterId(), k -> new ArrayList<>())
-                    .add(new NodeSkew(node.getId(), node.getName(), offset));
+                    .computeIfAbsent(node.clusterId(), k -> new ArrayList<>())
+                    .add(new NodeSkew(node.id(), node.name(), offset));
         }
+        nodes.recordClockOffsets(nextByNode);
 
         byNode = Map.copyOf(nextByNode);
         byCluster = decide(perCluster);

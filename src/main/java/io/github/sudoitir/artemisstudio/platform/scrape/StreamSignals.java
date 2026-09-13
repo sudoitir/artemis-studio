@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
-import io.github.sudoitir.artemisstudio.platform.clusters.NodeEndpoint;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

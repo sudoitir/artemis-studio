@@ -4,10 +4,10 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.bool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxedBool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeMapper;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.HaStateEvaluator;
-import io.github.sudoitir.artemisstudio.platform.clusters.NodeEndpoint;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

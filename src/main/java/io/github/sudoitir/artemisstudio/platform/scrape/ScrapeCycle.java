@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
-import io.github.sudoitir.artemisstudio.platform.clusters.NodeEndpoint;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.util.ArrayList;

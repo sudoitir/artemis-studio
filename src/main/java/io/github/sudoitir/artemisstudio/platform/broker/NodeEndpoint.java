@@ -1,11 +1,11 @@
-package io.github.sudoitir.artemisstudio.platform.clusters;
+package io.github.sudoitir.artemisstudio.platform.broker;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * One broker endpoint — a single {@code broker_node} row. A synced backup and its
- * primary are two endpoints of the same {@link LogicalNode}, because a synced
+ * primary are two endpoints of the same {@code LogicalNode}, because a synced
  * backup adopts the primary's NodeID.
  *
  * @param manageable whether Studio has a Jolokia URL for this endpoint and can

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import java.util.List;
 import java.util.UUID;
 

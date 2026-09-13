@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 import io.github.sudoitir.artemisstudio.kernel.core.CentralMapperConfig;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities.CapabilityAssessment;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.CapabilitiesView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.CapabilityView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.HealthView;

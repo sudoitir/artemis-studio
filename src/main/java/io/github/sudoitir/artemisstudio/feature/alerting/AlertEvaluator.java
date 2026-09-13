@@ -18,7 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Evaluates one cluster's rules of one kind (design.md decision 3) — called
- * inline from {@code ScrapeScheduler} right after the tier that kind's data
+ * by {@link AlertScrapeListener} right after the scrape tier that kind's data
  * source depends on has persisted, never from an independent timer. DB-only:
  * reads already-persisted {@code queue_snapshot}/{@code metric_sample}/HA state
  * and writes {@code alert_state}/{@code alert_firing}/{@code alert_delivery} —

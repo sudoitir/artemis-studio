@@ -1,9 +1,5 @@
-package io.github.sudoitir.artemisstudio.feature.messages;
+package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
-import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
-import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;

@@ -1,8 +1,10 @@
 package io.github.sudoitir.artemisstudio.support;
 
+import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -18,6 +20,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @SpringBootTest
 public abstract class PostgresIntegrationTest {
+
+    /**
+     * The scheduled scrape tiers would otherwise run inside the shared context and call
+     * whichever {@code BrokerConnections} a test has mocked, consuming the canned Jolokia
+     * responses that test queued for its own requests. A mock configures no tasks, so no
+     * tier is scheduled; no test relies on background scraping, and
+     * {@code ScrapeSchedulerTest} drives the tiers directly.
+     */
+    @MockitoBean
+    ScrapeScheduler scrapeScheduler;
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
 

@@ -5,6 +5,7 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxed
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;

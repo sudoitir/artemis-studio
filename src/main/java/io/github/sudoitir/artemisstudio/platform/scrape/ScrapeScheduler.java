@@ -1,17 +1,17 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
-import io.github.sudoitir.artemisstudio.feature.alerting.AlertEvaluator;
-import io.github.sudoitir.artemisstudio.kernel.jobs.DynamicTriggers;
+import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
+import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.NodeEndpoint;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -73,12 +74,15 @@ public class ScrapeScheduler implements SchedulingConfigurer {
         scheduler.initialize();
         registrar.setTaskScheduler(scheduler);
 
-        registrar.addTriggerTask(
-                this::tierA, DynamicTriggers.fixedDelay(() -> settings.duration(ScrapeSettings.TIER_A)));
-        registrar.addTriggerTask(
-                this::tierB, DynamicTriggers.fixedDelay(() -> settings.duration(ScrapeSettings.TIER_B)));
-        registrar.addTriggerTask(
-                this::tierC, DynamicTriggers.fixedDelay(() -> settings.duration(ScrapeSettings.TIER_C)));
+        for (ScheduledJob tier : List.of(
+                ScheduledJob.fixedDelay(
+                        "scrape-tier-a", "scrape", () -> settings.duration(ScrapeSettings.TIER_A), this::tierA),
+                ScheduledJob.fixedDelay(
+                        "scrape-tier-b", "scrape", () -> settings.duration(ScrapeSettings.TIER_B), this::tierB),
+                ScheduledJob.fixedDelay(
+                        "scrape-tier-c", "scrape", () -> settings.duration(ScrapeSettings.TIER_C), this::tierC))) {
+            registrar.addTriggerTask(jobStatuses.instrument(tier), tier.trigger());
+        }
     }
 
     private static final String[] HA_ATTRS = {
@@ -99,7 +103,8 @@ public class ScrapeScheduler implements SchedulingConfigurer {
     private final MetricSampleWriter metrics;
     private final StreamSignals streamSignals;
     private final CoreSubscriptionManager coreSubscriptions;
-    private final AlertEvaluator alertEvaluator;
+    private final ApplicationEventPublisher eventPublisher;
+    private final JobStatuses jobStatuses;
 
     private record QueuesPage(List<QueueRow> rows, long count) {}
 
@@ -121,14 +126,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
                 } catch (RuntimeException e) {
                     log.warn("Split-brain corroboration failed for cluster {}: {}", clusterId, e.toString());
                 }
-                try {
-                    // State-condition alert rules (split-brain, node down, replication
-                    // behind, cluster degraded) evaluate right after the HA state their
-                    // condition reads was just persisted (ADR-0035) — no independent timer.
-                    alertEvaluator.evaluate(clusterId, "STATE");
-                } catch (RuntimeException e) {
-                    log.warn("State-condition alert evaluation failed for cluster {}: {}", clusterId, e.toString());
-                }
+                eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.A));
             }
         }
     }
@@ -138,7 +136,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
             for (ClusterEntity cluster : clusters.findAll()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeHotQueues(clusterId, node));
-                evaluateThresholdRules(clusterId);
+                eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.B));
             }
         }
     }
@@ -148,17 +146,8 @@ public class ScrapeScheduler implements SchedulingConfigurer {
             for (ClusterEntity cluster : clusters.findAll()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeSweepPage(clusterId, node));
-                evaluateThresholdRules(clusterId);
+                eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.C));
             }
-        }
-    }
-
-    /** Metric-threshold rules evaluate after the tier that persisted the data they read (ADR-0035). */
-    private void evaluateThresholdRules(UUID clusterId) {
-        try {
-            alertEvaluator.evaluate(clusterId, "METRIC_THRESHOLD");
-        } catch (RuntimeException e) {
-            log.warn("Metric-threshold alert evaluation failed for cluster {}: {}", clusterId, e.toString());
         }
     }
 

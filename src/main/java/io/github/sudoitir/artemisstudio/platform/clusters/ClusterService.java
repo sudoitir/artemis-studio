@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
-import io.github.sudoitir.artemisstudio.feature.alerting.AlertRuleEntity;
-import io.github.sudoitir.artemisstudio.feature.alerting.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperations;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigRecommendations;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig;
@@ -19,12 +17,13 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSessions;
 import io.github.sudoitir.artemisstudio.platform.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionSettings;
-import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.NodeOverrideRequest;
@@ -45,6 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -81,10 +81,10 @@ public class ClusterService {
     private final SplitBrainRegistry splitBrainRegistry;
     private final CoreSubscriptionManager coreSubscriptions;
     private final CoreSubscriptionCheck coreSubscriptionCheck;
-    private final CorePool corePool;
+    private final BrokerSessions brokerSessions;
     private final SecretVault vault;
     private final AuditService audit;
-    private final AlertRuleRepository alertRules;
+    private final ApplicationEventPublisher eventPublisher;
     private final io.github.sudoitir.artemisstudio.kernel.security.ActorResolver actorResolver;
     private final ClusterEnvironmentIndex environmentIndex;
     private final ClusterAccessGuard clusterAccess;
@@ -246,7 +246,7 @@ public class ClusterService {
                 reachable.get(0).client(),
                 coreSubscriptions.verdictFor(clusterId),
                 capabilityLedger.managementWrite(clusterId));
-        seedBuiltinAlertRules(clusterId);
+        eventPublisher.publishEvent(new ClusterRegistered(clusterId));
         environmentIndex.invalidate();
 
         audit.succeed(event, endpointCount(topology));
@@ -472,23 +472,9 @@ public class ClusterService {
                 Map.of(),
                 false);
         clusters.delete(cluster);
-        // Release Core connections and drop the in-memory subscription state so a
-        // removed cluster is not retried.
-        coreSubscriptions.forget(clusterId);
-        corePool.forget(clusterId);
+        brokerSessions.release(clusterId);
         environmentIndex.invalidate();
         audit.succeed(event, 1);
-    }
-
-    /** Ordinary, editable, unrouted rows an operator can silence or route (design.md decision 8) — not an unconditional check. */
-    private void seedBuiltinAlertRules(UUID clusterId) {
-        alertRules.save(AlertRuleEntity.state(clusterId, "Split-brain", "SPLIT_BRAIN", 0, "CRITICAL"));
-        // Warning, not critical: a wrong clock does not stop the brokers, but it does
-        // make Studio's own deadlines and latencies wrong, so it must not be silent
-        // (ADR-0053). An ordinary rule like any other — editable and silenceable.
-        alertRules.save(AlertRuleEntity.state(clusterId, "Clock skew", "CLOCK_SKEW", 0, "WARNING"));
-        alertRules.save(AlertRuleEntity.state(clusterId, "Node down", "NODE_DOWN", 30, "CRITICAL"));
-        alertRules.save(AlertRuleEntity.state(clusterId, "Replication behind", "REPLICATION_BEHIND", 120, "WARNING"));
     }
 
     // ---- helpers ------------------------------------------------------------
