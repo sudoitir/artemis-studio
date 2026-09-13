@@ -17,7 +17,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 
 ## 2. Kernel contract and composition root
 
-- [ ] 2.1 Create `kernel/plugin` with `api/` holding `Contract` (VERSION = 1), `FeatureDescriptor`, `PermissionDef`, `SettingDef`, `TopicDef`, `McpToolDef`, the `Kind` enum and the `@ConditionalOnFeature` meta-annotation. Add a `package-info.java` for each kernel module.
+- [x] 2.1 Create `kernel/plugin` with `api/` holding `Contract` (VERSION = 1), `FeatureDescriptor`, `PermissionDef`, `SettingDef`, `TopicDef`, `McpToolDef`, the `Kind` enum and the `@ConditionalOnFeature` meta-annotation. Add a `package-info.java` for each kernel module.
 - [x] 2.2 Implement `FeatureRegistry`, which collects descriptors and refuses startup when:
   - a required module is disabled;
   - an enabled feature requires a disabled one;
