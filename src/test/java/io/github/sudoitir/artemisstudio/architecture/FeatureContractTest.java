@@ -1,0 +1,136 @@
+package io.github.sudoitir.artemisstudio.architecture;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor.Kind;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.McpToolDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.SettingDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.api.TopicDef;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
+
+/** Startup validation of the installed modules (feature-modules spec). */
+class FeatureContractTest {
+
+    private static FeatureDescriptor.FeatureDescriptorBuilder feature(String id) {
+        return FeatureDescriptor.builder().id(id).title(id).kind(Kind.FEATURE);
+    }
+
+    private static FeatureRegistry registry(MockEnvironment env, FeatureDescriptor... descriptors) {
+        return new FeatureRegistry(new InstalledFeatures(List.of(descriptors)), env);
+    }
+
+    @Test
+    void featuresAreEnabledByDefaultAndDisabledByProperty() {
+        var env = new MockEnvironment().withProperty("artemis-studio.features.sql.enabled", "false");
+        var registry = registry(env, feature("queues").build(), feature("sql").build());
+
+        assertThat(registry.isEnabled("queues")).isTrue();
+        assertThat(registry.isEnabled("sql")).isFalse();
+        assertThat(registry.enabled()).extracting(FeatureDescriptor::id).containsExactly("queues");
+        assertThat(registry.all()).extracting(FeatureDescriptor::id).containsExactly("queues", "sql");
+    }
+
+    @Test
+    void mismatchedContractVersionIsRefusedNamingBothVersions() {
+        assertThatThrownBy(() -> registry(
+                        new MockEnvironment(), feature("rr").contract(2).build()))
+                .hasMessageContaining("'rr'")
+                .hasMessageContaining("version 2")
+                .hasMessageContaining("version 1");
+    }
+
+    @Test
+    void disablingARequiredModuleIsRefused() {
+        var env = new MockEnvironment().withProperty("artemis-studio.features.clusters.enabled", "false");
+        assertThatThrownBy(
+                        () -> registry(env, feature("clusters").required(true).build()))
+                .hasMessageContaining("'clusters' is required and cannot be disabled");
+    }
+
+    @Test
+    void disablingAFeatureAnEnabledFeatureRequiresIsRefused() {
+        var env = new MockEnvironment().withProperty("artemis-studio.features.routing.enabled", "false");
+        assertThatThrownBy(() -> registry(
+                        env,
+                        feature("routing").build(),
+                        feature("brokerconfig").require("routing").build()))
+                .hasMessageContaining("'brokerconfig'")
+                .hasMessageContaining("'routing'");
+    }
+
+    @Test
+    void aDisabledFeatureMayRequireAnotherDisabledFeature() {
+        var env = new MockEnvironment()
+                .withProperty("artemis-studio.features.routing.enabled", "false")
+                .withProperty("artemis-studio.features.brokerconfig.enabled", "false");
+        var registry = registry(
+                env,
+                feature("routing").build(),
+                feature("brokerconfig").require("routing").build());
+        assertThat(registry.enabled()).isEmpty();
+    }
+
+    @Test
+    void duplicateContributionsAreRefused() {
+        var env = new MockEnvironment();
+        assertThatThrownBy(() -> registry(
+                        env,
+                        feature("a")
+                                .permission(new PermissionDef("queue:create", "x"))
+                                .build(),
+                        feature("b")
+                                .permission(new PermissionDef("queue:create", "y"))
+                                .build()))
+                .hasMessageContaining("permission 'queue:create' is declared by both 'a' and 'b'");
+        assertThatThrownBy(() -> registry(
+                        env,
+                        feature("a").setting(setting("rr.sweep-interval")).build(),
+                        feature("b").setting(setting("rr.sweep-interval")).build()))
+                .hasMessageContaining("setting 'rr.sweep-interval'");
+        assertThatThrownBy(() -> registry(
+                        env,
+                        feature("a").streamTopic(TopicDef.signal("queues")).build(),
+                        feature("b").streamTopic(TopicDef.signal("queues")).build()))
+                .hasMessageContaining("stream topic 'queues'");
+        assertThatThrownBy(() -> registry(
+                        env,
+                        feature("a").mcpTool(tool("diagnose")).build(),
+                        feature("b").mcpTool(tool("diagnose")).build()))
+                .hasMessageContaining("MCP tool 'diagnose'");
+        assertThatThrownBy(
+                        () -> registry(env, feature("a").build(), feature("a").build()))
+                .hasMessageContaining("declared twice");
+    }
+
+    @Test
+    void aDisabledFeaturesApiPrefixesIdentifyIt() {
+        var env = new MockEnvironment().withProperty("artemis-studio.features.sql.enabled", "false");
+        var registry = registry(
+                env,
+                feature("sql").apiPrefix("/api/v1/clusters/{clusterId}/sql").build(),
+                feature("queues")
+                        .apiPrefix("/api/v1/clusters/{clusterId}/queues")
+                        .build());
+
+        assertThat(registry.disabledOwnerOf("/api/v1/clusters/abc/sql/query"))
+                .map(FeatureDescriptor::id)
+                .contains("sql");
+        assertThat(registry.disabledOwnerOf("/api/v1/clusters/abc/sql")).isPresent();
+        assertThat(registry.disabledOwnerOf("/api/v1/clusters/abc/queues")).isEmpty();
+    }
+
+    private static SettingDef setting(String key) {
+        return new SettingDef(key, "g", "l", "h", SettingDef.Kind.INT, () -> "1", null);
+    }
+
+    private static McpToolDef tool(String name) {
+        return new McpToolDef(name, McpToolDef.Posture.READ, "s", List.of());
+    }
+}

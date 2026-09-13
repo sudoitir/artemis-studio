@@ -2682,6 +2682,24 @@
         }
       }
     },
+    "/api/v1/manifest" : {
+      "get" : {
+        "tags" : [ "manifest-controller" ],
+        "operationId" : "manifest",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ManifestView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
@@ -6711,6 +6729,93 @@
           }
         },
         "required" : [ "action", "label" ]
+      },
+      "ManifestFeatureView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "topics" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ManifestIdentityProviderView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "startPath" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ManifestPermissionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "featureId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ManifestView" : {
+        "type" : "object",
+        "properties" : {
+          "contract" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "features" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ManifestFeatureView"
+            }
+          },
+          "permissionCatalogue" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ManifestPermissionView"
+            }
+          },
+          "identityProviders" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ManifestIdentityProviderView"
+            }
+          }
+        }
       },
       "ClusterSummary" : {
         "type" : "object",

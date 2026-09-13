@@ -868,6 +868,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["manifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}": {
         parameters: {
             query?: never;
@@ -2539,6 +2555,32 @@ export interface components {
         PermissionView: {
             action: string;
             label: string;
+        };
+        ManifestFeatureView: {
+            id?: string;
+            title?: string;
+            kind?: string;
+            enabled?: boolean;
+            permissions?: string[];
+            topics?: string[];
+        };
+        ManifestIdentityProviderView: {
+            id?: string;
+            kind?: string;
+            label?: string;
+            startPath?: string;
+        };
+        ManifestPermissionView: {
+            action?: string;
+            label?: string;
+            featureId?: string;
+        };
+        ManifestView: {
+            /** Format: int32 */
+            contract?: number;
+            features?: components["schemas"]["ManifestFeatureView"][];
+            permissionCatalogue?: components["schemas"]["ManifestPermissionView"][];
+            identityProviders?: components["schemas"]["ManifestIdentityProviderView"][];
         };
         ClusterSummary: {
             /** Format: uuid */
@@ -5317,6 +5359,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PermissionView"][];
+                };
+            };
+        };
+    };
+    manifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManifestView"];
                 };
             };
         };
