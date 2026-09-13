@@ -51,7 +51,7 @@ public final class Props {
     private static ArtemisStudioProperties of(
             String secretKey, RateLimit rateLimit, Events events, Security security, Sql sql) {
         return new ArtemisStudioProperties(
-                secretKey, null, null, rateLimit, null, null, null, events, null, null, security, null, sql, null,
+                secretKey, null, null, rateLimit, null, null, null, events, null, null, security, null, sql, null, null,
                 null);
     }
 }

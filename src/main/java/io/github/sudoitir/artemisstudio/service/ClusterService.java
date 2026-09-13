@@ -7,11 +7,13 @@ import io.github.sudoitir.artemisstudio.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.broker.brokerconfig.BrokerConfigOperations;
 import io.github.sudoitir.artemisstudio.broker.core.CoreConnectionSettings;
 import io.github.sudoitir.artemisstudio.broker.core.CorePool;
 import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.broker.core.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.broker.core.SubscriptionVerdict;
+import io.github.sudoitir.artemisstudio.domain.brokerconfig.ObservedNodeConfig;
 import io.github.sudoitir.artemisstudio.domain.topology.ClusterTopology;
 import io.github.sudoitir.artemisstudio.domain.topology.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.domain.topology.NodeEndpoint;
@@ -35,6 +37,7 @@ import io.github.sudoitir.artemisstudio.persist.ClusterRepository;
 import io.github.sudoitir.artemisstudio.security.ClusterEnvironmentIndex;
 import io.github.sudoitir.artemisstudio.security.Permissions;
 import io.github.sudoitir.artemisstudio.security.SecretVault;
+import io.github.sudoitir.artemisstudio.web.dto.BrokerConfigViews;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterRequests.RegisterClusterRequest;
 import io.github.sudoitir.artemisstudio.web.dto.ClusterViews.CapabilitiesView;
@@ -50,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PostFilter;
@@ -80,6 +84,7 @@ public class ClusterService {
 
     private final BrokerClientFactory clientFactory;
     private final BrokerConnections connections;
+    private final BrokerConfigOperations brokerConfigOperations;
     private final CapabilityProbe capabilityProbe;
     private final CapabilityLedger capabilityLedger;
     private final TopologyDiscovery topologyDiscovery;
@@ -148,7 +153,31 @@ public class ClusterService {
 
         audit.succeed(event, nodeCount);
         return new Attempt.Ok<>(new RegisterPreview(
-                viewMapper.capabilities(capabilities), reachable.size(), nodeCount, viewMapper.topology(preview)));
+                viewMapper.capabilities(capabilities),
+                reachable.size(),
+                nodeCount,
+                viewMapper.topology(preview),
+                BrokerConfigViews.RecommendationsView.of(
+                        BrokerConfigRecommendations.from(capabilities, checkSeed(reachable.get(0))))));
+    }
+
+    /**
+     * What the checked node is running, so the recommendations shown before
+     * registration are the same ones shown after it — seeded, not generic. A read
+     * that fails costs the seed and nothing else: the panel then says it could not
+     * read the node rather than showing a replace nobody can check.
+     */
+    private ObservedNodeConfig checkSeed(Probe probe) {
+        try {
+            return brokerConfigOperations.read(
+                    probe.client(),
+                    new UUID(0, 0),
+                    "the checked node",
+                    new BrokerConfigOperations.ReadScope(
+                            Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of()));
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /**
@@ -302,12 +331,18 @@ public class ClusterService {
      */
     @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
+        return viewMapper.capabilities(brokerCapabilities(clusterId));
+    }
+
+    /** The same assessment as {@link #capabilities}, before it becomes a DTO. */
+    @Transactional(readOnly = true)
+    public BrokerCapabilities brokerCapabilities(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
         BrokerNodeEntity manageable = manageableNode(clusterId);
         JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-        return viewMapper.capabilities(capabilityProbe.probe(
-                client, coreSubscriptions.verdictFor(clusterId), capabilityLedger.managementWrite(clusterId)));
+        return capabilityProbe.probe(
+                client, coreSubscriptions.verdictFor(clusterId), capabilityLedger.managementWrite(clusterId));
     }
 
     /**

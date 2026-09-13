@@ -306,7 +306,7 @@ export function SettingsView() {
           What this connection can and cannot do over Jolokia. Rows that are not plainly available
           expand with the reason and the exact <code>broker.xml</code> change to close the gap.
         </Text>
-        {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} /> : null}
+        {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} /> : null}
       </div>
 
       <Divider />

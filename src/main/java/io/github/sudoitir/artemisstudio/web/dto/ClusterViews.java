@@ -99,5 +99,11 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) CapabilitiesView capabilities,
             @Schema(requiredMode = REQUIRED) int reachableSeeds,
             @Schema(requiredMode = REQUIRED) int discoveredNodes,
-            @Schema(requiredMode = REQUIRED) TopologyView topology) {}
+            @Schema(requiredMode = REQUIRED) TopologyView topology,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "What the probe suggests declaring once the cluster is registered,"
+                            + " seeded from what the reachable node is running")
+            BrokerConfigViews.RecommendationsView recommendations) {}
 }

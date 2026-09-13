@@ -3,8 +3,10 @@ package io.github.sudoitir.artemisstudio.web;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException.Kind;
 import io.github.sudoitir.artemisstudio.broker.ManagementRefusal;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigInvalidException;
 import io.github.sudoitir.artemisstudio.service.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.service.ConflictException;
+import io.github.sudoitir.artemisstudio.service.HazardNotAcknowledgedException;
 import io.github.sudoitir.artemisstudio.service.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.service.MustChangePasswordException;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
@@ -182,6 +184,34 @@ class ApiExceptionHandler {
                 ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Invalid username or password.");
         problem.setType(URI.create(TYPE_BASE + "invalid-credentials"));
         problem.setTitle("Authentication failed");
+        return problem;
+    }
+
+    /**
+     * A declaration that cannot be saved or applied (ADR-0067 D10). Same shape as
+     * bean validation — {@code errors} with a field path per problem — so the form
+     * can focus the first invalid field.
+     */
+    @ExceptionHandler(BrokerConfigInvalidException.class)
+    ProblemDetail onConfigInvalid(BrokerConfigInvalidException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "config-invalid"));
+        problem.setTitle("The declaration is invalid");
+        problem.setProperty(
+                "errors",
+                e.violations().stream()
+                        .map(v -> Map.of("field", v.path(), "message", v.message()))
+                        .toList());
+        return problem;
+    }
+
+    /** A real run without every High hazard acknowledged (ADR-0067 D7). The ids travel so the client can name them. */
+    @ExceptionHandler(HazardNotAcknowledgedException.class)
+    ProblemDetail onHazard(HazardNotAcknowledgedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problem.setType(URI.create(TYPE_BASE + "hazard-not-acknowledged"));
+        problem.setTitle("Hazards not acknowledged");
+        problem.setProperty("missing", e.missing());
         return problem;
     }
 

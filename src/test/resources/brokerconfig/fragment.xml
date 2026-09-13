@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns="urn:activemq" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+   <core xmlns="urn:activemq:core">
+      <name>broker-1</name>
+      <global-max-size>${GLOBAL_MAX_SIZE}</global-max-size>
+      <persist-delivery-count-before-delivery>true</persist-delivery-count-before-delivery>
+      <ha-policy>
+         <replication>
+            <primary>
+               <group-name>pair-1</group-name>
+            </primary>
+         </replication>
+      </ha-policy>
+      <address-settings>
+         <address-setting match="orders.#">
+            <dead-letter-address>DLQ</dead-letter-address>
+            <expiry-address>ExpiryQueue</expiry-address>
+            <max-delivery-attempts>3</max-delivery-attempts>
+            <redelivery-delay>1000</redelivery-delay>
+            <redelivery-delay-multiplier>2.0</redelivery-delay-multiplier>
+            <max-redelivery-delay>10000</max-redelivery-delay>
+            <redistribution-delay>1000</redistribution-delay>
+            <address-full-policy>PAGE</address-full-policy>
+            <max-size-bytes>104857600</max-size-bytes>
+            <page-size-bytes>10485760</page-size-bytes>
+            <default-queue-routing-type>ANYCAST</default-queue-routing-type>
+            <auto-create-queues>false</auto-create-queues>
+            <page-full-policy>FAIL</page-full-policy>
+            <not-a-real-key>1</not-a-real-key>
+         </address-setting>
+         <address-setting match="orders.reply.#">
+            <auto-create-queues>true</auto-create-queues>
+            <auto-delete-queues>true</auto-delete-queues>
+            <auto-delete-queues-delay>60000</auto-delete-queues-delay>
+            <redistribution-delay>-1</redistribution-delay>
+            <config-delete-queues>FORCE</config-delete-queues>
+         </address-setting>
+      </address-settings>
+      <security-settings>
+         <security-setting match="orders.#">
+            <permission type="send" roles="app-role, ops-role"/>
+            <permission type="consume" roles="app-role"/>
+            <permission type="createNonDurableQueue" roles="app-role"/>
+            <permission type="deleteNonDurableQueue" roles="app-role"/>
+         </security-setting>
+         <security-setting-plugin class-name="com.example.Plugin"/>
+      </security-settings>
+      <addresses>
+         <address name="DLQ">
+            <anycast>
+               <queue name="DLQ"/>
+            </anycast>
+         </address>
+         <address name="orders.request.v1">
+            <anycast>
+               <queue name="orders.request.v1">
+                  <filter string="region = 'eu'"/>
+                  <max-consumers>4</max-consumers>
+               </queue>
+            </anycast>
+         </address>
+      </addresses>
+      <diverts>
+         <divert name="orders-audit">
+            <address>orders.request.v1</address>
+            <forwarding-address>orders.audit</forwarding-address>
+            <filter string="amount &gt; 100"/>
+            <exclusive>false</exclusive>
+         </divert>
+      </diverts>
+   </core>
+</configuration>

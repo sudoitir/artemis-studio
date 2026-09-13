@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.persist.MessageIndexPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.persist.MetricPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.persist.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.persist.RrFlowReaper;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigDriftService;
 import io.github.sudoitir.artemisstudio.service.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.service.SettingsService;
 import io.github.sudoitir.artemisstudio.sql.MessageIndexCapture;
@@ -56,6 +57,7 @@ public class DynamicSchedules implements SchedulingConfigurer {
     private final SqlTailPoller sqlTailPoller;
     private final MessageIndexCapture messageIndexCapture;
     private final CaptureReconciler captureReconciler;
+    private final BrokerConfigDriftService brokerConfigDrift;
     private final MessageIndexPartitionMaintainer messageIndexPartitions;
     private final ArtemisStudioProperties properties;
 
@@ -94,6 +96,11 @@ public class DynamicSchedules implements SchedulingConfigurer {
         registrar.addTriggerTask(
                 captureReconciler::reconcile,
                 DynamicTriggers.fixedDelay(() -> properties.capture().reconcileInterval()));
+        // Configuration drift (ADR-0067 D8): every declared cluster's live nodes are
+        // read once — one batched pass per node under the per-node limiter — and
+        // compared against the declaration. It records findings and never applies.
+        registrar.addTriggerTask(
+                brokerConfigDrift::evaluateAll, DynamicTriggers.fixedDelay(settings::configDriftInterval));
 
         // Housekeeping crons.
         registrar.addTriggerTask(metricReaper::reap, DynamicTriggers.cron(settings::metricReaperCron));

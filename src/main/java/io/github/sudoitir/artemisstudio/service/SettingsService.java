@@ -84,6 +84,8 @@ public class SettingsService {
     public static final String ALERTING_INITIAL_BACKOFF = "alerting.initial-backoff";
     public static final String ALERTING_MAX_BACKOFF = "alerting.max-backoff";
     public static final String SSE_HEARTBEAT_INTERVAL = "sse.heartbeat-interval";
+    public static final String CONFIG_DRIFT_INTERVAL = "config.drift-interval";
+    public static final String CONFIG_APPLY_STEP_CAP = "config.apply-step-cap";
 
     /**
      * How a value is parsed, validated and rendered. The three kinds are the whole
@@ -368,6 +370,25 @@ public class SettingsService {
                 Kind.DURATION,
                 () -> defaults.sse().heartbeatInterval().toString(),
                 null);
+
+        // ---- broker configuration -------------------------------------------
+        register(
+                CONFIG_DRIFT_INTERVAL,
+                "Broker configuration",
+                "Drift evaluation interval",
+                "How often every live node is compared against its cluster's declared configuration."
+                        + " One batched read per node per pass; nothing is ever applied by it.",
+                Kind.DURATION,
+                () -> defaults.brokerConfig().driftInterval().toString(),
+                null);
+        register(
+                CONFIG_APPLY_STEP_CAP,
+                "Broker configuration",
+                "Apply step cap",
+                "Most management writes one configuration apply may issue before it needs an explicit override.",
+                Kind.INT,
+                () -> Integer.toString(defaults.brokerConfig().applyStepCap()),
+                null);
     }
 
     private void register(
@@ -482,6 +503,14 @@ public class SettingsService {
 
     public Duration sseHeartbeatInterval() {
         return duration(SSE_HEARTBEAT_INTERVAL);
+    }
+
+    public Duration configDriftInterval() {
+        return duration(CONFIG_DRIFT_INTERVAL);
+    }
+
+    public int configApplyStepCap() {
+        return intValue(CONFIG_APPLY_STEP_CAP);
     }
 
     // ---- read / write -----------------------------------------------------

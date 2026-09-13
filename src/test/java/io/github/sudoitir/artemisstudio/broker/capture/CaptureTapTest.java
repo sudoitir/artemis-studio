@@ -156,6 +156,7 @@ class CaptureTapTest {
                 null,
                 null,
                 new ArtemisStudioProperties.Capture("amq", Duration.ofSeconds(30), Duration.ofHours(24)),
+                null,
                 null);
     }
 

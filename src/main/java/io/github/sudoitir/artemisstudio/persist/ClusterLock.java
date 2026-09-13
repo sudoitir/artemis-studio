@@ -51,17 +51,72 @@ public class ClusterLock {
      *     reconciling", not "something is wrong".
      */
     public boolean runIfHeld(UUID clusterId, Runnable work) {
+        return runIfHeld(clusterId, Scope.RECONCILE, work);
+    }
+
+    /**
+     * What a lock guards. Each scope is its own advisory-lock namespace, so a
+     * configuration apply refusing to run "because another apply is in progress" is
+     * telling the truth and is not merely colliding with a reconcile pass.
+     */
+    public enum Scope {
+        RECONCILE(NAMESPACE),
+        CONFIG_APPLY(NAMESPACE + 1),
+        /**
+         * Drift evaluation. Its own namespace because it is neither: sharing
+         * {@code RECONCILE} made a drift pass and the capture reconciler wait for each
+         * other for no reason, while leaving two drift passes free to stack.
+         */
+        CONFIG_DRIFT(NAMESPACE + 2);
+
+        private final int namespace;
+
+        Scope(int namespace) {
+            this.namespace = namespace;
+        }
+    }
+
+    /**
+     * Whether someone else currently holds this cluster's lock in this scope.
+     *
+     * <p>Answered by taking the lock and letting it go again, which is the only
+     * question Postgres will answer about an advisory lock without a catalogue scan.
+     * The answer is therefore a moment in the past: a caller that acts on it races
+     * anything that takes the lock immediately afterwards. That is tolerable where
+     * the consequence of losing the race is bounded and self-correcting — refusing
+     * an adoption, or skipping a drift pass that runs again on the next interval —
+     * and it is not a substitute for holding the lock around work that must be
+     * exclusive.
+     */
+    public boolean isHeld(UUID clusterId, Scope scope) {
         int key = key(clusterId);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(true);
-            if (!call(connection, "SELECT pg_try_advisory_lock(?, ?)", key)) {
+            if (!call(connection, "SELECT pg_try_advisory_lock(?, ?)", scope.namespace, key)) {
+                return true;
+            }
+            call(connection, "SELECT pg_advisory_unlock(?, ?)", scope.namespace, key);
+            return false;
+        } catch (SQLException e) {
+            // A database Studio cannot reach is not evidence that an apply is running.
+            log.debug("Could not probe the {} lock for cluster {}: {}", scope, clusterId, e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean runIfHeld(UUID clusterId, Scope scope, Runnable work) {
+        int namespace = scope.namespace;
+        int key = key(clusterId);
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(true);
+            if (!call(connection, "SELECT pg_try_advisory_lock(?, ?)", namespace, key)) {
                 log.debug("Cluster {} is being reconciled by another instance; skipping this pass", clusterId);
                 return false;
             }
             try {
                 work.run();
             } finally {
-                call(connection, "SELECT pg_advisory_unlock(?, ?)", key);
+                call(connection, "SELECT pg_advisory_unlock(?, ?)", namespace, key);
             }
             return true;
         } catch (SQLException e) {
@@ -70,9 +125,9 @@ public class ClusterLock {
         }
     }
 
-    private boolean call(Connection connection, String sql, int key) throws SQLException {
+    private boolean call(Connection connection, String sql, int namespace, int key) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, NAMESPACE);
+            statement.setInt(1, namespace);
             statement.setInt(2, key);
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next() && rs.getBoolean(1);

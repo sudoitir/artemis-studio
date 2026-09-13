@@ -59,7 +59,20 @@ export const STATE_CONDITIONS = [
   'REPLICATION_BEHIND',
   'CLUSTER_DEGRADED',
   'CLOCK_SKEW',
+  'CONFIG_DRIFT',
 ] as const;
+
+/**
+ * A prefilled state rule for configuration drift (ADR-0067 D8): a node that no
+ * longer matches the cluster's declaration. Evaluation is scheduled; action
+ * never is — the alert is the whole of the automated response.
+ */
+export const CONFIG_DRIFT_TEMPLATE = {
+  name: 'Configuration drift',
+  stateCondition: 'CONFIG_DRIFT',
+  forSeconds: 0,
+  severity: 'WARNING',
+} as const;
 
 export const COMPARATORS = ['GT', 'GTE', 'LT', 'LTE', 'EQ', 'NE'] as const;
 

@@ -23,11 +23,10 @@ package io.github.sudoitir.artemisstudio.broker;
  *       holds: Jolokia {@code browse()} / {@code sendMessage()} stringify bodies;
  *       faithful message I/O needs the Core client.
  *   <li>{@code slowConsumerDetection} — whether the broker does its own
- *       slow-consumer detection (ADR-0044). Usually {@link CapabilityStatus#UNKNOWN}:
- *       {@code getAddressSettingsAsJSON} returns
- *       {@code slowConsumerThresholdMeasurementUnit} but not the threshold itself, so
- *       Studio cannot see whether one is set. UNKNOWN, never "off" — reporting a
- *       difference Studio cannot observe would be a guess (non-negotiable #5).
+ *       slow-consumer detection (ADR-0044), read from {@code slowConsumerThreshold}
+ *       on the catch-all address setting. The broker echoes it once one is set and
+ *       omits it otherwise (notes §15 M1, §16 M8), so an absent threshold is
+ *       reported as off rather than as unknowable.
  * </ul>
  */
 public record BrokerCapabilities(

@@ -96,6 +96,7 @@ docker run -p 8080:8080 \
 - **消息操作**——浏览、发送、移动、重投、过期、删除、清空，每一个变更调用都支持 `?dryRun=true`，配合服务端强制的批量上限与按节点分别汇报的结果。
 - **请求-应答追踪**——跨地址、跨节点关联请求与应答，并按声明的预期统计延迟与超时。
 - **治理**——处处强制认证，按全局 → 环境 → 集群分层的角色/权限模型，API 令牌，可选 OIDC/SSO，以及与命令写在同一事务中的审计事件。
+- **[Broker 配置](https://sudoitir.github.io/artemis-studio/zh/guide/broker-configuration)**——声明集群应当运行的 address settings、security settings、divert 与队列；以金丝雀优先的方式应用，每一次写入前都说明危害，或导出 `broker.xml` 片段；查看每个节点相对声明的漂移。
 - **[MCP 服务器](https://sudoitir.github.io/artemis-studio/zh/guide/mcp)**——把同样的能力交给助手，遵循同样的授权与同样的审计链路。
 
 ## 建立在四条规则之上

@@ -129,24 +129,67 @@ delivered, and expired notifications.
 - **THEN** it shows the reason and the `broker.xml` snippet rather than hiding
   the related controls
 
+#### Scenario: A snippet the declaration can apply links there
+
+- **WHEN** a registered cluster's capability snippet consists, wholly or in part, of address or security settings
+- **THEN** the ledger states which part the declared configuration can apply over the management API and which still needs `broker.xml`, and links into the cluster's recommended configuration, where the entry is seeded from what the node is running
+
+### Requirement: A capability gap declares whether Studio can close it
+
+Every capability gap SHALL declare whether Studio can close it over the management
+API, and the ones it cannot SHALL be named with their `broker.xml` fragment rather
+than omitted. A gap that is an address setting or a security setting is appliable;
+`broker-plugins`, `acceptors`, and any change needing `artemis-roles.properties`
+never are, because no management operation writes them.
+
+An appliable gap SHALL carry the whole entry that would be written, seeded from
+what the node currently resolves for that match — a runtime write replaces the
+entry rather than merging into it, so an entry carrying only the recommended keys
+would silently reset every other key on the match.
+
+#### Scenario: The appliable and the manual are both listed
+
+- **WHEN** the recommendations for a cluster are requested
+- **THEN** each one states whether Studio can apply it, an appliable one carries the
+  full entry and the keys it itself sets, and a manual one carries the `broker.xml`
+  fragment and the reason no management operation can write it
+
+#### Scenario: No node could be read
+
+- **WHEN** no live node answers the read the recommendations are seeded from
+- **THEN** the result says which node it was seeded from is unknown and the entries
+  carry only their own keys, rather than presenting an unseeded entry as a full one
+
+#### Scenario: A gap that has been closed stops being recommended
+
+- **WHEN** an appliable recommendation has been declared and applied, and the probe runs again
+- **THEN** that capability is no longer recommended, because the probe reads the
+  setting back rather than reporting a fixed sentence
+
 ### Requirement: Native slow-consumer detection is reported three-state with its snippet
 
 The system SHALL report whether the broker's own slow-consumer detection is configured,
 using the same three-state grammar as every other capability: configured, not configured,
-or unknown. When the broker's management surface does not expose the slow-consumer
-threshold at all, the state SHALL be **unknown** — never "not configured" — because
-Studio cannot tell the difference, and reporting the difference it cannot observe would
-be a guess.
+or unknown. The broker echoes `slowConsumerThreshold` once one is set and omits it
+otherwise, so an absent threshold SHALL be reported as **not configured** — a fact the
+operator can act on. The state is **unknown** only when the address-settings read
+itself fails.
 
 Where the state is not "configured", the result SHALL include the exact `broker.xml`
 snippet that enables native slow-consumer detection, including the threshold, the check
 period, and the policy.
 
-#### Scenario: Threshold not exposed
+#### Scenario: No threshold set
 
-- **WHEN** the broker's address-settings read does not return a slow-consumer threshold
-- **THEN** native slow-consumer detection is reported as unknown, with the enabling
-  `broker.xml` snippet
+- **WHEN** the broker's address-settings read returns no slow-consumer threshold
+- **THEN** native slow-consumer detection is reported as not configured, with the
+  enabling `broker.xml` snippet
+
+#### Scenario: The settings cannot be read
+
+- **WHEN** the address-settings read fails
+- **THEN** native slow-consumer detection is reported as unknown, because nothing
+  was observed either way
 
 #### Scenario: Detection configured
 

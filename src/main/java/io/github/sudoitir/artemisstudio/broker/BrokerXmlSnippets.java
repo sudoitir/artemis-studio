@@ -111,11 +111,9 @@ public final class BrokerXmlSnippets {
      * broker emits {@code CONSUMER_SLOW} on {@code activemq.notifications} carrying
      * {@code _AMQ_ConsumerName}, and that is the authoritative verdict.
      *
-     * <p>Shown whenever native detection is not reported as configured — including
-     * when it is UNKNOWN, which is the usual answer: the slice-0 spike confirmed
-     * {@code getAddressSettingsAsJSON} returns only
-     * {@code slowConsumerThresholdMeasurementUnit}, never the threshold itself, so
-     * Studio cannot observe whether it is set (non-negotiable #5).
+     * <p>Shown whenever native detection is not reported as configured. The broker
+     * echoes {@code slowConsumerThreshold} once one is set and omits it otherwise
+     * (notes §16 M8), so "not configured" is observed rather than assumed.
      */
     public static final String SLOW_CONSUMER_DETECTION = """
             <address-settings>

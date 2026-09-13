@@ -16,6 +16,8 @@ import { MessagesView } from './messages/MessagesView.tsx';
 import { SqlConsoleView } from './sql/SqlConsoleView.tsx';
 import { AuditView } from './audit/AuditView.tsx';
 import { ConfigDiffView } from './config/ConfigDiffView.tsx';
+import { ConfigurationView } from './brokerconfig/ConfigurationView.tsx';
+import { ApplyView } from './brokerconfig/ApplyView.tsx';
 import { DlqView } from './dlq/DlqView.tsx';
 import { EventsView } from './events/EventsView.tsx';
 import { FlowsView } from './rr/FlowsView.tsx';
@@ -265,6 +267,44 @@ const configDiffRoute = createRoute({
   errorComponent: RouteError,
 });
 
+/** The declaration's navigable state: which tab is open, and which editor (ADR-0067). */
+export interface ConfigurationSearch {
+  tab?: 'declared' | 'drift' | 'history' | 'recommended';
+  section?: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts';
+  item?: string;
+}
+
+function validateConfigurationSearch(raw: Record<string, unknown>): ConfigurationSearch {
+  const out: ConfigurationSearch = {};
+  if (typeof raw.tab === 'string' && ['declared', 'drift', 'history', 'recommended'].includes(raw.tab)) {
+    out.tab = raw.tab as ConfigurationSearch['tab'];
+  }
+  if (
+    typeof raw.section === 'string' &&
+    ['addresses', 'addressSettings', 'securitySettings', 'diverts'].includes(raw.section)
+  ) {
+    out.section = raw.section as ConfigurationSearch['section'];
+  }
+  if (typeof raw.item === 'string' && raw.item) out.item = raw.item;
+  return out;
+}
+
+const configurationRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'configuration',
+  component: ConfigurationView,
+  validateSearch: validateConfigurationSearch,
+  errorComponent: RouteError,
+});
+
+/** The apply flow is its own address: a plan being confirmed is something worth a link. */
+const configurationApplyRoute = createRoute({
+  getParentRoute: () => clusterRoute,
+  path: 'configuration/apply',
+  component: ApplyView,
+  errorComponent: RouteError,
+});
+
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
@@ -332,6 +372,8 @@ const routeTree = rootRoute.addChildren([
     alertsRoute,
     auditRoute,
     configDiffRoute,
+    configurationRoute,
+    configurationApplyRoute,
     dlqRoute,
     eventsRoute,
     rrRoute,

@@ -1,4 +1,5 @@
 import {
+  IconAdjustmentsHorizontal,
   IconAlertTriangle,
   IconArrowsExchange,
   IconAt,
@@ -44,6 +45,7 @@ export const NAV_ITEMS: NavItemDef[] = [
   { path: 'events', label: 'Events', icon: IconBellRinging },
   { path: 'rr', label: 'Requests', icon: IconArrowsExchange },
   { path: 'dlq', label: 'DLQ', icon: IconAlertTriangle },
+  { path: 'configuration', label: 'Configuration', icon: IconAdjustmentsHorizontal },
   { path: 'config-diff', label: 'Config diff', icon: IconGitCompare },
   { path: 'audit', label: 'Audit', icon: IconClipboardList },
   { path: 'settings', label: 'Settings', icon: IconSettings },

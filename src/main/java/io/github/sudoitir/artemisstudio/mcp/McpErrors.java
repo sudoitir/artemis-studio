@@ -1,8 +1,10 @@
 package io.github.sudoitir.artemisstudio.mcp;
 
 import io.github.sudoitir.artemisstudio.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.service.BrokerConfigInvalidException;
 import io.github.sudoitir.artemisstudio.service.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.service.ConflictException;
+import io.github.sudoitir.artemisstudio.service.HazardNotAcknowledgedException;
 import io.github.sudoitir.artemisstudio.service.NotFoundException;
 import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -72,6 +74,14 @@ public final class McpErrors {
                     + ". Re-run with override=true to proceed, or narrow the filter to stay under the cap.");
         } catch (ConflictException e) {
             return error(e.getMessage());
+        } catch (HazardNotAcknowledgedException e) {
+            // The ids are the whole point: a model re-runs with exactly these.
+            return error(e.getMessage() + " Pass them comma-separated in acknowledge.");
+        } catch (BrokerConfigInvalidException e) {
+            return error("The declaration is invalid: "
+                    + e.violations().stream()
+                            .map(v -> v.path() + ": " + v.message())
+                            .collect(java.util.stream.Collectors.joining("; ")));
         } catch (BrokerConnectionException e) {
             return error("The broker could not be reached: " + e.kind().defaultMessage()
                     + " The cluster may be down, or its management URL may be wrong.");

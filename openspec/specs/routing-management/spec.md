@@ -65,6 +65,9 @@ one of them is changed — and SHALL show the configuration that would make them
 The configuration shown SHALL be generated from the values the operator supplied, so it can be
 applied directly rather than re-entered, and SHALL be copyable in one action.
 
+A divert MAY also be declared in the cluster's declared configuration, in which case the
+declaration's drift report is where its presence on every node is tracked.
+
 #### Scenario: The drift consequence is stated before the action
 
 - **WHEN** an operator is about to create a divert

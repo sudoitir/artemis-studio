@@ -34,6 +34,10 @@ public final class Permissions {
      * a different authority from changing how often Studio polls.
      */
     public static final String CAPTURE_WRITE = "capture:write";
+    /** Edit a cluster's declared configuration (ADR-0067). Changes nothing on a broker. */
+    public static final String CONFIG_WRITE = "config:write";
+    /** Apply a declaration to brokers: create and update only, never destroy a queue or address (ADR-0067 D6). */
+    public static final String CONFIG_APPLY = "config:apply";
 
     public static final String CONNECTION_CLOSE = "connection:close";
     public static final String ALERT_READ = "alert:read";
@@ -61,6 +65,8 @@ public final class Permissions {
         m.put(QUEUE_PAUSE, "Pause and resume queues");
         m.put(DIVERT_WRITE, "Create and delete diverts");
         m.put(CAPTURE_WRITE, "Turn message capture on and off");
+        m.put(CONFIG_WRITE, "Edit a cluster's declared broker configuration");
+        m.put(CONFIG_APPLY, "Apply declared broker configuration to brokers");
         m.put(CONNECTION_CLOSE, "Close client connections, sessions and an address's consumers");
         m.put(ALERT_READ, "View alert rules and firings");
         m.put(ALERT_WRITE, "Create, edit, or delete alert rules and channels");

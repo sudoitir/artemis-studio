@@ -30,7 +30,11 @@ class CapabilityProbeTest {
     private final JsonMapper mapper = new JsonMapper();
     private final CapabilityProbe probe = new CapabilityProbe();
 
-    private record Fixture(JolokiaBrokerClient client, MockRestServiceServer server) {}
+    private record Fixture(JolokiaBrokerClient client, MockRestServiceServer server) {
+        BrokerCapabilities probe(CapabilityProbe probe) {
+            return probe.probe(client, new SubscriptionVerdict.NotAttempted());
+        }
+    }
 
     /**
      * Every request the probe sends must be read-only (ADR-0002): search / read, or an
@@ -236,5 +240,47 @@ class CapabilityProbeTest {
         assertThat(caps.notifications().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
         assertThat(caps.notifications().brokerXmlSnippet()).contains("acceptor");
         f.server().verify();
+    }
+
+    /**
+     * The two things one read of the catch-all settles. Both were previously
+     * reported from a fixed sentence rather than from the broker: slow-consumer
+     * detection as permanently unknowable (§16 M8 disproved that), and message I/O
+     * as always truncating — which made the recommendation to lift the cap
+     * impossible to ever close, however many times it was applied.
+     */
+    @Test
+    void theCatchAllSettingsSettleTruncationAndSlowConsumerDetection() {
+        Fixture configured = fixture(
+                "search-broker.json",
+                "capability-version-read.json",
+                "acceptors.json",
+                "acceptor-params-core.json",
+                "addresses-with-notifications.json",
+                "address-settings-configured.json");
+
+        BrokerCapabilities caps = configured.probe(probe);
+        assertThat(caps.slowConsumerDetection().status()).isEqualTo(CapabilityStatus.AVAILABLE);
+        assertThat(caps.slowConsumerDetection().reason())
+                .contains("threshold 1")
+                .contains("NOTIFY");
+        assertThat(caps.messageIo().reason())
+                .contains("whole bodies come back")
+                .doesNotContain(CapabilityProbe.TRUNCATING);
+        configured.server().verify();
+
+        Fixture defaults = fixture(
+                "search-broker.json",
+                "capability-version-read.json",
+                "acceptors.json",
+                "acceptor-params-core.json",
+                "addresses-with-notifications.json",
+                "address-settings.json");
+
+        BrokerCapabilities bare = defaults.probe(probe);
+        // An absent threshold means none is set, not that Studio cannot tell.
+        assertThat(bare.slowConsumerDetection().status()).isEqualTo(CapabilityStatus.UNAVAILABLE);
+        assertThat(bare.messageIo().reason()).contains(CapabilityProbe.TRUNCATING);
+        defaults.server().verify();
     }
 }

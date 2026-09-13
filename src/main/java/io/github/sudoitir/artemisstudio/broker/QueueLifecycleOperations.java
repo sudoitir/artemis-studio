@@ -121,7 +121,15 @@ public class QueueLifecycleOperations {
     public Map<String, Object> readQueueConfig(JolokiaBrokerClient client, String queueMbean) {
         JolokiaResponse res = client.single(JolokiaRequest.readAll(queueMbean));
         require(res, "read queue configuration");
-        JsonNode value = res.value();
+        return toQueueConfig(res.value());
+    }
+
+    /**
+     * The same attribute-to-configuration mapping for a queue MBean that was read as
+     * one entry of a batch, so a caller reading many queues in one POST gets the
+     * document {@link #readQueueConfig} would have produced for each.
+     */
+    public Map<String, Object> toQueueConfig(JsonNode value) {
         Map<String, Object> config = new LinkedHashMap<>();
         if (value == null || !value.isObject()) {
             return config;

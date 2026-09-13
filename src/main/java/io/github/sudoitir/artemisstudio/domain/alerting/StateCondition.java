@@ -8,6 +8,8 @@ import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.domain.topology.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.mapper.BrokerNodeMapper;
 import io.github.sudoitir.artemisstudio.persist.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.artemisstudio.persist.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.persist.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.service.ClockOffsetService;
@@ -40,6 +42,7 @@ public class StateCondition implements AlertCondition {
     private final BrokerNodeMapper nodeMapper;
     private final HaStateEvaluator evaluator;
     private final SplitBrainRegistry splitBrainRegistry;
+    private final BrokerConfigNodeStateRepository configStates;
 
     @Override
     public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
@@ -50,6 +53,7 @@ public class StateCondition implements AlertCondition {
             case "REPLICATION_BEHIND" -> replicationBehind(rows);
             case "CLUSTER_DEGRADED" -> clusterDegraded(clusterId, rows);
             case "CLOCK_SKEW" -> clockSkew(clusterId, rows);
+            case "CONFIG_DRIFT" -> configDrift(clusterId);
             default -> Evaluation.EMPTY;
         };
     }
@@ -137,5 +141,29 @@ public class StateCondition implements AlertCondition {
         boolean degraded =
                 health.level() == ClusterHealth.Level.DEGRADED || health.level() == ClusterHealth.Level.CRITICAL;
         return new Evaluation(universe, degraded ? Map.of(CLUSTER_SUBJECT, 1.0) : Map.of());
+    }
+
+    /**
+     * A node whose last configuration evaluation found drift (ADR-0067 D8). Read
+     * from the recorded per-node state, never from a broker: the alert is a view of
+     * the last evaluation, at the interval the operator set. Only evaluated nodes are
+     * in the universe — one that was unreachable or not live cannot resolve a firing
+     * on the strength of no evidence.
+     */
+    private Evaluation configDrift(UUID clusterId) {
+        Set<String> universe = new HashSet<>();
+        Map<String, Double> active = new HashMap<>();
+        for (BrokerConfigNodeStateEntity state : configStates.findByClusterId(clusterId)) {
+            BrokerConfigNodeStateEntity.State s = state.state();
+            if (s != BrokerConfigNodeStateEntity.State.IN_SYNC && s != BrokerConfigNodeStateEntity.State.DRIFTED) {
+                continue;
+            }
+            String key = "node:" + state.getNodeId();
+            universe.add(key);
+            if (s == BrokerConfigNodeStateEntity.State.DRIFTED) {
+                active.put(key, 1.0);
+            }
+        }
+        return new Evaluation(Set.copyOf(universe), Map.copyOf(active));
     }
 }

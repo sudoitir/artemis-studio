@@ -87,7 +87,10 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
     private static final Set<String> NO_CONTROL_POSSIBLE = Set.of(
             "/api/v1/clusters/{clusterId}/queues/{queueName}/messages",
             "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}",
-            "/api/v1/clusters/{clusterId}/rr/flows/{flowId}");
+            "/api/v1/clusters/{clusterId}/rr/flows/{flowId}",
+            // A declaration revision and an apply record the fixture does not create.
+            "/api/v1/clusters/{clusterId}/config/revisions/{number}",
+            "/api/v1/clusters/{clusterId}/config/applies/{id}");
 
     private UUID visible;
     private UUID hidden;
@@ -205,10 +208,12 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
                 // A node that really exists on the granted cluster, so a node-addressed
                 // read's control call is not a 404 for absence.
                 .replace("{nodeId}", nodeId.toString())
-                // The one numeric path variable; it must parse as a long or binding
+                // The numeric path variables; they must parse as a number or binding
                 // fails before the guard runs. Not derivable from the name — {flowId}
-                // is a UUID — so it is listed rather than pattern-matched.
+                // is a UUID — so they are listed rather than pattern-matched.
                 .replace("{messageId}", "1")
+                .replace("{number}", "1")
+                .replace("{id}", "1")
                 // Everything else takes a UUID: parses as a UUID where one is expected,
                 // and is a harmless string where a name is.
                 .replaceAll("\\{[^}]+}", PLACEHOLDER.toString());

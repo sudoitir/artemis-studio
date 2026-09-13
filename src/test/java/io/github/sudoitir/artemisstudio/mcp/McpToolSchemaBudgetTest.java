@@ -59,8 +59,14 @@ class McpToolSchemaBudgetTest extends PostgresIntegrationTest {
      */
     private static final int AVERAGE_TOKEN_BUDGET_PER_TOOL = 135;
 
-    /** A tool that needs more than this is describing too much; split it or collapse it. */
-    private static final int PER_TOOL_TOKEN_BUDGET = 175;
+    /**
+     * A tool that needs more than this is describing too much; split it or collapse it.
+     * Raised from 175 for {@code broker_config_change}, whose apply gate legitimately
+     * needs the acknowledgement list and the plan hash as separate parameters: they
+     * answer different questions ("I saw these hazards" / "I saw this plan") and
+     * folding them into one string would hide which one a refusal is about.
+     */
+    private static final int PER_TOOL_TOKEN_BUDGET = 190;
 
     @Autowired
     WebApplicationContext webContext;

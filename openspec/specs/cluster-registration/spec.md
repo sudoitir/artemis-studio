@@ -61,6 +61,16 @@ what would be saved.
 - **WHEN** a dry-run registration is called
 - **THEN** an audit event is written recording the attempt with its dry-run flag set
 
+#### Scenario: The check shows what could be configured after registering
+
+- **WHEN** a dry-run registration reaches a broker with a capability gap Studio
+  could close over the management API
+- **THEN** the preview carries the same recommendations the registered cluster
+  would show, seeded from the node the check reached, presented as a preview that
+  cannot yet be declared — there is no cluster for a revision to belong to
+- **AND** registering then lands the operator on that cluster's recommended
+  configuration, where the same panel can be declared and applied
+
 #### Scenario: Preview topology renders like a saved cluster's
 
 - **WHEN** the registration UI receives a dry-run preview
