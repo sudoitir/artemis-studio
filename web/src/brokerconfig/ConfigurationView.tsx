@@ -11,8 +11,8 @@ import {
 import { absoluteLabel } from '../app/time.ts';
 import { useDisplayZone } from '../app/timezone.ts';
 import { useCan } from '../auth/useCan.ts';
-import { CapabilityGate } from '../shared/CapabilityGate.tsx';
-import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
+import { CapabilityGate } from '../ui/CapabilityGate.tsx';
+import { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
 import type { ConfigurationSearch } from '../router.tsx';
 import { AdoptionSuggestion } from './AdoptionSuggestion.tsx';
 import { APPLY_PERMISSION_LABEL } from './ApplyView.tsx';

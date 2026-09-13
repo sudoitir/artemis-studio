@@ -16,7 +16,7 @@ the alternative misleads someone in that state.
   matters most and the one most likely to be skipped.
 - **A destructive action states its blast radius before it can be armed** — the
   resource, the nodes, and how much data will be destroyed. Confirm by typing the
-  resource's name, using `shared/ConfirmByTyping.tsx`. Never a checkbox, a second
+  resource's name, using `ui/ConfirmByTyping.tsx`. Never a checkbox, a second
   click, or a countdown.
 - **An unavailable estimate is stated, never omitted.** An absent number reads as
   zero, which is the most dangerous possible misreading.
@@ -83,8 +83,8 @@ the alternative misleads someone in that state.
 
 - New tabular views use the existing virtualised table, with its paging, sorting,
   sort announcement and node attribution.
-- Destructive confirmations use `shared/ConfirmByTyping.tsx`.
-- A per-node result uses `shared/NodeOutcomeSummary.tsx`, for the preview *and* the
+- Destructive confirmations use `ui/ConfirmByTyping.tsx`.
+- A per-node result uses `ui/NodeOutcomeSummary.tsx`, for the preview *and* the
   result, so what was confirmed and what happened are comparable.
 - DTOs come from `api/schema.d.ts`, generated. Never hand-written.
 

@@ -3,7 +3,7 @@ import { Accordion, Anchor, Chip, Group, Stack, Table, Text } from '@mantine/cor
 import { Link } from '@tanstack/react-router';
 
 import type { ConfigApplyOutcomeView, ConfigNodeApplyView } from '../api/client.ts';
-import { OutcomeSummary, type OutcomeRow } from '../shared/NodeOutcomeSummary.tsx';
+import { OutcomeSummary, type OutcomeRow } from '../ui/NodeOutcomeSummary.tsx';
 import classes from './Configuration.module.css';
 import { stepStatusWords, wireSectionLabel } from './words.ts';
 

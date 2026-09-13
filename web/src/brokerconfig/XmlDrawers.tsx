@@ -12,7 +12,7 @@ import {
   type ConfigDocumentView,
   type ConfigImportResultView,
 } from '../api/client.ts';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 import { mergeDocuments } from './document.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 import { WHY_NOT_AUTOMATIC } from './words.ts';

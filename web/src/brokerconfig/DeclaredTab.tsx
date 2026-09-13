@@ -9,8 +9,8 @@ import type {
   ConfigDivertView,
   ConfigSecuritySettingView,
 } from '../api/client.ts';
-import { CapabilityGate } from '../shared/CapabilityGate.tsx';
-import type { GateVerdict } from '../shared/capabilityGate.ts';
+import { CapabilityGate } from '../ui/CapabilityGate.tsx';
+import type { GateVerdict } from '../ui/capabilityGate.ts';
 import { AddressEditor } from './AddressEditor.tsx';
 import { AddressSettingEditor } from './AddressSettingEditor.tsx';
 import { DivertEditor } from './DivertEditor.tsx';

@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 
 import { useCreateQueue, type CreateQueueRequest, type LifecycleOutcomeView } from '../api/client.ts';
-import { NodeOutcomeSummary } from '../shared/NodeOutcomeSummary.tsx';
+import { NodeOutcomeSummary } from '../ui/NodeOutcomeSummary.tsx';
 import { AddressPicker } from './AddressPicker.tsx';
 
 /** Only the fields that identify the queue are required; the rest have broker defaults. */

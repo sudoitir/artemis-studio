@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster, useRrFlows } from '../api/client.ts';
-import { Pager } from '../grid/Pager.tsx';
+import { Pager } from '../ui/Pager.tsx';
 import { useClusterStream } from '../api/stream.ts';
 import { ExpectationsView } from './ExpectationsView.tsx';
 import { FlowDetail } from './FlowDetail.tsx';

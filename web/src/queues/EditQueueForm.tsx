@@ -7,7 +7,7 @@ import {
   type QueueView,
   type UpdateQueueRequest,
 } from '../api/client.ts';
-import { NodeOutcomeSummary } from '../shared/NodeOutcomeSummary.tsx';
+import { NodeOutcomeSummary } from '../ui/NodeOutcomeSummary.tsx';
 import classes from './EditQueueForm.module.css';
 
 /**

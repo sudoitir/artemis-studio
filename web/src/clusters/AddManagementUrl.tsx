@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 import {
   useDeleteCluster,
   useOverrideNodeUrl,

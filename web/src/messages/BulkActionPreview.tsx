@@ -7,7 +7,7 @@ import {
   type DryRunView,
   type MessageActionKind,
 } from '../api/client.ts';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 
 const LABEL: Record<MessageActionKind, string> = {
   move: 'Move',

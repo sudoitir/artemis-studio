@@ -17,7 +17,7 @@ import { Link, useParams } from '@tanstack/react-router';
 
 import { useDlq, type DlqQueue } from '../api/client.ts';
 import { BulkActionPreview } from '../messages/BulkActionPreview.tsx';
-import { Pager } from '../grid/Pager.tsx';
+import { Pager } from '../ui/Pager.tsx';
 
 /**
  * How many queue cards are rendered at once.

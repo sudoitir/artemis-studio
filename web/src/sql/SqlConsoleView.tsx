@@ -22,12 +22,12 @@ import {
   type SqlRowView,
 } from "../api/client.ts";
 import { useCan } from "../auth/useCan.ts";
-import { CapabilityGate } from "../shared/CapabilityGate.tsx";
-import { gateFor } from "../shared/capabilityGate.ts";
+import { CapabilityGate } from "../ui/CapabilityGate.tsx";
+import { gateFor } from "../ui/capabilityGate.ts";
 import {
   OutcomeSummary,
   type OutcomeRow,
-} from "../shared/NodeOutcomeSummary.tsx";
+} from "../ui/NodeOutcomeSummary.tsx";
 import { CapabilityLedger } from "../clusters/CapabilityLedger.tsx";
 import { MessageDetailPanel } from "../messages/MessageDetailPanel.tsx";
 import { QueryEditor } from "./QueryEditor.tsx";

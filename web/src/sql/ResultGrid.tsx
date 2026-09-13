@@ -4,7 +4,7 @@ import { Badge, Group, Text } from "@mantine/core";
 import type { SqlRowView } from "../api/client.ts";
 import { absoluteLabel } from "../app/time.ts";
 import { useDisplayZone } from "../app/timezone.ts";
-import { VirtualTable, type GridColumn } from "../grid/VirtualTable.tsx";
+import { VirtualTable, type GridColumn } from "../ui/VirtualTable.tsx";
 import { VerifyOnBroker } from "./VerifyOnBroker.tsx";
 import { rowKey } from "./useSqlTail.ts";
 import classes from "./ResultGrid.module.css";

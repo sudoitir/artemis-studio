@@ -24,9 +24,9 @@ import {
   usePurgeQueue,
   type MessageSummaryView,
 } from '../api/client.ts';
-import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
 import { CapabilityLedger } from '../clusters/CapabilityLedger.tsx';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 import { MessageDetailPanel } from './MessageDetailPanel.tsx';
 import { MessageActions } from './MessageActions.tsx';
 import { SendMessage } from './SendMessage.tsx';

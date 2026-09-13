@@ -25,7 +25,7 @@ import {
   type SqlIndexSubscriptionView,
 } from "../api/client.ts";
 import { useCan } from "../auth/useCan.ts";
-import { ConfirmByTyping } from "../shared/ConfirmByTyping.tsx";
+import { ConfirmByTyping } from "../ui/ConfirmByTyping.tsx";
 import classes from "./IndexSubscriptions.module.css";
 
 function bytes(value: number): string {

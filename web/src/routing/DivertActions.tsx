@@ -10,10 +10,10 @@ import {
   type LifecycleOutcomeView,
 } from '../api/client.ts';
 import { useCan } from '../auth/useCan.ts';
-import { CapabilityGate } from '../shared/CapabilityGate.tsx';
-import { gateFor } from '../shared/capabilityGate.ts';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
-import { NodeOutcomeSummary } from '../shared/NodeOutcomeSummary.tsx';
+import { CapabilityGate } from '../ui/CapabilityGate.tsx';
+import { gateFor } from '../ui/capabilityGate.ts';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
+import { NodeOutcomeSummary } from '../ui/NodeOutcomeSummary.tsx';
 
 const PERMISSION_LABEL = 'Create and delete diverts';
 

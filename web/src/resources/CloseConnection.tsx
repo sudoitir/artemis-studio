@@ -9,10 +9,10 @@ import {
   type ConnectionCloseView,
 } from '../api/client.ts';
 import { useCan } from '../auth/useCan.ts';
-import { CapabilityGate } from '../shared/CapabilityGate.tsx';
-import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
-import { NodeOutcomeSummary } from '../shared/NodeOutcomeSummary.tsx';
+import { CapabilityGate } from '../ui/CapabilityGate.tsx';
+import { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
+import { NodeOutcomeSummary } from '../ui/NodeOutcomeSummary.tsx';
 import { elapsedLabel, toServerMs, useServerNow } from '../app/time.ts';
 
 const PERMISSION_LABEL = "Close client connections, sessions and an address's consumers";

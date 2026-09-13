@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../test/render.tsx';
 import { server } from '../test/setup.ts';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ clusterId: 'c1', queueName: 'ORDERS' }),

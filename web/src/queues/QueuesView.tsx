@@ -4,8 +4,8 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster, useQueues, type QueueView } from '../api/client.ts';
-import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
-import { Pager } from '../grid/Pager.tsx';
+import { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
+import { Pager } from '../ui/Pager.tsx';
 import { QueueDetailDrawer } from './QueueDetailDrawer.tsx';
 import { CreateQueueForm } from './CreateQueueForm.tsx';
 import { useCan } from '../auth/useCan.ts';

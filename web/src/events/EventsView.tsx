@@ -19,8 +19,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster, useEvents, type BrokerEventView } from '../api/client.ts';
 import { useClusterStream } from '../api/stream.ts';
-import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
-import { Pager } from '../grid/Pager.tsx';
+import { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
+import { Pager } from '../ui/Pager.tsx';
 import styles from './EventsView.module.css';
 import { absoluteLabel } from '../app/time.ts';
 import { useDisplayZone } from '../app/timezone.ts';

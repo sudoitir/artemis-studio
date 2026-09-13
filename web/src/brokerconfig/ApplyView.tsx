@@ -11,9 +11,9 @@ import {
 } from '../api/client.ts';
 import { clearApplyProgress, useApplyProgress } from './applyProgress.ts';
 import { useCan } from '../auth/useCan.ts';
-import { CapabilityGate } from '../shared/CapabilityGate.tsx';
-import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
-import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
+import { CapabilityGate } from '../ui/CapabilityGate.tsx';
+import { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
+import { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 import { ApplyResult } from './ApplyResult.tsx';
 import { ApplyTimeline } from './ApplyTimeline.tsx';
 import classes from './Configuration.module.css';

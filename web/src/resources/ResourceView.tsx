@@ -17,9 +17,9 @@ import {
   type ResourceParams,
   type SessionView,
 } from '../api/client.ts';
-import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
+import { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
 import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
-import { Pager } from '../grid/Pager.tsx';
+import { Pager } from '../ui/Pager.tsx';
 import type { ApiError } from '../api/client.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
 

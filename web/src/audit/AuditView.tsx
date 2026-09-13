@@ -17,8 +17,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { useAudit, useUsers, type AuditEventView } from '../api/client.ts';
 import { useCan } from '../auth/useCan.ts';
-import { VirtualTable, type GridColumn } from '../grid/VirtualTable.tsx';
-import { Pager } from '../grid/Pager.tsx';
+import { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
+import { Pager } from '../ui/Pager.tsx';
 import { absoluteLabel } from '../app/time.ts';
 import { useDisplayZone } from '../app/timezone.ts';
 
