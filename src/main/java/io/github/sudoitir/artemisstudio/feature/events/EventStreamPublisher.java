@@ -23,7 +23,7 @@ public class EventStreamPublisher implements BrokerEventPublisher {
     @Override
     public void published(List<BrokerEventEntity> batch) {
         for (BrokerEventEntity e : batch) {
-            hub.publish(e.getClusterId(), "events", events.toView(e), Long.toString(e.getSeq()));
+            hub.publish(e.getClusterId(), EventsModule.TOPIC, events.toView(e), Long.toString(e.getSeq()));
             String derived = derivedTopicOf(e.getType());
             if (derived != null) {
                 coalescer.touch(e.getClusterId(), derived);

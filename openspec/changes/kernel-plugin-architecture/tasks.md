@@ -38,7 +38,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [x] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
 - [x] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.
 - [x] 3.8 Create `kernel/jobs`: a `ScheduledJob` SPI and a generalised `DynamicSchedules`/`DynamicTriggers` that record `JobStatus` and the `studio.job{job,feature}` timer.
-- [ ] 3.9 Create `kernel/stream`: `SseHub`, `StreamController`, `TopicCoalescer`, a `StreamPublisher` API, a topic registry built from `TopicDef` (unknown or disabled topics ignored), and a `RequestStream` API for per-request streams.
+- [x] 3.9 Create `kernel/stream`: `SseHub` (the publishing API), `StreamController`, `TopicCoalescer`, a topic registry built from the enabled descriptors' `TopicDef`s (unknown or disabled topics ignored), and an `EventReplay` SPI for `Last-Event-ID` replay.
 - [ ] 3.10 Split `ArtemisStudioProperties` into per-module `@ConfigurationProperties` records, keeping prefixes that already match a module id. List every renamed prefix in a draft `changelog/unreleased.md`.
 
 ## 4. Platform modules
@@ -71,7 +71,7 @@ Each task below does the same four things:
 - [ ] 5.6 `messages`: message service, operations and controller, `MessageAction`, DLQ service and controller. MCP tools `message_action`, `send_message`, `browse_messages`.
 - [ ] 5.7 `alerting`: alerting domain, evaluator (listening to `ScrapeTierCompleted`), rule and alert services, notification channels, dispatcher, backoff, senders and controllers. Define `spi.AlertSignalSource`; handle `ClusterRemoving`. Topic `alerts`, MCP tool `alert_rule`.
 - [ ] 5.8 `rr`: resolvers, sampler, correlator, metrics, notification observer, deadline sweep, domain, persistence and controller. Its capture listener loads only when `sql` is enabled. Topic `rr`, MCP tool `trace_request_reply`.
-- [ ] 5.9 `sql`: console, index, capture tap/consumer/bus/reconciler, index writer and partitions, controllers, `SqlQueryTickets` and the per-request tail on `RequestStream`. Define `spi.CaptureListener`.
+- [ ] 5.9 `sql`: console, index, capture tap/consumer/bus/reconciler, index writer and partitions, controllers, `SqlQueryTickets` and the per-request tail stream. Define `spi.CaptureListener`.
 - [ ] 5.10 `brokerconfig`: operations, domain, config diff, `ConfigReader`, services, persistence and controllers. Implement `AlertSignalSource` for drift. Topic `config`; MCP tools `broker_config`, `config_diff`, `broker_config_change`.
 - [ ] 5.11 `triage`: split `diagnose` and `activity_log` out of `McpDiagnosticTools`, and delete `McpDiagnosticTools`/`McpTuningTools` once every tool lives in its feature.
 - [ ] 5.12 Declare `ScheduledJob` beans for every former `DynamicSchedules` task in its owning module, and delete the central task list.

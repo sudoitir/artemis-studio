@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 
 /** Alert rules, firings and notification channels. Module descriptor (ADR-0070). */
 public final class AlertingModule {
@@ -20,6 +21,7 @@ public final class AlertingModule {
             .settingKey(AlertingSettings.MAX_ATTEMPTS)
             .settingKey(AlertingSettings.INITIAL_BACKOFF)
             .settingKey(AlertingSettings.MAX_BACKOFF)
+            .streamTopic(TopicDef.signal("alerts"))
             .build();
 
     private AlertingModule() {}

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.resources;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 
 /** Cross-node live views and connection control. Module descriptor (ADR-0070). */
 public final class ResourcesModule {
@@ -21,6 +22,9 @@ public final class ResourcesModule {
             .apiPrefix("/api/v1/clusters/{clusterId}/nodes/{nodeId}/sessions")
             .apiPrefix("/api/v1/clusters/{clusterId}/nodes/{nodeId}/consumers")
             .apiPrefix("/api/v1/clusters/{clusterId}/addresses/{address}/consumers")
+            .streamTopic(TopicDef.signal("consumers"))
+            .streamTopic(TopicDef.signal("sessions"))
+            .streamTopic(TopicDef.signal("connections"))
             .build();
 
     private ResourcesModule() {}

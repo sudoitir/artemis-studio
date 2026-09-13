@@ -1,17 +1,20 @@
 package io.github.sudoitir.artemisstudio.kernel.stream.web;
 
-import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
-import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.stream.EventReplay;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,30 +28,43 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * {@link SseHub}'s heartbeat keeps it open. {@code X-Accel-Buffering: no} tells
  * proxies not to buffer it.
  *
- * <p>Signal topics carry a {@code {topic,clusterId,ts}} envelope; the
- * {@code events} topic carries the broker-event payload with an {@code id:} line
- * ({@code broker_event.seq}). A reconnecting client that presents
- * {@code Last-Event-ID} gets a bounded replay of the events it missed before
- * live delivery resumes.
+ * <p>The recognised topics are those the enabled modules declare (ADR-0070); a
+ * topic of a disabled or unknown module is ignored. Signal topics carry a
+ * {@code {topic,clusterId,ts}} envelope; a data-carrying topic with an
+ * {@link EventReplay} gets a bounded replay of what a client presenting
+ * {@code Last-Event-ID} missed before live delivery resumes.
  */
 @RestController
-@RequiredArgsConstructor
 public class StreamController {
 
-    private static final Set<String> KNOWN_TOPICS = Set.of(
-            "topology", "health", "queues", "events", "consumers", "sessions", "connections", "rr", "alerts", "config");
-    private static final Set<String> DEFAULT_TOPIC_SET = Set.of("topology", "health", "queues");
-    private static final String DEFAULT_TOPICS = "topology,health,queues";
+    private static final Set<String> DEFAULT_TOPICS = Set.of("topology", "health", "queues");
     private static final int REPLAY_CAP = 500;
 
     private final SseHub hub;
-    private final BrokerEventService events;
     private final ClusterAccessGuard clusterAccess;
+    private final Set<String> knownTopics;
+    private final Set<String> defaultTopics;
+    private final Map<String, EventReplay> replays;
+
+    public StreamController(
+            SseHub hub, ClusterAccessGuard clusterAccess, FeatureRegistry features, List<EventReplay> replays) {
+        this.hub = hub;
+        this.clusterAccess = clusterAccess;
+        this.knownTopics = features.enabled().stream()
+                .flatMap(d -> d.streamTopics().stream())
+                .map(TopicDef::name)
+                .collect(Collectors.toUnmodifiableSet());
+        this.defaultTopics =
+                DEFAULT_TOPICS.stream().filter(knownTopics::contains).collect(Collectors.toUnmodifiableSet());
+        this.replays = replays.stream()
+                .filter(r -> knownTopics.contains(r.topic()))
+                .collect(Collectors.toUnmodifiableMap(EventReplay::topic, Function.identity()));
+    }
 
     @GetMapping(path = "/api/v1/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(
             @RequestParam UUID clusterId,
-            @RequestParam(defaultValue = DEFAULT_TOPICS) String topics,
+            @RequestParam(defaultValue = "topology,health,queues") String topics,
             @RequestHeader(name = "Last-Event-ID", required = false) Long lastEventId,
             HttpServletResponse response) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
@@ -56,21 +72,25 @@ public class StreamController {
 
         Set<String> wanted = Arrays.stream(topics.split(","))
                 .map(String::trim)
-                .filter(KNOWN_TOPICS::contains)
+                .filter(knownTopics::contains)
                 .collect(Collectors.toUnmodifiableSet());
 
         SseEmitter emitter = new SseEmitter(0L);
-        Subscriber subscriber = new Subscriber(emitter, wanted.isEmpty() ? DEFAULT_TOPIC_SET : wanted);
+        Subscriber subscriber = new Subscriber(emitter, wanted.isEmpty() ? defaultTopics : wanted);
         hub.register(clusterId, subscriber);
 
         emitter.onCompletion(() -> hub.remove(clusterId, subscriber));
         emitter.onTimeout(() -> hub.remove(clusterId, subscriber));
         emitter.onError(e -> hub.remove(clusterId, subscriber));
 
-        if (lastEventId != null && subscriber.wants("events")) {
-            for (BrokerEventView missed : events.since(clusterId, lastEventId, REPLAY_CAP)) {
-                hub.sendTo(subscriber, "events", missed, Long.toString(missed.seq()));
-            }
+        if (lastEventId != null) {
+            replays.forEach((topic, replay) -> {
+                if (subscriber.wants(topic)) {
+                    for (EventReplay.Replayed missed : replay.since(clusterId, lastEventId, REPLAY_CAP)) {
+                        hub.sendTo(subscriber, topic, missed.data(), missed.id());
+                    }
+                }
+            });
         }
         return emitter;
     }

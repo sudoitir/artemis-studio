@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 
 /** Request-reply flows, expectations and latency. Module descriptor (ADR-0070). */
 public final class RrModule {
@@ -16,6 +17,7 @@ public final class RrModule {
             .settingKey(RrSettings.PAYLOAD_CAPTURE_BYTES)
             .settingKey(RrSettings.SWEEP_INTERVAL)
             .settingKey(RrSettings.SAMPLE_INTERVAL)
+            .streamTopic(TopicDef.signal("rr"))
             .build();
 
     private RrModule() {}

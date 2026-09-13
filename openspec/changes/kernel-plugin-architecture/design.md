@@ -136,7 +136,7 @@ Enforced by ArchUnit and Modulith:
 - Features may use only `@PreAuthorize` from Spring Security. Identity-provider modules may use what their SPI needs, and only redirect providers see `HttpSecurity`.
 - `@Entity`, repositories, `JdbcTemplate` and `EntityManager` are used only inside the owning module's `internal.persistence`.
 - Jolokia and Core client types stay internal to `platform.broker`. `NodeWriter` has a package-private constructor, so broker writes are reachable only inside `BrokerCommands`.
-- `SseEmitter` appears only in `kernel.stream`, except the per-request SQL tail stream, which gets a kernel `RequestStream` API.
+- `SseEmitter` appears only in `kernel.stream` and in a module's own per-request stream controller (today only the SQL tail). A kernel wrapper for one consumer is not worth its indirection.
 - `@Scheduled`, `TaskScheduler` and `SchedulingConfigurer` appear only in `kernel.jobs` and `platform.scrape`.
 - No `ApplicationContext` or `BeanFactory` injection and no `@Enable*` in features.
 - Cross-module foreign keys follow allowed edges (`SchemaOwnershipTest`).

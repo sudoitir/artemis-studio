@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.stream.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,8 +11,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.app.StudioFeatures;
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
@@ -24,6 +29,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -121,6 +128,21 @@ class StreamControllerTest extends PostgresIntegrationTest {
                 .andExpect(request().asyncStarted());
 
         verify(hub, org.mockito.Mockito.never()).sendTo(any(), any(), any(), any());
+    }
+
+    @Test
+    void aDisabledFeaturesTopicIsIgnored() {
+        var env = new MockEnvironment().withProperty("artemis-studio.features.alerting.enabled", "false");
+        var registry = new FeatureRegistry(new InstalledFeatures(StudioFeatures.descriptors()), env);
+        SseHub localHub = mock(SseHub.class);
+        var controller = new StreamController(localHub, mock(ClusterAccessGuard.class), registry, List.of());
+        UUID clusterId = UUID.randomUUID();
+
+        controller.stream(clusterId, "alerts,topology", null, new MockHttpServletResponse());
+
+        ArgumentCaptor<Subscriber> captor = ArgumentCaptor.forClass(Subscriber.class);
+        verify(localHub).register(eq(clusterId), captor.capture());
+        assertThat(captor.getValue().topics()).containsExactly("topology");
     }
 
     private static BrokerEventView view(long seq) {
