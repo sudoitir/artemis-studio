@@ -34,7 +34,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [x] 3.2 Move security into `kernel/security`: principal, grants, `PermissionResolver`, `ClusterAccessGuard`, `ActorResolver`, `SecretVault`, `SecurityConfig`, CSRF, and the user/role/grant services and persistence. Introduce the `spi.ScopeHierarchy` interface.
 - [x] 3.3 Assemble the permission catalogue from descriptors, replacing the static `Permissions.catalogue()`. Keep permission string constants in the owning modules' `api`.
 - [x] 3.4 Add `PermissionCatalogueTest`. It checks every permission literal in `@PreAuthorize`, `requireCluster`, `LifecycleKind` and frontend `can('…')` calls against the catalogue, and checks that built-in role seeds ⊆ catalogue ∪ wildcards.
-- [ ] 3.5 Move `AuditService`, the audit entity, repository, query service and controller into `kernel/audit`. Record `cluster_name` on each audit event. The `cluster_name` column lands with the baseline in 7.3.
+- [x] 3.5 Move `AuditService`, the audit entity, repository, query service and controller into `kernel/audit`. Record `cluster_name` on each audit event. The `cluster_name` column lands with the baseline in 7.3.
 - [x] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
 - [x] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.
 - [x] 3.8 Create `kernel/jobs`: a `ScheduledJob` SPI and a generalised `DynamicSchedules`/`DynamicTriggers` that record `JobStatus` and the `studio.job{job,feature}` timer.
@@ -111,7 +111,7 @@ Each task below does the same four things:
   - foreign keys follow allowed edges;
   - `ddl-auto=validate` passes.
 - [ ] 7.7 Add a schema-diff test comparing the baseline with the reference dump from 7.1. The only permitted differences are the ones listed in 7.3.
-- [ ] 7.8 Make the audit read for a removed cluster available to globally granted callers. Test that removing a cluster or user leaves its audit events unchanged.
+- [x] 7.8 Make the audit read for a removed cluster available to globally granted callers. Test that removing a cluster leaves its audit events unchanged (users are disabled, never removed, so no user case exists).
 
 ## 8. Operational health
 

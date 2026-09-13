@@ -13,6 +13,7 @@ CREATE TABLE audit_event (
     action text NOT NULL,
     target_type text,
     target_name text,
+    cluster_name text,
     username text,
     outcome text DEFAULT 'PENDING'::text NOT NULL,
     error text,

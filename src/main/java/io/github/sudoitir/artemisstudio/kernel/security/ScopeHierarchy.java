@@ -11,4 +11,7 @@ public interface ScopeHierarchy {
 
     /** The cluster's environment id, or {@code null} when it has none or does not exist. */
     UUID environmentOf(UUID clusterId);
+
+    /** The cluster's name, or {@code null} when it does not exist. Audit records it beside the id. */
+    String clusterName(UUID clusterId);
 }

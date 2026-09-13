@@ -28,6 +28,11 @@ public class ClusterEnvironmentIndex implements ScopeHierarchy {
         return current().get(clusterId);
     }
 
+    @Override
+    public String clusterName(UUID clusterId) {
+        return clusters.findById(clusterId).map(ClusterEntity::getName).orElse(null);
+    }
+
     /** Call after any create/update/delete that could change a cluster's environment. */
     public void invalidate() {
         index = null;

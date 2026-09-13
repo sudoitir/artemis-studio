@@ -64,6 +64,7 @@ public class AuditQueryService {
                 e.isDryRun(),
                 e.getParams(),
                 e.getError(),
+                e.getClusterName(),
                 e.getNodeId());
     }
 }

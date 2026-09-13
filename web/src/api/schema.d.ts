@@ -3430,6 +3430,7 @@ export interface components {
             dryRun: boolean;
             params?: string | null;
             error?: string | null;
+            clusterName?: string | null;
             /** Format: uuid */
             nodeId?: string | null;
         };

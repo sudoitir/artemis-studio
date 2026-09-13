@@ -25,6 +25,7 @@ public final class AuditViews {
             @Schema(requiredMode = REQUIRED) boolean dryRun,
             @Schema(nullable = true) String params,
             @Schema(nullable = true) String error,
+            @Schema(nullable = true) String clusterName,
             @Schema(nullable = true) UUID nodeId) {}
 
     public record AuditPageView(

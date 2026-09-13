@@ -8866,6 +8866,9 @@
           "error" : {
             "type" : [ "string", "null" ]
           },
+          "clusterName" : {
+            "type" : [ "string", "null" ]
+          },
           "nodeId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid"

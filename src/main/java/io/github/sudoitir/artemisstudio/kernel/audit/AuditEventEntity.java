@@ -50,6 +50,10 @@ public class AuditEventEntity {
     @Column(name = "target_name", updatable = false)
     private String targetName;
 
+    /** The cluster's name when the event was written, kept after the cluster is removed (ADR-0072). */
+    @Column(name = "cluster_name", updatable = false)
+    private String clusterName;
+
     @Column(name = "username", updatable = false)
     private String username;
 
@@ -100,6 +104,7 @@ public class AuditEventEntity {
             String sourceIp,
             UUID userId,
             UUID clusterId,
+            String clusterName,
             UUID nodeId,
             String params,
             boolean dryRun) {
@@ -111,6 +116,7 @@ public class AuditEventEntity {
         this.sourceIp = sourceIp;
         this.userId = userId;
         this.clusterId = clusterId;
+        this.clusterName = clusterName;
         this.nodeId = nodeId;
         this.params = params;
         this.dryRun = dryRun;

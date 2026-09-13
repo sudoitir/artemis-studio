@@ -260,6 +260,11 @@ class ClusterControllerTest extends PostgresIntegrationTest {
         // ADR-0072: audit has no foreign key to what it describes, so it keeps naming the removed cluster.
         assertThat(audits.findAll())
                 .allSatisfy(e -> assertThat(e.getClusterId()).isEqualTo(clusterId));
+        // A globally granted caller can still read the removed cluster's trail, by name (task 7.8).
+        mvc.perform(get("/api/v1/clusters/{c}/audit", clusterId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.action == 'DELETE_CLUSTER')].clusterName")
+                        .value("prod-emea"));
     }
 
     @Test

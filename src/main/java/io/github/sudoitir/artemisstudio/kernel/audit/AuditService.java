@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class AuditService {
 
     private final AuditEventRepository events;
     private final ObjectMapper mapper;
+    private final ScopeHierarchy clusters;
 
     public AuditEventEntity begin(
             Actor actor,
@@ -45,6 +47,7 @@ public class AuditService {
                 a.sourceIp(),
                 a.userId(),
                 clusterId,
+                clusterId == null ? null : clusters.clusterName(clusterId),
                 nodeId,
                 paramsJson,
                 dryRun));
