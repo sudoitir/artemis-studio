@@ -10,7 +10,6 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Bound;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -42,7 +41,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class IndexQueryExecutor {
 
     private final JdbcTemplate jdbc;
-    private final ArtemisStudioProperties properties;
+    private final SqlProperties properties;
     private final JsonMapper json = JsonMapper.builder().build();
 
     /** A fragment plus the values that fill its placeholders. */
@@ -83,7 +82,7 @@ public class IndexQueryExecutor {
         binds.add(plan.effectiveLimit() + 1);
 
         jdbc.execute("SET LOCAL statement_timeout = "
-                + Math.max(1000, properties.sql().timeout().toMillis()));
+                + Math.max(1000, properties.timeout().toMillis()));
 
         List<Row> rows = jdbc.query(sql.toString(), this::toRow, binds.toArray());
 

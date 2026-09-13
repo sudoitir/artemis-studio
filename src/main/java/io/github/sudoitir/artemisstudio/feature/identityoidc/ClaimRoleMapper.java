@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.identityoidc;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.OidcRoleMappingEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.OidcRoleMappingRepository;
@@ -35,7 +34,7 @@ public class ClaimRoleMapper {
     private final OidcRoleMappingRepository mappings;
     private final RoleRepository roles;
     private final UserRoleRepository userRoles;
-    private final ArtemisStudioProperties properties;
+    private final OidcProperties properties;
 
     public enum Outcome {
         MAPPED,
@@ -44,7 +43,7 @@ public class ClaimRoleMapper {
     }
 
     public Outcome apply(UUID userId, java.util.Map<String, Object> claims) {
-        String claimName = properties.security().oidcClaim();
+        String claimName = properties.oidcClaim();
         List<String> claimValues = claimValues(claims.get(claimName));
 
         List<OidcRoleMappingEntity> allMappings = mappings.findByClaim(claimName);
@@ -57,7 +56,7 @@ public class ClaimRoleMapper {
 
         boolean anyMapped = !desired.isEmpty();
         if (!anyMapped) {
-            String defaultRole = properties.security().oidcDefaultRole();
+            String defaultRole = properties.oidcDefaultRole();
             if (defaultRole == null) {
                 return Outcome.REFUSED;
             }

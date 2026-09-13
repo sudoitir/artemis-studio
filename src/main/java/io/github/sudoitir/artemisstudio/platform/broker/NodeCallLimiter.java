@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,8 +30,8 @@ public class NodeCallLimiter {
     private final Map<UUID, Semaphore> perNode = new ConcurrentHashMap<>();
     private volatile int permitsPerSecond;
 
-    public NodeCallLimiter(ArtemisStudioProperties properties) {
-        this.permitsPerSecond = Math.max(1, properties.rateLimit().managementCallsPerSecond());
+    public NodeCallLimiter(RateLimitProperties properties) {
+        this.permitsPerSecond = Math.max(1, properties.managementCallsPerSecond());
     }
 
     /** Runtime override hook — {@code SettingsService} calls this when the ceiling changes. */

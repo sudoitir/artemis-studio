@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventReaper;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -24,9 +23,9 @@ public class RrFlowReaper {
     private final NamedParameterJdbcTemplate jdbc;
     private volatile int retentionDays;
 
-    public RrFlowReaper(NamedParameterJdbcTemplate jdbc, ArtemisStudioProperties properties) {
+    public RrFlowReaper(NamedParameterJdbcTemplate jdbc, RrProperties properties) {
         this.jdbc = jdbc;
-        this.retentionDays = Math.max(1, (int) properties.rr().retention().toDays());
+        this.retentionDays = Math.max(1, (int) properties.retention().toDays());
     }
 
     /** Runtime override hook — {@code SettingsService} calls this when the window changes. */

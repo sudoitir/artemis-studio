@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Bound;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
@@ -59,7 +58,7 @@ public class BrokerQueryExecutor {
     private final NodeCallLimiter limiter;
     private final MessagePredicate residuals;
     private final QueryPlanner planner;
-    private final ArtemisStudioProperties properties;
+    private final SqlProperties properties;
 
     /** Where a caller receives rows and per-node outcomes as they happen. */
     public interface Sink {
@@ -90,7 +89,7 @@ public class BrokerQueryExecutor {
             MessageTransport transport,
             Sink sink,
             Function<Target, String> extraSelector) {
-        ArtemisStudioProperties.Sql limits = properties.sql();
+        SqlProperties limits = properties;
         Split split = planner.splitOf(plan.ast());
 
         Map<UUID, BrokerNodeEntity> nodesById = new LinkedHashMap<>();
@@ -213,7 +212,7 @@ public class BrokerQueryExecutor {
             AtomicLong examined,
             AtomicBoolean truncationSeen,
             long deadline,
-            ArtemisStudioProperties.Sql limits,
+            SqlProperties limits,
             List<Bound> bounds,
             Function<Target, String> extraSelector) {
 
@@ -347,7 +346,7 @@ public class BrokerQueryExecutor {
         }
     }
 
-    private Bound boundReached(int rows, long examined, long deadline, ArtemisStudioProperties.Sql limits) {
+    private Bound boundReached(int rows, long examined, long deadline, SqlProperties limits) {
         if (System.nanoTime() > deadline) {
             return new Bound(Bound.Kind.TIMEOUT, limits.timeout().toSeconds());
         }

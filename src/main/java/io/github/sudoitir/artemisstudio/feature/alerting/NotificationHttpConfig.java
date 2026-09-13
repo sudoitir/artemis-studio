@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.context.annotation.Bean;
@@ -18,10 +17,10 @@ import org.springframework.web.client.RestClient;
 public class NotificationHttpConfig {
 
     @Bean
-    public RestClient notificationRestClient(ArtemisStudioProperties properties) {
+    public RestClient notificationRestClient(AlertingProperties properties) {
         HttpClientSettings settings = HttpClientSettings.defaults()
-                .withConnectTimeout(properties.alerting().connectTimeout())
-                .withReadTimeout(properties.alerting().connectTimeout());
+                .withConnectTimeout(properties.connectTimeout())
+                .withReadTimeout(properties.connectTimeout());
         return RestClient.builder()
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(settings))
                 .build();

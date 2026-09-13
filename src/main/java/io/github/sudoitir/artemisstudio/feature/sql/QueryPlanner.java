@@ -7,7 +7,6 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Term;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
@@ -46,7 +45,7 @@ public class QueryPlanner {
     private final PredicateSplitter splitter;
     private final SelectorRenderer selectors;
     private final ClockOffsetService clocks;
-    private final ArtemisStudioProperties properties;
+    private final SqlProperties properties;
     private final MessageIndexCoverage coverage;
     private final Clock clock;
 
@@ -58,7 +57,7 @@ public class QueryPlanner {
             PredicateSplitter splitter,
             SelectorRenderer selectors,
             ClockOffsetService clocks,
-            ArtemisStudioProperties properties,
+            SqlProperties properties,
             MessageIndexCoverage coverage) {
         this(snapshots, nodes, splitter, selectors, clocks, properties, coverage, Clock.systemUTC());
     }
@@ -69,7 +68,7 @@ public class QueryPlanner {
             PredicateSplitter splitter,
             SelectorRenderer selectors,
             ClockOffsetService clocks,
-            ArtemisStudioProperties properties,
+            SqlProperties properties,
             MessageIndexCoverage coverage,
             Clock clock) {
         this.snapshots = snapshots;
@@ -124,7 +123,7 @@ public class QueryPlanner {
             // protect brokers, not Postgres, which has its own statement timeout.
             return;
         }
-        long ceiling = properties.sql().costCeiling();
+        long ceiling = properties.costCeiling();
         if (plan.estimatedMessagesExamined() > ceiling) {
             throw new CostRefusedException(plan.estimatedMessagesExamined(), ceiling, narrowingHint(plan));
         }
@@ -198,14 +197,14 @@ public class QueryPlanner {
         List<Target> filtered = targets.stream()
                 .filter(t -> split.target() == null || TargetPredicateEvaluator.matches(split.target(), t))
                 .sorted(Comparator.comparing(Target::queueName).thenComparing(Target::nodeName))
-                .limit(properties.sql().maxTargets())
+                .limit(properties.maxTargets())
                 .toList();
 
         if (targets.size() > filtered.size() && split.target() == null) {
             notices.add(new Notice(
                     Notice.Kind.TARGET_CAPPED,
-                    "The pattern matched " + targets.size() + " targets; only the first "
-                            + properties.sql().maxTargets() + " were read."));
+                    "The pattern matched " + targets.size() + " targets; only the first " + properties.maxTargets()
+                            + " were read."));
         }
         noteUnmeasuredClocks(ast, filtered, notices);
         return filtered;
@@ -319,7 +318,7 @@ public class QueryPlanner {
     }
 
     private int effectiveLimit(QueryAst ast) {
-        int cap = properties.sql().maxRows();
+        int cap = properties.maxRows();
         return ast.limit() == null ? cap : Math.min(ast.limit(), cap);
     }
 

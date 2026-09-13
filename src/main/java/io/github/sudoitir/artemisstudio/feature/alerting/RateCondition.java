@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +25,7 @@ public class RateCondition implements AlertCondition {
     private static final Set<String> RATE_METRICS = Set.of("messagesAdded", "messagesAcked");
 
     private final MetricSeriesRepository series;
-    private final ArtemisStudioProperties properties;
+    private final ScrapeProperties properties;
     private final ObjectMapper mapper;
 
     public static boolean supports(String metric) {
@@ -39,7 +39,7 @@ public class RateCondition implements AlertCondition {
         }
         AlertScope scope = AlertScope.parse(rule.getScope(), mapper);
         Instant to = Instant.now();
-        Instant from = to.minus(properties.scrape().tierBInterval().multipliedBy(2));
+        Instant from = to.minus(properties.tierBInterval().multipliedBy(2));
 
         Map<String, Double> ratesByQueue = series.latestRateBySubject(clusterId, rule.getMetric(), from, to);
         Set<String> universe = new java.util.HashSet<>();

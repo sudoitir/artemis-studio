@@ -15,9 +15,9 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.broker.RateLimitProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.support.Props;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -60,7 +60,7 @@ class PagedListServiceTest {
 
     @BeforeEach
     void setUp() {
-        NodeCallLimiter limiter = new NodeCallLimiter(Props.rateLimit(50));
+        NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(50));
         service = new PagedListService(
                 nodes, connections, new BrokerListOps(), new ResourceViewMapper(), limiter, clusterAccess);
     }

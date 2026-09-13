@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +23,9 @@ public class BrokerEventReaper {
     private final NamedParameterJdbcTemplate jdbc;
     private volatile int retentionHours;
 
-    public BrokerEventReaper(NamedParameterJdbcTemplate jdbc, ArtemisStudioProperties properties) {
+    public BrokerEventReaper(NamedParameterJdbcTemplate jdbc, EventsProperties properties) {
         this.jdbc = jdbc;
-        this.retentionHours = Math.max(1, (int) properties.events().retention().toHours());
+        this.retentionHours = Math.max(1, (int) properties.retention().toHours());
     }
 
     /** Runtime override hook — {@code SettingsService} calls this when the window changes. */

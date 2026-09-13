@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
@@ -17,8 +16,8 @@ class SqlJobs {
      * The tick is free when nobody is tailing.
      */
     @Bean
-    ScheduledJob sqlTailJob(SqlTailPoller poller, ArtemisStudioProperties properties) {
-        return ScheduledJob.fixedDelay("sql-tail", "sql", () -> properties.sql().tailInterval(), poller::tick);
+    ScheduledJob sqlTailJob(SqlTailPoller poller, SqlProperties properties) {
+        return ScheduledJob.fixedDelay("sql-tail", "sql", () -> properties.tailInterval(), poller::tick);
     }
 
     /**
@@ -38,9 +37,9 @@ class SqlJobs {
      * permit, acts only on drift, and is the failover path as well as the install path.
      */
     @Bean
-    ScheduledJob captureReconcileJob(CaptureReconciler reconciler, ArtemisStudioProperties properties) {
+    ScheduledJob captureReconcileJob(CaptureReconciler reconciler, CaptureProperties properties) {
         return ScheduledJob.fixedDelay(
-                "capture-reconcile", "sql", () -> properties.capture().reconcileInterval(), reconciler::reconcile);
+                "capture-reconcile", "sql", () -> properties.reconcileInterval(), reconciler::reconcile);
     }
 
     /**

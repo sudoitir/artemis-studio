@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
@@ -83,11 +82,11 @@ public class ClockOffsetService {
     private final BrokerTime brokerTime;
 
     public ClockOffsetService(
-            BrokerNodeRepository nodes, ClockOffsetRegistry registry, Clock clock, ArtemisStudioProperties properties) {
+            BrokerNodeRepository nodes, ClockOffsetRegistry registry, Clock clock, BrokerProperties properties) {
         this.nodes = nodes;
         this.registry = registry;
         this.clock = clock;
-        this.toleranceMs = properties.rr().clockSkewToleranceMs();
+        this.toleranceMs = properties.clockSkewToleranceMs();
         this.brokerTime = new BrokerTime(this::offsetFor);
     }
 

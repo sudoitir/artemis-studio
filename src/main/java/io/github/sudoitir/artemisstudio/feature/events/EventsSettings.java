@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
@@ -18,7 +17,7 @@ public class EventsSettings implements SettingsContribution {
     public static final String BUFFER_SIZE = "events.buffer-size";
     public static final String FLUSH = "events.flush";
 
-    private final ArtemisStudioProperties defaults;
+    private final EventsProperties defaults;
     private final BrokerEventReaper reaper;
     private final BrokerEventWriter writer;
 
@@ -36,7 +35,7 @@ public class EventsSettings implements SettingsContribution {
                         "Event retention (hours)",
                         "broker_event rows older than this are trimmed.",
                         Kind.INT,
-                        () -> Long.toString(defaults.events().retention().toHours()),
+                        () -> Long.toString(defaults.retention().toHours()),
                         s -> reaper.setRetentionHours(s.intValue(RETENTION_HOURS))),
                 new SettingDef(
                         REAPER_CRON,
@@ -44,7 +43,7 @@ public class EventsSettings implements SettingsContribution {
                         "Event reaper schedule",
                         "When the broker_event trim runs. Six-field cron.",
                         Kind.CRON,
-                        () -> defaults.events().reaperCron(),
+                        () -> defaults.reaperCron(),
                         null),
                 new SettingDef(
                         BUFFER_SIZE,
@@ -52,7 +51,7 @@ public class EventsSettings implements SettingsContribution {
                         "Write buffer size",
                         "Bounded queue of unwritten events. Overflow is dropped and counted, never blocked on.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.events().bufferSize()),
+                        () -> Integer.toString(defaults.bufferSize()),
                         s -> writer.setCapacity(s.intValue(BUFFER_SIZE))),
                 new SettingDef(
                         FLUSH,
@@ -60,7 +59,7 @@ public class EventsSettings implements SettingsContribution {
                         "Flush interval",
                         "How often the buffered events are batch-inserted.",
                         Kind.DURATION,
-                        () -> defaults.events().flush().toString(),
+                        () -> defaults.flush().toString(),
                         null));
     }
 }

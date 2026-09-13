@@ -5,10 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
-import io.github.sudoitir.artemisstudio.support.Props;
 import jakarta.jms.Connection;
 import jakarta.jms.Session;
 import java.time.Duration;
@@ -40,7 +38,7 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
         nodeId = UUID.randomUUID();
         received.clear();
 
-        ArtemisStudioProperties props = Props.defaults();
+        BrokerProperties props = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
 
         BrokerConnections connections = mock(BrokerConnections.class);

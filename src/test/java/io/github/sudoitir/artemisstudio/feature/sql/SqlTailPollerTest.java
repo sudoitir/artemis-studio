@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
@@ -23,7 +22,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
-import io.github.sudoitir.artemisstudio.support.Props;
 import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Duration;
@@ -179,7 +177,7 @@ class SqlTailPollerTest {
     // ---- harness --------------------------------------------------------
 
     private SqlTailPoller poller() {
-        ArtemisStudioProperties properties = Props.sql(new ArtemisStudioProperties.Sql(
+        SqlProperties properties = new SqlProperties(
                 50,
                 50_000,
                 2_000,
@@ -187,14 +185,14 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(30),
                 2,
                 Duration.ofSeconds(5),
-                Duration.ofSeconds(1)));
+                Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
                 snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
         return new SqlTailPoller(new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties), snapshots);
     }
 
     private QueryPlan plan(String sql) {
-        ArtemisStudioProperties properties = Props.sql(new ArtemisStudioProperties.Sql(
+        SqlProperties properties = new SqlProperties(
                 50,
                 50_000,
                 2_000,
@@ -202,7 +200,7 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(30),
                 2,
                 Duration.ofSeconds(5),
-                Duration.ofSeconds(1)));
+                Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
                 snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
         return planner.plan(CLUSTER, parser.parse(sql));

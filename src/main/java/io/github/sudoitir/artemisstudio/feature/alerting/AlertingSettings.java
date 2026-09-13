@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
@@ -18,7 +17,7 @@ public class AlertingSettings implements SettingsContribution {
     public static final String INITIAL_BACKOFF = "alerting.initial-backoff";
     public static final String MAX_BACKOFF = "alerting.max-backoff";
 
-    private final ArtemisStudioProperties defaults;
+    private final AlertingProperties defaults;
 
     @Override
     public String featureId() {
@@ -34,7 +33,7 @@ public class AlertingSettings implements SettingsContribution {
                         "Dispatch interval",
                         "How often queued notification deliveries are claimed and attempted.",
                         Kind.DURATION,
-                        () -> defaults.alerting().dispatchInterval().toString(),
+                        () -> defaults.dispatchInterval().toString(),
                         null),
                 new SettingDef(
                         MAX_ATTEMPTS,
@@ -42,7 +41,7 @@ public class AlertingSettings implements SettingsContribution {
                         "Max delivery attempts",
                         "A delivery is marked dead after this many failures.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.alerting().maxAttempts()),
+                        () -> Integer.toString(defaults.maxAttempts()),
                         null),
                 new SettingDef(
                         INITIAL_BACKOFF,
@@ -50,7 +49,7 @@ public class AlertingSettings implements SettingsContribution {
                         "Initial retry backoff",
                         "Delay before the first retry. Doubles with jitter up to the ceiling.",
                         Kind.DURATION,
-                        () -> defaults.alerting().initialBackoff().toString(),
+                        () -> defaults.initialBackoff().toString(),
                         null),
                 new SettingDef(
                         MAX_BACKOFF,
@@ -58,7 +57,7 @@ public class AlertingSettings implements SettingsContribution {
                         "Max retry backoff",
                         "Ceiling on the exponential retry delay.",
                         Kind.DURATION,
-                        () -> defaults.alerting().maxBackoff().toString(),
+                        () -> defaults.maxBackoff().toString(),
                         null));
     }
 }

@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.sudoitir.artemisstudio.feature.rr.FlowStateMachine.FlowContext;
 import io.github.sudoitir.artemisstudio.feature.rr.FlowStateMachine.Transition;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import java.time.Duration;
@@ -63,7 +62,7 @@ public class RrCorrelator implements RrObservationSink {
             ClockOffsetService clocks,
             SseHub sseHub,
             ObjectMapper mapper,
-            ArtemisStudioProperties properties) {
+            RrProperties properties) {
         this.flows = flows;
         this.events = events;
         this.expectations = expectations;
@@ -72,9 +71,9 @@ public class RrCorrelator implements RrObservationSink {
         this.clocks = clocks;
         this.sseHub = sseHub;
         this.mapper = mapper;
-        this.defaultDeadlineMs = properties.rr().defaultDeadlineMs();
-        this.payloadCaptureBytes = properties.rr().payloadCaptureBytes();
-        this.sampleIntervalMs = (int) properties.rr().sampleInterval().toMillis();
+        this.defaultDeadlineMs = properties.defaultDeadlineMs();
+        this.payloadCaptureBytes = properties.payloadCaptureBytes();
+        this.sampleIntervalMs = (int) properties.sampleInterval().toMillis();
     }
 
     /**

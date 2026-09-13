@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEventSink;
 import java.sql.Timestamp;
@@ -58,12 +57,12 @@ public class BrokerEventWriter implements BrokerEventSink {
             ObjectMapper mapper,
             BrokerEventRepository repository,
             ObjectProvider<BrokerEventPublisher> publisher,
-            ArtemisStudioProperties properties) {
+            EventsProperties properties) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.repository = repository;
         this.publisher = publisher;
-        this.capacity = Math.max(1, properties.events().bufferSize());
+        this.capacity = Math.max(1, properties.bufferSize());
     }
 
     /** Runtime override hook — {@code SettingsService} calls this when the setting changes. */

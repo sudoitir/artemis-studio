@@ -4,7 +4,6 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -41,7 +40,7 @@ public class SqlConsoleService {
     private final ClusterAccessGuard clusterAccess;
     private final ActorResolver actorResolver;
     private final AuditService audit;
-    private final ArtemisStudioProperties properties;
+    private final SqlProperties properties;
 
     /** One counter per actor, so one operator cannot occupy the whole fan-out budget. */
     private final Map<String, AtomicInteger> inFlight = new ConcurrentHashMap<>();
@@ -65,9 +64,9 @@ public class SqlConsoleService {
         Actor actor = actorResolver.resolve();
         String key = actor == null ? "anonymous" : actor.displayName();
         AtomicInteger running = inFlight.computeIfAbsent(key, k -> new AtomicInteger());
-        if (running.incrementAndGet() > properties.sql().maxConcurrentQueries()) {
+        if (running.incrementAndGet() > properties.maxConcurrentQueries()) {
             running.decrementAndGet();
-            throw new TooManyQueriesException(properties.sql().maxConcurrentQueries());
+            throw new TooManyQueriesException(properties.maxConcurrentQueries());
         }
 
         AuditEventEntity event = audit.begin(

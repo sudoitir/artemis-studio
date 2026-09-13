@@ -9,14 +9,12 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
-import io.github.sudoitir.artemisstudio.support.Props;
 import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Duration;
@@ -61,14 +59,14 @@ class QueryPlannerTest {
         planner = newPlanner(defaults());
     }
 
-    private QueryPlanner newPlanner(ArtemisStudioProperties.Sql sql) {
-        ArtemisStudioProperties properties = Props.sql(sql);
+    private QueryPlanner newPlanner(SqlProperties sql) {
+        SqlProperties properties = sql;
         return new QueryPlanner(
                 snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
-    private ArtemisStudioProperties.Sql defaults() {
-        return new ArtemisStudioProperties.Sql(
+    private SqlProperties defaults() {
+        return new SqlProperties(
                 50, 50_000L, 2_000, 250_000L, Duration.ofSeconds(30), 2, Duration.ofSeconds(5), Duration.ofSeconds(1));
     }
 
@@ -192,7 +190,7 @@ class QueryPlannerTest {
             many.add(snapshot(a, "Q." + i, 1));
         }
         given(List.of(a), many);
-        planner = newPlanner(new ArtemisStudioProperties.Sql(
+        planner = newPlanner(new SqlProperties(
                 3, 50_000L, 2_000, 250_000L, Duration.ofSeconds(30), 2, Duration.ofSeconds(5), Duration.ofSeconds(1)));
 
         assertThat(plan("SELECT * FROM \"Q.#\"").targets()).hasSize(3);

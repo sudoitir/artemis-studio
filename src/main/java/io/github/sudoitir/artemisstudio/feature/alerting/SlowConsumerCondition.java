@@ -1,9 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,7 +52,7 @@ public class SlowConsumerCondition implements AlertCondition {
 
     private final QueueSnapshotRepository snapshots;
     private final MetricSeriesRepository series;
-    private final ArtemisStudioProperties properties;
+    private final ScrapeProperties properties;
     private final ObjectMapper mapper;
 
     public static boolean supports(String metric) {
@@ -68,7 +68,7 @@ public class SlowConsumerCondition implements AlertCondition {
         boolean nodeScoped = scope.node() != null && !scope.node().isBlank();
 
         Instant to = Instant.now();
-        Instant from = to.minus(properties.scrape().tierBInterval().multipliedBy(2));
+        Instant from = to.minus(properties.tierBInterval().multipliedBy(2));
         Map<String, Double> ackRateByQueue = series.latestRateBySubject(clusterId, ACK_METRIC, from, to);
 
         // Consumers attached AND a backlog present AND not paused. Anything else is

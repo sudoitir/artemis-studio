@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -25,9 +24,9 @@ public class MetricSampleReaper {
     private final NamedParameterJdbcTemplate jdbc;
     private volatile int retentionDays;
 
-    public MetricSampleReaper(NamedParameterJdbcTemplate jdbc, ArtemisStudioProperties properties) {
+    public MetricSampleReaper(NamedParameterJdbcTemplate jdbc, MetricProperties properties) {
         this.jdbc = jdbc;
-        this.retentionDays = Math.max(1, properties.metric().retentionDays());
+        this.retentionDays = Math.max(1, properties.retentionDays());
     }
 
     /** Runtime override hook — {@code SettingsService} calls this when the window changes. */

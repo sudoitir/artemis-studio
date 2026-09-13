@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.sudoitir.artemisstudio.support.Props;
 import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -20,7 +19,7 @@ class SecretVaultTest {
     }
 
     private static SecretVault vault(String key) {
-        return new SecretVault(Props.secretKey(key));
+        return new SecretVault(new SecretKeyProperties(key));
     }
 
     @Test

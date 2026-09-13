@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
@@ -18,7 +17,7 @@ public class StreamSettings implements SettingsContribution {
 
     public static final String HEARTBEAT_INTERVAL = "sse.heartbeat-interval";
 
-    private final ArtemisStudioProperties defaults;
+    private final SseProperties defaults;
 
     @Override
     public String featureId() {
@@ -33,7 +32,7 @@ public class StreamSettings implements SettingsContribution {
                 "SSE heartbeat interval",
                 "Keep-alive comment on GET /api/v1/stream. Lower it if a proxy idles the connection out sooner.",
                 Kind.DURATION,
-                () -> defaults.sse().heartbeatInterval().toString(),
+                () -> defaults.heartbeatInterval().toString(),
                 null));
     }
 }

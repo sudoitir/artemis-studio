@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
@@ -19,7 +18,9 @@ public class BrokerSettings implements SettingsContribution {
     /** Server-enforced ceiling on one destructive message operation (ADR-0022). */
     public static final String BULK_CAP = "safety.bulk-cap";
 
-    private final ArtemisStudioProperties defaults;
+    private final RateLimitProperties rateLimit;
+    private final BrokerProperties broker;
+    private final SafetyProperties safety;
     private final NodeCallLimiter limiter;
     private final BrokerClientFactory brokerClients;
 
@@ -37,7 +38,7 @@ public class BrokerSettings implements SettingsContribution {
                         "Per-node call ceiling",
                         "Management calls per second, per broker node. Studio must never be the load.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.rateLimit().managementCallsPerSecond()),
+                        () -> Integer.toString(rateLimit.managementCallsPerSecond()),
                         s -> limiter.setPermitsPerSecond(s.intValue(RATE_LIMIT))),
                 new SettingDef(
                         CONNECT_TIMEOUT,
@@ -45,7 +46,7 @@ public class BrokerSettings implements SettingsContribution {
                         "Connect timeout",
                         "TCP connect timeout for every Jolokia call. Applies to clients built after the change.",
                         Kind.DURATION,
-                        () -> defaults.broker().connectTimeout().toString(),
+                        () -> broker.connectTimeout().toString(),
                         this::applyTimeouts),
                 new SettingDef(
                         READ_TIMEOUT,
@@ -53,7 +54,7 @@ public class BrokerSettings implements SettingsContribution {
                         "Read timeout",
                         "Response timeout for every Jolokia call. Raise it for a broker with very large queue sets.",
                         Kind.DURATION,
-                        () -> defaults.broker().readTimeout().toString(),
+                        () -> broker.readTimeout().toString(),
                         this::applyTimeouts),
                 new SettingDef(
                         BULK_CAP,
@@ -61,7 +62,7 @@ public class BrokerSettings implements SettingsContribution {
                         "Bulk operation cap",
                         "Most messages one destructive operation may touch before it needs an explicit override.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.safety().bulkCap()),
+                        () -> Integer.toString(safety.bulkCap()),
                         null));
     }
 

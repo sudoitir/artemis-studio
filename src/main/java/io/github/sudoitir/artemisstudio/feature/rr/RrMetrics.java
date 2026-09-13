@@ -2,7 +2,6 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.AddressStatsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.StatsResponse;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
@@ -42,12 +41,12 @@ public class RrMetrics {
             MeterRegistry registry,
             RrFlowRepository flows,
             QueueSnapshotRepository queueSnapshots,
-            ArtemisStudioProperties properties,
+            RrProperties properties,
             ClusterAccessGuard clusterAccess) {
         this.registry = registry;
         this.flows = flows;
         this.queueSnapshots = queueSnapshots;
-        this.percentileWindow = properties.rr().percentileWindow();
+        this.percentileWindow = properties.percentileWindow();
         this.clusterAccess = clusterAccess;
     }
 

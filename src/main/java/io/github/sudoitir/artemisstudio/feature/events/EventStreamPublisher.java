@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
-import io.github.sudoitir.artemisstudio.kernel.stream.TopicCoalescer;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

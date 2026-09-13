@@ -2,13 +2,12 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
-import io.github.sudoitir.artemisstudio.support.Props;
 import jakarta.jms.Message;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Queue;
 import jakarta.jms.TextMessage;
+import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -18,7 +17,7 @@ import org.springframework.boot.ssl.SslBundles;
 class CorePoolTest extends ArtemisIntegrationTest {
 
     private CorePool pool() {
-        ArtemisStudioProperties props = Props.defaults();
+        BrokerProperties props = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
         return new CorePool(new CoreConnectionFactory(props, Mockito.mock(SslBundles.class)));
     }
 

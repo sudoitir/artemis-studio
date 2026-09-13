@@ -38,8 +38,8 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [x] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
 - [x] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.
 - [x] 3.8 Create `kernel/jobs`: a `ScheduledJob` SPI and a generalised `DynamicSchedules`/`DynamicTriggers` that record `JobStatus` and the `studio.job{job,feature}` timer.
-- [x] 3.9 Create `kernel/stream`: `SseHub` (the publishing API), `StreamController`, `TopicCoalescer`, a topic registry built from the enabled descriptors' `TopicDef`s (unknown or disabled topics ignored), and an `EventReplay` SPI for `Last-Event-ID` replay.
-- [ ] 3.10 Split `ArtemisStudioProperties` into per-module `@ConfigurationProperties` records, keeping prefixes that already match a module id. List every renamed prefix in a draft `changelog/unreleased.md`.
+- [x] 3.9 Create `kernel/stream`: `SseHub` (the publishing API), `StreamController`, a topic registry built from the enabled descriptors' `TopicDef`s (unknown or disabled topics ignored), and an `EventReplay` SPI for `Last-Event-ID` replay.
+- [x] 3.10 Split `ArtemisStudioProperties` into per-module `@ConfigurationProperties` records, keeping every existing prefix. Move `rr.clock-skew-tolerance-ms` to `broker`, drop the unread `branding.product-name` and `security.session-timeout` keys, and list both changes in a draft `changelog/unreleased.md`.
 
 ## 4. Platform modules
 

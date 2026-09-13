@@ -1,6 +1,6 @@
-package io.github.sudoitir.artemisstudio.kernel.stream;
+package io.github.sudoitir.artemisstudio.feature.events;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
+import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import jakarta.annotation.PreDestroy;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,9 +28,9 @@ public class TopicCoalescer {
     });
     private final ConcurrentHashMap<String, Boolean> pending = new ConcurrentHashMap<>();
 
-    public TopicCoalescer(SseHub hub, ArtemisStudioProperties properties) {
+    public TopicCoalescer(SseHub hub, EventsProperties properties) {
         this.hub = hub;
-        this.windowMillis = Math.max(1, properties.events().coalesceWindowMillis());
+        this.windowMillis = Math.max(1, properties.coalesceWindowMillis());
     }
 
     /** Nudge a topic. The first touch in a window schedules the signal; later touches are absorbed. */

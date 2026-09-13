@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.kernel.stream;
+package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -6,9 +6,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties.Events;
-import io.github.sudoitir.artemisstudio.support.Props;
+import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -16,8 +14,8 @@ import org.junit.jupiter.api.Test;
 class TopicCoalescerTest {
 
     private final SseHub hub = mock(SseHub.class);
-    private final ArtemisStudioProperties props =
-            Props.events(new Events(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50, "0 15 * * * *"));
+    private final EventsProperties props =
+            new EventsProperties(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50, "0 15 * * * *");
     private final TopicCoalescer coalescer = new TopicCoalescer(hub, props);
 
     @Test

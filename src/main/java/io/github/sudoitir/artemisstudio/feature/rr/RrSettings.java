@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
@@ -20,7 +19,7 @@ public class RrSettings implements SettingsContribution {
     public static final String RETENTION_DAYS = "rr.retention-days";
     public static final String REAPER_CRON = "rr.reaper-cron";
 
-    private final ArtemisStudioProperties defaults;
+    private final RrProperties defaults;
     private final RrCorrelator correlator;
     private final RrFlowReaper reaper;
 
@@ -38,7 +37,7 @@ public class RrSettings implements SettingsContribution {
                         "Request-reply retention (days)",
                         "rr_flow and rr_event rows older than this are trimmed.",
                         Kind.INT,
-                        () -> Long.toString(defaults.rr().retention().toDays()),
+                        () -> Long.toString(defaults.retention().toDays()),
                         s -> reaper.setRetentionDays(s.intValue(RETENTION_DAYS))),
                 new SettingDef(
                         REAPER_CRON,
@@ -46,7 +45,7 @@ public class RrSettings implements SettingsContribution {
                         "Request-reply reaper schedule",
                         "When the rr_flow trim runs. Six-field cron.",
                         Kind.CRON,
-                        () -> defaults.rr().reaperCron(),
+                        () -> defaults.reaperCron(),
                         null),
                 new SettingDef(
                         DEFAULT_DEADLINE_MS,
@@ -54,7 +53,7 @@ public class RrSettings implements SettingsContribution {
                         "Default deadline (ms)",
                         "Used only when neither the message nor its expectation carries a deadline.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.rr().defaultDeadlineMs()),
+                        () -> Integer.toString(defaults.defaultDeadlineMs()),
                         s -> correlator.setDefaultDeadlineMs(s.intValue(DEFAULT_DEADLINE_MS))),
                 new SettingDef(
                         PAYLOAD_CAPTURE_BYTES,
@@ -62,7 +61,7 @@ public class RrSettings implements SettingsContribution {
                         "Payload capture cap (bytes)",
                         "How much of a request or reply body is stored when an expectation enables capture.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.rr().payloadCaptureBytes()),
+                        () -> Integer.toString(defaults.payloadCaptureBytes()),
                         s -> correlator.setPayloadCaptureBytes(s.intValue(PAYLOAD_CAPTURE_BYTES))),
                 new SettingDef(
                         SWEEP_INTERVAL,
@@ -70,7 +69,7 @@ public class RrSettings implements SettingsContribution {
                         "Deadline sweep interval",
                         "How often flows past their deadline are marked timed out or orphaned.",
                         Kind.DURATION,
-                        () -> defaults.rr().sweepInterval().toString(),
+                        () -> defaults.sweepInterval().toString(),
                         null),
                 new SettingDef(
                         SAMPLE_INTERVAL,
@@ -79,7 +78,7 @@ public class RrSettings implements SettingsContribution {
                         "How often enabled expectations are sampled over the Core transport. "
                                 + "It is also the error bar on any latency measured by observation.",
                         Kind.DURATION,
-                        () -> defaults.rr().sampleInterval().toString(),
+                        () -> defaults.sampleInterval().toString(),
                         // The interval is the width of the error bar Studio reports next to an
                         // observed latency, so the two must never disagree.
                         s -> correlator.setSampleIntervalMs(

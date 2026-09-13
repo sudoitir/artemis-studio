@@ -2,7 +2,6 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.support.Props;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -11,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class NodeCallLimiterTest {
 
     private static NodeCallLimiter limiter(int perSecond) {
-        return new NodeCallLimiter(Props.rateLimit(perSecond));
+        return new NodeCallLimiter(new RateLimitProperties(perSecond));
     }
 
     @Test

@@ -9,7 +9,6 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Bound;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
@@ -26,7 +25,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
-import io.github.sudoitir.artemisstudio.support.Props;
 import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Duration;
@@ -78,22 +76,22 @@ class BrokerQueryExecutorTest {
 
     // ---- harness --------------------------------------------------------
 
-    private ArtemisStudioProperties props(long scanCap, int maxRows, Duration timeout) {
-        return Props.sql(new ArtemisStudioProperties.Sql(
-                50, scanCap, maxRows, Long.MAX_VALUE, timeout, 2, Duration.ofSeconds(5), Duration.ofSeconds(1)));
+    private SqlProperties props(long scanCap, int maxRows, Duration timeout) {
+        return new SqlProperties(
+                50, scanCap, maxRows, Long.MAX_VALUE, timeout, 2, Duration.ofSeconds(5), Duration.ofSeconds(1));
     }
 
-    private QueryPlanner planner(ArtemisStudioProperties properties) {
+    private QueryPlanner planner(SqlProperties properties) {
         return new QueryPlanner(
                 snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
-    private QueryResult run(String sql, MessageTransport transport, ArtemisStudioProperties properties) {
+    private QueryResult run(String sql, MessageTransport transport, SqlProperties properties) {
         return run(sql, transport, properties, new CountingSink());
     }
 
     private QueryResult run(
-            String sql, MessageTransport transport, ArtemisStudioProperties properties, BrokerQueryExecutor.Sink sink) {
+            String sql, MessageTransport transport, SqlProperties properties, BrokerQueryExecutor.Sink sink) {
         QueryPlanner planner = planner(properties);
         BrokerQueryExecutor executor = new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties);
         QueryPlan plan = planner.plan(CLUSTER, parser.parse(sql));

@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
 import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.routing.DivertRow;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
@@ -140,24 +139,8 @@ class CaptureTapTest {
                 .createDivert(any(), any(), any());
     }
 
-    private static ArtemisStudioProperties properties() {
-        return new ArtemisStudioProperties(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                new ArtemisStudioProperties.Capture("amq", Duration.ofSeconds(30), Duration.ofHours(24)),
-                null,
-                null);
+    private static CaptureProperties properties() {
+        return new CaptureProperties("amq", Duration.ofSeconds(30), Duration.ofHours(24));
     }
 
     private static DivertRow divert(String name, String address, String forwarding, boolean exclusive) {

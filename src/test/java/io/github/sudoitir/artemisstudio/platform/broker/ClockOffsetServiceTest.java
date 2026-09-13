@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -28,17 +28,7 @@ class ClockOffsetServiceTest {
     private final BrokerNodeRepository nodes = mock(BrokerNodeRepository.class);
 
     private ClockOffsetService service() {
-        ArtemisStudioProperties properties = mock(ArtemisStudioProperties.class);
-        when(properties.rr())
-                .thenReturn(new ArtemisStudioProperties.Rr(
-                        30_000,
-                        java.time.Duration.ofSeconds(5),
-                        java.time.Duration.ofSeconds(5),
-                        java.time.Duration.ofMinutes(15),
-                        4096,
-                        java.time.Duration.ofDays(7),
-                        "0 20 3 * * *",
-                        2_000));
+        BrokerProperties properties = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
         return new ClockOffsetService(nodes, registry, clock, properties);
     }
 

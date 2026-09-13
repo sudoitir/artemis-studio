@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -34,7 +33,7 @@ public class SecretVault {
     private final SecretKeySpec key;
     private final SecureRandom random = new SecureRandom();
 
-    public SecretVault(ArtemisStudioProperties properties) {
+    public SecretVault(SecretKeyProperties properties) {
         this.key = loadKey(properties.secretKey());
     }
 

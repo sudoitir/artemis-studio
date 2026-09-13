@@ -5,18 +5,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
-import io.github.sudoitir.artemisstudio.support.Props;
 import jakarta.jms.BytesMessage;
 import jakarta.jms.Connection;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +42,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         UUID clusterId = UUID.randomUUID();
         queueName = "core.tx.it." + System.nanoTime();
 
-        ArtemisStudioProperties props = Props.defaults();
+        BrokerProperties props = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
         CorePool corePool = new CorePool(connectionFactory);
 

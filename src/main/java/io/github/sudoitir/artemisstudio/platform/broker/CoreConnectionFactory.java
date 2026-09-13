@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
@@ -25,10 +24,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CoreConnectionFactory {
 
-    private final ArtemisStudioProperties properties;
+    private final BrokerProperties properties;
     private final SslBundles sslBundles;
 
-    public CoreConnectionFactory(ArtemisStudioProperties properties, SslBundles sslBundles) {
+    public CoreConnectionFactory(BrokerProperties properties, SslBundles sslBundles) {
         this.properties = properties;
         this.sslBundles = sslBundles;
     }
@@ -49,8 +48,8 @@ public class CoreConnectionFactory {
         }
         factory.setInitialConnectAttempts(1);
         factory.setReconnectAttempts(0);
-        factory.setCallTimeout(properties.broker().readTimeout().toMillis());
-        factory.setConnectionTTL(properties.broker().readTimeout().toMillis() * 2);
+        factory.setCallTimeout(properties.readTimeout().toMillis());
+        factory.setConnectionTTL(properties.readTimeout().toMillis() * 2);
         return factory;
     }
 

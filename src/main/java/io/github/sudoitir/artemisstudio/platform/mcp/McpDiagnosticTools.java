@@ -21,7 +21,6 @@ import io.github.sudoitir.artemisstudio.feature.rr.RrMetrics;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -52,7 +51,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class McpDiagnosticTools {
 
-    private final ArtemisStudioProperties props;
+    private final McpProperties props;
     private final ClusterService clusters;
     private final CrossNodeAggregator queues;
     private final PagedListService lists;
@@ -197,7 +196,7 @@ public class McpDiagnosticTools {
             @McpToolParam(required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         ListKind k = McpArgs.enumOf(ListKind.class, "kind", kind, null);
-        int capped = props.mcp().clamp(limit);
+        int capped = props.clamp(limit);
         return McpErrors.guard(() -> resources(id, k, filter, capped));
     }
 
@@ -613,7 +612,7 @@ public class McpDiagnosticTools {
             }
             return McpErrors.guard(() -> messages.detail(id, q, mid, null, null));
         }
-        int capped = props.mcp().clamp(limit);
+        int capped = props.clamp(limit);
         return McpErrors.guard(() -> headers(id, q, filter, capped));
     }
 
@@ -660,7 +659,7 @@ public class McpDiagnosticTools {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         RrMode m = McpArgs.enumOf(RrMode.class, "mode", mode, RrMode.FLOWS);
         Duration w = parseWindow(window == null ? "15m" : window);
-        int capped = props.mcp().clamp(limit);
+        int capped = props.clamp(limit);
         return McpErrors.guard(() -> switch (m) {
             case FLOWS -> flows(id, address, capped);
             case STATS -> rrMetrics.stats(id, w);
@@ -709,7 +708,7 @@ public class McpDiagnosticTools {
             @McpToolParam(required = false) Integer limit) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         LogSource src = McpArgs.enumOf(LogSource.class, "source", source, LogSource.BROKER_EVENTS);
-        int capped = props.mcp().clamp(limit);
+        int capped = props.clamp(limit);
         return McpErrors.guard(() -> activity(id, src, filter, capped));
     }
 

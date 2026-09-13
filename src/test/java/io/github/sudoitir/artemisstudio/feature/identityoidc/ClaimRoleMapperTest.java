@@ -7,8 +7,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties.Security;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.OidcRoleMappingEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.OidcRoleMappingRepository;
@@ -16,8 +14,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
-import io.github.sudoitir.artemisstudio.support.Props;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,7 +55,7 @@ class ClaimRoleMapperTest {
     }
 
     private ClaimRoleMapper mapperWithDefaultRole(String defaultRole) {
-        ArtemisStudioProperties properties = Props.security(new Security(Duration.ofHours(8), "groups", defaultRole));
+        OidcProperties properties = new OidcProperties("groups", defaultRole);
         return new ClaimRoleMapper(mappings, roles, userRoles, properties);
     }
 

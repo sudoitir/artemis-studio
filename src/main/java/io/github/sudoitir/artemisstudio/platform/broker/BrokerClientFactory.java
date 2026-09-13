@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,16 +40,13 @@ public class BrokerClientFactory {
     private final Map<String, String> brokerObjectNames = new ConcurrentHashMap<>();
 
     public BrokerClientFactory(
-            ObjectMapper mapper,
-            SslBundles sslBundles,
-            ArtemisStudioProperties properties,
-            ClockOffsetRegistry clockOffsets) {
+            ObjectMapper mapper, SslBundles sslBundles, BrokerProperties properties, ClockOffsetRegistry clockOffsets) {
         this.mapper = mapper;
         this.sslBundles = sslBundles;
         this.clockOffsets = clockOffsets;
         this.baseSettings = HttpClientSettings.defaults()
-                .withConnectTimeout(properties.broker().connectTimeout())
-                .withReadTimeout(properties.broker().readTimeout())
+                .withConnectTimeout(properties.connectTimeout())
+                .withReadTimeout(properties.readTimeout())
                 // A Jolokia agent never redirects. The Artemis console does: a seed URL
                 // pointing at /console bounces to the Hawtio login page, and following
                 // that turns a wrong-path mistake into an unreadable "not a Jolokia

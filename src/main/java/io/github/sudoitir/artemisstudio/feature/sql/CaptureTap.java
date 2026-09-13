@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
 import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.routing.DivertRow;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
@@ -68,7 +67,7 @@ public class CaptureTap {
 
     private final DivertOperations divertOps;
     private final QueueLifecycleOperations queueOps;
-    private final ArtemisStudioProperties properties;
+    private final CaptureProperties properties;
     private final ObjectMapper mapper;
 
     /** What one tap covers: a source address on a node, for a subscription. */
@@ -182,7 +181,7 @@ public class CaptureTap {
         Map<String, Object> settings = new LinkedHashMap<>();
         settings.put("addressFullMessagePolicy", "DROP");
         settings.put("defaultRingSize", ringSize);
-        settings.put("expiryDelay", properties.capture().expiry().toMillis());
+        settings.put("expiryDelay", properties.expiry().toMillis());
         settings.put("autoCreateExpiryResources", false);
         // Auto-create the capture *address*, and nothing else. This is a safety
         // property, not a convenience: the divert lives in the bindings journal and
@@ -216,7 +215,7 @@ public class CaptureTap {
      * can write into the capture address.
      */
     private void applySecuritySettings(JolokiaBrokerClient client, String broker) {
-        String role = properties.capture().brokerRole();
+        String role = properties.brokerRole();
         JolokiaResponse res = client.single(JolokiaRequest.exec(
                 broker,
                 ADD_SECURITY_SETTINGS,
@@ -282,9 +281,9 @@ public class CaptureTap {
                 </address-settings>
                 """.formatted(
                         CaptureNames.MATCH,
-                        properties.capture().brokerRole(),
+                        properties.brokerRole(),
                         ringSize,
-                        properties.capture().expiry().toMillis());
+                        properties.expiry().toMillis());
     }
 
     /** An object that is already in the requested state is a success, in both directions. */

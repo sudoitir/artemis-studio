@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
@@ -16,7 +15,7 @@ public class BrokerConfigSettings implements SettingsContribution {
     public static final String DRIFT_INTERVAL = "config.drift-interval";
     public static final String APPLY_STEP_CAP = "config.apply-step-cap";
 
-    private final ArtemisStudioProperties defaults;
+    private final BrokerConfigProperties defaults;
 
     @Override
     public String featureId() {
@@ -33,7 +32,7 @@ public class BrokerConfigSettings implements SettingsContribution {
                         "How often every live node is compared against its cluster's declared configuration."
                                 + " One batched read per node per pass; nothing is ever applied by it.",
                         Kind.DURATION,
-                        () -> defaults.brokerConfig().driftInterval().toString(),
+                        () -> defaults.driftInterval().toString(),
                         null),
                 new SettingDef(
                         APPLY_STEP_CAP,
@@ -41,7 +40,7 @@ public class BrokerConfigSettings implements SettingsContribution {
                         "Apply step cap",
                         "Most management writes one configuration apply may issue before it needs an explicit override.",
                         Kind.INT,
-                        () -> Integer.toString(defaults.brokerConfig().applyStepCap()),
+                        () -> Integer.toString(defaults.applyStepCap()),
                         null));
     }
 }

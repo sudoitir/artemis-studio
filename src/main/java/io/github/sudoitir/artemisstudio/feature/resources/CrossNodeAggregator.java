@@ -4,13 +4,13 @@ import io.github.sudoitir.artemisstudio.feature.queues.QueueViewMapper;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueViewMapper.QueueKey;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.PagedView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueView;
-import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -36,7 +36,7 @@ public class CrossNodeAggregator {
     private final QueueSnapshotRepository snapshots;
     private final BrokerNodeRepository nodes;
     private final QueueViewMapper mapper;
-    private final ArtemisStudioProperties properties;
+    private final ScrapeProperties properties;
     private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
@@ -49,8 +49,7 @@ public class CrossNodeAggregator {
                 .map(CrossNodeAggregator::logicalKey)
                 .distinct()
                 .count();
-        Instant staleBefore =
-                Instant.now().minus(properties.scrape().tierCInterval().multipliedBy(2));
+        Instant staleBefore = Instant.now().minus(properties.tierCInterval().multipliedBy(2));
 
         Map<QueueKey, List<QueueSnapshotEntity>> byKey = snapshots.findByClusterId(clusterId).stream()
                 .collect(Collectors.groupingBy(
