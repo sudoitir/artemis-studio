@@ -9,11 +9,13 @@ import {
   type ConfigApplyOutcomeView,
   type ConfigApplyRequest,
 } from '../api/client.ts';
+import { clearApplyProgress, useApplyProgress } from '../api/stream.ts';
 import { useCan } from '../auth/useCan.ts';
 import { CapabilityGate } from '../shared/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../shared/capabilityGate.ts';
 import { ConfirmByTyping } from '../shared/ConfirmByTyping.tsx';
 import { ApplyResult } from './ApplyResult.tsx';
+import { ApplyTimeline } from './ApplyTimeline.tsx';
 import classes from './Configuration.module.css';
 import { CONFIG_MANAGED_REASON, hazardClassWords, wireSectionLabel } from './words.ts';
 
@@ -50,7 +52,9 @@ export function ApplyView() {
   const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [moved, setMoved] = useState(false);
 
+  const progress = useApplyProgress();
   const liveNodes = useMemo(() => (declaration.data?.nodes ?? []).filter((n) => n.live), [declaration.data]);
   const targets = nodeIds ?? liveNodes.map((n) => n.nodeId);
   const revision = declaration.data?.revision ?? 0;
@@ -89,7 +93,41 @@ export function ApplyView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [declaration.data?.declared, targetKey]);
 
-  const run = () =>
+  /**
+   * Re-plan on the way into the confirmation, and compare the hash.
+   *
+   * The real run is refused server-side when the cluster moved (D12), but by then
+   * the operator has typed the cluster's name to confirm a plan that no longer
+   * exists, and the refusal arrives as a 409 they did not cause. Checking here
+   * turns that into a sentence before the confirmation, with the new plan already
+   * on the screen. Acknowledgements are dropped with the plan they belonged to:
+   * they were made about hazards that may no longer be the hazards.
+   */
+  const continueToConfirm = () => {
+    const previous = plan?.plan.planHash;
+    setPlanError(null);
+    apply.mutate(
+      { body: { ...request(), acknowledgedHazards: [], expectedPlanHash: undefined }, dryRun: true, override: true },
+      {
+        onSuccess: (o) => {
+          setPlan(o);
+          if (o.plan.planHash === previous) {
+            setMoved(false);
+            setStage('confirm');
+            return;
+          }
+          setMoved(true);
+          setAcknowledged(new Set());
+          setStage('plan');
+        },
+        onError: (e) => setPlanError(e.message),
+      },
+    );
+  };
+
+  const run = () => {
+    // A previous run's tail must not be read as this run's progress.
+    clearApplyProgress();
     apply.mutate(
       { body: request(), dryRun: false, override },
       {
@@ -99,6 +137,7 @@ export function ApplyView() {
         },
       },
     );
+  };
 
   if (declaration.isError) {
     return (
@@ -182,8 +221,31 @@ export function ApplyView() {
                 {planError} Fix the declaration and come back; nothing was changed.
               </Alert>
             ) : null}
+            {moved ? (
+              <Alert color="yellow" variant="light" title="The cluster moved — this is a new plan" role="alert">
+                Something changed on a node between the plan you were reading and the confirmation. The plan above has
+                been made again from what the nodes run now; review it, acknowledge its hazards, and continue. Nothing
+                was written.
+              </Alert>
+            ) : null}
             {plan ? (
               <>
+                <div className={classes.summaryBar}>
+                  <Text size="xs">
+                    <b>{plan.plan.stepCount}</b> step{plan.plan.stepCount === 1 ? '' : 's'} · {targets.length} node
+                    {targets.length === 1 ? '' : 's'} · canary{' '}
+                    {liveNodes.find((n) => n.nodeId === (canary ?? plan.plan.canaryNodeId))?.nodeName ?? 'first live node'}
+                    {plan.plan.hazards.length > 0
+                      ? ` · ${plan.plan.hazards.length} hazard${plan.plan.hazards.length === 1 ? '' : 's'}, ${highHazards.length} High`
+                      : ' · no hazards'}
+                    {plan.overCap ? ` · over the step cap of ${plan.stepCap}` : ''}
+                  </Text>
+                  <Text size="xs" className={classes.state} data-tone={unacknowledged.length > 0 ? 'warning' : undefined}>
+                    {unacknowledged.length > 0
+                      ? `${unacknowledged.length} High hazard${unacknowledged.length === 1 ? '' : 's'} to acknowledge`
+                      : 'nothing written yet'}
+                  </Text>
+                </div>
                 <Text size="sm">
                   {plan.plan.stepCount} step{plan.plan.stepCount === 1 ? '' : 's'} on {targets.length} live node
                   {targets.length === 1 ? '' : 's'}
@@ -297,7 +359,12 @@ export function ApplyView() {
 
                 {stage === 'plan' ? (
                   <Group align="center">
-                    <Button size="xs" onClick={() => setStage('confirm')} disabled={plan.plan.stepCount === 0}>
+                    <Button
+                      size="xs"
+                      onClick={continueToConfirm}
+                      loading={apply.isPending && apply.variables?.dryRun}
+                      disabled={plan.plan.stepCount === 0}
+                    >
                       Continue to confirm
                     </Button>
                     {plan.plan.stepCount === 0 ? (
@@ -345,6 +412,7 @@ export function ApplyView() {
                     : ''}
               </Alert>
             ) : null}
+            {running ? <ApplyTimeline progress={progress} /> : null}
             <CapabilityGate verdict={gate}>
               <ConfirmByTyping
                 token={d.clusterName}

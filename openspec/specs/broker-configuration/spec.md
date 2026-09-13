@@ -163,6 +163,22 @@ replaces the entry for a match rather than merging into it.
 
 A preview SHALL make no mutating call to any broker.
 
+The plan SHALL be presented as a difference: one row per key, its value before beside its
+value after, the keys that change first and the keys the write also carries — because it
+replaces the entry — kept underneath rather than hidden. Two columns of packed key-value
+text make the reader perform the comparison, which on an entry of eighteen keys of which
+one moves is a comparison they will get wrong.
+
+The plan SHALL be re-computed and its hash compared on the way into the confirmation,
+and a cluster that moved SHALL be reported as a new plan to review — never as a refusal
+after the operator has typed the cluster's name. Acknowledgements SHALL survive returning
+to the plan from the confirmation, and SHALL NOT survive a plan that changed.
+
+#### Scenario: The cluster moves between the plan and the confirmation
+
+- **WHEN** a node changes after the plan is displayed and the operator continues to the confirmation
+- **THEN** the plan is made again, the difference is presented for review, previous acknowledgements are cleared, and nothing was written
+
 #### Scenario: A matching node has no steps
 
 - **WHEN** a node already runs everything the declaration says
@@ -234,6 +250,17 @@ never reported as missing it.
 
 Re-running the same revision after a halt SHALL converge: steps already satisfied report
 so, and the failed and not-attempted ones are attempted again.
+
+A running apply SHALL report where each node has got to while it is still running —
+which node, applying or verifying, how far through its steps, and whether it halted — so
+that the canary being written and read back before anything else is touched is
+observable rather than inferred from a spinner. That reporting is advisory: the run's own
+response SHALL remain the authoritative outcome.
+
+#### Scenario: The canary is watched, not waited on
+
+- **WHEN** an apply is running across a pair
+- **THEN** the canary is reported as applying, then verifying, then done, before the second node is reported at all
 
 #### Scenario: A value the broker never reports back is stated, not compared
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Anchor, Chip, Group, Stack, Table, Text } from '@mantine/core';
+import { Accordion, Anchor, Chip, Group, Stack, Table, Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import type { ConfigApplyOutcomeView, ConfigNodeApplyView } from '../api/client.ts';
@@ -87,6 +87,19 @@ export function ApplyResult({
   const allSections = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.section)))];
   const allKeys = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.key)))].sort();
   const filtering = sections.length > 0 || keys.length > 0;
+  const withSteps = outcome.nodes.filter((n) => n.live && n.steps.length > 0);
+  // The canary is always open: it is the node that decides whether the rest run
+  // at all. So is any node that failed or read back wrong — a collapsed section
+  // is a fine way to shorten a long plan and a terrible way to report a halt. A
+  // one- or two-node cluster opens whole; there is nothing to shorten.
+  const openByDefault = withSteps
+    .filter(
+      (n) =>
+        withSteps.length <= 2 ||
+        n.canary ||
+        n.steps.some((s) => s.status === 'FAILED' || s.verified === 'MISMATCH'),
+    )
+    .map((n) => n.nodeId);
   const shows = (step: { section: string; key: string }) =>
     (sections.length === 0 || sections.includes(step.section)) && (keys.length === 0 || keys.includes(step.key));
 
@@ -132,35 +145,41 @@ export function ApplyResult({
           {outcome.summary}
         </Text>
       ) : null}
-      {outcome.nodes
-        .filter((n) => n.live && n.steps.length > 0)
-        .map((node) => {
+      {/* Filtered-empty is not empty (frontend rule): a node whose steps all fall
+          outside the filter says so instead of vanishing from the page. */}
+      {withSteps
+        .filter((node) => node.steps.filter(shows).length === 0)
+        .map((node) => (
+          <Text key={node.nodeId} size="xs" c="dimmed">
+            {node.nodeName}: none of its {node.steps.length} step{node.steps.length === 1 ? '' : 's'} match the filter.
+          </Text>
+        ))}
+      <Accordion multiple defaultValue={openByDefault} variant="contained" chevronPosition="left">
+        {withSteps
+          .filter((node) => node.steps.filter(shows).length > 0)
+          .map((node) => {
           const planned = outcome.plan.nodes.find((p) => p.nodeId === node.nodeId);
           const shown = node.steps.filter(shows);
-          if (shown.length === 0) {
-            // Filtered-empty is not empty (frontend rule); say which node has
-            // nothing matching rather than dropping it from the page.
-            return (
-              <Text key={node.nodeId} size="xs" c="dimmed">
-                {node.nodeName}: none of its {node.steps.length} step{node.steps.length === 1 ? '' : 's'} match the
-                filter.
-              </Text>
-            );
-          }
           return (
-            <Stack gap={4} key={node.nodeId}>
-              <Text size="xs" fw={600}>
-                {node.nodeName}
-                {node.canary ? ' — canary' : ''}
-                {filtering ? ` — ${shown.length} of ${node.steps.length} steps shown` : ''}
-              </Text>
+            <Accordion.Item value={node.nodeId} key={node.nodeId}>
+              <Accordion.Control>
+                <Text size="xs" fw={600} component="span">
+                  {node.nodeName}
+                  {node.canary ? ' — canary' : ''}
+                </Text>{' '}
+                <Text size="xs" c="dimmed" component="span">
+                  {filtering
+                    ? `${shown.length} of ${node.steps.length} steps shown`
+                    : `${node.steps.length} step${node.steps.length === 1 ? '' : 's'}`}
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
               <Table fz="xs" verticalSpacing={4} withTableBorder>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th style={{ width: 32 }}>#</Table.Th>
                     <Table.Th>Step</Table.Th>
-                    <Table.Th>Before</Table.Th>
-                    <Table.Th>After</Table.Th>
+                    <Table.Th>Change</Table.Th>
                     <Table.Th style={{ width: 200 }}>Status</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
@@ -180,8 +199,9 @@ export function ApplyResult({
                             {step.op.toLowerCase()} {wireSectionLabel(step.section)} {step.key}
                           </Text>
                         </Table.Td>
-                        <Table.Td className={classes.before}>{plan ? kv(plan.before) : '—'}</Table.Td>
-                        <Table.Td className={classes.after}>{plan ? kv(plan.after) : '—'}</Table.Td>
+                        <Table.Td className={classes.compare}>
+                          {plan ? <Diff before={plan.before} after={plan.after} /> : '—'}
+                        </Table.Td>
                         <Table.Td>
                           <Text size="xs" className={classes.state} data-tone={words.tone}>
                             {words.text}
@@ -197,9 +217,11 @@ export function ApplyResult({
                   })}
                 </Table.Tbody>
               </Table>
-            </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
           );
         })}
+      </Accordion>
       {clusterId && outcome.auditEventId != null && !outcome.dryRun ? (
         <Text size="xs" c="dimmed">
           Recorded as audit event {outcome.auditEventId} —{' '}
@@ -213,10 +235,51 @@ export function ApplyResult({
   );
 }
 
-function kv(values: Record<string, unknown>): string {
-  const entries = Object.entries(values);
-  if (entries.length === 0) return '—';
-  return entries
-    .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`)
-    .join(' · ');
+function one(value: unknown): string {
+  if (value === undefined) return '—';
+  if (Array.isArray(value)) return value.length === 0 ? '—' : value.join(',');
+  if (typeof value === 'object' && value !== null) return JSON.stringify(value);
+  return String(value);
+}
+
+/**
+ * One step as a diff: a row per key, `before → after`, with the keys that do not
+ * change dimmed underneath rather than hidden.
+ *
+ * Two columns of `k=v · k=v` made the reader do the comparison — on an address
+ * setting carrying eighteen keys of which one moves, the one that moves is not
+ * findable. The unchanged keys stay because a management write **replaces** the
+ * whole entry (notes §15 M2): they are not context, they are part of what is
+ * being written.
+ */
+function Diff({ before, after }: { before: Record<string, unknown>; after: Record<string, unknown> }) {
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  if (keys.length === 0) return <>—</>;
+  const rows = keys.map((key) => ({
+    key,
+    before: one(before[key]),
+    after: one(after[key]),
+    differs: one(before[key]) !== one(after[key]),
+  }));
+  const ordered = [...rows.filter((r) => r.differs), ...rows.filter((r) => !r.differs)];
+  return (
+    <div className={classes.kv} data-diff>
+      {ordered.map((r) => (
+        <div key={r.key} className={classes.kvRow} data-differs={r.differs || undefined}>
+          <span className={classes.kvKey}>{r.key}</span>
+          <span className={classes.kvValue}>
+            {r.differs ? (
+              <>
+                <span className={classes.before}>{r.before}</span>
+                {' → '}
+                {r.after}
+              </>
+            ) : (
+              r.after
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }

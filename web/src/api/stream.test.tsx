@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventSourceStub } from '../test/setup.ts';
-import { useClusterStream } from './stream.ts';
+import { clearApplyProgress, useApplyProgress, useClusterStream } from './stream.ts';
 
 function wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -100,5 +100,47 @@ describe('useClusterStream', () => {
     }
 
     expect(EventSourceStub.instances).toHaveLength(1);
+  });
+
+  it('routes an apply-progress frame to the progress store instead of refetching the declaration', async () => {
+    // One apply publishes a frame per node per step. Invalidating on each would
+    // refetch the declaration dozens of times during a single apply, for a
+    // resource whose answer only arrives when the apply's own POST returns.
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const invalidate = vi.spyOn(qc, 'invalidateQueries');
+    const withClient = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(
+      () => ({ stream: useClusterStream('c1', ['config']), progress: useApplyProgress() }),
+      { wrapper: withClient },
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    await act(async () => {
+      EventSourceStub.emit('config', {
+        kind: 'apply-progress',
+        applyId: 7,
+        nodeId: 'n-a',
+        nodeName: 'broker-1',
+        canary: true,
+        phase: 'VERIFYING',
+        done: 2,
+        total: 2,
+      });
+    });
+    expect(result.current.progress).toEqual([
+      { kind: 'apply-progress', applyId: 7, nodeId: 'n-a', nodeName: 'broker-1', canary: true, phase: 'VERIFYING', done: 2, total: 2 },
+    ]);
+    expect(invalidate).not.toHaveBeenCalled();
+
+    // The ordinary signal still means "the declaration moved, go and read it".
+    await act(async () => {
+      EventSourceStub.emit('config', { topic: 'config', clusterId: 'c1' });
+    });
+    expect(invalidate).toHaveBeenCalled();
+    act(() => clearApplyProgress());
   });
 });

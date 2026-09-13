@@ -112,9 +112,18 @@ node, never one per item — and computes, per node, the ordered steps whose
 observed state differs from the declaration. A step whose read-back already
 matches is *already as declared* and issues no write. Order within a node:
 addresses → queues → address settings → security settings → diverts, removals
-after additions. Every step shows before → after for every key the broker
-reports, so replace semantics are visible: a key you did not declare that will
-change anyway is a **High** hazard named *unintended key change*.
+after additions.
+
+Every step reads as a diff: one row per key, `before → after`, the keys that
+move first and the keys the write also carries — because a management write
+replaces the whole entry — kept underneath, dimmed. Replace semantics are
+therefore visible rather than inferred, and a key you did not declare that will
+change anyway is a **High** hazard named *unintended key change*. A summary bar
+stays on screen while you scroll the steps: how many writes, on how many nodes,
+which one goes first, and what is still unacknowledged. Per-node sections
+collapse on a large cluster; the canary and any node that failed are always
+open. Chips filter the view by section or key — the counts and the step numbers
+stay the plan's own.
 
 **Hazards** are classified before any write. The High ones must each be
 acknowledged, by id, on the plan:
@@ -135,10 +144,22 @@ an owned item removed) are stated and need no acknowledgement.
 
 **Confirm.** The blast radius is restated — how many writes, on which nodes,
 canary first — and you type the cluster's name. Acknowledging hazards is not
-confirming; both are needed.
+confirming; both are needed. There is deliberately no button that types the
+name for you: a click that fills the field turns a typed confirmation back into
+a second click.
+
+Going back to the plan and returning keeps your acknowledgements. Continuing to
+the confirmation re-plans first and compares the hash: if a node moved in the
+meantime you get *the cluster moved — this is a new plan* with the difference on
+screen and the acknowledgements cleared, instead of a 409 after you had already
+typed the name.
 
 **Result.** The first live node (the canary; pick another on the plan) receives
-every step and is read back before any other node is touched. The run then
+every step and is read back before any other node is touched. You watch that
+happen: while the apply runs, each node reports where it has got to — applying,
+step *n* of *m*, reading back to verify, done or halted — so a halt on the
+canary is visible immediately instead of looking like a slow success. The
+response is still what reports the outcome; the timeline is advisory. The run then
 continues node by node and **halts at the first failure**: remaining steps on
 that node and every remaining node are *not attempted*. Nothing is rolled back,
 and the result says so in one sentence:

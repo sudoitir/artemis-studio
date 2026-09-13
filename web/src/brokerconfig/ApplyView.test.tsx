@@ -128,10 +128,84 @@ describe('ApplyView', () => {
     await user.click(screen.getByRole('checkbox', { name: 'payments.#' }));
     await waitFor(() => expect(screen.queryByText('Replace address setting orders.#')).not.toBeInTheDocument());
     // The step keeps its number in the plan, not its place in the filtered view.
-    expect(screen.getAllByText('broker-1 — canary — 1 of 2 steps shown').length).toBe(1);
+    expect(screen.getByRole('button', { name: /broker-1 — canary 1 of 2 steps shown/ })).toBeInTheDocument();
     expect(screen.getByText('Show all 4 steps')).toBeInTheDocument();
 
     await user.click(screen.getByText('Show all 4 steps'));
     expect(screen.getAllByText('Replace address setting orders.#').length).toBe(2);
+  });
+
+  it('reads a step as a diff: the key that moves first, the keys the write also carries underneath', async () => {
+    const withUnchanged = (() => {
+      const base = plan();
+      const step = {
+        ...base.plan.nodes[0].steps[0],
+        before: { addressFullMessagePolicy: 'PAGE', maxSizeBytes: 1024 },
+        after: { addressFullMessagePolicy: 'DROP', maxSizeBytes: 1024 },
+      };
+      return {
+        ...base,
+        plan: { ...base.plan, nodes: base.plan.nodes.map((n) => ({ ...n, steps: [step] })) },
+      } as ConfigApplyOutcomeView;
+    })();
+    server.use(...baseHandlers(), http.post('*/api/v1/clusters/c1/config/apply', () => HttpResponse.json(withUnchanged)));
+    renderWithProviders(<ApplyView />);
+
+    // The moving key is one row, before → after, not two columns to compare by eye.
+    expect(await screen.findAllByText(/→ DROP/)).not.toHaveLength(0);
+    expect(screen.getAllByText('PAGE').length).toBeGreaterThanOrEqual(1);
+    // A replace writes the whole entry, so the key that stays is shown, not hidden.
+    expect(screen.getAllByText('maxSizeBytes').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('re-plans on the way into the confirmation and says so when the cluster moved', async () => {
+    let planned = 0;
+    server.use(
+      ...baseHandlers(),
+      http.post('*/api/v1/clusters/c1/config/apply', ({ request }) => {
+        const url = new URL(request.url);
+        if (url.searchParams.get('dryRun') !== 'true') return HttpResponse.json(plan({ dryRun: false, outcome: 'APPLIED' }));
+        planned += 1;
+        const base = plan();
+        // The second plan is of a cluster that moved underneath the first.
+        return HttpResponse.json(
+          planned === 1 ? base : { ...base, plan: { ...base.plan, planHash: 'moved' } },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ApplyView />);
+
+    await screen.findByText(/Would apply 2 steps/);
+    await user.click(screen.getByRole('checkbox', { name: /I understand: message loss policy on broker-1/ }));
+    await user.click(screen.getByRole('button', { name: 'Continue to confirm' }));
+
+    // A 409 at apply time would arrive after the operator typed the cluster's
+    // name to confirm a plan that no longer existed. This is that, before.
+    expect(await screen.findByText(/The cluster moved — this is a new plan/)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /Type "prod" to confirm/ })).not.toBeInTheDocument();
+    // The acknowledgement belonged to the old plan's hazards and does not carry over.
+    expect(screen.getByRole('checkbox', { name: /I understand: message loss policy on broker-1/ })).not.toBeChecked();
+  });
+
+  it('keeps acknowledgements when the operator goes back to the plan and returns', async () => {
+    server.use(...baseHandlers(), applyHandler(() => plan({ dryRun: false, outcome: 'APPLIED' })));
+    const user = userEvent.setup();
+    renderWithProviders(<ApplyView />);
+
+    await screen.findByText(/Would apply 2 steps/);
+    await user.click(screen.getByRole('checkbox', { name: /I understand: message loss policy on broker-1/ }));
+    await user.click(screen.getByRole('button', { name: 'Continue to confirm' }));
+    await screen.findByRole('textbox', { name: /Type "prod" to confirm/ });
+
+    await user.click(screen.getByRole('button', { name: 'Back to the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Continue to confirm' }));
+
+    // Re-acknowledging the same hazards is busywork that teaches an operator to
+    // tick without reading.
+    await user.type(await screen.findByRole('textbox', { name: /Type "prod" to confirm/ }), 'prod');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Apply to 2 nodes, canary first' })).toBeEnabled(),
+    );
   });
 });

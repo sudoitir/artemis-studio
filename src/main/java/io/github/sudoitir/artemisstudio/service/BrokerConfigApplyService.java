@@ -299,7 +299,7 @@ public class BrokerConfigApplyService {
                         notAttempted(node, p.plan.canaryNodeId(), "Not attempted: the run halted on an earlier node."));
                 continue;
             }
-            NodeApply result = applyTo(clusterId, p, node, lockoutGuard, event.getId());
+            NodeApply result = applyTo(clusterId, p, node, lockoutGuard, row.getId());
             results.add(result);
             recordNodeState(clusterId, p.revision.revision(), row.getId(), result);
             applied += result.steps().stream()
@@ -383,7 +383,7 @@ public class BrokerConfigApplyService {
      * security change could have locked Studio out, the read-back itself must
      * succeed.
      */
-    private NodeApply applyTo(UUID clusterId, Prepared p, NodePlan node, boolean lockoutGuard, Long auditEventId) {
+    private NodeApply applyTo(UUID clusterId, Prepared p, NodePlan node, boolean lockoutGuard, long applyId) {
         BrokerNodeEntity entity = p.nodes.get(node.nodeId());
         boolean canary = node.nodeId().equals(p.plan.canaryNodeId());
         List<StepApply> steps = new ArrayList<>();
@@ -400,6 +400,7 @@ public class BrokerConfigApplyService {
                         Verification.NOT_VERIFIED,
                         null));
             }
+            publishProgress(clusterId, applyId, node, canary, "UNREACHABLE", 0);
             return new NodeApply(
                     node.nodeId(),
                     node.nodeName(),
@@ -410,6 +411,7 @@ public class BrokerConfigApplyService {
                     "Could not connect: " + e.getMessage());
         }
         boolean failed = false;
+        publishProgress(clusterId, applyId, node, canary, "APPLYING", 0);
         for (Step s : node.steps()) {
             if (s.already()) {
                 steps.add(stepApply(s, StepStatus.ALREADY, Verification.VERIFIED, null));
@@ -427,6 +429,7 @@ public class BrokerConfigApplyService {
                 capabilities.recordWriteSucceeded(clusterId);
                 steps.add(stepApply(s, status, Verification.NOT_VERIFIED, null));
                 recordOwnership(clusterId, p.revision.id(), s, status);
+                publishProgress(clusterId, applyId, node, canary, "APPLYING", steps.size());
             } catch (ManagementRefusal e) {
                 if (e.kind() == ManagementRefusal.Kind.ALREADY) {
                     capabilities.recordWriteSucceeded(clusterId);
@@ -445,6 +448,7 @@ public class BrokerConfigApplyService {
             }
         }
         if (failed) {
+            publishProgress(clusterId, applyId, node, canary, "HALTED", steps.size());
             return new NodeApply(
                     node.nodeId(),
                     node.nodeName(),
@@ -454,7 +458,16 @@ public class BrokerConfigApplyService {
                     steps,
                     "Halted on this node; later steps were not attempted.");
         }
-        return verify(clusterId, p, node, entity, canary, steps, lockoutGuard);
+        publishProgress(clusterId, applyId, node, canary, "VERIFYING", steps.size());
+        NodeApply verified = verify(clusterId, p, node, entity, canary, steps, lockoutGuard);
+        publishProgress(
+                clusterId,
+                applyId,
+                node,
+                canary,
+                verified.anyFailed() ? "HALTED" : "DONE",
+                verified.steps().size());
+        return verified;
     }
 
     /** Re-read the node and re-plan it: anything still pending that was applied is a mismatch. */
@@ -812,6 +825,35 @@ public class BrokerConfigApplyService {
         m.put("override", request.override());
         m.put("hazards", p.plan.hazards().stream().map(Hazard::id).toList());
         return m;
+    }
+
+    /**
+     * Where one node has got to, while the apply is still running.
+     *
+     * <p>Published <em>before</em> the transaction commits, which is the point: an
+     * apply that takes a minute across a pair otherwise shows a spinner and then a
+     * finished table, and the one moment an operator wants to watch — the canary
+     * being written and read back before anything else is touched — is invisible.
+     *
+     * <p>These are advisory. The POST's own response is what says what happened; a
+     * run that rolls back leaves the last progress frame on the screen for as long
+     * as it takes the response to land, and the response replaces it. Subscribers
+     * that do not know this kind ignore it, so the topic keeps its meaning for
+     * everyone else ({@code kind} is what separates them).
+     */
+    private void publishProgress(UUID clusterId, long applyId, NodePlan node, boolean canary, String phase, int done) {
+        Map<String, Object> frame = new LinkedHashMap<>();
+        frame.put("topic", BrokerConfigDriftService.SSE_TOPIC);
+        frame.put("kind", "apply-progress");
+        frame.put("clusterId", clusterId.toString());
+        frame.put("applyId", applyId);
+        frame.put("nodeId", node.nodeId().toString());
+        frame.put("nodeName", node.nodeName());
+        frame.put("canary", canary);
+        frame.put("phase", phase);
+        frame.put("done", done);
+        frame.put("total", node.steps().size());
+        sseHub.publish(clusterId, BrokerConfigDriftService.SSE_TOPIC, frame, null);
     }
 
     private void publishAfterCommit(UUID clusterId) {

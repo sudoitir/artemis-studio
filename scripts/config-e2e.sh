@@ -254,8 +254,25 @@ code=$(status POST "/clusters/$CLUSTER/config/apply?dryRun=false" \
 expect "stale revision → 409" "409" "$code"
 
 say "applying for real"
+# Watch the config stream across the apply: the screen's live timeline is built
+# from these frames, and they are published while the transaction is still open,
+# which no unit test can prove.
+STREAM_LOG=$(mktemp)
+curl -sN -b "$COOKIES" "$STUDIO/api/v1/stream?clusterId=$CLUSTER&topics=config" >"$STREAM_LOG" &
+STREAM_PID=$!
+sleep 1
 outcome=$(api POST "/clusters/$CLUSTER/config/apply?dryRun=false" \
   -d "{\"expectedPlanHash\": \"$PLANHASH\", \"acknowledgedHazards\": $HAZARDS}")
+sleep 1
+kill "$STREAM_PID" 2>/dev/null
+wait "$STREAM_PID" 2>/dev/null
+frames=$(grep -c 'apply-progress' "$STREAM_LOG" || true)
+[ "$frames" -ge 1 ] && pass "the apply reported its progress live ($frames frame(s) on the config stream)" \
+  || fail "the apply published no progress frame — the timeline would show a spinner"
+grep -q '"phase":"VERIFYING"' "$STREAM_LOG" \
+  && pass "the canary's read-back is visible as it happens" \
+  || fail "no VERIFYING frame: the canary's verification is not observable"
+rm -f "$STREAM_LOG"
 OUTCOME=$(py "d['outcome']" <<<"$outcome")
 APPLY_ID=$(py "d['applyId']" <<<"$outcome" 2>/dev/null || echo "")
 note "outcome: $OUTCOME — $(py "d['summary']" <<<"$outcome")"

@@ -44,6 +44,7 @@ import io.github.sudoitir.artemisstudio.service.BrokerConfigService.Source;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +111,9 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
 
     @MockitoBean
     BrokerConfigOperations ops;
+
+    @MockitoSpyBean
+    io.github.sudoitir.artemisstudio.sse.SseHub sseHub;
 
     private UUID clusterId;
     private UUID firstId;
@@ -230,6 +234,52 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         // Re-running converges: everything is ALREADY and no write is issued.
         BrokerConfigApplyOutcome again = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
         assertThat(again.plan().stepCount()).isZero();
+    }
+
+    /**
+     * An apply across a pair is a sequence worth watching — the canary is written
+     * and read back before anything else is touched. Without progress frames the
+     * whole sequence is one spinner, and a halt on the canary is indistinguishable
+     * from a slow success.
+     */
+    @Test
+    void theRunReportsWhereEachNodeHasGotToWhileItIsStillRunning() {
+        declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
+        BrokerConfigApplyOutcome preview = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
+
+        List<Map<String, Object>> frames = new ArrayList<>();
+        doAnswer(call -> {
+                    Object data = call.getArgument(2);
+                    if (data instanceof Map<?, ?> map && "apply-progress".equals(map.get("kind"))) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> frame = (Map<String, Object>) map;
+                        frames.add(Map.copyOf(frame));
+                    }
+                    return null;
+                })
+                .when(sseHub)
+                .publish(any(), anyString(), any(), any());
+
+        apply.apply(clusterId, confirmed(preview));
+
+        // The canary reports first, and reaches DONE before the second node starts:
+        // that ordering is the whole promise of a canary-first apply.
+        assertThat(frames).isNotEmpty();
+        assertThat(frames.getFirst())
+                .containsEntry("nodeId", firstId.toString())
+                .containsEntry("canary", true);
+        int canaryDone = frames.indexOf(frames.stream()
+                .filter(f -> firstId.toString().equals(f.get("nodeId")) && "DONE".equals(f.get("phase")))
+                .findFirst()
+                .orElseThrow());
+        int secondFirst = frames.indexOf(frames.stream()
+                .filter(f -> secondId.toString().equals(f.get("nodeId")))
+                .findFirst()
+                .orElseThrow());
+        assertThat(canaryDone).isLessThan(secondFirst);
+        assertThat(frames).anyMatch(f -> "VERIFYING".equals(f.get("phase")));
+        // A frame is for one apply, so a screen can tell this run from the last one.
+        assertThat(frames).allMatch(f -> f.get("applyId") != null);
     }
 
     @Test

@@ -54,6 +54,27 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The plan's shape, kept on screen while the operator scrolls through the steps
+ * it describes. What is being confirmed — how many writes, on how many nodes,
+ * which one goes first, what is still unacknowledged — is exactly what scrolls
+ * out of view first on a long plan.
+ */
+.summaryBar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.375rem 0.5rem;
+  background: var(--as-surface);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+}
+
 /* The apply flow's step indicator. The current step is bold; done steps are dimmed. */
 .steps {
   display: flex;
