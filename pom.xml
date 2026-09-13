@@ -345,7 +345,8 @@
                 <artifactId>liquibase-maven-plugin</artifactId>
                 <configuration>
                     <propertyFile>liquibase.properties</propertyFile>
-                    <changeLogFile>src/main/resources/db/changelog/db.changelog-master.xml</changeLogFile>
+                    <searchPath>${project.basedir},${project.basedir}/src/main/resources</searchPath>
+                    <changeLogFile>db/changelog/db.changelog-master.xml</changeLogFile>
                 </configuration>
                 <dependencies>
                     <dependency>

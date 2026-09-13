@@ -257,8 +257,9 @@ class ClusterControllerTest extends PostgresIntegrationTest {
         assertThat(audits.findAll())
                 .extracting(AuditEventEntity::getAction)
                 .contains("REGISTER_CLUSTER", "DELETE_CLUSTER");
+        // ADR-0072: audit has no foreign key to what it describes, so it keeps naming the removed cluster.
         assertThat(audits.findAll())
-                .allSatisfy(e -> assertThat(e.getClusterId()).isNull());
+                .allSatisfy(e -> assertThat(e.getClusterId()).isEqualTo(clusterId));
     }
 
     @Test

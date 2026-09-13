@@ -97,13 +97,13 @@ Each task below does the same four things:
 
 ## 7. Schema re-baseline
 
-- [ ] 7.1 Migrate an empty Testcontainers database with the current changelog and dump schema plus seed data as the reference.
-- [ ] 7.2 Write `db/changelog/<module>/changelog.xml` (`includeAll` over `changes/`) and `changes/0001-baseline.sql` for kernel core, security, audit and settings, and for clusters, scrape, apitokens, events, alerting, rr, sql and brokerconfig. Preserve column order, storage parameters, partitions, full-text configuration and seeds; give each a rollback.
+- [x] 7.1 Migrate an empty Testcontainers database with the current changelog and dump schema plus seed data as the reference.
+- [x] 7.2 Write `db/changelog/<module>/changelog.xml` (`includeAll` over `changes/`) and `changes/0001-baseline.sql` for kernel core, security, audit and settings, and for clusters, scrape, apitokens, events, alerting, rr, sql and brokerconfig. Preserve column order, storage parameters, partitions, full-text configuration and seeds; give each a rollback.
 - [ ] 7.3 Apply the deliberate differences:
   - `identity_group_mapping` with `provider_id` and a per-provider default role;
   - `app_user.provider_id` and `external_subject`, unique together;
   - `audit_event` without foreign keys and with `cluster_name`.
-- [ ] 7.4 Rewrite `db.changelog-master.xml` to include module changelogs in topological order, and delete `changes/001–025`.
+- [x] 7.4 Rewrite `db.changelog-master.xml` to include module changelogs in topological order, and delete `changes/001–025`.
 - [ ] 7.5 Move each `@Entity` and repository into its owning module's `internal.persistence`.
 - [ ] 7.6 Add `SchemaOwnershipTest`:
   - every table is created by exactly one module;
