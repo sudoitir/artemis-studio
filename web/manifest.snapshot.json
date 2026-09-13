@@ -1,3 +1,87 @@
 {
-  "modules" : [ ]
+  "modules" : [ {
+    "id" : "alerting",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "apitokens",
+    "kind" : "IDENTITY_PROVIDER",
+    "required" : false
+  }, {
+    "id" : "audit",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
+    "id" : "broker",
+    "kind" : "PLATFORM",
+    "required" : true
+  }, {
+    "id" : "brokerconfig",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "clusters",
+    "kind" : "PLATFORM",
+    "required" : true
+  }, {
+    "id" : "events",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "identity-local",
+    "kind" : "IDENTITY_PROVIDER",
+    "required" : false
+  }, {
+    "id" : "identity-oidc",
+    "kind" : "IDENTITY_PROVIDER",
+    "required" : false
+  }, {
+    "id" : "mcp",
+    "kind" : "PLATFORM",
+    "required" : false
+  }, {
+    "id" : "messages",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "metrics",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "queues",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "resources",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "routing",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "rr",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "scrape",
+    "kind" : "PLATFORM",
+    "required" : true
+  }, {
+    "id" : "security",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
+    "id" : "settings",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
+    "id" : "sql",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
+    "id" : "stream",
+    "kind" : "KERNEL",
+    "required" : true
+  } ]
 }

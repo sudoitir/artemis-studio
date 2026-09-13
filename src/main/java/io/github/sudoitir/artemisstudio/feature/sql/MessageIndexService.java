@@ -1,11 +1,12 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
@@ -97,7 +98,7 @@ public class MessageIndexService {
 
     @Transactional(readOnly = true)
     public List<Subscription> list(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         return subscriptions.findByClusterId(clusterId).stream()
                 .map(s -> describe(s, footprint(s)))
                 .toList();
@@ -165,8 +166,8 @@ public class MessageIndexService {
         clusterAccess.requireCluster(
                 clusterId,
                 target == CaptureMode.CAPTURE || entity.getMode() == CaptureMode.CAPTURE
-                        ? Permissions.CAPTURE_WRITE
-                        : Permissions.SETTINGS_WRITE);
+                        ? SqlPermissions.CAPTURE_WRITE
+                        : SettingsPermissions.SETTINGS_WRITE);
 
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -245,7 +246,7 @@ public class MessageIndexService {
     // ---- internals ------------------------------------------------------
 
     private static String permissionFor(CaptureMode mode) {
-        return mode == CaptureMode.CAPTURE ? Permissions.CAPTURE_WRITE : Permissions.SETTINGS_WRITE;
+        return mode == CaptureMode.CAPTURE ? SqlPermissions.CAPTURE_WRITE : SettingsPermissions.SETTINGS_WRITE;
     }
 
     /**

@@ -11,7 +11,9 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
+import io.github.sudoitir.artemisstudio.feature.queues.QueuePermissions;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -126,7 +128,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theDefaultInvocationPreviewsAndDestroysNothing() throws Exception {
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_DELETE));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -145,7 +147,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aRealDestroyWithoutAMatchingConfirmationIsRefused() throws Exception {
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_DELETE));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -171,7 +173,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
     @Test
     void theToolInheritsTheCallersPermissions() throws Exception {
         // Every read permission, but no destroy.
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.MESSAGE_READ));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -196,7 +198,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
         dead.attachManagementUrl("http://b:8161/console/jolokia");
         nodes.save(dead);
 
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_PAUSE));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_PAUSE));
 
         JsonNode response = McpFixture.callTool(
                 mvc,

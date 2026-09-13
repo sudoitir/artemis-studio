@@ -5,7 +5,6 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqQue
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqQueueDepth;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
@@ -43,7 +42,7 @@ public class DlqService {
 
     @Transactional(readOnly = true)
     public DlqView view(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         BrokerNodeEntity manageable = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
                 .filter(n -> n.getJolokiaUrl() != null)
                 .findFirst()

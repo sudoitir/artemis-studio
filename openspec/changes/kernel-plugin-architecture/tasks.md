@@ -32,8 +32,8 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 
 - [x] 3.1 Move `Branding`, clock, `TimeController`, `StudioInstance`, errors (`ApiExceptionHandler`, `NotFoundException`, `ConflictException`, `Attempt`), `OpenApiConfig`, `SpaRoutingConfig` and `CentralMapperConfig` into `kernel/core`.
 - [x] 3.2 Move security into `kernel/security`: principal, grants, `PermissionResolver`, `ClusterAccessGuard`, `ActorResolver`, `SecretVault`, `SecurityConfig`, CSRF, and the user/role/grant services and persistence. Introduce the `spi.ScopeHierarchy` interface.
-- [ ] 3.3 Assemble the permission catalogue from descriptors, replacing the static `Permissions.catalogue()`. Keep permission string constants in the owning modules' `api`.
-- [ ] 3.4 Add `PermissionCatalogueTest`. It checks every permission literal in `@PreAuthorize`, `requireCluster`, `LifecycleKind` and frontend `can('…')` calls against the catalogue, and checks that built-in role seeds ⊆ catalogue ∪ wildcards.
+- [x] 3.3 Assemble the permission catalogue from descriptors, replacing the static `Permissions.catalogue()`. Keep permission string constants in the owning modules' `api`.
+- [x] 3.4 Add `PermissionCatalogueTest`. It checks every permission literal in `@PreAuthorize`, `requireCluster`, `LifecycleKind` and frontend `can('…')` calls against the catalogue, and checks that built-in role seeds ⊆ catalogue ∪ wildcards.
 - [ ] 3.5 Move `AuditService`, the audit entity, repository, query service and controller into `kernel/audit`. Record `cluster_name` on each audit event.
 - [ ] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
 - [ ] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.

@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.McpFixture;
@@ -92,9 +94,9 @@ class McpToolCatalogueTest extends PostgresIntegrationTest {
                 null,
                 Set.of(
                         Permissions.CLUSTER_READ,
-                        Permissions.QUEUE_PURGE,
-                        Permissions.MESSAGE_SEND,
-                        Permissions.SETTINGS_WRITE));
+                        MessagePermissions.QUEUE_PURGE,
+                        MessagePermissions.MESSAGE_SEND,
+                        SettingsPermissions.SETTINGS_WRITE));
 
         assertThat(readOnly)
                 .describedAs("the tool catalogue must not vary by what the key can reach")

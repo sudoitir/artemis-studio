@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -103,7 +104,7 @@ public class ClusterService {
 
     // ---- connection check (?dryRun=true) -------------------------------------
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).CLUSTER_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
     @Transactional
     public Attempt<RegisterPreview> checkConnection(RegisterClusterRequest request) {
         AuditEventEntity event = audit.begin(
@@ -185,7 +186,7 @@ public class ClusterService {
 
     // ---- registration -------------------------------------------------------
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).CLUSTER_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
     @Transactional
     public Attempt<ClusterDetail> register(RegisterClusterRequest request) {
         List<Probe> probes = connectAll(request);
@@ -362,7 +363,7 @@ public class ClusterService {
 
     @Transactional
     public Attempt<TopologyView> rediscover(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -399,7 +400,7 @@ public class ClusterService {
 
     @Transactional
     public Attempt<NodeEndpointView> overrideNodeUrl(UUID clusterId, UUID nodeId, NodeOverrideRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         requireCluster(clusterId);
         BrokerNodeEntity node = nodes.findById(nodeId)
                 .filter(n -> n.getClusterId().equals(clusterId))
@@ -434,7 +435,7 @@ public class ClusterService {
     /** Rotate a stored credential (JOLOKIA_BASIC or CORE) for a cluster; re-encrypts, audits in-transaction, returns nothing secret. */
     @Transactional
     public void rotateCredentials(UUID clusterId, String username, String password, String kind) {
-        clusterAccess.requireCluster(clusterId, Permissions.SETTINGS_WRITE);
+        clusterAccess.requireCluster(clusterId, SettingsPermissions.SETTINGS_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),
@@ -459,7 +460,7 @@ public class ClusterService {
 
     @Transactional
     public void delete(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),

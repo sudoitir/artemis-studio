@@ -32,7 +32,8 @@ public class EnvironmentService {
     private final OidcRoleMappingRepository oidcMappings;
     private final ClusterEnvironmentIndex environmentIndex;
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ENVIRONMENT_READ)")
+    @PreAuthorize(
+            "@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).ENVIRONMENT_READ)")
     @Transactional(readOnly = true)
     public List<EnvironmentView> list() {
         return environments.findAllByOrderBySortOrderAscNameAsc().stream()
@@ -40,7 +41,8 @@ public class EnvironmentService {
                 .toList();
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ENVIRONMENT_WRITE)")
+    @PreAuthorize(
+            "@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).ENVIRONMENT_WRITE)")
     @Transactional
     public EnvironmentView create(EnvironmentRequest request) {
         if (environments.existsByName(request.name())) {
@@ -50,7 +52,8 @@ public class EnvironmentService {
         return toView(environments.save(new EnvironmentEntity(request.name(), request.colour(), request.sortOrder())));
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ENVIRONMENT_WRITE)")
+    @PreAuthorize(
+            "@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).ENVIRONMENT_WRITE)")
     @Transactional
     public EnvironmentView update(UUID environmentId, EnvironmentRequest request) {
         EnvironmentEntity env = require(environmentId);
@@ -60,7 +63,8 @@ public class EnvironmentService {
         return toView(environments.save(env));
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ENVIRONMENT_WRITE)")
+    @PreAuthorize(
+            "@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).ENVIRONMENT_WRITE)")
     @Transactional
     public void delete(UUID environmentId) {
         require(environmentId);
@@ -73,7 +77,7 @@ public class EnvironmentService {
         environmentIndex.invalidate();
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).CLUSTER_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
     @Transactional
     public void assignCluster(UUID clusterId, UUID environmentId) {
         ClusterEntity cluster =

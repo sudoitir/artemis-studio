@@ -12,7 +12,6 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -92,7 +91,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public MessagePageView browse(UUID clusterId, String queueName, UUID nodeId, String filter, int page, int size) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         BrowseResult result = browseAt(clusterId, queueName, resolved, page, Math.min(size, BROKER_PAGE_CAP), filter);
         List<MessageSummaryView> rows =
@@ -108,7 +107,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public MessageDetailView detail(UUID clusterId, String queueName, long messageId, UUID nodeId, String filter) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         BrowseResult result = browseAt(clusterId, queueName, resolved, 1, BROKER_PAGE_CAP, filter);
         return result.page().messages().stream()
@@ -123,7 +122,7 @@ public class MessageService {
     @Transactional
     public Attempt<Outcome> send(
             UUID clusterId, String queueName, UUID nodeId, SendMessageRequest req, boolean dryRun) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_SEND);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_SEND);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         AuditEventEntity event = begin(
                 "SEND_MESSAGE", queueName, clusterId, resolved.node().getId(), Map.of("type", req.type()), dryRun);
@@ -226,7 +225,7 @@ public class MessageService {
 
     @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<Outcome> purge(UUID clusterId, String queueName, UUID nodeId, boolean dryRun, boolean override) {
-        clusterAccess.requireCluster(clusterId, Permissions.QUEUE_PURGE);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.QUEUE_PURGE);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
         AuditEventEntity event = begin("PURGE_QUEUE", queueName, clusterId, node, Map.of(), dryRun);
@@ -258,8 +257,8 @@ public class MessageService {
 
     private static String permissionFor(MessageAction action) {
         return switch (action) {
-            case MOVE, RETRY -> Permissions.MESSAGE_MOVE;
-            case DELETE, EXPIRE -> Permissions.MESSAGE_DELETE;
+            case MOVE, RETRY -> MessagePermissions.MESSAGE_MOVE;
+            case DELETE, EXPIRE -> MessagePermissions.MESSAGE_DELETE;
         };
     }
 

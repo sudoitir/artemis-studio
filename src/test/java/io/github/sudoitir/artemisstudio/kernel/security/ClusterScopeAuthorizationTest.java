@@ -4,9 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions;
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.ArrayList;
@@ -144,10 +148,10 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
                         visible,
                         Set.of(
                                 Permissions.CLUSTER_READ,
-                                Permissions.MESSAGE_READ,
-                                Permissions.ALERT_READ,
-                                Permissions.SETTINGS_READ,
-                                Permissions.ENVIRONMENT_READ))),
+                                MessagePermissions.MESSAGE_READ,
+                                AlertPermissions.ALERT_READ,
+                                SettingsPermissions.SETTINGS_READ,
+                                ClusterPermissions.ENVIRONMENT_READ))),
                 false);
         var auth = UsernamePasswordAuthenticationToken.authenticated(scoped, null, scoped.getAuthorities());
 

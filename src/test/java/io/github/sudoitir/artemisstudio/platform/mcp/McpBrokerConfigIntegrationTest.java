@@ -14,6 +14,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperations;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigPermissions;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
@@ -164,7 +165,7 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void declaringPreviewsByDefaultAndSavesWithTheClusterName() throws Exception {
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE));
 
         JsonNode preview = declare(key, true).path("result").path("structuredContent");
         assertThat(preview.path("valid").asBoolean()).isTrue();
@@ -186,8 +187,8 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aDryRunApplyNamesWhatToAcknowledgeAndARealRunWithoutItIsRefused() throws Exception {
-        McpFixture.Key key =
-                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE, Permissions.CONFIG_APPLY));
+        McpFixture.Key key = keyWith(Set.of(
+                Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE, BrokerConfigPermissions.CONFIG_APPLY));
         declare(key, false);
 
         JsonNode plan = McpFixture.callTool(
@@ -254,8 +255,8 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aHaltedRunIsLegibleToTheAgent() throws Exception {
-        McpFixture.Key key =
-                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE, Permissions.CONFIG_APPLY));
+        McpFixture.Key key = keyWith(Set.of(
+                Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE, BrokerConfigPermissions.CONFIG_APPLY));
         declare(key, false);
         JsonNode plan = McpFixture.callTool(
                         mvc, key, "broker_config_change", Map.of("clusterId", clusterId.toString(), "op", "apply"))
@@ -307,7 +308,7 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theToolInheritsTheCallersPermissions() throws Exception {
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE));
         declare(key, false);
 
         JsonNode response = McpFixture.callTool(

@@ -3,7 +3,9 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEnvironmentIndex;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -55,7 +57,7 @@ class PermissionResolverTest {
         authenticateAs(Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of(Permissions.CLUSTER_READ))));
         assertThat(resolver.can(clusterId, Permissions.CLUSTER_READ)).isTrue();
         assertThat(resolver.can(otherClusterId, Permissions.CLUSTER_READ)).isTrue();
-        assertThat(resolver.can(clusterId, Permissions.CLUSTER_WRITE)).isFalse();
+        assertThat(resolver.can(clusterId, ClusterPermissions.CLUSTER_WRITE)).isFalse();
     }
 
     @Test
@@ -81,25 +83,25 @@ class PermissionResolverTest {
     @Test
     void wildcardGrantsEveryPermission() {
         authenticateAs(Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of(Permissions.WILDCARD))));
-        assertThat(resolver.can(clusterId, Permissions.QUEUE_PURGE)).isTrue();
+        assertThat(resolver.can(clusterId, MessagePermissions.QUEUE_PURGE)).isTrue();
         assertThat(resolver.can(Permissions.USER_ADMIN)).isTrue();
     }
 
     @Test
     void resourceWildcardGrantsEveryVerbOnThatResource() {
         authenticateAs(Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("message:*"))));
-        assertThat(resolver.can(clusterId, Permissions.MESSAGE_SEND)).isTrue();
-        assertThat(resolver.can(clusterId, Permissions.MESSAGE_DELETE)).isTrue();
-        assertThat(resolver.can(clusterId, Permissions.QUEUE_PURGE)).isFalse();
+        assertThat(resolver.can(clusterId, MessagePermissions.MESSAGE_SEND)).isTrue();
+        assertThat(resolver.can(clusterId, MessagePermissions.MESSAGE_DELETE)).isTrue();
+        assertThat(resolver.can(clusterId, MessagePermissions.QUEUE_PURGE)).isFalse();
     }
 
     @Test
     void grantsUnionAcrossMultipleRoles() {
         authenticateAs(Set.of(
                 new Grant(Grant.ScopeType.CLUSTER, clusterId, Set.of(Permissions.CLUSTER_READ)),
-                new Grant(Grant.ScopeType.CLUSTER, clusterId, Set.of(Permissions.MESSAGE_SEND))));
+                new Grant(Grant.ScopeType.CLUSTER, clusterId, Set.of(MessagePermissions.MESSAGE_SEND))));
         assertThat(resolver.can(clusterId, Permissions.CLUSTER_READ)).isTrue();
-        assertThat(resolver.can(clusterId, Permissions.MESSAGE_SEND)).isTrue();
-        assertThat(resolver.can(clusterId, Permissions.QUEUE_PURGE)).isFalse();
+        assertThat(resolver.can(clusterId, MessagePermissions.MESSAGE_SEND)).isTrue();
+        assertThat(resolver.can(clusterId, MessagePermissions.QUEUE_PURGE)).isFalse();
     }
 }

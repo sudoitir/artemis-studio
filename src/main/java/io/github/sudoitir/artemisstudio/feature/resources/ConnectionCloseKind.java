@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
-
 /**
  * The three closes Studio exposes (ADR-0057). One enum shared by the HTTP API and
  * the single MCP {@code connection_action} tool, so a kind cannot be reachable
@@ -38,7 +36,7 @@ public enum ConnectionCloseKind {
     }
 
     public String permission() {
-        return Permissions.CONNECTION_CLOSE;
+        return ResourcePermissions.CONNECTION_CLOSE;
     }
 
     /**

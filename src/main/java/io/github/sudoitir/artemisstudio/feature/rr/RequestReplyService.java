@@ -23,6 +23,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,7 @@ public class RequestReplyService {
 
     @Transactional
     public ExpectationView create(UUID clusterId, CreateExpectationRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         // Checked before the audit row is opened: letting the unique constraint fire
         // instead would mark the transaction rollback-only, discarding the audit row
         // with it, and surface as an unmapped 500 the operator cannot act on.
@@ -107,7 +108,7 @@ public class RequestReplyService {
 
     @Transactional
     public ExpectationView update(UUID clusterId, UUID expectationId, UpdateExpectationRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         RrExpectationEntity entity = expectations
                 .findById(expectationId)
                 .filter(e -> e.getClusterId().equals(clusterId))
@@ -136,7 +137,7 @@ public class RequestReplyService {
 
     @Transactional
     public void delete(UUID clusterId, UUID expectationId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_WRITE);
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         RrExpectationEntity entity = expectations
                 .findById(expectationId)
                 .filter(e -> e.getClusterId().equals(clusterId))

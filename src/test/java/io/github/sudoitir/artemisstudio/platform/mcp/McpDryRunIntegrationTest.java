@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
@@ -105,7 +106,7 @@ class McpDryRunIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, Permissions.MESSAGE_READ, Permissions.MESSAGE_DELETE));
+                Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ, MessagePermissions.MESSAGE_DELETE));
     }
 
     @AfterEach

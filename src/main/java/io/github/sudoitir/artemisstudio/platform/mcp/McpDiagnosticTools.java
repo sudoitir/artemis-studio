@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplyService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService;
@@ -22,7 +23,6 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews;
 import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews;
@@ -130,7 +130,7 @@ public class McpDiagnosticTools {
         // alert:read is a separate permission from cluster:read, so a key can legally
         // see health and not alerts. Reporting that explicitly beats an empty list a
         // model would read as "nothing is firing" (non-negotiable #5).
-        boolean alertsVisible = perm.can(clusterId, Permissions.ALERT_READ);
+        boolean alertsVisible = perm.can(clusterId, AlertPermissions.ALERT_READ);
         List<McpViews.FiringAlert> firing = alertsVisible
                 ? alerts.firingNow(clusterId).stream()
                         .map(f -> new McpViews.FiringAlert(

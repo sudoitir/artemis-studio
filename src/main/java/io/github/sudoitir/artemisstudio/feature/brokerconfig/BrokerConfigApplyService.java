@@ -91,7 +91,7 @@ public class BrokerConfigApplyService {
     /** A dry run: the plan, the hazards, no write. Audited, like every lifecycle dry run. */
     @Transactional(noRollbackFor = {BulkCapExceededException.class, BrokerConfigInvalidException.class})
     public BrokerConfigApplyOutcome plan(UUID clusterId, BrokerConfigApplyRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_APPLY);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_APPLY);
         Prepared p = prepare(clusterId, request);
         BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
                 clusterId,
@@ -131,7 +131,7 @@ public class BrokerConfigApplyService {
     /** A real run: refuse anything the preview did not cover, then canary, verify, continue, halt. */
     @Transactional(noRollbackFor = {BulkCapExceededException.class, BrokerConfigInvalidException.class})
     public BrokerConfigApplyOutcome apply(UUID clusterId, BrokerConfigApplyRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_APPLY);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_APPLY);
         AtomicReference<BrokerConfigApplyOutcome> result = new AtomicReference<>();
         AtomicReference<RuntimeException> failure = new AtomicReference<>();
         boolean ran = lock.runIfHeld(clusterId, ClusterLock.Scope.CONFIG_APPLY, () -> {

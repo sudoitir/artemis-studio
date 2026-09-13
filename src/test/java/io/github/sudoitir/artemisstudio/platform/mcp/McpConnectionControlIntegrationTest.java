@@ -11,8 +11,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
+import io.github.sudoitir.artemisstudio.feature.resources.ResourcePermissions;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -124,7 +126,7 @@ class McpConnectionControlIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, Permissions.CONNECTION_CLOSE));
+                Set.of(Permissions.CLUSTER_READ, ResourcePermissions.CONNECTION_CLOSE));
     }
 
     @AfterEach
@@ -223,11 +225,11 @@ class McpConnectionControlIntegrationTest extends PostgresIntegrationTest {
                 clusterId,
                 Set.of(
                         Permissions.CLUSTER_READ,
-                        Permissions.MESSAGE_READ,
-                        Permissions.MESSAGE_SEND,
-                        Permissions.MESSAGE_MOVE,
-                        Permissions.MESSAGE_DELETE,
-                        Permissions.QUEUE_PURGE));
+                        MessagePermissions.MESSAGE_READ,
+                        MessagePermissions.MESSAGE_SEND,
+                        MessagePermissions.MESSAGE_MOVE,
+                        MessagePermissions.MESSAGE_DELETE,
+                        MessagePermissions.QUEUE_PURGE));
 
         JsonNode response = McpFixture.callTool(mvc, messageOnly, "connection_action", args());
 

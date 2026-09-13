@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigPermissions;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -118,7 +119,10 @@ class McpBrokerConfigRealBrokerTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE, Permissions.CONFIG_APPLY));
+                Set.of(
+                        Permissions.CLUSTER_READ,
+                        BrokerConfigPermissions.CONFIG_WRITE,
+                        BrokerConfigPermissions.CONFIG_APPLY));
     }
 
     @AfterEach

@@ -37,13 +37,13 @@ public class NotificationChannelService {
     private final List<NotificationSender> senders;
     private final ObjectMapper json;
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ALERT_READ)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_READ)")
     @Transactional(readOnly = true)
     public List<NotificationChannelView> list() {
         return channels.findAllByOrderByName().stream().map(mapper::channel).toList();
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ALERT_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
     public NotificationChannelView create(NotificationChannelRequest request) {
         validateKind(request.kind());
@@ -67,7 +67,7 @@ public class NotificationChannelService {
         return mapper.channel(channel);
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ALERT_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
     public NotificationChannelView update(UUID channelId, NotificationChannelRequest request) {
         validateKind(request.kind());
@@ -95,7 +95,7 @@ public class NotificationChannelService {
         return mapper.channel(channel);
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ALERT_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
     public void delete(UUID channelId) {
         NotificationChannelEntity channel = requireChannel(channelId);
@@ -113,7 +113,7 @@ public class NotificationChannelService {
     }
 
     /** Sends one test notification through the real sender, synchronously — not queued. */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ALERT_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
     public void test(UUID channelId) {
         NotificationChannelEntity channel = requireChannel(channelId);

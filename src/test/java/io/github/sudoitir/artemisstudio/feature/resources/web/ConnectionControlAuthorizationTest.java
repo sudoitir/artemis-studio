@@ -6,6 +6,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
+import io.github.sudoitir.artemisstudio.feature.queues.QueuePermissions;
+import io.github.sudoitir.artemisstudio.feature.resources.ResourcePermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
@@ -77,11 +80,11 @@ class ConnectionControlAuthorizationTest extends PostgresIntegrationTest {
         assertThat(status(
                         connectionClose(clusterId),
                         Permissions.CLUSTER_READ,
-                        Permissions.MESSAGE_READ,
-                        Permissions.MESSAGE_SEND,
-                        Permissions.MESSAGE_MOVE,
-                        Permissions.MESSAGE_DELETE,
-                        Permissions.QUEUE_PURGE))
+                        MessagePermissions.MESSAGE_READ,
+                        MessagePermissions.MESSAGE_SEND,
+                        MessagePermissions.MESSAGE_MOVE,
+                        MessagePermissions.MESSAGE_DELETE,
+                        MessagePermissions.QUEUE_PURGE))
                 .isEqualTo(404);
     }
 
@@ -90,9 +93,9 @@ class ConnectionControlAuthorizationTest extends PostgresIntegrationTest {
         assertThat(status(
                         "/api/v1/clusters/" + clusterId + "/addresses/orders/consumers/close?dryRun=true",
                         Permissions.CLUSTER_READ,
-                        Permissions.QUEUE_CREATE,
-                        Permissions.QUEUE_DELETE,
-                        Permissions.QUEUE_PAUSE))
+                        QueuePermissions.QUEUE_CREATE,
+                        QueuePermissions.QUEUE_DELETE,
+                        QueuePermissions.QUEUE_PAUSE))
                 .isEqualTo(404);
     }
 
@@ -108,7 +111,7 @@ class ConnectionControlAuthorizationTest extends PostgresIntegrationTest {
         String path = "/api/v1/clusters/" + clusterId + "/addresses/orders/consumers/close?dryRun=true";
 
         assertThat(status(path, Permissions.CLUSTER_READ)).isEqualTo(404);
-        assertThat(status(path, Permissions.CLUSTER_READ, Permissions.CONNECTION_CLOSE))
+        assertThat(status(path, Permissions.CLUSTER_READ, ResourcePermissions.CONNECTION_CLOSE))
                 .isEqualTo(502);
     }
 

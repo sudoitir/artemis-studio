@@ -58,7 +58,7 @@ public class BrokerConfigRecommendationService {
     @Transactional
     public BrokerConfigService.Declaration declare(
             UUID clusterId, Set<String> capabilities, Map<String, Set<String>> roleOverrides) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_WRITE);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
         Recommendations all = recommend(clusterId);
         List<Recommendation> selected = all.recommendations().stream()
                 .filter(Recommendation::appliable)

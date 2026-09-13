@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserReposito
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.support.McpFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.Map;
@@ -146,7 +147,7 @@ class McpErrorMappingTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.GLOBAL,
                 null,
-                Set.of(Permissions.SETTINGS_READ));
+                Set.of(SettingsPermissions.SETTINGS_READ));
         JsonNode response = McpFixture.callTool(mvc, settingsKey, "studio_setting", Map.of("key", "not.a.setting"));
         assertThat(response.path("error").path("code").asInt())
                 .describedAs("%s", response)

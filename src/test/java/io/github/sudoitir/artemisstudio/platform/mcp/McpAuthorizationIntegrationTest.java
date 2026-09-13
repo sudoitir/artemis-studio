@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
@@ -107,7 +108,7 @@ class McpAuthorizationIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, Permissions.MESSAGE_READ));
+                Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -137,7 +138,7 @@ class McpAuthorizationIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, Permissions.MESSAGE_READ));
+                Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ));
 
         JsonNode response = McpFixture.callTool(
                 mvc, key, "list_resources", Map.of("clusterId", clusterId.toString(), "kind", "queues"));

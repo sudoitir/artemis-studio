@@ -62,7 +62,7 @@ public class SqlController {
     @PostMapping("/query")
     public SqlQueryTicketView query(@PathVariable UUID clusterId, @RequestBody SqlExecuteRequest request) {
         clusterAccess.requireCluster(
-                clusterId, io.github.sudoitir.artemisstudio.kernel.security.Permissions.MESSAGE_READ);
+                clusterId, io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions.MESSAGE_READ);
         console.plan(clusterId, request.sql());
         UUID id = tickets.issue(
                 clusterId, request.sql(), Boolean.TRUE.equals(request.tail()), SqlQueryTickets.currentOwner());

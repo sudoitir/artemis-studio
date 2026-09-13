@@ -4,7 +4,6 @@ import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFir
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ClusterFiringCountView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +25,7 @@ public class AlertService {
 
     @Transactional(readOnly = true)
     public List<AlertFiringView> firingNow(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.ALERT_READ);
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
         List<AlertFiringEntity> open = firingRepo.findByClusterIdAndResolvedAtIsNullOrderByStartedAtDesc(clusterId);
         Map<UUID, String> names = ruleNames(open);
         return open.stream()
@@ -36,7 +35,7 @@ public class AlertService {
 
     @Transactional(readOnly = true)
     public AlertFiringPageView history(UUID clusterId, int page, int size) {
-        clusterAccess.requireCluster(clusterId, Permissions.ALERT_READ);
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
         int p = Math.max(page, 1);
         int s = Math.min(Math.max(size, 1), 500);
         var result = firingRepo.findByClusterIdOrderBySeqDesc(clusterId, PageRequest.of(p - 1, s));
@@ -52,7 +51,7 @@ public class AlertService {
 
     /** Cross-cluster open-firing counts for the shell badge, filtered to what the caller may see. */
     @PostFilter(
-            "@perm.can(filterObject.clusterId(), T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).ALERT_READ)")
+            "@perm.can(filterObject.clusterId(), T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_READ)")
     @Transactional(readOnly = true)
     public List<ClusterFiringCountView> firingCounts() {
         return firingRepo.firingCountsByCluster().stream()

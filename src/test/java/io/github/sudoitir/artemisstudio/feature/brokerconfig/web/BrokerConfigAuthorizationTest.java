@@ -6,6 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigPermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
@@ -96,7 +97,8 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
                 .isEqualTo(404);
         assertThat(status(MockMvcRequestBuilders.put("/api/v1/clusters/" + clusterId + "/config")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE)))
+                        .with(authentication(
+                                callerWith(Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SAVE_BODY)))
                 .isEqualTo(201);
@@ -107,7 +109,8 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
         // A declaration is harmless until something applies it; the authorities differ.
         assertThat(status(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/config/apply?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE)))))
+                        .with(authentication(
+                                callerWith(Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE)))))
                 .isEqualTo(404);
     }
 
@@ -115,7 +118,8 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
     void applyDoesNotImplyWrite() throws Exception {
         assertThat(status(MockMvcRequestBuilders.put("/api/v1/clusters/" + clusterId + "/config")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.CONFIG_APPLY)))
+                        .with(authentication(
+                                callerWith(Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_APPLY)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SAVE_BODY)))
                 .isEqualTo(404);
@@ -166,7 +170,8 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
     void anInvalidDeclarationIsRefusedWithTheFieldNamed() throws Exception {
         var result = mvc.perform(MockMvcRequestBuilders.put("/api/v1/clusters/" + clusterId + "/config")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.CONFIG_WRITE)))
+                        .with(authentication(
+                                callerWith(Permissions.CLUSTER_READ, BrokerConfigPermissions.CONFIG_WRITE)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"document":{"version":1,"addresses":[],"addressSettings":[{"match":"orders.#","values":{"addressFullMessagePolicy":"EXPLODE"}}],"securitySettings":[],"diverts":[]}}"""))

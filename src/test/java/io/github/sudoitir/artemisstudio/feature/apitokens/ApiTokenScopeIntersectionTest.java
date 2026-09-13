@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.apitokens;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
@@ -135,8 +136,8 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
                 .getId();
         UUID user = owner(Grant.ScopeType.GLOBAL, null, Permissions.CLUSTER_READ);
 
-        StudioPrincipal principal =
-                authenticateKeyFor(user, new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(Permissions.QUEUE_PURGE)));
+        StudioPrincipal principal = authenticateKeyFor(
+                user, new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(MessagePermissions.QUEUE_PURGE)));
 
         assertThat(principal.grants())
                 .describedAs("the scope walk widens the scope, never the permission set")

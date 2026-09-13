@@ -5,7 +5,7 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.MustChangePasswordFilter;
 import io.github.sudoitir.artemisstudio.feature.identityoidc.OidcAuthenticationSuccessHandler;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -82,7 +82,7 @@ public class SecurityConfig {
                         // evaluates without a bean resolver, so the @perm reference fails
                         // at request time rather than at startup.
                         .access((authentication, context) ->
-                                new AuthorizationDecision(perm.can(Permissions.SETTINGS_WRITE)))
+                                new AuthorizationDecision(perm.can(SettingsPermissions.SETTINGS_WRITE)))
                         .requestMatchers("/api/**", "/mcp", "/mcp/**")
                         .authenticated()
                         // The SPA shell and its static assets (SpaRoutingConfig) must stay

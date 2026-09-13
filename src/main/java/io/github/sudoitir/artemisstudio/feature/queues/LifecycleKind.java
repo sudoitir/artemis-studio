@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.feature.routing.RoutingPermissions;
 
 /**
  * The lifecycle operations Studio exposes (ADR-0049). One enum shared by the HTTP
@@ -17,16 +17,16 @@ import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
  * routing for every producer on the source address and cannot be noticed by them.
  */
 public enum LifecycleKind {
-    CREATE_QUEUE("CREATE_QUEUE", "QUEUE", Permissions.QUEUE_CREATE, false),
-    UPDATE_QUEUE("UPDATE_QUEUE", "QUEUE", Permissions.QUEUE_UPDATE, false),
-    DELETE_QUEUE("DELETE_QUEUE", "QUEUE", Permissions.QUEUE_DELETE, true),
-    PAUSE_QUEUE("PAUSE_QUEUE", "QUEUE", Permissions.QUEUE_PAUSE, false),
-    RESUME_QUEUE("RESUME_QUEUE", "QUEUE", Permissions.QUEUE_PAUSE, false),
-    RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", "QUEUE", Permissions.QUEUE_UPDATE, false),
-    CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", Permissions.QUEUE_CREATE, false),
-    DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", Permissions.QUEUE_DELETE, true),
-    CREATE_DIVERT("CREATE_DIVERT", "DIVERT", Permissions.DIVERT_WRITE, false),
-    DELETE_DIVERT("DELETE_DIVERT", "DIVERT", Permissions.DIVERT_WRITE, true);
+    CREATE_QUEUE("CREATE_QUEUE", "QUEUE", QueuePermissions.QUEUE_CREATE, false),
+    UPDATE_QUEUE("UPDATE_QUEUE", "QUEUE", QueuePermissions.QUEUE_UPDATE, false),
+    DELETE_QUEUE("DELETE_QUEUE", "QUEUE", QueuePermissions.QUEUE_DELETE, true),
+    PAUSE_QUEUE("PAUSE_QUEUE", "QUEUE", QueuePermissions.QUEUE_PAUSE, false),
+    RESUME_QUEUE("RESUME_QUEUE", "QUEUE", QueuePermissions.QUEUE_PAUSE, false),
+    RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", "QUEUE", QueuePermissions.QUEUE_UPDATE, false),
+    CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_CREATE, false),
+    DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_DELETE, true),
+    CREATE_DIVERT("CREATE_DIVERT", "DIVERT", RoutingPermissions.DIVERT_WRITE, false),
+    DELETE_DIVERT("DELETE_DIVERT", "DIVERT", RoutingPermissions.DIVERT_WRITE, true);
 
     private final String auditName;
     private final String targetType;

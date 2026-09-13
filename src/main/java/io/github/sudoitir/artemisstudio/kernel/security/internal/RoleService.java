@@ -3,8 +3,8 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleView;
@@ -28,6 +28,7 @@ public class RoleService {
 
     private final RoleRepository roles;
     private final RolePermissionRepository rolePermissions;
+    private final FeatureRegistry features;
     private final UserRoleRepository userRoles;
     private final AuditService audit;
     private final ActorResolver actorResolver;
@@ -40,8 +41,9 @@ public class RoleService {
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     public List<PermissionView> catalogue() {
-        return Permissions.catalogue().entrySet().stream()
-                .map(e -> new PermissionView(e.getKey(), e.getValue()))
+        return features.enabled().stream()
+                .flatMap(d -> d.permissions().stream())
+                .map(p -> new PermissionView(p.action(), p.label()))
                 .toList();
     }
 

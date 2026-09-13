@@ -257,7 +257,7 @@ public class BrokerConfigService {
             String note,
             Source source,
             String confirm) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_WRITE);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
         List<Violation> violations = BrokerConfigValidator.validate(document);
         if (!violations.isEmpty()) {
             throw new BrokerConfigInvalidException(violations);
@@ -319,7 +319,7 @@ public class BrokerConfigService {
     @Transactional
     public Declaration configure(
             UUID clusterId, ApplyMode mode, boolean reportUndeclared, List<String> undeclaredExclusions) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_WRITE);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
         BrokerConfigDeclarationEntity header = declarations
                 .findById(clusterId)
                 .orElseThrow(() -> new ConflictException(
@@ -351,7 +351,7 @@ public class BrokerConfigService {
 
     /** Parse pasted XML for preview. Pure: nothing is saved. */
     public BrokerXmlCodec.ParseResult importXml(UUID clusterId, String xml) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_WRITE);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
         return BrokerXmlCodec.parse(xml);
     }
 
@@ -376,7 +376,7 @@ public class BrokerConfigService {
      */
     @Transactional(readOnly = true)
     public Adoption adopt(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CONFIG_WRITE);
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
         List<String> notes = new ArrayList<>();
         List<String> disagreements = new ArrayList<>();
         notes.add("A broker reports the settings an address resolves to, not the match patterns its"

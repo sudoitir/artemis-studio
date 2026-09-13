@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
@@ -7,7 +8,6 @@ import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaMessageTransport;
@@ -48,7 +48,7 @@ public class SqlConsoleService {
 
     /** Parse, validate and cost a query. Contacts no broker and no database beyond the cache. */
     public QueryPlan plan(UUID clusterId, String sql) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         return planner.plan(clusterId, parser.parse(sql));
     }
 
@@ -58,7 +58,7 @@ public class SqlConsoleService {
      * narrow it.
      */
     public Executed run(UUID clusterId, String sql, BrokerQueryExecutor.Sink sink) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         QueryPlan plan = planner.plan(clusterId, parser.parse(sql));
         planner.enforceCostCeiling(plan);
 

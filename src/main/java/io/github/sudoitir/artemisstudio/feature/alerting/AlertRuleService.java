@@ -7,7 +7,6 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,7 +37,7 @@ public class AlertRuleService {
 
     @Transactional(readOnly = true)
     public List<AlertRuleView> list(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.ALERT_READ);
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
         return rules.findByClusterIdOrderByName(clusterId).stream()
                 .map(r -> mapper.rule(r, channelIds(r.getId())))
                 .toList();
@@ -46,7 +45,7 @@ public class AlertRuleService {
 
     @Transactional
     public AlertRuleView create(UUID clusterId, AlertRuleRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.ALERT_WRITE);
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity rule = validated(request);
         rule.setClusterId(clusterId);
         rules.save(rule);
@@ -67,7 +66,7 @@ public class AlertRuleService {
 
     @Transactional
     public AlertRuleView update(UUID clusterId, UUID ruleId, AlertRuleRequest request) {
-        clusterAccess.requireCluster(clusterId, Permissions.ALERT_WRITE);
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity existing = requireRule(clusterId, ruleId);
         AlertRuleEntity updated = validated(request);
 
@@ -102,7 +101,7 @@ public class AlertRuleService {
 
     @Transactional
     public void delete(UUID clusterId, UUID ruleId) {
-        clusterAccess.requireCluster(clusterId, Permissions.ALERT_WRITE);
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity rule = requireRule(clusterId, ruleId);
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),

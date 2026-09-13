@@ -517,7 +517,7 @@ public class SettingsService {
     // ---- read / write -----------------------------------------------------
 
     /** Every operator-tunable key: its effective value, its default, and how to render it. */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).SETTINGS_READ)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions).SETTINGS_READ)")
     public Map<String, SettingValue> effective() {
         Map<String, String> stored = overrides;
         Map<String, SettingValue> out = new LinkedHashMap<>();
@@ -548,7 +548,7 @@ public class SettingsService {
      * unparseable duration is a {@code 400} on the request, not an event in the
      * history of what this deployment's configuration has been.
      */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).SETTINGS_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions).SETTINGS_WRITE)")
     @Transactional
     public void put(String key, String rawValue) {
         SettingKey spec = requireKnown(key);
@@ -573,7 +573,7 @@ public class SettingsService {
     }
 
     /** Clears the override so the packaged default takes over again. Audited like {@link #put}. */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).SETTINGS_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions).SETTINGS_WRITE)")
     @Transactional
     public void reset(String key) {
         SettingKey spec = requireKnown(key);

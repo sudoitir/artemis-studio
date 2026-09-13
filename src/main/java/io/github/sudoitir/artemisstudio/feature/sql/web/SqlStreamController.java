@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.BrokerQueryExecutor;
 import io.github.sudoitir.artemisstudio.feature.sql.CostRefusedException;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult;
@@ -8,7 +9,6 @@ import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlTailPoller;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.StreamFrameView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import io.github.sudoitir.artemisstudio.kernel.stream.web.StreamController;
@@ -87,7 +87,7 @@ public class SqlStreamController {
             // cluster the caller cannot see and confirm that it exists.
             @RequestParam(defaultValue = "") String queryId,
             HttpServletResponse response) {
-        clusterAccess.requireCluster(clusterId, Permissions.MESSAGE_READ);
+        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         response.setHeader("X-Accel-Buffering", "no");
 
         SseEmitter emitter = new SseEmitter(0L);

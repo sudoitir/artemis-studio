@@ -6,6 +6,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
+import io.github.sudoitir.artemisstudio.feature.queues.QueuePermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
@@ -86,7 +88,7 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
         // Emptying a queue and removing it are different authorities.
         mvc.perform(MockMvcRequestBuilders.delete("/api/v1/clusters/" + clusterId + "/queues/q?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.QUEUE_PURGE))))
+                        .with(authentication(callerWith(Permissions.CLUSTER_READ, MessagePermissions.QUEUE_PURGE))))
                 .andExpect(
                         result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
     }
@@ -95,7 +97,7 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
     void updateDoesNotImplyPause() throws Exception {
         mvc.perform(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/queues/q/pause?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.QUEUE_UPDATE))))
+                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_UPDATE))))
                 .andExpect(
                         result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
     }
@@ -104,7 +106,7 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
     void createDoesNotImplyDelete() throws Exception {
         mvc.perform(MockMvcRequestBuilders.delete("/api/v1/clusters/" + clusterId + "/addresses/a?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.QUEUE_CREATE))))
+                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_CREATE))))
                 .andExpect(
                         result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
     }
@@ -144,7 +146,7 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
         // 404s above come from the guard and not from the route being absent.
         int status = mvc.perform(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/queues?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, Permissions.QUEUE_CREATE)))
+                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_CREATE)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_BODY))
                 .andReturn()
