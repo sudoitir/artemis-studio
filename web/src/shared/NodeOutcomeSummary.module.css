@@ -82,8 +82,23 @@
   color: var(--as-warning);
 }
 
+/*
+ * A row's second line takes the row's tone, not a fixed red. It carries a
+ * failure's reason on a failed row and something merely worth saying on a
+ * healthy one — "canary: applied first and read back before any other node" was
+ * being painted as an error, which is the exact misreading the colour rule
+ * exists to prevent.
+ */
 .error {
-  color: var(--as-danger);
+  color: var(--as-text-dimmed);
   padding-block-end: 0.4rem;
   overflow-wrap: anywhere;
+}
+
+.error[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.error[data-tone='danger'] {
+  color: var(--as-danger);
 }

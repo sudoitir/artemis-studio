@@ -132,7 +132,7 @@ export function OutcomeSummary({
               </div>
             </div>
             {row.detail ? (
-              <Text size="xs" className={classes.error}>
+              <Text size="xs" className={classes.error} data-tone={row.tone}>
                 {row.detail}
               </Text>
             ) : null}

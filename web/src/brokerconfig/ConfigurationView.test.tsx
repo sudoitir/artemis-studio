@@ -108,11 +108,12 @@ describe('ConfigurationView', () => {
     renderWithProviders(<ConfigurationView />);
     expect(await screen.findByText('2 live nodes: 1 drifted, 1 in sync.')).toBeInTheDocument();
     const table = await screen.findByRole('table');
-    expect(within(table).getByText('Observed on broker-2')).toBeInTheDocument();
-    // The key is shown by its broker.xml element name, from the catalogue, beside its value.
-    expect(within(table).getAllByText('address-full-policy').length).toBe(2);
+    expect(within(table).getByText('Declared → observed on broker-2')).toBeInTheDocument();
+    // The key is shown by its broker.xml element name, from the catalogue, and
+    // declared and observed are one row, so the two never fall out of line.
+    expect(within(table).getAllByText('address-full-policy').length).toBe(1);
     expect(within(table).getByText('PAGE')).toBeInTheDocument();
-    expect(within(table).getByText('DROP')).toBeInTheDocument();
+    expect(within(table).getByText(/→ DROP/)).toBeInTheDocument();
     delete search.tab;
   });
 

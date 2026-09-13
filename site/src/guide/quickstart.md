@@ -106,5 +106,7 @@ are measurements rather than fiction.
 ## Next
 
 - [Configuration](/guide/configuration) — every variable it reads
+- [Broker configuration](/guide/broker-configuration) — declaring what a cluster
+  should run, and closing the capability gaps a first launch reports
 - [SQL Console](/guide/sql-console) — asking a question that spans queues
 - [MCP server](/guide/mcp) — the same capabilities for an assistant

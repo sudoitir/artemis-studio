@@ -98,7 +98,10 @@ export function RecommendedConfiguration({
                       {r.section === 'SECURITY_SETTING' ? 'security-setting' : 'address-setting'} <Code>{r.match}</Code>
                     </Text>
                     {r.keys.map((k) => (
-                      <Badge key={k} size="xs" variant="light">
+                      // `tt="none"`: a Badge uppercases by default, and
+                      // MANAGEMENTMESSAGEATTRIBUTESIZELIMIT is not a key anyone
+                      // can read back to the broker's own spelling.
+                      <Badge key={k} size="xs" variant="light" tt="none">
                         {k}
                       </Badge>
                     ))}
@@ -202,19 +205,26 @@ export function RecommendedConfiguration({
 
 /** The whole entry that would be written, so a replace holds no surprises. */
 function ValuePreview({ recommendation, ml }: { recommendation: ConfigRecommendationView; ml?: boolean }) {
-  const entries = Object.entries(recommendation.values);
+  // Changed keys first, then the rest alphabetically. The broker answers in its
+  // own order, which puts the one key this recommendation is about somewhere in
+  // the middle of seventeen it is not changing.
+  const changed = (key: string) => recommendation.keys.includes(key);
+  const entries = Object.entries(recommendation.values).sort(([a], [b]) => {
+    if (changed(a) !== changed(b)) return changed(a) ? -1 : 1;
+    return a.localeCompare(b);
+  });
   if (entries.length === 0) return null;
   return (
     <Stack gap={2} ml={ml ? 'xl' : undefined}>
       {entries.map(([key, value]) => (
         <Group key={key} gap={6} wrap="nowrap">
-          <Text size="xs" c={recommendation.keys.includes(key) ? undefined : 'dimmed'} fw={recommendation.keys.includes(key) ? 600 : undefined}>
+          <Text size="xs" c={changed(key) ? undefined : 'dimmed'} fw={changed(key) ? 600 : undefined}>
             {key}
           </Text>
           <Text size="xs" ff="monospace">
             {String(value)}
           </Text>
-          {recommendation.keys.includes(key) ? null : (
+          {changed(key) ? null : (
             <Text size="xs" c="dimmed">
               (unchanged)
             </Text>

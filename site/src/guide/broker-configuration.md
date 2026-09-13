@@ -16,6 +16,8 @@ This page is about the feature that closes that gap. A cluster gets a
 against it, applies it where you ask, and tells you in words when a node has
 drifted.
 
+![A cluster with live nodes and no declaration, offering to adopt what it runs as revision 1, with the counts per section and the reason Studio will not do it on its own](/img/config-first-run.png)
+
 ## What a declaration is
 
 Four sections, one document per cluster, versioned on every save:
@@ -102,6 +104,38 @@ Every save is a new revision. Two operators editing at once do not overwrite
 each other: a save names the revision it was made on and is refused if that
 moved.
 
+## Closing the capability gaps
+
+Some of what the capability ledger reports as missing is not static
+configuration at all: it is an address setting or a security setting the
+management API accepts at runtime. The **Recommended** tab turns those into a
+declaration you can apply, instead of a snippet you have to go and paste
+(ADR-0068).
+
+![The Recommended tab: two settings Studio can apply, each shown as the whole entry the node runs today with the recommended keys in bold above the keys the write also carries](/img/config-recommended.png)
+
+Three are appliable today — returning whole message bodies to Studio
+(`management-message-attribute-size-limit`), slow-consumer detection, and the
+`activemq.notifications` permission. Each is shown as the **whole entry** the
+node runs right now with the recommended keys changed on top, because a runtime
+write replaces the entry rather than merging into it: what the screen lists is
+exactly what the node will hold afterwards. Recommended roles for a security
+setting are read from the broker and editable before you declare; a block naming
+no role is refused, since it applies cleanly and grants nobody anything.
+
+The rest — the notification plugin, an acceptor, the management security setting
+— have no management operation behind them and never will. They are named with
+their `broker.xml` and the reason, not omitted.
+
+Declaring saves an ordinary revision with source `RECOMMENDED`, so the audit
+trail says where it came from, and lands you on the plan. Nothing reaches a
+broker until you confirm that apply like any other. A recommendation disappears
+once the probe can read its effect back, which is why only the three above are
+offered: a recommendation Studio cannot observe as done would never go away.
+
+Registering a cluster previews the same panel on a passing connection check, and
+takes you to it once the cluster exists.
+
 ## Preview and apply
 
 The apply flow is Plan → Confirm → Result, and it is built so it cannot take a
@@ -124,6 +158,8 @@ which one goes first, and what is still unacknowledged. Per-node sections
 collapse on a large cluster; the canary and any node that failed are always
 open. Chips filter the view by section or key — the counts and the step numbers
 stay the plan's own.
+
+![A plan on one node: the sticky summary bar, a High hazard with its acknowledgement, and the step read as a diff — the two keys that move above the keys the write also carries](/img/config-plan.png)
 
 **Hazards** are classified before any write. The High ones must each be
 acknowledged, by id, on the plan:
@@ -216,6 +252,8 @@ with the declared value beside the observed one and the node named on every row:
 Backups are not evaluated: they show no runtime settings until they become
 active, and they receive address settings, security settings and diverts through
 replication. A promoted backup is evaluated as soon as it is live.
+
+![The Drift tab: one live node drifted, last evaluated 19s ago against a five-minute cadence, with the finding's declared and observed values on one row per key](/img/config-drift.png)
 
 **Config diff** compares two nodes with each other; drift compares every node
 with the declaration. The two link to each other.

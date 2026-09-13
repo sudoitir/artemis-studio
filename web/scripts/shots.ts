@@ -31,6 +31,16 @@ WHERE props.tenant = 'acme'
 ORDER BY timestamp DESC
 LIMIT 200`;
 
+/**
+ * The double-submit CSRF token, read back out of the session's own cookie jar.
+ * The browser sends it automatically; a request made through `page.request` has
+ * to echo it by hand, exactly as `scripts/*.sh` do.
+ */
+async function xsrf(page: import('@playwright/test').Page): Promise<string> {
+  const cookies = await page.context().cookies();
+  return cookies.find((c) => c.name === 'XSRF-TOKEN')?.value ?? '';
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch();
@@ -49,6 +59,13 @@ async function main() {
     /** Drives the view into the state worth photographing, before `ready`. */
     before?: () => Promise<unknown>;
     ready: () => Promise<unknown>;
+    /**
+     * Say so and move on rather than failing the run. The configuration shots
+     * depend on the cluster's state — the first-run offer only exists before
+     * anything is declared — and a re-run against an already-declared cluster
+     * should still refresh the other eight images.
+     */
+    optional?: boolean;
   }> = [
     {
       file: 'topology.png',
@@ -94,13 +111,88 @@ async function main() {
       path: '/admin',
       ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
     },
+    // ── declared configuration (ADR-0067) ────────────────────────────────
+    // Ordered on purpose: the first-run offer only exists while the cluster has
+    // no declaration, so it is photographed before anything declares one.
+    {
+      file: 'config-first-run.png',
+      path: `/clusters/${clusterId}/configuration`,
+      optional: true,
+      ready: () =>
+        page
+          .getByText(/would be declared|Adopt what this cluster runs/)
+          .first()
+          .waitFor({ timeout: 30_000 }),
+    },
+    {
+      file: 'config-recommended.png',
+      path: `/clusters/${clusterId}/configuration?tab=recommended`,
+      height: 1100,
+      ready: () =>
+        page
+          .getByText(/Studio can apply|still need a broker.xml|nothing to recommend/i)
+          .first()
+          .waitFor({ timeout: 30_000 }),
+    },
+    {
+      file: 'config-plan.png',
+      path: `/clusters/${clusterId}/configuration/apply`,
+      height: 1200,
+      // A declaration the brokers do not yet run, so the plan has something to
+      // show. Declaring writes to Studio only — no broker is touched by any of
+      // these captures, which is why there is no post-apply shot here.
+      before: async () => {
+        const current = await page.request.get(`${BASE}/api/v1/clusters/${clusterId}/config`);
+        const declaration = (await current.json()) as { revision: number; document: unknown };
+        const document = declaration.document as {
+          addressSettings: Array<{ match: string; values: Record<string, unknown> }>;
+        };
+        document.addressSettings = [
+          ...document.addressSettings.filter((s) => s.match !== 'ORDERS.#'),
+          { match: 'ORDERS.#', values: { addressFullMessagePolicy: 'DROP', maxSizeBytes: 52_428_800 } },
+        ];
+        await page.request.put(`${BASE}/api/v1/clusters/${clusterId}/config`, {
+          headers: { 'X-XSRF-TOKEN': await xsrf(page) },
+          data: {
+            document: declaration.document,
+            expectedRevision: declaration.revision === 0 ? null : declaration.revision,
+            note: 'Screenshot fixture',
+          },
+        });
+        await page.goto(`${BASE}/clusters/${clusterId}/configuration/apply`);
+      },
+      ready: () => page.getByText(/Would apply|Nothing to do/).first().waitFor({ timeout: 30_000 }),
+    },
+    {
+      file: 'config-drift.png',
+      path: `/clusters/${clusterId}/configuration?tab=drift`,
+      height: 1100,
+      before: async () => {
+        await page.request
+          .post(`${BASE}/api/v1/clusters/${clusterId}/config/drift/evaluate`, {
+            headers: { 'X-XSRF-TOKEN': await xsrf(page) },
+          })
+          .catch(() => undefined);
+      },
+      ready: () =>
+        page
+          .getByText(/live node|Not evaluated yet/)
+          .first()
+          .waitFor({ timeout: 30_000 }),
+    },
   ];
 
   for (const shot of shots) {
     await page.setViewportSize({ width: 1440, height: shot.height ?? 900 });
     await page.goto(`${BASE}${shot.path}`);
-    await shot.before?.();
-    await shot.ready();
+    try {
+      await shot.before?.();
+      await shot.ready();
+    } catch (error) {
+      if (!shot.optional) throw error;
+      console.warn(`skipped ${shot.file}: the view is not in the state it photographs`);
+      continue;
+    }
     await streamLive(page, shot.file);
     // One more frame, so the entry transition is finished rather than halfway.
     await page.waitForTimeout(750);

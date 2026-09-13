@@ -200,8 +200,7 @@ function NodeFindings({
             <Table.Tr>
               <Table.Th style={{ width: 160 }}>{findingKindWords(kind)}</Table.Th>
               <Table.Th>Item</Table.Th>
-              <Table.Th>Declared</Table.Th>
-              <Table.Th>Observed on {node.nodeName}</Table.Th>
+              <Table.Th>Declared → observed on {node.nodeName}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -210,13 +209,38 @@ function NodeFindings({
               // the ones that agree are there for context, dimmed, never hidden.
               const rows = findingRows(f, catalogue);
               const ordered = [...rows.filter((r) => r.differs), ...rows.filter((r) => !r.differs)];
-              const cell = (side: 'declared' | 'observed') =>
+              // One grid, not two. Side-by-side columns are two independent grids,
+              // so a value that wraps in one of them pushes every later row out of
+              // line with its counterpart — on an entry of eighteen keys the two
+              // halves of the same key end up rows apart. Same shape as the plan.
+              // Nothing observed at all is a missing item, not eighteen keys that
+              // each changed to nothing: the arrow would be repeated on every row
+              // and say the same thing the finding's own kind already says.
+              const absent = ordered.every((r) => r.observed === '—');
+              const cell =
                 ordered.length === 0
                   ? '—'
-                  : ordered.map((r) => (
+                  : absent
+                    ? ordered.map((r) => (
+                        <div key={r.key} className={classes.kvRow} data-differs>
+                          <span className={classes.kvKey}>{r.key}</span>
+                          <span className={classes.kvValue}>{r.declared}</span>
+                        </div>
+                      ))
+                    : ordered.map((r) => (
                       <div key={r.key} className={classes.kvRow} data-differs={r.differs || undefined}>
                         <span className={classes.kvKey}>{r.key}</span>
-                        <span className={classes.kvValue}>{r[side]}</span>
+                        <span className={classes.kvValue}>
+                          {r.differs ? (
+                            <>
+                              <span className={classes.before}>{r.declared}</span>
+                              {' → '}
+                              {r.observed}
+                            </>
+                          ) : (
+                            r.declared
+                          )}
+                        </span>
                       </div>
                     ));
               return (
@@ -230,12 +254,7 @@ function NodeFindings({
                   </Table.Td>
                   <Table.Td className={classes.compare}>
                     <div className={classes.kv} data-diff>
-                      {cell('declared')}
-                    </div>
-                  </Table.Td>
-                  <Table.Td className={classes.compare}>
-                    <div className={classes.kv} data-diff>
-                      {cell('observed')}
+                      {cell}
                     </div>
                   </Table.Td>
                 </Table.Tr>

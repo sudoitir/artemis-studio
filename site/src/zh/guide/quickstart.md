@@ -84,5 +84,6 @@ ADMIN_PASSWORD=… just demo           # 第二对节点，加上真实流量
 ## 接下来
 
 - [配置](/zh/guide/configuration)——它读取的每一个变量
+- [Broker 配置](/zh/guide/broker-configuration)——声明集群应当运行什么，并关闭首次启动时报告的能力缺口
 - [SQL 控制台](/zh/guide/sql-console)——提出一个跨队列的问题
 - [MCP 服务器](/zh/guide/mcp)——把同样的能力交给助手
