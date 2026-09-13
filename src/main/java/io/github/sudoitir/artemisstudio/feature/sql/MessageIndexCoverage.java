@@ -5,8 +5,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Term;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public class MessageIndexCoverage {
 
     private final MessageIndexSubscriptionRepository subscriptions;
     private final MessageCaptureNodeRepository captureNodes;
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
 
     @Transactional(readOnly = true)
     public boolean isIndexed(UUID clusterId, String queueName) {
@@ -165,9 +165,9 @@ public class MessageIndexCoverage {
     }
 
     private long boundQueueCount(UUID clusterId, String address) {
-        return snapshots.findByClusterId(clusterId).stream()
-                .filter(row -> address.equals(row.getAddress()))
-                .map(QueueSnapshotEntity::getQueueName)
+        return snapshots.forCluster(clusterId).stream()
+                .filter(row -> address.equals(row.address()))
+                .map(QueueSnapshot::queueName)
                 .distinct()
                 .count();
     }

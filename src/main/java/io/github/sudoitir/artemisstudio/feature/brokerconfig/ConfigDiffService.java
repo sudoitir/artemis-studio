@@ -18,8 +18,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -53,7 +53,7 @@ import tools.jackson.databind.JsonNode;
 public class ConfigDiffService {
 
     private final BrokerNodeRepository brokerNodes;
-    private final QueueSnapshotRepository queueSnapshots;
+    private final QueueSnapshots queueSnapshots;
     private final BrokerConnections connections;
     private final ConfigReader reader;
     private final NodeCallLimiter limiter;
@@ -272,8 +272,8 @@ public class ConfigDiffService {
 
     private Set<String> addressesOf(UUID clusterId) {
         Set<String> addresses = new LinkedHashSet<>();
-        for (QueueSnapshotEntity row : queueSnapshots.findByClusterId(clusterId)) {
-            addresses.add(row.getAddress());
+        for (QueueSnapshot row : queueSnapshots.forCluster(clusterId)) {
+            addresses.add(row.address());
         }
         return addresses;
     }

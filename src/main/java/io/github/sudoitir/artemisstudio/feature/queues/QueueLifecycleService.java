@@ -19,7 +19,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAct
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeEstimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,7 +53,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class QueueLifecycleService {
 
-    private final QueueSnapshotRepository queueSnapshots;
+    private final QueueSnapshots queueSnapshots;
     private final QueueLifecycleOperations ops;
     private final DivertOperations divertOps;
     private final SseHub sseHub;
@@ -279,10 +279,10 @@ public class QueueLifecycleService {
      * the queue lives.
      */
     ResolvedQueue resolveQueue(UUID clusterId, String queueName) {
-        return queueSnapshots.findByClusterId(clusterId).stream()
-                .filter(s -> s.getQueueName().equals(queueName))
+        return queueSnapshots.forCluster(clusterId).stream()
+                .filter(s -> s.queueName().equals(queueName))
                 .findFirst()
-                .map(s -> new ResolvedQueue(queueName, s.getAddress(), s.getRoutingType()))
+                .map(s -> new ResolvedQueue(queueName, s.address(), s.routingType()))
                 .orElseThrow(() -> new NotFoundException("queue", queueName));
     }
 

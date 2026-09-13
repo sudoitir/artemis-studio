@@ -9,8 +9,8 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository.Bucket;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -28,7 +28,7 @@ import org.mockito.quality.Strictness;
 class MetricQueryServiceTest {
 
     @Mock
-    MetricSeriesRepository repository;
+    MetricSamples repository;
 
     @Mock
     MetricSampleReaper reaper;
@@ -51,7 +51,7 @@ class MetricQueryServiceTest {
     @Test
     void counterResetWithinABucketNeverProducesANegativeRate() {
         // messagesAdded goes 100 -> 150 -> 10 (a broker restart) within one bucket;
-        // rateSeries itself is exercised by MetricSeriesRepository's own SQL, but the
+        // rateSeries itself is exercised by MetricSamples's own SQL, but the
         // clamp lives in that SQL's GREATEST(...,0) — here we assert the service
         // passes the repository's already-clamped value straight through, never
         // re-introducing a negative number of its own.

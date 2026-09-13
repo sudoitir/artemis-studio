@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 @RequiredArgsConstructor
-public class MetricSeriesRepository {
+public class MetricSamples {
 
     public record Bucket(Instant ts, double value, Double peak) {}
 

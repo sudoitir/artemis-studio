@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricPartitionMaintainer;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -44,12 +44,12 @@ public class MessageIndexPartitionMaintainer {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final MessageIndexSubscriptionRepository subscriptions;
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
 
     public MessageIndexPartitionMaintainer(
             NamedParameterJdbcTemplate jdbc,
             MessageIndexSubscriptionRepository subscriptions,
-            QueueSnapshotRepository snapshots) {
+            QueueSnapshots snapshots) {
         this.jdbc = jdbc;
         this.subscriptions = subscriptions;
         this.snapshots = snapshots;
@@ -157,8 +157,8 @@ public class MessageIndexPartitionMaintainer {
     private Map<Integer, List<String>> queuesByRetention(UUID clusterId) {
         List<MessageIndexSubscriptionEntity> ofCluster = subscriptions.findByClusterId(clusterId);
         Map<Integer, List<String>> byRetention = new LinkedHashMap<>();
-        snapshots.findByClusterId(clusterId).stream()
-                .map(QueueSnapshotEntity::getQueueName)
+        snapshots.forCluster(clusterId).stream()
+                .map(QueueSnapshot::queueName)
                 .distinct()
                 .forEach(queue -> ofCluster.stream()
                         .filter(s -> QueueNamePattern.matches(s.getQueuePattern(), queue))

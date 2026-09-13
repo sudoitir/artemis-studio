@@ -14,16 +14,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 /**
- * {@link MetricSeriesRepository} against a real Postgres — exercises the
+ * {@link MetricSamples} against a real Postgres — exercises the
  * {@code date_bin} queries with real {@code java.time.Instant} bind parameters
  * (a Mockito-based test never runs the SQL, and pgjdbc cannot infer a type for
  * a bare {@code Instant} without the {@code Timestamp} conversion this
  * verifies stays in place).
  */
-class MetricSeriesRepositoryTest extends PostgresIntegrationTest {
+class MetricSamplesTest extends PostgresIntegrationTest {
 
     @Autowired
-    MetricSeriesRepository repository;
+    MetricSamples repository;
 
     @Autowired
     NamedParameterJdbcTemplate jdbc;
@@ -67,7 +67,7 @@ class MetricSeriesRepositoryTest extends PostgresIntegrationTest {
         sample("messageCount", base, 10.0);
         sample("messageCount", base.plusSeconds(10), 20.0);
 
-        List<MetricSeriesRepository.Bucket> buckets = repository.gaugeSeries(
+        List<MetricSamples.Bucket> buckets = repository.gaugeSeries(
                 clusterId, "messageCount", null, base, base.plusSeconds(60), Duration.ofSeconds(60));
 
         assertThat(buckets).hasSize(1);
@@ -81,7 +81,7 @@ class MetricSeriesRepositoryTest extends PostgresIntegrationTest {
         sample("messagesAdded", base, 100.0);
         sample("messagesAdded", base.plusSeconds(30), 130.0);
 
-        List<MetricSeriesRepository.Bucket> buckets = repository.rateSeries(
+        List<MetricSamples.Bucket> buckets = repository.rateSeries(
                 clusterId, "messagesAdded", null, base, base.plusSeconds(60), Duration.ofSeconds(60));
 
         assertThat(buckets).hasSize(1);

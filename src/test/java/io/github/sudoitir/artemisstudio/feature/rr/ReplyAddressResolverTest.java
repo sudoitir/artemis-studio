@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -25,8 +25,8 @@ class ReplyAddressResolverTest {
     }
 
     private static ReplyAddressResolver resolverOver(String... knownAddresses) {
-        QueueSnapshotRepository snapshots = mock(QueueSnapshotRepository.class);
-        when(snapshots.findDistinctAddressesByClusterId(any())).thenReturn(List.of(knownAddresses));
+        QueueSnapshots snapshots = mock(QueueSnapshots.class);
+        when(snapshots.addresses(any())).thenReturn(List.of(knownAddresses));
         return new ReplyAddressResolver(snapshots);
     }
 
@@ -53,12 +53,12 @@ class ReplyAddressResolverTest {
     void matchingIsAnchoredAtBothEnds() {
         RrExpectationEntity e = expecting("orders.reply.*");
 
-        assertThat(new ReplyAddressResolver(mock(QueueSnapshotRepository.class)).matches(e, "orders.reply.x"))
+        assertThat(new ReplyAddressResolver(mock(QueueSnapshots.class)).matches(e, "orders.reply.x"))
                 .isTrue();
         // The whole address must match, not a substring of it.
-        assertThat(new ReplyAddressResolver(mock(QueueSnapshotRepository.class)).matches(e, "legacy.orders.reply.x"))
+        assertThat(new ReplyAddressResolver(mock(QueueSnapshots.class)).matches(e, "legacy.orders.reply.x"))
                 .isFalse();
-        assertThat(new ReplyAddressResolver(mock(QueueSnapshotRepository.class)).matches(e, "orders.reply"))
+        assertThat(new ReplyAddressResolver(mock(QueueSnapshots.class)).matches(e, "orders.reply"))
                 .isFalse();
     }
 

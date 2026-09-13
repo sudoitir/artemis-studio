@@ -18,8 +18,8 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -63,7 +63,7 @@ public class BrokerConfigService {
     private final BrokerConfigRevisionRepository revisions;
     private final BrokerConfigNodeStateRepository nodeStates;
     private final ClusterRepository clusters;
-    private final QueueSnapshotRepository queueSnapshots;
+    private final QueueSnapshots queueSnapshots;
     private final BrokerConfigReads reads;
     private final BrokerConfigOperations ops;
     private final ClusterLock lock;
@@ -410,26 +410,26 @@ public class BrokerConfigService {
                     }));
         }
         Map<String, List<QueueDecl>> queuesByAddress = new TreeMap<>();
-        Map<String, QueueSnapshotEntity> seen = new LinkedHashMap<>();
-        for (QueueSnapshotEntity q : queueSnapshots.findByClusterId(clusterId)) {
-            if (q.getAddress() == null
-                    || q.getAddress().startsWith("activemq.")
-                    || q.getAddress().startsWith("$sys.")) {
+        Map<String, QueueSnapshot> seen = new LinkedHashMap<>();
+        for (QueueSnapshot q : queueSnapshots.forCluster(clusterId)) {
+            if (q.address() == null
+                    || q.address().startsWith("activemq.")
+                    || q.address().startsWith("$sys.")) {
                 continue;
             }
-            seen.putIfAbsent(q.getQueueName(), q);
+            seen.putIfAbsent(q.queueName(), q);
         }
-        for (QueueSnapshotEntity q : seen.values()) {
+        for (QueueSnapshot q : seen.values()) {
             addresses
-                    .computeIfAbsent(q.getAddress(), k -> new TreeSet<>())
-                    .add(q.getRoutingType().toUpperCase());
+                    .computeIfAbsent(q.address(), k -> new TreeSet<>())
+                    .add(q.routingType().toUpperCase());
             queuesByAddress
-                    .computeIfAbsent(q.getAddress(), k -> new ArrayList<>())
+                    .computeIfAbsent(q.address(), k -> new ArrayList<>())
                     .add(new QueueDecl(
-                            q.getQueueName(),
-                            q.getRoutingType().toUpperCase(),
+                            q.queueName(),
+                            q.routingType().toUpperCase(),
                             null,
-                            q.isDurable(),
+                            q.durable(),
                             null,
                             null,
                             null,

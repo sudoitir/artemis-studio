@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -48,7 +48,7 @@ public class ReplyAddressResolver {
      */
     private static final Duration CACHE_TTL = Duration.ofSeconds(30);
 
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
 
     private final Map<UUID, CachedAddresses> cache = new ConcurrentHashMap<>();
     private final Map<String, Pattern> compiled = new ConcurrentHashMap<>();
@@ -159,7 +159,7 @@ public class ReplyAddressResolver {
         if (cached != null && cached.expiresAt().isAfter(now)) {
             return cached.addresses();
         }
-        Set<String> addresses = new LinkedHashSet<>(snapshots.findDistinctAddressesByClusterId(clusterId));
+        Set<String> addresses = new LinkedHashSet<>(snapshots.addresses(clusterId));
         cache.put(clusterId, new CachedAddresses(Set.copyOf(addresses), now.plus(CACHE_TTL)));
         return addresses;
     }

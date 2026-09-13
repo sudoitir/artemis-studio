@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -23,13 +23,13 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class GaugeCondition implements AlertCondition {
 
-    private static final Map<String, ToLongFunction<QueueSnapshotEntity>> GAUGES = Map.of(
-            "messageCount", QueueSnapshotEntity::getMessageCount,
-            "consumerCount", QueueSnapshotEntity::getConsumerCount,
-            "deliveringCount", QueueSnapshotEntity::getDeliveringCount,
-            "scheduledCount", QueueSnapshotEntity::getScheduledCount);
+    private static final Map<String, ToLongFunction<QueueSnapshot>> GAUGES = Map.of(
+            "messageCount", QueueSnapshot::messageCount,
+            "consumerCount", QueueSnapshot::consumerCount,
+            "deliveringCount", QueueSnapshot::deliveringCount,
+            "scheduledCount", QueueSnapshot::scheduledCount);
 
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
     private final ObjectMapper mapper;
 
     public static boolean supports(String metric) {
@@ -38,7 +38,7 @@ public class GaugeCondition implements AlertCondition {
 
     @Override
     public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
-        ToLongFunction<QueueSnapshotEntity> value = GAUGES.get(rule.getMetric());
+        ToLongFunction<QueueSnapshot> value = GAUGES.get(rule.getMetric());
         if (value == null) {
             return Evaluation.EMPTY;
         }
@@ -47,16 +47,14 @@ public class GaugeCondition implements AlertCondition {
         boolean nodeScoped = scope.node() != null && !scope.node().isBlank();
         Set<String> universe = new HashSet<>();
         Map<String, Double> subjectValues = new HashMap<>();
-        for (QueueSnapshotEntity row : snapshots.findByClusterId(clusterId)) {
-            if (!scope.matchesAddress(row.getAddress()) || !scope.matchesQueue(row.getQueueName())) {
+        for (QueueSnapshot row : snapshots.forCluster(clusterId)) {
+            if (!scope.matchesAddress(row.address()) || !scope.matchesQueue(row.queueName())) {
                 continue;
             }
-            if (nodeScoped && !scope.node().equals(row.getNodeId().toString())) {
+            if (nodeScoped && !scope.node().equals(row.nodeId().toString())) {
                 continue;
             }
-            String key = nodeScoped
-                    ? "node:" + row.getNodeId() + "/queue:" + row.getQueueName()
-                    : "queue:" + row.getQueueName();
+            String key = nodeScoped ? "node:" + row.nodeId() + "/queue:" + row.queueName() : "queue:" + row.queueName();
             universe.add(key);
             subjectValues.merge(key, (double) value.applyAsLong(row), Double::sum);
         }

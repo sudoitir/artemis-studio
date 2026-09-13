@@ -23,8 +23,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Transpo
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Duration;
@@ -54,7 +54,7 @@ class BrokerQueryExecutorTest {
     private final PredicateSplitter splitter = new PredicateSplitter(renderer);
     private final MessagePredicate residuals = new MessagePredicate();
 
-    private QueueSnapshotRepository snapshots;
+    private QueueSnapshots snapshots;
     private BrokerNodeRepository nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
@@ -63,7 +63,7 @@ class BrokerQueryExecutorTest {
 
     @BeforeEach
     void setUp() {
-        snapshots = mock(QueueSnapshotRepository.class);
+        snapshots = mock(QueueSnapshots.class);
         nodes = mock(BrokerNodeRepository.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
@@ -182,20 +182,14 @@ class BrokerQueryExecutorTest {
         return entity;
     }
 
-    private QueueSnapshotEntity snapshot(BrokerNodeEntity on, String queue, long depth) {
-        QueueSnapshotEntity entity = instantiate(QueueSnapshotEntity.class);
-        set(entity, "nodeId", on.getId());
-        set(entity, "clusterId", CLUSTER);
-        set(entity, "queueName", queue);
-        set(entity, "address", queue);
-        set(entity, "routingType", "ANYCAST");
-        set(entity, "messageCount", depth);
-        return entity;
+    private QueueSnapshot snapshot(BrokerNodeEntity on, String queue, long depth) {
+        return new QueueSnapshot(
+                CLUSTER, on.getId(), queue, queue, "ANYCAST", false, false, null, depth, 0, 0, 0, 0, 0, 0);
     }
 
-    private void given(List<BrokerNodeEntity> nodeList, List<QueueSnapshotEntity> snapshotList) {
+    private void given(List<BrokerNodeEntity> nodeList, List<QueueSnapshot> snapshotList) {
         when(nodes.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(new ArrayList<>(nodeList));
-        when(snapshots.findByClusterId(CLUSTER)).thenReturn(new ArrayList<>(snapshotList));
+        when(snapshots.forCluster(CLUSTER)).thenReturn(new ArrayList<>(snapshotList));
     }
 
     private static <T> T instantiate(Class<T> type) {

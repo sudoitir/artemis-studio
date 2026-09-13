@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -42,7 +42,7 @@ public class QueueTargetResolver {
      */
     public record QueueTarget(String queueName, String routingType) {}
 
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
 
     private final Map<UUID, Cached> cache = new ConcurrentHashMap<>();
 
@@ -56,14 +56,14 @@ public class QueueTargetResolver {
      * to throw once a tick.
      */
     public Optional<QueueTarget> resolve(UUID clusterId, UUID nodeId, String address) {
-        List<QueueSnapshotEntity> rows = rowsFor(clusterId);
-        QueueSnapshotEntity onThisNode = null;
-        QueueSnapshotEntity anywhere = null;
-        for (QueueSnapshotEntity row : rows) {
-            if (!address.equals(row.getAddress())) {
+        List<QueueSnapshot> rows = rowsFor(clusterId);
+        QueueSnapshot onThisNode = null;
+        QueueSnapshot anywhere = null;
+        for (QueueSnapshot row : rows) {
+            if (!address.equals(row.address())) {
                 continue;
             }
-            if (nodeId != null && nodeId.equals(row.getNodeId())) {
+            if (nodeId != null && nodeId.equals(row.nodeId())) {
                 onThisNode = row;
                 break;
             }
@@ -71,22 +71,22 @@ public class QueueTargetResolver {
                 anywhere = row;
             }
         }
-        QueueSnapshotEntity chosen = onThisNode != null ? onThisNode : anywhere;
+        QueueSnapshot chosen = onThisNode != null ? onThisNode : anywhere;
         return chosen == null
                 ? Optional.empty()
-                : Optional.of(new QueueTarget(chosen.getQueueName(), chosen.getRoutingType()));
+                : Optional.of(new QueueTarget(chosen.queueName(), chosen.routingType()));
     }
 
-    private List<QueueSnapshotEntity> rowsFor(UUID clusterId) {
+    private List<QueueSnapshot> rowsFor(UUID clusterId) {
         Cached cached = cache.get(clusterId);
         Instant now = Instant.now();
         if (cached != null && cached.expiresAt().isAfter(now)) {
             return cached.rows();
         }
-        List<QueueSnapshotEntity> rows = snapshots.findByClusterId(clusterId);
+        List<QueueSnapshot> rows = snapshots.forCluster(clusterId);
         cache.put(clusterId, new Cached(rows, now.plus(CACHE_TTL)));
         return rows;
     }
 
-    private record Cached(List<QueueSnapshotEntity> rows, Instant expiresAt) {}
+    private record Cached(List<QueueSnapshot> rows, Instant expiresAt) {}
 }

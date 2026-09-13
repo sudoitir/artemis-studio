@@ -4,8 +4,8 @@ import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.AddressStatsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.StatsResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.distribution.ValueAtPercentile;
@@ -33,14 +33,14 @@ public class RrMetrics {
 
     private final MeterRegistry registry;
     private final RrFlowRepository flows;
-    private final QueueSnapshotRepository queueSnapshots;
+    private final QueueSnapshots queueSnapshots;
     private final Duration percentileWindow;
     private final ClusterAccessGuard clusterAccess;
 
     public RrMetrics(
             MeterRegistry registry,
             RrFlowRepository flows,
-            QueueSnapshotRepository queueSnapshots,
+            QueueSnapshots queueSnapshots,
             RrProperties properties,
             ClusterAccessGuard clusterAccess) {
         this.registry = registry;
@@ -133,9 +133,9 @@ public class RrMetrics {
     }
 
     private Double estimateCoverage(UUID clusterId, String address, long observedInWindow, Duration window) {
-        long currentAdded = queueSnapshots.findByClusterId(clusterId).stream()
-                .filter(s -> address.equals(s.getAddress()))
-                .mapToLong(QueueSnapshotEntity::getMessagesAdded)
+        long currentAdded = queueSnapshots.forCluster(clusterId).stream()
+                .filter(s -> address.equals(s.address()))
+                .mapToLong(QueueSnapshot::messagesAdded)
                 .sum();
         Instant now = Instant.now();
         Baseline previous = coverageBaseline.put(clusterId + "|" + address, new Baseline(now, currentAdded));

@@ -20,8 +20,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Transpo
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Duration;
@@ -53,7 +53,7 @@ class SqlTailPollerTest {
     private final PredicateSplitter splitter = new PredicateSplitter(renderer);
     private final MessagePredicate residuals = new MessagePredicate();
 
-    private QueueSnapshotRepository snapshots;
+    private QueueSnapshots snapshots;
     private BrokerNodeRepository nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
@@ -63,7 +63,7 @@ class SqlTailPollerTest {
 
     @BeforeEach
     void setUp() {
-        snapshots = mock(QueueSnapshotRepository.class);
+        snapshots = mock(QueueSnapshots.class);
         nodes = mock(BrokerNodeRepository.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
@@ -74,7 +74,7 @@ class SqlTailPollerTest {
         node = node();
         when(nodes.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(List.of(node));
         // Re-read on every call, so a test can move the counter between polls.
-        when(snapshots.findByClusterId(CLUSTER))
+        when(snapshots.forCluster(CLUSTER))
                 .thenAnswer(invocation -> List.of(snapshot("ORDER.IN", 5, messagesAdded.get())));
     }
 
@@ -317,16 +317,9 @@ class SqlTailPollerTest {
         return entity;
     }
 
-    private QueueSnapshotEntity snapshot(String queue, long depth, long added) {
-        QueueSnapshotEntity entity = instantiate(QueueSnapshotEntity.class);
-        set(entity, "nodeId", node.getId());
-        set(entity, "clusterId", CLUSTER);
-        set(entity, "queueName", queue);
-        set(entity, "address", queue);
-        set(entity, "routingType", "ANYCAST");
-        set(entity, "messageCount", depth);
-        set(entity, "messagesAdded", added);
-        return entity;
+    private QueueSnapshot snapshot(String queue, long depth, long added) {
+        return new QueueSnapshot(
+                CLUSTER, node.getId(), queue, queue, "ANYCAST", false, false, null, depth, 0, 0, 0, added, 0, 0);
     }
 
     private static <T> T instantiate(Class<T> type) {

@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.HashMap;
@@ -14,7 +14,7 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Reads the current per-queue rate from {@code metric_sample} over a
  * 2×tier-B window (design.md decision 2) — one query per {@code (cluster, metric)}
- * per tick regardless of rule count. Uses {@link MetricSeriesRepository}'s
+ * per tick regardless of rule count. Uses {@link MetricSamples}'s
  * restart-safe, never-negative rate derivation; a subject with fewer than two
  * samples in the window is simply absent, not zero.
  */
@@ -24,7 +24,7 @@ public class RateCondition implements AlertCondition {
 
     private static final Set<String> RATE_METRICS = Set.of("messagesAdded", "messagesAcked");
 
-    private final MetricSeriesRepository series;
+    private final MetricSamples series;
     private final ScrapeProperties properties;
     private final ObjectMapper mapper;
 

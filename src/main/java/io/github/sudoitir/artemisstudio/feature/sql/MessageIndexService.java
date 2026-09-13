@@ -9,8 +9,8 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MessageIndexService {
 
     private final MessageIndexSubscriptionRepository subscriptions;
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
     private final MessageIndexCapture capture;
     private final MessageCaptureNodeRepository captureNodes;
     private final BrokerNodeRepository nodes;
@@ -304,8 +304,8 @@ public class MessageIndexService {
      * subscriptions match is one captured message, not two.
      */
     private List<String> queuesOf(MessageIndexSubscriptionEntity subscription) {
-        return snapshots.findByClusterId(subscription.getClusterId()).stream()
-                .map(QueueSnapshotEntity::getQueueName)
+        return snapshots.forCluster(subscription.getClusterId()).stream()
+                .map(QueueSnapshot::queueName)
                 .distinct()
                 .filter(q -> QueueNamePattern.matches(subscription.getQueuePattern(), q))
                 .toList();

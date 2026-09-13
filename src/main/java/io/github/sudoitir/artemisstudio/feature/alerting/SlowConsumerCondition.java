@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.HashMap;
@@ -27,7 +27,7 @@ import tools.jackson.databind.ObjectMapper;
  * excluded rather than left to fire (the broker reports {@code paused} on every
  * {@code listQueues} row, so this costs no extra call).
  *
- * <p>The rate comes from {@link MetricSeriesRepository#latestRateBySubject}, reused
+ * <p>The rate comes from {@link MetricSamples#latestRateBySubject}, reused
  * rather than reimplemented, so ADR-0033's restart-safe never-negative clamp applies
  * and a broker restart resetting the monotonic counter cannot produce a firing. A
  * subject with fewer than two samples in the window is absent from the evaluation,
@@ -50,8 +50,8 @@ public class SlowConsumerCondition implements AlertCondition {
 
     private static final String ACK_METRIC = "messagesAcked";
 
-    private final QueueSnapshotRepository snapshots;
-    private final MetricSeriesRepository series;
+    private final QueueSnapshots snapshots;
+    private final MetricSamples series;
     private final ScrapeProperties properties;
     private final ObjectMapper mapper;
 
@@ -76,21 +76,19 @@ public class SlowConsumerCondition implements AlertCondition {
         // the universe with no verdict would resolve a firing that is still true.
         Map<String, Long> consumersBySubject = new HashMap<>();
         Map<String, String> queueNameBySubject = new HashMap<>();
-        for (QueueSnapshotEntity row : snapshots.findByClusterId(clusterId)) {
-            if (row.getConsumerCount() <= 0 || row.getMessageCount() <= 0 || row.isPaused()) {
+        for (QueueSnapshot row : snapshots.forCluster(clusterId)) {
+            if (row.consumerCount() <= 0 || row.messageCount() <= 0 || row.paused()) {
                 continue;
             }
-            if (!scope.matchesAddress(row.getAddress()) || !scope.matchesQueue(row.getQueueName())) {
+            if (!scope.matchesAddress(row.address()) || !scope.matchesQueue(row.queueName())) {
                 continue;
             }
-            if (nodeScoped && !scope.node().equals(row.getNodeId().toString())) {
+            if (nodeScoped && !scope.node().equals(row.nodeId().toString())) {
                 continue;
             }
-            String key = nodeScoped
-                    ? "node:" + row.getNodeId() + "/queue:" + row.getQueueName()
-                    : "queue:" + row.getQueueName();
-            consumersBySubject.merge(key, row.getConsumerCount(), Long::sum);
-            queueNameBySubject.put(key, row.getQueueName());
+            String key = nodeScoped ? "node:" + row.nodeId() + "/queue:" + row.queueName() : "queue:" + row.queueName();
+            consumersBySubject.merge(key, row.consumerCount(), Long::sum);
+            queueNameBySubject.put(key, row.queueName());
         }
 
         Set<String> universe = new HashSet<>();

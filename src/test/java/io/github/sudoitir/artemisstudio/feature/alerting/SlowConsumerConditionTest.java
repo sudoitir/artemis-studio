@@ -29,7 +29,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * write-through cache with no setters (writes go through {@code QueueSnapshotUpsert}),
  * the {@code paused} exclusion is only real against the actual column, and the
  * never-negative rate clamp this relies on lives in the SQL of
- * {@code MetricSeriesRepository}, not in Java.
+ * {@code MetricSamples}, not in Java.
  */
 class SlowConsumerConditionTest extends PostgresIntegrationTest {
 

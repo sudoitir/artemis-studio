@@ -4,8 +4,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -48,7 +48,7 @@ import org.springframework.stereotype.Component;
 public class SqlTailPoller {
 
     private final BrokerQueryExecutor executor;
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
 
     /** Live tails. A tail is removed when its client goes away. */
     private final Set<Tail> tails = ConcurrentHashMap.newKeySet();
@@ -208,10 +208,10 @@ public class SqlTailPoller {
             Set<String> wanted = new HashSet<>();
             plan.targets().forEach(t -> wanted.add(key(t)));
             Map<String, Long> added = new LinkedHashMap<>();
-            for (QueueSnapshotEntity snapshot : snapshots.findByClusterId(clusterId)) {
-                String key = key(snapshot.getNodeId(), snapshot.getQueueName());
+            for (QueueSnapshot snapshot : snapshots.forCluster(clusterId)) {
+                String key = key(snapshot.nodeId(), snapshot.queueName());
                 if (wanted.contains(key)) {
-                    added.put(key, snapshot.getMessagesAdded());
+                    added.put(key, snapshot.messagesAdded());
                 }
             }
             return added;

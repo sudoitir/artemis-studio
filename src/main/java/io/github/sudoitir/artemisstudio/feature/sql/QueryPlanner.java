@@ -11,8 +11,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.Cloc
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class QueryPlanner {
 
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
     private final BrokerNodeRepository nodes;
     private final PredicateSplitter splitter;
     private final SelectorRenderer selectors;
@@ -52,7 +52,7 @@ public class QueryPlanner {
     /** Two constructors, so the container is told which one is the injectable one. */
     @org.springframework.beans.factory.annotation.Autowired
     public QueryPlanner(
-            QueueSnapshotRepository snapshots,
+            QueueSnapshots snapshots,
             BrokerNodeRepository nodes,
             PredicateSplitter splitter,
             SelectorRenderer selectors,
@@ -63,7 +63,7 @@ public class QueryPlanner {
     }
 
     QueryPlanner(
-            QueueSnapshotRepository snapshots,
+            QueueSnapshots snapshots,
             BrokerNodeRepository nodes,
             PredicateSplitter splitter,
             SelectorRenderer selectors,
@@ -154,8 +154,8 @@ public class QueryPlanner {
         Map<UUID, BrokerNodeEntity> nodesById = new LinkedHashMap<>();
         nodes.findByClusterIdOrderByNameAsc(clusterId).forEach(n -> nodesById.put(n.getId(), n));
 
-        List<QueueSnapshotEntity> matched = snapshots.findByClusterId(clusterId).stream()
-                .filter(s -> QueueNamePattern.matches(ast.queuePattern(), s.getQueueName()))
+        List<QueueSnapshot> matched = snapshots.forCluster(clusterId).stream()
+                .filter(s -> QueueNamePattern.matches(ast.queuePattern(), s.queueName()))
                 .toList();
 
         if (matched.isEmpty()) {
@@ -172,12 +172,12 @@ public class QueryPlanner {
         // paired cluster returns every matching message twice.
         Set<String> seen = new HashSet<>();
         List<Target> targets = new ArrayList<>();
-        for (QueueSnapshotEntity snapshot : matched) {
-            BrokerNodeEntity node = nodesById.get(snapshot.getNodeId());
+        for (QueueSnapshot snapshot : matched) {
+            BrokerNodeEntity node = nodesById.get(snapshot.nodeId());
             if (node == null) {
                 continue;
             }
-            if (!seen.add(logicalKey(node) + SEPARATOR + snapshot.getQueueName())) {
+            if (!seen.add(logicalKey(node) + SEPARATOR + snapshot.queueName())) {
                 continue;
             }
             Optional<ClockOffset> offset = clocks.offsetFor(node.getId());
@@ -186,10 +186,10 @@ public class QueryPlanner {
             targets.add(new Target(
                     node.getId(),
                     node.getName(),
-                    snapshot.getQueueName(),
-                    snapshot.getAddress(),
-                    snapshot.getRoutingType(),
-                    snapshot.getMessageCount(),
+                    snapshot.queueName(),
+                    snapshot.address(),
+                    snapshot.routingType(),
+                    snapshot.messageCount(),
                     brokerNow,
                     offset.isPresent()));
         }

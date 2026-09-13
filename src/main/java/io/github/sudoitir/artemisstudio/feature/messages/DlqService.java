@@ -11,8 +11,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +34,7 @@ import tools.jackson.databind.JsonNode;
 @RequiredArgsConstructor
 public class DlqService {
 
-    private final QueueSnapshotRepository queueSnapshots;
+    private final QueueSnapshots queueSnapshots;
     private final BrokerNodeRepository brokerNodes;
     private final BrokerConnections connections;
     private final NodeCallLimiter limiter;
@@ -75,15 +75,15 @@ public class DlqService {
 
         Map<UUID, String> nodeNames = new LinkedHashMap<>();
         brokerNodes.findByClusterIdOrderByNameAsc(clusterId).forEach(n -> nodeNames.put(n.getId(), n.getName()));
-        List<QueueSnapshotEntity> all = queueSnapshots.findByClusterId(clusterId);
+        List<QueueSnapshot> all = queueSnapshots.forCluster(clusterId);
 
         List<DlqAddress> addresses = new ArrayList<>();
         for (Map.Entry<String, String> entry : kinds.entrySet()) {
             String address = entry.getKey();
-            Map<String, List<QueueSnapshotEntity>> byQueue = new LinkedHashMap<>();
-            for (QueueSnapshotEntity s : all) {
-                if (address.equals(s.getAddress())) {
-                    byQueue.computeIfAbsent(s.getQueueName(), k -> new ArrayList<>())
+            Map<String, List<QueueSnapshot>> byQueue = new LinkedHashMap<>();
+            for (QueueSnapshot s : all) {
+                if (address.equals(s.address())) {
+                    byQueue.computeIfAbsent(s.queueName(), k -> new ArrayList<>())
                             .add(s);
                 }
             }
@@ -91,7 +91,7 @@ public class DlqService {
             byQueue.forEach((queueName, rows) -> {
                 List<DlqQueueDepth> perNode = rows.stream()
                         .map(r -> new DlqQueueDepth(
-                                r.getNodeId(), nodeNames.getOrDefault(r.getNodeId(), "unknown"), r.getMessageCount()))
+                                r.nodeId(), nodeNames.getOrDefault(r.nodeId(), "unknown"), r.messageCount()))
                         .toList();
                 long totalDepth =
                         perNode.stream().mapToLong(DlqQueueDepth::depth).sum();

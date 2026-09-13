@@ -32,8 +32,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Transpo
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +63,7 @@ public class MessageService {
     /** {@code managementBrowsePageSize} default — the broker will not return more per page. */
     static final int BROKER_PAGE_CAP = 200;
 
-    private final QueueSnapshotRepository queueSnapshots;
+    private final QueueSnapshots queueSnapshots;
     private final BrokerNodeRepository brokerNodes;
     private final BrokerConnections connections;
     private final MessageOperations messageOps;
@@ -355,18 +355,18 @@ public class MessageService {
     }
 
     ResolvedQueue resolve(UUID clusterId, String queueName, UUID nodeId) {
-        List<QueueSnapshotEntity> snapshots = queueSnapshots.findByClusterId(clusterId).stream()
-                .filter(s -> s.getQueueName().equals(queueName))
+        List<QueueSnapshot> snapshots = queueSnapshots.forCluster(clusterId).stream()
+                .filter(s -> s.queueName().equals(queueName))
                 .toList();
         if (snapshots.isEmpty()) {
             throw new NotFoundException("queue", queueName);
         }
-        QueueSnapshotEntity any = snapshots.get(0);
+        QueueSnapshot any = snapshots.get(0);
 
         Map<UUID, BrokerNodeEntity> byId = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
                 .collect(Collectors.toMap(BrokerNodeEntity::getId, Function.identity()));
         List<BrokerNodeEntity> candidates = snapshots.stream()
-                .map(s -> byId.get(s.getNodeId()))
+                .map(s -> byId.get(s.nodeId()))
                 .filter(n -> n != null && n.getJolokiaUrl() != null)
                 .toList();
         if (candidates.isEmpty()) {
@@ -386,7 +386,7 @@ public class MessageService {
                     .findFirst()
                     .orElse(candidates.get(0));
         }
-        return new ResolvedQueue(chosen, any.getAddress(), any.getRoutingType());
+        return new ResolvedQueue(chosen, any.address(), any.routingType());
     }
 
     private void acquire(UUID nodeId) {

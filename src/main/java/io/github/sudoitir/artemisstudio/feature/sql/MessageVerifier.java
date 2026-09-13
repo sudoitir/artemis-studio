@@ -8,8 +8,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Transpo
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MessageVerifier {
 
     private final BrokerNodeRepository nodes;
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
     private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
     private final SqlConsoleService console;
@@ -62,8 +62,8 @@ public class MessageVerifier {
         if (node.isEmpty()) {
             return new Verdict(Presence.UNKNOWN, "That node is no longer part of this cluster.");
         }
-        Optional<QueueSnapshotEntity> queue = snapshots.findByNodeId(nodeId).stream()
-                .filter(s -> s.getQueueName().equals(queueName))
+        Optional<QueueSnapshot> queue = snapshots.forNode(nodeId).stream()
+                .filter(s -> s.queueName().equals(queueName))
                 .findFirst();
         if (queue.isEmpty()) {
             return new Verdict(
@@ -76,8 +76,8 @@ public class MessageVerifier {
                 clusterId,
                 nodeId,
                 queueName,
-                queue.get().getAddress(),
-                queue.get().getRoutingType(),
+                queue.get().address(),
+                queue.get().routingType(),
                 node.get().getJolokiaUrl(),
                 node.get().getCoreUrl());
         // Enqueue time is the one selector-visible attribute that narrows a queue to

@@ -6,8 +6,8 @@ import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSe
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSeriesRepository.Bucket;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -31,12 +31,11 @@ public class MetricQueryService {
 
     private static final int MAX_POINTS = 500;
 
-    private final MetricSeriesRepository repository;
+    private final MetricSamples repository;
     private final MetricSampleReaper reaper;
     private final ClusterAccessGuard clusterAccess;
 
-    public MetricQueryService(
-            MetricSeriesRepository repository, MetricSampleReaper reaper, ClusterAccessGuard clusterAccess) {
+    public MetricQueryService(MetricSamples repository, MetricSampleReaper reaper, ClusterAccessGuard clusterAccess) {
         this.repository = repository;
         this.reaper = reaper;
         this.clusterAccess = clusterAccess;

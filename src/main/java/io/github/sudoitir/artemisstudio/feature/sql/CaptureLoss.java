@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +35,7 @@ public class CaptureLoss {
 
     private final MessageIndexSubscriptionRepository subscriptions;
     private final MessageCaptureNodeRepository captureNodes;
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
     private final JdbcTemplate jdbc;
 
     /** {@code MessagesAdded} and rows written at the previous pass, per (subscription, node). */
@@ -137,18 +137,18 @@ public class CaptureLoss {
     }
 
     private List<String> capturedQueues(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
-        return snapshots.findByClusterId(clusterId).stream()
-                .map(QueueSnapshotEntity::getQueueName)
+        return snapshots.forCluster(clusterId).stream()
+                .map(QueueSnapshot::queueName)
                 .distinct()
                 .filter(queue -> QueueNamePattern.matches(subscription.getQueuePattern(), queue))
                 .toList();
     }
 
     private long enqueuedOnSource(UUID clusterId, MessageIndexSubscriptionEntity subscription, UUID nodeId) {
-        return snapshots.findByClusterId(clusterId).stream()
-                .filter(row -> nodeId.equals(row.getNodeId()))
-                .filter(row -> QueueNamePattern.matches(subscription.getQueuePattern(), row.getQueueName()))
-                .mapToLong(QueueSnapshotEntity::getMessagesAdded)
+        return snapshots.forCluster(clusterId).stream()
+                .filter(row -> nodeId.equals(row.nodeId()))
+                .filter(row -> QueueNamePattern.matches(subscription.getQueuePattern(), row.queueName()))
+                .mapToLong(QueueSnapshot::messagesAdded)
                 .sum();
     }
 

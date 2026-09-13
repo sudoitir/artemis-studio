@@ -8,8 +8,8 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotEntity;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.Comparator;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CrossNodeAggregator {
 
-    private final QueueSnapshotRepository snapshots;
+    private final QueueSnapshots snapshots;
     private final BrokerNodeRepository nodes;
     private final QueueViewMapper mapper;
     private final ScrapeProperties properties;
@@ -51,9 +51,9 @@ public class CrossNodeAggregator {
                 .count();
         Instant staleBefore = Instant.now().minus(properties.tierCInterval().multipliedBy(2));
 
-        Map<QueueKey, List<QueueSnapshotEntity>> byKey = snapshots.findByClusterId(clusterId).stream()
+        Map<QueueKey, List<QueueSnapshot>> byKey = snapshots.forCluster(clusterId).stream()
                 .collect(Collectors.groupingBy(
-                        s -> new QueueKey(s.getAddress(), s.getQueueName(), s.getRoutingType()),
+                        s -> new QueueKey(s.address(), s.queueName(), s.routingType()),
                         LinkedHashMap::new,
                         Collectors.toList()));
 
