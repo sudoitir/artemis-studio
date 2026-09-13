@@ -3,6 +3,8 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderOptions } from '@testing-library/react';
 
+import { FEATURES } from '../app/features.ts';
+import { FeatureProvider } from '../kernel/FeatureProvider.tsx';
 import { theme } from '../theme.ts';
 
 /** A fresh QueryClient per render, retries off so a mocked error surfaces at once. */
@@ -15,7 +17,9 @@ function makeClient() {
 function Providers({ children }: { children: ReactNode }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <QueryClientProvider client={makeClient()}>{children}</QueryClientProvider>
+      <QueryClientProvider client={makeClient()}>
+        <FeatureProvider features={FEATURES}>{children}</FeatureProvider>
+      </QueryClientProvider>
     </MantineProvider>
   );
 }

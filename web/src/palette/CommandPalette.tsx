@@ -10,7 +10,8 @@ import {
   setPollingPaused,
   usePollingPaused,
 } from '../api/polling.ts';
-import { NAV_ITEMS } from '../app/navItems.ts';
+import { useFeatures } from '../kernel/features.ts';
+import { navGroups } from '../kernel/registry.ts';
 
 /**
  * ⌘K navigation across the console: jump to a cluster, a view, or a queue by
@@ -29,6 +30,7 @@ export function CommandPalette() {
   const queues = useQueues(clusterId ?? '', {});
   const qc = useQueryClient();
   const paused = usePollingPaused();
+  const features = useFeatures();
 
   const groups = useMemo<SpotlightActionGroupData[]>(() => {
     const out: SpotlightActionGroupData[] = [
@@ -53,15 +55,18 @@ export function CommandPalette() {
       },
     ];
 
+    // The views under the rail's own groups, so a view is found where the rail shows it.
     if (clusterId) {
-      out.push({
-        group: 'Go to view',
-        actions: NAV_ITEMS.map((item) => ({
-          id: `view-${item.path}`,
-          label: item.label,
-          onClick: () => navigate({ to: `/clusters/${clusterId}/${item.path}` }),
-        })),
-      });
+      for (const navGroup of navGroups(features)) {
+        out.push({
+          group: navGroup.label,
+          actions: navGroup.items.map((item) => ({
+            id: `view-${item.path}`,
+            label: item.label,
+            onClick: () => navigate({ to: `/clusters/${clusterId}/${item.path}` }),
+          })),
+        });
+      }
     }
 
     out.push({
@@ -91,7 +96,7 @@ export function CommandPalette() {
     }
 
     return out;
-  }, [clusterId, clusters.data, queues.data, navigate, qc, paused]);
+  }, [clusterId, clusters.data, queues.data, navigate, qc, paused, features]);
 
   return (
     <Spotlight

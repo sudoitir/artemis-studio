@@ -1,0 +1,14 @@
+.group + .group {
+  margin-block-start: 6px;
+}
+
+.heading {
+  margin: 0;
+  padding-block: 8px 4px;
+  padding-inline: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--as-text-dimmed);
+}

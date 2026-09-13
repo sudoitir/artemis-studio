@@ -5,6 +5,7 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
+import type { ComponentType } from 'react';
 
 import { RootLayout } from './app/RootLayout.tsx';
 import { RouteError } from './app/RouteError.tsx';
@@ -31,6 +32,19 @@ import { LoginView } from './auth/LoginView.tsx';
 import { ChangePasswordView } from './auth/ChangePasswordView.tsx';
 import { AdminView } from './admin/AdminView.tsx';
 import { AccountView } from './account/AccountView.tsx';
+import type { FeatureId } from './kernel/feature.ts';
+import { FeatureGate } from './kernel/shell/FeatureGate.tsx';
+
+/** A cluster view of `feature`, or the page explaining that the feature is disabled (feature-modules spec). */
+function gated(feature: FeatureId, View: ComponentType) {
+  return function GatedView() {
+    return (
+      <FeatureGate feature={feature}>
+        <View />
+      </FeatureGate>
+    );
+  };
+}
 
 /** Navigable state that belongs in the URL, not local state (non-negotiable #9). */
 export interface ResourceSearch {
@@ -128,14 +142,14 @@ const clusterIndexRoute = createRoute({
 const topologyRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'topology',
-  component: TopologyView,
+  component: gated('clusters', TopologyView),
   errorComponent: RouteError,
 });
 
 const queuesRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'queues',
-  component: QueuesView,
+  component: gated('queues', QueuesView),
   validateSearch: validateResourceSearch,
   errorComponent: RouteError,
 });
@@ -143,7 +157,7 @@ const queuesRoute = createRoute({
 const messagesRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'queues/$queueName/messages',
-  component: MessagesView,
+  component: gated('messages', MessagesView),
   validateSearch: validateMessagesSearch,
   errorComponent: RouteError,
 });
@@ -171,7 +185,7 @@ function validateSqlSearch(raw: Record<string, unknown>): SqlSearch {
 const sqlRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'sql',
-  component: SqlConsoleView,
+  component: gated('sql', SqlConsoleView),
   validateSearch: validateSqlSearch,
   errorComponent: RouteError,
 });
@@ -189,7 +203,7 @@ function validateAuditSearch(raw: Record<string, unknown>): Record<string, unkno
 const auditRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'audit',
-  component: AuditView,
+  component: gated('audit', AuditView),
   validateSearch: validateAuditSearch,
   errorComponent: RouteError,
 });
@@ -207,7 +221,7 @@ function validateRrSearch(raw: Record<string, unknown>): Record<string, unknown>
 const rrRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'rr',
-  component: FlowsView,
+  component: gated('rr', FlowsView),
   validateSearch: validateRrSearch,
   errorComponent: RouteError,
 });
@@ -239,7 +253,7 @@ function validateMetricsSearch(raw: Record<string, unknown>): MetricsSearch {
 const metricsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'metrics',
-  component: MetricsView,
+  component: gated('metrics', MetricsView),
   validateSearch: validateMetricsSearch,
   errorComponent: RouteError,
 });
@@ -255,7 +269,7 @@ function validateAlertsSearch(raw: Record<string, unknown>): Record<string, unkn
 const alertsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'alerts',
-  component: AlertsView,
+  component: gated('alerting', AlertsView),
   validateSearch: validateAlertsSearch,
   errorComponent: RouteError,
 });
@@ -263,7 +277,7 @@ const alertsRoute = createRoute({
 const configDiffRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'config-diff',
-  component: ConfigDiffView,
+  component: gated('brokerconfig', ConfigDiffView),
   errorComponent: RouteError,
 });
 
@@ -292,7 +306,7 @@ function validateConfigurationSearch(raw: Record<string, unknown>): Configuratio
 const configurationRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'configuration',
-  component: ConfigurationView,
+  component: gated('brokerconfig', ConfigurationView),
   validateSearch: validateConfigurationSearch,
   errorComponent: RouteError,
 });
@@ -301,21 +315,21 @@ const configurationRoute = createRoute({
 const configurationApplyRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'configuration/apply',
-  component: ApplyView,
+  component: gated('brokerconfig', ApplyView),
   errorComponent: RouteError,
 });
 
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
-  component: DlqView,
+  component: gated('messages', DlqView),
   errorComponent: RouteError,
 });
 
 const eventsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'events',
-  component: EventsView,
+  component: gated('events', EventsView),
   errorComponent: RouteError,
 });
 
@@ -331,7 +345,7 @@ const resourceRoutes = resourceKinds.map((kind) =>
   createRoute({
     getParentRoute: () => clusterRoute,
     path: kind,
-    component: () => <ResourceView kind={kind} />,
+    component: gated('resources', () => <ResourceView kind={kind} />),
     validateSearch: validateResourceSearch,
     errorComponent: RouteError,
   }),
@@ -341,7 +355,7 @@ const resourceRoutes = resourceKinds.map((kind) =>
 const routingRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'routing',
-  component: RoutingView,
+  component: gated('routing', RoutingView),
   validateSearch: (raw: Record<string, unknown>) => {
     const base = validateResourceSearch(raw);
     return raw.tab === 'bridges' ? { ...base, tab: 'bridges' as const } : base;
@@ -352,7 +366,7 @@ const routingRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'settings',
-  component: SettingsView,
+  component: gated('settings', SettingsView),
   errorComponent: RouteError,
 });
 

@@ -27,6 +27,7 @@ export default tseslint.config(
       ],
       'boundaries/files': [
         { pattern: 'src/features/*/index.ts', category: 'entry' },
+        { pattern: 'src/{kernel,ui,features}/**/*.test.{ts,tsx}', category: 'test-file' },
       ],
     },
     rules: {
@@ -35,6 +36,9 @@ export default tseslint.config(
         {
           default: 'disallow',
           policies: [
+            // A test beside its code uses the shared harness; every other edge it takes is
+            // held to its element's own policy.
+            { from: { file: { categories: 'test-file' } }, allow: { to: { element: { type: 'test' } } } },
             { from: { element: { type: 'ui' } }, allow: { to: { element: { type: 'ui' } } } },
             { from: { element: { type: 'kernel' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
             { from: { element: { type: ['app', 'test'] } }, allow: { to: { element: { type: '*' } } } },

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Alert, Anchor, Badge, Card, Group, Spoiler, Stack, Text, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Group, Spoiler, Stack, Title } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useMetrics, type MetricSeries } from '../api/client.ts';
@@ -13,13 +13,14 @@ import { ConsumersChart } from './ConsumersChart.tsx';
 import { MetricsTable } from './MetricsTable.tsx';
 import { StatRow, type Stat } from './StatRow.tsx';
 import { earliest, formatCount, formatExact, formatRate, latest } from './axis.ts';
-import { LatencyPanel } from '../rr/LatencyPanel.tsx';
+import { useSlot } from '../kernel/slots.ts';
 
 const METRICS = ['messageCount', 'consumerCount', 'messagesAdded', 'messagesAcked'];
 
 /**
- * Cluster-wide (or queue-scoped) historical metrics: depth, throughput, consumers,
- * and request-reply latency, sharing one crosshair.
+ * Cluster-wide (or queue-scoped) historical metrics: depth, throughput and consumers,
+ * sharing one crosshair, then whatever the enabled features add (`metrics.panels`),
+ * such as request-reply latency.
  *
  * A relative range advances as time passes, quantized to the bucket width, so the
  * right-hand edge is still the present an hour after the page was opened — and so
@@ -29,6 +30,7 @@ const METRICS = ['messageCount', 'consumerCount', 'messagesAdded', 'messagesAcke
 export function MetricsView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const navigate = useNavigate();
+  const panels = useSlot('metrics.panels');
   const search = useSearch({ strict: false }) as {
     range?: MetricRange;
     from?: string;
@@ -205,22 +207,9 @@ export function MetricsView() {
         </Spoiler>
       )}
 
-      {/* Not a ChartPanel: latency is a live window rather than persisted history
-          (ADR-0032), so it carries its own coverage disclosure and its own height
-          instead of borrowing the historical panels' fixed box. */}
-      <Card withBorder padding="md" radius="md">
-        <Stack gap="xs">
-          <Group justify="space-between" align="baseline" wrap="nowrap">
-            <Text size="sm" fw={600}>
-              Request-reply latency
-            </Text>
-            <Text size="xs" c="dimmed">
-              milliseconds — current live window only
-            </Text>
-          </Group>
-          <LatencyPanel clusterId={clusterId} />
-        </Stack>
-      </Card>
+      {panels.map(({ id, Component }) => (
+        <Component key={id} clusterId={clusterId} />
+      ))}
     </Stack>
   );
 }

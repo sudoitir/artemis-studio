@@ -15,7 +15,9 @@ import '@xyflow/react/dist/style.css';
 import './theme.css';
 
 import { mountRefetch } from './api/polling.ts';
+import { FEATURES } from './app/features.ts';
 import { startServerTimeSync } from './app/time.ts';
+import { FeatureProvider } from './kernel/FeatureProvider.tsx';
 import { theme } from './theme.ts';
 import { createAppRouter } from './router.tsx';
 
@@ -74,7 +76,9 @@ createRoot(document.getElementById('root')!).render(
       <CodeHighlightAdapterProvider adapter={shikiAdapter}>
         <Notifications position="top-right" />
         <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
+          <FeatureProvider features={FEATURES}>
+            <RouterProvider router={router} />
+          </FeatureProvider>
         </QueryClientProvider>
       </CodeHighlightAdapterProvider>
     </MantineProvider>

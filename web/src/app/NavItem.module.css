@@ -28,6 +28,17 @@
   background: var(--as-surface-raised);
 }
 
+/* Disabled: listed, focusable for its reason, never raised on hover. No opacity —
+   the label stays at the dimmed token's contrast. */
+.item[data-disabled] {
+  cursor: not-allowed;
+}
+
+.item[data-disabled]:hover {
+  color: var(--as-text-dimmed);
+  background: transparent;
+}
+
 .item:focus-visible {
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: -2px;

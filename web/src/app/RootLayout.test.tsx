@@ -5,6 +5,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../test/render.tsx';
+import { manifestHandler } from '../test/manifest.ts';
 import { server } from '../test/setup.ts';
 
 const navigate = vi.fn();
@@ -43,6 +44,8 @@ function mockEmptyQueues() {
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
     // ClusterRailNav groups clusters by environment (authorization spec).
     http.get('*/api/v1/environments', () => HttpResponse.json([])),
+    // The command palette lists the views of the installation's enabled features.
+    manifestHandler(),
   );
 }
 

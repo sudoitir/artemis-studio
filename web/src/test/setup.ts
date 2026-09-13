@@ -3,12 +3,16 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 
+import { manifestHandler } from './manifest.ts';
+
 /**
  * Shared MSW network mock (ADR-0024). Tests add per-case handlers with
  * `server.use(http.get(...))`; anything unhandled is a hard error so a missing
- * mock fails loudly instead of hanging on a real fetch.
+ * mock fails loudly instead of hanging on a real fetch. The one default is the
+ * manifest, with every feature enabled, since the shell reads it on every screen;
+ * a test disables features with `server.use(manifestHandler([...]))`.
  */
-export const server = setupServer();
+export const server = setupServer(manifestHandler());
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => {

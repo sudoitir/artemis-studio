@@ -4,6 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../test/render.tsx';
+import { manifestHandler } from '../test/manifest.ts';
 import { server } from '../test/setup.ts';
 
 const navigate = vi.fn();
@@ -18,6 +19,7 @@ const { CommandPalette } = await import('./CommandPalette.tsx');
 
 function mockApi() {
   server.use(
+    manifestHandler(),
     http.get('*/api/v1/clusters', () =>
       HttpResponse.json([
         {

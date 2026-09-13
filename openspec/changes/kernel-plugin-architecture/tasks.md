@@ -124,11 +124,11 @@ Each task below does the same four things:
 ## 9. Frontend kernel
 
 - [ ] 9.1 Create `web/src/kernel/feature.ts`: `StudioFeature` with contract `1`, `defineFeature`, route factories, nav, palette, stream topic handler and typed slot contracts.
-- [ ] 9.2 Create `kernel/registry.ts` and `kernel/manifest.ts`, with a `useManifest` query and a `useFeature(id)` hook that filters out disabled features.
-- [ ] 9.3 Create `kernel/slots.tsx` with `useSlot(name)`, ordered and filtered by enabled features.
-- [ ] 9.4 Create `kernel/nav/groups.ts` (observe, messaging, resources, configuration, activity) and a grouped rail. Groups have heading semantics when expanded, stay separated when collapsed, and a group with no views is hidden.
+- [x] 9.2 Create `kernel/registry.ts` and `kernel/manifest.ts`, with a `useManifest` query, `useManifestFeature(id)`, and `useEnabledFeatures`, which filters out disabled features and treats every feature as enabled until the manifest answers.
+- [x] 9.3 Create `kernel/slots.ts` with `useSlot(name)`, ordered and filtered by enabled features, and `FeatureProvider`/`useFeatures`, through which the composition root hands its features to the kernel. `metrics.panels`, `queue.detail.panels` and `cluster.registration.afterProbe` are wired; each other slot name is added with its consumer (9.10, group 10).
+- [x] 9.4 Create `kernel/nav/groups.ts` (observe, messaging, resources, configuration, activity) and a grouped rail. Groups have heading semantics when expanded, stay separated and named when collapsed, and a group with no views is hidden. A view without its read permission stays listed and disabled, with the reason reachable by keyboard; the command palette lists views under the same groups.
 - [ ] 9.5 Create `kernel/routing/roots.ts` (`rootRoute`, `clusterRoute`, `adminRoute`) and `app/router.ts`, which composes feature routes and declares `Register`. Move search validators into their feature.
-- [ ] 9.6 Create `kernel/shell/FeatureDisabled`: states the feature is disabled, names the property, links back to the cluster.
+- [x] 9.6 Create `kernel/shell/FeatureDisabled`: states the feature is disabled, names the property (from the manifest's `enabledProperty`), links back to the cluster. `FeatureGate` renders it in place of each cluster view whose feature is disabled.
 - [ ] 9.7 Split `api/client.ts` into `kernel/api` (request, `ApiError`, polling, key roots, generated schema) and per-feature `api.ts`. Remove the kernel's back-edges to `app/useDismissedNotice` and `app/time`.
 - [ ] 9.8 Replace the `stream.ts` topic if/else chain with a registry of feature-contributed topic handlers.
 - [ ] 9.9 Move `ConfirmByTyping`, `NodeOutcomeSummary`, `CapabilityGate`, `VirtualTable` and `Pager` into `web/src/ui/`.
