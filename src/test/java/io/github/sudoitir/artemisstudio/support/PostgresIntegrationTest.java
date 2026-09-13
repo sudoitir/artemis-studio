@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.support;
 
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
+import java.util.List;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -38,6 +39,9 @@ public abstract class PostgresIntegrationTest {
     protected static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:17-alpine").withCommand("postgres", "-c", "max_connections=400");
 
+    /** Base64 of exactly 32 bytes. */
+    private static final String SECRET_KEY = "YXJ0ZW1pcy1zdHVkaW8tdGVzdC1rZXktMzJieXRlcyE=";
+
     static {
         POSTGRES.withReuse(true).start();
     }
@@ -47,7 +51,15 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
-        // base64 of exactly 32 bytes.
-        registry.add("artemis-studio.secret-key", () -> "YXJ0ZW1pcy1zdHVkaW8tdGVzdC1rZXktMzJieXRlcyE=");
+        registry.add("artemis-studio.secret-key", () -> SECRET_KEY);
+    }
+
+    /** What an application started outside the Spring test framework needs to use the shared database. */
+    public static List<String> connectionProperties() {
+        return List.of(
+                "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
+                "spring.datasource.username=" + POSTGRES.getUsername(),
+                "spring.datasource.password=" + POSTGRES.getPassword(),
+                "artemis-studio.secret-key=" + SECRET_KEY);
     }
 }

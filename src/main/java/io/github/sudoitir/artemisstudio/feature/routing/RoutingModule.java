@@ -9,6 +9,7 @@ public final class RoutingModule {
             .id("routing")
             .title("Routing")
             .kind(FeatureDescriptor.Kind.FEATURE)
+            .require("queues")
             .apiPrefix("/api/v1/clusters/{clusterId}/diverts")
             .apiPrefix("/api/v1/clusters/{clusterId}/bridges")
             .build();

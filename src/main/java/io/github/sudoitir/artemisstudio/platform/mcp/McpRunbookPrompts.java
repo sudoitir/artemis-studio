@@ -1,7 +1,10 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.Arrays;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpArg;
 import org.springframework.ai.mcp.annotation.McpPrompt;
 import org.springframework.stereotype.Component;
@@ -16,9 +19,17 @@ import org.springframework.stereotype.Component;
  * which is precisely what the safety model forbids. {@code before_you_purge} is the
  * clearest case — it prescribes the sequence and then stops at asking the human,
  * rather than ever prescribing a confirmed run.
+ *
+ * <p>A runbook names tools, and a tool exists only while its feature is enabled. When a
+ * step's tool is missing, the prompt says so and names the setting that restores it, so
+ * the model skips the step and reports it instead of failing on a call it cannot make.
  */
 @Component
+@RequiredArgsConstructor
 public class McpRunbookPrompts {
+
+    private final McpToolCatalog catalog;
+    private final FeatureRegistry features;
 
     @McpPrompt(name = "triage_cluster", description = "The order to investigate a cluster that looks unhealthy.")
     public McpSchema.GetPromptResult triageCluster(
@@ -44,7 +55,7 @@ public class McpRunbookPrompts {
                 the time the symptom started.
 
                 Report what you found and what you did not check. Do not run any mutating tool \
-                as part of triage.""".formatted(target));
+                as part of triage.""".formatted(target), "diagnose", "list_resources", "activity_log");
     }
 
     @McpPrompt(
@@ -53,7 +64,9 @@ public class McpRunbookPrompts {
     public McpSchema.GetPromptResult investigateQueue(
             @McpArg(name = "clusterId", description = "Cluster id", required = false) String clusterId,
             @McpArg(name = "queue", description = "Queue name", required = false) String queue) {
-        return prompt("Queue investigation runbook", """
+        return prompt(
+                "Queue investigation runbook",
+                """
                 Investigate %s on %s.
 
                 1. diagnose with the queue name. Read trend before depth: a deep queue that is draining needs \
@@ -70,8 +83,11 @@ public class McpRunbookPrompts {
                 connect/disconnect churn.
 
                 State the cause before proposing an action. If the cause is consumer-side, say so \
-                and stop — no broker-side action fixes it.""".formatted(
-                        queue == null || queue.isBlank() ? "the queue" : queue, target(clusterId)));
+                and stop — no broker-side action fixes it.""".formatted(queue == null || queue.isBlank() ? "the queue" : queue, target(clusterId)),
+                "diagnose",
+                "list_resources",
+                "browse_messages",
+                "activity_log");
     }
 
     @McpPrompt(
@@ -80,7 +96,9 @@ public class McpRunbookPrompts {
     public McpSchema.GetPromptResult beforeYouPurge(
             @McpArg(name = "clusterId", description = "Cluster id", required = false) String clusterId,
             @McpArg(name = "queue", description = "Queue name", required = false) String queue) {
-        return prompt("Pre-purge checklist", """
+        return prompt(
+                "Pre-purge checklist",
+                """
                 Purging discards messages permanently. There is no undo and no recovery from the \
                 broker side. Before proposing one on %s:
 
@@ -98,7 +116,10 @@ public class McpRunbookPrompts {
                 Then stop. Report the count, what the messages appear to be, and your \
                 recommendation — and ask the operator to confirm. Do not call message_action with \
                 dryRun=false on your own initiative; the confirm argument exists so that a human \
-                decision is what unlocks a destructive run, and supplying it yourself defeats it.""".formatted(subject(queue, clusterId)));
+                decision is what unlocks a destructive run, and supplying it yourself defeats it.""".formatted(subject(queue, clusterId)),
+                "message_action",
+                "diagnose",
+                "browse_messages");
     }
 
     @McpPrompt(
@@ -122,7 +143,7 @@ public class McpRunbookPrompts {
                 5. Lower the per-node rate limit only if the broker is rejecting calls. It \
                 throttles Studio, so it makes every screen slower.
 
-                Say what you would change and what it costs before changing it.""".formatted(target(clusterId)));
+                Say what you would change and what it costs before changing it.""".formatted(target(clusterId)), "studio_setting", "metric_series");
     }
 
     private static String target(String clusterId) {
@@ -134,9 +155,35 @@ public class McpRunbookPrompts {
         return q + " on " + target(clusterId);
     }
 
-    private static McpSchema.GetPromptResult prompt(String description, String text) {
+    private McpSchema.GetPromptResult prompt(String description, String text, String... tools) {
         return new McpSchema.GetPromptResult(
                 description,
-                List.of(new McpSchema.PromptMessage(McpSchema.Role.USER, new McpSchema.TextContent(text))));
+                List.of(new McpSchema.PromptMessage(
+                        McpSchema.Role.USER, new McpSchema.TextContent(text + unavailable(tools)))));
+    }
+
+    /** The runbook's tools whose feature is disabled, with the setting that enables each; empty when all exist. */
+    String unavailable(String... tools) {
+        var offered = catalog.toolNames();
+        List<String> missing = Arrays.stream(tools)
+                .filter(tool -> !offered.contains(tool))
+                .map(this::describe)
+                .toList();
+        if (missing.isEmpty()) {
+            return "";
+        }
+        return "\n\nSome steps name a tool this Studio does not offer, because its feature is disabled: "
+                + String.join("; ", missing)
+                + ". Skip those steps, and say which checks you could not make.";
+    }
+
+    private String describe(String tool) {
+        return features.all().stream()
+                .filter(feature ->
+                        feature.mcpTools().stream().anyMatch(def -> def.name().equals(tool)))
+                .findFirst()
+                .map(feature -> tool + " (" + feature.title() + " is disabled; set artemis-studio.features."
+                        + feature.id() + ".enabled=true)")
+                .orElse(tool);
     }
 }
