@@ -1,7 +1,9 @@
 /**
  * Branding, clock, problem details, OpenAPI and SPA routing. Depends on nothing else in Studio.
  */
-@ApplicationModule(displayName = "Core")
+@ApplicationModule(
+        displayName = "Core",
+        allowedDependencies = {})
 package io.github.sudoitir.artemisstudio.kernel.core;
 
 import org.springframework.modulith.ApplicationModule;

@@ -63,19 +63,19 @@ Each task below does the same four things:
 3. add `package-info` allowed dependencies;
 4. move the feature's tests to mirror the new packages.
 
-- [ ] 5.1 `events`: broker event writer, entity, repository, reaper, stream publisher, service and controller. It registers a `BrokerEventSink` and owns the `events` topic.
-- [ ] 5.2 `metrics`: `MetricQueryService` and `MetricsController`, reading `scrape::api`. MCP tool `metric_series`.
-- [ ] 5.3 `resources`: split `ClusterResourceController`; move `PagedListService`, `CrossNodeAggregator`, `ResourceKind`/`Query`, `ResourceViewMapper` and connection control. Topics `consumers`, `sessions`, `connections`. MCP tools `list_resources`, `connection_action`.
-- [ ] 5.4 `queues`: queue lifecycle service, operations and controller, `LifecycleKind`/`Outcome`, queue and address listing endpoints, `QueueViewMapper`. MCP tool `queue_lifecycle`.
-- [ ] 5.5 `routing`: diverts, bridges, `RoutingService` and `RoutingController`.
-- [ ] 5.6 `messages`: message service, operations and controller, `MessageAction`, DLQ service and controller. MCP tools `message_action`, `send_message`, `browse_messages`.
-- [ ] 5.7 `alerting`: alerting domain, evaluator (listening to `ScrapeTierCompleted`), rule and alert services, notification channels, dispatcher, backoff, senders and controllers. Define `spi.AlertSignalSource`; handle `ClusterRemoving`. Topic `alerts`, MCP tool `alert_rule`.
-- [ ] 5.8 `rr`: resolvers, sampler, correlator, metrics, notification observer, deadline sweep, domain, persistence and controller. Its capture listener loads only when `sql` is enabled. Topic `rr`, MCP tool `trace_request_reply`.
-- [ ] 5.9 `sql`: console, index, capture tap/consumer/bus/reconciler, index writer and partitions, controllers, `SqlQueryTickets` and the per-request tail stream. Define `spi.CaptureListener`.
-- [ ] 5.10 `brokerconfig`: operations, domain, config diff, `ConfigReader`, services, persistence and controllers. Implement `AlertSignalSource` for drift. Topic `config`; MCP tools `broker_config`, `config_diff`, `broker_config_change`.
+- [x] 5.1 `events`: broker event writer, entity, repository, reaper, stream publisher, service and controller. It registers a `BrokerEventSink` and owns the `events` topic.
+- [x] 5.2 `metrics`: `MetricQueryService` and `MetricsController`, reading `scrape::api`. MCP tool `metric_series`.
+- [x] 5.3 `resources`: split `ClusterResourceController`; move `PagedListService`, `CrossNodeAggregator`, `ResourceKind`/`Query`, `ResourceViewMapper` and connection control. Topics `consumers`, `sessions`, `connections`. MCP tools `list_resources`, `connection_action`.
+- [x] 5.4 `queues`: queue lifecycle service, operations and controller, `LifecycleKind`/`Outcome`, queue and address listing endpoints, `QueueViewMapper`. MCP tool `queue_lifecycle`.
+- [x] 5.5 `routing`: diverts, bridges, `RoutingService` and `RoutingController`.
+- [x] 5.6 `messages`: message service, operations and controller, `MessageAction`, DLQ service and controller. MCP tools `message_action`, `send_message`, `browse_messages`.
+- [x] 5.7 `alerting`: alerting domain, evaluator (listening to `ScrapeTierCompleted`), rule and alert services, notification channels, dispatcher, backoff, senders and controllers. Define `AlertSignalSource`. A removed cluster's alerting rows go with it through cascading foreign keys to the earlier clusters module (checked by `SchemaOwnershipTest`), so no removal event is needed. Topic `alerts`, MCP tool `alert_rule`.
+- [x] 5.8 `rr`: resolvers, sampler, correlator, metrics, notification observer, deadline sweep, domain, persistence and controller. Its capture listener loads only when `sql` is enabled. Topic `rr`, MCP tool `trace_request_reply`.
+- [x] 5.9 `sql`: console, index, capture tap/consumer/bus/reconciler, index writer and partitions, controllers, `SqlQueryTickets` and the per-request tail stream. `CaptureBus.Listener` is the capture SPI other modules implement.
+- [x] 5.10 `brokerconfig`: operations, domain, config diff, `ConfigReader`, services, persistence and controllers. Implement `AlertSignalSource` for drift. Topic `config`; MCP tools `broker_config`, `config_diff`, `broker_config_change`.
 - [x] 5.11 `triage`: split `diagnose` and `activity_log` out of `McpDiagnosticTools`, and delete `McpDiagnosticTools`/`McpTuningTools` once every tool lives in its feature.
 - [x] 5.12 Declare `ScheduledJob` beans for every former `DynamicSchedules` task in its owning module, and delete the central task list.
-- [ ] 5.13 Switch `ModularityTest` to failing and add `BoundaryRulesTest` (design D6).
+- [x] 5.13 Switch `ModularityTest` to failing and add `BoundaryRulesTest` (design D6). Each module declares its `allowedDependencies`. One edge is tolerated by name until 10.8: the registration preview embeds broker configuration recommendations, so `platform.clusters` depends on `feature.brokerconfig`.
 - [ ] 5.14 Add an `@ApplicationModuleTest` per feature bootstrapping direct dependencies only.
 - [ ] 5.15 Add `FeatureToggleTest`. For each optional feature, the context starts with it disabled, and:
   - its endpoints return `404 feature-disabled`;

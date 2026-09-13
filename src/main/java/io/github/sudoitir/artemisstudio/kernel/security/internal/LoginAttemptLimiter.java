@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Per (username, source IP) failed-login throttle, modelled on
- * {@link io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter}'s per-key
+ * {@code NodeCallLimiter}'s per-key
  * bucket shape. Exponential lockout, cleared on success.
  *
  * <p>ponytail: in-memory only, single instance. Correct until v1.0's
