@@ -34,6 +34,7 @@ public class McpCatalogResources {
 
     private final ClusterService clusters;
     private final ConfigDiffService configDiff;
+    private final McpToolCatalog catalog;
 
     @McpResource(
             uri = "studio://clusters",
@@ -69,7 +70,7 @@ public class McpCatalogResources {
             description = "Accepted values and JSON body shapes for every tool. Mirrors the studio_help tool.",
             mimeType = "application/json")
     public McpSchema.ReadResourceResult toolDetail() {
-        return json("studio://tools", McpToolCatalog.entries());
+        return json("studio://tools", catalog.entries());
     }
 
     @McpResource(

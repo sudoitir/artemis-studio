@@ -1,8 +1,10 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
@@ -28,7 +30,10 @@ import org.springframework.stereotype.Component;
  * model has no reason to hesitate before calling it.
  */
 @Component
+@RequiredArgsConstructor
 public class McpHelpTool {
+
+    private final McpToolCatalog catalog;
 
     @McpTool(
             name = "studio_help",
@@ -45,17 +50,17 @@ public class McpHelpTool {
             if (topic == null || topic.isBlank()) {
                 return Map.of(
                         "tools",
-                        McpToolCatalog.index(),
+                        catalog.index(),
                         "next",
                         "Call studio_help with a tool name for its accepted values and body shapes.");
             }
-            McpToolCatalog.Entry entry = McpToolCatalog.find(topic.trim());
+            McpToolDef entry = catalog.find(topic.trim());
             if (entry == null) {
                 // Not an error: an unknown topic is a model guessing a name, and the
                 // useful answer is the list it should have guessed from.
                 return Map.of(
                         "unknown", topic.trim(),
-                        "tools", McpToolCatalog.toolNames(),
+                        "tools", catalog.toolNames(),
                         "next", "Call studio_help with one of these, or with no topic for the full index.");
             }
             return List.of(entry);

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
@@ -70,6 +71,9 @@ class McpToolSchemaBudgetTest extends PostgresIntegrationTest {
 
     @Autowired
     WebApplicationContext webContext;
+
+    @Autowired
+    McpToolCatalog catalog;
 
     @Autowired
     AppUserRepository users;
@@ -164,9 +168,9 @@ class McpToolSchemaBudgetTest extends PostgresIntegrationTest {
      */
     @Test
     void everyToolDeclaresThePostureTheCatalogueGivesIt() throws Exception {
-        Set<String> reads = McpToolCatalog.entries().stream()
-                .filter(e -> e.posture() == McpToolCatalog.Posture.READ)
-                .map(McpToolCatalog.Entry::name)
+        Set<String> reads = catalog.entries().stream()
+                .filter(e -> e.posture() == McpToolDef.Posture.READ)
+                .map(McpToolDef::name)
                 .collect(Collectors.toSet());
         List<String> problems = new ArrayList<>();
         for (JsonNode tool : toolList()) {
@@ -200,11 +204,11 @@ class McpToolSchemaBudgetTest extends PostgresIntegrationTest {
         }
         assertThat(registered).isNotEmpty();
 
-        assertThat(McpToolCatalog.toolNames())
+        assertThat(catalog.toolNames())
                 .describedAs("every registered tool must be described in McpToolCatalog")
                 .containsExactlyInAnyOrderElementsOf(registered);
 
-        String instructions = McpToolCatalog.instructions();
+        String instructions = catalog.instructions();
         assertThat(registered)
                 .describedAs("the generated instructions must name every registered tool")
                 .allSatisfy(name -> assertThat(instructions).contains(name));

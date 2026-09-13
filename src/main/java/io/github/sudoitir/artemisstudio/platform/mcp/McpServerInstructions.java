@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
 
@@ -24,12 +26,16 @@ import org.springframework.stereotype.Component;
  * is configured.
  */
 @Component
+@RequiredArgsConstructor
 public class McpServerInstructions implements BeanPostProcessor {
+
+    /** Resolved when the properties bean is post-processed, not when this post-processor is created. */
+    private final ObjectProvider<McpToolCatalog> catalog;
 
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         if (bean instanceof McpServerProperties props) {
-            props.setInstructions(McpToolCatalog.instructions());
+            props.setInstructions(catalog.getObject().instructions());
         }
         return bean;
     }

@@ -1,8 +1,10 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
+import java.util.List;
 
 /** Alert rules, firings and notification channels. Module descriptor (ADR-0070). */
 public final class AlertingModule {
@@ -22,6 +24,19 @@ public final class AlertingModule {
             .settingKey(AlertingSettings.INITIAL_BACKOFF)
             .settingKey(AlertingSettings.MAX_BACKOFF)
             .streamTopic(TopicDef.signal("alerts"))
+            .mcpTool(new McpToolDef(
+                    "alert_rule",
+                    McpToolDef.Posture.MUTATE,
+                    "List, create, update or delete alert rules.",
+                    List.of(
+                            McpToolDef.Param.values(
+                                    "op", List.of("list", "create", "update", "delete"), "Default list."),
+                            McpToolDef.Param.shape(
+                                    "rule",
+                                    "{ name, kind, metric, comparator, threshold, stateCondition, forSeconds, "
+                                            + "severity, scope, enabled }",
+                                    "Required for create; a partial body is merged on update."),
+                            McpToolDef.Param.note("confirm", "The rule name, to delete."))))
             .build();
 
     private AlertingModule() {}
