@@ -1,14 +1,14 @@
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { rootRoute } from '../../kernel/routing/roots.ts';
+import { featureView, rootRoute } from '../../kernel/routing/roots.ts';
 import { ChangePasswordView } from './ChangePasswordView.tsx';
 import { PasswordSection } from './sections.tsx';
 
 const changePasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'change-password',
-  component: ChangePasswordView,
+  component: featureView('identity-local', ChangePasswordView),
 });
 
 /** Local username-and-password accounts: changing the password, including the forced change on first sign-in. */
