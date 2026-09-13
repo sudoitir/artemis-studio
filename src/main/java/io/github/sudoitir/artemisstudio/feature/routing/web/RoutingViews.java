@@ -2,7 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.routing.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleViews;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleViews;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import java.util.List;

@@ -1,15 +1,14 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
-import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenGrantRepository;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.OidcRoleMappingRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopedGrants;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.EnvironmentViews.EnvironmentRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.EnvironmentViews.EnvironmentView;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +26,8 @@ public class EnvironmentService {
 
     private final EnvironmentRepository environments;
     private final ClusterRepository clusters;
-    private final UserRoleRepository userRoles;
-    private final ApiTokenGrantRepository apiTokenGrants;
-    private final OidcRoleMappingRepository oidcMappings;
+    private final ScopedGrants grants;
+    private final ApplicationEventPublisher eventPublisher;
     private final ClusterEnvironmentIndex environmentIndex;
 
     @PreAuthorize(
@@ -69,11 +67,8 @@ public class EnvironmentService {
     public void delete(UUID environmentId) {
         require(environmentId);
         environments.deleteById(environmentId); // cascades cluster.environment_id -> NULL (ON DELETE SET NULL)
-        userRoles.deleteByIdScopeTypeAndIdScopeId("ENVIRONMENT", environmentId);
-        apiTokenGrants.deleteByIdScopeTypeAndIdScopeId("ENVIRONMENT", environmentId);
-        oidcMappings.findAllByOrderByClaimAscClaimValueAsc().stream()
-                .filter(m -> "ENVIRONMENT".equals(m.getScopeType()) && environmentId.equals(m.getScopeId()))
-                .forEach(m -> oidcMappings.deleteById(m.getId()));
+        grants.revoke("ENVIRONMENT", environmentId);
+        eventPublisher.publishEvent(new EnvironmentRemoved(environmentId));
         environmentIndex.invalidate();
     }
 

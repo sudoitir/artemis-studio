@@ -1,18 +1,18 @@
 package io.github.sudoitir.artemisstudio.feature.routing.web;
 
+import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateDivertRequest;
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleViews.LifecycleOutcomeView;
 import io.github.sudoitir.artemisstudio.feature.resources.ResourceQuery;
-import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.PagedView;
 import io.github.sudoitir.artemisstudio.feature.routing.RoutingService;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertMutationView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerXmlSnippets;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleViews.LifecycleOutcomeView;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

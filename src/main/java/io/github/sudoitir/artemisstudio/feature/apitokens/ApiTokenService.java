@@ -5,10 +5,10 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.GrantLoader;
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEnvironmentIndex;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -47,7 +47,7 @@ public class ApiTokenService {
     private final GrantLoader grantLoader;
     private final AuditService audit;
     private final ActorResolver actorResolver;
-    private final ClusterEnvironmentIndex environments;
+    private final ScopeHierarchy environments;
     private final SecureRandom random = new SecureRandom();
 
     /** token id -> last-flushed instant, batched at most once a minute (design.md decision 5, task 8.4). */

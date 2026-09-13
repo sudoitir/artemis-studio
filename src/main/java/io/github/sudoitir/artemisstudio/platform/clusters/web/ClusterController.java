@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiffService;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.NodeConfigView;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -48,7 +46,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class ClusterController {
 
     private final ClusterService service;
-    private final ConfigDiffService configDiff;
 
     /** Register from a list of seed URLs (ADR-0013). {@code ?dryRun=true} probes and returns without persisting. */
     @ApiResponse(
@@ -115,22 +112,6 @@ public class ClusterController {
     public NodeEndpointView overrideNode(
             @PathVariable UUID clusterId, @PathVariable UUID nodeId, @Valid @RequestBody NodeOverrideRequest request) {
         return unwrap(service.overrideNodeUrl(clusterId, nodeId, request));
-    }
-
-    /**
-     * One node's effective broker configuration, read live (ADR-0043, ADR-0049).
-     *
-     * <p>What the node is actually running with, as the broker resolves it — never
-     * the {@code broker.xml} on disk, which Studio neither reads nor writes. The
-     * config-diff endpoint answers "do these two nodes agree"; this answers "what is
-     * this node set to", which is the question asked first.
-     *
-     * <p>Read-only introspection at the same permission tier as the topology read,
-     * and deliberately unaudited: only mutating calls write an audit event.
-     */
-    @GetMapping("/{clusterId}/nodes/{nodeId}/config")
-    public NodeConfigView nodeConfig(@PathVariable UUID clusterId, @PathVariable UUID nodeId) {
-        return configDiff.nodeConfig(clusterId, nodeId);
     }
 
     /** A {@link Attempt.Failed} becomes a classified {@link BrokerConnectionException} for the advice to render. */

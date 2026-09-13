@@ -4,9 +4,9 @@ import io.github.sudoitir.artemisstudio.feature.resources.ResourceViewMapper.Nod
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.AddressView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConnectionView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConsumerView;
-import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.PagedView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ProducerView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.SessionView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;

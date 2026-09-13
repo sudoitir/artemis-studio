@@ -1,9 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateAddressRequest;
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateDivertRequest;
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.CreateQueueRequest;
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleRequests.UpdateQueueRequest;
+import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateAddressRequest;
+import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateDivertRequest;
+import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
+import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
 import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;

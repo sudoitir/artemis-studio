@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.queues;
+package io.github.sudoitir.artemisstudio.feature.resources;
 
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueNodeCell;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueView;

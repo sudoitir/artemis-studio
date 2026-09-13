@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.kernel.core;
+package io.github.sudoitir.artemisstudio.kernel.settings;
 
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingRepository;

@@ -3113,7 +3113,7 @@
     },
     "/api/v1/clusters/{clusterId}/nodes/{nodeId}/config" : {
       "get" : {
-        "tags" : [ "cluster-controller" ],
+        "tags" : [ "node-config-controller" ],
         "operationId" : "nodeConfig",
         "parameters" : [ {
           "name" : "clusterId",

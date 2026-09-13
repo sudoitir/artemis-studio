@@ -3,10 +3,10 @@ package io.github.sudoitir.artemisstudio.feature.resources.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.github.sudoitir.artemisstudio.feature.queues.web.LifecycleViews.LifecycleOutcomeView;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionCloseKind;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlService.CloseResult;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleViews.LifecycleOutcomeView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**

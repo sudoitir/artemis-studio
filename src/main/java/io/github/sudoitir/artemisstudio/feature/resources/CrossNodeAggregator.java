@@ -1,9 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
-import io.github.sudoitir.artemisstudio.feature.queues.QueueViewMapper;
-import io.github.sudoitir.artemisstudio.feature.queues.QueueViewMapper.QueueKey;
-import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.PagedView;
+import io.github.sudoitir.artemisstudio.feature.resources.QueueViewMapper.QueueKey;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;

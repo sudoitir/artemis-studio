@@ -20,13 +20,6 @@ public final class ResourceViews {
 
     private ResourceViews() {}
 
-    /** A page of any resource list. {@code count} is the total across all nodes, not the page size. */
-    public record PagedView<T>(
-            @Schema(requiredMode = REQUIRED) List<T> data,
-            @Schema(requiredMode = REQUIRED) long count,
-            @Schema(requiredMode = REQUIRED) int page,
-            @Schema(requiredMode = REQUIRED) int pageSize) {}
-
     // ---- queues (aggregated from queue_snapshot) --------------------------
 
     public record QueueView(
