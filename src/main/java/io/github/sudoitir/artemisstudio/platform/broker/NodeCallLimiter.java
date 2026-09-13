@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Component;
 public class NodeCallLimiter {
 
     private final Map<UUID, Semaphore> perNode = new ConcurrentHashMap<>();
+    private final Map<UUID, Duration> lastWait = new ConcurrentHashMap<>();
     private volatile int permitsPerSecond;
 
     public NodeCallLimiter(RateLimitProperties properties) {
@@ -50,7 +52,10 @@ public class NodeCallLimiter {
      */
     public void acquire(UUID nodeId) throws InterruptedException {
         Semaphore sem = perNode.computeIfAbsent(nodeId, k -> new Semaphore(permitsPerSecond, true));
-        if (!sem.tryAcquire(1, 5, TimeUnit.SECONDS)) {
+        long waitStarted = System.nanoTime();
+        boolean acquired = sem.tryAcquire(1, 5, TimeUnit.SECONDS);
+        lastWait.put(nodeId, Duration.ofNanos(System.nanoTime() - waitStarted));
+        if (!acquired) {
             throw new InterruptedException("Timed out waiting for a scrape permit for node " + nodeId);
         }
     }
@@ -70,8 +75,14 @@ public class NodeCallLimiter {
         });
     }
 
+    /** How long the latest call to this node waited for a permit; zero before any. */
+    public Duration lastWait(UUID nodeId) {
+        return lastWait.getOrDefault(nodeId, Duration.ZERO);
+    }
+
     /** Drop a node's bucket when its cluster is removed. */
     public void forget(UUID nodeId) {
         perNode.remove(nodeId);
+        lastWait.remove(nodeId);
     }
 }

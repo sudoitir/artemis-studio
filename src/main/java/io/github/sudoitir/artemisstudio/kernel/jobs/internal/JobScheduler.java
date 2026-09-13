@@ -26,7 +26,7 @@ class JobScheduler implements SchedulingConfigurer {
     @Override
     public void configureTasks(ScheduledTaskRegistrar registrar) {
         for (ScheduledJob job : jobs) {
-            registrar.addTriggerTask(statuses.instrument(job), job.trigger());
+            registrar.addTriggerTask(statuses.instrument(job), statuses.trigger(job));
         }
     }
 }

@@ -820,6 +820,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stream": {
         parameters: {
             query?: never;
@@ -2533,6 +2549,28 @@ export interface components {
         TimeView: {
             /** Format: int64 */
             nowMs: number;
+        };
+        JobStatusView: {
+            id: string;
+            /** @description The module that owns the job. */
+            featureId: string;
+            /** Format: date-time */
+            lastStart?: string | null;
+            /** Format: date-time */
+            lastEnd?: string | null;
+            /** @description The most recent run's failure; absent once a later run succeeds. */
+            lastError?: string | null;
+            /** Format: int64 */
+            runs: number;
+            /** Format: int64 */
+            failures: number;
+            /**
+             * Format: date-time
+             * @description When the scheduler next intends to start it.
+             */
+            nextRun?: string | null;
+            /** @description Whether no run has finished within three of the job's intervals. */
+            degraded: boolean;
         };
         SseEmitter: {
             /** Format: int64 */
@@ -5294,6 +5332,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TimeView"];
+                };
+            };
+        };
+    };
+    jobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["JobStatusView"][];
                 };
             };
         };

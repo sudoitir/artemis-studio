@@ -34,16 +34,22 @@ public class BrokerClientFactory {
     private final ObjectMapper mapper;
     private final SslBundles sslBundles;
     private final ClockOffsetRegistry clockOffsets;
+    private final NodeCallHealth callHealth;
     private volatile HttpClientSettings baseSettings;
 
     /** Resolved broker MBean names, shared across every client this factory builds (keyed by Jolokia URL). */
     private final Map<String, String> brokerObjectNames = new ConcurrentHashMap<>();
 
     public BrokerClientFactory(
-            ObjectMapper mapper, SslBundles sslBundles, BrokerProperties properties, ClockOffsetRegistry clockOffsets) {
+            ObjectMapper mapper,
+            SslBundles sslBundles,
+            BrokerProperties properties,
+            ClockOffsetRegistry clockOffsets,
+            NodeCallHealth callHealth) {
         this.mapper = mapper;
         this.sslBundles = sslBundles;
         this.clockOffsets = clockOffsets;
+        this.callHealth = callHealth;
         this.baseSettings = HttpClientSettings.defaults()
                 .withConnectTimeout(properties.connectTimeout())
                 .withReadTimeout(properties.readTimeout())
@@ -75,7 +81,8 @@ public class BrokerClientFactory {
                 return execution.execute(request, body);
             });
         }
-        return new JolokiaBrokerClient(builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets);
+        return new JolokiaBrokerClient(
+                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth);
     }
 
     /**

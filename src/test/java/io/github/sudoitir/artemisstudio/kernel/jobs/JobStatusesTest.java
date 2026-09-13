@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.support.SimpleTriggerContext;
 
 class JobStatusesTest {
 
@@ -48,5 +50,36 @@ class JobStatusesTest {
         ScheduledJob job = ScheduledJob.fixedDelay("dup", "rr", () -> Duration.ofSeconds(1), () -> {});
         statuses.instrument(job);
         assertThatThrownBy(() -> statuses.instrument(job)).hasMessageContaining("'dup'");
+    }
+
+    @Test
+    void theTriggerRecordsTheNextRunAndItsInterval() {
+        ScheduledJob job = ScheduledJob.fixedDelay("tick", "rr", () -> Duration.ofSeconds(15), () -> {});
+        statuses.instrument(job);
+
+        Instant next = statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+
+        JobStatus s = statuses.all().getFirst();
+        assertThat(s.nextRun()).isEqualTo(next);
+        assertThat(s.interval()).isBetween(Duration.ofSeconds(14), Duration.ofSeconds(15));
+    }
+
+    @Test
+    void aJobThatHasNotFinishedWithinThreeIntervalsIsDegraded() {
+        Instant registered = Instant.parse("2026-09-13T10:00:00Z");
+        JobStatus s = new JobStatus("tick", "rr", registered, null, null, null, 0, 0, null, Duration.ofSeconds(15));
+
+        assertThat(s.degraded(registered.plusSeconds(44))).isFalse();
+        assertThat(s.degraded(registered.plusSeconds(46))).isTrue();
+
+        JobStatus finished = s.started(registered.plusSeconds(40)).succeeded(registered.plusSeconds(41));
+        assertThat(finished.degraded(registered.plusSeconds(46))).isFalse();
+        assertThat(finished.degraded(registered.plusSeconds(87))).isTrue();
+    }
+
+    @Test
+    void aJobWithoutAKnownIntervalIsNeverCalledStalled() {
+        JobStatus s = new JobStatus("tick", "rr", Instant.EPOCH, null, null, null, 0, 0, null, null);
+        assertThat(s.degraded(Instant.now())).isFalse();
     }
 }

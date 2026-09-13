@@ -48,10 +48,13 @@ public class JolokiaBrokerClient {
      */
     private final ClockOffsetRegistry clockOffsets;
 
+    /** Where each call's outcome goes, for broker health. Null where a client is built directly. */
+    private final NodeCallHealth callHealth;
+
     private volatile String cachedBrokerObjectName;
 
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
-        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null);
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null);
     }
 
     public JolokiaBrokerClient(
@@ -59,12 +62,14 @@ public class JolokiaBrokerClient {
             String jolokiaUrl,
             ObjectMapper mapper,
             Map<String, String> sharedBrokerObjectNames,
-            ClockOffsetRegistry clockOffsets) {
+            ClockOffsetRegistry clockOffsets,
+            NodeCallHealth callHealth) {
         this.restClient = restClient;
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
         this.sharedBrokerObjectNames = sharedBrokerObjectNames;
         this.clockOffsets = clockOffsets;
+        this.callHealth = callHealth;
         this.cachedBrokerObjectName = sharedBrokerObjectNames.get(jolokiaUrl);
     }
 
@@ -181,6 +186,21 @@ public class JolokiaBrokerClient {
     }
 
     private <T> T post(Object payload, Class<T> responseType) {
+        try {
+            T body = exchange(payload, responseType);
+            if (callHealth != null) {
+                callHealth.succeeded(jolokiaUrl);
+            }
+            return body;
+        } catch (BrokerConnectionException e) {
+            if (callHealth != null) {
+                callHealth.failed(jolokiaUrl, e.getMessage());
+            }
+            throw e;
+        }
+    }
+
+    private <T> T exchange(Object payload, Class<T> responseType) {
         try {
             return restClient
                     .post()

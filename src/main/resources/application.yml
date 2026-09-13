@@ -113,6 +113,19 @@ management:
       probes:
         enabled: true
       show-details: when-authorized
+      # Studio's own machinery (operational-health spec): jobs, broker calls and
+      # notification subscriptions. DEGRADED sits between DOWN and UP and answers 200,
+      # and the studio group is not part of liveness or readiness, so a broker outage
+      # or a stalled job never gets Studio restarted or taken out of rotation.
+      status:
+        order: down,out-of-service,degraded,unknown,up
+        http-mapping:
+          down: 503
+          out-of-service: 503
+      group:
+        studio:
+          include: jobs,brokers,subscriptions
+          show-details: when-authorized
   info:
     build:
       enabled: true

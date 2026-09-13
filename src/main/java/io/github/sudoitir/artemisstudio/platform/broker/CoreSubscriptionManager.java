@@ -148,6 +148,13 @@ public class CoreSubscriptionManager {
         return new SubscriptionVerdict.NotAttempted();
     }
 
+    /** Each subscribed node's state: connected since when, or its latest failure. Opens nothing. */
+    public Map<UUID, CoreEventClient.State> nodeStates() {
+        Map<UUID, CoreEventClient.State> states = new java.util.HashMap<>(lastFailure);
+        active.forEach((nodeId, client) -> states.put(nodeId, client.state()));
+        return states;
+    }
+
     /** Drop all state for a removed cluster. Wired into {@code ClusterService.delete}. */
     public void forget(UUID clusterId) {
         Set<UUID> nodeIds = nodesByCluster.remove(clusterId);

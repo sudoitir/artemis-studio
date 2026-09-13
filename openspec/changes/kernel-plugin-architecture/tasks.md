@@ -115,10 +115,10 @@ Each task below does the same four things:
 
 ## 8. Operational health
 
-- [ ] 8.1 Add `GET /api/v1/system/jobs` (requires `settings:read`) and a `jobs` health contributor that reports a job degraded after three missed intervals.
-- [ ] 8.2 Add a `brokers` health contributor with, per node, last success/failure, rate-limit wait and transport connection counts.
-- [ ] 8.3 Add a `subscriptions` health contributor with, per serving node, whether the subscription is established and, if not, why.
-- [ ] 8.4 Configure the `studio` health group and exclude it from liveness and readiness. Test that an unreachable cluster leaves readiness up.
+- [x] 8.1 Add `GET /api/v1/system/jobs` (requires `settings:read`) and a `jobs` health contributor that reports a job degraded after three missed intervals.
+- [x] 8.2 Add a `brokers` health contributor with, per node, last success/failure and rate-limit wait, and per cluster the open Core connection count (pooled-jms reports open connections only, with no active/idle split).
+- [x] 8.3 Add a `subscriptions` health contributor with, per serving node, whether the subscription is established and, if not, why.
+- [x] 8.4 Configure the `studio` health group and exclude it from liveness and readiness. Test that an unreachable cluster leaves readiness up.
 - [ ] 8.5 Order shutdown with `SmartLifecycle` phases (stream → jobs/scrape → subscriptions → Core pool → HTTP clients) and test that no job starts a broker call after shutdown begins.
 
 ## 9. Frontend kernel

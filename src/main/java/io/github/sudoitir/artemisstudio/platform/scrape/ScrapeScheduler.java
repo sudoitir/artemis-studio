@@ -81,7 +81,7 @@ public class ScrapeScheduler implements SchedulingConfigurer {
                         "scrape-tier-b", "scrape", () -> settings.duration(ScrapeSettings.TIER_B), this::tierB),
                 ScheduledJob.fixedDelay(
                         "scrape-tier-c", "scrape", () -> settings.duration(ScrapeSettings.TIER_C), this::tierC))) {
-            registrar.addTriggerTask(jobStatuses.instrument(tier), tier.trigger());
+            registrar.addTriggerTask(jobStatuses.instrument(tier), jobStatuses.trigger(tier));
         }
     }
 

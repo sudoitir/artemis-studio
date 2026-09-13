@@ -2600,6 +2600,27 @@
         }
       }
     },
+    "/api/v1/system/jobs" : {
+      "get" : {
+        "tags" : [ "jobs-controller" ],
+        "operationId" : "jobs",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JobStatusView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stream" : {
       "get" : {
         "tags" : [ "stream-controller" ],
@@ -6669,6 +6690,48 @@
           }
         },
         "required" : [ "nowMs" ]
+      },
+      "JobStatusView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "featureId" : {
+            "type" : "string",
+            "description" : "The module that owns the job."
+          },
+          "lastStart" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastEnd" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ],
+            "description" : "The most recent run's failure; absent once a later run succeeds."
+          },
+          "runs" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "failures" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "nextRun" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "When the scheduler next intends to start it."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "Whether no run has finished within three of the job's intervals."
+          }
+        },
+        "required" : [ "degraded", "failures", "featureId", "id", "runs" ]
       },
       "SseEmitter" : {
         "type" : "object",

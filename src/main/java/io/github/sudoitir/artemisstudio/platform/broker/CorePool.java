@@ -70,6 +70,15 @@ public class CorePool {
         return pool;
     }
 
+    /** How many Core connections are open for a cluster, across its node pools. */
+    public int connections(UUID clusterId) {
+        return keysByCluster.getOrDefault(clusterId, java.util.Set.of()).stream()
+                .map(pools::get)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(JmsPoolConnectionFactory::getNumConnections)
+                .sum();
+    }
+
     /** Closes and drops every pool for a removed cluster. Wired into {@code ClusterService.delete}. */
     public void forget(UUID clusterId) {
         Set<String> keys = keysByCluster.remove(clusterId);
