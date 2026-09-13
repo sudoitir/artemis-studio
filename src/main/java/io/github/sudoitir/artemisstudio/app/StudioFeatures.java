@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.app;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

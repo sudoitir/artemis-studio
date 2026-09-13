@@ -46,7 +46,7 @@ See `proposal.md` (Why) for motivation. Current state:
 
 ### D1. Spring Modulith + ArchUnit inside one Maven module
 
-Modules are packages, verified by `ApplicationModules.of(ArtemisStudioApplication.class).verify()` together with ArchUnit rules in `src/test/java/.../architecture/`. Each module declares `@ApplicationModule(allowedDependencies = …)` in `package-info.java` and exposes named interfaces `api` (types you call), `spi` (types you implement) and `events` (records you listen to). Everything else is internal.
+Modules are packages, verified by `ApplicationModules.of(ArtemisStudioApplication.class).verify()` together with ArchUnit rules in `src/test/java/.../architecture/`. Each module declares `@ApplicationModule(allowedDependencies = …)` in `package-info.java`. Modulith's default convention decides what is public: a module's **base package is its API** (types you call, SPIs you implement, event records you listen to), and every subpackage (`internal`, `web`, `mcp`) is internal to the module. A module adds a `@NamedInterface` subpackage only when it must expose a second, narrower surface.
 
 Module detection for the nested `kernel/`, `platform/` and `feature/` packages uses `spring.modulith.detection-strategy=explicitly-annotated`, which considers only packages carrying `@ApplicationModule` (confirmed via ctx7, task 1.1).
 

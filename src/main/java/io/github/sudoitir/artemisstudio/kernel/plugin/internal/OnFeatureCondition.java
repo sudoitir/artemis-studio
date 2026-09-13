@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.ConditionalOnFeature;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.Contract;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ConditionalOnFeature;
+import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.context.annotation.ConditionContext;

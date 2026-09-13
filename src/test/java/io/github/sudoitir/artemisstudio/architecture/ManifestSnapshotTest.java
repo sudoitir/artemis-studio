@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.architecture;
 
 import io.github.sudoitir.artemisstudio.app.StudioFeatures;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;

@@ -1,10 +1,10 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.web;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.Contract;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureRegistry;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.PermissionDef;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.ManifestViews.ManifestFeatureView;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.ManifestViews.ManifestIdentityProviderView;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.ManifestViews.ManifestPermissionView;

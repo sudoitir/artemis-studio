@@ -4,12 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor.Kind;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureRegistry;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.InstalledFeatures;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.PermissionDef;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor.Kind;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.ManifestController;
 import java.util.List;
 import org.junit.jupiter.api.Test;

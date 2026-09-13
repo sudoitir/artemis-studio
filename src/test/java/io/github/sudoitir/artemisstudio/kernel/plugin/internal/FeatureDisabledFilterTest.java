@@ -2,10 +2,10 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor.Kind;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureRegistry;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor.Kind;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;

@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.Contract;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureDescriptor;
-import io.github.sudoitir.artemisstudio.kernel.plugin.api.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

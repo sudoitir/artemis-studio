@@ -1,10 +1,10 @@
 package io.github.sudoitir.artemisstudio.support;
 
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.Events;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.RateLimit;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.Security;
-import io.github.sudoitir.artemisstudio.config.ArtemisStudioProperties.Sql;
+import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties;
+import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties.Events;
+import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties.RateLimit;
+import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties.Security;
+import io.github.sudoitir.artemisstudio.kernel.core.ArtemisStudioProperties.Sql;
 
 /**
  * {@link ArtemisStudioProperties} for unit tests, which almost always want "the
