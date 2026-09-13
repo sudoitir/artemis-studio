@@ -46,6 +46,11 @@ curl -s https://studio.example.com/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
+`scripts/mcp-config-e2e.sh` drives the whole configuration loop over this wire —
+handshake, `tools/list`, declare, plan, refuse a stale plan, apply, converge,
+and every read kind — against the dev stack, and removes what it applied so it
+can be run again.
+
 ## What is there
 
 | Kind | Name | For |

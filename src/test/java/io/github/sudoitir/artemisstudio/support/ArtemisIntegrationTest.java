@@ -27,8 +27,8 @@ import org.testcontainers.utility.MountableFile;
 public abstract class ArtemisIntegrationTest {
 
     private static final String IMAGE = "apache/activemq-artemis:2.44.0";
-    protected static final String BROKER_USER = "artemis";
-    protected static final String BROKER_PASSWORD = "artemis";
+    public static final String BROKER_USER = "artemis";
+    public static final String BROKER_PASSWORD = "artemis";
 
     protected static final GenericContainer<?> ARTEMIS = new GenericContainer<>(IMAGE)
             .withEnv("ARTEMIS_USER", BROKER_USER)
@@ -50,12 +50,19 @@ public abstract class ArtemisIntegrationTest {
     }
 
     /** Core protocol URL for the mapped acceptor port. */
-    protected static String coreUrl() {
+    public static String coreUrl() {
         return "tcp://%s:%d".formatted(ARTEMIS.getHost(), ARTEMIS.getMappedPort(61616));
     }
 
-    /** Jolokia base URL for the mapped console port. */
-    protected static String jolokiaUrl() {
+    /**
+     * Jolokia base URL for the mapped console port.
+     *
+     * <p>Public, and the container with it, because a test can only extend one
+     * base and the ones that need a real broker <em>and</em> the Spring context
+     * extend {@link PostgresIntegrationTest}. Touching this method initialises the
+     * class and therefore starts the shared container, which is the point.
+     */
+    public static String jolokiaUrl() {
         return "http://%s:%d/console/jolokia".formatted(ARTEMIS.getHost(), ARTEMIS.getMappedPort(8161));
     }
 }

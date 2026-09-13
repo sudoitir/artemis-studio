@@ -490,6 +490,16 @@ nothing was rolled back, and that re-running converges.
 The permission check, the step cap, the canary-and-halt behaviour and the audit trail
 SHALL be the ones the equivalent HTTP request would get.
 
+Every kind of the read tool SHALL answer for a cluster backed by a real broker, and the
+declare → plan → apply → converge loop SHALL be proven against one: a simulated broker
+can only demonstrate the system's half of the contract, never that the broker accepts
+what the planner sends or reports it back.
+
+#### Scenario: The loop converges against a real broker
+
+- **WHEN** a client declares a setting, applies it, and plans again
+- **THEN** the apply is verified by a read-back the broker answered and the second plan has no steps
+
 #### Scenario: A dry run names what to acknowledge
 
 - **WHEN** an MCP client previews applying a declaration whose plan carries a message-loss hazard
