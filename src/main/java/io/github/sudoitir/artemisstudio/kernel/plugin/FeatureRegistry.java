@@ -25,7 +25,7 @@ public class FeatureRegistry {
 
     private final Map<String, FeatureDescriptor> byId = new LinkedHashMap<>();
     private final Map<String, Boolean> enabled = new HashMap<>();
-    private final List<Map.Entry<PathPattern, FeatureDescriptor>> disabledPrefixes = new ArrayList<>();
+    private final List<Map.Entry<PathPattern, FeatureDescriptor>> prefixes = new ArrayList<>();
 
     public FeatureRegistry(InstalledFeatures installed, Environment environment) {
         for (FeatureDescriptor d : installed.descriptors()) {
@@ -68,10 +68,8 @@ public class FeatureRegistry {
                             + "', which is disabled by " + Contract.enabledProperty(dependency) + "=false");
                 }
             }
-            if (!enabled.get(d.id())) {
-                for (String prefix : d.apiPrefixes()) {
-                    disabledPrefixes.add(Map.entry(PathPatternParser.defaultInstance.parse(prefix + "/**"), d));
-                }
+            for (String prefix : d.apiPrefixes()) {
+                prefixes.add(Map.entry(PathPatternParser.defaultInstance.parse(prefix + "/**"), d));
             }
         }
     }
@@ -102,12 +100,17 @@ public class FeatureRegistry {
         return enabled.getOrDefault(featureId, false);
     }
 
-    /** The disabled feature that would have served {@code path}, if any. */
+    /**
+     * The disabled feature that would have served {@code path}, if any. The most
+     * specific declared prefix decides, so a path one feature owns inside another
+     * feature's broader prefix is attributed to its real owner.
+     */
     public Optional<FeatureDescriptor> disabledOwnerOf(String path) {
         PathContainer container = PathContainer.parsePath(path);
-        return disabledPrefixes.stream()
+        return prefixes.stream()
                 .filter(e -> e.getKey().matches(container))
+                .min(Map.Entry.comparingByKey(PathPattern.SPECIFICITY_COMPARATOR))
                 .map(Map.Entry::getValue)
-                .findFirst();
+                .filter(d -> !enabled.get(d.id()));
     }
 }

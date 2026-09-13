@@ -1,6 +1,5 @@
-package io.github.sudoitir.artemisstudio.kernel.core.internal;
+package io.github.sudoitir.artemisstudio.platform.broker;
 
-import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

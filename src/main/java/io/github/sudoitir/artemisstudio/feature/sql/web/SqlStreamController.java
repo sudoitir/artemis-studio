@@ -7,7 +7,6 @@ import io.github.sudoitir.artemisstudio.feature.sql.SqlConsoleService;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlTailPoller;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.StreamFrameView;
-import io.github.sudoitir.artemisstudio.kernel.core.web.ApiExceptionHandler;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
@@ -70,7 +69,7 @@ public class SqlStreamController {
     private final SqlViewMapper mapper;
     private final ClusterAccessGuard clusterAccess;
     private final SseHub hub;
-    private final ApiExceptionHandler problems;
+    private final SqlProblemAdvice problems;
     private final SqlQueryTickets tickets;
 
     /** Execution runs off the request thread; the emitter is returned immediately. */

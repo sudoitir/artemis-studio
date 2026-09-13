@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,12 +17,13 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @RequiredArgsConstructor
-public class ClusterEnvironmentIndex {
+public class ClusterEnvironmentIndex implements ScopeHierarchy {
 
     private final ClusterRepository clusters;
     private volatile Map<UUID, UUID> index;
 
     /** Cluster id -> environment id (absent if the cluster has none, or does not exist). */
+    @Override
     public UUID environmentOf(UUID clusterId) {
         return current().get(clusterId);
     }

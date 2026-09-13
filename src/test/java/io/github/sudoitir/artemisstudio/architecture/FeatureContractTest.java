@@ -126,6 +126,26 @@ class FeatureContractTest {
         assertThat(registry.disabledOwnerOf("/api/v1/clusters/abc/queues")).isEmpty();
     }
 
+    @Test
+    void theMostSpecificPrefixDecidesTheOwner() {
+        var env = new MockEnvironment().withProperty("artemis-studio.features.queues.enabled", "false");
+        var registry = registry(
+                env,
+                feature("queues")
+                        .apiPrefix("/api/v1/clusters/{clusterId}/addresses")
+                        .build(),
+                feature("resources")
+                        .apiPrefix("/api/v1/clusters/{clusterId}/addresses/{address}/consumers")
+                        .build());
+
+        assertThat(registry.disabledOwnerOf("/api/v1/clusters/c/addresses/orders/consumers/close"))
+                .as("served by the enabled resources feature")
+                .isEmpty();
+        assertThat(registry.disabledOwnerOf("/api/v1/clusters/c/addresses/orders"))
+                .map(FeatureDescriptor::id)
+                .contains("queues");
+    }
+
     private static SettingDef setting(String key) {
         return new SettingDef(key, "g", "l", "h", SettingDef.Kind.INT, () -> "1", null);
     }

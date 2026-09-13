@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal;
 
+import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
@@ -28,7 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 class FeatureDisabledFilter extends OncePerRequestFilter {
 
-    static final URI TYPE = URI.create("https://artemis-studio.dev/problems/feature-disabled");
+    static final URI TYPE = URI.create(Problems.TYPE_BASE + "feature-disabled");
 
     private final FeatureRegistry registry;
     private final JsonMapper json;

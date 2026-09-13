@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEnvironmentIndex;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -17,7 +16,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PermissionResolver {
 
-    private final ClusterEnvironmentIndex environments;
+    private final ScopeHierarchy environments;
 
     /** Global-scope check, for operations with no cluster (settings, user admin, environment CRUD). */
     public boolean can(String permission) {
