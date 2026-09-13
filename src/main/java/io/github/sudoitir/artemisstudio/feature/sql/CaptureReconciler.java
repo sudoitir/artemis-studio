@@ -91,7 +91,7 @@ public class CaptureReconciler {
         reconcile();
     }
 
-    /** Registered with {@code DynamicSchedules}. One pass per cluster that captures anything. */
+    /** Registered with {@code JobScheduler}. One pass per cluster that captures anything. */
     public void reconcile() {
         for (UUID clusterId : capturingClusters()) {
             clusterLock.runIfHeld(clusterId, () -> {

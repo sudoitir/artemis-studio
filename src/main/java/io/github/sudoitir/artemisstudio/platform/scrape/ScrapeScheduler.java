@@ -73,9 +73,12 @@ public class ScrapeScheduler implements SchedulingConfigurer {
         scheduler.initialize();
         registrar.setTaskScheduler(scheduler);
 
-        registrar.addTriggerTask(this::tierA, DynamicTriggers.fixedDelay(settings::tierA));
-        registrar.addTriggerTask(this::tierB, DynamicTriggers.fixedDelay(settings::tierB));
-        registrar.addTriggerTask(this::tierC, DynamicTriggers.fixedDelay(settings::tierC));
+        registrar.addTriggerTask(
+                this::tierA, DynamicTriggers.fixedDelay(() -> settings.duration(ScrapeSettings.TIER_A)));
+        registrar.addTriggerTask(
+                this::tierB, DynamicTriggers.fixedDelay(() -> settings.duration(ScrapeSettings.TIER_B)));
+        registrar.addTriggerTask(
+                this::tierC, DynamicTriggers.fixedDelay(() -> settings.duration(ScrapeSettings.TIER_C)));
     }
 
     private static final String[] HA_ATTRS = {

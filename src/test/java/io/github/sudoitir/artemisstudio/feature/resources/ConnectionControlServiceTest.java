@@ -21,6 +21,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
@@ -271,7 +272,7 @@ class ConnectionControlServiceTest extends PostgresIntegrationTest {
 
     @Test
     void anAddressCloseOverTheCapIsRefusedUntilOverridden() {
-        long cap = settings.bulkCap();
+        long cap = settings.intValue(BrokerSettings.BULK_CAP);
         when(ops.countConsumersForAddress(client, "orders")).thenReturn(cap + 1);
 
         assertThatThrownBy(() -> control.closeAddressConsumers(clusterId, "orders", false, false))

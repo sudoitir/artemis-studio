@@ -40,8 +40,7 @@ public class FeatureRegistry {
         rejectDuplicates(
                 "permission",
                 d -> d.permissions().stream().map(PermissionDef::action).toList());
-        rejectDuplicates(
-                "setting", d -> d.settings().stream().map(SettingDef::key).toList());
+        rejectDuplicates("setting", FeatureDescriptor::settingKeys);
         rejectDuplicates(
                 "stream topic",
                 d -> d.streamTopics().stream().map(TopicDef::name).toList());
@@ -85,6 +84,13 @@ public class FeatureRegistry {
                 }
             }
         }
+    }
+
+    /** The module whose descriptor declares {@code settingKey}, enabled or not. */
+    public Optional<FeatureDescriptor> ownerOfSetting(String settingKey) {
+        return byId.values().stream()
+                .filter(d -> d.settingKeys().contains(settingKey))
+                .findFirst();
     }
 
     /** Every installed module, in declaration order. */

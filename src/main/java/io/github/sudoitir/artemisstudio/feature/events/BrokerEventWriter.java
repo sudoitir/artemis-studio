@@ -89,7 +89,7 @@ public class BrokerEventWriter implements BrokerEventSink {
         return count == null ? 0 : count.get();
     }
 
-    /** Scheduled by {@code DynamicSchedules} on the settings-driven flush interval. */
+    /** Scheduled by {@code JobScheduler} on the settings-driven flush interval. */
     @Transactional
     public void flush() {
         List<BrokerEvent> batch = new ArrayList<>(BATCH_MAX);

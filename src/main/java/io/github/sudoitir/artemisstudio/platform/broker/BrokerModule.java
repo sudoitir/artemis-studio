@@ -10,6 +10,10 @@ public final class BrokerModule {
             .title("Broker connectivity")
             .kind(FeatureDescriptor.Kind.PLATFORM)
             .required(true)
+            .settingKey(BrokerSettings.RATE_LIMIT)
+            .settingKey(BrokerSettings.CONNECT_TIMEOUT)
+            .settingKey(BrokerSettings.READ_TIMEOUT)
+            .settingKey(BrokerSettings.BULK_CAP)
             .build();
 
     private BrokerModule() {}

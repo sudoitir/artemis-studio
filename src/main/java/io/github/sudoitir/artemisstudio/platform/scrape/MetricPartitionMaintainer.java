@@ -37,7 +37,7 @@ public class MetricPartitionMaintainer {
 
     /**
      * Runs once shortly after the reaper, at a quiet hour. Both are idempotent, and
-     * both are scheduled by {@code DynamicSchedules} on a settings-driven cron.
+     * both are scheduled by {@code JobScheduler} on a settings-driven cron.
      */
     public void maintain() {
         createAhead();

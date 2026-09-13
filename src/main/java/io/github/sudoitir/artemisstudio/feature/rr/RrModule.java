@@ -10,6 +10,12 @@ public final class RrModule {
             .title("Request-reply tracing")
             .kind(FeatureDescriptor.Kind.FEATURE)
             .apiPrefix("/api/v1/clusters/{clusterId}/rr")
+            .settingKey(RrSettings.RETENTION_DAYS)
+            .settingKey(RrSettings.REAPER_CRON)
+            .settingKey(RrSettings.DEFAULT_DEADLINE_MS)
+            .settingKey(RrSettings.PAYLOAD_CAPTURE_BYTES)
+            .settingKey(RrSettings.SWEEP_INTERVAL)
+            .settingKey(RrSettings.SAMPLE_INTERVAL)
             .build();
 
     private RrModule() {}

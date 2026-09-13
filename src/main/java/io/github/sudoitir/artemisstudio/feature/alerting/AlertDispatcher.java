@@ -29,7 +29,7 @@ public class AlertDispatcher {
     private final SecretVault vault;
     private final SettingsService settings;
 
-    /** Scheduled by {@code DynamicSchedules} on {@code alerting.dispatch-interval}. */
+    /** Scheduled by {@code JobScheduler} on {@code alerting.dispatch-interval}. */
     @Transactional
     public void dispatch() {
         for (AlertDeliveryEntity delivery : deliveries.claimDue(BATCH_SIZE)) {
@@ -76,9 +76,9 @@ public class AlertDispatcher {
                     ? result.retryAfter()
                     : AlertBackoff.delayFor(
                             delivery.getAttempts() + 1,
-                            settings.alertingInitialBackoff(),
-                            settings.alertingMaxBackoff());
-            delivery.recordFailure(now, result.error(), delay, settings.alertingMaxAttempts());
+                            settings.duration(AlertingSettings.INITIAL_BACKOFF),
+                            settings.duration(AlertingSettings.MAX_BACKOFF));
+            delivery.recordFailure(now, result.error(), delay, settings.intValue(AlertingSettings.MAX_ATTEMPTS));
             log.warn(
                     "Notification delivery {} to channel {} failed (attempt {}): {}",
                     delivery.getSeq(),

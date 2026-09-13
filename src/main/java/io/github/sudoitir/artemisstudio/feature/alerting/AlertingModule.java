@@ -16,6 +16,10 @@ public final class AlertingModule {
             .apiPrefix("/api/v1/clusters/{clusterId}/alerts")
             .apiPrefix("/api/v1/alerts")
             .apiPrefix("/api/v1/channels")
+            .settingKey(AlertingSettings.DISPATCH_INTERVAL)
+            .settingKey(AlertingSettings.MAX_ATTEMPTS)
+            .settingKey(AlertingSettings.INITIAL_BACKOFF)
+            .settingKey(AlertingSettings.MAX_BACKOFF)
             .build();
 
     private AlertingModule() {}

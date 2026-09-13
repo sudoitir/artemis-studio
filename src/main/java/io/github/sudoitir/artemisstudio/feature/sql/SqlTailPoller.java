@@ -247,7 +247,7 @@ public class SqlTailPoller {
         return tail;
     }
 
-    /** Registered with {@code DynamicSchedules} on the configured tail interval. */
+    /** Registered with {@code JobScheduler} on the configured tail interval. */
     public void tick() {
         for (Tail tail : tails) {
             if (tail.cancelled()) {

@@ -18,6 +18,8 @@ public final class BrokerConfigModule {
                     BrokerConfigPermissions.CONFIG_APPLY, "Apply declared broker configuration to brokers"))
             .apiPrefix("/api/v1/clusters/{clusterId}/config")
             .apiPrefix("/api/v1/clusters/{clusterId}/config-diff")
+            .settingKey(BrokerConfigSettings.DRIFT_INTERVAL)
+            .settingKey(BrokerConfigSettings.APPLY_STEP_CAP)
             .build();
 
     private BrokerConfigModule() {}

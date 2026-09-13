@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
+import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
@@ -45,29 +48,27 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void unsetKeysFallThroughToTheApplicationYmlDefaults() {
-        assertThat(settings.tierA()).isEqualTo(Duration.ofSeconds(5));
-        assertThat(settings.metricRetentionDays()).isEqualTo(7);
-        assertThat(settings.effective().get(SettingsService.TIER_A).overridden())
-                .isFalse();
+        assertThat(settings.duration(ScrapeSettings.TIER_A)).isEqualTo(Duration.ofSeconds(5));
+        assertThat(settings.intValue(ScrapeSettings.METRIC_RETENTION_DAYS)).isEqualTo(7);
+        assertThat(settings.effective().get(ScrapeSettings.TIER_A).overridden()).isFalse();
     }
 
     @Test
     void putThenGetReturnsTheOverrideAndFlagsIt() {
-        settings.put(SettingsService.TIER_B, "30s");
-        settings.put(SettingsService.RETENTION_DAYS, "3");
+        settings.put(ScrapeSettings.TIER_B, "30s");
+        settings.put(ScrapeSettings.METRIC_RETENTION_DAYS, "3");
 
-        assertThat(settings.tierB()).isEqualTo(Duration.ofSeconds(30));
-        assertThat(settings.metricRetentionDays()).isEqualTo(3);
-        assertThat(settings.effective().get(SettingsService.TIER_B).overridden())
-                .isTrue();
-        assertThat(settings.effective().get(SettingsService.TIER_B).defaultValue())
+        assertThat(settings.duration(ScrapeSettings.TIER_B)).isEqualTo(Duration.ofSeconds(30));
+        assertThat(settings.intValue(ScrapeSettings.METRIC_RETENTION_DAYS)).isEqualTo(3);
+        assertThat(settings.effective().get(ScrapeSettings.TIER_B).overridden()).isTrue();
+        assertThat(settings.effective().get(ScrapeSettings.TIER_B).defaultValue())
                 .isEqualTo("PT15S");
     }
 
     @Test
     void settingTheLimiterAndRetentionAppliesToTheLiveHolders() {
-        settings.put(SettingsService.RATE_LIMIT, "9");
-        settings.put(SettingsService.RETENTION_DAYS, "2");
+        settings.put(BrokerSettings.RATE_LIMIT, "9");
+        settings.put(ScrapeSettings.METRIC_RETENTION_DAYS, "2");
 
         assertThat(limiter.permitsPerSecond()).isEqualTo(9);
         assertThat(reaper.retentionDays()).isEqualTo(2);
@@ -75,34 +76,34 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void resetClearsTheOverride() {
-        settings.put(SettingsService.RATE_LIMIT, "9");
-        settings.reset(SettingsService.RATE_LIMIT);
+        settings.put(BrokerSettings.RATE_LIMIT, "9");
+        settings.reset(BrokerSettings.RATE_LIMIT);
 
-        assertThat(settings.limiterPermits()).isEqualTo(20);
-        assertThat(settings.effective().get(SettingsService.RATE_LIMIT).overridden())
+        assertThat(settings.intValue(BrokerSettings.RATE_LIMIT)).isEqualTo(20);
+        assertThat(settings.effective().get(BrokerSettings.RATE_LIMIT).overridden())
                 .isFalse();
     }
 
     @Test
     void invalidValuesAreRejected() {
-        assertThatThrownBy(() -> settings.put(SettingsService.TIER_A, "0s"))
+        assertThatThrownBy(() -> settings.put(ScrapeSettings.TIER_A, "0s"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> settings.put(SettingsService.RATE_LIMIT, "0"))
+        assertThatThrownBy(() -> settings.put(BrokerSettings.RATE_LIMIT, "0"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> settings.put("bogus.key", "1")).isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** One key of each {@link SettingsService.Kind}, so a new kind cannot land untested. */
+    /** One key of each {@link SettingDef.Kind}, so a new kind cannot land untested. */
     @Test
     void everyKindRoundTrips() {
-        settings.put(SettingsService.BROKER_READ_TIMEOUT, "45s");
-        settings.put(SettingsService.ALERTING_MAX_ATTEMPTS, "9");
-        settings.put(SettingsService.METRIC_REAPER_CRON, "0 45 4 * * *");
+        settings.put(BrokerSettings.READ_TIMEOUT, "45s");
+        settings.put(AlertingSettings.MAX_ATTEMPTS, "9");
+        settings.put(ScrapeSettings.METRIC_REAPER_CRON, "0 45 4 * * *");
 
-        assertThat(settings.brokerReadTimeout()).isEqualTo(Duration.ofSeconds(45));
-        assertThat(settings.alertingMaxAttempts()).isEqualTo(9);
-        assertThat(settings.metricReaperCron()).isEqualTo("0 45 4 * * *");
-        assertThat(settings.effective().get(SettingsService.METRIC_REAPER_CRON).kind())
+        assertThat(settings.duration(BrokerSettings.READ_TIMEOUT)).isEqualTo(Duration.ofSeconds(45));
+        assertThat(settings.intValue(AlertingSettings.MAX_ATTEMPTS)).isEqualTo(9);
+        assertThat(settings.value(ScrapeSettings.METRIC_REAPER_CRON)).isEqualTo("0 45 4 * * *");
+        assertThat(settings.effective().get(ScrapeSettings.METRIC_REAPER_CRON).kind())
                 .isEqualTo("CRON");
     }
 
@@ -113,11 +114,11 @@ class SettingsServiceTest extends PostgresIntegrationTest {
      */
     @Test
     void aCronThatFiresTooOftenIsRejected() {
-        assertThatThrownBy(() -> settings.put(SettingsService.METRIC_REAPER_CRON, "* * * * * *"))
+        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_REAPER_CRON, "* * * * * *"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> settings.put(SettingsService.METRIC_REAPER_CRON, "not a cron"))
+        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_REAPER_CRON, "not a cron"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(settings.metricReaperCron()).isEqualTo("0 30 3 * * *");
+        assertThat(settings.value(ScrapeSettings.METRIC_REAPER_CRON)).isEqualTo("0 30 3 * * *");
     }
 
     /** Every key is described well enough for the settings screen to render it unaided. */
@@ -133,8 +134,8 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void changingASettingIsAudited() {
-        settings.put(SettingsService.BULK_CAP, "50");
-        settings.reset(SettingsService.BULK_CAP);
+        settings.put(BrokerSettings.BULK_CAP, "50");
+        settings.reset(BrokerSettings.BULK_CAP);
 
         // Sorted by the generated id rather than trusting findAll()'s order: an
         // unordered SELECT may return either row first, and asserting a sequence on
@@ -145,8 +146,8 @@ class SettingsServiceTest extends PostgresIntegrationTest {
                         .toList())
                 .extracting(AuditEventEntity::getAction, AuditEventEntity::getTargetName)
                 .containsExactly(
-                        tuple("UPDATE_SETTING", SettingsService.BULK_CAP),
-                        tuple("RESET_SETTING", SettingsService.BULK_CAP));
+                        tuple("UPDATE_SETTING", BrokerSettings.BULK_CAP),
+                        tuple("RESET_SETTING", BrokerSettings.BULK_CAP));
     }
 
     /**
@@ -157,7 +158,7 @@ class SettingsServiceTest extends PostgresIntegrationTest {
      */
     @Test
     void aRejectedChangeWritesNoAuditRow() {
-        assertThatThrownBy(() -> settings.put(SettingsService.BULK_CAP, "0"))
+        assertThatThrownBy(() -> settings.put(BrokerSettings.BULK_CAP, "0"))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(auditEvents.findAll()).isEmpty();

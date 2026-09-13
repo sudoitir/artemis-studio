@@ -14,6 +14,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
@@ -231,7 +232,7 @@ public class ConnectionControlService {
         clusterAccess.requireCluster(clusterId, kind.permission());
         String subject = requireId(kind, address);
         List<Target> targets = liveTargets(clusterId);
-        long cap = settings.bulkCap();
+        long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
         AuditEventEntity event = audit.begin(
                 actorResolver.resolve(),

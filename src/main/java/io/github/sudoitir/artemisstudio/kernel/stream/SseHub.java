@@ -97,7 +97,7 @@ public class SseHub {
      * (ADR-0052). It is additive: a client that does not subscribe to {@code ping}
      * ignores it.
      *
-     * <p>Scheduled by {@code DynamicSchedules} on {@code sse.heartbeat-interval},
+     * <p>Scheduled by {@code JobScheduler} on {@code sse.heartbeat-interval},
      * because the value that keeps a stream alive is a property of whatever proxy
      * sits in front. The watchdog window on the client is set well above it.
      */

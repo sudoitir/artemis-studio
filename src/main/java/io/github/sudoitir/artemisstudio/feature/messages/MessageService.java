@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
@@ -129,7 +130,10 @@ public class MessageService {
         if (dryRun) {
             audit.succeed(event, 1);
             return new Attempt.Ok<>(new Outcome.DryRun(
-                    1, settings.bulkCap(), false, resolved.node().getId()));
+                    1,
+                    settings.intValue(BrokerSettings.BULK_CAP),
+                    false,
+                    resolved.node().getId()));
         }
         try {
             acquire(resolved.node().getId());
@@ -187,7 +191,7 @@ public class MessageService {
         // (the DLQ replay). A filter on a RETRY is ignored, not an error.
         boolean retryAll = action == MessageAction.RETRY && req.ids().isEmpty();
 
-        long cap = settings.bulkCap();
+        long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
         // A by-id dry run needs no broker call at all — the estimate is the id count.
         boolean idBased = !retryAll && !req.byFilter() && !req.ids().isEmpty();
@@ -232,7 +236,7 @@ public class MessageService {
         try {
             JolokiaBrokerClient client = clientFor(clusterId, resolved);
             String mbean = queueMbean(client, resolved, queueName);
-            long cap = settings.bulkCap();
+            long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
             if (dryRun) {
                 long estimate = messageOps.messageCount(client, mbean);

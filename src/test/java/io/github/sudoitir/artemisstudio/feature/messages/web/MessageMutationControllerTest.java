@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeEntity;
@@ -94,14 +95,14 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
         a.attachManagementUrl(URL);
         nodeId = nodes.save(a).getId();
         upsert.upsertBatch(List.of(new QueueRow(clusterId, nodeId, Q, Q, "ANYCAST", true, 3, 0, 0, 0, 0, 0, 0, false)));
-        settings.reset(SettingsService.BULK_CAP);
+        settings.reset(BrokerSettings.BULK_CAP);
     }
 
     @AfterEach
     void cleanUp() {
         audit.deleteAll();
         clusters.deleteById(clusterId);
-        settings.reset(SettingsService.BULK_CAP);
+        settings.reset(BrokerSettings.BULK_CAP);
     }
 
     /** A client that answers the given raw JSON bodies in order (search first when the op needs the MBean name). */
@@ -241,7 +242,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void deleteByFilterOverCapIsA422WithAffectedCountAndCap() throws Exception {
-        settings.put(SettingsService.BULK_CAP, "2");
+        settings.put(BrokerSettings.BULK_CAP, "2");
         when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, COUNT_3));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
@@ -257,7 +258,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void deleteByFilterExactlyAtTheCapIsAllowed() throws Exception {
-        settings.put(SettingsService.BULK_CAP, "3");
+        settings.put(BrokerSettings.BULK_CAP, "3");
         when(connections.forCluster(eq(clusterId), eq(URL)))
                 .thenReturn(client(SEARCH, COUNT_3, fixture("remove-messages.json")));
 
@@ -271,7 +272,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void deleteByFilterOverCapProceedsWithOverride() throws Exception {
-        settings.put(SettingsService.BULK_CAP, "2");
+        settings.put(BrokerSettings.BULK_CAP, "2");
         when(connections.forCluster(eq(clusterId), eq(URL)))
                 .thenReturn(client(SEARCH, COUNT_3, fixture("remove-messages.json")));
 

@@ -61,7 +61,7 @@ public class RrSampler {
     private final Map<UUID, Instant> lastSampledAt = new ConcurrentHashMap<>();
 
     /**
-     * Scheduled by {@code DynamicSchedules} on {@code rr.sample-interval}. It used to
+     * Scheduled by {@code JobScheduler} on {@code rr.sample-interval}. It used to
      * hardcode 5s and ignore the configured value entirely.
      */
     public void tick() {

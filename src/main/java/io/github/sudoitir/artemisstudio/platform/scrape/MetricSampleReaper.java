@@ -39,7 +39,7 @@ public class MetricSampleReaper {
         return retentionDays;
     }
 
-    /** Scheduled by {@code DynamicSchedules} on the settings-driven cron (ADR-0048). */
+    /** Scheduled by {@code JobScheduler} on the settings-driven cron (ADR-0048). */
     @Transactional
     public void reap() {
         int deleted = jdbc.update(DELETE_OLD, Map.of("days", retentionDays));

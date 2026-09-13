@@ -216,7 +216,7 @@ public class BrokerConfigApplyService {
         if (!plan.valid()) {
             throw new BrokerConfigInvalidException(plan.violations());
         }
-        int cap = settings.configApplyStepCap();
+        int cap = settings.intValue(BrokerConfigSettings.APPLY_STEP_CAP);
         return new Prepared(revision, plan, observed, nodes, owned, cap, plan.stepCount() > cap);
     }
 

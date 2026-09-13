@@ -240,7 +240,7 @@ public class RequestReplyService {
         List<BrokerNodeEntity> clusterNodes = nodes.findByClusterIdOrderByNameAsc(clusterId);
         int withCore =
                 (int) clusterNodes.stream().filter(n -> n.getCoreUrl() != null).count();
-        long sampleIntervalMs = settings.rrSampleInterval().toMillis();
+        long sampleIntervalMs = settings.duration(RrSettings.SAMPLE_INTERVAL).toMillis();
         List<RrExpectationEntity> declared = expectations.findByClusterIdOrderByRequestAddress(clusterId);
 
         List<ExpectationDiagnosticsView> perExpectation = declared.stream()

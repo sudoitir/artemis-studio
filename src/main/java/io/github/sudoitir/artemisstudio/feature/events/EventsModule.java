@@ -10,6 +10,10 @@ public final class EventsModule {
             .title("Broker events")
             .kind(FeatureDescriptor.Kind.FEATURE)
             .apiPrefix("/api/v1/clusters/{clusterId}/events")
+            .settingKey(EventsSettings.RETENTION_HOURS)
+            .settingKey(EventsSettings.REAPER_CRON)
+            .settingKey(EventsSettings.BUFFER_SIZE)
+            .settingKey(EventsSettings.FLUSH)
             .build();
 
     private EventsModule() {}

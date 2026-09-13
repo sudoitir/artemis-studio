@@ -47,9 +47,9 @@ class AlertDispatcherTest {
         when(slackSender.kind()).thenReturn("SLACK");
         // The dispatcher reads these on every attempt rather than caching them, so a
         // change in Settings applies to the next retry and not the next restart.
-        when(settings.alertingMaxAttempts()).thenReturn(3);
-        when(settings.alertingInitialBackoff()).thenReturn(Duration.ofSeconds(1));
-        when(settings.alertingMaxBackoff()).thenReturn(Duration.ofMinutes(1));
+        when(settings.intValue(AlertingSettings.MAX_ATTEMPTS)).thenReturn(3);
+        when(settings.duration(AlertingSettings.INITIAL_BACKOFF)).thenReturn(Duration.ofSeconds(1));
+        when(settings.duration(AlertingSettings.MAX_BACKOFF)).thenReturn(Duration.ofMinutes(1));
         dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, settings);
         channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1}, new byte[] {2});
         when(channels.findById(channelId)).thenReturn(java.util.Optional.of(channel));

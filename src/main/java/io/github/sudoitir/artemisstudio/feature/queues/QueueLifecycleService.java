@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
@@ -288,7 +289,7 @@ public class QueueLifecycleService {
 
         clusterAccess.requireCluster(clusterId, kind.permission());
         List<Target> targets = resolveTargets(clusterId);
-        long cap = settings.bulkCap();
+        long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
         AuditEventEntity event =
                 audit.begin(actor(), kind.auditName(), kind.targetType(), targetName, clusterId, null, params, dryRun);

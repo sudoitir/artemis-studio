@@ -35,9 +35,9 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [x] 3.3 Assemble the permission catalogue from descriptors, replacing the static `Permissions.catalogue()`. Keep permission string constants in the owning modules' `api`.
 - [x] 3.4 Add `PermissionCatalogueTest`. It checks every permission literal in `@PreAuthorize`, `requireCluster`, `LifecycleKind` and frontend `can('…')` calls against the catalogue, and checks that built-in role seeds ⊆ catalogue ∪ wildcards.
 - [ ] 3.5 Move `AuditService`, the audit entity, repository, query service and controller into `kernel/audit`. Record `cluster_name` on each audit event.
-- [ ] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
-- [ ] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.
-- [ ] 3.8 Create `kernel/jobs`: a `ScheduledJob` SPI and a generalised `DynamicSchedules`/`DynamicTriggers` that record `JobStatus` and the `studio.job{job,feature}` timer.
+- [x] 3.6 Move the settings plane A registry into `kernel/settings`, assembled from `SettingDef` contributions, with keys unchanged. Move the plane B JDBC property source (bootstrap) there as well.
+- [x] 3.7 Refuse writes and resets of settings owned by disabled features with a `404` problem detail and no audit change. Omit those settings from the settings read. Keep stored values.
+- [x] 3.8 Create `kernel/jobs`: a `ScheduledJob` SPI and a generalised `DynamicSchedules`/`DynamicTriggers` that record `JobStatus` and the `studio.job{job,feature}` timer.
 - [ ] 3.9 Create `kernel/stream`: `SseHub`, `StreamController`, `TopicCoalescer`, a `StreamPublisher` API, a topic registry built from `TopicDef` (unknown or disabled topics ignored), and a `RequestStream` API for per-request streams.
 - [ ] 3.10 Split `ArtemisStudioProperties` into per-module `@ConfigurationProperties` records, keeping prefixes that already match a module id. List every renamed prefix in a draft `changelog/unreleased.md`.
 

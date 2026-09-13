@@ -9,7 +9,6 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
-import io.github.sudoitir.artemisstudio.kernel.plugin.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -91,8 +90,8 @@ class FeatureContractTest {
                 .hasMessageContaining("permission 'queue:create' is declared by both 'a' and 'b'");
         assertThatThrownBy(() -> registry(
                         env,
-                        feature("a").setting(setting("rr.sweep-interval")).build(),
-                        feature("b").setting(setting("rr.sweep-interval")).build()))
+                        feature("a").settingKey("rr.sweep-interval").build(),
+                        feature("b").settingKey("rr.sweep-interval").build()))
                 .hasMessageContaining("setting 'rr.sweep-interval'");
         assertThatThrownBy(() -> registry(
                         env,
@@ -144,10 +143,6 @@ class FeatureContractTest {
         assertThat(registry.disabledOwnerOf("/api/v1/clusters/c/addresses/orders"))
                 .map(FeatureDescriptor::id)
                 .contains("queues");
-    }
-
-    private static SettingDef setting(String key) {
-        return new SettingDef(key, "g", "l", "h", SettingDef.Kind.INT, () -> "1", null);
     }
 
     private static McpToolDef tool(String name) {

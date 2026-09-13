@@ -187,7 +187,8 @@ public class BrokerConfigService {
     }
 
     private long driftIntervalSeconds() {
-        return Math.max(1, settings.configDriftInterval().toSeconds());
+        return Math.max(
+                1, settings.duration(BrokerConfigSettings.DRIFT_INTERVAL).toSeconds());
     }
 
     @Transactional(readOnly = true)

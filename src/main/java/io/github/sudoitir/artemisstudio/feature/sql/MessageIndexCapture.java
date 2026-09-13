@@ -64,7 +64,7 @@ public class MessageIndexCapture {
         return java.util.Optional.ofNullable(notCapturing.get(subscriptionId));
     }
 
-    /** Registered with {@code DynamicSchedules}; the tail poller does the actual reading. */
+    /** Registered with {@code JobScheduler}; the tail poller does the actual reading. */
     public void reconcile() {
         // A CAPTURE subscription is drained by the capture consumer, not polled here.
         // Running both would double the broker load and write the same message twice,

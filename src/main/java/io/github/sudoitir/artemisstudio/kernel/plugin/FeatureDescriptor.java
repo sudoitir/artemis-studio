@@ -24,7 +24,7 @@ public record FeatureDescriptor(
         boolean required,
         @Singular("require") List<String> requires,
         @Singular List<PermissionDef> permissions,
-        @Singular List<SettingDef> settings,
+        @Singular List<String> settingKeys,
         @Singular List<TopicDef> streamTopics,
         @Singular List<McpToolDef> mcpTools,
         @Singular List<String> apiPrefixes) {
@@ -48,7 +48,7 @@ public record FeatureDescriptor(
         }
         requires = List.copyOf(requires == null ? List.of() : requires);
         permissions = List.copyOf(permissions == null ? List.of() : permissions);
-        settings = List.copyOf(settings == null ? List.of() : settings);
+        settingKeys = List.copyOf(settingKeys == null ? List.of() : settingKeys);
         streamTopics = List.copyOf(streamTopics == null ? List.of() : streamTopics);
         mcpTools = List.copyOf(mcpTools == null ? List.of() : mcpTools);
         apiPrefixes = List.copyOf(apiPrefixes == null ? List.of() : apiPrefixes);

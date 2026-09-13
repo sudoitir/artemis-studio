@@ -10,6 +10,7 @@ public final class StreamModule {
             .title("Event stream")
             .kind(FeatureDescriptor.Kind.KERNEL)
             .required(true)
+            .settingKey(StreamSettings.HEARTBEAT_INTERVAL)
             .build();
 
     private StreamModule() {}

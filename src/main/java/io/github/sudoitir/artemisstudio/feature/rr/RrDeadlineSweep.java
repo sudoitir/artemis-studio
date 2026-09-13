@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
-import io.github.sudoitir.artemisstudio.kernel.jobs.internal.DynamicSchedules;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import java.time.Instant;
 import java.util.List;
@@ -25,7 +24,7 @@ public class RrDeadlineSweep {
     private final SseHub sseHub;
 
     /**
-     * Scheduled by {@link DynamicSchedules} on {@code rr.sweep-interval}. It used to
+     * Scheduled by {@code JobScheduler} on {@code rr.sweep-interval}. It used to
      * hardcode 5s and ignore the configured value entirely.
      */
     @Transactional

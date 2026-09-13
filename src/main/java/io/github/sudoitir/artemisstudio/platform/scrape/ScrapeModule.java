@@ -10,6 +10,12 @@ public final class ScrapeModule {
             .title("Scraping")
             .kind(FeatureDescriptor.Kind.PLATFORM)
             .required(true)
+            .settingKey(ScrapeSettings.TIER_A)
+            .settingKey(ScrapeSettings.TIER_B)
+            .settingKey(ScrapeSettings.TIER_C)
+            .settingKey(ScrapeSettings.METRIC_RETENTION_DAYS)
+            .settingKey(ScrapeSettings.METRIC_REAPER_CRON)
+            .settingKey(ScrapeSettings.METRIC_PARTITION_CRON)
             .build();
 
     private ScrapeModule() {}

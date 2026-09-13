@@ -55,7 +55,7 @@ public class MessageIndexPartitionMaintainer {
         this.snapshots = snapshots;
     }
 
-    /** Scheduled by {@code DynamicSchedules} on the partition-maintenance cron. Idempotent. */
+    /** Scheduled by {@code JobScheduler} on the partition-maintenance cron. Idempotent. */
     public void maintain() {
         createAhead();
         expirePerSubscription();
