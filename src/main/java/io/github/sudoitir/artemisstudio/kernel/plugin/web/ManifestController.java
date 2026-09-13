@@ -42,6 +42,7 @@ public class ManifestController {
                         d.title(),
                         d.kind().name(),
                         registry.isEnabled(d.id()),
+                        Contract.enabledProperty(d.id()),
                         d.permissions().stream().map(PermissionDef::action).toList(),
                         d.streamTopics().stream().map(TopicDef::name).toList()))
                 .toList();

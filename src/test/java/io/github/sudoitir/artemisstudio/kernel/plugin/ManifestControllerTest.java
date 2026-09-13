@@ -52,6 +52,7 @@ class ManifestControllerTest {
                 .andExpect(jsonPath("$.features[0].topics[0]").value("queues"))
                 .andExpect(jsonPath("$.features[1].id").value("sql"))
                 .andExpect(jsonPath("$.features[1].enabled").value(false))
+                .andExpect(jsonPath("$.features[1].enabledProperty").value("artemis-studio.features.sql.enabled"))
                 .andExpect(jsonPath("$.features[1].permissions[0]").value("capture:write"))
                 .andExpect(jsonPath("$.permissionCatalogue.length()").value(1))
                 .andExpect(jsonPath("$.permissionCatalogue[0].action").value("queue:create"))

@@ -6819,6 +6819,9 @@
           "enabled" : {
             "type" : "boolean"
           },
+          "enabledProperty" : {
+            "type" : "string"
+          },
           "permissions" : {
             "type" : "array",
             "items" : {
@@ -6831,7 +6834,8 @@
               "type" : "string"
             }
           }
-        }
+        },
+        "required" : [ "enabled", "enabledProperty", "id", "kind", "permissions", "title", "topics" ]
       },
       "ManifestIdentityProviderView" : {
         "type" : "object",
@@ -6846,9 +6850,10 @@
             "type" : "string"
           },
           "startPath" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
-        }
+        },
+        "required" : [ "id", "kind", "label", "startPath" ]
       },
       "ManifestPermissionView" : {
         "type" : "object",
@@ -6862,7 +6867,8 @@
           "featureId" : {
             "type" : "string"
           }
-        }
+        },
+        "required" : [ "action", "featureId", "label" ]
       },
       "ManifestView" : {
         "type" : "object",
@@ -6889,7 +6895,8 @@
               "$ref" : "#/components/schemas/ManifestIdentityProviderView"
             }
           }
-        }
+        },
+        "required" : [ "contract", "features", "identityProviders", "permissionCatalogue" ]
       },
       "ClusterSummary" : {
         "type" : "object",

@@ -2594,30 +2594,31 @@ export interface components {
             label: string;
         };
         ManifestFeatureView: {
-            id?: string;
-            title?: string;
-            kind?: string;
-            enabled?: boolean;
-            permissions?: string[];
-            topics?: string[];
+            id: string;
+            title: string;
+            kind: string;
+            enabled: boolean;
+            enabledProperty: string;
+            permissions: string[];
+            topics: string[];
         };
         ManifestIdentityProviderView: {
-            id?: string;
-            kind?: string;
-            label?: string;
-            startPath?: string;
+            id: string;
+            kind: string;
+            label: string;
+            startPath: string | null;
         };
         ManifestPermissionView: {
-            action?: string;
-            label?: string;
-            featureId?: string;
+            action: string;
+            label: string;
+            featureId: string;
         };
         ManifestView: {
             /** Format: int32 */
-            contract?: number;
-            features?: components["schemas"]["ManifestFeatureView"][];
-            permissionCatalogue?: components["schemas"]["ManifestPermissionView"][];
-            identityProviders?: components["schemas"]["ManifestIdentityProviderView"][];
+            contract: number;
+            features: components["schemas"]["ManifestFeatureView"][];
+            permissionCatalogue: components["schemas"]["ManifestPermissionView"][];
+            identityProviders: components["schemas"]["ManifestIdentityProviderView"][];
         };
         ClusterSummary: {
             /** Format: uuid */
