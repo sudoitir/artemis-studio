@@ -2508,6 +2508,8 @@ export interface components {
             newPassword: string;
         };
         LoginRequest: {
+            /** @description The credential provider to sign in with. Omit for local. */
+            provider?: string | null;
             username: string;
             password: string;
         };
@@ -3484,10 +3486,16 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
-        ProviderView: {
-            registrationId: string;
+        IdentityProviderView: {
+            id: string;
+            /**
+             * @description CREDENTIAL for a username and password form; REDIRECT for sign-in elsewhere.
+             * @enum {string}
+             */
+            kind: "CREDENTIAL" | "REDIRECT";
             label: string;
-            authorizationUrl: string;
+            /** @description Where a redirect provider's sign-in begins. */
+            startPath?: string | null;
         };
         ClusterFiringCountView: {
             /** Format: uuid */
@@ -6222,7 +6230,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ProviderView"][];
+                    "*/*": components["schemas"]["IdentityProviderView"][];
                 };
             };
         };

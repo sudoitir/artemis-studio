@@ -40,9 +40,7 @@ class ManifestControllerTest {
                                 .build())),
                 env);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new ManifestController(
-                        registry,
-                        new StaticListableBeanFactory()
-                                .getBeanProvider(ManifestController.IdentityProviderListing.class)))
+                        registry, new StaticListableBeanFactory().getBeanProvider(IdentityProviderListing.class)))
                 .build();
 
         mvc.perform(get("/api/v1/manifest"))

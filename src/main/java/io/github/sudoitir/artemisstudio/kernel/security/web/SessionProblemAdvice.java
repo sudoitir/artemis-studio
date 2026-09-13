@@ -1,8 +1,8 @@
-package io.github.sudoitir.artemisstudio.feature.identitylocal.web;
+package io.github.sudoitir.artemisstudio.kernel.security.web;
 
-import io.github.sudoitir.artemisstudio.feature.identitylocal.LoginThrottledException;
-import io.github.sudoitir.artemisstudio.feature.identitylocal.MustChangePasswordException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
+import io.github.sudoitir.artemisstudio.kernel.security.MustChangePasswordException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -10,9 +10,9 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Password login failures as problem details. */
+/** Sign-in failures as problem details. */
 @RestControllerAdvice
-class AuthProblemAdvice {
+class SessionProblemAdvice {
 
     @ExceptionHandler(MustChangePasswordException.class)
     ProblemDetail onMustChangePassword(MustChangePasswordException e) {

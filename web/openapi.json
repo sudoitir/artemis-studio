@@ -2285,7 +2285,7 @@
     },
     "/api/v1/auth/logout" : {
       "post" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "logout",
         "responses" : {
           "204" : {
@@ -2296,7 +2296,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -3965,7 +3965,7 @@
     },
     "/api/v1/auth/providers" : {
       "get" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "providers",
         "responses" : {
           "200" : {
@@ -3975,7 +3975,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/ProviderView"
+                    "$ref" : "#/components/schemas/IdentityProviderView"
                   }
                 }
               }
@@ -3986,7 +3986,7 @@
     },
     "/api/v1/auth/me" : {
       "get" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "me",
         "responses" : {
           "200" : {
@@ -6571,6 +6571,10 @@
       "LoginRequest" : {
         "type" : "object",
         "properties" : {
+          "provider" : {
+            "type" : [ "string", "null" ],
+            "description" : "The credential provider to sign in with. Omit for local."
+          },
           "username" : {
             "type" : "string",
             "minLength" : 1
@@ -9003,20 +9007,26 @@
         },
         "required" : [ "count", "data", "page", "pageSize" ]
       },
-      "ProviderView" : {
+      "IdentityProviderView" : {
         "type" : "object",
         "properties" : {
-          "registrationId" : {
+          "id" : {
             "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "CREDENTIAL for a username and password form; REDIRECT for sign-in elsewhere.",
+            "enum" : [ "CREDENTIAL", "REDIRECT" ]
           },
           "label" : {
             "type" : "string"
           },
-          "authorizationUrl" : {
-            "type" : "string"
+          "startPath" : {
+            "type" : [ "string", "null" ],
+            "description" : "Where a redirect provider's sign-in begins."
           }
         },
-        "required" : [ "authorizationUrl", "label", "registrationId" ]
+        "required" : [ "id", "kind", "label" ]
       },
       "ClusterFiringCountView" : {
         "type" : "object",

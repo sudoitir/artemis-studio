@@ -1,5 +1,6 @@
-package io.github.sudoitir.artemisstudio.feature.identitylocal;
+package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
+import io.github.sudoitir.artemisstudio.kernel.security.MustChangePasswordException;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

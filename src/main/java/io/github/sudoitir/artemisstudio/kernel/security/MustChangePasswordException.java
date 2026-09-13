@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.identitylocal;
+package io.github.sudoitir.artemisstudio.kernel.security;
 
 /** The account must change its password before anything else. Mapped to HTTP 423. */
 public class MustChangePasswordException extends RuntimeException {

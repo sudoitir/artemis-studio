@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.web;
 import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.ManifestViews.ManifestFeatureView;
@@ -28,8 +29,9 @@ public class ManifestController {
 
     public ManifestController(FeatureRegistry registry, ObjectProvider<IdentityProviderListing> identityProviders) {
         this.registry = registry;
-        this.identityProviders =
-                () -> identityProviders.getIfAvailable(() -> List::of).providers();
+        this.identityProviders = () -> identityProviders.getIfAvailable(() -> List::of).providers().stream()
+                .map(p -> new ManifestIdentityProviderView(p.id(), p.kind(), p.label(), p.startPath()))
+                .toList();
     }
 
     @GetMapping("/api/v1/manifest")
@@ -51,11 +53,5 @@ public class ManifestController {
 
     private static ManifestPermissionView permission(FeatureDescriptor d, PermissionDef p) {
         return new ManifestPermissionView(p.action(), p.label(), d.id());
-    }
-
-    /** Supplies the manifest's identity providers; implemented by the security kernel. */
-    @FunctionalInterface
-    public interface IdentityProviderListing {
-        List<ManifestIdentityProviderView> providers();
     }
 }

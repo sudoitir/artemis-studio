@@ -1,26 +1,35 @@
 import { useState } from 'react';
-import { Alert, Button, Center, Divider, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Button, Center, Divider, Paper, PasswordInput, Select, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { branding } from '../branding.ts';
 import { ApiError, useAuthProviders, useLogin } from '../api/client.ts';
 
 /**
- * Local username/password login (identity-and-sessions spec), plus an SSO
- * entry point per configured OIDC provider (ADR-0040) — `/auth/providers` is
- * empty when none is configured, so the divider and buttons simply don't render.
+ * The login screen, built only from the installation's identity providers
+ * (identity-and-sessions spec): a username and password form when a credential
+ * provider exists — with a choice when there is more than one — and one sign-in
+ * action per redirect provider. While the list loads the form is offered, so a
+ * slow request never reads as "sign-in unavailable".
  */
 export function LoginView() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [provider, setProvider] = useState<string | null>(null);
   const login = useLogin();
   const providers = useAuthProviders();
   const navigate = useNavigate();
 
+  const credential = (providers.data ?? []).filter((p) => p.kind === 'CREDENTIAL');
+  const redirect = (providers.data ?? []).filter((p) => p.kind === 'REDIRECT');
+  const listed = providers.data !== undefined;
+  const showForm = !listed || credential.length > 0;
+  const chosen = provider ?? credential[0]?.id ?? null;
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     login.mutate(
-      { username, password },
+      { provider: chosen, username, password },
       {
         onSuccess: (me) => {
           navigate({ to: me.mustChangePassword ? '/change-password' : '/' });
@@ -40,41 +49,59 @@ export function LoginView() {
             </Text>
           </Stack>
 
-          <form onSubmit={onSubmit}>
-            <Stack gap="sm">
-              <TextInput
-                label="Username"
-                autoFocus
-                value={username}
-                onChange={(e) => setUsername(e.currentTarget.value)}
-                autoComplete="username"
-                required
-              />
-              <PasswordInput
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
-                autoComplete="current-password"
-                required
-              />
-              {login.isError ? <Alert color="red">{loginErrorMessage(login.error)}</Alert> : null}
-              <Button type="submit" loading={login.isPending} fullWidth mt="xs">
-                Sign in
-              </Button>
-            </Stack>
-          </form>
+          {showForm ? (
+            <form onSubmit={onSubmit}>
+              <Stack gap="sm">
+                {credential.length > 1 ? (
+                  <Select
+                    label="Sign in with"
+                    data={credential.map((p) => ({ value: p.id, label: p.label }))}
+                    value={chosen}
+                    onChange={setProvider}
+                    allowDeselect={false}
+                  />
+                ) : null}
+                <TextInput
+                  label="Username"
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.currentTarget.value)}
+                  autoComplete="username"
+                  required
+                />
+                <PasswordInput
+                  label="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.currentTarget.value)}
+                  autoComplete="current-password"
+                  required
+                />
+                {login.isError ? <Alert color="red">{loginErrorMessage(login.error)}</Alert> : null}
+                <Button type="submit" loading={login.isPending} fullWidth mt="xs">
+                  Sign in
+                </Button>
+              </Stack>
+            </form>
+          ) : null}
 
-          {providers.data && providers.data.length > 0 ? (
+          {redirect.length > 0 ? (
             <>
-              <Divider label="or" labelPosition="center" />
+              {showForm ? <Divider label="or" labelPosition="center" /> : null}
               <Stack gap="xs">
-                {providers.data.map((p) => (
-                  <Button key={p.registrationId} component="a" href={p.authorizationUrl} variant="default" fullWidth>
+                {redirect.map((p) => (
+                  <Button key={p.id} component="a" href={p.startPath ?? undefined} variant="default" fullWidth>
                     Sign in with {p.label}
                   </Button>
                 ))}
               </Stack>
             </>
+          ) : null}
+
+          {listed && !showForm && redirect.length === 0 ? (
+            <Alert color="yellow">
+              No sign-in method is configured on this installation. An administrator needs to enable local
+              login or configure an identity provider.
+            </Alert>
           ) : null}
         </Stack>
       </Paper>

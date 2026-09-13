@@ -14,9 +14,11 @@ vi.mock('@tanstack/react-router', () => ({
 
 const { LoginView } = await import('./LoginView.tsx');
 
+const LOCAL = { id: 'local', kind: 'CREDENTIAL', label: 'Password', startPath: null };
+
 describe('LoginView', () => {
   beforeEach(() => {
-    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([LOCAL])));
   });
   afterEach(() => navigate.mockClear());
 
@@ -72,11 +74,12 @@ describe('LoginView', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('shows an SSO entry point when a provider is configured', async () => {
+  it('shows a sign-in action per redirect provider beside the form', async () => {
     server.use(
       http.get('*/api/v1/auth/providers', () =>
         HttpResponse.json([
-          { registrationId: 'okta', label: 'Okta', authorizationUrl: '/oauth2/authorization/okta' },
+          LOCAL,
+          { id: 'okta', kind: 'REDIRECT', label: 'Okta', startPath: '/oauth2/authorization/okta' },
         ]),
       ),
     );
@@ -84,5 +87,30 @@ describe('LoginView', () => {
 
     const link = await screen.findByRole('link', { name: 'Sign in with Okta' });
     expect(link).toHaveAttribute('href', '/oauth2/authorization/okta');
+    expect(screen.getByLabelText(/Username/)).toBeInTheDocument();
+  });
+
+  it('offers a choice between credential providers and sends the chosen one', async () => {
+    let body: unknown;
+    server.use(
+      http.get('*/api/v1/auth/providers', () =>
+        HttpResponse.json([LOCAL, { id: 'directory', kind: 'CREDENTIAL', label: 'Directory', startPath: null }]),
+      ),
+      http.post('*/api/v1/auth/login', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ id: 'u1', username: 'alice', mustChangePassword: false, grants: [] });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    // Mantine labels both the input and its option list; the choice is the input.
+    const choice = (await screen.findAllByLabelText('Sign in with')).find((el) => el.tagName === 'INPUT');
+    expect(choice).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Username/), 'alice');
+    await user.type(screen.getByLabelText(/Password/), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await vi.waitFor(() => expect(body).toEqual({ provider: 'local', username: 'alice', password: 'secret123' }));
   });
 });

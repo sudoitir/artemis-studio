@@ -85,14 +85,14 @@ Each task below does the same four things:
 
 ## 6. Identity provider SPI
 
-- [ ] 6.1 Add the sealed `IdentityProvider` SPI (`Credential`, `Redirect`, `Bearer`), `ExternalIdentity` and `IdentityProvisioner` in `kernel/security`.
-- [ ] 6.2 Assemble the filter chain from providers: one `ProviderManager` for credential providers; one bearer filter delegating to bearer providers; `configure(HttpSecurity)` applied for redirect providers.
-- [ ] 6.3 Make `POST /api/v1/auth/login` accept `provider` (local when omitted). An unconfigured provider fails like a wrong password.
-- [ ] 6.4 Create `feature/identitylocal`: password login, change password, `LoginAttemptLimiter`, `MustChangePasswordFilter`, `AdminBootstrap`.
-- [ ] 6.5 Create `feature/apitokens`: token service, `BearerIdentityProvider`, tokens controller; the MCP authorization tests pass unchanged.
+- [x] 6.1 Add the sealed `IdentityProvider` SPI (`Credential`, `Redirect`, `Bearer`) and the `IdentityProviders` contribution in `kernel/security`, with an `AuthenticationAudit` SPI the audit module implements. `ExternalIdentity` and `IdentityProvisioner` land with provider-keyed provisioning in 6.6.
+- [x] 6.2 Assemble the chain from providers: the login path dispatches to the named credential provider; one bearer filter delegates to bearer providers; each contribution's `configure(HttpSecurity)` adds what redirect sign-in needs.
+- [x] 6.3 Make `POST /api/v1/auth/login` accept `provider` (local when omitted). An unconfigured provider fails like a wrong password.
+- [x] 6.4 Make `feature/identitylocal` the `local` credential provider with password change and `AdminBootstrap`; `LoginAttemptLimiter` and `MustChangePasswordFilter` move to the kernel's session path, since they apply to every sign-in.
+- [x] 6.5 Make `feature/apitokens` a bearer identity provider with its token service and controller; the MCP authorization tests pass unchanged.
 - [ ] 6.6 Create `feature/identityoidc`: `RedirectIdentityProvider` and claim extraction feeding `IdentityProvisioner`. Provisioning is keyed by provider and subject.
 - [ ] 6.7 Replace `/api/v1/oidc/mappings` with `/api/v1/identity/providers/{providerId}/group-mappings`, with a per-provider default role. The old path returns `404`.
-- [ ] 6.8 Return `identityProviders` from `GET /api/v1/auth/providers` (public) and from the manifest.
+- [x] 6.8 Return `identityProviders` from `GET /api/v1/auth/providers` (public) and from the manifest.
 - [ ] 6.9 Add a test that registers a fake `CredentialIdentityProvider` from test configuration only. It proves login, JIT provisioning, per-provider group mapping and separate accounts for the same subject across providers, with no kernel edit.
 
 ## 7. Schema re-baseline

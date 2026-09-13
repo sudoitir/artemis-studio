@@ -151,7 +151,7 @@ export type ConfigApplyRequest = Schemas["ApplyRequest"];
 export type LoginRequest = Schemas["LoginRequest"];
 export type ChangePasswordRequest = Schemas["ChangePasswordRequest"];
 export type MeView = Schemas["MeView"];
-export type ProviderView = Schemas["ProviderView"];
+export type IdentityProviderView = Schemas["IdentityProviderView"];
 export type GrantView = Schemas["GrantView"];
 export type UserView = Schemas["UserView"];
 export type CreateUserRequest = Schemas["CreateUserRequest"];
@@ -1363,10 +1363,10 @@ export function useMe(): UseQueryResult<MeView, ApiError> {
 }
 
 /** Public, unauthenticated — the login screen needs this before any session exists. */
-export function useAuthProviders(): UseQueryResult<ProviderView[], ApiError> {
+export function useAuthProviders(): UseQueryResult<IdentityProviderView[], ApiError> {
   return useQuery({
     queryKey: keys.authProviders,
-    queryFn: () => request<ProviderView[]>("/auth/providers"),
+    queryFn: () => request<IdentityProviderView[]>("/auth/providers"),
     retry: false,
   });
 }

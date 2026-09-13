@@ -149,10 +149,12 @@ Enforced by ArchUnit and Modulith:
 
 ### D7. Security and the identity SPI
 
-A sealed `IdentityProvider` in `kernel.security::spi` has three shapes:
-- **`CredentialIdentityProvider`**: exposes an `AuthenticationProvider`. The kernel builds one `ProviderManager`, and login selects by `provider`.
-- **`RedirectIdentityProvider`**: exposes `startPath` and `configure(HttpSecurity)`.
-- **`BearerIdentityProvider`**: `supports(token)` / `authenticate(token)`, behind one kernel bearer filter.
+A sealed `IdentityProvider` in `kernel.security` has three shapes:
+- **`CredentialIdentityProvider`**: `authenticate(username, password)` returns the principal or nothing.
+- **`RedirectIdentityProvider`**: `startPath`.
+- **`BearerIdentityProvider`**: `authenticate(token)` returns the principal or nothing.
+
+A module contributes providers through one `IdentityProviders` bean, whose `configure(HttpSecurity)` only redirect sign-in uses. The kernel's login path dispatches to the named credential provider (`local` when omitted), throttles, and audits through an `AuthenticationAudit` SPI the audit module implements; one bearer filter asks the bearer providers. An unconfigured provider fails like a wrong password.
 
 External providers funnel into `IdentityProvisioner.provision(ExternalIdentity(providerId, subject, username, email, groups))`. This generalises ADR-0040: users are keyed by `(provider_id, external_subject)`, and `identity_group_mapping(provider_id, group_name, role_id, scope…)` is re-applied at every login.
 

@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.identitylocal;
+package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import java.time.Instant;
 import java.util.Map;
