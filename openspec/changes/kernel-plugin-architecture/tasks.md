@@ -172,7 +172,7 @@ Each task moves the folder to `features/<id>/` with its tests, adds `feature.ts`
   - group-mapping endpoint rename;
   - login request provider field;
   - renamed property prefixes.
-- [ ] 11.7 Run `just verify` and `just dev-up`, then check each of the following:
+- [x] 11.7 Run `just verify` and `just dev-up`, then check each of the following:
   - login;
   - grouped rail;
   - queue browse;
@@ -181,9 +181,10 @@ Each task moves the folder to `features/<id>/` with its tests, adds `feature.ts`
   - SQL query;
   - configuration apply dry run;
   - MCP `studio_help` with a token.
-- [ ] 11.8 Restart with the SQL feature disabled and check:
+- [x] 11.8 Restart with the SQL feature disabled and check:
   - SQL is absent from the rail;
   - its deep link shows `FeatureDisabled`;
   - its API returns `404 feature-disabled`;
-  - `studio_help` omits SQL tools;
+  - `studio_help` omits SQL tools (SQL contributes none; the manifest reports it disabled,
+    and `FeatureToggleTest` covers catalogue omission for modules that do);
   - `/actuator/health/studio` reports jobs, brokers and subscriptions.
