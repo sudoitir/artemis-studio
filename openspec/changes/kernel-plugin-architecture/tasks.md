@@ -52,7 +52,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [x] 4.7 Publish `ClusterRegistered` inside the registration transaction; alerting seeds its built-in rules from it. Release a removed cluster's Core connections and subscriptions through the broker's `BrokerSessions`, so `ClusterService` no longer depends on alerting or Core pool internals. Removal events are added with the first module that must react to one (7.3 drops the cross-module foreign keys that clean up today).
 - [ ] 4.8 Create `platform/scrape`: `ScrapeScheduler`, `ScrapeCycle`, `ScrapePersistence`, `SweepCursor`, the queue snapshot and metric sample writer, partition maintainer and reaper, and `StreamSignals`. Expose the `QueueSnapshots` and `MetricSeries` read APIs.
 - [x] 4.9 Publish `ScrapeTierCompleted` in place of the direct `AlertEvaluator` call, preserving evaluation order. Report scrape tiers through `JobStatus`.
-- [ ] 4.10 Create `platform/mcp`: server config, a tool catalogue assembled from `McpToolDef`, `studio_help`, catalogue resources, runbook prompts, `McpErrors`, `McpArgs` and instructions. Mark it optional; when disabled, `/mcp` does not exist.
+- [x] 4.10 Create `platform/mcp`: server config, a tool catalogue assembled from `McpToolDef`, `studio_help`, catalogue resources, runbook prompts, `McpErrors`, `McpArgs` and instructions. Mark it optional; when disabled, `/mcp` does not exist.
 - [ ] 4.11 Add `AuditCoverageTest`: every public mutating service method in a feature goes through `BrokerCommands` or `AuditService`.
 
 ## 5. Feature modules (backend)

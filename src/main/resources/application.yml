@@ -52,6 +52,10 @@ spring:
   ai:
     mcp:
       server:
+        # The MCP surface is an optional module (ADR-0069): with
+        # artemis-studio.features.mcp.enabled=false there is no server, no /mcp
+        # endpoint and no annotation scanning of the tool beans.
+        enabled: ${artemis-studio.features.mcp.enabled:true}
         name: artemis-studio
         version: 1.0.0
         # SYNC is load-bearing, not a preference (ADR-0045). The tool body must stay
@@ -66,7 +70,7 @@ spring:
         # 2.0.0's STREAMABLE transport, which is why the pom pins 2.0.1.
         protocol: STATELESS
         annotation-scanner:
-          enabled: true
+          enabled: ${artemis-studio.features.mcp.enabled:true}
         capabilities:
           # Declaring a capability we do not implement is worse than not having it.
           # There is no @McpComplete anywhere in the surface.
