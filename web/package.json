@@ -6,7 +6,7 @@
   "description": "Artemis Studio web console",
   "scripts": {
     "dev": "vite",
-    "gen:api": "openapi-typescript openapi.json -o src/api/schema.d.ts",
+    "gen:api": "openapi-typescript openapi.json -o src/kernel/api/schema.d.ts",
     "build": "npm run gen:api && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 
 import { renderWithProviders } from '../test/render.tsx';
-import type { LifecycleOutcomeView, NodeOutcomeView } from '../api/client.ts';
+import type { components } from '../kernel/api/schema.d.ts';
 import { NodeOutcomeSummary } from './NodeOutcomeSummary.tsx';
+
+type LifecycleOutcomeView = components['schemas']['LifecycleOutcomeView'];
+type NodeOutcomeView = components['schemas']['NodeOutcomeView'];
 
 function node(over: Partial<NodeOutcomeView> = {}): NodeOutcomeView {
   return {

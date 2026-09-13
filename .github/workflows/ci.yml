@@ -50,7 +50,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Fail on a stale generated API schema
-        run: git diff --exit-code src/api/schema.d.ts
+        run: git diff --exit-code src/kernel/api/schema.d.ts
       - run: npm run lint
       - run: npm test
 

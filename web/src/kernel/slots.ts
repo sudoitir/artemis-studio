@@ -8,12 +8,28 @@ import { useFeatures } from './features.ts';
  * feature is disabled.
  */
 export interface SlotProps {
+  /** In the application header, after the product name: status across clusters that needs attention. */
+  'shell.header': object;
+  /** In the sidebar, above the open cluster's views: how the operator moves between clusters. */
+  'shell.navbar': { collapsed: boolean };
+  /** The landing page, when no cluster is open. */
+  'home.empty': object;
+  /** Above every view of a cluster: what identifies it, and what needs saying about its state. */
+  'cluster.header': { clusterId: string };
   /** Below a passing registration check: what the enabled features added to it, by feature id. */
   'cluster.registration.afterProbe': { contributions: Record<string, unknown> };
   /** In a queue's detail drawer, below its per-node breakdown. `onClose` closes the drawer before navigating. */
   'queue.detail.panels': { clusterId: string; queueName: string; onClose: () => void };
   /** At the foot of a cluster's metrics view. */
   'metrics.panels': { clusterId: string };
+  /** Inside a box on the topology graph, after its name. `nodeIds` are the broker endpoints the box stands for. */
+  'topology.node.marks': { clusterId: string; nodeIds: string[] };
+  /** A section of a cluster's Settings page, under the contribution's title. */
+  'settings.sections': { clusterId: string };
+  /** A tab of the Administration page, labelled with the contribution's title; its id is the tab's `?tab=`. */
+  'admin.tabs': object;
+  /** A section of the signed-in user's Account page, under the contribution's title. */
+  'account.sections': object;
 }
 
 export type SlotName = keyof SlotProps;
@@ -23,6 +39,8 @@ export interface SlotContribution<P> {
   id: string;
   /** Position within the slot; lower comes first. */
   order: number;
+  /** The heading or tab label, in the slots that show one. */
+  title?: string;
   Component: ComponentType<P>;
 }
 

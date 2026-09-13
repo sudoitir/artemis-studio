@@ -221,7 +221,7 @@
         </dependency>
 
         <!-- OpenAPI 3 document at /v3/api-docs (+ Swagger UI). The frontend's
-             web/src/api/schema.d.ts is generated from a committed snapshot of
+             web/src/kernel/api/schema.d.ts is generated from a committed snapshot of
              this document (ADR-0019, primary path taken in Phase 3). The 3.x
              line is built against Spring Boot 4.1.0. -->
         <dependency>

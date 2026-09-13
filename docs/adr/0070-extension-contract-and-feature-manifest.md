@@ -26,9 +26,9 @@ Without a contract, each shared screen keeps importing features directly. Withou
 - **Assembly:** the kernel builds the permission catalogue, settings registry, topic registry and MCP tool catalogue from descriptors alone.
 
 **Frontend contribution.**
-- **Declaration:** `defineFeature({ contract: 1, id, routes, nav, palette, streamTopics, slots })`.
-- **Routes:** factories over kernel roots (`rootRoute`, `clusterRoute`, `adminRoute`), composed by `app/router.ts`, which also declares TanStack Router's `Register`.
-- **Slots:** typed and kernel-owned: `settings.sections`, `admin.tabs`, `account.sections`, `cluster.header`, `cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`, `home.empty`.
+- **Declaration:** `defineFeature({ contract: 1, id, routes, nav, palette, streamTopics, slots })` in the feature's `feature.ts`. Its `index.ts` holds only what other features may import.
+- **Routes:** route objects under kernel roots (`rootRoute`, `clusterRoute`), composed by `app/router.ts`, which also declares TanStack Router's `Register`.
+- **Slots:** typed and kernel-owned: `shell.header`, `shell.navbar`, `home.empty`, `cluster.header`, `cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`, `topology.node.marks`, `settings.sections`, `admin.tabs`, `account.sections`.
 
 **Manifest.**
 - `GET /api/v1/manifest` (authenticated) returns the contract version, every built-in feature with its enabled flag, the permission catalogue with owning feature, and the configured identity providers.
@@ -48,7 +48,7 @@ Without a contract, each shared screen keeps importing features directly. Withou
 
 - Shared screens stop importing features. Settings, Admin and Account render slot contributions.
 - `api/client.ts`, the `stream.ts` topic chain, `NAV_ITEMS`, the palette groups and `router.tsx` are replaced.
-- A feature can be reasoned about from its descriptor and its `index.ts`.
+- A feature can be reasoned about from its descriptor and its `feature.ts`.
 - The contract is deliberately narrow. A need it does not cover is a contract change (a new contribution type or slot), recorded here or in a superseding ADR, not an ad-hoc import.
 - The closed group catalogue trades flexibility for a coherent rail. A feature cannot invent a group.
 

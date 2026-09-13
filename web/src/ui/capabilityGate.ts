@@ -1,4 +1,6 @@
-import type { CapabilityView } from '../api/client.ts';
+import type { components } from '../kernel/api/schema.d.ts';
+
+type CapabilityView = components['schemas']['CapabilityView'];
 
 export type GateVerdict =
   | { kind: 'allowed'; uncertain: boolean }

@@ -1,0 +1,7 @@
+.dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--as-alert-dot);
+  flex-shrink: 0;
+}

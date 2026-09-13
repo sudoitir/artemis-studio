@@ -1,7 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
-import { request, type ApiError } from '../api/client.ts';
-import type { components } from '../api/schema.d.ts';
+import { request, type ApiError } from './api/request.ts';
+import type { components } from './api/schema.d.ts';
 import type { FeatureId, StudioFeature } from './feature.ts';
 
 export type ManifestView = components['schemas']['ManifestView'];

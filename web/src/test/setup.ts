@@ -57,6 +57,8 @@ class ResizeObserverStub {
 window.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 
 window.HTMLElement.prototype.scrollIntoView ??= () => {};
+// The router restores scroll on navigation; jsdom has no layout to scroll.
+window.scrollTo = () => {};
 
 // jsdom has no CSS Font Loading API; Mantine's autosizing Textarea
 // (react-textarea-autosize) reaches for `document.fonts.addEventListener` to

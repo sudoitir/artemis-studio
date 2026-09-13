@@ -1,7 +1,10 @@
 import { Text } from '@mantine/core';
 
-import type { LifecycleOutcomeView, NodeOutcomeView } from '../api/client.ts';
+import type { components } from '../kernel/api/schema.d.ts';
 import classes from './NodeOutcomeSummary.module.css';
+
+type LifecycleOutcomeView = components['schemas']['LifecycleOutcomeView'];
+type NodeOutcomeView = components['schemas']['NodeOutcomeView'];
 
 /**
  * One cluster-wide lifecycle result, rendered as a single object (ADR-0049 D2).

@@ -1,5 +1,7 @@
 import type { ComponentType } from 'react';
+import type { SpotlightActionGroupData } from '@mantine/spotlight';
 import type { Icon } from '@tabler/icons-react';
+import type { AnyRoute } from '@tanstack/react-router';
 
 import type { NavGroupId } from './nav/groups.ts';
 import type { SlotContributions } from './slots.ts';
@@ -35,6 +37,18 @@ export const FEATURE_IDS = [
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
 
+/**
+ * The routes a feature adds, each created with a kernel root from `routing/roots.ts` as its parent. The
+ * composition root adds every installed feature's routes whether or not the feature is enabled, so a deep
+ * link to a disabled feature reaches the page that explains it rather than a not-found.
+ */
+export interface RouteContributions {
+  /** Pages outside any cluster, children of `rootRoute`. */
+  root?: AnyRoute[];
+  /** Views of one cluster, children of `clusterRoute`. */
+  cluster?: AnyRoute[];
+}
+
 /** One view in a cluster's navigation and command palette. */
 export interface NavContribution {
   group: NavGroupId;
@@ -53,6 +67,15 @@ export interface NavContribution {
   Badge?: ComponentType<{ clusterId: string }>;
 }
 
+/**
+ * A feature's command-palette groups. It is rendered inside the palette, so it may use hooks, and calls
+ * `report` whenever its groups change; `clusterId` is the cluster in view, if there is one.
+ */
+export type PaletteSource = ComponentType<{
+  clusterId?: string;
+  report: (groups: SpotlightActionGroupData[]) => void;
+}>;
+
 /** Handles one frame of a stream topic the feature owns (ADR-0070). */
 export type TopicHandler = (frame: {
   clusterId: string;
@@ -66,9 +89,14 @@ export type TopicHandler = (frame: {
 export interface StudioFeature {
   contract: typeof CONTRACT;
   id: FeatureId;
+  routes?: RouteContributions;
   nav?: NavContribution[];
+  palette?: PaletteSource;
   slots?: SlotContributions;
-  /** A handler per stream topic the feature's backend module declares. */
+  /**
+   * A handler per stream topic the feature's backend module declares. A cluster's layout subscribes to
+   * the topics of every enabled feature.
+   */
   streamTopics?: Record<string, TopicHandler>;
 }
 

@@ -123,36 +123,36 @@ Each task below does the same four things:
 
 ## 9. Frontend kernel
 
-- [ ] 9.1 Create `web/src/kernel/feature.ts`: `StudioFeature` with contract `1`, `defineFeature`, route factories, nav, palette, stream topic handler and typed slot contracts.
+- [x] 9.1 Create `web/src/kernel/feature.ts`: `StudioFeature` with contract `1`, `defineFeature`, route factories, nav, palette, stream topic handler and typed slot contracts.
 - [x] 9.2 Create `kernel/registry.ts` and `kernel/manifest.ts`, with a `useManifest` query, `useManifestFeature(id)`, and `useEnabledFeatures`, which filters out disabled features and treats every feature as enabled until the manifest answers.
 - [x] 9.3 Create `kernel/slots.ts` with `useSlot(name)`, ordered and filtered by enabled features, and `FeatureProvider`/`useFeatures`, through which the composition root hands its features to the kernel. `metrics.panels`, `queue.detail.panels` and `cluster.registration.afterProbe` are wired; each other slot name is added with its consumer (9.10, group 10).
 - [x] 9.4 Create `kernel/nav/groups.ts` (observe, messaging, resources, configuration, activity) and a grouped rail. Groups have heading semantics when expanded, stay separated and named when collapsed, and a group with no views is hidden. A view without its read permission stays listed and disabled, with the reason reachable by keyboard; the command palette lists views under the same groups.
-- [ ] 9.5 Create `kernel/routing/roots.ts` (`rootRoute`, `clusterRoute`, `adminRoute`) and `app/router.ts`, which composes feature routes and declares `Register`. Move search validators into their feature.
+- [x] 9.5 Create `kernel/routing/roots.ts` (`rootRoute`, `clusterRoute`, the shell's own pages and `featureView`) and `app/router.ts`, which composes feature routes and declares `Register`. Move search validators into their feature.
 - [x] 9.6 Create `kernel/shell/FeatureDisabled`: states the feature is disabled, names the property (from the manifest's `enabledProperty`), links back to the cluster. `FeatureGate` renders it in place of each cluster view whose feature is disabled.
-- [ ] 9.7 Split `api/client.ts` into `kernel/api` (request, `ApiError`, polling, key roots, generated schema) and per-feature `api.ts`. Remove the kernel's back-edges to `app/useDismissedNotice` and `app/time`.
+- [x] 9.7 Split `api/client.ts` into `kernel/api` (request, `ApiError`, polling, key roots, generated schema) and per-feature `api.ts`. Remove the kernel's back-edges to `app/useDismissedNotice` and `app/time`.
 - [x] 9.8 Replace the `stream.ts` topic if/else chain with a registry of feature-contributed topic handlers. The apply-progress store moves to `brokerconfig`; a view that keeps frames itself (the live events feed) takes them through `onFrame`.
 - [x] 9.9 Move `ConfirmByTyping`, `NodeOutcomeSummary`, `CapabilityGate`, `VirtualTable` and `Pager` into `web/src/ui/`. They keep their type-only imports of generated DTOs; 9.7 settles that edge when the schema moves into `kernel/api`.
-- [ ] 9.10 Rebuild `RootLayout`, `ClusterLayout`, `HomeView`, `AdminView`, `AccountView`, `SettingsView`, `UserMenu` and `CommandPalette` as kernel shells that render contributions and slots.
+- [x] 9.10 Rebuild `RootLayout`, `ClusterLayout`, `HomeView`, `AdminView`, `AccountView`, `SettingsView`, `UserMenu` and `CommandPalette` as kernel shells that render contributions and slots.
 - [x] 9.11 Build `LoginView` from `/auth/providers`: a credential form, a provider choice when there is more than one credential provider, and one action per redirect provider.
-- [ ] 9.12 Add a router-aware render helper to `test/render.tsx`, plus manifest fixtures.
-- [ ] 9.13 Add kernel tests: registry filtering, slot ordering, topic dispatch, grouped-nav headings and collapsed accessible names, `FeatureDisabled`, and login from providers. Query by role and name.
+- [x] 9.12 Add a router-aware render helper to `test/render.tsx` (`renderAppAt`, the composed app over an in-memory history), plus manifest fixtures.
+- [x] 9.13 Add kernel tests: registry filtering, slot ordering, topic dispatch, grouped-nav headings and collapsed accessible names, `FeatureDisabled`, and login from providers. Query by role and name.
 
 ## 10. Frontend features
 
-Each task moves the folder to `features/<id>/` with its tests, adds `index.ts` with `defineFeature` and its public exports, and declares routes, nav with group and order, topics and slots.
+Each task moves the folder to `features/<id>/` with its tests, adds `feature.ts` with `defineFeature` (routes, nav with group and order, palette, topics and slots) and, where another feature imports from it, `index.ts` with those public exports only.
 
-- [ ] 10.1 `clusters` (merging `clusters/` and `topology/`): rail entries, register, topology, `CapabilityLedger` export, environments admin tab, credentials settings section, and the `home.empty` and `cluster.header` slots.
-- [ ] 10.2 `queues` (`AddressPicker` export) and `metrics` (charts contributed to `queue.detail.panels`).
-- [ ] 10.3 `resources`, `routing` and `events`.
-- [ ] 10.4 `messages` (with `dlq/`, `MessageDetailPanel` export).
-- [ ] 10.5 `alerting` (firing badge through the nav contribution, notification channels settings section).
-- [ ] 10.6 `rr` (`LatencyPanel` into `metrics.panels`).
-- [ ] 10.7 `sql` (index subscriptions settings section).
-- [ ] 10.8 `brokerconfig` (with `config/`, `RecommendedConfiguration` into `cluster.registration.afterProbe`).
-- [ ] 10.9 `identity` (users, roles, provider group-mapping admin tabs); `identity-local` (change password route, account section); `apitokens` (account API keys section); `mcp` (account connection section); `audit`; `settings` (operational configuration and display preferences).
-- [ ] 10.10 Regenerate `web/openapi.json` and `schema.d.ts`, and update every call site of the group-mapping endpoint and login request.
-- [ ] 10.11 Add `FeatureIdsContractTest`: frontend feature ids equal `web/manifest.snapshot.json`.
-- [ ] 10.12 Switch eslint boundaries to `error`, allowing exactly the feature edges in design D5.
+- [x] 10.1 `clusters` (merging `clusters/` and `topology/`): rail entries, register, topology, `CapabilityLedger` export, environments admin tab, credentials settings section, and the `home.empty` and `cluster.header` slots.
+- [x] 10.2 `queues` (`AddressPicker` export) and `metrics` (charts contributed to `queue.detail.panels`).
+- [x] 10.3 `resources`, `routing` and `events`.
+- [x] 10.4 `messages` (with `dlq/`, `MessageDetailPanel` export).
+- [x] 10.5 `alerting` (firing badge through the nav contribution, notification channels settings section).
+- [x] 10.6 `rr` (`LatencyPanel` into `metrics.panels`).
+- [x] 10.7 `sql` (index subscriptions settings section).
+- [x] 10.8 `brokerconfig` (with `config/`, `RecommendedConfiguration` into `cluster.registration.afterProbe`).
+- [x] 10.9 `security` (users, roles, provider group-mapping admin tabs); `identity-local` (change password route, account section); `apitokens` (account API keys section); `mcp` (account connection section); `audit`; `settings` (operational configuration and display preferences).
+- [x] 10.10 Regenerate `web/openapi.json` and `schema.d.ts` (now `kernel/api/schema.d.ts`, with `gen:api`, CI's staleness check and the pom note following it), and update every call site of the group-mapping endpoint and login request.
+- [x] 10.11 Add `FeatureIdsContractTest`: frontend feature ids equal `web/manifest.snapshot.json`.
+- [x] 10.12 Switch eslint boundaries to `error`, allowing exactly the feature edges in design D5.
 
 ## 11. Documentation and release notes
 

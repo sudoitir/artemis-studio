@@ -1,0 +1,120 @@
+import { useEffect } from 'react';
+import { AppShell, Center, Group, Loader, ScrollArea, Text } from '@mantine/core';
+import { useHotkeys, useReducedMotion } from '@mantine/hooks';
+import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
+
+import styles from './RootLayout.module.css';
+import { branding } from '../../branding.ts';
+import { useMe } from '../auth/api.ts';
+import { useSlot } from '../slots.ts';
+import { ClusterViewNav } from './ClusterViewNav.tsx';
+import { CommandPalette } from './CommandPalette.tsx';
+import { FreshnessBar } from './FreshnessBar.tsx';
+import { NavToggle } from './NavToggle.tsx';
+import { UserMenu } from './UserMenu.tsx';
+import { useNavCollapsed } from './useNavCollapsed.ts';
+
+const NAVBAR_ID = 'as-navbar';
+const MAIN_ID = 'as-main';
+const PUBLIC_PATHS = ['/login', '/change-password'];
+
+/**
+ * The desktop workspace chrome: a fixed header, the collapsible sidebar (the features' way between
+ * clusters, then the open cluster's view nav, ADR-0034), and the routed detail column.
+ * Desktop-first — no mobile breakpoint (`breakpoint: 0`).
+ *
+ * The sidebar collapses to a 64px icon rail rather than disappearing: `AppShell`'s
+ * own `collapsed` prop removes the navbar's width entirely, which is the wrong
+ * shape for a rail that stays present with icons. Animating `navbar.width`
+ * instead lets `AppShell` transition both the navbar and the `Main` offset in
+ * lockstep under one `transitionDuration` (design.md Decision 7).
+ */
+export function RootLayout() {
+  const { collapsed, toggle } = useNavCollapsed();
+  const reducedMotion = useReducedMotion();
+  const { clusterId } = useParams({ strict: false }) as { clusterId?: string };
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isPublicRoute = PUBLIC_PATHS.includes(location.pathname);
+  const me = useMe();
+  const header = useSlot('shell.header');
+  const navbar = useSlot('shell.navbar');
+
+  useEffect(() => {
+    if (isPublicRoute) return;
+    if (me.isError && me.error.status === 401) {
+      navigate({ to: '/login' });
+    } else if (me.data?.mustChangePassword && location.pathname !== '/change-password') {
+      navigate({ to: '/change-password' });
+    }
+  }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
+
+  useHotkeys([['mod+B', toggle]]);
+
+  // Every hook above runs unconditionally on every render; only the JSX branches.
+  if (isPublicRoute) {
+    return <Outlet />;
+  }
+
+  if (me.isLoading) {
+    return (
+      <Center mih="100vh">
+        <Loader />
+      </Center>
+    );
+  }
+
+  if (me.isError || me.data?.mustChangePassword) {
+    // The effect above is already navigating away; render nothing in the meantime.
+    return null;
+  }
+
+  return (
+    <AppShell
+      header={{ height: 56 }}
+      navbar={{ width: collapsed ? 64 : 264, breakpoint: 0 }}
+      padding="lg"
+      transitionDuration={reducedMotion ? 0 : 180}
+      transitionTimingFunction="cubic-bezier(0.2, 0, 0, 1)"
+    >
+      <a href={`#${MAIN_ID}`} className={styles.skipLink}>
+        Skip to content
+      </a>
+      <AppShell.Header>
+        <Group h="100%" px="md" gap="xs" justify="space-between">
+          <Group gap="xs">
+            <Text fw={600}>{branding.productName}</Text>
+            {header.map(({ id, Component }) => (
+              <Component key={id} />
+            ))}
+          </Group>
+          <Group gap="md" wrap="nowrap">
+            <FreshnessBar />
+            <Text size="xs" c="dimmed" visibleFrom="lg">
+              <kbd>⌘</kbd> <kbd>K</kbd> search · <kbd>⌘</kbd> <kbd>B</kbd> sidebar
+            </Text>
+            <UserMenu me={me.data} />
+          </Group>
+        </Group>
+      </AppShell.Header>
+
+      <AppShell.Navbar id={NAVBAR_ID} p="md">
+        <AppShell.Section>
+          <NavToggle collapsed={collapsed} onToggle={toggle} controls={NAVBAR_ID} />
+        </AppShell.Section>
+        <AppShell.Section grow component={ScrollArea}>
+          {navbar.map(({ id, Component }) => (
+            <Component key={id} collapsed={collapsed} />
+          ))}
+          {clusterId ? <ClusterViewNav clusterId={clusterId} collapsed={collapsed} /> : null}
+        </AppShell.Section>
+      </AppShell.Navbar>
+
+      <AppShell.Main id={MAIN_ID}>
+        <Outlet />
+      </AppShell.Main>
+
+      <CommandPalette />
+    </AppShell>
+  );
+}

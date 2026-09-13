@@ -84,9 +84,11 @@ Each feature has exactly one `<Id>Feature` `@Configuration`, which carries `@Con
 - *Alternative:* auto-configuration imports per feature, rejected because auto-configurations must not be component-scanned, which fights `@ComponentScan` inside a module.
 - *Alternative:* `@Profile` per feature, rejected because profiles are coarse and not self-describing in the manifest.
 
-**Frontend.** `defineFeature({ contract: 1, id, routes, nav, palette, streamTopics, slots })` in `web/src/features/<id>/index.ts`, with `web/src/app/features.ts` as the only list.
-- Routes are factories taking kernel roots (`rootRoute`, `clusterRoute`, `adminRoute`); `app/router.ts` composes them with `addChildren` and declares `Register`.
-- Slots are typed and kernel-owned: `settings.sections`, `admin.tabs`, `account.sections`, `cluster.header`, `cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`, `home.empty`.
+**Frontend.** `defineFeature({ contract: 1, id, routes, nav, palette, streamTopics, slots })` in `web/src/features/<id>/feature.ts`, with `web/src/app/features.ts` as the only list of them. A feature's `index.ts` holds only what another feature may import, so importing a public hook never loads the importing feature's whole definition, and never creates an import cycle through it.
+- Routes are TanStack route objects whose parent is a kernel root from `kernel/routing/roots.ts` (`rootRoute` for pages outside a cluster, `clusterRoute` for a cluster's views). `featureView(id, View)` wraps a view in `FeatureGate`. `app/router.ts` composes every installed feature's routes with `addChildren`, enabled or not, and declares `Register`.
+- A palette contribution is a component rendered inside the palette that reports its action groups, so it can use hooks.
+- Slots are typed and kernel-owned: `shell.header`, `shell.navbar`, `home.empty`, `cluster.header`, `cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`, `topology.node.marks`, `settings.sections`, `admin.tabs`, `account.sections`.
+- A cluster's layout mounts one stream subscribed to the topics of every enabled feature; a view mounts its own only for a topic no feature handles (the live events feed).
 
 **Versioning.** One integer, declared in both `kernel.plugin` and `web/src/kernel/feature.ts`. `FeatureContractTest` and the TypeScript literal type fail on mismatch.
 
@@ -121,14 +123,24 @@ Each feature has exactly one `<Id>Feature` `@Configuration`, which carries `@Con
 | Frontend `RegisterCluster` → `brokerconfig/RecommendedConfiguration` | slot `cluster.registration.afterProbe` |
 | Frontend `QueueDetailDrawer` → metrics charts | slot `queue.detail.panels` |
 | Frontend `MetricsView` → `rr/LatencyPanel` | slot `metrics.panels` |
-| Frontend `SettingsView` / `AdminView` / `AccountView` imports | slots |
+| Frontend `SettingsView` / `AdminView` / `AccountView` imports | slots `settings.sections`, `admin.tabs`, `account.sections` |
+| Frontend `RootLayout` → firing counts, cluster rail | slots `shell.header`, `shell.navbar` |
+| Frontend `ClusterLayout` / `HomeView` → cluster detail, register form | slots `cluster.header`, `home.empty` |
+| Frontend `TopologyGraph` → firing alerts | slot `topology.node.marks` |
+| Frontend `CommandPalette` → clusters and queues | palette contributions |
 
-The remaining allowed feature → feature edges (backend `api`, frontend `index.ts`):
+The remaining allowed feature → feature edges on the backend (`api` named interfaces):
 - brokerconfig → queues, routing;
 - sql → messages, queues, routing;
-- rr → queues (frontend AddressPicker);
 - triage → queues, alerting, rr, events, metrics;
 - every feature → clusters (platform).
+
+On the frontend (another feature's `index.ts` only):
+- rr → queues (`AddressPicker`, `useQueues`);
+- sql → messages (`MessageDetailPanel`), queues (`useQueues`);
+- brokerconfig → messages (`useDlq`, to suggest dead-letter addresses; absent when messages is disabled);
+- audit → security (`useUsers`, for the user filter); apitokens → security (`usePermissionsCatalogue`);
+- every feature → clusters (`useCluster`, `useClusters`, `useTopology`, `CapabilityLedger`).
 
 ### D6. Boundary rules
 
@@ -142,10 +154,11 @@ Enforced by ArchUnit and Modulith:
 - Cross-module foreign keys follow allowed edges (`SchemaOwnershipTest`).
 
 **Frontend:** `eslint-plugin-boundaries` 7.2.0 with `boundaries/dependencies` and `default: "disallow"`:
-- `ui` imports nothing app-specific;
+- `ui` imports nothing app-specific except the generated DTO types (`kernel/api/schema.d.ts`);
 - `kernel` → `ui`;
 - `feature` → `kernel`, `ui`, itself, and allowed features' `index.ts`;
-- `app` → all.
+- `app` → all;
+- a test beside its code may also use the shared harness in `test/`.
 
 ### D7. Security and the identity SPI
 

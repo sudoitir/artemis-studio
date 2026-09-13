@@ -14,12 +14,12 @@ import '@mantine/code-highlight/styles.css';
 import '@xyflow/react/dist/style.css';
 import './theme.css';
 
-import { mountRefetch } from './api/polling.ts';
+import { mountRefetch } from './kernel/api/polling.ts';
 import { FEATURES } from './app/features.ts';
-import { startServerTimeSync } from './app/time.ts';
+import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
 import { theme } from './theme.ts';
-import { createAppRouter } from './router.tsx';
+import { createAppRouter } from './app/router.ts';
 
 /**
  * Shiki, loaded by dynamic `import()` so nothing but the adapter itself is in the
@@ -68,7 +68,7 @@ const queryClient = new QueryClient({
 // (`app/time.ts`); it never rejects, so nothing downstream has to handle it.
 startServerTimeSync();
 
-const router = createAppRouter(queryClient);
+const router = createAppRouter(queryClient, FEATURES);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

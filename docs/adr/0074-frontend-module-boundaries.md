@@ -19,15 +19,17 @@ The frontend has no import restrictions. There are eight feature-to-feature impo
 - `test` = `src/test/**`
 
 Policies:
-- `ui` imports nothing app-specific.
+- `ui` imports nothing app-specific except the generated DTO types in `kernel/api/schema.d.ts`.
 - `kernel` imports `ui`.
 - A `feature` imports `kernel`, `ui` and its own files.
 - A `feature` may import another feature only through that feature's `index.ts`, and only for the edges listed in the change design:
   - `rr → queues`
-  - `sql → messages`
+  - `sql → messages, queues`
+  - `brokerconfig → messages`
+  - `audit → security`, `apitokens → security`
   - any feature → `clusters`
 - `app` imports everything.
-- Tests follow the rules of the element they test.
+- Tests follow the rules of the element they test, and may also use the shared harness in `test/`.
 
 The rule starts at `warn` while the tree is being moved and becomes `error` once every folder lives in its element. `npm run lint` in CI then fails on a violation.
 

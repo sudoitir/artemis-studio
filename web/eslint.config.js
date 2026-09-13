@@ -5,11 +5,14 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 
-// Module boundaries (ADR-0074). `warn` while the tree moves into kernel/ui/
-// features/app; switched to `error` once every folder lives in its element.
+// Module boundaries (ADR-0074). A feature may import another only through its `index.ts`, and only
+// along these edges (design D5); every feature may use clusters, the platform they all work on.
 const featureEdges = {
-  rr: ['queues', 'clusters'],
-  sql: ['messages', 'clusters'],
+  apitokens: ['security'],
+  audit: ['security'],
+  brokerconfig: ['messages'],
+  rr: ['queues'],
+  sql: ['messages', 'queues'],
 };
 
 export default tseslint.config(
@@ -28,18 +31,23 @@ export default tseslint.config(
       'boundaries/files': [
         { pattern: 'src/features/*/index.ts', category: 'entry' },
         { pattern: 'src/{kernel,ui,features}/**/*.test.{ts,tsx}', category: 'test-file' },
+        { pattern: 'src/kernel/api/schema.d.ts', category: 'schema' },
       ],
     },
     rules: {
       'boundaries/dependencies': [
-        'warn',
+        'error',
         {
           default: 'disallow',
           policies: [
             // A test beside its code uses the shared harness; every other edge it takes is
             // held to its element's own policy.
             { from: { file: { categories: 'test-file' } }, allow: { to: { element: { type: 'test' } } } },
-            { from: { element: { type: 'ui' } }, allow: { to: { element: { type: 'ui' } } } },
+            // Shared components name the generated DTOs they render, and nothing else of the app.
+            {
+              from: { element: { type: 'ui' } },
+              allow: { to: [{ element: { type: 'ui' } }, { element: { type: 'kernel' }, file: { categories: 'schema' } }] },
+            },
             { from: { element: { type: 'kernel' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
             { from: { element: { type: ['app', 'test'] } }, allow: { to: { element: { type: '*' } } } },
             {
