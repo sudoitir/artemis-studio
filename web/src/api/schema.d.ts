@@ -1920,34 +1920,6 @@ export interface components {
             reason: string;
             brokerXmlSnippet?: string | null;
         };
-        /** @description One capability gap and what would close it */
-        ConfigRecommendationView: {
-            capability: string;
-            title: string;
-            rationale: string;
-            /** @description Whether Studio can write this over the management API, or the operator must edit broker.xml and restart */
-            appliable: boolean;
-            /** @enum {string|null} */
-            section?: "ADDRESS_SETTING" | "SECURITY_SETTING" | null;
-            match?: string | null;
-            /** @description The whole entry that would be written, the node's current keys included — a runtime write replaces the entry rather than merging */
-            values: {
-                [key: string]: unknown;
-            };
-            /** @description Permission type to role names, prefilled from the broker */
-            roles: {
-                [key: string]: string[];
-            };
-            /** @description The keys this recommendation itself sets */
-            keys: string[];
-            manualSnippet?: string | null;
-        };
-        /** @description What the capability probe suggests declaring, and what still needs a broker.xml edit */
-        ConfigRecommendationsView: {
-            /** @description The node the current values were read from; null when none could be read */
-            seededFrom?: string | null;
-            recommendations: components["schemas"]["ConfigRecommendationView"][];
-        };
         LogicalNodeView: {
             artemisNodeId?: string | null;
             splitBrain: string;
@@ -1980,8 +1952,10 @@ export interface components {
             /** Format: int32 */
             discoveredNodes: number;
             topology: components["schemas"]["TopologyView"];
-            /** @description What the probe suggests declaring once the cluster is registered, seeded from what the reachable node is running */
-            recommendations: components["schemas"]["ConfigRecommendationsView"];
+            /** @description What each enabled feature adds to the check, keyed by feature id and read from the reachable node. brokerconfig contributes a ConfigRecommendationsView: what to declare once the cluster is registered */
+            contributions: {
+                [key: string]: unknown;
+            };
         };
         TopologyView: {
             /** Format: uuid */
@@ -3306,6 +3280,34 @@ export interface components {
             source: string;
             note?: string | null;
             document: components["schemas"]["ConfigDocumentView"];
+        };
+        /** @description One capability gap and what would close it */
+        ConfigRecommendationView: {
+            capability: string;
+            title: string;
+            rationale: string;
+            /** @description Whether Studio can write this over the management API, or the operator must edit broker.xml and restart */
+            appliable: boolean;
+            /** @enum {string|null} */
+            section?: "ADDRESS_SETTING" | "SECURITY_SETTING" | null;
+            match?: string | null;
+            /** @description The whole entry that would be written, the node's current keys included — a runtime write replaces the entry rather than merging */
+            values: {
+                [key: string]: unknown;
+            };
+            /** @description Permission type to role names, prefilled from the broker */
+            roles: {
+                [key: string]: string[];
+            };
+            /** @description The keys this recommendation itself sets */
+            keys: string[];
+            manualSnippet?: string | null;
+        };
+        /** @description What the capability probe suggests declaring, and what still needs a broker.xml edit */
+        ConfigRecommendationsView: {
+            /** @description The node the current values were read from; null when none could be read */
+            seededFrom?: string | null;
+            recommendations: components["schemas"]["ConfigRecommendationView"][];
         };
         /** @description One address-setting key: its two names, type, allowed values and hazard class */
         ConfigAddressSettingKeyView: {

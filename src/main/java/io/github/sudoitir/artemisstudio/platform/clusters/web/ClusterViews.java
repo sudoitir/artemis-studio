@@ -2,11 +2,11 @@ package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -104,7 +104,8 @@ public final class ClusterViews {
 
             @Schema(
                     requiredMode = REQUIRED,
-                    description = "What the probe suggests declaring once the cluster is registered,"
-                            + " seeded from what the reachable node is running")
-            BrokerConfigViews.RecommendationsView recommendations) {}
+                    description = "What each enabled feature adds to the check, keyed by feature id and"
+                            + " read from the reachable node. brokerconfig contributes a"
+                            + " ConfigRecommendationsView: what to declare once the cluster is registered")
+            Map<String, Object> contributions) {}
 }

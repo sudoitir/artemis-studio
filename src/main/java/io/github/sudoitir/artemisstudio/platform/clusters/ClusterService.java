@@ -1,9 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperations;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigRecommendations;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
@@ -49,7 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -81,7 +77,7 @@ public class ClusterService {
 
     private final BrokerClientFactory clientFactory;
     private final BrokerConnections connections;
-    private final BrokerConfigOperations brokerConfigOperations;
+    private final List<RegistrationCheckContributor> checkContributors;
     private final CapabilityProbe capabilityProbe;
     private final CapabilityLedger capabilityLedger;
     private final TopologyDiscovery topologyDiscovery;
@@ -148,33 +144,20 @@ public class ClusterService {
                 .distinct()
                 .count();
 
+        Map<String, Object> contributions = new TreeMap<>();
+        for (RegistrationCheckContributor contributor : checkContributors) {
+            contributions.put(
+                    contributor.featureId(),
+                    contributor.contribute(capabilities, reachable.get(0).client()));
+        }
+
         audit.succeed(event, nodeCount);
         return new Attempt.Ok<>(new RegisterPreview(
                 viewMapper.capabilities(capabilities),
                 reachable.size(),
                 nodeCount,
                 viewMapper.topology(preview),
-                BrokerConfigViews.RecommendationsView.of(
-                        BrokerConfigRecommendations.from(capabilities, checkSeed(reachable.get(0))))));
-    }
-
-    /**
-     * What the checked node is running, so the recommendations shown before
-     * registration are the same ones shown after it — seeded, not generic. A read
-     * that fails costs the seed and nothing else: the panel then says it could not
-     * read the node rather than showing a replace nobody can check.
-     */
-    private ObservedNodeConfig checkSeed(Probe probe) {
-        try {
-            return brokerConfigOperations.read(
-                    probe.client(),
-                    new UUID(0, 0),
-                    "the checked node",
-                    new BrokerConfigOperations.ReadScope(
-                            Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of()));
-        } catch (RuntimeException e) {
-            return null;
-        }
+                contributions));
     }
 
     /**

@@ -24,6 +24,7 @@ import {
   useCheckConnection,
   useClusters,
   useRegisterCluster,
+  type ConfigRecommendationsView,
   type RegisterClusterRequest,
 } from '../api/client.ts';
 import { RecommendedConfiguration } from '../brokerconfig/RecommendedConfiguration.tsx';
@@ -119,9 +120,9 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
   // account the broker refuses — the failure that otherwise surfaces after
   // registration, where it reads as a broken cluster rather than a typo.
   const checkPassed = check.isSuccess && checkedThis;
-  const hasRecommendations = Boolean(
-    check.data?.recommendations.recommendations.some((r) => r.appliable),
-  );
+  // Contributed by the broker configuration feature; absent while it is disabled.
+  const recommendations = check.data?.contributions.brokerconfig as ConfigRecommendationsView | undefined;
+  const hasRecommendations = Boolean(recommendations?.recommendations.some((r) => r.appliable));
   const registerBlockedReason = !valid
     ? null
     : check.isPending
@@ -273,8 +274,8 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
             cannot declare yet: there is no cluster for a revision to belong to.
             Registering lands on that tab with the same panel, armed.
           */}
-          {check.isSuccess && check.data.recommendations.recommendations.some((r) => r.appliable) ? (
-            <RecommendedConfiguration recommendations={check.data.recommendations} />
+          {check.isSuccess && recommendations && hasRecommendations ? (
+            <RecommendedConfiguration recommendations={recommendations} />
           ) : null}
 
           <Group justify="flex-end" gap="sm" align="center">

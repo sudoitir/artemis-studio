@@ -4,7 +4,6 @@
 @ApplicationModule(
         displayName = "Clusters",
         allowedDependencies = {
-            "feature.brokerconfig",
             "kernel.audit",
             "kernel.core",
             "kernel.plugin",

@@ -24,22 +24,24 @@ function preview() {
     },
     reachableSeeds: 1,
     discoveredNodes: 2,
-    recommendations: {
-      seededFrom: 'broker-1',
-      recommendations: [
-        {
-          capability: 'slowConsumerDetection',
-          title: 'Let the broker detect slow consumers',
-          rationale: 'The broker sees each consumer own delivery rate.',
-          appliable: true,
-          section: 'ADDRESS_SETTING',
-          match: '#',
-          values: { maxDeliveryAttempts: 7, slowConsumerThreshold: 1 },
-          roles: {},
-          keys: ['slowConsumerThreshold'],
-          manualSnippet: null,
-        },
-      ],
+    contributions: {
+      brokerconfig: {
+        seededFrom: 'broker-1',
+        recommendations: [
+          {
+            capability: 'slowConsumerDetection',
+            title: 'Let the broker detect slow consumers',
+            rationale: 'The broker sees each consumer own delivery rate.',
+            appliable: true,
+            section: 'ADDRESS_SETTING',
+            match: '#',
+            values: { maxDeliveryAttempts: 7, slowConsumerThreshold: 1 },
+            roles: {},
+            keys: ['slowConsumerThreshold'],
+            manualSnippet: null,
+          },
+        ],
+      },
     },
     topology: {
       clusterId: 'preview',
