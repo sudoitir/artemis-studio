@@ -11,8 +11,8 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.sql.Timestamp;
@@ -44,7 +44,7 @@ public class MessageIndexService {
     private final QueueSnapshots snapshots;
     private final MessageIndexCapture capture;
     private final MessageCaptureNodeRepository captureNodes;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final ClusterAccessGuard clusterAccess;
     private final ActorResolver actorResolver;
     private final AuditService audit;
@@ -78,8 +78,8 @@ public class MessageIndexService {
                 ? captureNodes.findBySubscriptionId(entity.getId()).stream()
                         .map(state -> new CaptureNode(
                                 state,
-                                nodes.findById(state.getNodeId())
-                                        .map(BrokerNodeEntity::getName)
+                                nodes.node(state.getNodeId())
+                                        .map(ClusterNode::getName)
                                         .orElse(null)))
                         .toList()
                 : List.of();

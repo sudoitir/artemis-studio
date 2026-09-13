@@ -17,8 +17,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.broker.RateLimitProperties;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -47,7 +47,7 @@ class PagedListServiceTest {
     private final JsonMapper mapper = new JsonMapper();
 
     @Mock
-    BrokerNodeRepository nodes;
+    ClusterDirectory nodes;
 
     @Mock
     BrokerConnections connections;
@@ -104,7 +104,7 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         BrokerNodeEntity b = node(clusterId, "node-b", URL_B);
-        when(nodes.findByClusterIdOrderByNameAsc(clusterId)).thenReturn(List.of(a, b));
+        when(nodes.nodes(clusterId)).thenReturn(List.of(a, b));
         when(connections.forCluster(eq(clusterId), eq(URL_A)))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
         when(connections.forCluster(eq(clusterId), eq(URL_B)))
@@ -121,7 +121,7 @@ class PagedListServiceTest {
     void everyNodeDownRethrowsTheClassifiedFailure() {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
-        when(nodes.findByClusterIdOrderByNameAsc(clusterId)).thenReturn(List.of(a));
+        when(nodes.nodes(clusterId)).thenReturn(List.of(a));
         when(connections.forCluster(eq(clusterId), eq(URL_A)))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNAUTHORIZED));
 
@@ -134,7 +134,7 @@ class PagedListServiceTest {
     @Test
     void noManageableNodeIsAnUnreachableProblem() {
         UUID clusterId = UUID.randomUUID();
-        when(nodes.findByClusterIdOrderByNameAsc(clusterId)).thenReturn(List.of());
+        when(nodes.nodes(clusterId)).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null)))
                 .isInstanceOf(BrokerConnectionException.class);

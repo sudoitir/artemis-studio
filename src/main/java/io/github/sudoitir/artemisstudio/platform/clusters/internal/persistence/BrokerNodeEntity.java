@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence;
 
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -23,7 +24,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class BrokerNodeEntity {
+public class BrokerNodeEntity implements ClusterNode {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

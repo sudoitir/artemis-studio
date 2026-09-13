@@ -16,8 +16,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps.ListPage;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -46,7 +46,7 @@ import tools.jackson.databind.JsonNode;
 @RequiredArgsConstructor
 public class PagedListService {
 
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final BrokerListOps listOps;
     private final ResourceViewMapper mapper;
@@ -112,7 +112,7 @@ public class PagedListService {
         // Every one of the five public reads routes through here, so the scope check
         // lives here too — a sixth kind cannot be added without inheriting it.
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<BrokerNodeEntity> servingNodes = servingManageableNodes(clusterId);
+        List<ClusterNode> servingNodes = servingManageableNodes(clusterId);
         if (servingNodes.isEmpty()) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE,
@@ -121,7 +121,7 @@ public class PagedListService {
 
         List<T> merged = new ArrayList<>();
         BrokerConnectionException firstError = null;
-        for (BrokerNodeEntity node : servingNodes) {
+        for (ClusterNode node : servingNodes) {
             try {
                 limiter.acquire(node.getId());
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
@@ -151,9 +151,9 @@ public class PagedListService {
     }
 
     /** One manageable endpoint per NodeID — the active one when the pair reports one. */
-    private List<BrokerNodeEntity> servingManageableNodes(UUID clusterId) {
-        Map<String, BrokerNodeEntity> perNodeId = new LinkedHashMap<>();
-        for (BrokerNodeEntity n : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
+    private List<ClusterNode> servingManageableNodes(UUID clusterId) {
+        Map<String, ClusterNode> perNodeId = new LinkedHashMap<>();
+        for (ClusterNode n : nodes.nodes(clusterId)) {
             if (n.getJolokiaUrl() == null) {
                 continue;
             }

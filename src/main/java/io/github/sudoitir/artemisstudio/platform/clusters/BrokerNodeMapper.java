@@ -13,7 +13,7 @@ public interface BrokerNodeMapper {
 
     @Mapping(target = "active", expression = "java(Boolean.TRUE.equals(entity.getActive()))")
     @Mapping(target = "manageable", expression = "java(entity.getJolokiaUrl() != null)")
-    NodeEndpoint toEndpoint(BrokerNodeEntity entity);
+    NodeEndpoint toEndpoint(ClusterNode entity);
 
-    List<NodeEndpoint> toEndpoints(List<BrokerNodeEntity> entities);
+    List<NodeEndpoint> toEndpoints(List<? extends ClusterNode> nodes);
 }

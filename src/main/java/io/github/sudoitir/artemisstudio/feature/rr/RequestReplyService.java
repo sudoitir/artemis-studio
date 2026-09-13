@@ -27,9 +27,9 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +63,7 @@ public class RequestReplyService {
     private final ObjectMapper mapper;
     private final ClusterAccessGuard clusterAccess;
     private final ReplyAddressResolver replyAddresses;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final RrSamplerHealth samplerHealth;
     private final CoreSubscriptionManager subscriptions;
     private final ClockOffsetService clocks;
@@ -243,7 +243,7 @@ public class RequestReplyService {
     public RrDiagnosticsView diagnostics(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
 
-        List<BrokerNodeEntity> clusterNodes = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        List<ClusterNode> clusterNodes = nodes.nodes(clusterId);
         int withCore =
                 (int) clusterNodes.stream().filter(n -> n.getCoreUrl() != null).count();
         long sampleIntervalMs = settings.duration(RrSettings.SAMPLE_INTERVAL).toMillis();

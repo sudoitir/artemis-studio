@@ -20,8 +20,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMe
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,8 +97,8 @@ class RrSamplerTest {
         RrExpectationRepository expectations = mock(RrExpectationRepository.class);
         when(expectations.findByEnabledTrue()).thenReturn(List.of(expectation));
 
-        BrokerNodeRepository nodeRepo = mock(BrokerNodeRepository.class);
-        when(nodeRepo.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(nodes);
+        ClusterDirectory nodeRepo = mock(ClusterDirectory.class);
+        when(nodeRepo.nodes(CLUSTER)).thenReturn(List.copyOf(nodes));
 
         List<Observation> seen = new ArrayList<>();
         ObjectProvider<RrObservationSink> provider = mock(ObjectProvider.class);

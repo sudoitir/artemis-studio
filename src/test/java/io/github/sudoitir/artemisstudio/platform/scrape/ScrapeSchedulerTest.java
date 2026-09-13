@@ -18,11 +18,11 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.broker.RateLimitProperties;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -52,16 +52,13 @@ class ScrapeSchedulerTest {
     private final JsonMapper mapper = new JsonMapper();
 
     @Mock
-    ClusterRepository clusters;
-
-    @Mock
-    BrokerNodeRepository nodes;
+    ClusterDirectory clusters;
 
     @Mock
     BrokerConnections connections;
 
     @Mock
-    ScrapePersistence persist;
+    NodeStateRecorder persist;
 
     @Mock
     QueueSnapshotUpsert upsert;
@@ -91,7 +88,6 @@ class ScrapeSchedulerTest {
         scheduler = new ScrapeScheduler(
                 settings,
                 clusters,
-                nodes,
                 connections,
                 limiter,
                 scrapeCycle,
@@ -155,8 +151,8 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity a = node(clusterId, "a", GOOD);
         BrokerNodeEntity b = node(clusterId, "b", GOOD);
 
-        when(clusters.findAll()).thenReturn(List.of(cluster));
-        when(nodes.findByClusterIdOrderByNameAsc(cluster.getId())).thenReturn(List.of(a, b));
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(a, b));
         when(connections.forCluster(eq(cluster.getId()), eq(GOOD)))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"));
@@ -174,8 +170,8 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity good = node(clusterId, "good", GOOD);
         BrokerNodeEntity bad = node(clusterId, "bad", BAD);
 
-        when(clusters.findAll()).thenReturn(List.of(cluster));
-        when(nodes.findByClusterIdOrderByNameAsc(cluster.getId())).thenReturn(List.of(bad, good));
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(bad, good));
         when(connections.forCluster(eq(cluster.getId()), eq(BAD)))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
         when(connections.forCluster(eq(cluster.getId()), eq(GOOD)))
@@ -196,9 +192,9 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity nodeA = node(clusterAId, "na", BAD);
         BrokerNodeEntity nodeB = node(clusterBId, "nb", GOOD);
 
-        when(clusters.findAll()).thenReturn(List.of(clusterA, clusterB));
-        when(nodes.findByClusterIdOrderByNameAsc(clusterA.getId())).thenReturn(List.of(nodeA));
-        when(nodes.findByClusterIdOrderByNameAsc(clusterB.getId())).thenReturn(List.of(nodeB));
+        when(clusters.clusters()).thenReturn(List.of(clusterA, clusterB));
+        when(clusters.nodes(clusterA.getId())).thenReturn(List.of(nodeA));
+        when(clusters.nodes(clusterB.getId())).thenReturn(List.of(nodeB));
         when(connections.forCluster(eq(clusterA.getId()), eq(BAD)))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
         when(connections.forCluster(eq(clusterB.getId()), eq(GOOD)))
@@ -216,8 +212,8 @@ class ScrapeSchedulerTest {
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity n = node(clusterId, "n", GOOD);
 
-        when(clusters.findAll()).thenReturn(List.of(cluster));
-        when(nodes.findByClusterIdOrderByNameAsc(cluster.getId())).thenReturn(List.of(n));
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
         // search + listQueues page 1 (fixture reports count=1, so page 1 is the last page)
         when(connections.forCluster(eq(cluster.getId()), eq(GOOD)))
                 .thenReturn(client("search-broker.json", "list-queues.json"));

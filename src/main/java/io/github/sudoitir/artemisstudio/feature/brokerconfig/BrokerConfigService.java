@@ -20,10 +20,10 @@ import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Instant;
@@ -68,7 +68,7 @@ public class BrokerConfigService {
     private final BrokerConfigDeclarationRepository declarations;
     private final BrokerConfigRevisionRepository revisions;
     private final BrokerConfigNodeStateRepository nodeStates;
-    private final ClusterRepository clusters;
+    private final ClusterDirectory clusters;
     private final QueueSnapshots queueSnapshots;
     private final BrokerConfigReads reads;
     private final BrokerConfigOperations ops;
@@ -148,8 +148,8 @@ public class BrokerConfigService {
     @Transactional(readOnly = true)
     public Declaration get(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        ClusterEntity cluster =
-                clusters.findById(clusterId).orElseThrow(() -> new NotFoundException("cluster", clusterId));
+        RegisteredCluster cluster =
+                clusters.cluster(clusterId).orElseThrow(() -> new NotFoundException("cluster", clusterId));
         Optional<BrokerConfigDeclarationEntity> header = declarations.findById(clusterId);
         List<NodeState> nodes = nodeStates(clusterId);
         if (header.isEmpty()) {
@@ -391,7 +391,7 @@ public class BrokerConfigService {
                 + " '#' and by address; merge them into the patterns you know before applying.");
 
         List<ObservedNodeConfig> observed = new ArrayList<>();
-        for (BrokerNodeEntity node : reads.targets(clusterId)) {
+        for (ClusterNode node : reads.targets(clusterId)) {
             if (!Boolean.TRUE.equals(node.getActive())) {
                 continue;
             }
@@ -564,7 +564,7 @@ public class BrokerConfigService {
         Map<UUID, BrokerConfigNodeStateEntity> stored = new LinkedHashMap<>();
         nodeStates.findByClusterId(clusterId).forEach(s -> stored.put(s.getNodeId(), s));
         List<NodeState> out = new ArrayList<>();
-        for (BrokerNodeEntity node : reads.targets(clusterId)) {
+        for (ClusterNode node : reads.targets(clusterId)) {
             BrokerConfigNodeStateEntity s = stored.get(node.getId());
             boolean live = Boolean.TRUE.equals(node.getActive());
             if (s == null) {
@@ -598,7 +598,7 @@ public class BrokerConfigService {
     }
 
     String clusterName(UUID clusterId) {
-        return clusters.findById(clusterId).map(ClusterEntity::getName).orElse(clusterId.toString());
+        return clusters.cluster(clusterId).map(RegisteredCluster::getName).orElse(clusterId.toString());
     }
 
     private static boolean sameValue(Object a, Object b) {

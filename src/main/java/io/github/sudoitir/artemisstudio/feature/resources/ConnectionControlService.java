@@ -16,11 +16,11 @@ import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -63,7 +63,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 public class ConnectionControlService {
 
-    private final BrokerNodeRepository brokerNodes;
+    private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final ConnectionOperations ops;
     private final NodeCallLimiter limiter;
@@ -120,7 +120,7 @@ public class ConnectionControlService {
             UUID clusterId, UUID nodeId, ConnectionCloseKind kind, String id, boolean dryRun) {
         clusterAccess.requireCluster(clusterId, kind.permission());
         String subject = requireId(kind, id);
-        BrokerNodeEntity node = manageableNode(clusterId, nodeId);
+        ClusterNode node = manageableNode(clusterId, nodeId);
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
@@ -256,7 +256,7 @@ public class ConnectionControlService {
      * uses — with one entry. The cap fields are zero and false because this kind is
      * not capped: it closes exactly one connection.
      */
-    private static LifecycleOutcome single(BrokerNodeEntity node, boolean dryRun, NodeStatus status, Long affected) {
+    private static LifecycleOutcome single(ClusterNode node, boolean dryRun, NodeStatus status, Long affected) {
         return new LifecycleOutcome(
                 dryRun, 0, false, List.of(new NodeOutcome(node.getId(), node.getName(), status, affected, null)));
     }
@@ -270,14 +270,14 @@ public class ConnectionControlService {
     }
 
     /** The node an id was issued by. A node with no management URL cannot be asked. */
-    private BrokerNodeEntity manageableNode(UUID clusterId, UUID nodeId) {
-        return brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+    private ClusterNode manageableNode(UUID clusterId, UUID nodeId) {
+        return brokerNodes.nodes(clusterId).stream()
                 .filter(n -> n.getId().equals(nodeId) && n.getJolokiaUrl() != null)
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("node", nodeId));
     }
 
-    private JolokiaBrokerClient clientFor(UUID clusterId, BrokerNodeEntity node) {
+    private JolokiaBrokerClient clientFor(UUID clusterId, ClusterNode node) {
         try {
             limiter.acquire(node.getId());
         } catch (InterruptedException e) {

@@ -19,9 +19,9 @@ import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -57,7 +57,7 @@ class CaptureReconcilerTest {
     void setUp() {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
         captureNodes = mock(MessageCaptureNodeRepository.class);
-        BrokerNodeRepository nodes = mock(BrokerNodeRepository.class);
+        ClusterDirectory nodes = mock(ClusterDirectory.class);
         BrokerConnections connections = mock(BrokerConnections.class);
         NodeCallLimiter limiter = mock(NodeCallLimiter.class);
         ClusterLock lock = mock(ClusterLock.class);
@@ -71,7 +71,7 @@ class CaptureReconcilerTest {
 
         when(instance.id()).thenReturn(INSTANCE);
         BrokerNodeEntity node = node();
-        when(nodes.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(List.of(node));
+        when(nodes.nodes(CLUSTER)).thenReturn(List.of(node));
         when(connections.forCluster(any(), any())).thenReturn(mock(JolokiaBrokerClient.class));
         MessageIndexSubscriptionEntity subscription = subscription();
         when(subscriptions.findByEnabledTrue()).thenReturn(List.of(subscription));

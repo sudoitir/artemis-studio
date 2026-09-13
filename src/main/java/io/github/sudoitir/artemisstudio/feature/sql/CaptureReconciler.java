@@ -12,10 +12,10 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -56,7 +56,7 @@ public class CaptureReconciler {
 
     private final MessageIndexSubscriptionRepository subscriptions;
     private final MessageCaptureNodeRepository captureNodes;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final NodeCallLimiter limiter;
     private final ClusterLock clusterLock;
@@ -89,7 +89,7 @@ public class CaptureReconciler {
      */
     @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     public void sweepOnStartup() {
-        for (BrokerNodeEntity node : nodes.findAll()) {
+        for (ClusterNode node : nodes.allNodes()) {
             installedOn.add(node.getClusterId());
         }
         reconcile();
@@ -138,7 +138,7 @@ public class CaptureReconciler {
      * half-way is simply repeated.
      */
     public void reconcileCluster(UUID clusterId) {
-        List<BrokerNodeEntity> serving = servingNodes(clusterId);
+        List<ClusterNode> serving = servingNodes(clusterId);
         List<MessageIndexSubscriptionEntity> capturing = subscriptions.findByEnabledTrue().stream()
                 .filter(s -> clusterId.equals(s.getClusterId()))
                 .filter(s -> s.getMode() == CaptureMode.CAPTURE)
@@ -146,7 +146,7 @@ public class CaptureReconciler {
 
         Map<UUID, List<Desired>> desiredByNode = desired(clusterId, capturing, serving);
 
-        for (BrokerNodeEntity node : serving) {
+        for (ClusterNode node : serving) {
             List<Desired> wanted = desiredByNode.getOrDefault(node.getId(), List.of());
             log.debug("Capture pass on {}: {} tap(s) wanted", node.getName(), wanted.size());
             try {
@@ -189,11 +189,11 @@ public class CaptureReconciler {
      * before becomes an orphan that the same pass removes.
      */
     private Map<UUID, List<Desired>> desired(
-            UUID clusterId, List<MessageIndexSubscriptionEntity> capturing, List<BrokerNodeEntity> serving) {
+            UUID clusterId, List<MessageIndexSubscriptionEntity> capturing, List<ClusterNode> serving) {
         Map<UUID, List<Desired>> byNode = new LinkedHashMap<>();
         for (MessageIndexSubscriptionEntity subscription : capturing) {
             for (String address : addressesFor(clusterId, subscription)) {
-                for (BrokerNodeEntity node : serving) {
+                for (ClusterNode node : serving) {
                     byNode.computeIfAbsent(node.getId(), k -> new ArrayList<>())
                             .add(new Desired(
                                     subscription,
@@ -229,7 +229,7 @@ public class CaptureReconciler {
 
     // ---- one node --------------------------------------------------------
 
-    private void reconcileNode(UUID clusterId, BrokerNodeEntity node, List<Desired> wanted) {
+    private void reconcileNode(UUID clusterId, ClusterNode node, List<Desired> wanted) {
         JolokiaBrokerClient client = client(clusterId, node);
         Set<String> actual = new LinkedHashSet<>(tap.installedNames(client, instance.id()));
         log.debug("Capture pass on {}: {} tap(s) already installed", node.getName(), actual.size());
@@ -269,7 +269,7 @@ public class CaptureReconciler {
         }
     }
 
-    private void install(UUID clusterId, BrokerNodeEntity node, Desired desired) {
+    private void install(UUID clusterId, ClusterNode node, Desired desired) {
         AuditEvent event = audit.begin(
                 Actor.system(),
                 "INSTALL_CAPTURE",
@@ -310,7 +310,7 @@ public class CaptureReconciler {
         }
     }
 
-    private void startDraining(UUID clusterId, BrokerNodeEntity node, Desired desired) throws jakarta.jms.JMSException {
+    private void startDraining(UUID clusterId, ClusterNode node, Desired desired) throws jakarta.jms.JMSException {
         if (node.getCoreUrl() == null) {
             throw new CaptureRefusedException(
                     "This node has no Core URL registered, and capture is drained over the Core protocol. "
@@ -330,7 +330,7 @@ public class CaptureReconciler {
                 desired.subscription().getMaxRate()));
     }
 
-    private void removeOrphan(UUID clusterId, BrokerNodeEntity node, JolokiaBrokerClient client, String name) {
+    private void removeOrphan(UUID clusterId, ClusterNode node, JolokiaBrokerClient client, String name) {
         AuditEvent event = audit.begin(
                 Actor.system(), "REMOVE_CAPTURE", "CAPTURE", name, clusterId, node.getId(), Map.of(), false);
         try {
@@ -351,7 +351,7 @@ public class CaptureReconciler {
 
     // ---- per-node state --------------------------------------------------
 
-    private void state(Desired desired, BrokerNodeEntity node, CaptureState newState, String detail, boolean covered) {
+    private void state(Desired desired, ClusterNode node, CaptureState newState, String detail, boolean covered) {
         MessageCaptureNodeEntity row = captureNodes
                 .findBySubscriptionIdAndNodeId(desired.subscription().getId(), node.getId())
                 .orElseGet(() -> {
@@ -392,16 +392,16 @@ public class CaptureReconciler {
      * pick the dead one and leave the live node untapped for exactly the interval an
      * operator is watching. A node with a standing error is not serving anything.
      */
-    private List<BrokerNodeEntity> servingNodes(UUID clusterId) {
-        List<BrokerNodeEntity> all = nodes.findByClusterIdOrderByNameAsc(clusterId);
-        List<BrokerNodeEntity> answering =
+    private List<ClusterNode> servingNodes(UUID clusterId) {
+        List<ClusterNode> all = nodes.nodes(clusterId);
+        List<ClusterNode> answering =
                 all.stream().filter(n -> n.getLastError() == null).toList();
         // If nothing answered, fall back rather than reporting an empty desired state —
         // an empty desired state would look like "remove every tap".
         return ServingNodes.from(answering.isEmpty() ? all : answering);
     }
 
-    private JolokiaBrokerClient client(UUID clusterId, BrokerNodeEntity node) {
+    private JolokiaBrokerClient client(UUID clusterId, ClusterNode node) {
         try {
             limiter.acquire(node.getId());
         } catch (InterruptedException e) {

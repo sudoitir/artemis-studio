@@ -10,8 +10,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -48,7 +48,7 @@ public class RrSampler {
     private static final Duration FAILURE_LOG_INTERVAL = Duration.ofMinutes(1);
 
     private final RrExpectationRepository expectations;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final CoreMessageTransport coreTransport;
     private final ObjectProvider<RrObservationSink> sink;
     private final ReplyAddressResolver replyAddresses;
@@ -116,7 +116,7 @@ public class RrSampler {
                 replyAddresses.resolve(clusterId, expectation).addresses();
         RrSamplerHealth.Tick tick = health.begin(expectation.getId(), clusterId, expectation.getRequestAddress());
 
-        List<BrokerNodeEntity> serving = servingNodes(clusterId);
+        List<ClusterNode> serving = servingNodes(clusterId);
         if (serving.isEmpty()) {
             // Previously an empty loop: nothing sampled, nothing logged, nothing to
             // find. Tracing needs the Core client, and saying which node could carry
@@ -137,7 +137,7 @@ public class RrSampler {
         // correlation identity only browsing can supply was missing for two thirds
         // of the traffic (design.md, D7). Duplicates across nodes are already
         // handled by recentRequestFlow and uq_rr_flow_request.
-        for (BrokerNodeEntity node : serving) {
+        for (ClusterNode node : serving) {
             // One node failing must not cost the others their tick.
             try {
                 sampleNode(expectation, node, replyTargets, target, tick);
@@ -151,7 +151,7 @@ public class RrSampler {
 
     private void sampleNode(
             RrExpectationEntity expectation,
-            BrokerNodeEntity node,
+            ClusterNode node,
             List<String> replyTargets,
             RrObservationSink target,
             RrSamplerHealth.Tick tick) {
@@ -214,7 +214,7 @@ public class RrSampler {
      * naming the expectation and the node — loud enough to find, quiet enough that a
      * node down for an hour does not fill the log at the sampling cadence.
      */
-    private void reportFailure(RrExpectationEntity expectation, BrokerNodeEntity node, RuntimeException e) {
+    private void reportFailure(RrExpectationEntity expectation, ClusterNode node, RuntimeException e) {
         String key = expectation.getId() + "|" + node.getId();
         Instant now = Instant.now();
         Instant last = lastReported.get(key);
@@ -239,7 +239,7 @@ public class RrSampler {
      * else Studio holds (ADR-0053). A message with no timestamp yields null, which
      * means unknown rather than the epoch.
      */
-    private Instant enqueuedAt(BrokerNodeEntity node, BrowsedMessage m) {
+    private Instant enqueuedAt(ClusterNode node, BrowsedMessage m) {
         return m.timestamp() > 0 ? clocks.brokerTime().toStudioTime(node.getId(), m.timestamp()) : null;
     }
 
@@ -261,8 +261,7 @@ public class RrSampler {
      * address, failed on every tick into a throttled warning. An address the last
      * scrape never saw is now a stated reason instead.
      */
-    private List<BrowsedMessage> browse(
-            UUID clusterId, BrokerNodeEntity node, String address, RrSamplerHealth.Tick tick) {
+    private List<BrowsedMessage> browse(UUID clusterId, ClusterNode node, String address, RrSamplerHealth.Tick tick) {
         QueueTarget queue =
                 queueTargets.resolve(clusterId, node.getId(), address).orElse(null);
         if (queue == null) {
@@ -292,8 +291,8 @@ public class RrSampler {
         log.run();
     }
 
-    private List<BrokerNodeEntity> servingNodes(UUID clusterId) {
-        return nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+    private List<ClusterNode> servingNodes(UUID clusterId) {
+        return nodes.nodes(clusterId).stream()
                 .filter(n -> Boolean.TRUE.equals(n.getActive()) && n.getLastError() == null)
                 .filter(n -> n.getCoreUrl() != null)
                 .toList();

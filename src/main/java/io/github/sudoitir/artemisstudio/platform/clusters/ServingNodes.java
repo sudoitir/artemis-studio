@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,9 +17,9 @@ public final class ServingNodes {
 
     private ServingNodes() {}
 
-    public static List<BrokerNodeEntity> from(Collection<BrokerNodeEntity> nodes) {
-        Map<String, BrokerNodeEntity> perNodeId = new LinkedHashMap<>();
-        for (BrokerNodeEntity node : nodes) {
+    public static <N extends ClusterNode> List<N> from(Collection<N> nodes) {
+        Map<String, N> perNodeId = new LinkedHashMap<>();
+        for (N node : nodes) {
             if (node.getJolokiaUrl() == null) {
                 continue;
             }

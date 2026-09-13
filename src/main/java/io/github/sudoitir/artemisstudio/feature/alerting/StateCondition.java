@@ -4,13 +4,13 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeMapper;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.platform.clusters.LogicalNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +35,7 @@ public class StateCondition implements AlertCondition {
     /** The one subject that is not a broker: Studio's own host, when it is the suspect. */
     private static final String STUDIO_SUBJECT = "studio";
 
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService clocks;
     private final BrokerNodeMapper nodeMapper;
     private final HaStateEvaluator evaluator;
@@ -44,7 +44,7 @@ public class StateCondition implements AlertCondition {
 
     @Override
     public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
-        List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        List<ClusterNode> rows = nodes.nodes(clusterId);
         return switch (rule.getStateCondition()) {
             case "SPLIT_BRAIN" -> splitBrain(clusterId, rows);
             case "NODE_DOWN" -> nodeDown(rows);
@@ -55,7 +55,7 @@ public class StateCondition implements AlertCondition {
         };
     }
 
-    private Evaluation splitBrain(UUID clusterId, List<BrokerNodeEntity> rows) {
+    private Evaluation splitBrain(UUID clusterId, List<ClusterNode> rows) {
         List<LogicalNode> logical =
                 evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), splitBrainRegistry.statusesFor(clusterId));
         boolean critical = logical.stream().anyMatch(n -> n.splitBrain() == SplitBrainStatus.CRITICAL);
@@ -63,10 +63,10 @@ public class StateCondition implements AlertCondition {
         return new Evaluation(universe, critical ? Map.of(CLUSTER_SUBJECT, 1.0) : Map.of());
     }
 
-    private Evaluation nodeDown(List<BrokerNodeEntity> rows) {
+    private Evaluation nodeDown(List<ClusterNode> rows) {
         Set<String> universe = new HashSet<>();
         Map<String, Double> active = new HashMap<>();
-        for (BrokerNodeEntity node : rows) {
+        for (ClusterNode node : rows) {
             if (node.getJolokiaUrl() == null) {
                 continue; // not manageable — nothing to be "down" from Studio's view
             }
@@ -80,10 +80,10 @@ public class StateCondition implements AlertCondition {
         return new Evaluation(Set.copyOf(universe), Map.copyOf(active));
     }
 
-    private Evaluation replicationBehind(List<BrokerNodeEntity> rows) {
+    private Evaluation replicationBehind(List<ClusterNode> rows) {
         Set<String> universe = new HashSet<>();
         Map<String, Double> active = new HashMap<>();
-        for (BrokerNodeEntity node : rows) {
+        for (ClusterNode node : rows) {
             if (!"BACKUP".equals(node.getHaRole())) {
                 continue;
             }
@@ -108,7 +108,7 @@ public class StateCondition implements AlertCondition {
      * agent strips the response timestamp is unknown, not in agreement, and putting
      * it in the universe would resolve an alert on the strength of no evidence.
      */
-    private Evaluation clockSkew(UUID clusterId, List<BrokerNodeEntity> rows) {
+    private Evaluation clockSkew(UUID clusterId, List<ClusterNode> rows) {
         ClockOffsetService.Assessment assessment = clocks.assessmentFor(clusterId);
         if (assessment.verdict() == ClockOffsetService.Verdict.UNKNOWN) {
             return Evaluation.EMPTY;
@@ -130,7 +130,7 @@ public class StateCondition implements AlertCondition {
         return new Evaluation(Set.copyOf(universe), Map.copyOf(active));
     }
 
-    private Evaluation clusterDegraded(UUID clusterId, List<BrokerNodeEntity> rows) {
+    private Evaluation clusterDegraded(UUID clusterId, List<ClusterNode> rows) {
         List<NodeEndpoint> endpoints = nodeMapper.toEndpoints(rows);
         List<LogicalNode> logical = evaluator.toLogicalNodes(endpoints, splitBrainRegistry.statusesFor(clusterId));
         ClusterHealth health = evaluator.toHealth(clusterId, logical);

@@ -30,8 +30,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseR
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.HashMap;
@@ -64,7 +64,7 @@ public class MessageService {
     static final int BROKER_PAGE_CAP = 200;
 
     private final QueueSnapshots queueSnapshots;
-    private final BrokerNodeRepository brokerNodes;
+    private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final MessageOperations messageOps;
     private final JolokiaMessageTransport jolokiaTransport;
@@ -78,7 +78,7 @@ public class MessageService {
     private final ClusterAccessGuard clusterAccess;
 
     /** Resolved (node, address, routingType) for a queue name on a cluster. */
-    record ResolvedQueue(BrokerNodeEntity node, String address, String routingType) {}
+    record ResolvedQueue(ClusterNode node, String address, String routingType) {}
 
     /** A mutation result: an executed affected-count, or a point-in-time dry-run estimate. */
     public sealed interface Outcome {
@@ -314,7 +314,7 @@ public class MessageService {
     }
 
     private static TransportTarget targetOf(UUID clusterId, String queueName, ResolvedQueue resolved) {
-        BrokerNodeEntity node = resolved.node();
+        ClusterNode node = resolved.node();
         return new TransportTarget(
                 clusterId,
                 node.getId(),
@@ -363,9 +363,9 @@ public class MessageService {
         }
         QueueSnapshot any = snapshots.get(0);
 
-        Map<UUID, BrokerNodeEntity> byId = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
-                .collect(Collectors.toMap(BrokerNodeEntity::getId, Function.identity()));
-        List<BrokerNodeEntity> candidates = snapshots.stream()
+        Map<UUID, ClusterNode> byId = brokerNodes.nodes(clusterId).stream()
+                .collect(Collectors.toMap(ClusterNode::getId, Function.identity()));
+        List<ClusterNode> candidates = snapshots.stream()
                 .map(s -> byId.get(s.nodeId()))
                 .filter(n -> n != null && n.getJolokiaUrl() != null)
                 .toList();
@@ -374,7 +374,7 @@ public class MessageService {
                     BrokerConnectionException.Kind.UNREACHABLE, "No manageable node holds queue '" + queueName + "'.");
         }
 
-        BrokerNodeEntity chosen;
+        ClusterNode chosen;
         if (nodeId != null) {
             chosen = candidates.stream()
                     .filter(n -> n.getId().equals(nodeId))

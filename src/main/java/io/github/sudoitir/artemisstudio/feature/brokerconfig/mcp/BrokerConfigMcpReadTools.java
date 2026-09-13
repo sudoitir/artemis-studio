@@ -29,7 +29,7 @@ public class BrokerConfigMcpReadTools {
     private final BrokerConfigService brokerConfig;
     private final BrokerConfigApplyService brokerConfigApply;
     private final ConfigDiffService configDiff;
-    private final io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository nodeRepo;
+    private final io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory nodeRepo;
 
     public enum ConfigReadKind {
         DECLARATION,
@@ -121,7 +121,7 @@ public class BrokerConfigMcpReadTools {
         // A model asking "do these nodes agree" rarely has node ids to hand, so the
         // pair defaults to the cluster's first two rather than making it ask twice.
         if (nodeA == null || nodeB == null) {
-            var nodes = nodeRepo.findByClusterIdOrderByNameAsc(clusterId);
+            var nodes = nodeRepo.nodes(clusterId);
             if (nodes.size() < 2) {
                 throw new io.github.sudoitir.artemisstudio.kernel.core.ConflictException(
                         "single-node-cluster",

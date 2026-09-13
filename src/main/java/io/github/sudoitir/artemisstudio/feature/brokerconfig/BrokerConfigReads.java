@@ -5,9 +5,9 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,27 +25,27 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class BrokerConfigReads {
 
-    private final BrokerNodeRepository brokerNodes;
+    private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final BrokerConfigOperations ops;
     private final NodeCallLimiter limiter;
 
     /** The cluster's logical nodes, live member first where one exists. */
-    public List<BrokerNodeEntity> targets(UUID clusterId) {
-        return ServingNodes.from(brokerNodes.findByClusterIdOrderByNameAsc(clusterId));
+    public List<ClusterNode> targets(UUID clusterId) {
+        return ServingNodes.from(brokerNodes.nodes(clusterId));
     }
 
     /** Observe every logical node of the cluster within {@code scope}. */
     public List<ObservedNodeConfig> observe(UUID clusterId, ReadScope scope) {
         List<ObservedNodeConfig> out = new ArrayList<>();
-        for (BrokerNodeEntity node : targets(clusterId)) {
+        for (ClusterNode node : targets(clusterId)) {
             out.add(observe(clusterId, node, scope));
         }
         return out;
     }
 
     /** Observe one node; not-live and unreachable are answers, not failures. */
-    public ObservedNodeConfig observe(UUID clusterId, BrokerNodeEntity node, ReadScope scope) {
+    public ObservedNodeConfig observe(UUID clusterId, ClusterNode node, ReadScope scope) {
         if (!Boolean.TRUE.equals(node.getActive())) {
             return ObservedNodeConfig.notLive(node.getId(), node.getName());
         }
@@ -59,7 +59,7 @@ public class BrokerConfigReads {
     }
 
     /** A client for one node, after a limiter permit; a write path uses this too. */
-    public JolokiaBrokerClient client(UUID clusterId, BrokerNodeEntity node) {
+    public JolokiaBrokerClient client(UUID clusterId, ClusterNode node) {
         permit(node.getId());
         return connections.forCluster(clusterId, node.getJolokiaUrl());
     }

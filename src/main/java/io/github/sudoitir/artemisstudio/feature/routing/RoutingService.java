@@ -18,8 +18,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -68,7 +68,7 @@ public class RoutingService {
 
     private static final String OWNER_OPERATOR = "OPERATOR";
 
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final DivertOperations divertOps;
     private final NodeCallLimiter limiter;
@@ -78,7 +78,7 @@ public class RoutingService {
     @Transactional(readOnly = true)
     public PagedView<DivertView> diverts(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<BrokerNodeEntity> serving = servingManageableNodes(clusterId);
+        List<ClusterNode> serving = servingManageableNodes(clusterId);
         int nodesTotal = serving.size();
         Set<String> ownedByOperator = operatorOwnedDivertNames(clusterId);
 
@@ -108,7 +108,7 @@ public class RoutingService {
     @Transactional(readOnly = true)
     public PagedView<BridgeView> bridges(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<BrokerNodeEntity> serving = servingManageableNodes(clusterId);
+        List<ClusterNode> serving = servingManageableNodes(clusterId);
         int nodesTotal = serving.size();
 
         List<BridgeRow> rows = fanOut(clusterId, serving, divertOps::listBridges);
@@ -134,7 +134,7 @@ public class RoutingService {
         List<T> apply(JolokiaBrokerClient client, UUID nodeId, String nodeName);
     }
 
-    private <T> List<T> fanOut(UUID clusterId, List<BrokerNodeEntity> serving, NodeRead<T> read) {
+    private <T> List<T> fanOut(UUID clusterId, List<ClusterNode> serving, NodeRead<T> read) {
         if (serving.isEmpty()) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE,
@@ -142,7 +142,7 @@ public class RoutingService {
         }
         List<T> merged = new ArrayList<>();
         BrokerConnectionException firstError = null;
-        for (BrokerNodeEntity node : serving) {
+        for (ClusterNode node : serving) {
             try {
                 limiter.acquire(node.getId());
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
@@ -284,9 +284,9 @@ public class RoutingService {
     // ---- plumbing --------------------------------------------------------
 
     /** One manageable endpoint per NodeID — the active one when the pair reports one. */
-    private List<BrokerNodeEntity> servingManageableNodes(UUID clusterId) {
-        Map<String, BrokerNodeEntity> perNodeId = new LinkedHashMap<>();
-        for (BrokerNodeEntity n : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
+    private List<ClusterNode> servingManageableNodes(UUID clusterId) {
+        Map<String, ClusterNode> perNodeId = new LinkedHashMap<>();
+        for (ClusterNode n : nodes.nodes(clusterId)) {
             if (n.getJolokiaUrl() == null) {
                 continue;
             }

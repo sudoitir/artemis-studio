@@ -21,8 +21,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
@@ -55,7 +55,7 @@ class BrokerQueryExecutorTest {
     private final MessagePredicate residuals = new MessagePredicate();
 
     private QueueSnapshots snapshots;
-    private BrokerNodeRepository nodes;
+    private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
     private NodeCallLimiter limiter;
@@ -64,7 +64,7 @@ class BrokerQueryExecutorTest {
     @BeforeEach
     void setUp() {
         snapshots = mock(QueueSnapshots.class);
-        nodes = mock(BrokerNodeRepository.class);
+        nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
         limiter = mock(NodeCallLimiter.class);
@@ -188,7 +188,7 @@ class BrokerQueryExecutorTest {
     }
 
     private void given(List<BrokerNodeEntity> nodeList, List<QueueSnapshot> snapshotList) {
-        when(nodes.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(new ArrayList<>(nodeList));
+        when(nodes.nodes(CLUSTER)).thenReturn(new ArrayList<>(nodeList));
         when(snapshots.forCluster(CLUSTER)).thenReturn(new ArrayList<>(snapshotList));
     }
 

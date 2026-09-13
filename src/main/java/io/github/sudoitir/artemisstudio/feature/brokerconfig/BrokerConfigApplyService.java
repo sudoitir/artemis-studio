@@ -37,9 +37,9 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -193,7 +193,7 @@ public class BrokerConfigApplyService {
             BrokerConfigService.CurrentRevision revision,
             Plan plan,
             List<ObservedNodeConfig> observed,
-            Map<UUID, BrokerNodeEntity> nodes,
+            Map<UUID, ClusterNode> nodes,
             Set<OwnedItem> owned,
             int stepCap,
             boolean overCap) {}
@@ -213,7 +213,7 @@ public class BrokerConfigApplyService {
                 revision.document(),
                 BrokerConfigDriftService.ownedKeys(owned, Section.ADDRESS_SETTING),
                 BrokerConfigDriftService.ownedKeys(owned, Section.SECURITY_SETTING));
-        Map<UUID, BrokerNodeEntity> nodes = new LinkedHashMap<>();
+        Map<UUID, ClusterNode> nodes = new LinkedHashMap<>();
         reads.targets(clusterId).forEach(n -> nodes.put(n.getId(), n));
         List<ObservedNodeConfig> observed = reads.observe(clusterId, scope);
         PlanOptions options = new PlanOptions(
@@ -380,7 +380,7 @@ public class BrokerConfigApplyService {
      * succeed.
      */
     private NodeApply applyTo(UUID clusterId, Prepared p, NodePlan node, boolean lockoutGuard, long applyId) {
-        BrokerNodeEntity entity = p.nodes.get(node.nodeId());
+        ClusterNode entity = p.nodes.get(node.nodeId());
         boolean canary = node.nodeId().equals(p.plan.canaryNodeId());
         List<StepApply> steps = new ArrayList<>();
         JolokiaBrokerClient client;
@@ -471,7 +471,7 @@ public class BrokerConfigApplyService {
             UUID clusterId,
             Prepared p,
             NodePlan node,
-            BrokerNodeEntity entity,
+            ClusterNode entity,
             boolean canary,
             List<StepApply> steps,
             boolean lockoutGuard) {
@@ -565,7 +565,7 @@ public class BrokerConfigApplyService {
                 .filter(n -> !n.steps().isEmpty())
                 .map(n -> p.nodes.get(n.nodeId()))
                 .filter(e -> e != null && !Boolean.TRUE.equals(e.getActive()))
-                .map(BrokerNodeEntity::getName)
+                .map(ClusterNode::getName)
                 .toList();
         if (!notLive.isEmpty()) {
             throw new ConflictException(
@@ -576,7 +576,7 @@ public class BrokerConfigApplyService {
         List<String> unstable = p.nodes.values().stream()
                 .filter(n -> n.getArtemisNodeId() != null)
                 .filter(n -> splitBrain.statusFor(clusterId, n.getArtemisNodeId()) != SplitBrainStatus.NONE)
-                .map(BrokerNodeEntity::getName)
+                .map(ClusterNode::getName)
                 .distinct()
                 .toList();
         if (!unstable.isEmpty()) {

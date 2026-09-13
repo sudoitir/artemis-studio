@@ -9,8 +9,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Clock;
@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class QueryPlanner {
 
     private final QueueSnapshots snapshots;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final PredicateSplitter splitter;
     private final SelectorRenderer selectors;
     private final ClockOffsetService clocks;
@@ -53,7 +53,7 @@ public class QueryPlanner {
     @org.springframework.beans.factory.annotation.Autowired
     public QueryPlanner(
             QueueSnapshots snapshots,
-            BrokerNodeRepository nodes,
+            ClusterDirectory nodes,
             PredicateSplitter splitter,
             SelectorRenderer selectors,
             ClockOffsetService clocks,
@@ -64,7 +64,7 @@ public class QueryPlanner {
 
     QueryPlanner(
             QueueSnapshots snapshots,
-            BrokerNodeRepository nodes,
+            ClusterDirectory nodes,
             PredicateSplitter splitter,
             SelectorRenderer selectors,
             ClockOffsetService clocks,
@@ -151,8 +151,8 @@ public class QueryPlanner {
     private static final String SEPARATOR = "\u0000";
 
     private List<Target> resolveTargets(UUID clusterId, QueryAst ast, Split split, List<Notice> notices) {
-        Map<UUID, BrokerNodeEntity> nodesById = new LinkedHashMap<>();
-        nodes.findByClusterIdOrderByNameAsc(clusterId).forEach(n -> nodesById.put(n.getId(), n));
+        Map<UUID, ClusterNode> nodesById = new LinkedHashMap<>();
+        nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
 
         List<QueueSnapshot> matched = snapshots.forCluster(clusterId).stream()
                 .filter(s -> QueueNamePattern.matches(ast.queuePattern(), s.queueName()))
@@ -173,7 +173,7 @@ public class QueryPlanner {
         Set<String> seen = new HashSet<>();
         List<Target> targets = new ArrayList<>();
         for (QueueSnapshot snapshot : matched) {
-            BrokerNodeEntity node = nodesById.get(snapshot.nodeId());
+            ClusterNode node = nodesById.get(snapshot.nodeId());
             if (node == null) {
                 continue;
             }
@@ -233,7 +233,7 @@ public class QueryPlanner {
         }
     }
 
-    private static String logicalKey(BrokerNodeEntity node) {
+    private static String logicalKey(ClusterNode node) {
         return node.getArtemisNodeId() != null ? node.getArtemisNodeId() : "id:" + node.getId();
     }
 

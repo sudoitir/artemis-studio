@@ -11,8 +11,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
@@ -42,7 +42,7 @@ class QueryPlannerTest {
     private final PredicateSplitter splitter = new PredicateSplitter(renderer);
 
     private QueueSnapshots snapshots;
-    private BrokerNodeRepository nodes;
+    private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
     private QueryPlanner planner;
@@ -50,7 +50,7 @@ class QueryPlannerTest {
     @BeforeEach
     void setUp() {
         snapshots = mock(QueueSnapshots.class);
-        nodes = mock(BrokerNodeRepository.class);
+        nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
@@ -113,7 +113,7 @@ class QueryPlannerTest {
     }
 
     private void given(List<BrokerNodeEntity> nodeList, List<QueueSnapshot> snapshotList) {
-        when(nodes.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(new ArrayList<>(nodeList));
+        when(nodes.nodes(CLUSTER)).thenReturn(new ArrayList<>(nodeList));
         when(snapshots.forCluster(CLUSTER)).thenReturn(new ArrayList<>(snapshotList));
     }
 

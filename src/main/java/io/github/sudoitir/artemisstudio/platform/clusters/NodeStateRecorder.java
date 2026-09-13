@@ -1,12 +1,10 @@
-package io.github.sudoitir.artemisstudio.platform.scrape;
+package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.bool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxedBool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeMapper;
-import io.github.sudoitir.artemisstudio.platform.clusters.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.List;
@@ -23,7 +21,7 @@ import tools.jackson.databind.JsonNode;
  */
 @Component
 @RequiredArgsConstructor
-public class ScrapePersistence {
+public class NodeStateRecorder {
 
     private final BrokerNodeRepository nodes;
     private final BrokerNodeMapper nodeMapper;

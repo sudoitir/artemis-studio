@@ -6,8 +6,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.Optional;
@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class MessageVerifier {
 
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final QueueSnapshots snapshots;
     private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
@@ -56,7 +56,7 @@ public class MessageVerifier {
     public Verdict verify(UUID clusterId, UUID nodeId, String queueName, long messageId, long timestamp) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
 
-        Optional<BrokerNodeEntity> node = nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+        Optional<ClusterNode> node = nodes.nodes(clusterId).stream()
                 .filter(n -> n.getId().equals(nodeId))
                 .findFirst();
         if (node.isEmpty()) {

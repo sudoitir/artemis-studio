@@ -8,10 +8,10 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
+import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,12 +94,11 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     private static final int PAGE_SIZE = 200;
 
     private final io.github.sudoitir.artemisstudio.kernel.settings.SettingsService settings;
-    private final ClusterRepository clusters;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory clusters;
     private final BrokerConnections connections;
     private final NodeCallLimiter limiter;
     private final ScrapeCycle scrapeCycle;
-    private final ScrapePersistence persist;
+    private final NodeStateRecorder persist;
     private final SweepCursor sweepCursor;
     private final QueueSnapshotUpsert upsert;
     private final MetricSampleWriter metrics;
@@ -142,7 +141,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     public void tierA() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (ClusterEntity cluster : clusters.findAll()) {
+            for (RegisteredCluster cluster : clusters.clusters()) {
                 UUID clusterId = cluster.getId();
                 long cycle = scrapeCycle.next(clusterId);
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeTierA(clusterId, node, cycle));
@@ -163,7 +162,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     public void tierB() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (ClusterEntity cluster : clusters.findAll()) {
+            for (RegisteredCluster cluster : clusters.clusters()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeHotQueues(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.B));
@@ -173,7 +172,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     public void tierC() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (ClusterEntity cluster : clusters.findAll()) {
+            for (RegisteredCluster cluster : clusters.clusters()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeSweepPage(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.C));
@@ -183,20 +182,20 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     // ---- per-node jobs ---------------------------------------------------
 
-    private void scrapeTierA(UUID clusterId, BrokerNodeEntity node, long cycle) {
+    private void scrapeTierA(UUID clusterId, ClusterNode node, long cycle) {
         JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
         JsonNode ha = client.readBrokerAttributes(HA_ATTRS).value();
         persist.applyTierA(node.getId(), ha, cycle);
     }
 
-    private void scrapeHotQueues(UUID clusterId, BrokerNodeEntity node) {
+    private void scrapeHotQueues(UUID clusterId, ClusterNode node) {
         QueuesPage page = listQueues(clusterId, node, "", 1, PAGE_SIZE);
         upsert.upsertBatch(page.rows());
         metrics.appendQueueSamples(page.rows());
         streamSignals.afterQueueScrape(clusterId, page.rows());
     }
 
-    private void scrapeSweepPage(UUID clusterId, BrokerNodeEntity node) {
+    private void scrapeSweepPage(UUID clusterId, ClusterNode node) {
         int pageNo = sweepCursor.nextPage(node.getId());
         Instant sweepStart = sweepCursor.sweepStart(node.getId());
 
@@ -217,7 +216,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     // ---- plumbing -------------------------------------------------------
 
-    private QueuesPage listQueues(UUID clusterId, BrokerNodeEntity node, String options, int page, int size) {
+    private QueuesPage listQueues(UUID clusterId, ClusterNode node, String options, int page, int size) {
         JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
         JsonNode env = client.execOnBrokerParsed(LIST_QUEUES, options, page, size);
         List<QueueRow> rows = QueueRow.parsePage(env == null ? null : env.get("data"), clusterId, node.getId());
@@ -225,15 +224,15 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         return new QueuesPage(rows, count);
     }
 
-    private List<BrokerNodeEntity> manageableNodes(UUID clusterId) {
-        return nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+    private List<ClusterNode> manageableNodes(UUID clusterId) {
+        return clusters.nodes(clusterId).stream()
                 .filter(n -> n.getJolokiaUrl() != null)
                 .toList();
     }
 
-    private void fanOut(ExecutorService pool, List<BrokerNodeEntity> targets, NodeJob job) {
+    private void fanOut(ExecutorService pool, List<ClusterNode> targets, NodeJob job) {
         List<Future<?>> futures = new ArrayList<>();
-        for (BrokerNodeEntity node : targets) {
+        for (ClusterNode node : targets) {
             futures.add(pool.submit(() -> runIsolated(node, job)));
         }
         for (Future<?> f : futures) {
@@ -248,7 +247,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         }
     }
 
-    private void runIsolated(BrokerNodeEntity node, NodeJob job) {
+    private void runIsolated(ClusterNode node, NodeJob job) {
         try {
             limiter.acquire(node.getId());
             job.run(node);
@@ -264,6 +263,6 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     @FunctionalInterface
     private interface NodeJob {
-        void run(BrokerNodeEntity node);
+        void run(ClusterNode node);
     }
 }

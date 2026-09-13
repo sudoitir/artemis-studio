@@ -6,8 +6,8 @@ import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CrossNodeAggregator {
 
     private final QueueSnapshots snapshots;
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final QueueViewMapper mapper;
     private final ScrapeProperties properties;
     private final ClusterAccessGuard clusterAccess;
@@ -42,9 +42,9 @@ public class CrossNodeAggregator {
     @Transactional(readOnly = true)
     public PagedView<QueueView> queues(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<BrokerNodeEntity> nodeRows = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        List<ClusterNode> nodeRows = nodes.nodes(clusterId);
         Map<UUID, String> nodeNames =
-                nodeRows.stream().collect(Collectors.toMap(BrokerNodeEntity::getId, BrokerNodeEntity::getName));
+                nodeRows.stream().collect(Collectors.toMap(ClusterNode::getId, ClusterNode::getName));
         int nodesTotal = (int) nodeRows.stream()
                 .map(CrossNodeAggregator::logicalKey)
                 .distinct()
@@ -65,7 +65,7 @@ public class CrossNodeAggregator {
         return query.paginate(rows, comparatorFor(query.sortField()));
     }
 
-    private static String logicalKey(BrokerNodeEntity n) {
+    private static String logicalKey(ClusterNode n) {
         return n.getArtemisNodeId() != null ? n.getArtemisNodeId() : "id:" + n.getId();
     }
 

@@ -7,8 +7,8 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -124,7 +124,7 @@ public class BrokerConfigRecommendationService {
     private ObservedNodeConfig seed(UUID clusterId) {
         ReadScope scope =
                 new ReadScope(Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of());
-        for (BrokerNodeEntity node : reads.targets(clusterId)) {
+        for (ClusterNode node : reads.targets(clusterId)) {
             ObservedNodeConfig observed = reads.observe(clusterId, node, scope);
             if (observed.readable()) {
                 return observed;

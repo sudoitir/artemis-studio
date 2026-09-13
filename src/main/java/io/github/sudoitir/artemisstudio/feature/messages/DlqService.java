@@ -9,8 +9,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import tools.jackson.databind.JsonNode;
 public class DlqService {
 
     private final QueueSnapshots queueSnapshots;
-    private final BrokerNodeRepository brokerNodes;
+    private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
@@ -43,7 +43,7 @@ public class DlqService {
     @Transactional(readOnly = true)
     public DlqView view(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
-        BrokerNodeEntity manageable = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+        ClusterNode manageable = brokerNodes.nodes(clusterId).stream()
                 .filter(n -> n.getJolokiaUrl() != null)
                 .findFirst()
                 .orElseThrow(() -> new BrokerConnectionException(
@@ -74,7 +74,7 @@ public class DlqService {
         }
 
         Map<UUID, String> nodeNames = new LinkedHashMap<>();
-        brokerNodes.findByClusterIdOrderByNameAsc(clusterId).forEach(n -> nodeNames.put(n.getId(), n.getName()));
+        brokerNodes.nodes(clusterId).forEach(n -> nodeNames.put(n.getId(), n.getName()));
         List<QueueSnapshot> all = queueSnapshots.forCluster(clusterId);
 
         List<DlqAddress> addresses = new ArrayList<>();

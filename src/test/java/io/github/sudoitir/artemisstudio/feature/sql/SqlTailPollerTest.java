@@ -18,8 +18,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
@@ -54,7 +54,7 @@ class SqlTailPollerTest {
     private final MessagePredicate residuals = new MessagePredicate();
 
     private QueueSnapshots snapshots;
-    private BrokerNodeRepository nodes;
+    private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
     private NodeCallLimiter limiter;
@@ -64,7 +64,7 @@ class SqlTailPollerTest {
     @BeforeEach
     void setUp() {
         snapshots = mock(QueueSnapshots.class);
-        nodes = mock(BrokerNodeRepository.class);
+        nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
         limiter = mock(NodeCallLimiter.class);
@@ -72,7 +72,7 @@ class SqlTailPollerTest {
         when(coverage.isIndexed(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
         node = node();
-        when(nodes.findByClusterIdOrderByNameAsc(CLUSTER)).thenReturn(List.of(node));
+        when(nodes.nodes(CLUSTER)).thenReturn(List.of(node));
         // Re-read on every call, so a test can move the counter between polls.
         when(snapshots.forCluster(CLUSTER))
                 .thenAnswer(invocation -> List.of(snapshot("ORDER.IN", 5, messagesAdded.get())));

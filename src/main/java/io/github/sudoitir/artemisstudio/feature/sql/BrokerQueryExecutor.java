@@ -16,8 +16,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseR
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -54,7 +54,7 @@ public class BrokerQueryExecutor {
     /** The broker will not return more than this per browse, whatever we ask for. */
     private static final int PAGE_SIZE = MessageBrowser.BROKER_PAGE_CAP;
 
-    private final BrokerNodeRepository nodes;
+    private final ClusterDirectory nodes;
     private final NodeCallLimiter limiter;
     private final MessagePredicate residuals;
     private final QueryPlanner planner;
@@ -92,8 +92,8 @@ public class BrokerQueryExecutor {
         SqlProperties limits = properties;
         Split split = planner.splitOf(plan.ast());
 
-        Map<UUID, BrokerNodeEntity> nodesById = new LinkedHashMap<>();
-        nodes.findByClusterIdOrderByNameAsc(clusterId).forEach(n -> nodesById.put(n.getId(), n));
+        Map<UUID, ClusterNode> nodesById = new LinkedHashMap<>();
+        nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
 
         // Shared across the fan-out: rows and the examined counter are what the
         // bounds are measured against, so every node has to see the same ones.
@@ -139,7 +139,7 @@ public class BrokerQueryExecutor {
                             sink.nodeFinished(skipped);
                             continue;
                         }
-                        BrokerNodeEntity node = nodesById.get(target.nodeId());
+                        ClusterNode node = nodesById.get(target.nodeId());
                         if (node == null) {
                             continue;
                         }
@@ -205,7 +205,7 @@ public class BrokerQueryExecutor {
             QueryPlan plan,
             Split split,
             MessageTransport transport,
-            BrokerNodeEntity node,
+            ClusterNode node,
             Target target,
             Sink sink,
             List<Row> rows,
@@ -381,7 +381,7 @@ public class BrokerQueryExecutor {
 
     // ---- mapping --------------------------------------------------------
 
-    private Row toRow(BrowsedMessage message, BrokerNodeEntity node, Target target, Channel servedBy) {
+    private Row toRow(BrowsedMessage message, ClusterNode node, Target target, Channel servedBy) {
         Map<String, Object> properties = new HashMap<>();
         properties.putAll(message.stringProperties());
         properties.putAll(message.intProperties());

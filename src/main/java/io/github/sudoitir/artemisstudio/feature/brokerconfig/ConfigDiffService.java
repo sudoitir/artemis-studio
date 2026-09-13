@@ -16,8 +16,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
-import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.ArrayList;
@@ -52,7 +52,7 @@ import tools.jackson.databind.JsonNode;
 @RequiredArgsConstructor
 public class ConfigDiffService {
 
-    private final BrokerNodeRepository brokerNodes;
+    private final ClusterDirectory brokerNodes;
     private final QueueSnapshots queueSnapshots;
     private final BrokerConnections connections;
     private final ConfigReader reader;
@@ -62,10 +62,10 @@ public class ConfigDiffService {
     @Transactional(readOnly = true)
     public ConfigDiffView compare(UUID clusterId, UUID leftId, UUID rightId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<BrokerNodeEntity> nodes = brokerNodes.findByClusterIdOrderByNameAsc(clusterId);
+        List<ClusterNode> nodes = brokerNodes.nodes(clusterId);
 
-        BrokerNodeEntity left = resolveLeft(nodes, leftId, rightId);
-        BrokerNodeEntity right = resolveRight(nodes, left, rightId);
+        ClusterNode left = resolveLeft(nodes, leftId, rightId);
+        ClusterNode right = resolveRight(nodes, left, rightId);
 
         List<String> matches = ConfigReader.matchesFor(addressesOf(clusterId));
 
@@ -149,12 +149,12 @@ public class ConfigDiffService {
     }
 
     /** With {@code left} omitted, default to the pair — where drift actually hurts. */
-    private BrokerNodeEntity resolveLeft(List<BrokerNodeEntity> nodes, UUID leftId, UUID rightId) {
+    private ClusterNode resolveLeft(List<ClusterNode> nodes, UUID leftId, UUID rightId) {
         if (leftId != null) {
             return require(nodes, leftId);
         }
         if (rightId != null) {
-            BrokerNodeEntity right = require(nodes, rightId);
+            ClusterNode right = require(nodes, rightId);
             return partnerOf(nodes, right)
                     .orElseThrow(() -> new BrokerConnectionException(
                             BrokerConnectionException.Kind.UNREACHABLE,
@@ -168,7 +168,7 @@ public class ConfigDiffService {
                         "This cluster has no node with a management URL yet."));
     }
 
-    private BrokerNodeEntity resolveRight(List<BrokerNodeEntity> nodes, BrokerNodeEntity left, UUID rightId) {
+    private ClusterNode resolveRight(List<ClusterNode> nodes, ClusterNode left, UUID rightId) {
         if (rightId != null && !rightId.equals(left.getId())) {
             return require(nodes, rightId);
         }
@@ -179,7 +179,7 @@ public class ConfigDiffService {
     }
 
     /** The other endpoint of the same logical node — the HA pair. */
-    private java.util.Optional<BrokerNodeEntity> partnerOf(List<BrokerNodeEntity> nodes, BrokerNodeEntity node) {
+    private java.util.Optional<ClusterNode> partnerOf(List<ClusterNode> nodes, ClusterNode node) {
         return nodes.stream()
                 .filter(n -> !n.getId().equals(node.getId()))
                 .filter(n ->
@@ -187,7 +187,7 @@ public class ConfigDiffService {
                 .findFirst();
     }
 
-    private BrokerNodeEntity require(List<BrokerNodeEntity> nodes, UUID nodeId) {
+    private ClusterNode require(List<ClusterNode> nodes, UUID nodeId) {
         return nodes.stream()
                 .filter(n -> n.getId().equals(nodeId))
                 .findFirst()
@@ -210,7 +210,7 @@ public class ConfigDiffService {
     @Transactional(readOnly = true)
     public NodeConfigView nodeConfig(UUID clusterId, UUID nodeId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        BrokerNodeEntity node = brokerNodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+        ClusterNode node = brokerNodes.nodes(clusterId).stream()
                 .filter(n -> n.getId().equals(nodeId))
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("node", nodeId));
@@ -280,7 +280,7 @@ public class ConfigDiffService {
 
     private record Read(NodeConfig config, String failure) {}
 
-    private Read read(UUID clusterId, BrokerNodeEntity node, List<String> matches) {
+    private Read read(UUID clusterId, ClusterNode node, List<String> matches) {
         if (node.getJolokiaUrl() == null) {
             return new Read(null, "This node has no management URL, so its configuration cannot be read.");
         }
@@ -293,7 +293,7 @@ public class ConfigDiffService {
         }
     }
 
-    private ConfigSideView side(BrokerNodeEntity node, Read read, boolean reducedSurface) {
+    private ConfigSideView side(ClusterNode node, Read read, boolean reducedSurface) {
         NodeConfig config = read.config();
         return new ConfigSideView(
                 node.getId(),
@@ -340,8 +340,8 @@ public class ConfigDiffService {
             String section,
             Map<String, String> left,
             Map<String, String> right,
-            BrokerNodeEntity leftNode,
-            BrokerNodeEntity rightNode) {
+            ClusterNode leftNode,
+            ClusterNode rightNode) {
         List<Entry> entries = ConfigDiff.compare(section, left, right);
         List<ConfigEntryView> views = entries.stream()
                 .map(e -> new ConfigEntryView(
