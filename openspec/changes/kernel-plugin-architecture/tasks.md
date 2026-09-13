@@ -53,7 +53,7 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 - [ ] 4.8 Create `platform/scrape`: `ScrapeScheduler`, `ScrapeCycle`, `ScrapePersistence`, `SweepCursor`, the queue snapshot and metric sample writer, partition maintainer and reaper, and `StreamSignals`. Expose the `QueueSnapshots` and `MetricSeries` read APIs.
 - [x] 4.9 Publish `ScrapeTierCompleted` in place of the direct `AlertEvaluator` call, preserving evaluation order. Report scrape tiers through `JobStatus`.
 - [x] 4.10 Create `platform/mcp`: server config, a tool catalogue assembled from `McpToolDef`, `studio_help`, catalogue resources, runbook prompts, `McpErrors`, `McpArgs` and instructions. Mark it optional; when disabled, `/mcp` does not exist.
-- [ ] 4.11 Add `AuditCoverageTest`: every public mutating service method in a feature goes through `BrokerCommands` or `AuditService`.
+- [x] 4.11 Add `AuditCoverageTest`: every public mutating service method in a feature goes through `BrokerCommands` or `AuditService`.
 
 ## 5. Feature modules (backend)
 
