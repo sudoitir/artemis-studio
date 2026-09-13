@@ -173,7 +173,7 @@ public class UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getAuthSource(),
+                user.getProviderId(),
                 user.isDisabled(),
                 user.isMustChangePassword(),
                 grants);

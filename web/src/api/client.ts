@@ -167,8 +167,10 @@ export type TokenView = Schemas["TokenView"];
 export type CreatedTokenView = Schemas["CreatedTokenView"];
 export type CreateTokenRequest = Schemas["CreateTokenRequest"];
 export type TokenGrantRequest = Schemas["TokenGrantRequest"];
-export type OidcMappingView = Schemas["OidcMappingView"];
-export type OidcMappingRequest = Schemas["OidcMappingRequest"];
+export type GroupMappingView = Schemas["GroupMappingView"];
+export type GroupMappingRequest = Schemas["GroupMappingRequest"];
+export type GroupMappingsView = Schemas["GroupMappingsView"];
+export type DefaultRoleRequest = Schemas["DefaultRoleRequest"];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
 export type CapabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
@@ -331,7 +333,8 @@ export const keys = {
   permissions: ["permissions"] as const,
   environments: ["environments"] as const,
   tokens: ["tokens"] as const,
-  oidcMappings: ["oidc", "mappings"] as const,
+  groupMappings: (providerId: string) =>
+    ["identity", "providers", providerId, "group-mappings"] as const,
   sqlPlan: (id: string, sql: string) =>
     ["clusters", id, "sql", "plan", sql] as const,
   sqlIndex: (id: string) => ["clusters", id, "sql", "index"] as const,
@@ -1621,33 +1624,55 @@ export function useRevokeToken() {
   });
 }
 
-// ── OIDC role mappings (oidc-sso spec) ──────────────────────────────────────
+// ── Identity provider group mappings (ADR-0073) ─────────────────────────────
 
-export function useOidcMappings(): UseQueryResult<OidcMappingView[], ApiError> {
+const groupMappingsPath = (providerId: string) =>
+  `/identity/providers/${encodeURIComponent(providerId)}/group-mappings`;
+
+export function useGroupMappings(
+  providerId: string,
+): UseQueryResult<GroupMappingsView, ApiError> {
   return useQuery({
-    queryKey: keys.oidcMappings,
-    queryFn: () => request<OidcMappingView[]>("/oidc/mappings"),
+    queryKey: keys.groupMappings(providerId),
+    queryFn: () => request<GroupMappingsView>(groupMappingsPath(providerId)),
   });
 }
 
-export function useCreateOidcMapping() {
+export function useCreateGroupMapping(providerId: string) {
   const qc = useQueryClient();
-  return useMutation<OidcMappingView, ApiError, OidcMappingRequest>({
+  return useMutation<GroupMappingView, ApiError, GroupMappingRequest>({
     mutationFn: (body) =>
-      request<OidcMappingView>("/oidc/mappings", {
+      request<GroupMappingView>(groupMappingsPath(providerId), {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.groupMappings(providerId) }),
   });
 }
 
-export function useDeleteOidcMapping() {
+export function useDeleteGroupMapping(providerId: string) {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
     mutationFn: (mappingId) =>
-      request<void>(`/oidc/mappings/${mappingId}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.oidcMappings }),
+      request<void>(`${groupMappingsPath(providerId)}/${mappingId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.groupMappings(providerId) }),
+  });
+}
+
+export function useSetDefaultRole(providerId: string) {
+  const qc = useQueryClient();
+  return useMutation<GroupMappingsView, ApiError, DefaultRoleRequest>({
+    mutationFn: (body) =>
+      request<GroupMappingsView>(`${groupMappingsPath(providerId)}/default-role`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.groupMappings(providerId) }),
   });
 }
 

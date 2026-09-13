@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/identity/providers/{providerId}/group-mappings/default-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setDefaultRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environments/{environmentId}": {
         parameters: {
             query?: never;
@@ -228,7 +244,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/oidc/mappings": {
+    "/api/v1/identity/providers/{providerId}/group-mappings": {
         parameters: {
             query?: never;
             header?: never;
@@ -1476,7 +1492,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/oidc/mappings/{mappingId}": {
+    "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1544,7 +1560,7 @@ export interface components {
             id: string;
             username: string;
             email?: string | null;
-            authSource: string;
+            providerId: string;
             disabled: boolean;
             mustChangePassword: boolean;
             grants: components["schemas"]["GrantSummary"][];
@@ -1562,6 +1578,26 @@ export interface components {
             name: string;
             builtin: boolean;
             permissions: string[];
+        };
+        DefaultRoleRequest: {
+            /** Format: uuid */
+            roleId?: string | null;
+        };
+        GroupMappingView: {
+            /** Format: uuid */
+            id: string;
+            groupName: string;
+            /** Format: uuid */
+            roleId: string;
+            roleName: string;
+            scopeType: string;
+            /** Format: uuid */
+            scopeId?: string | null;
+        };
+        GroupMappingsView: {
+            /** Format: uuid */
+            defaultRoleId: string | null;
+            mappings: components["schemas"]["GroupMappingView"][];
         };
         EnvironmentRequest: {
             name: string;
@@ -1852,23 +1888,10 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
-        OidcMappingRequest: {
-            claim: string;
-            claimValue: string;
+        GroupMappingRequest: {
+            groupName: string;
             /** Format: uuid */
             roleId: string;
-            scopeType: string;
-            /** Format: uuid */
-            scopeId?: string | null;
-        };
-        OidcMappingView: {
-            /** Format: uuid */
-            id: string;
-            claim: string;
-            claimValue: string;
-            /** Format: uuid */
-            roleId: string;
-            roleName: string;
             scopeType: string;
             /** Format: uuid */
             scopeId?: string | null;
@@ -3634,6 +3657,32 @@ export interface operations {
             };
         };
     };
+    setDefaultRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefaultRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroupMappingsView"];
+                };
+            };
+        };
+    };
     update_1: {
         parameters: {
             query?: never;
@@ -4078,7 +4127,9 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                providerId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -4089,7 +4140,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["OidcMappingView"][];
+                    "*/*": components["schemas"]["GroupMappingsView"];
                 };
             };
         };
@@ -4098,12 +4149,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                providerId: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OidcMappingRequest"];
+                "application/json": components["schemas"]["GroupMappingRequest"];
             };
         };
         responses: {
@@ -4113,7 +4166,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["OidcMappingView"];
+                    "*/*": components["schemas"]["GroupMappingView"];
                 };
             };
         };
@@ -6325,6 +6378,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                providerId: string;
                 mappingId: string;
             };
             cookie?: never;

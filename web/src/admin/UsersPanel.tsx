@@ -57,7 +57,7 @@ export function UsersPanel() {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Username</Table.Th>
-            <Table.Th>Source</Table.Th>
+            <Table.Th>Provider</Table.Th>
             <Table.Th>Grants</Table.Th>
             <Table.Th>Enabled</Table.Th>
             <Table.Th />
@@ -76,7 +76,7 @@ export function UsersPanel() {
               </Table.Td>
               <Table.Td>
                 <Badge size="xs" variant="light">
-                  {u.authSource}
+                  {u.providerId}
                 </Badge>
               </Table.Td>
               <Table.Td>

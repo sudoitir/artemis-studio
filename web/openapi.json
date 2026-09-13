@@ -148,6 +148,42 @@
         }
       }
     },
+    "/api/v1/identity/providers/{providerId}/group-mappings/default-role" : {
+      "put" : {
+        "tags" : [ "group-mapping-controller" ],
+        "operationId" : "setDefaultRole",
+        "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DefaultRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupMappingsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/environments/{environmentId}" : {
       "put" : {
         "tags" : [ "environments-controller" ],
@@ -693,20 +729,25 @@
         }
       }
     },
-    "/api/v1/oidc/mappings" : {
+    "/api/v1/identity/providers/{providerId}/group-mappings" : {
       "get" : {
-        "tags" : [ "oidc-mapping-controller" ],
+        "tags" : [ "group-mapping-controller" ],
         "operationId" : "list_3",
+        "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "description" : "OK",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/OidcMappingView"
-                  }
+                  "$ref" : "#/components/schemas/GroupMappingsView"
                 }
               }
             }
@@ -714,13 +755,21 @@
         }
       },
       "post" : {
-        "tags" : [ "oidc-mapping-controller" ],
+        "tags" : [ "group-mapping-controller" ],
         "operationId" : "create_3",
+        "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/OidcMappingRequest"
+                "$ref" : "#/components/schemas/GroupMappingRequest"
               }
             }
           },
@@ -732,7 +781,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/OidcMappingView"
+                  "$ref" : "#/components/schemas/GroupMappingView"
                 }
               }
             }
@@ -4086,11 +4135,18 @@
         }
       }
     },
-    "/api/v1/oidc/mappings/{mappingId}" : {
+    "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}" : {
       "delete" : {
-        "tags" : [ "oidc-mapping-controller" ],
+        "tags" : [ "group-mapping-controller" ],
         "operationId" : "delete_5",
         "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
           "name" : "mappingId",
           "in" : "path",
           "required" : true,
@@ -4234,7 +4290,7 @@
           "email" : {
             "type" : [ "string", "null" ]
           },
-          "authSource" : {
+          "providerId" : {
             "type" : "string"
           },
           "disabled" : {
@@ -4250,7 +4306,7 @@
             }
           }
         },
-        "required" : [ "authSource", "disabled", "grants", "id", "mustChangePassword", "username" ]
+        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "username" ]
       },
       "UpdateSettingRequest" : {
         "type" : "object",
@@ -4299,6 +4355,58 @@
           }
         },
         "required" : [ "builtin", "id", "name", "permissions" ]
+      },
+      "DefaultRoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roleId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        }
+      },
+      "GroupMappingView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "groupName" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "groupName", "id", "roleId", "roleName", "scopeType" ]
+      },
+      "GroupMappingsView" : {
+        "type" : "object",
+        "properties" : {
+          "defaultRoleId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "mappings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GroupMappingView"
+            }
+          }
+        },
+        "required" : [ "defaultRoleId", "mappings" ]
       },
       "EnvironmentRequest" : {
         "type" : "object",
@@ -5044,14 +5152,10 @@
         },
         "required" : [ "createdAt", "id", "name", "prefix" ]
       },
-      "OidcMappingRequest" : {
+      "GroupMappingRequest" : {
         "type" : "object",
         "properties" : {
-          "claim" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "claimValue" : {
+          "groupName" : {
             "type" : "string",
             "minLength" : 1
           },
@@ -5060,44 +5164,15 @@
             "format" : "uuid"
           },
           "scopeType" : {
-            "type" : "string"
+            "type" : "string",
+            "minLength" : 1
           },
           "scopeId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid"
           }
         },
-        "required" : [ "claim", "claimValue", "roleId", "scopeType" ]
-      },
-      "OidcMappingView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "claim" : {
-            "type" : "string"
-          },
-          "claimValue" : {
-            "type" : "string"
-          },
-          "roleId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "roleName" : {
-            "type" : "string"
-          },
-          "scopeType" : {
-            "type" : "string"
-          },
-          "scopeId" : {
-            "type" : [ "string", "null" ],
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "claim", "claimValue", "id", "roleId", "roleName", "scopeType" ]
+        "required" : [ "groupName", "roleId", "scopeType" ]
       },
       "Credentials" : {
         "type" : "object",

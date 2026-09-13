@@ -4,11 +4,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * OIDC claim mapping (ADR-0040).
+ * Where OIDC groups come from. The mappings and the default role are managed per provider in
+ * Studio (ADR-0073).
  *
- * @param oidcClaim the token or userinfo claim whose values are mapped to roles
- * @param oidcDefaultRole the role granted to a login that matches no mapping; {@code null}
- *     refuses such a login
+ * @param oidcClaim the token or userinfo claim whose values are the user's groups
  */
 @ConfigurationProperties(prefix = "artemis-studio.security")
-public record OidcProperties(@DefaultValue("groups") String oidcClaim, String oidcDefaultRole) {}
+public record OidcProperties(@DefaultValue("groups") String oidcClaim) {}

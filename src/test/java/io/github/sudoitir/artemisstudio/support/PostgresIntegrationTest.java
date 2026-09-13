@@ -31,7 +31,12 @@ public abstract class PostgresIntegrationTest {
     @MockitoBean
     ScrapeScheduler scrapeScheduler;
 
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    /**
+     * Spring keeps every distinct test context cached, each with its own connection pool, so the
+     * default 100 connections run out once enough test configurations exist.
+     */
+    static final PostgreSQLContainer<?> POSTGRES =
+            new PostgreSQLContainer<>("postgres:17-alpine").withCommand("postgres", "-c", "max_connections=400");
 
     static {
         POSTGRES.withReuse(true).start();

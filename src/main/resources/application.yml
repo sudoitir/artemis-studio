@@ -212,8 +212,7 @@ artemis-studio:
     apply-step-cap: 100
   security:
     # Governance (Phase 8, ADR-0037, ADR-0040).
-    oidc-claim: groups            # the token/userinfo claim mapped by oidc_role_mapping
-    # oidc-default-role: VIEWER   # role granted when no mapping matches; unset refuses the login
+    oidc-claim: groups            # the token/userinfo claim holding the user's groups; mappings are set per provider in Administration
 
 logging:
   level:

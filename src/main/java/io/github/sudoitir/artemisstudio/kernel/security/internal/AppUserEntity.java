@@ -16,9 +16,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Maps {@code app_user} (changesets 003, 014). A local account carries a bcrypt
- * {@code passwordHash}; an OIDC-provisioned account carries {@code issuer} +
- * {@code subject} instead and a null hash (ADR-0037, ADR-0040).
+ * Maps {@code app_user}. A local account carries a bcrypt {@code passwordHash}; an account
+ * provisioned by an external provider carries its {@code providerId} and
+ * {@code externalSubject} instead, and a null hash (ADR-0037, ADR-0073).
  */
 @Entity
 @Table(name = "app_user")
@@ -43,14 +43,11 @@ public class AppUserEntity {
     @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(name = "issuer")
-    private String issuer;
+    @Column(name = "provider_id", nullable = false, updatable = false)
+    private String providerId = LoginService.DEFAULT_PROVIDER;
 
-    @Column(name = "subject")
-    private String subject;
-
-    @Column(name = "auth_source", nullable = false)
-    private String authSource = "LOCAL";
+    @Column(name = "external_subject", updatable = false)
+    private String externalSubject;
 
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
@@ -66,17 +63,15 @@ public class AppUserEntity {
         u.username = username;
         u.email = email;
         u.passwordHash = passwordHash;
-        u.authSource = "LOCAL";
         return u;
     }
 
-    public static AppUserEntity oidc(String username, String email, String issuer, String subject) {
+    public static AppUserEntity external(String providerId, String subject, String username, String email) {
         AppUserEntity u = new AppUserEntity();
+        u.providerId = providerId;
+        u.externalSubject = subject;
         u.username = username;
         u.email = email;
-        u.issuer = issuer;
-        u.subject = subject;
-        u.authSource = "OIDC";
         return u;
     }
 

@@ -62,11 +62,12 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void anOidcUserHasNoPasswordHash() {
-        AppUserEntity user = users.save(AppUserEntity.oidc("oidc-" + UUID.randomUUID(), null, "issuer-1", "sub-1"));
-        AppUserEntity reloaded = users.findById(user.getId()).orElseThrow();
+    void anExternalUserHasNoPasswordHash() {
+        AppUserEntity user = users.save(AppUserEntity.external("sso", "sub-1", "external-" + UUID.randomUUID(), null));
+        AppUserEntity reloaded =
+                users.findByProviderIdAndExternalSubject("sso", "sub-1").orElseThrow();
+        assertThat(reloaded.getId()).isEqualTo(user.getId());
         assertThat(reloaded.getPasswordHash()).isNull();
-        assertThat(reloaded.getAuthSource()).isEqualTo("OIDC");
         users.delete(reloaded);
     }
 

@@ -34,7 +34,7 @@ public final class UserViews {
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String username,
             @Schema(nullable = true) String email,
-            @Schema(requiredMode = REQUIRED) String authSource,
+            @Schema(requiredMode = REQUIRED) String providerId,
             @Schema(requiredMode = REQUIRED) boolean disabled,
             @Schema(requiredMode = REQUIRED) boolean mustChangePassword,
             @Schema(requiredMode = REQUIRED) List<GrantSummary> grants) {}

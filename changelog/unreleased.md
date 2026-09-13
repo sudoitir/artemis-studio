@@ -10,3 +10,7 @@ name, with these exceptions:
 - `artemis-studio.branding.product-name` and `artemis-studio.security.session-timeout`
   are removed. Studio never read either, so setting them had no effect; delete them
   from your configuration.
+- `artemis-studio.security.oidc-default-role` (`ARTEMIS_STUDIO_SECURITY_OIDC_DEFAULT_ROLE`)
+  is removed. The default role is now set per identity provider under
+  Administration → Group mappings. Set it there after upgrading, or users whose
+  groups match no mapping are refused sign-in.

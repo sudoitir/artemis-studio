@@ -9,7 +9,7 @@ public interface AppUserRepository extends JpaRepository<AppUserEntity, UUID> {
 
     Optional<AppUserEntity> findByUsername(String username);
 
-    Optional<AppUserEntity> findByIssuerAndSubject(String issuer, String subject);
+    Optional<AppUserEntity> findByProviderIdAndExternalSubject(String providerId, String externalSubject);
 
     List<AppUserEntity> findAllByOrderByUsername();
 }

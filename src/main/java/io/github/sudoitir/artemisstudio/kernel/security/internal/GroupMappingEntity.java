@@ -11,16 +11,14 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-/** Maps {@code oidc_role_mapping} (changeset 014): claim value -> role grant, re-applied every login (ADR-0040). */
+/** Maps {@code identity_group_mapping}: a provider's group -> a role grant, re-applied every sign-in (ADR-0073). */
 @Entity
-@Table(name = "oidc_role_mapping")
+@Table(name = "identity_group_mapping")
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class OidcRoleMappingEntity {
+public class GroupMappingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -28,24 +26,24 @@ public class OidcRoleMappingEntity {
     @EqualsAndHashCode.Include
     private UUID id;
 
-    @Column(name = "claim", nullable = false)
-    private String claim;
+    @Column(name = "provider_id", nullable = false, updatable = false)
+    private String providerId;
 
-    @Column(name = "claim_value", nullable = false)
-    private String claimValue;
+    @Column(name = "group_name", nullable = false)
+    private String groupName;
 
     @Column(name = "role_id", nullable = false)
     private UUID roleId;
 
     @Column(name = "scope_type", nullable = false)
-    private String scopeType = "GLOBAL";
+    private String scopeType;
 
     @Column(name = "scope_id", nullable = false)
     private UUID scopeId;
 
-    public OidcRoleMappingEntity(String claim, String claimValue, UUID roleId, String scopeType, UUID scopeId) {
-        this.claim = claim;
-        this.claimValue = claimValue;
+    public GroupMappingEntity(String providerId, String groupName, UUID roleId, String scopeType, UUID scopeId) {
+        this.providerId = providerId;
+        this.groupName = groupName;
         this.roleId = roleId;
         this.scopeType = scopeType;
         this.scopeId = scopeId;

@@ -11,23 +11,28 @@ CREATE TABLE app_user (
     username text NOT NULL,
     email text,
     password_hash text,
+    provider_id text DEFAULT 'local'::text NOT NULL,
+    external_subject text,
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     disabled boolean DEFAULT false NOT NULL,
-    issuer text,
-    subject text,
-    auth_source text DEFAULT 'LOCAL'::text NOT NULL,
-    must_change_password boolean DEFAULT false NOT NULL,
-    CONSTRAINT ck_app_user_auth_source CHECK ((auth_source = ANY (ARRAY['LOCAL'::text, 'OIDC'::text])))
+    must_change_password boolean DEFAULT false NOT NULL
 );
 
-CREATE TABLE oidc_role_mapping (
-    claim text NOT NULL,
-    claim_value text NOT NULL,
+-- A group reported by an external identity provider, mapped to a role grant (ADR-0073).
+CREATE TABLE identity_group_mapping (
+    provider_id text NOT NULL,
+    group_name text NOT NULL,
     scope_type text DEFAULT 'GLOBAL'::text NOT NULL,
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     role_id uuid NOT NULL,
     scope_id uuid DEFAULT '00000000-0000-0000-0000-000000000000'::uuid NOT NULL,
-    CONSTRAINT ck_oidc_role_mapping_scope CHECK ((scope_type = ANY (ARRAY['GLOBAL'::text, 'ENVIRONMENT'::text, 'CLUSTER'::text])))
+    CONSTRAINT ck_identity_group_mapping_scope CHECK ((scope_type = ANY (ARRAY['GLOBAL'::text, 'ENVIRONMENT'::text, 'CLUSTER'::text])))
+);
+
+-- The role a provider's user gets when their groups match no mapping. No row refuses them.
+CREATE TABLE identity_provider_default_role (
+    provider_id text NOT NULL,
+    role_id uuid NOT NULL
 );
 
 CREATE TABLE role (
@@ -68,8 +73,11 @@ CREATE TABLE user_role (
 ALTER TABLE ONLY app_user
     ADD CONSTRAINT pk_app_user PRIMARY KEY (id);
 
-ALTER TABLE ONLY oidc_role_mapping
-    ADD CONSTRAINT pk_oidc_role_mapping PRIMARY KEY (id);
+ALTER TABLE ONLY identity_group_mapping
+    ADD CONSTRAINT pk_identity_group_mapping PRIMARY KEY (id);
+
+ALTER TABLE ONLY identity_provider_default_role
+    ADD CONSTRAINT pk_identity_provider_default_role PRIMARY KEY (provider_id);
 
 ALTER TABLE ONLY role
     ADD CONSTRAINT pk_role PRIMARY KEY (id);
@@ -87,13 +95,13 @@ ALTER TABLE ONLY spring_session
     ADD CONSTRAINT spring_session_pk PRIMARY KEY (primary_id);
 
 ALTER TABLE ONLY app_user
-    ADD CONSTRAINT uq_app_user_issuer_subject UNIQUE (issuer, subject);
+    ADD CONSTRAINT uq_app_user_provider_subject UNIQUE (provider_id, external_subject);
 
 ALTER TABLE ONLY app_user
     ADD CONSTRAINT uq_app_user_username UNIQUE (username);
 
-ALTER TABLE ONLY oidc_role_mapping
-    ADD CONSTRAINT uq_oidc_role_mapping UNIQUE (claim, claim_value, role_id, scope_type, scope_id);
+ALTER TABLE ONLY identity_group_mapping
+    ADD CONSTRAINT uq_identity_group_mapping UNIQUE (provider_id, group_name, role_id, scope_type, scope_id);
 
 ALTER TABLE ONLY role
     ADD CONSTRAINT uq_role_name UNIQUE (name);
@@ -104,8 +112,11 @@ CREATE INDEX spring_session_ix2 ON spring_session USING btree (expiry_time);
 
 CREATE INDEX spring_session_ix3 ON spring_session USING btree (principal_name);
 
-ALTER TABLE ONLY oidc_role_mapping
-    ADD CONSTRAINT fk_oidc_role_mapping_role FOREIGN KEY (role_id) REFERENCES role(id) ON DELETE CASCADE;
+ALTER TABLE ONLY identity_group_mapping
+    ADD CONSTRAINT fk_identity_group_mapping_role FOREIGN KEY (role_id) REFERENCES role(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY identity_provider_default_role
+    ADD CONSTRAINT fk_identity_provider_default_role_role FOREIGN KEY (role_id) REFERENCES role(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY role_permission
     ADD CONSTRAINT fk_role_permission_role FOREIGN KEY (role_id) REFERENCES role(id) ON DELETE CASCADE;
@@ -145,7 +156,8 @@ WHERE r.name = 'VIEWER';
 
 --rollback DROP TABLE IF EXISTS spring_session_attributes CASCADE;
 --rollback DROP TABLE IF EXISTS spring_session CASCADE;
---rollback DROP TABLE IF EXISTS oidc_role_mapping CASCADE;
+--rollback DROP TABLE IF EXISTS identity_provider_default_role CASCADE;
+--rollback DROP TABLE IF EXISTS identity_group_mapping CASCADE;
 --rollback DROP TABLE IF EXISTS user_role CASCADE;
 --rollback DROP TABLE IF EXISTS role_permission CASCADE;
 --rollback DROP TABLE IF EXISTS role CASCADE;
