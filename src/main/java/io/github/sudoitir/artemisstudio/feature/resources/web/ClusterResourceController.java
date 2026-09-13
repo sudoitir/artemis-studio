@@ -2,7 +2,6 @@ package io.github.sudoitir.artemisstudio.feature.resources.web;
 
 import io.github.sudoitir.artemisstudio.feature.resources.CrossNodeAggregator;
 import io.github.sudoitir.artemisstudio.feature.resources.PagedListService;
-import io.github.sudoitir.artemisstudio.feature.resources.ResourceQuery;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.AddressView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConnectionView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConsumerView;
@@ -10,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.Prod
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.SessionView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.core.web.ApiExceptionHandler;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

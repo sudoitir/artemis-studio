@@ -6,7 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateD
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;

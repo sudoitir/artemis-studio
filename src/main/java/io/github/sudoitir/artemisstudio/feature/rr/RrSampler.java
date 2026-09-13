@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 import io.github.sudoitir.artemisstudio.feature.rr.QueueTargetResolver.QueueTarget;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
+import io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreDestinationName;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
@@ -54,10 +55,16 @@ public class RrSampler {
     private final ClockOffsetService clocks;
     private final QueueTargetResolver queueTargets;
     private final RrSamplerHealth health;
-    private final io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage captureCoverage;
+    private final ObjectProvider<CaptureCoverage> captureCoverage;
 
     /** Per expectation-and-node, when its last failure was logged. */
     private final Map<String, Instant> lastReported = new ConcurrentHashMap<>();
+
+    /** Whether capture already sees this address on this node; never while the SQL feature is disabled. */
+    private boolean captured(UUID clusterId, UUID nodeId, String address) {
+        CaptureCoverage coverage = captureCoverage.getIfAvailable();
+        return coverage != null && coverage.isCaptured(clusterId, nodeId, address);
+    }
 
     /** Per expectation, when it was last sampled — the throttle {@code samplePerMin} asks for. */
     private final Map<UUID, Instant> lastSampledAt = new ConcurrentHashMap<>();
@@ -156,7 +163,7 @@ public class RrSampler {
         // through CaptureBus, so browsing it here would be broker load for facts
         // Studio already has (ADR-0062). Sampling continues for everything else, and
         // for this address on any node capture has not reached.
-        if (captureCoverage.isCaptured(clusterId, node.getId(), expectation.getRequestAddress())) {
+        if (captured(clusterId, node.getId(), expectation.getRequestAddress())) {
             tick.skipped(node.getName(), "captured on this node; correlation comes from the capture stream");
         } else {
             for (BrowsedMessage m : browse(clusterId, node, expectation.getRequestAddress(), tick)) {
@@ -178,7 +185,7 @@ public class RrSampler {
         }
 
         for (String replyAddress : replyTargets) {
-            if (captureCoverage.isCaptured(clusterId, node.getId(), replyAddress)) {
+            if (captured(clusterId, node.getId(), replyAddress)) {
                 tick.skipped(node.getName(), "captured on this node; correlation comes from the capture stream");
                 continue;
             }

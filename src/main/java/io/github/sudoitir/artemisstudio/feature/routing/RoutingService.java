@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.routing;
 
+import io.github.sudoitir.artemisstudio.feature.queues.BridgeRow;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleKind;
-import io.github.sudoitir.artemisstudio.feature.resources.ResourceQuery;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeNodeCell;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
@@ -9,6 +11,7 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;

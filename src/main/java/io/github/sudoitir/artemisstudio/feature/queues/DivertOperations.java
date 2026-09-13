@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.routing;
+package io.github.sudoitir.artemisstudio.feature.queues;
 
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;

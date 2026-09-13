@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
-import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
-import io.github.sudoitir.artemisstudio.feature.routing.DivertRow;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;

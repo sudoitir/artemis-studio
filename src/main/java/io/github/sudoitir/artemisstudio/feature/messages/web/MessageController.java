@@ -9,8 +9,8 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.Affect
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DryRunView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageDetailView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessagePageView;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.web.ApiExceptionHandler;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;

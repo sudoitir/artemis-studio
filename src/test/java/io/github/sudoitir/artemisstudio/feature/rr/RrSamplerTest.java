@@ -120,17 +120,14 @@ class RrSamplerTest {
 
         RrSamplerHealth health = new RrSamplerHealth(java.time.Clock.systemUTC());
 
+        ObjectProvider<io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage> coverage =
+                mock(ObjectProvider.class);
+        when(coverage.getIfAvailable())
+                .thenReturn(mock(io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage.class));
+
         return new Fixture(
                 new RrSampler(
-                        expectations,
-                        nodeRepo,
-                        transport,
-                        provider,
-                        resolver,
-                        clocks,
-                        queueTargets,
-                        health,
-                        mock(io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage.class)),
+                        expectations, nodeRepo, transport, provider, resolver, clocks, queueTargets, health, coverage),
                 seen,
                 health);
     }

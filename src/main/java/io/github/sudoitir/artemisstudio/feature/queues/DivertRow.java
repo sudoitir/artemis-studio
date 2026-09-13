@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.routing;
+package io.github.sudoitir.artemisstudio.feature.queues;
 
 import java.util.UUID;
 import tools.jackson.databind.JsonNode;

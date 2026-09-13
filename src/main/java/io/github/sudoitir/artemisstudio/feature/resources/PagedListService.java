@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.Cons
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ProducerView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.SessionView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;

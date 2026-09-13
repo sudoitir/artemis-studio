@@ -1,6 +1,5 @@
-package io.github.sudoitir.artemisstudio.feature.resources;
+package io.github.sudoitir.artemisstudio.kernel.core;
 
-import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;

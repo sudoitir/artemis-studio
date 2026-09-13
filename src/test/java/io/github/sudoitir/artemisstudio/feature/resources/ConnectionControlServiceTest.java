@@ -14,9 +14,9 @@ import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlServi
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionOperations.ConnectionSnapshot;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;

@@ -2,8 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.resources.mcp;
 
 import io.github.sudoitir.artemisstudio.feature.resources.CrossNodeAggregator;
 import io.github.sudoitir.artemisstudio.feature.resources.PagedListService;
-import io.github.sudoitir.artemisstudio.feature.resources.ResourceQuery;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpProperties;

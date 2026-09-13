@@ -5,7 +5,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessageService;
 import io.github.sudoitir.artemisstudio.feature.messages.MessageService.Outcome;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.MessageActionRequest;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.SendMessageRequest;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpViews;

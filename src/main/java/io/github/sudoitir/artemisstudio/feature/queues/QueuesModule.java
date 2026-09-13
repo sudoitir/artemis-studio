@@ -16,6 +16,7 @@ public final class QueuesModule {
             .permission(new PermissionDef(QueuePermissions.QUEUE_DELETE, "Destroy queues and addresses"))
             .permission(new PermissionDef(QueuePermissions.QUEUE_UPDATE, "Change a queue's configuration"))
             .permission(new PermissionDef(QueuePermissions.QUEUE_PAUSE, "Pause and resume queues"))
+            .permission(new PermissionDef(QueuePermissions.DIVERT_WRITE, "Create and delete diverts"))
             .apiPrefix("/api/v1/clusters/{clusterId}/queues")
             .apiPrefix("/api/v1/clusters/{clusterId}/addresses")
             .mcpTool(new McpToolDef(

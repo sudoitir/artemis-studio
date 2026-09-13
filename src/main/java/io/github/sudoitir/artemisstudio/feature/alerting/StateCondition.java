@@ -1,8 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeMapper;
@@ -42,7 +40,7 @@ public class StateCondition implements AlertCondition {
     private final BrokerNodeMapper nodeMapper;
     private final HaStateEvaluator evaluator;
     private final SplitBrainRegistry splitBrainRegistry;
-    private final BrokerConfigNodeStateRepository configStates;
+    private final List<AlertSignalSource> signals;
 
     @Override
     public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
@@ -53,8 +51,7 @@ public class StateCondition implements AlertCondition {
             case "REPLICATION_BEHIND" -> replicationBehind(rows);
             case "CLUSTER_DEGRADED" -> clusterDegraded(clusterId, rows);
             case "CLOCK_SKEW" -> clockSkew(clusterId, rows);
-            case "CONFIG_DRIFT" -> configDrift(clusterId);
-            default -> Evaluation.EMPTY;
+            default -> signal(rule.getStateCondition(), clusterId);
         };
     }
 
@@ -144,26 +141,14 @@ public class StateCondition implements AlertCondition {
     }
 
     /**
-     * A node whose last configuration evaluation found drift (ADR-0067 D8). Read
-     * from the recorded per-node state, never from a broker: the alert is a view of
-     * the last evaluation, at the interval the operator set. Only evaluated nodes are
-     * in the universe — one that was unreachable or not live cannot resolve a firing
-     * on the strength of no evidence.
+     * A condition another module owns, such as {@code CONFIG_DRIFT}, answered by its
+     * {@link AlertSignalSource}. Nothing is active while that module is disabled.
      */
-    private Evaluation configDrift(UUID clusterId) {
-        Set<String> universe = new HashSet<>();
-        Map<String, Double> active = new HashMap<>();
-        for (BrokerConfigNodeStateEntity state : configStates.findByClusterId(clusterId)) {
-            BrokerConfigNodeStateEntity.State s = state.state();
-            if (s != BrokerConfigNodeStateEntity.State.IN_SYNC && s != BrokerConfigNodeStateEntity.State.DRIFTED) {
-                continue;
-            }
-            String key = "node:" + state.getNodeId();
-            universe.add(key);
-            if (s == BrokerConfigNodeStateEntity.State.DRIFTED) {
-                active.put(key, 1.0);
-            }
-        }
-        return new Evaluation(Set.copyOf(universe), Map.copyOf(active));
+    private Evaluation signal(String condition, UUID clusterId) {
+        return signals.stream()
+                .filter(s -> s.condition().equals(condition))
+                .findFirst()
+                .map(s -> s.evaluate(clusterId))
+                .orElse(Evaluation.EMPTY);
     }
 }

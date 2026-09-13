@@ -2,9 +2,9 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.DivertDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig.AddressUsage;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
-import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
-import io.github.sudoitir.artemisstudio.feature.routing.DivertRow;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;

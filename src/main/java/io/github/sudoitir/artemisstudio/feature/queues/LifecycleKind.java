@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
-import io.github.sudoitir.artemisstudio.feature.routing.RoutingPermissions;
-
 /**
  * The lifecycle operations Studio exposes (ADR-0049). One enum shared by the HTTP
  * API and the single MCP {@code queue_lifecycle} tool, so a kind cannot be
@@ -25,8 +23,8 @@ public enum LifecycleKind {
     RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", "QUEUE", QueuePermissions.QUEUE_UPDATE, false),
     CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_CREATE, false),
     DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_DELETE, true),
-    CREATE_DIVERT("CREATE_DIVERT", "DIVERT", RoutingPermissions.DIVERT_WRITE, false),
-    DELETE_DIVERT("DELETE_DIVERT", "DIVERT", RoutingPermissions.DIVERT_WRITE, true);
+    CREATE_DIVERT("CREATE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, false),
+    DELETE_DIVERT("DELETE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, true);
 
     private final String auditName;
     private final String targetType;

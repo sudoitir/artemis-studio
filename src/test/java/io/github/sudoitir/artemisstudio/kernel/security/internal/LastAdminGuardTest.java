@@ -4,9 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
-import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
@@ -51,10 +50,7 @@ class LastAdminGuardTest {
     PasswordEncoder passwordEncoder;
 
     @Mock
-    AuditService audit;
-
-    @Mock
-    ActorResolver actorResolver;
+    AdministrationAudit audit;
 
     UserService service;
 
@@ -63,7 +59,7 @@ class LastAdminGuardTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserService(users, roles, userRoles, passwordEncoder, audit, actorResolver);
+        service = new UserService(users, roles, userRoles, passwordEncoder, audit);
         adminRole = role(adminRoleId, "ADMIN");
     }
 

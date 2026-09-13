@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.settings;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import java.util.List;
 
 /** Runtime operational settings and deploy-time properties. Module descriptor (ADR-0070). */

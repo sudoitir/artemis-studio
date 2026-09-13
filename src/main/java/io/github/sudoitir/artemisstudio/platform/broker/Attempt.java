@@ -1,6 +1,4 @@
-package io.github.sudoitir.artemisstudio.kernel.core;
-
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+package io.github.sudoitir.artemisstudio.platform.broker;
 
 /**
  * The result of an operation that touches a broker and must record an audit

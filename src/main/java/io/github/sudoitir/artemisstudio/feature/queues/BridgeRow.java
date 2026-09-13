@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.routing;
+package io.github.sudoitir.artemisstudio.feature.queues;
 
 import java.util.ArrayList;
 import java.util.List;

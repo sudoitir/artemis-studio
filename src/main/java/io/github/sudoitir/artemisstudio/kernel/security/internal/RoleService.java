@@ -1,10 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
-import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
@@ -35,8 +34,7 @@ public class RoleService {
     private final RolePermissionRepository rolePermissions;
     private final FeatureRegistry features;
     private final UserRoleRepository userRoles;
-    private final AuditService audit;
-    private final ActorResolver actorResolver;
+    private final AdministrationAudit audit;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -60,9 +58,7 @@ public class RoleService {
         }
         RoleEntity role = roles.save(new RoleEntity(request.name(), false));
         savePermissions(role.getId(), request.permissions());
-        audit.succeed(
-                audit.begin(actorResolver.resolve(), "ROLE_CREATE", "role", role.getName(), null, null, null, false),
-                1);
+        audit.changed("ROLE_CREATE", "role", role.getName(), null);
         return toView(role);
     }
 
@@ -74,9 +70,7 @@ public class RoleService {
         roles.save(role);
         rolePermissions.deleteByIdRoleId(roleId);
         savePermissions(roleId, request.permissions());
-        audit.succeed(
-                audit.begin(actorResolver.resolve(), "ROLE_UPDATE", "role", role.getName(), null, null, null, false),
-                1);
+        audit.changed("ROLE_UPDATE", "role", role.getName(), null);
         return toView(role);
     }
 
@@ -88,9 +82,7 @@ public class RoleService {
             throw new ConflictException("role-in-use", "This role is still granted to at least one user.");
         }
         roles.delete(role); // cascades role_permission
-        audit.succeed(
-                audit.begin(actorResolver.resolve(), "ROLE_DELETE", "role", role.getName(), null, null, null, false),
-                1);
+        audit.changed("ROLE_DELETE", "role", role.getName(), null);
     }
 
     private void savePermissions(UUID roleId, List<String> permissions) {

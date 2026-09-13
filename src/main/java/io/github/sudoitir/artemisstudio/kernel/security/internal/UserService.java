@@ -1,9 +1,8 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
-import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
@@ -40,8 +39,7 @@ public class UserService {
     private final RoleRepository roles;
     private final UserRoleRepository userRoles;
     private final PasswordEncoder passwordEncoder;
-    private final AuditService audit;
-    private final ActorResolver actorResolver;
+    private final AdministrationAudit audit;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -60,10 +58,7 @@ public class UserService {
                 AppUserEntity.local(request.username(), request.email(), passwordEncoder.encode(request.password()));
         user.setMustChangePassword(true);
         users.save(user);
-        audit.succeed(
-                audit.begin(
-                        actorResolver.resolve(), "USER_CREATE", "user", user.getUsername(), null, null, null, false),
-                1);
+        audit.changed("USER_CREATE", "user", user.getUsername(), null);
         return toView(user);
     }
 
@@ -76,17 +71,7 @@ public class UserService {
         }
         user.setDisabled(disabled);
         users.save(user);
-        audit.succeed(
-                audit.begin(
-                        actorResolver.resolve(),
-                        disabled ? "USER_DISABLE" : "USER_ENABLE",
-                        "user",
-                        user.getUsername(),
-                        null,
-                        null,
-                        null,
-                        false),
-                1);
+        audit.changed(disabled ? "USER_DISABLE" : "USER_ENABLE", "user", user.getUsername(), null);
         return toView(user);
     }
 
@@ -98,17 +83,11 @@ public class UserService {
                 roles.findById(request.roleId()).orElseThrow(() -> new NotFoundException("role", request.roleId()));
         UUID scopeId = request.scopeId() != null ? request.scopeId() : ScopeIds.GLOBAL;
         userRoles.save(new UserRoleEntity(userId, role.getId(), request.scopeType(), scopeId));
-        audit.succeed(
-                audit.begin(
-                        actorResolver.resolve(),
-                        "GRANT_ADD",
-                        "user",
-                        user.getUsername(),
-                        null,
-                        null,
-                        Map.of("role", role.getName(), "scopeType", request.scopeType()),
-                        false),
-                1);
+        audit.changed(
+                "GRANT_ADD",
+                "user",
+                user.getUsername(),
+                Map.of("role", role.getName(), "scopeType", request.scopeType()));
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -129,17 +108,8 @@ public class UserService {
         }
 
         userRoles.deleteById(new UserRoleEntity(userId, roleId, scopeType, resolvedScopeId).getId());
-        audit.succeed(
-                audit.begin(
-                        actorResolver.resolve(),
-                        "GRANT_REMOVE",
-                        "user",
-                        user.getUsername(),
-                        null,
-                        null,
-                        Map.of("role", role.getName(), "scopeType", scopeType),
-                        false),
-                1);
+        audit.changed(
+                "GRANT_REMOVE", "user", user.getUsername(), Map.of("role", role.getName(), "scopeType", scopeType));
     }
 
     private void guardNotLastAdmin(AppUserEntity user, String verb) {

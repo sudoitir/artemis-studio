@@ -4,10 +4,9 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateA
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
-import io.github.sudoitir.artemisstudio.feature.routing.DivertOperations;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;

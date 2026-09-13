@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigInvalidException;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.HazardNotAcknowledgedException;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -74,14 +72,6 @@ public final class McpErrors {
                     + ". Re-run with override=true to proceed, or narrow the filter to stay under the cap.");
         } catch (ConflictException e) {
             return error(e.getMessage());
-        } catch (HazardNotAcknowledgedException e) {
-            // The ids are the whole point: a model re-runs with exactly these.
-            return error(e.getMessage() + " Pass them comma-separated in acknowledge.");
-        } catch (BrokerConfigInvalidException e) {
-            return error("The declaration is invalid: "
-                    + e.violations().stream()
-                            .map(v -> v.path() + ": " + v.message())
-                            .collect(java.util.stream.Collectors.joining("; ")));
         } catch (BrokerConnectionException e) {
             return error("The broker could not be reached: " + e.kind().defaultMessage()
                     + " The cluster may be down, or its management URL may be wrong.");
@@ -94,6 +84,9 @@ public final class McpErrors {
             // caught by the catch-all below.
             throw e;
         } catch (RuntimeException e) {
+            if (e instanceof McpReportable reportable) {
+                return error(reportable.mcpMessage());
+            }
             // Anything unmapped is a bug, and its message is written for a log reader,
             // not for a model — it may name internals the caller has no business
             // seeing. The stack trace goes to the log; the caller gets a sentence it

@@ -3,7 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.resources.web;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlService;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlService.CloseResult;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ConnectionViews.ConnectionCloseView;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

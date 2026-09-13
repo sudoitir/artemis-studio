@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
-import io.github.sudoitir.artemisstudio.feature.events.BrokerEventReaper;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -11,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Nightly trim of {@code rr_flow} rows past the retention window
  * ({@code artemis-studio.rr.retention}). {@code rr_event} cascades on
  * {@code rr_flow} deletion (007-request-reply.sql), so deleting the flow is
- * enough. Mirrors {@link BrokerEventReaper}.
+ * enough. Mirrors {@code BrokerEventReaper}.
  */
 @Component
 @Slf4j

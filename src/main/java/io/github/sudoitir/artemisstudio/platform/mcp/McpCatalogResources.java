@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiffService;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews;
@@ -33,7 +31,6 @@ import org.springframework.stereotype.Component;
 public class McpCatalogResources {
 
     private final ClusterService clusters;
-    private final ConfigDiffService configDiff;
     private final McpToolCatalog catalog;
 
     @McpResource(
@@ -128,31 +125,6 @@ public class McpCatalogResources {
         entries.add(entry("messageIo", c.messageIo()));
         entries.add(entry("slowConsumerDetection", c.slowConsumerDetection()));
         return json("cluster://" + clusterId + "/capabilities", entries);
-    }
-
-    /**
-     * One node's effective broker settings, as a resource rather than a tool.
-     *
-     * <p>A resource because this is something to look at, not an action to take —
-     * and because a host fetches a resource once and keeps it, where a tool is paid
-     * for in the listing on every conversation whether or not anyone asks about
-     * settings (ADR-0050). Node ids come from {@code cluster://{id}/topology}.
-     *
-     * <p>These are the settings the node is <em>running with</em>, resolved by the
-     * broker. Studio never reads or writes {@code broker.xml}, and this does not
-     * mutate anything.
-     */
-    @McpResource(
-            uri = "cluster://{clusterId}/nodes/{nodeId}/settings",
-            name = "Node settings",
-            description = "One node's effective broker configuration: broker attributes, address settings, "
-                    + "security settings and acceptors, as the broker resolves them.",
-            mimeType = "application/json")
-    public McpSchema.ReadResourceResult nodeSettings(String clusterId, String nodeId) {
-        UUID id = McpArgs.uuid("clusterId", clusterId);
-        UUID node = McpArgs.uuid("nodeId", nodeId);
-        ConfigViews.NodeConfigView view = configDiff.nodeConfig(id, node);
-        return json("cluster://" + clusterId + "/nodes/" + nodeId + "/settings", view);
     }
 
     private static McpViews.CapabilityEntry entry(String name, ClusterViews.CapabilityView v) {

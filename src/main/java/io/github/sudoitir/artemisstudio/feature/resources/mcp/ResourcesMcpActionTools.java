@@ -3,7 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.resources.mcp;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionCloseKind;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlService;
 import io.github.sudoitir.artemisstudio.feature.resources.ConnectionControlService.CloseResult;
-import io.github.sudoitir.artemisstudio.kernel.core.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;

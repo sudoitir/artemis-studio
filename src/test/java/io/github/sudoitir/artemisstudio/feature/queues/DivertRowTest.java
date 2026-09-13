@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.feature.routing;
+package io.github.sudoitir.artemisstudio.feature.queues;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

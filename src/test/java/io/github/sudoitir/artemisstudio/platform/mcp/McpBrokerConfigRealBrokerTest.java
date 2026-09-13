@@ -107,7 +107,7 @@ class McpBrokerConfigRealBrokerTest extends PostgresIntegrationTest {
                         ArtemisIntegrationTest.BROKER_USER, ArtemisIntegrationTest.BROKER_PASSWORD),
                 null,
                 null));
-        if (!(attempt instanceof io.github.sudoitir.artemisstudio.kernel.core.Attempt.Ok<ClusterDetail> ok)) {
+        if (!(attempt instanceof io.github.sudoitir.artemisstudio.platform.broker.Attempt.Ok<ClusterDetail> ok)) {
             throw new IllegalStateException("could not register the container broker: " + attempt);
         }
         clusterId = ok.value().id();

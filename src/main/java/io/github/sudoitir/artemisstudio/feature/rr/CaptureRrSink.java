@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpect
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.CaptureBus;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ConditionalOnFeature;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreDestinationName;
 import jakarta.annotation.PostConstruct;
 import java.time.Instant;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Component;
  * cannot be pre-diverted; those flows stay notification-derived, as they were.
  */
 @Component
+@ConditionalOnFeature("sql")
 @RequiredArgsConstructor
 public class CaptureRrSink implements CaptureBus.Listener {
 

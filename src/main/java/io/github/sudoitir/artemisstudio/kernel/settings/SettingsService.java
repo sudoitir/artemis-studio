@@ -123,7 +123,7 @@ public class SettingsService {
     // ---- read / write -----------------------------------------------------
 
     /** Every operator-tunable key of the enabled modules: its effective value, its default, and how to render it. */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions).SETTINGS_READ)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
     public Map<String, SettingValue> effective() {
         Map<String, String> stored = overrides;
         Map<String, SettingValue> out = new LinkedHashMap<>();
@@ -152,7 +152,7 @@ public class SettingsService {
      * value never becomes a transaction, so a {@code begin}/{@code fail} pair around it
      * would roll back with everything else and record nothing.
      */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions).SETTINGS_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_WRITE)")
     @Transactional
     public void put(String key, String rawValue) {
         SettingDef spec = requireKnown(key);
@@ -177,7 +177,7 @@ public class SettingsService {
     }
 
     /** Clears the override so the packaged default takes over again. Audited like {@link #put}. */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.settings.SettingsPermissions).SETTINGS_WRITE)")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_WRITE)")
     @Transactional
     public void reset(String key) {
         SettingDef spec = requireKnown(key);

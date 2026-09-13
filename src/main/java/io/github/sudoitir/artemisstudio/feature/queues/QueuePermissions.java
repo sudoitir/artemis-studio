@@ -10,6 +10,7 @@ public final class QueuePermissions {
     public static final String QUEUE_UPDATE = "queue:update";
 
     public static final String QUEUE_PAUSE = "queue:pause";
+    public static final String DIVERT_WRITE = "divert:write";
 
     private QueuePermissions() {}
 }
