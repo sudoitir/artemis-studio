@@ -3,9 +3,60 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import boundaries from 'eslint-plugin-boundaries';
+
+// Module boundaries (ADR-0074). `warn` while the tree moves into kernel/ui/
+// features/app; switched to `error` once every folder lives in its element.
+const featureEdges = {
+  rr: ['queues', 'clusters'],
+  sql: ['messages', 'clusters'],
+};
 
 export default tseslint.config(
   { ignores: ['dist', 'node_modules'] },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: { boundaries },
+    settings: {
+      'boundaries/elements': [
+        { type: 'kernel', pattern: 'src/kernel' },
+        { type: 'ui', pattern: 'src/ui' },
+        { type: 'app', pattern: 'src/app' },
+        { type: 'test', pattern: 'src/test' },
+        { type: 'feature', pattern: 'src/features/*', capture: ['id'] },
+      ],
+      'boundaries/files': [
+        { pattern: 'src/features/*/index.ts', category: 'entry' },
+      ],
+    },
+    rules: {
+      'boundaries/dependencies': [
+        'warn',
+        {
+          default: 'disallow',
+          policies: [
+            { from: { element: { type: 'ui' } }, allow: { to: { element: { type: 'ui' } } } },
+            { from: { element: { type: 'kernel' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
+            { from: { element: { type: ['app', 'test'] } }, allow: { to: { element: { type: '*' } } } },
+            {
+              from: { element: { type: 'feature' } },
+              allow: {
+                to: [
+                  { element: { type: ['kernel', 'ui'] } },
+                  { element: { type: 'feature', captured: { id: '{{ from.element.captured.id }}' } } },
+                  { element: { type: 'feature', captured: { id: 'clusters' } }, file: { categories: 'entry' } },
+                ],
+              },
+            },
+            ...Object.entries(featureEdges).map(([from, to]) => ({
+              from: { element: { type: 'feature', captured: { id: from } } },
+              allow: { to: { element: { type: 'feature', captured: { id: to } }, file: { categories: 'entry' } } },
+            })),
+          ],
+        },
+      ],
+    },
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

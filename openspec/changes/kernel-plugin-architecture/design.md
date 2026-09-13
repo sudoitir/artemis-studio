@@ -48,7 +48,7 @@ See `proposal.md` (Why) for motivation. Current state:
 
 Modules are packages, verified by `ApplicationModules.of(ArtemisStudioApplication.class).verify()` together with ArchUnit rules in `src/test/java/.../architecture/`. Each module declares `@ApplicationModule(allowedDependencies = …)` in `package-info.java` and exposes named interfaces `api` (types you call), `spi` (types you implement) and `events` (records you listen to). Everything else is internal.
 
-Module detection for the nested `kernel/`, `platform/` and `feature/` packages uses explicitly annotated modules; the exact property is confirmed through ctx7 in task 1.
+Module detection for the nested `kernel/`, `platform/` and `feature/` packages uses `spring.modulith.detection-strategy=explicitly-annotated`, which considers only packages carrying `@ApplicationModule` (confirmed via ctx7, task 1.1).
 
 - *Alternative:* a Maven multi-module build gives compiler-enforced boundaries, but costs about 25 poms, slower builds and duplicated Lombok, MapStruct and Spotless setup. Rejected by the maintainer.
 - *Alternative:* ArchUnit alone would mean hand-writing cycle detection and internal-package rules that Modulith already provides.

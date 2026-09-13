@@ -1,6 +1,6 @@
 # ADR-0034: Navigation is a two-section collapsible sidebar
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0070](0070-extension-contract-and-feature-manifest.md) (navigation groups)
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 

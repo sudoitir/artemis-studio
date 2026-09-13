@@ -1,3 +1,7 @@
+> **Parked** behind `kernel-plugin-architecture`. Once that change lands, rewrite
+> `tasks.md` against the `feature/messages` module and `BrokerCommands`
+> (ADR-0069, ADR-0071) before applying.
+
 ## Why
 
 "Message replay from a captured payload" is on the v1.0 roadmap, and it is the verb

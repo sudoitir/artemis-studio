@@ -1,6 +1,6 @@
 # ADR-0008: Schema migrations with Liquibase (XML master, SQL changesets)
 
-- **Status**: accepted
+- **Status**: accepted; history continuity superseded by [ADR-0072](0072-per-module-schema-ownership-and-rebaseline.md)
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
 

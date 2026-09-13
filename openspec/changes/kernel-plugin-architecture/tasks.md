@@ -4,16 +4,16 @@ Each group ends with `just verify` green and is committed on its own. Pure moves
 
 ## 1. Groundwork
 
-- [ ] 1.1 Confirm via ctx7 which Spring Modulith 2.1 setting detects explicitly annotated modules in nested `kernel/`, `platform/` and `feature/` packages. Record the answer in design D1, or apply its fallback.
-- [ ] 1.2 Write ADR-0069 (kernel + plugin modular monolith, Modulith, build-time composition, startup toggles) and add its index row.
-- [ ] 1.3 Write ADR-0070 (extension contract v1, manifest, slots, closed nav-group catalogue; amends ADR-0034).
-- [ ] 1.4 Write ADR-0071 (broker writes only through `BrokerCommands`; formalises ADR-0022 and ADR-0049).
-- [ ] 1.5 Write ADR-0072 (per-module schema ownership and one-time re-baseline; supersedes the history-continuity part of ADR-0008; audit foreign keys removed). Mark ADR-0008 accordingly.
-- [ ] 1.6 Write ADR-0073 (identity provider SPI and provider-keyed provisioning; supersedes ADR-0040's mapping model). Mark ADR-0040 accordingly.
-- [ ] 1.7 Write ADR-0074 (frontend module boundaries with eslint-plugin-boundaries).
-- [ ] 1.8 Add `spring-modulith-starter-core` and `spring-modulith-starter-test` (2.1.1, via the BOM) to `pom.xml`, and `eslint-plugin-boundaries@7.2.0` to `web/package.json`.
-- [ ] 1.9 Add `architecture/ModularityTest` in report mode, writing the current violation list to the build output. Add the boundaries rule to `web/eslint.config.js` at `warn`.
-- [ ] 1.10 Add a note to `openspec/changes/03-message-replay-from-payload/proposal.md` that it is parked behind this change.
+- [x] 1.1 Confirm via ctx7 which Spring Modulith 2.1 setting detects explicitly annotated modules in nested `kernel/`, `platform/` and `feature/` packages. Record the answer in design D1, or apply its fallback.
+- [x] 1.2 Write ADR-0069 (kernel + plugin modular monolith, Modulith, build-time composition, startup toggles) and add its index row.
+- [x] 1.3 Write ADR-0070 (extension contract v1, manifest, slots, closed nav-group catalogue; amends ADR-0034).
+- [x] 1.4 Write ADR-0071 (broker writes only through `BrokerCommands`; formalises ADR-0022 and ADR-0049).
+- [x] 1.5 Write ADR-0072 (per-module schema ownership and one-time re-baseline; supersedes the history-continuity part of ADR-0008; audit foreign keys removed). Mark ADR-0008 accordingly.
+- [x] 1.6 Write ADR-0073 (identity provider SPI and provider-keyed provisioning; supersedes ADR-0040's mapping model). Mark ADR-0040 accordingly.
+- [x] 1.7 Write ADR-0074 (frontend module boundaries with eslint-plugin-boundaries).
+- [x] 1.8 Add the Spring Modulith 2.1.1 BOM, `spring-modulith-api` (annotations only) and `spring-modulith-starter-test` to `pom.xml`, and `eslint-plugin-boundaries@7.2.0` to `web/package.json`.
+- [x] 1.9 Add `architecture/ModularityTest` in report mode, writing the current violation list to the build output. Add the boundaries rule to `web/eslint.config.js` at `warn`.
+- [x] 1.10 Add a note to `openspec/changes/03-message-replay-from-payload/proposal.md` that it is parked behind this change.
 
 ## 2. Kernel contract and composition root
 
