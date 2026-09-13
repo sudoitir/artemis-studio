@@ -47,7 +47,7 @@ public final class McpErrors {
      * The one denial message for anything addressed by a cluster id. It names no
      * permission and does not confirm the id exists — both halves are load-bearing.
      */
-    static final String CLUSTER_DENIED = "No such cluster, or this key has no grant on it.";
+    public static final String CLUSTER_DENIED = "No such cluster, or this key has no grant on it.";
 
     private static final Logger LOG = LoggerFactory.getLogger(McpErrors.class);
 
@@ -59,7 +59,7 @@ public final class McpErrors {
      * Runs a tool body, turning any known failure into a {@code CallToolResult}
      * the model can act on. Every tool in this package goes through here.
      */
-    static McpSchema.CallToolResult guard(Supplier<Object> body) {
+    public static McpSchema.CallToolResult guard(Supplier<Object> body) {
         try {
             return ok(body.get());
         } catch (NotFoundException e) {
@@ -105,7 +105,7 @@ public final class McpErrors {
     }
 
     /** A JSON-RPC {@code -32602}: the call itself was malformed. */
-    static McpError invalidParams(String message) {
+    public static McpError invalidParams(String message) {
         return McpError.builder(McpSchema.ErrorCodes.INVALID_PARAMS)
                 .message(message)
                 .build();
@@ -115,14 +115,14 @@ public final class McpErrors {
      * A successful result: the typed projection as {@code structuredContent}, plus
      * the same JSON echoed as text for clients that do not read structured output.
      */
-    static McpSchema.CallToolResult ok(Object value) {
+    public static McpSchema.CallToolResult ok(Object value) {
         return McpSchema.CallToolResult.builder()
                 .structuredContent(value)
                 .addTextContent(json(value))
                 .build();
     }
 
-    static McpSchema.CallToolResult error(String message) {
+    public static McpSchema.CallToolResult error(String message) {
         return McpSchema.CallToolResult.builder()
                 .isError(true)
                 .addTextContent(message)
@@ -130,7 +130,7 @@ public final class McpErrors {
     }
 
     /** Parses a JSON-object argument. A malformed one is a malformed call, not a failed operation. */
-    static <T> T parse(String field, String raw, Class<T> type) {
+    public static <T> T parse(String field, String raw, Class<T> type) {
         try {
             return JSON.readValue(raw, type);
         } catch (RuntimeException e) {
@@ -138,7 +138,7 @@ public final class McpErrors {
         }
     }
 
-    static String json(Object value) {
+    public static String json(Object value) {
         return JSON.writeValueAsString(value);
     }
 }

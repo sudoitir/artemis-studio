@@ -163,7 +163,7 @@ class McpToolSchemaBudgetTest extends PostgresIntegrationTest {
      * {@code destructiveHint}, so a read reachable through a tool that can also
      * destroy data makes every read prompt the operator — which is how an operator
      * is trained to reflex-approve the purge. The split between
-     * {@code McpDiagnosticTools} and {@code McpTuningTools} is the structural
+     * each module's read and action tool classes is the structural
      * guarantee; this asserts the declarations match it.
      */
     @Test

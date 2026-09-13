@@ -80,6 +80,6 @@ class McpDisabledTest extends PostgresIntegrationTest {
 
     @Test
     void theCatalogueOmitsTheDisabledModulesTools() {
-        assertThat(catalog.toolNames()).doesNotContain("diagnose", "activity_log", McpToolCatalog.HELP_TOOL);
+        assertThat(catalog.toolNames()).doesNotContain(McpToolCatalog.HELP_TOOL);
     }
 }

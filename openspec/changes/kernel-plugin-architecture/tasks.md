@@ -73,7 +73,7 @@ Each task below does the same four things:
 - [ ] 5.8 `rr`: resolvers, sampler, correlator, metrics, notification observer, deadline sweep, domain, persistence and controller. Its capture listener loads only when `sql` is enabled. Topic `rr`, MCP tool `trace_request_reply`.
 - [ ] 5.9 `sql`: console, index, capture tap/consumer/bus/reconciler, index writer and partitions, controllers, `SqlQueryTickets` and the per-request tail stream. Define `spi.CaptureListener`.
 - [ ] 5.10 `brokerconfig`: operations, domain, config diff, `ConfigReader`, services, persistence and controllers. Implement `AlertSignalSource` for drift. Topic `config`; MCP tools `broker_config`, `config_diff`, `broker_config_change`.
-- [ ] 5.11 `triage`: split `diagnose` and `activity_log` out of `McpDiagnosticTools`, and delete `McpDiagnosticTools`/`McpTuningTools` once every tool lives in its feature.
+- [x] 5.11 `triage`: split `diagnose` and `activity_log` out of `McpDiagnosticTools`, and delete `McpDiagnosticTools`/`McpTuningTools` once every tool lives in its feature.
 - [ ] 5.12 Declare `ScheduledJob` beans for every former `DynamicSchedules` task in its owning module, and delete the central task list.
 - [ ] 5.13 Switch `ModularityTest` to failing and add `BoundaryRulesTest` (design D6).
 - [ ] 5.14 Add an `@ApplicationModuleTest` per feature bootstrapping direct dependencies only.

@@ -83,5 +83,9 @@
     "id" : "stream",
     "kind" : "KERNEL",
     "required" : true
+  }, {
+    "id" : "triage",
+    "kind" : "FEATURE",
+    "required" : false
   } ]
 }
