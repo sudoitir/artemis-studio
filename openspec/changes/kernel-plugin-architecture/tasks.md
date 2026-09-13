@@ -156,18 +156,18 @@ Each task moves the folder to `features/<id>/` with its tests, adds `feature.ts`
 
 ## 11. Documentation and release notes
 
-- [ ] 11.1 Add a `DocumentationTest` that writes Spring Modulith module canvases and diagrams to `docs/modules/`.
-- [ ] 11.2 Rewrite `docs/architecture.md` for kernel, platform and features: contract, dependency graph, broker command path, identity SPI, schema ownership.
-- [ ] 11.3 Update `CLAUDE.md`:
+- [x] 11.1 Add a `DocumentationTest` that writes Spring Modulith module canvases and diagrams to `docs/modules/`.
+- [x] 11.2 Rewrite `docs/architecture.md` for kernel, platform and features: contract, dependency graph, broker command path, identity SPI, schema ownership.
+- [x] 11.3 Update `CLAUDE.md`:
   - package layout;
   - where a new feature goes;
   - the re-baseline note beside non-negotiable #7.
-- [ ] 11.4 Update `.claude/rules/20-frontend.md`:
+- [x] 11.4 Update `.claude/rules/20-frontend.md`:
   - slots, nav groups and boundaries;
   - `ui/` in place of `shared/`;
   - reuse paths.
-- [ ] 11.5 Update `README.md`, `site/` guide pages and `docs/dockerhub.md` where they describe run instructions or layout.
-- [ ] 11.6 Finalise `changelog/unreleased.md`:
+- [x] 11.5 Update `README.md`, `site/` guide pages and `docs/dockerhub.md` where they describe run instructions or layout.
+- [x] 11.6 Finalise `changelog/unreleased.md`:
   - database reset steps and what to re-register;
   - group-mapping endpoint rename;
   - login request provider field;

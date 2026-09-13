@@ -112,14 +112,15 @@ Each feature has exactly one `<Id>Feature` `@Configuration`, which carries `@Con
 
 | Today | Becomes |
 |---|---|
-| `ClusterService` → `AlertRuleRepository` | `clusters::events.ClusterRemoving` (sync, in transaction), handled by alerting, rr, sql, brokerconfig and events |
-| `ClusterService` → Core subscriptions and pools | `ClusterRemoved` (after commit), handled by broker |
+| `ClusterService` → `AlertRuleRepository` (built-in rules on registration) | `clusters.ClusterRegistered`, handled by alerting (`BuiltinAlertRules`) |
+| Removing a cluster's rows in other modules | `ON DELETE CASCADE` foreign keys onto `cluster`, each along an allowed dependency edge (`SchemaOwnershipTest`); no removal event is needed |
+| `ClusterService` → Core subscriptions and pools | `BrokerSessions.release(clusterId)`, a clusters → broker call along the allowed edge |
 | `ScrapeScheduler` → `AlertEvaluator` | `scrape::events.ScrapeTierCompleted(clusterId, tier)`, handled synchronously by alerting, so ordering is unchanged |
 | `BrokerConnections` → cluster, credential and TLS repositories | `broker::spi.ConnectionSettingsSource`, implemented by clusters |
 | `PermissionResolver` → `ClusterEnvironmentIndex` | `security::spi.ScopeHierarchy`, implemented by clusters |
 | `SettingsService` → `BrokerClientFactory.setTimeouts` | `SettingDef.apply`, declared by broker |
 | `BrokerConfigDriftService` → alert `CONFIG_DRIFT` | `alerting::spi.AlertSignalSource`, implemented by brokerconfig |
-| Capture sinks for index and request-reply | `sql::spi.CaptureListener`; rr's listener loads only when sql is enabled |
+| Capture sinks for index and request-reply | `sql.CaptureBus.Listener`; rr's `CaptureRrSink` is `@ConditionalOnFeature("sql")`, so rr runs without sql |
 | Frontend `RegisterCluster` → `brokerconfig/RecommendedConfiguration` | slot `cluster.registration.afterProbe` |
 | Frontend `QueueDetailDrawer` → metrics charts | slot `queue.detail.panels` |
 | Frontend `MetricsView` → `rr/LatencyPanel` | slot `metrics.panels` |

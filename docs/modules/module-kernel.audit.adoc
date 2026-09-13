@@ -1,0 +1,18 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.audit`
+|Spring components
+|_Controllers_
+
+* `i.g.s.a.k.a.web.AuditController`
+
+_Services_
+
+* `i.g.s.a.k.a.AuditQueryService`
+* `i.g.s.a.k.a.AuditService`
+|Bean references
+|* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.ScopeHierarchy` (in Security)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+|===

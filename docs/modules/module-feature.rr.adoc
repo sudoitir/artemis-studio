@@ -1,0 +1,41 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.rr`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.r.RequestReplyService`
+* `i.g.s.a.f.r.RrObservationSink` (via `i.g.s.a.f.r.RrCorrelator`)
+* `i.g.s.a.f.r.RrMetrics`
+
+_Configuration properties_
+
+* `i.g.s.a.f.r.RrProperties`
+
+_Others_
+
+* `i.g.s.a.f.r.CaptureRrSink`
+* `i.g.s.a.f.r.QueueTargetResolver`
+* `i.g.s.a.f.r.ReplyAddressResolver`
+* `i.g.s.a.f.r.RrDeadlineSweep`
+* `i.g.s.a.f.r.RrFeature`
+* `i.g.s.a.f.r.RrFlowReaper`
+* `i.g.s.a.f.r.RrNotificationObserver`
+* `i.g.s.a.f.r.RrSampler`
+* `i.g.s.a.f.r.RrSamplerHealth`
+* `i.g.s.a.f.r.RrSettings`
+|Bean references
+|* `i.g.s.a.f.s.CaptureBus` (in SQL console)
+* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
+* `i.g.s.a.p.m.McpProperties` (in MCP server)
+|===

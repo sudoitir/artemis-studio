@@ -1,0 +1,27 @@
+@startuml
+title <size:24>Core</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
+  Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

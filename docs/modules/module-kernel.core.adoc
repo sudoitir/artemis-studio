@@ -1,0 +1,5 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.core`
+|===

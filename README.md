@@ -174,7 +174,7 @@ Java 25 · Spring Boot 4.1 · PostgreSQL with Liquibase · React 19 + Vite +
 Mantine 9 · TanStack Router/Query/Table · React Flow · Jolokia HTTP first with
 the Artemis Core client second · SSE · one container image.
 [Architecture](https://sudoitir.github.io/artemis-studio/reference/architecture) ·
-[all 67 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
+[all 74 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
 
 ## Releases
 

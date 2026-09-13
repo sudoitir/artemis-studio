@@ -1,0 +1,62 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.sql`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.s.MessageIndexService`
+* `i.g.s.a.f.s.SqlConsoleService`
+
+_Event listeners_
+
+* `i.g.s.a.f.s.CaptureReconciler`
+
+_Configuration properties_
+
+* `i.g.s.a.f.s.CaptureProperties`
+* `i.g.s.a.f.s.SqlProperties`
+
+_Others_
+
+* `i.g.s.a.f.s.BrokerQueryExecutor`
+* `i.g.s.a.f.s.CaptureBus`
+* `i.g.s.a.f.s.CaptureConsumer`
+* `i.g.s.a.f.s.CaptureCoverage`
+* `i.g.s.a.f.s.CaptureBus.Listener` (via `i.g.s.a.f.s.CaptureIndexSink`)
+* `i.g.s.a.f.s.CaptureLoss`
+* `i.g.s.a.f.s.CaptureTap`
+* `i.g.s.a.f.s.IndexQueryExecutor`
+* `i.g.s.a.f.s.MessageIndexCapture`
+* `i.g.s.a.f.s.MessageIndexCoverage`
+* `i.g.s.a.f.s.MessageIndexPartitionMaintainer`
+* `i.g.s.a.f.s.MessageIndexWriter`
+* `i.g.s.a.f.s.MessagePredicate`
+* `i.g.s.a.f.s.MessageVerifier`
+* `i.g.s.a.f.s.PredicateSplitter`
+* `i.g.s.a.f.s.QueryPlanner`
+* `i.g.s.a.f.s.SelectorRenderer`
+* `i.g.s.a.f.s.SqlFeature`
+* `i.g.s.a.f.s.SqlQueryParser`
+* `i.g.s.a.f.s.SqlTailPoller`
+|Bean references
+|* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.a.p.b.CorePool` (in Broker connectivity)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.p.c.ClusterLock` (in Clusters)
+* `i.g.s.a.k.s.StudioInstance` (in Settings)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.f.q.DivertOperations` (in Queues)
+* `i.g.s.a.f.q.QueueLifecycleOperations` (in Queues)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
+* `i.g.s.a.p.b.JolokiaMessageTransport` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|===

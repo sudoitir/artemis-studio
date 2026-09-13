@@ -1,8 +1,138 @@
 # Architecture
 
-Artemis Studio is one stateless-ish Spring Boot service, a React SPA it serves,
-and a PostgreSQL database. It talks to many Artemis clusters over their standard
-management endpoints.
+Artemis Studio is one Spring Boot service, a React SPA it serves, and a PostgreSQL
+database. It talks to many Artemis clusters over their standard management
+endpoints.
+
+Inside, it is a **modular monolith** (ADR-0069): a small kernel that defines
+contracts, platform modules every feature builds on, and feature modules that plug
+into both. The same module ids name the backend package, the frontend folder, the
+startup toggle and the manifest entry.
+
+## Modules
+
+```
+                 ┌─────────────────────────── features ────────────────────────────┐
+                 │ queues  resources  messages  routing  metrics  alerting  events │
+                 │ rr  sql  brokerconfig  triage   apitokens  identity-local  -oidc │
+                 └───────────────┬───────────────────────────────┬─────────────────┘
+                                 │ api / events / SPI beans      │
+                 ┌───────────────▼────────── platform ───────────▼─────────────────┐
+                 │ broker (Jolokia, Core)  clusters (registration, topology,       │
+                 │ BrokerCommands)  scrape (tiers, snapshots)  mcp (server)         │
+                 └───────────────┬─────────────────────────────────────────────────┘
+                 ┌───────────────▼─────────── kernel ──────────────────────────────┐
+                 │ core  plugin  security  audit  settings  jobs  stream            │
+                 └─────────────────────────────────────────────────────────────────┘
+```
+
+| Layer | Module | Owns |
+|---|---|---|
+| kernel | `core` | branding, clock, problem-JSON errors, OpenAPI, SPA routing |
+| | `plugin` | `FeatureDescriptor`, `@FeatureModule`, the feature registry, `GET /api/v1/manifest`, `404 feature-disabled` |
+| | `security` | principals, grants, `@perm`, `ClusterAccessGuard`, the one filter chain, users and roles, the identity provider SPI |
+| | `audit` | `AuditService` and `audit_event` |
+| | `settings` | the runtime settings registry (`studio_setting`) and the JDBC bootstrap property source |
+| | `jobs` | `ScheduledJob`, the one scheduler, job status and its health |
+| | `stream` | `SseHub`, `GET /api/v1/stream`, the topic registry |
+| platform | `broker` | Jolokia and Core clients, `NodeCallLimiter`, capability probing, notification subscriptions, `MessageTransport` |
+| | `clusters` | registration, nodes, credentials, TLS, environments, discovery, HA and split-brain, serving nodes, the capability ledger, `BrokerCommands` |
+| | `scrape` | the tiered scrape, `queue_snapshot`, `metric_sample` |
+| | `mcp` | the MCP server, the tool catalogue, help, resources and runbook prompts (optional) |
+| feature | everything else | one module per capability, each with its own tables, endpoints, jobs, topics and tools |
+
+The generated module graph and one canvas per module are in `docs/modules/` in the repository,
+written by `DocumentationTest` from the same model `ModularityTest` verifies.
+
+### Composition and toggles
+
+Composition is at build time. `app/StudioFeatures` is the one list of backend
+modules: each module's descriptor, and an `@Import` of each feature's
+`@FeatureModule` configuration. The application scans only `kernel` and `platform`.
+The frontend's `web/src/app/features.ts` is the matching list.
+
+A feature is loaded while `artemis-studio.features.<id>.enabled` is not `false`
+(`ARTEMIS_STUDIO_FEATURES_<ID>_ENABLED`). A disabled feature contributes no beans,
+endpoints, jobs, topics or MCP tools; its API paths answer `404` with problem type
+`feature-disabled`; its screens explain that it is off and name the property. Kernel
+and platform modules are required, and a feature that `requires` another cannot start
+without it. Disabled modules still migrate, so turning one back on is a restart.
+
+`GET /api/v1/manifest` reports every installed module, whether it is enabled, the
+property that enables it, and the permission catalogue. It describes and never
+authorizes.
+
+### The extension contract
+
+A module declares its static facts once, in a `FeatureDescriptor` (ADR-0070): id,
+title, kind, `requires`, permissions, setting keys, stream topics, MCP catalogue
+entries and API path prefixes. Behaviour is contributed as beans of kernel and
+platform types:
+
+| Contribution | Type |
+|---|---|
+| Runtime settings | `SettingsContribution` |
+| Scheduled work | `ScheduledJob` |
+| Broker notifications | `BrokerEventSink` |
+| Checks during cluster registration | `RegistrationCheckContributor` |
+| Alert conditions from another module | `AlertSignalSource` |
+| Captured messages | `CaptureBus.Listener` |
+| Sign-in | `CredentialIdentityProvider`, `RedirectIdentityProvider`, `BearerIdentityProvider` |
+| Health | Spring `HealthIndicator` |
+| Cross-module notification | a record published as an application event, such as `ClusterRegistered` or `ScrapeTierCompleted` |
+
+Endpoints and MCP tools stay ordinary Spring and Spring AI annotations. A module's
+tables are its own Liquibase changelog (below).
+
+### Dependency rules
+
+Each module's `package-info.java` declares `@ApplicationModule(allowedDependencies)`;
+`ModularityTest` fails on a cycle, an undeclared dependency, or a reach into another
+module's `internal` package. `BoundaryRulesTest` adds what Modulith does not see:
+
+- features use only method security from Spring Security; only the security kernel
+  and redirect sign-in see `HttpSecurity`;
+- entities and repositories live in the owning module's `internal.persistence`;
+- Jolokia and Artemis client library types stay inside `platform.broker`;
+- only the stream kernel and the SQL tail hold an `SseEmitter`;
+- scheduling stays in the jobs kernel and the scrape tiers;
+- features never inject the container or enable framework features.
+
+Every feature also has an `@ApplicationModuleTest` that starts it with its direct
+dependencies only, and `FeatureToggleTest` starts Studio once with each optional
+feature disabled.
+
+A kernel module never imports a platform or feature type. Upward needs are inverted:
+the scrape publishes `ScrapeTierCompleted` for alerting, clusters publishes
+`ClusterRegistered` for the built-in alert rules, the security kernel walks the scope
+hierarchy through `ScopeHierarchy` (implemented by clusters), and the broker reads
+connection settings through `ConnectionSettingsSource`.
+
+### Frontend
+
+```
+web/src/
+  kernel/    contract (feature.ts), manifest, slots, nav groups, routing roots,
+             api (request, paging, polling, generated schema), stream, auth, time, shell
+  ui/        shared presentational components (ConfirmByTyping, NodeOutcomeSummary, VirtualTable…)
+  features/  one folder per module id: feature.ts, api.ts, views, tests; index.ts for public exports
+  app/       the composition root: features.ts and router.ts
+  test/      render helpers, the MSW server, manifest fixtures
+```
+
+A feature's `feature.ts` calls `defineFeature` with what it contributes: routes under
+a kernel root, navigation entries in one of the kernel's fixed groups (observe,
+messaging, resources, configuration, activity), palette groups, stream topic
+handlers, and slot contributions. Slots are kernel-owned places another feature's
+component appears: `shell.header`, `shell.navbar`, `home.empty`, `cluster.header`,
+`cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`,
+`topology.node.marks`, `settings.sections`, `admin.tabs`, `account.sections`.
+
+The shell reads the manifest and drops a disabled feature's navigation, slots and
+topics; every feature's routes stay registered so a deep link reaches the page that
+explains the feature is off. `eslint-plugin-boundaries` (ADR-0074) fails the lint when
+the kernel imports a feature, or a feature imports another feature other than through
+its `index.ts` along an allowed edge.
 
 ## Components and data flow
 
@@ -11,7 +141,7 @@ management endpoints.
   Browser           │  React 19 SPA (served from the same jar)     │
   ──────────────────┤  Mantine 9 · TanStack Router/Query/Table     │
                     │  React Flow topology · Mantine charts        │
-                    │  SSE client patches the Query cache          │
+                    │  SSE client invalidates the Query cache      │
                     └───────────────┬─────────────────────────────┘
                           REST + SSE│  same origin, /api/v1
   MCP client                        │
@@ -19,17 +149,7 @@ management endpoints.
    (Bearer as_…)                    │  (ADR-0045, ADR-0046)
                     ┌───────────────▼─────────────────────────────┐
                     │  Spring Boot 4.1 · Java 25                   │
-                    │                                              │
-                    │  web/        controllers, DTOs, SSE hub       │
-                    │  security/   session/token/OIDC auth, RBAC    │
-                    │  broker/     JolokiaBrokerClient ─┐           │
-                    │              CoreEventClient  ────┤ (Phase 4)  │
-                    │              CapabilityProbe      │           │
-                    │  scheduler/  tiered scrape + per-node limiter │
-                    │  domain/     topology, queues, messages, RR,  │
-                    │              alerting conditions + state      │
-                    │  service/    orchestration incl. alert eval   │
-                    │  persist/    Spring Data JDBC + Liquibase     │
+                    │  kernel · platform · features (above)        │
                     └──────┬──────────────────────────────┬────────┘
                            │                              │
                    ┌───────▼────────┐          ┌──────────▼──────────────┐
@@ -51,17 +171,18 @@ via `studio_setting`; the values below are the defaults.
 | C | one `listQueues` page per node per tick, walking the whole set, then reaping removed queues | 5m |
 
 Each tick is **one Jolokia POST per node** (the resolved broker MBean name is
-cached process-wide, so a tick no longer pays an extra `search`). Artemis 2.44's
+cached process-wide, so a tick does not pay an extra `search`). Artemis 2.44's
 `sortColumn` / `GREATER_THAN` options both 500 with an NPE
 (`docs/broker-management-notes.md` §10), so there is no broker-sorted "hot page":
-tier B is best-effort speed on page 1, tier C is the coverage guarantee. A
-per-node permit bucket (`NodeScrapeLimiter`) caps management calls/sec. Network
-I/O runs on virtual threads, one slow node never blocks its siblings, and it
-never runs inside a DB transaction — each node's result is handed to a short
-`@Transactional` persist step. Queue rows upsert into `queue_snapshot` via a
-JDBC `INSERT … ON CONFLICT` batch (ADR-0016, a scoped exception to ADR-0011);
-metric points append to `metric_sample` and a nightly reaper trims past the
-retention window (daily partitioning is still Phase 6).
+tier B is best-effort speed on page 1, tier C is the coverage guarantee.
+`NodeCallLimiter` caps management calls per node. Network I/O runs on virtual
+threads, one slow node never blocks its siblings, and it never runs inside a DB
+transaction — each node's result is handed to a short `@Transactional` persist
+step. Queue rows upsert into `queue_snapshot` via a JDBC `INSERT … ON CONFLICT`
+batch (ADR-0016, a scoped exception to ADR-0011); metric points append to the
+partitioned `metric_sample`, and a reaper trims past the retention window. When a
+tier completes, `ScrapeTierCompleted` lets alerting evaluate its rules in the same
+thread, so ordering is what it was before the modules split.
 
 ### Cross-node aggregation (read)
 
@@ -76,7 +197,7 @@ merged / filtered / sorted / paged in memory. A node that errors contributes
 nothing; only when *every* node fails is the classified error surfaced (the
 capability ledger + `broker.xml` advice).
 
-### Event path (push, Phase 4)
+### Event path (push)
 
 The Core client (`artemis-jakarta-client`) subscribes to `activemq.notifications`
 on every *serving* node of a cluster (ADR-0026). `CoreSubscriptionManager`
@@ -86,16 +207,14 @@ not to a configured node. The subscriber polls `receive(timeout)` on a virtual
 thread (a `MessageListener` deadlocks against `close()` on the pinned client),
 and Studio drives its own reconnect with backoff (the broker advertises
 connector hosts a client often cannot resolve). Each notification is normalised
-to a `BrokerEvent` — a typed event with the address, consumer/session/connection
-identity, timestamp, and the full `_AMQ_*` map — and handed to a buffered writer
-(`BrokerEventWriter`, ADR-0028) that batch-inserts into `broker_event`. The
-buffer is bounded; overflow increments a per-cluster `dropped` counter surfaced
-by the events API rather than being silent. A reaper trims past a retention
-window (default 72h, a `studio_setting`).
+to a `BrokerEvent` and handed to every `BrokerEventSink`. The events feature's
+buffered writer (ADR-0028) batch-inserts into `broker_event`; the buffer is bounded
+and overflow increments a per-cluster `dropped` counter the events API surfaces. A
+reaper trims past a retention window (default 72h, a `studio_setting`).
 
-`NOTIFICATIONS` is no longer a fixed `UNKNOWN`: `CapabilityProbe` reads the
-cached subscription verdict (`AVAILABLE` on ≥1 subscribed node; `UNAVAILABLE`
-with the exact `broker.xml` security-setting or acceptor snippet when refused or
+`NOTIFICATIONS` is not a fixed `UNKNOWN`: `CapabilityProbe` reads the cached
+subscription verdict (`AVAILABLE` on ≥1 subscribed node; `UNAVAILABLE` with the
+exact `broker.xml` security-setting or acceptor snippet when refused or
 unreachable; `UNKNOWN` only until the first scrape). It opens no connection.
 
 Message browse and send are served over the Core client when a subscription is
@@ -107,60 +226,76 @@ page size falls back to Jolokia and every response says which channel served it.
 ### Realtime to the browser
 
 One SSE endpoint, `GET /api/v1/stream?clusterId=&topics=…`, multiplexes named
-events on a Spring MVC `SseEmitter` (ADR-0018; ADR-0010 removed WebFlux). The
-signal topics (`topology`, `health`, `queues`, `consumers`, `sessions`,
-`connections`) carry change *signals* (`{topic,clusterId,ts}`), not data — the
-client refetches the matching TanStack Query key. The `events` topic is the
-exception (ADR-0027): it carries the `BrokerEvent` payload and an `id:` line
-(the `broker_event.seq`), and a reconnecting client replays what it missed via
+events on a Spring MVC `SseEmitter` (ADR-0018; ADR-0010 removed WebFlux). Each
+module declares its topics in its descriptor; the endpoint drops a topic that is
+unknown or belongs to a disabled feature. Signal topics (`topology`, `health`,
+`queues`, `consumers`, `sessions`, `connections`, `alerts`, `rr`, `config`) carry
+change *signals*, not data — the handler the owning frontend feature contributes
+invalidates the matching TanStack Query keys. The `events` topic is the exception
+(ADR-0027): it carries the `BrokerEvent` payload and an `id:` line (the
+`broker_event.seq`), and a reconnecting client replays what it missed via
 `Last-Event-ID` (bounded to 500). Notification-driven staleness of the resource
-views is fanned out as those signal topics, **coalesced to at most one per topic
-per second per cluster** (`TopicCoalescer`) because each such refetch costs one
-Jolokia call per node. A topic is published only when its state actually
-changed; a 20s `:ping` comment keeps idle streams open and the response carries
-`X-Accel-Buffering: no` (**proxies must not buffer this stream**). Two
-consecutive `EventSource` failures ⇒ the client stops streaming and relies on
-the 5s poll. See ADR-0003.
+views is **coalesced to at most one signal per topic per second per cluster**
+(`TopicCoalescer`), because each refetch costs one Jolokia call per node.
+
+A cluster's layout opens one `EventSource` for the topics of every enabled feature.
+It reconnects indefinitely with capped, jittered backoff and treats a missed
+keep-alive as a failure (ADR-0052); the per-query poll keeps views updating while it
+is down. The response carries `X-Accel-Buffering: no`: **proxies must not buffer this
+stream**.
 
 ## State ownership
 
 - **PostgreSQL** — clusters, nodes, credentials (AES-GCM), users, roles, audit,
   alert rules, request-reply expectations, operator settings (`studio_setting`),
   and the metrics cache.
-- **URL** — navigable UI state (selected cluster, view, filter, sort, page). The
-  frontend is file-tree-shaped routes over TanStack Router; every list view's
+- **URL** — navigable UI state (selected cluster, view, filter, sort, page). Routes
+  are code-based TanStack Router routes composed from the features; every list view's
   `q` / `sort` / `page` lives in the query string.
 - **In-memory** — the SSE subscriber registry, the split-brain corroboration
-  ratchet + per-cluster refresh-cycle counter (`ScrapeCycle`), and the scrape
-  scheduler's leadership. A restart re-derives all of it within ~one tier-A
-  cycle. For multi-instance HA (post-MVP) the scheduler takes a Postgres
-  advisory lock per cluster: one instance scrapes a cluster, every instance
-  serves reads and SSE. The schema assumes this from day one.
+  ratchet and per-cluster refresh-cycle counter, Core pools and subscriptions, and
+  job status. A restart re-derives all of it within about one tier-A cycle. For
+  multi-instance HA (post-MVP) the scheduler takes a Postgres advisory lock per
+  cluster: one instance scrapes a cluster, every instance serves reads and SSE.
 
 ## Broker transport and capabilities
 
-See ADR-0002. A `CapabilityProbe` classifies a connection into
-`MANAGEMENT_READ` / `MANAGEMENT_WRITE` / `NOTIFICATIONS` / `MESSAGE_IO` — four
-classes, unchanged in Phase 3; the UI gates features on the result and shows the
-`broker.xml` needed to unlock the rest.
+See ADR-0002. `CapabilityProbe` classifies a connection into `MANAGEMENT_READ` /
+`MANAGEMENT_WRITE` / `NOTIFICATIONS` / `MESSAGE_IO`; the UI gates features on the
+result and shows the `broker.xml` needed to unlock the rest. An unestablished
+capability is `UNKNOWN`, and unknown leaves a control enabled with the uncertainty
+stated (ADR-0049 D5).
 
-Phase 3 message operations (browse, send, move / retry / delete / expire, purge)
-are **Jolokia-only** (ADR-0021): they run entirely through `MESSAGE_IO`, one
-batched POST per operation, no transport interface — that abstraction waits for
-Phase 4's Core client, which will be the second real implementation. Bodies are
-carried as text; the broker truncates oversized body / property values at
-`management-message-attribute-size-limit` and Studio discloses that **per
-message** (a `bodyTruncated` flag + the `broker.xml` snippet to raise the limit),
-rather than as a fifth capability — slice 0 proved the limit is not readable back
-over Jolokia. Faithful binary I/O is Phase 4.
+Oversized body and property values are truncated by the broker at
+`management-message-attribute-size-limit` over Jolokia, and Studio discloses that
+**per message** (a `bodyTruncated` flag and the `broker.xml` snippet that raises the
+limit). The Core channel carries faithful bytes.
 
 HA: never trust config for who is live. `Active` is polled on every node; two
 `true` in a pair → critical split-brain alert. Failover is followed, not
 configured.
 
+## Broker writes
+
+Every cluster-wide broker write goes through `BrokerCommands` in `platform.clusters`
+(ADR-0071), which runs one sequence: the caller's permission on the cluster; one
+target per logical node, liveness from the polled `Active`; the audit row before any
+broker call; a per-node estimate so the bulk cap sees the whole blast radius; a dry
+run that returns `WOULD_APPLY` per node and writes nothing; an audited refusal over
+the cap without an override; a rate-limited fan-out where one node's failure never
+aborts the others; the audit row finished with per-node detail; the topic signal
+after commit. `AuditCoverageTest` holds every public mutating service method in a
+feature to `BrokerCommands` or `AuditService`.
+
+Message operations, node-scoped connection closes, the configuration apply and
+capture reconciliation keep their own audited sequences, each for a reason recorded
+in the change design: a message operation targets one node's queue, a close names the
+node that issued the id, an apply is canary-first rather than a fan-out, and
+reconciliation acts on drift.
+
 ## Request-reply tracing
 
-The flagship. Both patterns are handled by one correlator:
+Both patterns are handled by one correlator:
 
 - **Shared reply queue + correlation id** — browse request and reply addresses,
   join on `JMSCorrelationID` / `_AMQ_CORRELATION_ID`, compute latency. No reply
@@ -178,8 +313,9 @@ The flagship. Both patterns are handled by one correlator:
   | request acked by responder, no reply produced | `RESPONDER_DROPPED` |
 
 Deadlines come from `_AMQ_EXPIRE` / `JMSExpiration`, else a per-address
-`rr_expectation`. Correlation is event-driven; payload capture is sampled and
-bounded so tracing never becomes the load.
+`rr_expectation`. When the sql feature is enabled, a captured address feeds the
+correlator every routed message through a `CaptureBus.Listener`; without it,
+request-reply samples by browsing and runs on its own.
 
 ## The SQL Console, the message index and message capture
 
@@ -234,11 +370,6 @@ capture queue Studio cannot **restrict with a `security-setting`** would be an
 unguarded second copy of production payload. Both refuse with the `broker.xml` that
 would change the answer.
 
-Identity comes from Studio's own state first (D2): the capture queue names the source
-address, so a captured row is found by the **original** queue name without depending
-on a broker header. `_AMQ_ORIG_MESSAGE_ID` supplies the source message id on top; when
-it is absent, "verify on broker" is offered and disabled with the reason, never hidden.
-
 Capture is address-scoped and says so. A divert copies at address routing, before
 multicast fan-out, so for an address with several bound queues the index holds one
 row and genuinely cannot say which subscriptions received it.
@@ -253,70 +384,82 @@ before the broker call, updated with the outcome; a dry run is audited too
 principal's username and `user_id`, with the token name folded in when the
 caller authenticated via an API token (`"<owner> [token: <name>]"`), plus the
 source IP and an `X-Request-Id` (or a generated UUID); scheduler-originated
-rows are `system`; the literal `anonymous` is reachable only for a failed
-login attempt itself, since every other mutating call requires authentication
-(ADR-0037). The audit-log screen reads these back filtered by user / action /
-outcome / time, newest first.
+rows are `system`. `audit_event` carries no foreign keys (ADR-0072): an audit row
+keeps its cluster id and name after the cluster is removed.
 
 **Bulk safety cap.** A destructive message operation whose dry-run count exceeds
 `safety.bulk-cap` (a `studio_setting`, default 1000) is rejected with a `422`
 (`bulk-cap-exceeded`, carrying `affectedCount` and `cap`) unless the caller passes
 `?override=true` — which the UI reaches only behind the dry-run preview plus a
 typed confirmation of the queue name (ADR-0022). A cap that lived only in the
-browser would not be a cap. The dry-run count itself is a broker-side estimate
-(`countMessages(filter)` for a selector, the id count for an id list, the queue's
-`MessageCount` for a purge or retry-all), labelled point-in-time.
+browser would not be a cap.
 
 **Broker configuration** (ADR-0067). A cluster's declared address settings,
-security settings, diverts and queues live in Postgres (`broker_config_*`,
-changeset 024), versioned on every save. `BrokerConfigApplyService` is a
-separate engine from the queue lifecycle because its fan-out is deliberately
-not a fan-out: a plan is computed per live node from at most two batched reads
-(diff-driven, `ALREADY` where the read-back matches), hazards are classified
-before any write and the High ones must be acknowledged by id, then the canary
-node receives every step and is read back before the next node is touched.
-The first failure halts the run — remaining nodes report `NOT_ATTEMPTED`,
-nothing is rolled back, and re-running converges. A real run names the plan
-hash it previewed and is refused (`409 plan-changed`) if the cluster moved; a
-Postgres advisory lock (`ClusterLock.Scope.CONFIG_APPLY`) refuses a concurrent
-apply. Studio removes only what it applied, never destroys a queue or address,
-never writes `broker.xml` and never calls `reloadConfigurationFile`.
-`BrokerConfigDriftService` evaluates every live node on a schedule
-(`config.drift-interval`) and after every apply; it writes state, publishes the
-`config` SSE topic and feeds the `CONFIG_DRIFT` alert condition — evaluation is
-scheduled, action never is.
+security settings, diverts and queues live in the brokerconfig module's tables,
+versioned on every save. Its apply is canary-first: a plan is computed per live node
+from at most two batched reads, hazards are classified before any write and the High
+ones must be acknowledged by id, then the canary node receives every step and is read
+back before the next node is touched. The first failure halts the run, nothing is
+rolled back, and re-running converges. A real run names the plan hash it previewed
+and is refused (`409 plan-changed`) if the cluster moved; a Postgres advisory lock
+refuses a concurrent apply. Studio removes only what it applied, never writes
+`broker.xml` and never calls `reloadConfigurationFile`. Drift is evaluated on a
+schedule and after every apply, and feeds alerting through `AlertSignalSource`.
 
 **DLQ view.** Dead-letter and expiry addresses are read from the broker's own
-`getAddressSettingsAsJSON` — never guessed from names (ADR-0022, D8). The view
-lists the `queue_snapshot` rows on those addresses with per-node depth and a
-"replay all" that runs a by-selector retry through the same preview + cap gate.
-If the settings read fails the view says exactly that and infers nothing.
+`getAddressSettingsAsJSON` — never guessed from names (ADR-0022, D8). If the settings
+read fails the view says exactly that and infers nothing.
+
+## Identity
+
+Sign-in is a sealed provider SPI in the security kernel (ADR-0073):
+`CredentialIdentityProvider` (username and password — local accounts),
+`RedirectIdentityProvider` (browser redirect — OIDC) and `BearerIdentityProvider`
+(an `Authorization: Bearer` key — API tokens, which is how MCP authenticates). The
+kernel builds the one filter chain from whichever providers are enabled, and the login
+page is built from `GET /api/v1/auth/providers`. An external identity is provisioned
+by `IdentityProvisioner`, keyed by provider and subject, and its groups are mapped to
+roles per provider at every sign-in (`/api/v1/identity/providers/{providerId}/group-mappings`).
+A directory provider would be one more module implementing the credential interface.
+
+## Operational health
+
+`/actuator/health/studio` groups three indicators, kept out of liveness and readiness
+so a broker outage never restarts Studio: `jobs` (each scheduled job's last run,
+degraded after three missed intervals; also `GET /api/v1/system/jobs`), `brokers`
+(per node, the last management success or failure and the rate-limit wait; per
+cluster, open Core connections) and `subscriptions` (per serving node, whether the
+notification subscription is established, and why not). Shutdown is ordered by
+`SmartLifecycle` phases: the stream closes first, then broker calls and the scrape,
+then subscriptions and capture, then the Core pools.
 
 ## MCP surface
 
-`POST /mcp` is a second inbound edge onto the same services (ADR-0045): sixteen
-intent-shaped tools, six resources and four runbook prompts, mounted by
-Spring AI's WebMVC starter as a stateless Streamable HTTP transport. It is an
-adapter and nothing more — `mcp/**` holds argument coercion, its own lean
-projections and the error mapping, and calls the same `service/**` methods the
-controllers do.
+`POST /mcp` is a second inbound edge onto the same services (ADR-0045), mounted by
+Spring AI's WebMVC starter as a stateless Streamable HTTP transport. The platform
+module owns the server, `studio_help`, resources and runbook prompts; each feature
+owns its tools, in its own `mcp` package, and lists them in its descriptor's catalogue.
+A disabled feature's tools are absent from the server and the catalogue, and a runbook
+prompt names the property that restores them. `artemis-studio.features.mcp.enabled=false`
+removes the server altogether.
 
-Everything above therefore applies unchanged: `ClusterAccessGuard` and
-`@PreAuthorize` are the enforcement, the bulk cap is the same `studio_setting`,
-and every mutation writes the same `audit_event` under the key owner's identity
-with the key's name attached. Authentication is the ADR-0039 personal API tokens
-(ADR-0046), so a key never exceeds its owner's live grants.
-
-Two things are specific to this edge. Tool bodies must run on the servlet thread
-(`type: SYNC`), because permission and actor resolution both read `ThreadLocal`
-state. And mutations add a model-facing gate on top of the existing ones:
-`dryRun` defaults to true, and a real destructive run requires `confirm` to equal
-the subject's name — separate from, and never satisfied by, the bulk-cap
-`override`.
+Everything above applies unchanged: `ClusterAccessGuard` and `@PreAuthorize` are the
+enforcement, the bulk cap is the same `studio_setting`, and every mutation writes the
+same `audit_event` under the key owner's identity with the key's name attached. Tool
+bodies run on the servlet thread (`type: SYNC`), because permission and actor
+resolution both read `ThreadLocal` state. Mutations add a model-facing gate: `dryRun`
+defaults to true, and a real destructive run requires `confirm` to equal the subject's
+name — separate from, and never satisfied by, the bulk-cap `override`.
 
 ## Persistence notes
 
-Liquibase (ADR-0008). Columns ordered by alignment to cut row padding;
-per-table `autovacuum`/`fillfactor` on high-churn tables; `metric_sample`
-range-partitioned with BRIN on `ts`. Server tuning in
-`deploy/postgres/postgresql.tuning.conf`.
+Liquibase (ADR-0008), per module (ADR-0072). `db.changelog-master.xml` includes one
+changelog per module, in dependency order; each module's `db/changelog/<layer>/<id>/`
+holds its changesets, applied in file-name order. A module owns its tables:
+`SchemaOwnershipTest` holds each table to one module, each entity to its owner's
+package, and each foreign key to an allowed dependency edge. Rows another module keeps
+about a cluster go with it through `ON DELETE CASCADE` along those edges.
+
+Columns are ordered by alignment to cut row padding; high-churn tables carry
+`autovacuum`/`fillfactor` storage parameters; `metric_sample` is range-partitioned with
+BRIN on `ts`. Server tuning is in `deploy/postgres/postgresql.tuning.conf`.

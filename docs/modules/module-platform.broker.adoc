@@ -1,0 +1,37 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.platform.broker`
+|Spring components
+|_Services_
+
+* `i.g.s.a.p.b.ClockOffsetService`
+
+_Configuration properties_
+
+* `i.g.s.a.p.b.BrokerProperties`
+* `i.g.s.a.p.b.RateLimitProperties`
+* `i.g.s.a.p.b.SafetyProperties`
+
+_Others_
+
+* `i.g.s.a.p.b.BrokerClientFactory`
+* `i.g.s.a.p.b.BrokerConnections`
+* `i.g.s.a.p.b.BrokerListOps`
+* `i.g.s.a.p.b.BrokerSessions`
+* `i.g.s.a.p.b.BrokerSettings`
+* `i.g.s.a.p.b.CapabilityProbe`
+* `i.g.s.a.p.b.ClockOffsetRegistry`
+* `i.g.s.a.p.b.CoreConnectionFactory`
+* `i.g.s.a.p.b.MessageTransport` (via `i.g.s.a.p.b.CoreMessageTransport`)
+* `i.g.s.a.p.b.CorePool`
+* `i.g.s.a.p.b.CoreSubscriptionCheck`
+* `i.g.s.a.p.b.CoreSubscriptionManager`
+* `i.g.s.a.p.b.MessageTransport` (via `i.g.s.a.p.b.JolokiaMessageTransport`)
+* `i.g.s.a.p.b.MessageBrowser`
+* `i.g.s.a.p.b.MessageOperations`
+* `i.g.s.a.p.b.MonotonicClockWatch`
+* `i.g.s.a.p.b.NodeCallHealth`
+* `i.g.s.a.p.b.NodeCallLimiter`
+* `i.g.s.a.p.b.NotificationMapper`
+|===

@@ -1,0 +1,25 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.identitylocal`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.i.AuthService`
+
+_Event listeners_
+
+* `i.g.s.a.f.i.AdminBootstrap`
+
+_Others_
+
+* `i.g.s.a.f.i.IdentityLocalFeature`
+|Bean references
+|* `i.g.s.a.k.s.UserAccounts` (in Security)
+* `i.g.s.a.k.s.GrantLoader` (in Security)
+* `i.g.s.a.k.s.SessionAuthentication` (in Security)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|===

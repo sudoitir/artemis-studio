@@ -74,6 +74,7 @@ export default defineConfig({
               { text: 'Message capture', link: '/guide/message-capture' },
               { text: 'Broker configuration', link: '/guide/broker-configuration' },
               { text: 'MCP server', link: '/guide/mcp' },
+              { text: 'Build a plugin', link: '/guide/plugins' },
             ],
           },
           reference({
