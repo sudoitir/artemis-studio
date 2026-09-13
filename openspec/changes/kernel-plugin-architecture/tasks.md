@@ -76,7 +76,7 @@ Each task below does the same four things:
 - [x] 5.11 `triage`: split `diagnose` and `activity_log` out of `McpDiagnosticTools`, and delete `McpDiagnosticTools`/`McpTuningTools` once every tool lives in its feature.
 - [x] 5.12 Declare `ScheduledJob` beans for every former `DynamicSchedules` task in its owning module, and delete the central task list.
 - [x] 5.13 Switch `ModularityTest` to failing and add `BoundaryRulesTest` (design D6). Each module declares its `allowedDependencies`, and `ModularityTest` tolerates no violation: the registration preview carries `RegistrationCheckContributor` contributions keyed by feature id, so `platform.clusters` no longer depends on `feature.brokerconfig`.
-- [ ] 5.14 Add an `@ApplicationModuleTest` per feature bootstrapping direct dependencies only.
+- [x] 5.14 Add an `@ApplicationModuleTest` per feature bootstrapping direct dependencies only. The kernel modules are shared modules; a bean a dependency needs from a module that is not bootstrapped is mocked in that feature's test.
 - [x] 5.15 Add `FeatureToggleTest`. For each optional feature, the application starts with it and its dependents disabled, and:
   - its endpoints return `404 feature-disabled`;
   - its jobs are not registered;
