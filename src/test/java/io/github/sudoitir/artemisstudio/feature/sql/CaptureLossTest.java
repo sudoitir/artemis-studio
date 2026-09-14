@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -97,20 +98,20 @@ class CaptureLossTest {
     void messagesRoutedButNotCapturedAreCountedOnceAndDegradeTheNode() {
         loss.measure(CLUSTER);
 
-        added.addAndGet(50);
-        captured.addAndGet(20);
+        added.addAndGet(500);
+        captured.addAndGet(200);
         loss.measure(CLUSTER);
 
-        assertThat(node.getDroppedEstimate()).isEqualTo(30);
+        assertThat(node.getDroppedEstimate()).isEqualTo(300);
         assertThat(node.getCaptureState()).isEqualTo(CaptureState.DEGRADED);
-        assertThat(node.getCaptureDetail()).contains("About 30 messages");
+        assertThat(node.getCaptureDetail()).contains("About 300 messages");
     }
 
     @Test
     void aNodeThatStopsLosingMessagesIsHealthyAgain() {
         loss.measure(CLUSTER);
-        added.addAndGet(50);
-        captured.addAndGet(20);
+        added.addAndGet(500);
+        captured.addAndGet(200);
         loss.measure(CLUSTER);
 
         added.addAndGet(10);
@@ -118,7 +119,41 @@ class CaptureLossTest {
         loss.measure(CLUSTER);
 
         assertThat(node.getCaptureState()).isEqualTo(CaptureState.ACTIVE);
-        assertThat(node.getDroppedEstimate()).isEqualTo(30);
+        assertThat(node.getDroppedEstimate()).isEqualTo(300);
+    }
+
+    /**
+     * A drain's in-flight batch moves the figure by up to a batch either way. That swing is not
+     * loss, and reporting it — as the dev-stack soak did, about 100 over 60,000 fully stored
+     * messages — tells an operator a healthy capture is losing messages.
+     */
+    @Test
+    void anInFlightSwingThatFallsBackIsNeverReported() {
+        loss.measure(CLUSTER);
+
+        added.addAndGet(60);
+        loss.measure(CLUSTER);
+        captured.addAndGet(60);
+        loss.measure(CLUSTER);
+        added.addAndGet(80);
+        loss.measure(CLUSTER);
+
+        assertThat(node.getDroppedEstimate()).isZero();
+        assertThat(node.getCaptureState()).isEqualTo(CaptureState.ACTIVE);
+    }
+
+    @Test
+    void aSlowLossBelowOneWindowPerPassStillAccumulatesAndIsReported() {
+        loss.measure(CLUSTER);
+
+        for (int pass = 0; pass < 3; pass++) {
+            added.addAndGet(240);
+            captured.addAndGet(200);
+            loss.measure(CLUSTER);
+        }
+
+        assertThat(node.getDroppedEstimate()).isEqualTo(120);
+        assertThat(node.getCaptureState()).isEqualTo(CaptureState.DEGRADED);
     }
 
     /**
@@ -173,11 +208,26 @@ class CaptureLossTest {
 
     private QueueSnapshot captureQueue(long depth) {
         String name = "artemis-studio.capture.abc12345.ORDERS." + subscription.getId() + ".q";
-        return new QueueSnapshot(CLUSTER, NODE, name, name, "ANYCAST", false, false, null, depth, 1, 0, 0, 0, 0, 0);
+        return new QueueSnapshot(
+                CLUSTER, NODE, name, name, "ANYCAST", false, false, Instant.now(), depth, 1, 0, 0, 0, 0, 0);
     }
 
     private static QueueSnapshot queue(String name, long messagesAdded) {
         return new QueueSnapshot(
-                CLUSTER, NODE, name, "ORDERS", "MULTICAST", false, false, null, 0, 0, 0, 0, messagesAdded, 0, 0);
+                CLUSTER,
+                NODE,
+                name,
+                "ORDERS",
+                "MULTICAST",
+                false,
+                false,
+                Instant.now(),
+                0,
+                0,
+                0,
+                0,
+                messagesAdded,
+                0,
+                0);
     }
 }

@@ -146,8 +146,9 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Soak on `just dev-up`: 2 clusters, UI open, capture running. At t=0 and t=30m, thread count by name prefix and fd count are flat, and per-node request rate stays at or below the ceiling. Trace any growing `SimpleAsyncTaskExecutor-*` prefix.
-  - (Apply: the soak found capture reporting about 2,400 messages as missed with 360,000 routed and 360,000 stored. Messages still waiting in the capture ring counted as loss at each pass, and the catch-up was never subtracted. `CaptureLoss` now counts the ring as accounted for, and a counter that goes backwards resets the baseline.)
+- [x] 7.1 Soak on `just dev-up`: 2 clusters, UI open, capture running. At t=0 and t=30m, thread count by name prefix and fd count are flat, and per-node request rate stays at or below the ceiling. Trace any growing `SimpleAsyncTaskExecutor-*` prefix.
+  - (Apply: run against a throwaway Studio built from this branch on the dev broker pair, one cluster and a separate database, because the dev database's migration history predates the per-module baseline. 30 minutes at ~200 msg/s with capture on: threads 60 → 63 (range 60–66), one `HttpClient` worker pool and no `HttpClient-N` growth, file descriptors 73 throughout, about 0.3 broker requests/s per node, no permit timeouts, 360,000 sent and stored with no duplicates. No `SimpleAsyncTaskExecutor` prefix appeared.)
+  - (Apply: the soak found capture reporting about 2,400 messages as missed with 360,000 routed and 360,000 stored. Messages still waiting in the capture ring counted as loss at each pass, and the catch-up was never subtracted. `CaptureLoss` now counts the ring as accounted for, and a counter that goes backwards resets the baseline. A second run still reported about 100 over 60,000 stored, and thousands across the fault run, because stored rows were counted later than the snapshot they were compared with. Stored rows are now counted up to the snapshot's own instant, and a rise is reported only once it exceeds twice the drains' in-flight batches over the lowest level since the last report.)
 - [ ] 7.2 Fault injection at ~200 msg/s while capturing:
   - stop Postgres for 2 minutes: routed = stored + reported loss;
   - restart the broker: capture resumes and the gap is recorded;

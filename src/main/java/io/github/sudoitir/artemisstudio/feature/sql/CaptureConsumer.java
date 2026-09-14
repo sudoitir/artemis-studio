@@ -57,7 +57,7 @@ public class CaptureConsumer {
     private static final String ORIG_MESSAGE_ID = "_AMQ_ORIG_MESSAGE_ID";
 
     /** Messages acknowledged in one go. Larger trades redelivery risk for fewer round trips. */
-    private static final int ACK_BATCH = 50;
+    static final int ACK_BATCH = 50;
 
     /** Consecutive failures to read one message before it is counted as lost rather than stall the tap. */
     private static final int POISON_ATTEMPTS = 3;
