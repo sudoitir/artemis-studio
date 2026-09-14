@@ -41,6 +41,7 @@ public class CaptureLoss {
     private final MessageCaptureNodeRepository captureNodes;
     private final QueueSnapshots snapshots;
     private final JdbcTemplate jdbc;
+    private final CaptureConsumer consumers;
 
     /** {@code MessagesAdded} and rows written at the previous pass, per (subscription, node). */
     private final Map<String, Mark> marks = new ConcurrentHashMap<>();
@@ -66,33 +67,67 @@ public class CaptureLoss {
             UUID clusterId, MessageIndexSubscriptionEntity subscription, MessageCaptureNodeEntity node) {
         long enqueued = enqueuedOnSource(clusterId, subscription, node.getNodeId());
         long captured = capturedRows(clusterId, subscription, node.getNodeId());
+        CaptureConsumer.Shortfall shortfall = consumers.takeShortfall(node.getNodeId(), subscription.getId());
         node.setHeldBytes(heldBytes(clusterId, subscription, node.getNodeId()));
         node.setUpdatedAt(Instant.now());
         captureNodes.save(node);
         String key = subscription.getId() + "|" + node.getNodeId();
         Mark previous = marks.put(key, new Mark(enqueued, captured));
-        if (previous == null) {
-            // The first pass has no interval to difference; it establishes the marks.
+        long lost = previous == null
+                // The first pass has no interval to difference; it establishes the marks.
+                ? 0
+                : Math.max(0, enqueued - previous.enqueued()) - Math.max(0, captured - previous.captured());
+        if (lost <= NOISE_FLOOR && shortfall.storeFailure() == null) {
             return;
         }
-        long arrived = Math.max(0, enqueued - previous.enqueued());
-        long recorded = Math.max(0, captured - previous.captured());
-        long lost = arrived - recorded;
-        if (lost <= NOISE_FLOOR) {
-            return;
+        if (lost > NOISE_FLOOR) {
+            node.setDroppedEstimate(node.getDroppedEstimate() + lost);
         }
-        node.setDroppedEstimate(node.getDroppedEstimate() + lost);
         // Losing messages is not a failure of the tap — it is installed and draining —
-        // so the state is DEGRADED rather than FAILED, and it says how much.
+        // so the state is DEGRADED rather than FAILED, and it says how much and why.
         if (node.getCaptureState() == CaptureState.ACTIVE) {
             node.setCaptureState(CaptureState.DEGRADED);
         }
-        node.setCaptureDetail("About " + lost + " message" + (lost == 1 ? "" : "s")
-                + " enqueued on this node since the last pass were not captured. The ring drops the oldest"
-                + " when Studio cannot keep up, and the ingest cap drops what is over rate; raise the ring"
-                + " size or narrow the capture filter.");
+        node.setCaptureDetail(lossDetail(lost > NOISE_FLOOR ? lost : 0, shortfall));
         node.setUpdatedAt(Instant.now());
         captureNodes.save(node);
+    }
+
+    /** The loss in words, with the causes the drains actually recorded rather than a list of possibilities. */
+    static String lossDetail(long lost, CaptureConsumer.Shortfall shortfall) {
+        StringBuilder detail = new StringBuilder();
+        if (lost > 0) {
+            detail.append("About ")
+                    .append(lost)
+                    .append(" message")
+                    .append(lost == 1 ? "" : "s")
+                    .append(" enqueued on this node since the last pass were not captured.");
+        }
+        if (shortfall.storeFailure() != null) {
+            detail.append(detail.isEmpty() ? "" : " ")
+                    .append("Studio could not store captured messages (")
+                    .append(shortfall.storeFailure())
+                    .append("), so capture paused without acknowledging them and is retrying; the capture queue"
+                            + " holds the backlog up to its bound and drops the oldest beyond it.");
+        }
+        if (shortfall.rateLimited() > 0) {
+            detail.append(" ")
+                    .append(shortfall.rateLimited())
+                    .append(" were over the subscription's ingest rate cap; raise the cap or narrow the filter.");
+        }
+        if (shortfall.unreadable() > 0) {
+            detail.append(" ")
+                    .append(shortfall.unreadable())
+                    .append(" could not be read after repeated attempts and were counted as lost.");
+        }
+        if (lost > 0
+                && shortfall.storeFailure() == null
+                && shortfall.rateLimited() == 0
+                && shortfall.unreadable() == 0) {
+            detail.append(" The capture queue drops the oldest when Studio cannot keep up; raise the ring size or"
+                    + " narrow the capture filter.");
+        }
+        return detail.toString().trim();
     }
 
     /**

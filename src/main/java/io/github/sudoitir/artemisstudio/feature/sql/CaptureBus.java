@@ -13,8 +13,12 @@ import org.springframework.stereotype.Component;
 
 /**
  * In-process fan-out from the capture consumers to everything that wants a captured
- * message (ADR-0062, generalising ADR-0060 D4 from two consumers to three): the
- * message index, an operator's live tail, and request-reply correlation.
+ * message besides the index (ADR-0062): an operator's live tail and request-reply
+ * correlation.
+ *
+ * <p>The index is deliberately not a listener. It is the store a drain acknowledges
+ * against (ADR-0077), so the drain writes to it directly and acknowledges only what
+ * committed. A listener is best-effort: its failure is logged and never reaches the store.
  *
  * <p>It also holds the per-subscription ingest rate cap, and it holds it here rather
  * than in each sink for one reason: a firehose has to be stopped once, in front of
@@ -30,16 +34,9 @@ public class CaptureBus {
     public record Captured(
             UUID clusterId, UUID subscriptionId, Row row, String origAddress, Long sourceMessageId, Instant at) {}
 
-    /** Anything that wants captured messages. Sinks are additive and independent. */
+    /** Anything besides the index that wants captured messages. Best-effort, additive and independent. */
     public interface Listener {
         void captured(Captured captured);
-
-        /**
-         * Commit whatever is buffered. Called by a consumer before it acknowledges, so
-         * that a batch is never acknowledged on the broker before the rows it produced
-         * are durable — the crash window is redelivery, never loss.
-         */
-        default void flush() {}
     }
 
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -54,8 +51,8 @@ public class CaptureBus {
     }
 
     /**
-     * Offer a captured message. Returns false when the subscription's rate cap
-     * rejected it, which the caller counts as a drop against that node.
+     * Offer a captured message. Returns false when the subscription's rate cap rejected
+     * it, which the caller counts as a drop against that node and does not store.
      */
     public boolean publish(Captured captured, int maxRatePerSecond) {
         RateGate gate = gates.computeIfAbsent(captured.subscriptionId(), id -> new RateGate());
@@ -66,23 +63,11 @@ public class CaptureBus {
             try {
                 listener.captured(captured);
             } catch (RuntimeException e) {
-                // One sink's failure is not the others'. The index must not stop
-                // because a tail's client went away mid-write, and vice versa.
-                log.debug("A capture sink rejected a message: {}", e.getMessage());
+                // One listener's failure is not the others', and never the store's.
+                log.debug("A capture listener rejected a message: {}", e.getMessage());
             }
         }
         return true;
-    }
-
-    /** Commit every sink's buffer. Called before a consumer acknowledges a batch. */
-    public void flush() {
-        for (Listener listener : listeners) {
-            try {
-                listener.flush();
-            } catch (RuntimeException e) {
-                log.warn("A capture sink could not commit its batch: {}", e.getMessage());
-            }
-        }
     }
 
     /** Forget a subscription's rate state. */

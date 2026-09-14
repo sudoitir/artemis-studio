@@ -12,29 +12,34 @@ import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.MessageConsumer;
 import jakarta.jms.Session;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Drains one capture queue on one node (ADR-0062 D1) and offers what it drains to
- * {@link CaptureBus}.
+ * Drains one capture queue on one node (ADR-0062 D1), stores what it drains in the
+ * message index, and offers it to {@link CaptureBus} listeners.
  *
  * <p>Consuming is destructive, which is correct: Studio owns the capture queue, and
  * nothing else is entitled to what is on it. The original message is untouched — the
  * divert is non-exclusive and made a copy.
  *
- * <p>{@code CLIENT_ACKNOWLEDGE} with a batch acknowledge after the sinks have run.
- * A JMS acknowledge acknowledges every message delivered on the session so far, so
- * one call per batch is both correct and cheaper than one per message; the cost of a
- * crash mid-batch is that the batch is redelivered, which the index's
- * {@code ON CONFLICT DO NOTHING} absorbs.
+ * <p>Store first, acknowledge second (ADR-0077). {@code CLIENT_ACKNOWLEDGE}, with one
+ * acknowledge per batch after that drain's own rows have committed: a JMS acknowledge
+ * covers every message delivered on the session so far, so it must never run ahead of
+ * the store. When the store fails, nothing is acknowledged; the drain waits with
+ * backoff and recovers the session, and the bounded capture queue holds the backlog
+ * meanwhile. A crash mid-batch redelivers, which the writer's redelivery guard absorbs.
  *
  * <p>Identity comes from the queue being drained, not from a header (D2): this
  * consumer was started for a known source address, so every message it receives is
@@ -54,9 +59,16 @@ public class CaptureConsumer {
     /** Messages acknowledged in one go. Larger trades redelivery risk for fewer round trips. */
     private static final int ACK_BATCH = 50;
 
+    /** Consecutive failures to read one message before it is counted as lost rather than stall the tap. */
+    private static final int POISON_ATTEMPTS = 3;
+
+    private static final Duration RETRY_INITIAL = Duration.ofSeconds(1);
+    private static final Duration RETRY_MAX = Duration.ofMinutes(5);
+
     private final CorePool corePool;
     private final BrokerConnections connections;
     private final CaptureBus bus;
+    private final MessageIndexWriter writer;
 
     /**
      * Running drains, by node and tap name.
@@ -88,6 +100,23 @@ public class CaptureConsumer {
             int bodyCapBytes,
             int maxRate) {}
 
+    /**
+     * Why a node's capture recorded less than it drained since this was last taken: the
+     * cause half of the loss figure, which {@link CaptureLoss} measures from counters.
+     *
+     * @param storeFailure the last store error, or null when every store since succeeded
+     */
+    public record Shortfall(long rateLimited, long unreadable, String storeFailure) {
+        static final Shortfall NONE = new Shortfall(0, 0, null);
+
+        Shortfall plus(Shortfall other) {
+            return new Shortfall(
+                    rateLimited + other.rateLimited,
+                    unreadable + other.unreadable,
+                    other.storeFailure != null ? other.storeFailure : storeFailure);
+        }
+    }
+
     /** Whether a drain is running for this tap on this node. */
     public boolean isDraining(UUID nodeId, String name) {
         return running.containsKey(key(nodeId, name));
@@ -100,6 +129,18 @@ public class CaptureConsumer {
                 .filter(k -> k.startsWith(prefix))
                 .map(k -> k.substring(prefix.length()))
                 .collect(java.util.stream.Collectors.toSet());
+    }
+
+    /** The causes recorded by this subscription's drains on this node since the last call, reset by taking them. */
+    public Shortfall takeShortfall(UUID nodeId, UUID subscriptionId) {
+        Shortfall total = Shortfall.NONE;
+        for (Drain drain : running.values()) {
+            if (drain.spec.nodeId().equals(nodeId)
+                    && drain.spec.subscriptionId().equals(subscriptionId)) {
+                total = total.plus(drain.takeShortfall());
+            }
+        }
+        return total;
     }
 
     /**
@@ -151,14 +192,40 @@ public class CaptureConsumer {
         running.clear();
     }
 
-    /** One queue's listener. Not shared: each holds its own session and ack counter. */
+    /** Exponential, capped, with jitter — so many drains failing together do not retry together. */
+    static long backoffMillis(int failures) {
+        long base = Math.min(RETRY_MAX.toMillis(), RETRY_INITIAL.toMillis() * (1L << Math.min(failures - 1, 20)));
+        return base / 2 + ThreadLocalRandom.current().nextLong(base / 2 + 1);
+    }
+
+    /**
+     * One queue's listener. Not shared: each holds its own session, batch and counters.
+     *
+     * <p>Its methods are synchronized because {@link #close} runs on another thread than
+     * delivery. A drain waiting out a backoff waits on its own monitor, so it releases the
+     * lock and {@code close} can always get in.
+     */
     private final class Drain implements jakarta.jms.MessageListener {
 
         private final Spec spec;
         private final PooledSession jms;
         private final MessageConsumer consumer;
-        private int sinceAck;
+
+        /** Rows received since the last acknowledge, and the message an acknowledge would settle them with. */
+        private final List<MessageIndexWriter.Captured> batch = new ArrayList<>(ACK_BATCH);
+
+        private int delivered;
         private Message lastDelivered;
+
+        private String failingMessageId;
+        private int readFailures;
+        private int storeFailures;
+
+        private long rateLimited;
+        private long unreadable;
+        private String storeFailure;
+
+        private boolean closed;
 
         private Drain(Spec spec, PooledSession jms, MessageConsumer consumer) {
             this.spec = spec;
@@ -167,27 +234,160 @@ public class CaptureConsumer {
         }
 
         @Override
-        public void onMessage(Message message) {
+        public synchronized void onMessage(Message message) {
+            if (closed) {
+                // Not recorded and not acknowledged: the broker redelivers it to the next drain.
+                return;
+            }
+            MessageIndexWriter.Captured captured;
             try {
-                lastDelivered = message;
-                BrowsedMessage browsed = CoreMessageTransport.toBrowsed(message);
-                bus.publish(
-                        new CaptureBus.Captured(
-                                spec.clusterId(),
-                                spec.subscriptionId(),
-                                toRow(browsed),
-                                stringProperty(message, ORIG_ADDRESS),
-                                longProperty(message, ORIG_MESSAGE_ID),
-                                Instant.now()),
-                        spec.maxRate());
-                if (++sinceAck >= ACK_BATCH) {
-                    acknowledge();
+                captured = read(message);
+            } catch (JMSException | RuntimeException e) {
+                unreadable(message, e);
+                return;
+            }
+            failingMessageId = null;
+            readFailures = 0;
+            lastDelivered = message;
+            delivered++;
+            boolean admitted = bus.publish(
+                    new CaptureBus.Captured(
+                            spec.clusterId(),
+                            spec.subscriptionId(),
+                            captured.row(),
+                            captured.origAddress(),
+                            captured.sourceMessageId(),
+                            captured.at()),
+                    spec.maxRate());
+            if (admitted) {
+                batch.add(captured);
+            } else {
+                rateLimited++;
+            }
+            if (delivered >= ACK_BATCH) {
+                commit();
+            }
+        }
+
+        private MessageIndexWriter.Captured read(Message message) throws JMSException {
+            BrowsedMessage browsed = CoreMessageTransport.toBrowsed(message);
+            return new MessageIndexWriter.Captured(
+                    spec.clusterId(),
+                    toRow(browsed),
+                    stringProperty(message, ORIG_ADDRESS),
+                    longProperty(message, ORIG_MESSAGE_ID),
+                    Instant.now());
+        }
+
+        /** Store, then acknowledge. Returns false when the store failed and the session was recovered. */
+        private boolean commit() {
+            try {
+                writer.capturedBatch(batch);
+            } catch (RuntimeException e) {
+                storeFailed(e);
+                return false;
+            }
+            try {
+                if (lastDelivered != null) {
+                    lastDelivered.acknowledge();
                 }
             } catch (JMSException e) {
-                // Not fatal to the drain: the message is redelivered, and a queue that
-                // keeps failing shows up as a growing ring rather than as a silent stop.
-                log.debug("Capture drain of {} could not read a message: {}", spec.captureQueue(), e.getMessage());
+                // Stored but not acknowledged: the broker redelivers, and the writer's
+                // redelivery guard stops the batch being stored twice.
+                log.debug("Capture drain of {} could not acknowledge: {}", spec.captureQueue(), e.getMessage());
             }
+            batch.clear();
+            delivered = 0;
+            lastDelivered = null;
+            storeFailures = 0;
+            return true;
+        }
+
+        private void storeFailed(RuntimeException e) {
+            storeFailures++;
+            storeFailure =
+                    e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            long delay = backoffMillis(storeFailures);
+            log.warn(
+                    "Capture of {} on {} could not store {} message(s): {}. Nothing was acknowledged; retrying in {} ms,"
+                            + " and the capture queue holds the backlog up to its bound.",
+                    spec.sourceAddress(),
+                    spec.nodeName(),
+                    batch.size(),
+                    storeFailure,
+                    delay);
+            waitUnlessClosed(delay);
+            recover();
+        }
+
+        /**
+         * A message that cannot be read is retried like a failed store. One that keeps
+         * failing is counted as lost and acknowledged — after everything delivered before
+         * it has been stored — so a single poison message cannot stall the tap forever.
+         */
+        private void unreadable(Message message, Exception e) {
+            String id = messageId(message);
+            if (id != null && id.equals(failingMessageId)) {
+                readFailures++;
+            } else {
+                failingMessageId = id;
+                readFailures = 1;
+            }
+            if (readFailures < POISON_ATTEMPTS) {
+                log.debug("Capture drain of {} could not read message {}: {}", spec.captureQueue(), id, e.getMessage());
+                waitUnlessClosed(backoffMillis(readFailures));
+                recover();
+                return;
+            }
+            log.warn(
+                    "Capture of {} on {} could not read message {} after {} attempts; counting it as lost: {}",
+                    spec.sourceAddress(),
+                    spec.nodeName(),
+                    id,
+                    readFailures,
+                    e.getMessage());
+            lastDelivered = message;
+            delivered++;
+            if (commit()) {
+                unreadable++;
+                failingMessageId = null;
+                readFailures = 0;
+            }
+        }
+
+        /** Hand everything unacknowledged back to the broker, and forget the rows built from it. */
+        private void recover() {
+            batch.clear();
+            delivered = 0;
+            lastDelivered = null;
+            if (closed) {
+                return;
+            }
+            try {
+                jms.session().recover();
+            } catch (JMSException e) {
+                log.debug("Capture drain of {} could not recover its session: {}", spec.captureQueue(), e.getMessage());
+            }
+        }
+
+        private void waitUnlessClosed(long millis) {
+            long deadline = System.nanoTime() + millis * 1_000_000L;
+            try {
+                long remaining;
+                while (!closed && (remaining = (deadline - System.nanoTime()) / 1_000_000L) > 0) {
+                    wait(remaining);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        synchronized Shortfall takeShortfall() {
+            Shortfall taken = new Shortfall(rateLimited, unreadable, storeFailure);
+            rateLimited = 0;
+            unreadable = 0;
+            storeFailure = null;
+            return taken;
         }
 
         /**
@@ -238,36 +438,47 @@ public class CaptureConsumer {
         }
 
         /**
-         * A JMS acknowledge acknowledges everything delivered on the session so far,
-         * so acknowledging the most recent message settles the whole batch.
+         * Close the consumer first — it waits for a delivery in progress, which a waiting
+         * drain abandons as soon as it is woken — then store what was received, and
+         * acknowledge only if that store worked. Unacknowledged messages are redelivered to
+         * the next drain rather than lost.
          */
-        private void acknowledge() {
-            // Commit first, acknowledge second. The other order would let the broker
-            // forget a message Studio has not stored.
-            bus.flush();
-            try {
-                if (lastDelivered != null) {
-                    lastDelivered.acknowledge();
-                }
-            } catch (JMSException e) {
-                log.debug("Capture drain of {} could not acknowledge: {}", spec.captureQueue(), e.getMessage());
-            }
-            sinceAck = 0;
-            lastDelivered = null;
-        }
-
         void close() {
-            if (sinceAck > 0) {
-                // The rows are already written; without this the broker would redeliver
-                // them and the writer's redelivery guard would have to absorb it.
-                acknowledge();
+            synchronized (this) {
+                closed = true;
+                notifyAll();
             }
             try {
                 consumer.close();
             } catch (JMSException ignored) {
                 // teardown
             }
+            synchronized (this) {
+                if (lastDelivered != null) {
+                    try {
+                        writer.capturedBatch(batch);
+                        lastDelivered.acknowledge();
+                    } catch (RuntimeException | JMSException e) {
+                        log.warn(
+                                "Capture drain of {} stopped with {} message(s) not stored; left unacknowledged for"
+                                        + " redelivery: {}",
+                                spec.captureQueue(),
+                                batch.size(),
+                                e.getMessage());
+                    }
+                    batch.clear();
+                    lastDelivered = null;
+                }
+            }
             jms.close();
+        }
+    }
+
+    private static String messageId(Message message) {
+        try {
+            return message.getJMSMessageID();
+        } catch (JMSException | RuntimeException e) {
+            return null;
         }
     }
 
@@ -282,7 +493,7 @@ public class CaptureConsumer {
     private static Long longProperty(Message message, String name) {
         try {
             return message.propertyExists(name) ? message.getLongProperty(name) : null;
-        } catch (JMSException e) {
+        } catch (JMSException | RuntimeException e) {
             return null;
         }
     }

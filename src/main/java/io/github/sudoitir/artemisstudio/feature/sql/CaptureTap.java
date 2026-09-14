@@ -183,6 +183,10 @@ public class CaptureTap {
         settings.put("defaultRingSize", ringSize);
         settings.put("expiryDelay", properties.expiry().toMillis());
         settings.put("autoCreateExpiryResources", false);
+        // Unlimited redelivery. A drain that cannot store recovers its session and retries
+        // (ADR-0077); with the broker's default of 10 attempts and no dead-letter address, a
+        // long database outage would silently discard what the bounded queue was holding.
+        settings.put("maxDeliveryAttempts", -1);
         // Auto-create the capture *address*, and nothing else. This is a safety
         // property, not a convenience: the divert lives in the bindings journal and
         // therefore replicates to a backup, while the non-durable capture queue does
@@ -277,6 +281,7 @@ public class CaptureTap {
                     <default-ring-size>%3$d</default-ring-size>
                     <expiry-delay>%4$d</expiry-delay>
                     <auto-create-expiry-resources>false</auto-create-expiry-resources>
+                    <max-delivery-attempts>-1</max-delivery-attempts>
                   </address-setting>
                 </address-settings>
                 """.formatted(
