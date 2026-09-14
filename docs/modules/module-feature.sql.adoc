@@ -23,7 +23,6 @@ _Others_
 * `i.g.s.a.f.s.CaptureBus`
 * `i.g.s.a.f.s.CaptureConsumer`
 * `i.g.s.a.f.s.CaptureCoverage`
-* `i.g.s.a.f.s.CaptureBus.Listener` (via `i.g.s.a.f.s.CaptureIndexSink`)
 * `i.g.s.a.f.s.CaptureLoss`
 * `i.g.s.a.f.s.CaptureTap`
 * `i.g.s.a.f.s.IndexQueryExecutor`
