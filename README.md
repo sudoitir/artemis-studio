@@ -188,7 +188,7 @@ with a `.sha256`, and its notes are generated from the commit messages
 
 |     |                                                                                                                                                                                                  |
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [ ] | **A · Data governance:** sensitive header/property masking, PII auto-classification, and role-based redaction                                                                                    |
+| [x] | **A · Data governance:** sensitive header/property masking, PII auto-classification, and role-based redaction                                                                                    |
 | [ ] | **A · Cross-broker message transfer:** move messages between queues on different brokers, forced redistribution of specific messages, and arbitrary queue-to-queue transfers across remote nodes |
 | [ ] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
 | [ ] | **A · Observability export:** OpenTelemetry metrics                                                                                                                                              |

@@ -410,6 +410,25 @@ schedule and after every apply, and feeds alerting through `AlertSignalSource`.
 `getAddressSettingsAsJSON` — never guessed from names (ADR-0022, D8). If the settings
 read fails the view says exactly that and infers nothing.
 
+**Data governance** (ADR-0075). Message content passes one content policy, owned by the
+required `platform.governance` module, wherever it leaves Studio or is stored. Rules
+(header, property or JSON body path, optionally per address pattern) and checksum
+detectors (card numbers, IBANs, emails, phones, bearer tokens and JWTs) classify values
+into fixed data classes; credentials are dropped for everyone, other classes masked or
+partially masked, and uninspectable content withheld with its reason. The choke points
+are typed: browse, message detail and MCP (`MessageService`), the SQL console's rows,
+tails and residual predicates (`SqlGovernance`), broker event props, and audit
+parameters through the kernel's `AuditParamsFilter` SPI. `message:clear` shows
+non-credential values in clear, marked as sensitive, and every clear response writes a
+`VIEW_CLEAR` event with classes and counts. Stored copies — `message_index` rows and
+`rr_event` payloads — hold the masked form, so full-text search never sees a sensitive
+value; originals are sealed beside the row with `SecretVault` under a row-bound AAD and
+opened only for clear access. Each stored row records its policy version; a rule change
+applies on every read at once, and the `StoredContentRemasker` SPI lets each owning
+module rewrite its own rows in bounded batches while `GET /governance/remask` reports
+what is left. Detections in fields no rule covers are aggregated in memory and upserted
+into `classification_finding` in batches.
+
 ## Identity
 
 Sign-in is a sealed provider SPI in the security kernel (ADR-0073):

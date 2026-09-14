@@ -222,7 +222,9 @@ function CreateSubscription({
           {retentionDays === 1 ? "" : "s"}, and then delete it. That copy is
           searchable by anyone who can read messages on this cluster. Capture is
           sampled, so it records what was seen, not everything that passed
-          through.
+          through. Sensitive values are stored masked and credentials are never
+          stored; the originals of other masked values are sealed, and only
+          users with <code>message:clear</code> can see them.
         </Text>
       </Alert>
       <Group>

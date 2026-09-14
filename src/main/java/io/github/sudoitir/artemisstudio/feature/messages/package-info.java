@@ -12,6 +12,7 @@
             "kernel.stream",
             "platform.broker",
             "platform.clusters",
+            "platform.governance",
             "platform.mcp",
             "platform.scrape"
         })

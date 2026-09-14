@@ -65,7 +65,7 @@ class SelectorRendererTest {
     @Test
     void aRelativeWindowIsResolvedAgainstTheBrokerClock() {
         // now() is the broker's now, not Studio's (ADR-0053).
-        assertThat(selectorFor("timestamp > now() - interval '1 second'")).isEqualTo("JMSTimestamp > 999000");
+        assertThat(selectorFor("timestamp > now() - interval '1 second'")).isEqualTo("AMQTimestamp > 999000");
     }
 
     @Test

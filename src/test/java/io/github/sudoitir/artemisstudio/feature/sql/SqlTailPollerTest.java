@@ -91,7 +91,7 @@ class SqlTailPollerTest {
         await(() -> !listener.statuses.isEmpty());
 
         assertThat(transport.filters).isNotEmpty();
-        assertThat(transport.filters.getFirst()).contains("JMSTimestamp >= " + NOW.toEpochMilli());
+        assertThat(transport.filters.getFirst()).contains("AMQTimestamp >= " + NOW.toEpochMilli());
     }
 
     @Test
@@ -188,7 +188,10 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
                 snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
-        return new SqlTailPoller(new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties), snapshots);
+        return new SqlTailPoller(
+                new BrokerQueryExecutor(
+                        nodes, limiter, residuals, planner, properties, BrokerQueryExecutorTest.clearGovernance()),
+                snapshots);
     }
 
     private QueryPlan plan(String sql) {

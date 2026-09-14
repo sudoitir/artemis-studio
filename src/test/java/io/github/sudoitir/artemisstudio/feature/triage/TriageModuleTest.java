@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.triage;
 
+import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
@@ -26,4 +27,9 @@ class TriageModuleTest extends ModuleIntegrationTest {
 
     @MockitoBean
     ScrapeProperties scrapeProperties;
+
+    // Events, a direct dependency, governs broker event props through the governance platform module.
+
+    @MockitoBean
+    ContentPolicy contentPolicy;
 }

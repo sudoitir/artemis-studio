@@ -1,0 +1,44 @@
+{
+    "request": {
+        "mbean": "org.apache.activemq.artemis:address=\"PHASE3.SRC\",broker=\"primary\",component=addresses,queue=\"PHASE3.SRC\",routing-type=\"anycast\",subcomponent=queues",
+        "arguments": [
+            1,
+            50,
+            ""
+        ],
+        "type": "exec",
+        "operation": "browse(int,int,java.lang.String)"
+    },
+    "value": [
+        {
+            "address": "PHASE3.SRC::PHASE3.SRC",
+            "ShortProperties": null,
+            "messageID": "501",
+            "priority": 0,
+            "type": 3,
+            "userID": "",
+            "redelivered": false,
+            "ByteProperties": null,
+            "LongProperties": null,
+            "IntProperties": null,
+            "durable": true,
+            "protocol": "CORE",
+            "persistentSize": 240,
+            "StringProperties": {
+                "Authorization": "Basic dXNlcjpwYXNzd29yZA==",
+                "contact": "jane.doe@example.com",
+                "region": "eu"
+            },
+            "DoubleProperties": null,
+            "expiration": 0,
+            "text": "{\"card\":\"4242 4242 4242 4242\",\"amount\":12}",
+            "PropertiesText": "{Authorization=Basic dXNlcjpwYXNzd29yZA==, contact=jane.doe@example.com, region=eu}",
+            "largeMessage": false,
+            "BooleanProperties": null,
+            "FloatProperties": null,
+            "timestamp": 1788501365977
+        }
+    ],
+    "timestamp": 1788501400,
+    "status": 200
+}

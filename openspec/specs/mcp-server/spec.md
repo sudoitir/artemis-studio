@@ -509,3 +509,45 @@ what the planner sends or reports it back.
 
 - **WHEN** a real run halts on the second node
 - **THEN** the result states the node and step, the nodes not attempted, that nothing was rolled back, and that re-running converges
+
+### Requirement: The agent surface reflects the installation's enabled features
+
+The agent surface SHALL offer only tools, catalogue entries and help text contributed by enabled features. A tool of a disabled feature SHALL NOT be listed, SHALL NOT be described in the help tool or the tool catalogue resource, and SHALL NOT be referenced by the server instructions. A runbook prompt whose steps name a tool of a disabled feature SHALL omit those steps and say that the feature is disabled on this installation.
+
+#### Scenario: A disabled feature's tools are absent
+
+- **WHEN** the tool list and the tool catalogue are read on an installation with the SQL feature disabled
+- **THEN** no SQL tool is listed or described, and the catalogue matches the listed tools exactly
+
+#### Scenario: A runbook states a missing feature instead of naming its tool
+
+- **WHEN** a runbook prompt is retrieved whose steps would use a disabled feature's tool
+- **THEN** the prompt omits that step and states the feature is disabled on this installation
+
+### Requirement: The agent surface itself can be disabled
+
+The agent surface SHALL be a feature that an operator can disable at startup. When it is disabled, its endpoint SHALL NOT exist, and a request to it SHALL receive `404`. API tokens SHALL continue to authenticate the REST API.
+
+#### Scenario: Disabled agent surface has no endpoint
+
+- **WHEN** the agent surface is disabled and a client with a valid API token calls its endpoint
+- **THEN** the response is `404`
+
+#### Scenario: Tokens still work for the REST API
+
+- **WHEN** the agent surface is disabled
+- **THEN** a valid API token still authenticates REST API requests within its grants
+
+### Requirement: Message content through the agent surface is governed like the API
+
+A message body or property returned through the agent surface SHALL be governed by the same content policy, and for the same token identity, as the equivalent API read. A value masked, dropped or withheld for that identity SHALL be marked as such in the result, so the model cannot mistake a marker for data.
+
+#### Scenario: An assistant receives masked content
+
+- **WHEN** an assistant using a token without clear access fetches one message body that contains a card number
+- **THEN** the result shows the card number partially masked and identifies it as a masked payment card number
+
+#### Scenario: A credential never reaches an assistant
+
+- **WHEN** an assistant using a token holding clear access fetches a message with an `Authorization` property
+- **THEN** the result shows the credential dropped

@@ -16,6 +16,7 @@
             "kernel.stream",
             "platform.broker",
             "platform.clusters",
+            "platform.governance",
             "platform.scrape"
         })
 package io.github.sudoitir.artemisstudio.feature.sql;

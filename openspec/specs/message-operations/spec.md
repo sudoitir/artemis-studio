@@ -21,6 +21,12 @@ destination when the message has one. A single-message read SHALL additionally
 return the full header set and the string, integer, long, and boolean property
 maps, and the message body.
 
+Every value returned by a browse or a single-message read SHALL be governed by the
+content policy for the caller: sensitive values masked or dropped, uninspectable
+content withheld, and each masked, dropped, withheld or clear-by-grant value
+identified with its location and class. A body preview SHALL be derived from the
+governed body, never from the broker's body.
+
 The browse SHALL be served over the Core client when the cluster has an
 available Core connection, and over Jolokia otherwise. Over the Core client the
 body SHALL be returned faithfully — text as text, binary as bytes with an
@@ -32,6 +38,9 @@ single-message response SHALL state which channel served it.
 Over the Core client, because a queue browser has no server-side offset, a
 requested page beyond a bounded browse depth SHALL be served over Jolokia
 instead, and the response SHALL state that it was.
+
+A filter expression the broker rejects SHALL be reported as invalid without
+repeating the expression's text, because a filter can carry sensitive literals.
 
 #### Scenario: Browse returns a page
 
@@ -45,7 +54,7 @@ instead, and the response SHALL state that it was.
 
 #### Scenario: Core channel returns a faithful body
 
-- **WHEN** a queue with an available Core connection holds a message with a binary body
+- **WHEN** a queue with an available Core connection holds a message with a binary body and the caller holds clear access
 - **THEN** the single-message read returns the exact bytes with a binary encoding indicator and states that the Core channel served it
 
 #### Scenario: Single POST per browse
@@ -67,6 +76,16 @@ instead, and the response SHALL state that it was.
 
 - **WHEN** a browsed message carries a JMS reply-to destination
 - **THEN** the browse response includes that destination for the message
+
+#### Scenario: Browsed content is governed
+
+- **WHEN** a user without clear access browses a queue whose messages carry an `Authorization` property and an email in the body
+- **THEN** the summaries' body previews and the single-message read show the credential dropped and the email redacted, each identified by location and class
+
+#### Scenario: An invalid filter is not echoed
+
+- **WHEN** an operator browses with a filter the broker rejects
+- **THEN** the response states that the filter is invalid and does not contain the filter text
 
 ### Requirement: Truncated message content is detected and disclosed
 

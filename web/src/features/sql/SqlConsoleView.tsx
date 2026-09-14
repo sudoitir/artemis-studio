@@ -600,7 +600,8 @@ export function SqlConsoleView() {
                   <Text size="xs" c="dimmed">
                     Export writes the {rows.length.toLocaleString()} row
                     {rows.length === 1 ? "" : "s"} in view, which may be a
-                    prefix of the answer.
+                    prefix of the answer. Sensitive values are written masked,
+                    exactly as they are shown.
                   </Text>
                   <Button
                     size="compact-xs"

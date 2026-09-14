@@ -25,5 +25,6 @@ _Others_
 * `i.g.s.a.f.e.TopicCoalescer`
 |Bean references
 |* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.g.ContentPolicy` (in Data governance)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 |===

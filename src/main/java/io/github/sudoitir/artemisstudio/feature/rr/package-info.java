@@ -4,6 +4,7 @@
 @ApplicationModule(
         displayName = "Request-reply tracing",
         allowedDependencies = {
+            "feature.messages",
             "feature.sql",
             "kernel.audit",
             "kernel.core",
@@ -14,6 +15,7 @@
             "kernel.stream",
             "platform.broker",
             "platform.clusters",
+            "platform.governance",
             "platform.mcp",
             "platform.scrape"
         })

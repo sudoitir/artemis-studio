@@ -3,24 +3,35 @@ package io.github.sudoitir.artemisstudio.feature.sql.web;
 import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.BrokerQueryExecutor;
 import io.github.sudoitir.artemisstudio.feature.sql.CostRefusedException;
+import io.github.sudoitir.artemisstudio.feature.sql.GovernanceRefusedException;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlConsoleService;
+import io.github.sudoitir.artemisstudio.feature.sql.SqlGovernance;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlTailPoller;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.StreamFrameView;
+import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import io.github.sudoitir.artemisstudio.kernel.stream.web.StreamController;
+import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernContext;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -71,6 +82,9 @@ public class SqlStreamController {
     private final SseHub hub;
     private final SqlProblemAdvice problems;
     private final SqlQueryTickets tickets;
+    private final SqlGovernance governance;
+    private final ClearViewAudit clearViews;
+    private final ActorResolver actors;
 
     /** Execution runs off the request thread; the emitter is returned immediately. */
     private final ExecutorService queries = Executors.newVirtualThreadPerTaskExecutor();
@@ -96,7 +110,9 @@ public class SqlStreamController {
         Subscriber subscriber = new Subscriber(emitter, Set.of());
         hub.register(clusterId, subscriber);
 
-        Session session = new Session(emitter);
+        // Clear access and the actor are resolved here, on the request thread: tail rows arrive on threads with
+        // no security context, and are governed and audited for the caller who opened the stream.
+        Session session = new Session(emitter, clusterId, governance.clearAccess(clusterId), actors.resolve());
         emitter.onCompletion(() -> release(clusterId, subscriber, session));
         emitter.onTimeout(() -> release(clusterId, subscriber, session));
         emitter.onError(e -> release(clusterId, subscriber, session));
@@ -155,6 +171,7 @@ public class SqlStreamController {
             return;
         }
         session.send("done", mapper.toView(executed.result(), executed.plan()));
+        session.tailing = true;
         if (!tail || session.cancelled) {
             session.complete();
             return;
@@ -173,6 +190,7 @@ public class SqlStreamController {
         if (session.tail != null) {
             session.tail.stop();
         }
+        session.recordTailClearViews();
     }
 
     /**
@@ -186,6 +204,9 @@ public class SqlStreamController {
         }
         if (e instanceof CostRefusedException refused) {
             return problems.onCostRefused(refused);
+        }
+        if (e instanceof GovernanceRefusedException refused) {
+            return problems.onGovernanceRefused(refused);
         }
         if (e instanceof SqlConsoleService.TooManyQueriesException tooMany) {
             return problems.onTooManyQueries(tooMany);
@@ -204,16 +225,59 @@ public class SqlStreamController {
     private final class Session implements BrokerQueryExecutor.Sink, SqlTailPoller.Listener {
 
         private final SseEmitter emitter;
+        private final UUID clusterId;
+        private final boolean clearAccess;
+        private final Actor actor;
         private volatile boolean cancelled;
         private volatile SqlTailPoller.Tail tail;
 
-        private Session(SseEmitter emitter) {
+        /** False while the static result streams, true once the tail delivers. They are audited separately. */
+        private volatile boolean tailing;
+
+        private final Map<String, Long> staticClear = new ConcurrentHashMap<>();
+        private final Map<String, Long> tailClear = new ConcurrentHashMap<>();
+        private final AtomicLong tailClearRows = new AtomicLong();
+
+        private Session(SseEmitter emitter, UUID clusterId, boolean clearAccess, Actor actor) {
             this.emitter = emitter;
+            this.clusterId = clusterId;
+            this.clearAccess = clearAccess;
+            this.actor = actor;
         }
 
         @Override
         public void row(QueryResult.Row row) {
-            send("row", mapper.toView(row));
+            GovernedMessage governed = governance.govern(clusterId, clearAccess, row);
+            Map<String, Long> served = ClearViewAudit.classesServedClear(List.of(governed));
+            if (!served.isEmpty()) {
+                Map<String, Long> tally = tailing ? tailClear : staticClear;
+                served.forEach((dataClass, count) -> tally.merge(dataClass, count, Long::sum));
+                if (tailing) {
+                    tailClearRows.incrementAndGet();
+                }
+            }
+            send("row", mapper.toView(row, governed));
+        }
+
+        @Override
+        public Map<String, Long> clearServed() {
+            return Map.copyOf(staticClear);
+        }
+
+        /** The tail's clear values, audited once when the stream ends. The static result's are on the query's row. */
+        private void recordTailClearViews() {
+            if (tailClear.isEmpty()) {
+                return;
+            }
+            Map<String, Long> classes = Map.copyOf(tailClear);
+            tailClear.clear();
+            clearViews.record(
+                    actor,
+                    new GovernContext(clusterId, null, true),
+                    "CLUSTER",
+                    "sql.tail",
+                    classes,
+                    tailClearRows.get());
         }
 
         @Override

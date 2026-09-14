@@ -182,7 +182,10 @@ when applicable, rather than an empty flows list.
 ### Requirement: Request-reply configuration and flows require cluster permission
 
 Reading request-reply expectations or flows for a cluster SHALL require read
-permission at that cluster's scope. Creating, updating, or deleting an
+permission at that cluster's scope. Reading a flow's captured payloads SHALL
+additionally require the message read permission at that cluster's scope; a caller
+without it SHALL receive the flow without payloads, and the response SHALL state that
+payloads were omitted for lack of permission. Creating, updating, or deleting an
 expectation SHALL require write permission at that cluster's scope.
 
 #### Scenario: Reading flows requires read permission
@@ -196,6 +199,13 @@ expectation SHALL require write permission at that cluster's scope.
 - **WHEN** a user without write permission on a cluster attempts to create a
   request-reply expectation for it
 - **THEN** the request is rejected
+
+#### Scenario: Payloads require message read permission
+
+- **WHEN** a user with cluster read but without message read permission opens a flow
+  whose payloads were captured
+- **THEN** the flow is returned without payloads and states that they were omitted for
+  lack of permission
 
 ### Requirement: Reply address patterns resolve from already-collected broker state
 
@@ -447,3 +457,12 @@ The system SHALL NOT report an expectation as fully captured when part of its fl
 
 - **WHEN** an expectation's request address is captured and its reply address is not
 - **THEN** the expectation is not presented as fully captured
+
+### Requirement: Captured request-reply payloads are stored governed
+
+A captured request or reply payload SHALL be governed by the content policy before it is stored: sensitive values masked, credentials dropped, and non-credential originals sealed. When read back, it SHALL be shown masked, or in clear with its sensitive values identified for a caller holding clear access.
+
+#### Scenario: A stored reply payload is masked
+
+- **WHEN** a captured reply payload contains an email address and a user without clear access opens the flow
+- **THEN** the payload shows the email redacted

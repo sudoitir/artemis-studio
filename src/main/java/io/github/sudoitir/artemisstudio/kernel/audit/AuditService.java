@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,6 +27,8 @@ public class AuditService {
     private final AuditEventRepository events;
     private final ObjectMapper mapper;
     private final ScopeHierarchy clusters;
+    /** Resolved lazily: the content policy that implements it itself writes audit rows. */
+    private final ObjectProvider<AuditParamsFilter> paramsFilter;
 
     public AuditEvent begin(
             Actor actor,
@@ -36,7 +39,10 @@ public class AuditService {
             UUID nodeId,
             Map<String, ?> params,
             boolean dryRun) {
-        String paramsJson = (params == null || params.isEmpty()) ? null : mapper.writeValueAsString(params);
+        AuditParamsFilter filter = paramsFilter.getIfAvailable();
+        Map<String, ?> written =
+                (params == null || params.isEmpty() || filter == null) ? params : filter.filter(params);
+        String paramsJson = (written == null || written.isEmpty()) ? null : mapper.writeValueAsString(written);
         Actor a = actor == null ? Actor.system() : actor;
         return events.save(new AuditEventEntity(
                 action,

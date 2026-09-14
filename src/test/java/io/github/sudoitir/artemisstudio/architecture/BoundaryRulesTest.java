@@ -116,6 +116,43 @@ class BoundaryRulesTest {
                 .check(CLASSES);
     }
 
+    /**
+     * Message content reaches a response only through the content policy (ADR-0075 D2): web and MCP code never reads
+     * a raw message's body, properties or identifying headers, so an ungoverned path cannot be written there.
+     */
+    @Test
+    void webAndMcpCodeNeverReadsRawMessageContent() {
+        java.util.Set<String> content = java.util.Set.of(
+                "body",
+                "bodyPreview",
+                "properties",
+                "stringProperties",
+                "intProperties",
+                "longProperties",
+                "doubleProperties",
+                "booleanProperties",
+                "correlationId",
+                "groupId",
+                "userId",
+                "replyTo");
+        noClasses()
+                .that()
+                .resideInAnyPackage(ROOT + "..web..", ROOT + "..mcp..")
+                .should()
+                .callMethodWhere(
+                        new DescribedPredicate<com.tngtech.archunit.core.domain.JavaMethodCall>(
+                                "a raw message content accessor") {
+                            @Override
+                            public boolean test(com.tngtech.archunit.core.domain.JavaMethodCall call) {
+                                String owner = call.getTargetOwner().getFullName();
+                                return (owner.equals(ROOT + ".platform.broker.MessageBrowser$BrowsedMessage")
+                                                || owner.equals(ROOT + ".feature.sql.QueryResult$Row"))
+                                        && content.contains(call.getName());
+                            }
+                        })
+                .check(CLASSES);
+    }
+
     @Test
     void featuresNeitherReachIntoTheContainerNorEnableFrameworkFeatures() {
         noClasses()

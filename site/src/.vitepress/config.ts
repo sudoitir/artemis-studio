@@ -72,6 +72,7 @@ export default defineConfig({
               { text: 'Configuration', link: '/guide/configuration' },
               { text: 'SQL Console', link: '/guide/sql-console' },
               { text: 'Message capture', link: '/guide/message-capture' },
+              { text: 'Data governance', link: '/guide/data-governance' },
               { text: 'Broker configuration', link: '/guide/broker-configuration' },
               { text: 'MCP server', link: '/guide/mcp' },
               { text: 'Build a plugin', link: '/guide/plugins' },

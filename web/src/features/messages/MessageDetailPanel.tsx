@@ -14,11 +14,15 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 
-import { useMessageDetail } from './api.ts';
+import { useMessageDetail, type MessageDetailView } from './api.ts';
 import { HexDump } from './HexDump.tsx';
 import { detectPayload, messageTypeName, unavailableMessage } from './payload.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { GovernedValue, RedactionMarks, WithheldNotice } from '../../ui/RedactedValue.tsx';
+import { redactionsAt } from '../../ui/redactions.ts';
+
+type Redactions = MessageDetailView['redactions'];
 
 /**
  * Raises the per-message body/property cap. Mirrors
@@ -32,7 +36,15 @@ const RAISE_LIMIT_SNIPPET = `<address-settings>
   </address-setting>
 </address-settings>`;
 
-function PropertyTable({ title, entries }: { title: string; entries: [string, unknown][] }) {
+function PropertyTable({
+  title,
+  entries,
+  redactions,
+}: {
+  title: string;
+  entries: [string, unknown][];
+  redactions: Redactions;
+}) {
   if (entries.length === 0) return null;
   return (
     <Stack gap={4}>
@@ -49,9 +61,7 @@ function PropertyTable({ title, entries }: { title: string; entries: [string, un
                 </Text>
               </Table.Td>
               <Table.Td>
-                <Text size="xs" ff="monospace" style={{ wordBreak: 'break-all' }}>
-                  {String(v)}
-                </Text>
+                <GovernedValue value={v} redactions={redactionsAt(redactions, 'PROPERTY', k)} />
               </Table.Td>
             </Table.Tr>
           ))}
@@ -73,6 +83,8 @@ function MessageBody({
   bodyTruncated,
   stringProperties,
   messageId,
+  redactions,
+  withheld,
 }: {
   body: string | null;
   bodyEncoding: string;
@@ -80,7 +92,11 @@ function MessageBody({
   bodyTruncated: boolean;
   stringProperties: Record<string, string>;
   messageId: number;
+  redactions: Redactions;
+  withheld: MessageDetailView['withheld'];
 }) {
+  const bodyRedactions = redactionsAt(redactions, 'BODY');
+  const masked = bodyRedactions.some((r) => !r.clear);
   const [view, setView] = useState<'formatted' | 'raw'>('formatted');
   const detected = useMemo(
     () => detectPayload({ body, bodyEncoding, contentType, bodyTruncated, stringProperties }),
@@ -142,7 +158,15 @@ function MessageBody({
         </Group>
       </Group>
 
-      {detected.bytes ? (
+      <RedactionMarks redactions={bodyRedactions} />
+      {masked ? (
+        <Text size="xs" c="dimmed">
+          Copy and Download carry the body as shown here, with sensitive values masked.
+        </Text>
+      ) : null}
+      <WithheldNotice withheld={withheld} />
+
+      {body === null && withheld.length > 0 ? null : detected.bytes ? (
         <HexDump bytes={detected.bytes} />
       ) : (
         <CodeHighlight
@@ -261,7 +285,7 @@ export function MessageDetailPanel({
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">{m.groupId}</Text>
+                    <GovernedValue value={m.groupId} redactions={redactionsAt(m.redactions, 'HEADER', 'groupId')} />
                   </Table.Td>
                 </Table.Tr>
               ) : null}
@@ -273,7 +297,10 @@ export function MessageDetailPanel({
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">{m.correlationId}</Text>
+                    <GovernedValue
+                      value={m.correlationId}
+                      redactions={redactionsAt(m.redactions, 'HEADER', 'correlationId')}
+                    />
                   </Table.Td>
                 </Table.Tr>
               ) : null}
@@ -285,18 +312,18 @@ export function MessageDetailPanel({
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">{m.userId}</Text>
+                    <GovernedValue value={m.userId} redactions={redactionsAt(m.redactions, 'HEADER', 'userId')} />
                   </Table.Td>
                 </Table.Tr>
               ) : null}
             </Table.Tbody>
           </Table>
 
-          <PropertyTable title="String properties" entries={Object.entries(m.stringProperties)} />
-          <PropertyTable title="Integer properties" entries={Object.entries(m.intProperties)} />
-          <PropertyTable title="Long properties" entries={Object.entries(m.longProperties)} />
-          <PropertyTable title="Double properties" entries={Object.entries(m.doubleProperties)} />
-          <PropertyTable title="Boolean properties" entries={Object.entries(m.booleanProperties)} />
+          <PropertyTable title="String properties" entries={Object.entries(m.stringProperties)} redactions={m.redactions} />
+          <PropertyTable title="Integer properties" entries={Object.entries(m.intProperties)} redactions={m.redactions} />
+          <PropertyTable title="Long properties" entries={Object.entries(m.longProperties)} redactions={m.redactions} />
+          <PropertyTable title="Double properties" entries={Object.entries(m.doubleProperties)} redactions={m.redactions} />
+          <PropertyTable title="Boolean properties" entries={Object.entries(m.booleanProperties)} redactions={m.redactions} />
 
           <MessageBody
             body={m.body ?? null}
@@ -305,6 +332,8 @@ export function MessageDetailPanel({
             bodyTruncated={m.bodyTruncated}
             stringProperties={m.stringProperties}
             messageId={m.messageId}
+            redactions={m.redactions}
+            withheld={m.withheld}
           />
 
           {m.bodyTruncated ? (

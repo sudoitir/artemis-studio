@@ -36,6 +36,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsModule;
 import io.github.sudoitir.artemisstudio.kernel.stream.StreamModule;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerModule;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClustersModule;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceModule;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpModule;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeModule;
 import java.util.List;
@@ -76,6 +77,7 @@ public class StudioFeatures {
                 StreamModule.DESCRIPTOR,
                 BrokerModule.DESCRIPTOR,
                 ClustersModule.DESCRIPTOR,
+                GovernanceModule.DESCRIPTOR,
                 ScrapeModule.DESCRIPTOR,
                 McpModule.DESCRIPTOR,
                 QueuesModule.DESCRIPTOR,

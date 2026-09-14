@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.messages.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews.RedactionView;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews.WithheldView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
@@ -10,8 +12,10 @@ import java.util.UUID;
 /**
  * The Phase 3 message API (ADR-0021). Message I/O is Jolokia-only: bodies are
  * carried as text and the broker truncates oversized values, disclosed per
- * message via {@code bodyTruncated} + {@code observedLimitBytes}. Nothing secret
- * appears here.
+ * message via {@code bodyTruncated} + {@code observedLimitBytes}. Every header,
+ * property and body value is governed by the content policy (ADR-0075): a
+ * sensitive value is its marker unless the caller holds clear access, and
+ * {@code redactions} / {@code withheld} say which values those are.
  *
  * <p>{@code @Schema} on every component so the generated OpenAPI document (and
  * the frontend's {@code schema.d.ts}) declares requiredness and nullability
@@ -34,7 +38,8 @@ public final class MessageViews {
             @Schema(nullable = true) String correlationId,
             @Schema(nullable = true) String bodyPreview,
             @Schema(requiredMode = REQUIRED) boolean bodyTruncated,
-            @Schema(requiredMode = REQUIRED) int propertyCount) {}
+            @Schema(requiredMode = REQUIRED) int propertyCount,
+            @Schema(requiredMode = REQUIRED) List<RedactionView> redactions) {}
 
     /** One message, expanded: the full header set, the typed property maps, and the body. */
     public record MessageDetailView(
@@ -59,7 +64,9 @@ public final class MessageViews {
             @Schema(requiredMode = REQUIRED) Map<String, Long> intProperties,
             @Schema(requiredMode = REQUIRED) Map<String, Long> longProperties,
             @Schema(requiredMode = REQUIRED) Map<String, Double> doubleProperties,
-            @Schema(requiredMode = REQUIRED) Map<String, Boolean> booleanProperties) {}
+            @Schema(requiredMode = REQUIRED) Map<String, Boolean> booleanProperties,
+            @Schema(requiredMode = REQUIRED) List<RedactionView> redactions,
+            @Schema(requiredMode = REQUIRED) List<WithheldView> withheld) {}
 
     /**
      * A page of messages. {@code node} echoes the endpoint the page was read

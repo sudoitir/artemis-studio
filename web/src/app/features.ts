@@ -4,6 +4,7 @@ import { auditFeature } from '../features/audit/feature.ts';
 import { brokerconfigFeature } from '../features/brokerconfig/feature.ts';
 import { clustersFeature } from '../features/clusters/feature.ts';
 import { eventsFeature } from '../features/events/feature.ts';
+import { governanceFeature } from '../features/governance/feature.ts';
 import { identityLocalFeature } from '../features/identity-local/feature.ts';
 import { mcpFeature } from '../features/mcp/feature.ts';
 import { messagesFeature } from '../features/messages/feature.ts';
@@ -37,6 +38,7 @@ export const FEATURES: StudioFeature[] = [
   eventsFeature,
   auditFeature,
   securityFeature,
+  governanceFeature,
   identityLocalFeature,
   apitokensFeature,
   mcpFeature,

@@ -144,3 +144,41 @@ to the existing action, outcome, and time-range filters.
 
 - **WHEN** an operator filters the audit trail to one user account
 - **THEN** only events attributed to that user's account are returned
+
+### Requirement: An audit event outlives what it describes
+
+An audit event SHALL keep its actor user id, cluster id, node id, target name and cluster name exactly as recorded, even after that user, cluster or node is removed. Removing a user, cluster or node SHALL NOT modify or delete any audit event. The audit read for a removed cluster SHALL remain available to a caller holding a global grant for the audit read.
+
+#### Scenario: Removing a cluster keeps its audit trail intact
+
+- **WHEN** a cluster with recorded audit events is removed
+- **THEN** its audit events still carry that cluster's id and name and are returned by the audit read to a globally granted caller
+
+#### Scenario: Removing a user keeps attribution
+
+- **WHEN** a user who performed audited actions is deleted
+- **THEN** those audit events still record that user's username and user id
+
+### Requirement: Audit parameters never carry a sensitive value
+
+Before an audit record is written, its parameters SHALL be passed through the content policy. That covers query text, filter expressions and selector strings. Values the policy detects as sensitive, and literals compared with classified fields, SHALL be masked, and credentials SHALL be dropped. Masking SHALL NOT change the record's action, target or outcome.
+
+#### Scenario: A move by filter does not store the filter literal
+
+- **WHEN** an operator moves messages with the filter `email = 'jane@example.com'`
+- **THEN** the audit record's filter parameter shows the literal redacted
+
+### Requirement: Governance actions and clear views are audited
+
+The system SHALL write an audit record for each of these actions:
+
+- creating, changing, enabling, disabling and deleting a masking rule;
+- confirming and dismissing a finding;
+- every response that served sensitive values in clear.
+
+A clear-view record SHALL carry the classes and counts served and SHALL NOT carry any value.
+
+#### Scenario: Disabling a built-in rule is audited
+
+- **WHEN** an administrator disables the built-in `Authorization` rule
+- **THEN** an audit record names the actor, the rule and the change

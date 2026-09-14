@@ -10,6 +10,7 @@
             "kernel.settings",
             "kernel.stream",
             "platform.broker",
+            "platform.governance",
             "platform.scrape"
         })
 package io.github.sudoitir.artemisstudio.feature.events;

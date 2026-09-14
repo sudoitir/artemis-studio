@@ -17,6 +17,7 @@ export const FEATURE_IDS = [
   'stream',
   'broker',
   'clusters',
+  'governance',
   'scrape',
   'mcp',
   'queues',

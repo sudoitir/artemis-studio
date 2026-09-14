@@ -99,7 +99,8 @@ public class MessageBrowser {
         if (!browse.ok()) {
             String error = browse.error() == null ? "" : browse.error();
             if (error.contains("AMQ229020") || error.toLowerCase().contains("invalid filter")) {
-                throw new IllegalArgumentException("Invalid message filter: " + selector);
+                // Never echo the filter: it can carry sensitive literals (data-governance spec).
+                throw new IllegalArgumentException("Invalid message filter.");
             }
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE,

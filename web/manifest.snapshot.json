@@ -28,6 +28,10 @@
     "kind" : "FEATURE",
     "required" : false
   }, {
+    "id" : "governance",
+    "kind" : "PLATFORM",
+    "required" : true
+  }, {
     "id" : "identity-local",
     "kind" : "IDENTITY_PROVIDER",
     "required" : false

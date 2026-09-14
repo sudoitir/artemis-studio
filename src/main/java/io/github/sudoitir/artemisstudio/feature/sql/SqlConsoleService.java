@@ -41,6 +41,7 @@ public class SqlConsoleService {
     private final ActorResolver actorResolver;
     private final AuditService audit;
     private final SqlProperties properties;
+    private final SqlGovernance governance;
 
     /** One counter per actor, so one operator cannot occupy the whole fan-out budget. */
     private final Map<String, AtomicInteger> inFlight = new ConcurrentHashMap<>();
@@ -48,7 +49,9 @@ public class SqlConsoleService {
     /** Parse, validate and cost a query. Contacts no broker and no database beyond the cache. */
     public QueryPlan plan(UUID clusterId, String sql) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
-        return planner.plan(clusterId, parser.parse(sql));
+        QueryAst ast = parser.parse(sql);
+        governance.guardPredicates(clusterId, ast);
+        return governance.withAtRestNotice(planner.plan(clusterId, ast));
     }
 
     /**
@@ -58,7 +61,9 @@ public class SqlConsoleService {
      */
     public Executed run(UUID clusterId, String sql, BrokerQueryExecutor.Sink sink) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
-        QueryPlan plan = planner.plan(clusterId, parser.parse(sql));
+        QueryAst ast = parser.parse(sql);
+        governance.guardPredicates(clusterId, ast);
+        QueryPlan plan = governance.withAtRestNotice(planner.plan(clusterId, ast));
         planner.enforceCostCeiling(plan);
 
         Actor actor = actorResolver.resolve();
@@ -100,7 +105,9 @@ public class SqlConsoleService {
                             "rows", result.rows().size(),
                             "nodes", result.nodes().size(),
                             "partial", result.isPartial(),
-                            "bounds", result.boundsReached()));
+                            "bounds", result.boundsReached(),
+                            // Classes and counts served in clear by grant, never the values (sql-console spec).
+                            "clearFields", sink.clearServed()));
             return new Executed(plan, result);
         } catch (RuntimeException e) {
             audit.fail(event, e.getMessage());

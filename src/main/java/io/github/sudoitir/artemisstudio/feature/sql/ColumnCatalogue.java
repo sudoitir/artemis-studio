@@ -68,7 +68,7 @@ public final class ColumnCatalogue {
                 "timestamp",
                 Type.TIMESTAMP,
                 Evaluation.PUSHDOWN,
-                "JMSTimestamp",
+                "AMQTimestamp",
                 false,
                 "When the broker took the message."),
         EXPIRATION(

@@ -349,3 +349,89 @@ discarding the oldest rows to stay within that bound.
 
 - **WHEN** a tail has delivered more rows than the view retains
 - **THEN** the view states that the oldest rows are no longer shown
+
+### Requirement: Navigation is grouped into a fixed, ordered set of groups
+
+The navigation SHALL present every view within one of a fixed, ordered set of groups: Observe, Messaging, Resources, Configuration, Activity. Within a group, views SHALL appear in a declared order. When the navigation is expanded, each group SHALL show a visible heading exposed to assistive technology as a heading. When collapsed, groups SHALL be separated visually and SHALL keep their accessible names. The command palette SHALL list views under the same groups. A group with no enabled views SHALL NOT be shown.
+
+#### Scenario: Views appear under their group headings
+
+- **WHEN** an operator opens a cluster with the navigation expanded
+- **THEN** each view is listed under its group's heading, groups appear in the fixed order, and a screen reader announces each heading
+
+#### Scenario: Collapsed navigation keeps groups distinguishable
+
+- **WHEN** the navigation is collapsed
+- **THEN** groups remain visually separated and each view keeps its accessible name
+
+#### Scenario: A group whose views are all disabled is not shown
+
+- **WHEN** every view in a group belongs to disabled features
+- **THEN** that group's heading does not appear
+
+### Requirement: A disabled feature is absent from navigation and explains itself at its address
+
+A view belonging to a feature disabled on this installation SHALL NOT appear in navigation, the command palette, or any screen section that feature would contribute. Navigating directly to such a view's address SHALL show a page that:
+- states the feature is disabled on this installation;
+- names the startup property that enables it;
+- offers a way back to the cluster.
+
+The page SHALL NOT be blank and SHALL NOT look like a generic not-found page.
+
+A view belonging to an enabled feature that the operator lacks permission for SHALL remain visible and disabled, with the reason available by keyboard.
+
+#### Scenario: A deep link to a disabled feature explains how to enable it
+
+- **WHEN** an operator opens the address of a view whose feature is disabled
+- **THEN** the page states the feature is disabled on this installation, names `artemis-studio.features.<id>.enabled`, and links back to the cluster
+
+#### Scenario: A disabled feature contributes nothing to shared screens
+
+- **WHEN** a feature that contributes a section to the settings screen is disabled
+- **THEN** the settings screen renders without that section and without an empty placeholder for it
+
+#### Scenario: A permission gap is not treated as a disabled feature
+
+- **WHEN** an operator lacks the read permission for an enabled feature's view
+- **THEN** the navigation entry is visible and disabled, and its reason is reachable by keyboard
+
+### Requirement: Governed message content is presented for what it is
+
+Wherever message content is shown (message detail, SQL results, flow detail), the interface SHALL present each governed value distinctly:
+
+- **masked value**: a labelled token naming its class in words;
+- **dropped credential**: a labelled marker;
+- **withheld content**: a notice stating why, and naming the setting that changes it where one does;
+- **value shown in clear by grant**: marked as sensitive.
+
+Colour SHALL NOT be the only carrier of any of these states. Copying or downloading governed content SHALL state that the copy contains masked values where it does.
+
+#### Scenario: A masked value is labelled in words
+
+- **WHEN** a masked email appears in message detail
+- **THEN** it is shown as a token reading that it is a masked email, not as a string resembling an address
+
+#### Scenario: A withheld body names its reason
+
+- **WHEN** message detail shows a message whose binary body was withheld
+- **THEN** the body area states that the binary body could not be classified and was withheld
+
+### Requirement: The governance screens teach and gate honestly
+
+The governance screens SHALL:
+
+- list rules, marking built-in rules as not deletable while leaving their enable control available;
+- list open findings with confirm and dismiss actions;
+- show how many stored rows are still under an earlier policy version.
+
+A user without the governance write permission SHALL see the change controls disabled, with the reason reachable from the keyboard. An empty inbox SHALL explain what a finding is and why there are none; a filtered-empty inbox SHALL say so and offer to clear the filter.
+
+#### Scenario: A read-only user sees why controls are disabled
+
+- **WHEN** a user with governance read but not governance write opens the rules screen
+- **THEN** the create, edit and delete controls are disabled and a keyboard-reachable explanation names the missing permission
+
+#### Scenario: An empty inbox teaches
+
+- **WHEN** the inbox has no findings
+- **THEN** it explains that findings are personal data detected in fields no rule covers, and that none have been detected yet
