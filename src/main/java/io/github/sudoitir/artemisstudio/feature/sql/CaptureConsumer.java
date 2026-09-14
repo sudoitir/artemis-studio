@@ -244,7 +244,7 @@ public class CaptureConsumer {
      * delivery. A drain waiting out a backoff waits on its own monitor, so it releases the
      * lock and {@code close} can always get in.
      */
-    private final class Drain implements jakarta.jms.MessageListener {
+    final class Drain implements jakarta.jms.MessageListener {
 
         private final Spec spec;
         private final PooledSession jms;
@@ -266,7 +266,7 @@ public class CaptureConsumer {
 
         private boolean closed;
 
-        private Drain(Spec spec, PooledSession jms, MessageConsumer consumer) {
+        Drain(Spec spec, PooledSession jms, MessageConsumer consumer) {
             this.spec = spec;
             this.jms = jms;
             this.consumer = consumer;

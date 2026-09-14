@@ -143,6 +143,29 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         assertThat(consumer.drainingOn(nodeId)).isEmpty();
     }
 
+    @Test
+    void aPoisonMessageIsRetriedThenCountedAsLostAndAcknowledged() throws Exception {
+        jakarta.jms.Session session = mock(jakarta.jms.Session.class);
+        jakarta.jms.Message poison = mock(jakarta.jms.Message.class);
+        when(poison.getJMSMessageID()).thenReturn("ID:poison");
+        when(poison.getPropertyNames()).thenThrow(new jakarta.jms.JMSException("unreadable property"));
+        CaptureConsumer.Drain drain = consumer
+        .new Drain(
+                spec("capture.poison", "ORDER.IN"),
+                new CorePool.PooledSession(mock(Connection.class), session),
+                mock(jakarta.jms.MessageConsumer.class));
+
+        // The broker redelivers after each recover; here the redeliveries are the calls themselves.
+        drain.onMessage(poison);
+        drain.onMessage(poison);
+        org.mockito.Mockito.verify(poison, org.mockito.Mockito.never()).acknowledge();
+        drain.onMessage(poison);
+
+        org.mockito.Mockito.verify(session, org.mockito.Mockito.times(2)).recover();
+        org.mockito.Mockito.verify(poison).acknowledge();
+        assertThat(drain.takeShortfall().unreadable()).isEqualTo(1);
+    }
+
     private long count(String address) {
         return stored.stream().filter(c -> c.row().address().equals(address)).count();
     }
