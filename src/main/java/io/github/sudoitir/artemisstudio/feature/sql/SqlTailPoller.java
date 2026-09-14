@@ -171,7 +171,7 @@ public class SqlTailPoller {
             // millisecond as the mark would otherwise be skipped. The duplicates that
             // admits are filtered by id below, which is what the id half of the mark
             // is for.
-            return mark == null ? null : "JMSTimestamp >= " + mark.timestamp();
+            return mark == null ? null : ColumnCatalogue.Column.TIMESTAMP.selectorId() + " >= " + mark.timestamp();
         }
 
         private boolean isNew(Row row) {

@@ -91,7 +91,7 @@ class SqlTailPollerTest {
         await(() -> !listener.statuses.isEmpty());
 
         assertThat(transport.filters).isNotEmpty();
-        assertThat(transport.filters.getFirst()).contains("JMSTimestamp >= " + NOW.toEpochMilli());
+        assertThat(transport.filters.getFirst()).contains("AMQTimestamp >= " + NOW.toEpochMilli());
     }
 
     @Test

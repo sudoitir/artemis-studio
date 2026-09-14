@@ -284,7 +284,7 @@ class QueryPlannerTest {
         QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\" WHERE timestamp > now() - interval '1 hour'");
 
         long expected = NOW.plusSeconds(60).minus(Duration.ofHours(1)).toEpochMilli();
-        assertThat(plan.selector()).isEqualTo("JMSTimestamp > " + expected);
+        assertThat(plan.selector()).isEqualTo("AMQTimestamp > " + expected);
     }
 
     @Test
