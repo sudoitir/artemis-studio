@@ -30,7 +30,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
@@ -57,8 +56,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * Message browse and the destructive message operations for one queue on one
  * node (ADR-0021, ADR-0022). {@code address} / {@code routingType} come from the
- * cached {@code queue_snapshot} row, never the client. Every broker call takes a
- * {@link NodeCallLimiter} permit first (non-negotiable #1); every mutation writes
+ * cached {@code queue_snapshot} row, never the client. Every broker request waits for
+ * the node's rate ceiling in the transport itself (non-negotiable #1, ADR-0076); every mutation writes
  * an {@code audit_event} in its own transaction, before the broker call, updated
  * with the outcome (non-negotiable #3); a dry run is a broker-side estimate,
  * still audited with {@code dry_run = true}. A successful mutation nudges the SSE
@@ -78,7 +77,6 @@ public class MessageService {
     private final JolokiaMessageTransport jolokiaTransport;
     private final CoreMessageTransport coreTransport;
     private final CoreSubscriptionManager subscriptions;
-    private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final SettingsService settings;
@@ -97,6 +95,12 @@ public class MessageService {
         record Affected(long count, UUID node) implements Outcome {}
 
         record DryRun(long count, long cap, boolean overCap, UUID node) implements Outcome {}
+
+        /**
+         * An operation by ids that stopped part-way: {@code count} were acted on, and
+         * {@code notDone} holds every id that was not — refused, or never sent after {@code error}.
+         */
+        record Partial(long count, List<Long> notDone, String error, UUID node) implements Outcome {}
     }
 
     // ---- browse -----------------------------------------------------------
@@ -119,6 +123,7 @@ public class MessageService {
         return new MessagePageView(
                 rows,
                 result.page().total(),
+                result.page().totalUnavailable(),
                 page,
                 size,
                 resolved.node().getId(),
@@ -143,7 +148,6 @@ public class MessageService {
 
     // ---- send (Slice 4) -------------------------------------------------
 
-    @Transactional
     public Attempt<Outcome> send(
             UUID clusterId, String queueName, UUID nodeId, SendMessageRequest req, boolean dryRun) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_SEND);
@@ -159,7 +163,6 @@ public class MessageService {
                     resolved.node().getId()));
         }
         try {
-            acquire(resolved.node().getId());
             transportFor(clusterId)
                     .send(
                             targetOf(clusterId, queueName, resolved),
@@ -181,7 +184,6 @@ public class MessageService {
 
     // ---- move / retry / delete / expire (Slices 5 + 6) ----------------
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<Outcome> execute(
             UUID clusterId,
             String queueName,
@@ -238,6 +240,22 @@ public class MessageService {
                 throw new BulkCapExceededException(estimate, cap);
             }
 
+            if (idBased) {
+                MessageOperations.BulkResult result = performByIds(client, mbean, action, req);
+                publishQueuesAfterCommit(clusterId);
+                if (result.partial()) {
+                    // Reported as partial, never as a plain failure: some messages already moved.
+                    audit.failPartial(
+                            event,
+                            result.affected(),
+                            "Stopped after " + result.affected() + " of "
+                                    + req.ids().size() + ": " + result.error());
+                    return new Attempt.Ok<>(
+                            new Outcome.Partial(result.affected(), result.notDone(), result.error(), node));
+                }
+                audit.succeed(event, result.affected());
+                return new Attempt.Ok<>(new Outcome.Affected(result.affected(), node));
+            }
             long affected = perform(client, mbean, action, req);
             audit.succeed(event, affected);
             publishQueuesAfterCommit(clusterId);
@@ -245,12 +263,15 @@ public class MessageService {
         } catch (BrokerConnectionException e) {
             audit.fail(event, e.getMessage());
             return new Attempt.Failed<>(e.kind(), e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // A filter the broker rejected. The row is closed as failed rather than left pending.
+            audit.fail(event, e.getMessage());
+            throw e;
         }
     }
 
     // ---- purge (Slice 7) ---------------------------------------------
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<Outcome> purge(UUID clusterId, String queueName, UUID nodeId, boolean dryRun, boolean override) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.QUEUE_PURGE);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
@@ -301,19 +322,22 @@ public class MessageService {
         return req.ids().size();
     }
 
+    /** A retry-all or a by-filter operation: one broker call, which returns its own count. */
     private long perform(JolokiaBrokerClient client, String mbean, MessageAction action, MessageActionRequest req) {
-        List<Long> ids = req.ids();
-        if (action == MessageAction.RETRY && ids.isEmpty()) {
+        if (action == MessageAction.RETRY && req.ids().isEmpty()) {
             return messageOps.retryAll(client, mbean);
         }
-        if (req.byFilter()) {
-            return switch (action) {
-                case MOVE -> messageOps.moveByFilter(client, mbean, req.filter(), req.targetQueue());
-                case DELETE -> messageOps.deleteByFilter(client, mbean, req.filter());
-                case EXPIRE -> messageOps.expireByFilter(client, mbean, req.filter());
-                case RETRY -> throw new IllegalStateException("unreachable");
-            };
-        }
+        return switch (action) {
+            case MOVE -> messageOps.moveByFilter(client, mbean, req.filter(), req.targetQueue());
+            case DELETE -> messageOps.deleteByFilter(client, mbean, req.filter());
+            case EXPIRE -> messageOps.expireByFilter(client, mbean, req.filter());
+            case RETRY -> throw new IllegalStateException("unreachable");
+        };
+    }
+
+    private MessageOperations.BulkResult performByIds(
+            JolokiaBrokerClient client, String mbean, MessageAction action, MessageActionRequest req) {
+        List<Long> ids = req.ids();
         return switch (action) {
             case MOVE -> messageOps.moveByIds(client, mbean, ids, req.targetQueue());
             case RETRY -> messageOps.retryByIds(client, mbean, ids);
@@ -326,7 +350,6 @@ public class MessageService {
 
     private BrowseResult browseAt(
             UUID clusterId, String queueName, ResolvedQueue resolved, int page, int size, String filter) {
-        acquire(resolved.node().getId());
         return transportFor(clusterId).browse(targetOf(clusterId, queueName, resolved), page, size, filter);
     }
 
@@ -348,7 +371,6 @@ public class MessageService {
     }
 
     private JolokiaBrokerClient clientFor(UUID clusterId, ResolvedQueue resolved) {
-        acquire(resolved.node().getId());
         return connections.forCluster(clusterId, resolved.node().getJolokiaUrl());
     }
 
@@ -409,16 +431,6 @@ public class MessageService {
                     .orElse(candidates.get(0));
         }
         return new ResolvedQueue(chosen, any.address(), any.routingType());
-    }
-
-    private void acquire(UUID nodeId) {
-        try {
-            limiter.acquire(nodeId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
     }
 
     /**

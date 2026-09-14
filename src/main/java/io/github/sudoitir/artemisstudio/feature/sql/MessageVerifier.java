@@ -5,7 +5,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -37,7 +36,6 @@ public class MessageVerifier {
 
     private final ClusterDirectory nodes;
     private final QueueSnapshots snapshots;
-    private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
     private final SqlConsoleService console;
 
@@ -86,7 +84,6 @@ public class MessageVerifier {
 
         MessageTransport transport = console.transportFor(clusterId);
         try {
-            limiter.acquire(nodeId);
             var result = transport.browse(target, 1, MessageBrowser.BROKER_PAGE_CAP, selector);
             boolean found = result.page().messages().stream().anyMatch(m -> m.messageId() == messageId);
             if (found) {
@@ -102,9 +99,6 @@ public class MessageVerifier {
                     Presence.GONE,
                     "Not on " + queueName + " on " + node.get().getName()
                             + " any more — consumed, moved, or expired since it was indexed.");
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return new Verdict(Presence.UNKNOWN, "Timed out waiting for a rate-limit permit for this node.");
         } catch (RuntimeException e) {
             log.debug("Verify of message {} on {} failed", messageId, queueName, e);
             return new Verdict(

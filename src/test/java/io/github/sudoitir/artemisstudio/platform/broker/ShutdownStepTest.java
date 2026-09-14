@@ -5,17 +5,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownStep;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 /** The shutdown sequence (operational-health spec) and the gate that ends broker calls. */
 class ShutdownStepTest {
 
+    private static final String NODE = "http://a:8161/console/jolokia";
+
+    private static NodeCallLimiter limiter() {
+        return new NodeCallLimiter(
+                new RateLimitProperties(10), new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
+    }
+
     @Test
     void phasesStopStreamFirstAndTheCorePoolLast() {
         // Spring stops the highest phase first.
-        assertThat(ShutdownPhases.STREAM).isGreaterThan(ShutdownPhases.BROKER_CALLS);
+        assertThat(ShutdownPhases.STREAM).isGreaterThan(ShutdownPhases.JOBS);
+        assertThat(ShutdownPhases.JOBS).isGreaterThan(ShutdownPhases.BUFFERS);
+        assertThat(ShutdownPhases.BUFFERS).isGreaterThan(ShutdownPhases.BROKER_CALLS);
         assertThat(ShutdownPhases.BROKER_CALLS).isGreaterThan(ShutdownPhases.SUBSCRIPTIONS);
         assertThat(ShutdownPhases.SUBSCRIPTIONS).isGreaterThan(ShutdownPhases.CORE_POOL);
     }
@@ -36,29 +44,27 @@ class ShutdownStepTest {
     }
 
     @Test
-    void aStoppedContextThatStartsAgainReopensTheGate() throws InterruptedException {
-        NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(10));
+    void aStoppedContextThatStartsAgainReopensTheGate() {
+        NodeCallLimiter limiter = limiter();
         ShutdownStep gate =
                 new ShutdownStep("broker-calls", ShutdownPhases.BROKER_CALLS, limiter::close, limiter::open);
-        UUID node = UUID.randomUUID();
         gate.start();
 
         gate.stop();
-        assertThatThrownBy(() -> limiter.acquire(node)).isInstanceOf(BrokerConnectionException.class);
+        assertThatThrownBy(() -> limiter.acquire(NODE, 1)).isInstanceOf(BrokerConnectionException.class);
 
         gate.start();
-        limiter.acquire(node);
+        limiter.acquire(NODE, 1);
     }
 
     @Test
-    void noBrokerCallStartsOnceTheGateHasClosed() throws InterruptedException {
-        NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(10));
-        UUID node = UUID.randomUUID();
-        limiter.acquire(node);
+    void noBrokerCallStartsOnceTheGateHasClosed() {
+        NodeCallLimiter limiter = limiter();
+        limiter.acquire(NODE, 1);
 
         limiter.close();
 
-        assertThatThrownBy(() -> limiter.acquire(node))
+        assertThatThrownBy(() -> limiter.acquire(NODE, 1))
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessageContaining("shutting down");
     }

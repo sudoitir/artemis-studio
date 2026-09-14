@@ -1,16 +1,22 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
+import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -19,33 +25,53 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * What capture missed, per node (ADR-0062 D7).
  *
- * <p>The measurement is the same one a live tail already makes and reuses its
- * inputs: {@code MessagesAdded} on the source queues, from {@code queue_snapshot},
- * differenced between passes, minus the rows actually written. A positive remainder
- * is messages the ring dropped, the rate cap rejected, or that arrived while the tap
- * was not installed. There is deliberately no second gap metric.
+ * <p>The measurement is the change, between passes, in what was routed to the covered addresses
+ * ({@code MessagesAdded} in {@code queue_snapshot}) that is neither stored nor still waiting in
+ * the subscription's capture queues. A message in the ring has not been lost yet — counting it
+ * would report every in-flight backlog as loss, and nothing would ever take it back. A positive
+ * remainder is messages the ring dropped, or that arrived while the tap was not installed.
  *
- * <p>It is an estimate, and the product says so. Both terms come from sampled
- * counters, and a subscription with a divert filter legitimately captures fewer
- * messages than the address enqueued. What it is reliable for is the thing that
- * matters: a subscription steadily losing messages stops being reported as healthy.
+ * <p>All three terms describe one instant: stored rows are counted up to the time of the queue
+ * snapshot the other two come from, because rows stored after it would otherwise count against
+ * routing the snapshot has not seen. What that leaves unmeasurable is a drain's in-flight batch —
+ * read and not yet acknowledged, so both stored and still in the queue — which moves the figure
+ * by up to one batch per drain either way. A rise is therefore reported only once it exceeds that
+ * window twice over, measured from the lowest level seen since the last report: noise falls back
+ * and never accumulates, while real loss keeps rising and is reported when it clears the window. There is deliberately no second gap metric.
+ * The causes the drains recorded ({@link CaptureConsumer.Shortfall}) are named with it.
+ *
+ * <p>It is an estimate, and the product says so. Both terms come from sampled counters. What
+ * it is reliable for is the thing that matters: a subscription steadily losing messages stops
+ * being reported as healthy, and one that stops losing them is reported as healthy again.
+ * Where it cannot be estimated — a divert filter captures part of the traffic by design — it is
+ * stated as unavailable, never reported as zero (message-capture spec).
  */
 @Component
 @RequiredArgsConstructor
 public class CaptureLoss {
 
-    /** Below this, a difference is measurement noise rather than loss. */
+    /** Below this, a difference is measurement noise rather than loss, whatever the drain count. */
     private static final long NOISE_FLOOR = 5;
+
+    static final String FILTERED =
+            "Loss cannot be estimated for this capture: its filter selects only part of what the address"
+                    + " routes, so what was routed and what was captured are not expected to match.";
 
     private final MessageIndexSubscriptionRepository subscriptions;
     private final MessageCaptureNodeRepository captureNodes;
     private final QueueSnapshots snapshots;
     private final JdbcTemplate jdbc;
+    private final CaptureConsumer consumers;
+    private final CaptureAddresses addresses;
 
-    /** {@code MessagesAdded} and rows written at the previous pass, per (subscription, node). */
+    /** What was routed and written at the previous pass, per (subscription, node), and when. */
     private final Map<String, Mark> marks = new ConcurrentHashMap<>();
 
-    private record Mark(long enqueued, long captured) {}
+    /**
+     * @param baseline the lowest unaccounted figure since loss was last reported
+     * @param since when that baseline was established, which is the window a report covers
+     */
+    private record Mark(long routed, long captured, long baseline, Instant since) {}
 
     /** Called at the end of each reconcile pass. Reads Postgres only — no broker call. */
     @Transactional
@@ -54,45 +80,139 @@ public class CaptureLoss {
             if (subscription.getMode() != CaptureMode.CAPTURE || !subscription.isEnabled()) {
                 continue;
             }
+            Set<String> covered = addresses.of(clusterId, subscription);
             List<MessageCaptureNodeEntity> nodes = captureNodes.findBySubscriptionId(subscription.getId());
             for (MessageCaptureNodeEntity node : nodes) {
-                measureNode(clusterId, subscription, node);
+                measureNode(clusterId, subscription, covered, node);
             }
             enforceStoredSizeBound(subscription, nodes);
         }
     }
 
     private void measureNode(
-            UUID clusterId, MessageIndexSubscriptionEntity subscription, MessageCaptureNodeEntity node) {
-        long enqueued = enqueuedOnSource(clusterId, subscription, node.getNodeId());
-        long captured = capturedRows(clusterId, subscription, node.getNodeId());
-        node.setHeldBytes(heldBytes(clusterId, subscription, node.getNodeId()));
+            UUID clusterId,
+            MessageIndexSubscriptionEntity subscription,
+            Set<String> covered,
+            MessageCaptureNodeEntity node) {
+        CaptureConsumer.Shortfall shortfall = consumers.takeShortfall(node.getNodeId(), subscription.getId());
+        node.setHeldBytes(heldBytes(clusterId, subscription, covered, node.getNodeId()));
         node.setUpdatedAt(Instant.now());
         captureNodes.save(node);
+
+        if (subscription.getFilterString() != null) {
+            // Only a store failure can be stated; a count difference means nothing here.
+            if (shortfall.storeFailure() != null) {
+                degrade(node, lossDetail(0, null, shortfall));
+            } else if (node.getCaptureState() == CaptureState.ACTIVE) {
+                node.setCaptureDetail(FILTERED);
+                captureNodes.save(node);
+            }
+            return;
+        }
+
+        String suffix = "." + subscription.getId() + ".q";
+        List<QueueSnapshot> used = snapshots.forCluster(clusterId).stream()
+                .filter(row -> node.getNodeId().equals(row.nodeId()))
+                .filter(row -> covered.contains(row.address()) || isCaptureQueue(row, suffix))
+                .toList();
+        Instant asOf = used.stream()
+                .map(QueueSnapshot::ts)
+                .filter(java.util.Objects::nonNull)
+                .min(java.util.Comparator.naturalOrder())
+                .orElse(null);
         String key = subscription.getId() + "|" + node.getNodeId();
-        Mark previous = marks.put(key, new Mark(enqueued, captured));
-        if (previous == null) {
-            // The first pass has no interval to difference; it establishes the marks.
+        Instant now = Instant.now();
+        if (asOf == null) {
+            // Nothing scraped for these addresses on this node yet: there is no instant to measure at.
+            if (shortfall.storeFailure() != null) {
+                degrade(node, lossDetail(0, null, shortfall));
+            }
             return;
         }
-        long arrived = Math.max(0, enqueued - previous.enqueued());
-        long recorded = Math.max(0, captured - previous.captured());
-        long lost = arrived - recorded;
-        if (lost <= NOISE_FLOOR) {
+        long routed = routedToCovered(used, covered);
+        long inRing = used.stream()
+                .filter(row -> isCaptureQueue(row, suffix))
+                .mapToLong(QueueSnapshot::messageCount)
+                .sum();
+        long captured = capturedRows(clusterId, subscription, covered, node.getNodeId(), asOf);
+        long unaccounted = routed - captured - inRing;
+        Mark previous = marks.get(key);
+        // The first pass has no interval to difference. A counter that went backwards — a
+        // broker restart resets MessagesAdded, retention deletes stored rows — has no interval
+        // either; the pass re-establishes the marks rather than reporting the jump as loss.
+        if (previous == null || routed < previous.routed() || captured < previous.captured()) {
+            marks.put(key, new Mark(routed, captured, unaccounted, now));
+            if (shortfall.storeFailure() != null) {
+                degrade(node, lossDetail(0, null, shortfall));
+            }
             return;
         }
-        node.setDroppedEstimate(node.getDroppedEstimate() + lost);
+        long baseline = Math.min(previous.baseline(), unaccounted);
+        long lost = unaccounted - baseline;
+        long window = Math.max(NOISE_FLOOR, 2L * CaptureConsumer.ACK_BATCH * Math.max(1, covered.size()));
+        boolean losing = lost > window;
+        marks.put(
+                key,
+                losing
+                        ? new Mark(routed, captured, unaccounted, now)
+                        : new Mark(routed, captured, baseline, previous.since()));
+        if (losing || shortfall.storeFailure() != null) {
+            if (losing) {
+                node.setDroppedEstimate(node.getDroppedEstimate() + lost);
+            }
+            degrade(node, lossDetail(losing ? lost : 0, previous.since(), shortfall));
+            return;
+        }
+        if (node.getCaptureState() == CaptureState.DEGRADED) {
+            // A full interval recorded everything routed: healthy again. Earlier loss stays in
+            // droppedEstimate, and the detail of when it happened went with the last degraded pass.
+            node.setCaptureState(CaptureState.ACTIVE);
+            node.setCaptureDetail(null);
+            node.setUpdatedAt(now);
+            captureNodes.save(node);
+        }
+    }
+
+    private void degrade(MessageCaptureNodeEntity node, String detail) {
         // Losing messages is not a failure of the tap — it is installed and draining —
-        // so the state is DEGRADED rather than FAILED, and it says how much.
+        // so the state is DEGRADED rather than FAILED, and it says how much and why.
         if (node.getCaptureState() == CaptureState.ACTIVE) {
             node.setCaptureState(CaptureState.DEGRADED);
         }
-        node.setCaptureDetail("About " + lost + " message" + (lost == 1 ? "" : "s")
-                + " enqueued on this node since the last pass were not captured. The ring drops the oldest"
-                + " when Studio cannot keep up, and the ingest cap drops what is over rate; raise the ring"
-                + " size or narrow the capture filter.");
+        node.setCaptureDetail(detail);
         node.setUpdatedAt(Instant.now());
         captureNodes.save(node);
+    }
+
+    /** The loss in words, with the window it happened in and the causes the drains actually recorded. */
+    static String lossDetail(long lost, Instant since, CaptureConsumer.Shortfall shortfall) {
+        StringBuilder detail = new StringBuilder();
+        if (lost > 0) {
+            detail.append("About ")
+                    .append(lost)
+                    .append(" message")
+                    .append(lost == 1 ? "" : "s")
+                    .append(" routed to this node")
+                    .append(since == null ? "" : " between " + since + " and " + Instant.now())
+                    .append(" were not captured.");
+        }
+        if (shortfall.storeFailure() != null) {
+            detail.append(detail.isEmpty() ? "" : " ")
+                    .append("Studio could not store captured messages (")
+                    .append(shortfall.storeFailure())
+                    .append("), so capture paused without acknowledging them and is retrying; the capture queue"
+                            + " holds the backlog up to its bound and drops the oldest beyond it.");
+        }
+        if (shortfall.unreadable() > 0) {
+            detail.append(" ")
+                    .append(shortfall.unreadable())
+                    .append(" could not be read after repeated attempts and were counted as lost.");
+        }
+        if (lost > 0 && shortfall.storeFailure() == null && shortfall.unreadable() == 0) {
+            detail.append(" The capture queue drops the oldest when Studio cannot keep up; raise the ring size or"
+                    + " the rate limit, or narrow the capture filter.");
+        }
+        return detail.toString().trim();
     }
 
     /**
@@ -120,57 +240,86 @@ public class CaptureLoss {
         }
     }
 
-    /** Payload bytes this node's capture holds, which is the half of the bound an operator decides about. */
-    private long heldBytes(UUID clusterId, MessageIndexSubscriptionEntity subscription, UUID nodeId) {
-        List<String> queues = capturedQueues(clusterId, subscription);
-        if (queues.isEmpty()) {
-            return 0;
-        }
-        String placeholders = String.join(", ", java.util.Collections.nCopies(queues.size(), "?"));
-        java.util.List<Object> binds = new java.util.ArrayList<>();
-        binds.add(clusterId);
-        binds.add(nodeId);
-        binds.addAll(queues);
-        Long bytes = jdbc.queryForObject(
-                "SELECT coalesce(sum(coalesce(octet_length(body), 0) + pg_column_size(props)), 0)"
-                        + " FROM message_index WHERE cluster_id = ? AND node_id = ? AND origin = 'CAPTURED'"
-                        + " AND queue_name IN (" + placeholders + ')',
-                Long.class,
-                binds.toArray());
-        return bytes == null ? 0 : bytes;
-    }
-
-    private List<String> capturedQueues(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
-        return snapshots.forCluster(clusterId).stream()
-                .map(QueueSnapshot::queueName)
-                .distinct()
-                .filter(queue -> QueueNamePattern.matches(subscription.getQueuePattern(), queue))
-                .toList();
-    }
-
-    private long enqueuedOnSource(UUID clusterId, MessageIndexSubscriptionEntity subscription, UUID nodeId) {
-        return snapshots.forCluster(clusterId).stream()
-                .filter(row -> nodeId.equals(row.nodeId()))
-                .filter(row -> QueueNamePattern.matches(subscription.getQueuePattern(), row.queueName()))
-                .mapToLong(QueueSnapshot::messagesAdded)
+    /**
+     * What was routed to the covered addresses on this node. An address with several bound
+     * queues routes each message to every one of them, so the counters are taken once per
+     * address — the highest of its queues — rather than summed, which counted every message
+     * once per queue and reported loss that never happened.
+     */
+    private static long routedToCovered(List<QueueSnapshot> onNode, Set<String> covered) {
+        return onNode.stream()
+                .filter(row -> covered.contains(row.address()))
+                .collect(Collectors.toMap(QueueSnapshot::address, QueueSnapshot::messagesAdded, Math::max))
+                .values()
+                .stream()
+                .mapToLong(Long::longValue)
                 .sum();
     }
 
-    private long capturedRows(UUID clusterId, MessageIndexSubscriptionEntity subscription, UUID nodeId) {
-        List<String> queues = capturedQueues(clusterId, subscription);
-        if (queues.isEmpty()) {
-            return 0;
+    /**
+     * Whether this row is one of the subscription's capture queues, which hold what was routed and
+     * is not yet stored. A capture queue is named after its subscription ({@link CaptureNames}).
+     */
+    private static boolean isCaptureQueue(QueueSnapshot row, String suffix) {
+        return row.queueName() != null
+                && row.queueName().startsWith(DivertOperations.CAPTURE_PREFIX)
+                && row.queueName().endsWith(suffix);
+    }
+
+    /** Payload bytes this node's capture holds, which is the half of the bound an operator decides about. */
+    private long heldBytes(
+            UUID clusterId, MessageIndexSubscriptionEntity subscription, Set<String> covered, UUID nodeId) {
+        Long bytes = capturedQuery(
+                "SELECT coalesce(sum(coalesce(octet_length(body), 0) + pg_column_size(props)), 0)",
+                clusterId,
+                subscription,
+                covered,
+                nodeId,
+                null);
+        return bytes == null ? 0 : bytes;
+    }
+
+    /** Rows this node's capture stored, counting only those read up to {@code asOf}. */
+    private long capturedRows(
+            UUID clusterId,
+            MessageIndexSubscriptionEntity subscription,
+            Set<String> covered,
+            UUID nodeId,
+            Instant asOf) {
+        Long count = capturedQuery("SELECT count(*)", clusterId, subscription, covered, nodeId, asOf);
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * Captured rows are stored under their address. The window is the subscription's own
+     * retention, so a query prunes to the partitions that can hold its rows instead of
+     * scanning every partition on every pass.
+     */
+    private Long capturedQuery(
+            String select,
+            UUID clusterId,
+            MessageIndexSubscriptionEntity subscription,
+            Set<String> covered,
+            UUID nodeId,
+            Instant upTo) {
+        if (covered.isEmpty()) {
+            return 0L;
         }
-        String placeholders = String.join(", ", java.util.Collections.nCopies(queues.size(), "?"));
-        java.util.List<Object> binds = new java.util.ArrayList<>();
+        String placeholders = String.join(", ", java.util.Collections.nCopies(covered.size(), "?"));
+        List<Object> binds = new ArrayList<>();
         binds.add(clusterId);
         binds.add(nodeId);
-        binds.addAll(queues);
-        Long count = jdbc.queryForObject(
-                "SELECT count(*) FROM message_index WHERE cluster_id = ? AND node_id = ? AND origin = 'CAPTURED'"
-                        + " AND queue_name IN (" + placeholders + ')',
+        binds.add(Timestamp.from(Instant.now().minus(Duration.ofDays(subscription.getRetentionDays() + 1L))));
+        binds.addAll(covered);
+        String until = "";
+        if (upTo != null) {
+            until = " AND observed_at <= ?";
+            binds.add(Timestamp.from(upTo));
+        }
+        return jdbc.queryForObject(
+                select + " FROM message_index WHERE cluster_id = ? AND node_id = ? AND origin = 'CAPTURED'"
+                        + " AND observed_at >= ? AND queue_name IN (" + placeholders + ')' + until,
                 Long.class,
                 binds.toArray());
-        return count == null ? 0 : count;
     }
 }

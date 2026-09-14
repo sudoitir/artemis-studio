@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -79,6 +79,8 @@ describe('IndexSubscriptions', () => {
     expect(await screen.findByText('ORDER.IN')).toBeInTheDocument();
     expect(screen.getByText(/1,284 messages/)).toBeInTheDocument();
     expect(screen.getByText(/2\.5 MB of payload/)).toBeInTheDocument();
+    // A sampled subscription says what sampling misses, next to what it holds.
+    expect(screen.getByText(/Just sampling: a message consumed between two polls/)).toBeInTheDocument();
   });
 
   it('states the blast radius and needs the pattern typed before it will delete', async () => {
@@ -124,7 +126,7 @@ describe('IndexSubscriptions', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/lost when the broker restarts/i)).not.toBeInTheDocument();
     // The configuration equivalent, for an estate that deploys from broker.xml.
-    expect(screen.getByText('artemis-studio.capture.#')).toBeInTheDocument();
+    expect(screen.getByText('artemis-studio.capture.<instance>.#')).toBeInTheDocument();
   });
 
   it('reports capture state per node, never as one rolled-up answer', async () => {
@@ -202,13 +204,26 @@ describe('IndexSubscriptions', () => {
     expect(again).toHaveFocus();
   });
 
-  it('can be driven to start capture on the keyboard alone', async () => {
+  it('arms capture only from its dry run, by typing the pattern, on the keyboard alone', async () => {
     mockMe();
+    let created = false;
     server.use(
       http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])),
-      http.post('*/api/v1/clusters/c1/sql/index', () =>
-        HttpResponse.json(subscription({ mode: 'CAPTURE', nodes: [] })),
-      ),
+      http.post('*/api/v1/clusters/c1/sql/index', ({ request }) => {
+        if (new URL(request.url).searchParams.get('dryRun') === 'true') {
+          return HttpResponse.json({
+            addresses: ['ORDER.IN'],
+            nodes: ['primary'],
+            ringMessages: 10000,
+            ringBytes: 67_108_864,
+            brokerObjects: ['divert artemis-studio.capture.abc.ORDER.IN.s1'],
+            brokerXml: '<diverts/>',
+            refusal: null,
+          });
+        }
+        created = true;
+        return HttpResponse.json(subscription({ mode: 'CAPTURE', nodes: [] }));
+      }),
     );
     const user = userEvent.setup();
     renderWithProviders(<IndexSubscriptions />);
@@ -217,16 +232,73 @@ describe('IndexSubscriptions', () => {
     pattern.focus();
     await user.keyboard('ORDER.IN');
 
-    // The mode is a radio group, so it is reachable and switchable with the arrow
-    // keys — no pointer, and no control that only a mouse can reach.
+    // The mode is a radio group, so it is reachable and switchable with the arrow keys.
     const sample = screen.getByRole('radio', { name: /^sample$/i });
     sample.focus();
     await user.keyboard('{ArrowRight}');
     expect(screen.getByText(/changes routing on every live node/i)).toBeInTheDocument();
 
+    const previewButton = screen.getByRole('button', { name: /Preview capture/i });
+    previewButton.focus();
+    await user.keyboard('{Enter}');
+
+    // What will be created, where, and how big, before anything can be armed.
+    expect(await screen.findByText(/Installed on 1 live node: primary/i)).toBeInTheDocument();
+    expect(screen.getByText(/64 MB, whichever is reached first/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Queue or pattern')).toHaveAttribute('readonly');
+
     const start = screen.getByRole('button', { name: /Start capturing/i });
+    expect(start).toBeDisabled();
+    screen.getByLabelText('Type "ORDER.IN" to confirm').focus();
+    await user.keyboard('ORDER.IN');
     expect(start).toBeEnabled();
     start.focus();
-    expect(start).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(created).toBe(true));
+  });
+
+  it('states why capture would be refused instead of offering to arm it', async () => {
+    mockMe();
+    server.use(
+      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])),
+      http.post('*/api/v1/clusters/c1/sql/index', () =>
+        HttpResponse.json({
+          addresses: [],
+          nodes: ['primary'],
+          ringMessages: 10000,
+          ringBytes: 1024,
+          brokerObjects: [],
+          brokerXml: '',
+          refusal: 'The pattern matches no address on this cluster.',
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'NOTHING.*');
+    await user.click(screen.getByRole('radio', { name: /capture everything/i }));
+    await user.click(screen.getByRole('button', { name: /Preview capture/i }));
+
+    expect(await screen.findByText(/Capture would be refused/)).toBeInTheDocument();
+    expect(screen.getByText(/matches no address/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Start capturing/i })).not.toBeInTheDocument();
+  });
+
+  it('checks a bound on blur against the limit the server enforces', async () => {
+    mockMe();
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
+    await user.click(screen.getByRole('radio', { name: /capture everything/i }));
+    await user.click(screen.getByRole('button', { name: /Capture bounds/i }));
+    await user.type(screen.getByLabelText(/Ring size/i), '5');
+    await user.tab();
+
+    expect(await screen.findByText(/Must be between 100 and 1,000,000/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Preview capture/i })).toBeDisabled();
+    expect(screen.getByText(/Correct the highlighted fields first/)).toBeInTheDocument();
   });
 });

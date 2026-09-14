@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -50,7 +50,10 @@ public class BrokerEventWriter implements BrokerEventSink {
     private final BrokerEventRepository repository;
     private final ObjectProvider<BrokerEventPublisher> publisher;
 
-    private final LinkedBlockingQueue<BrokerEvent> buffer = new LinkedBlockingQueue<>();
+    /** This bean through its proxy, so the shutdown drain's flushes are transactional. */
+    private final ObjectProvider<BrokerEventWriter> self;
+
+    private final LinkedBlockingDeque<BrokerEvent> buffer = new LinkedBlockingDeque<>();
     private final Map<UUID, AtomicLong> dropped = new ConcurrentHashMap<>();
     private volatile int capacity;
 
@@ -59,11 +62,13 @@ public class BrokerEventWriter implements BrokerEventSink {
             ObjectMapper mapper,
             BrokerEventRepository repository,
             ObjectProvider<BrokerEventPublisher> publisher,
+            ObjectProvider<BrokerEventWriter> self,
             EventsProperties properties) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.repository = repository;
         this.publisher = publisher;
+        this.self = self;
         this.capacity = Math.max(1, properties.bufferSize());
     }
 
@@ -90,7 +95,12 @@ public class BrokerEventWriter implements BrokerEventSink {
         return count == null ? 0 : count.get();
     }
 
-    /** Scheduled by {@code JobScheduler} on the settings-driven flush interval. */
+    /**
+     * Scheduled by {@code JobScheduler} on the settings-driven flush interval, and run once
+     * more at shutdown. A batch whose insert fails is put back at the head of the buffer,
+     * in order, and the failure is rethrown so the job reports it: a database outage delays
+     * events rather than discarding the batch that happened to be in flight.
+     */
     @Transactional
     public void flush() {
         List<BrokerEvent> batch = new ArrayList<>(BATCH_MAX);
@@ -98,6 +108,43 @@ public class BrokerEventWriter implements BrokerEventSink {
         if (batch.isEmpty()) {
             return;
         }
+        try {
+            write(batch);
+        } catch (RuntimeException e) {
+            requeue(batch);
+            throw e;
+        }
+    }
+
+    /**
+     * Flush until the buffer is empty or a write fails — the shutdown flush. A failure is
+     * logged rather than thrown: shutdown continues, and what could not be written is what
+     * the buffer still holds.
+     */
+    public void drain() {
+        try {
+            while (!buffer.isEmpty()) {
+                self.getObject().flush();
+            }
+        } catch (RuntimeException e) {
+            log.warn("{} broker event(s) could not be written before shutdown: {}", buffer.size(), e.getMessage());
+        }
+    }
+
+    /** Back at the head in their original order. What no longer fits is counted as dropped, as on intake. */
+    private void requeue(List<BrokerEvent> batch) {
+        for (int i = batch.size() - 1; i >= 0; i--) {
+            BrokerEvent event = batch.get(i);
+            if (buffer.size() >= capacity) {
+                dropped.computeIfAbsent(event.clusterId(), k -> new AtomicLong())
+                        .incrementAndGet();
+                continue;
+            }
+            buffer.offerFirst(event);
+        }
+    }
+
+    private void write(List<BrokerEvent> batch) {
         long previousMaxSeq = repository
                 .findFirstByOrderBySeqDesc()
                 .map(BrokerEventEntity::getSeq)

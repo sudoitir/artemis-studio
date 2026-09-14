@@ -2269,6 +2269,8 @@ export interface components {
             oldestObservedAt?: string;
             /** @description Why this subscription is recording nothing, or null when it is running. An empty index and a subscription whose pattern matches no queue look identical from a query, so the reason is stated here. */
             notCapturing?: string;
+            /** @description True while a sampled subscription is still indexing the messages that were already on its queues when it started. That walk is spread over several polls to bound broker load, and until it finishes the index is not up to date. */
+            backlogInProgress?: boolean;
             /** @description SAMPLE or CAPTURE. A sampled subscription records what a poll saw; a captured one records what the address routed. */
             mode?: string;
             /** Format: int64 */
@@ -2282,6 +2284,29 @@ export interface components {
             bodyCapBytes?: number;
             /** @description Capture state per node. Empty for a sampled subscription. A node missing from this list is one capture has not reached, which is not the same as one that is capturing nothing. */
             nodes?: components["schemas"]["CaptureNodeView"][];
+        };
+        /** @description What creating a capture subscription would do, without doing it: what it covers, where, how much it may hold, and the broker objects and configuration it amounts to. */
+        CapturePreviewView: {
+            /** @description The addresses the pattern resolves to. Studio's own capture addresses are never included. */
+            addresses?: string[];
+            /** @description The live nodes the tap would be installed on. */
+            nodes?: string[];
+            /**
+             * Format: int64
+             * @description Messages each capture queue holds before the broker drops the oldest.
+             */
+            ringMessages?: number;
+            /**
+             * Format: int64
+             * @description Bytes each capture queue holds before the broker drops the oldest.
+             */
+            ringBytes?: number;
+            /** @description The broker objects created on every listed node. */
+            brokerObjects?: string[];
+            /** @description The equivalent permanent broker.xml for a configuration-managed estate. */
+            brokerXml?: string;
+            /** @description Why capture would be refused as things stand, or null when it would not. */
+            refusal?: string | null;
         };
         CreateExpectationRequest: {
             requestAddress: string;
@@ -2397,6 +2422,15 @@ export interface components {
             /** Format: uuid */
             node: string;
         };
+        PartialView: {
+            /** Format: int64 */
+            affectedCount: number;
+            notDone: number[];
+            error: string;
+            partial: boolean;
+            /** Format: uuid */
+            node: string;
+        };
         MessageActionRequest: {
             messageIds?: number[];
             filter?: string;
@@ -2446,6 +2480,11 @@ export interface components {
              * @enum {string|null}
              */
             routingType?: "ANYCAST" | "MULTICAST" | "PASS" | "STRIP" | null;
+            /**
+             * @description Create an exclusive divert even though its source address is being captured. Capture of that address then observes nothing, because Artemis applies exclusive diverts before every other one.
+             * @default false
+             */
+            acknowledgeCaptureShadowing: boolean;
         };
         DivertMutationView: {
             outcome: components["schemas"]["LifecycleOutcomeView"];
@@ -3146,8 +3185,13 @@ export interface components {
         };
         MessagePageView: {
             data: components["schemas"]["MessageSummaryView"][];
-            /** Format: int64 */
-            count: number;
+            /**
+             * Format: int64
+             * @description The broker's own message count; null when it could not be obtained, never a guess — see countUnavailable.
+             */
+            count?: number | null;
+            /** @description Why count is null. Null whenever count is present. */
+            countUnavailable?: string | null;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
@@ -3370,6 +3414,8 @@ export interface components {
              * @description The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself.
              */
             captureSubscriptionId?: string | null;
+            /** @description The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Studio created it, so the deployed broker.xml does not. */
+            brokerXml?: string | null;
             /** Format: int32 */
             nodesPresent: number;
             /** Format: int32 */
@@ -4692,7 +4738,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IndexSubscriptionView"];
+                    "*/*": components["schemas"]["CapturePreviewView"] | components["schemas"]["IndexSubscriptionView"];
                 };
             };
         };
@@ -4947,7 +4993,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"];
+                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
         };
@@ -4974,7 +5020,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"];
+                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
         };
@@ -5006,7 +5052,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"];
+                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
         };

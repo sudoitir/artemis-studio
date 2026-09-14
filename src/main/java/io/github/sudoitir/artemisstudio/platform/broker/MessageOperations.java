@@ -59,28 +59,38 @@ public class MessageOperations {
 
     // ---- by explicit ids (one exec per id; the broker has no id-batch op) ----
 
-    public long moveByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids, String targetQueue) {
-        long moved = 0;
-        for (long id : ids) {
-            JolokiaResponse res = client.single(
-                    JolokiaRequest.exec(queueMbean, "moveMessage(long,java.lang.String)", id, targetQueue));
-            requireOk(res, "moveMessage");
-            if (res.value() != null && res.value().asBoolean()) {
-                moved++;
-            }
+    /** Ids sent to the broker in one batch request, and so charged one permit (ADR-0076). */
+    static final int BY_ID_BATCH = 50;
+
+    /**
+     * What an operation on a list of ids did. When it stopped part-way, {@code error} says why
+     * and {@code notDone} holds every id that was not acted on — the ones the broker refused and
+     * every id after the batch that failed — so a caller never reports "failed" for an operation
+     * that already acted on some messages.
+     */
+    public record BulkResult(long affected, List<Long> notDone, String error) {
+        public boolean partial() {
+            return error != null;
         }
-        return moved;
     }
 
-    public long retryByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
+    public BulkResult moveByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids, String targetQueue) {
+        return eachId(
+                client,
+                ids,
+                "moveMessage",
+                id -> JolokiaRequest.exec(queueMbean, "moveMessage(long,java.lang.String)", id, targetQueue));
+    }
+
+    public BulkResult retryByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
         return countTrue(client, queueMbean, "retryMessage(long)", ids);
     }
 
-    public long deleteByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
+    public BulkResult deleteByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
         return countTrue(client, queueMbean, "removeMessage(long)", ids);
     }
 
-    public long expireByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
+    public BulkResult expireByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
         return countTrue(client, queueMbean, "expireMessage(long)", ids);
     }
 
@@ -114,16 +124,64 @@ public class MessageOperations {
 
     // ---- helpers -------------------------------------------------------
 
-    private long countTrue(JolokiaBrokerClient client, String queueMbean, String op, List<Long> ids) {
-        long n = 0;
-        for (long id : ids) {
-            JolokiaResponse res = client.single(JolokiaRequest.exec(queueMbean, op, id));
-            requireOk(res, op);
-            if (res.value() != null && res.value().asBoolean()) {
-                n++;
+    private BulkResult countTrue(JolokiaBrokerClient client, String queueMbean, String op, List<Long> ids) {
+        return eachId(client, ids, op, id -> JolokiaRequest.exec(queueMbean, op, id));
+    }
+
+    /**
+     * Acts on the ids in batch requests of {@value #BY_ID_BATCH} and counts the ones the broker
+     * says it acted on. A batch runs every operation in it even after one fails, so every result
+     * of that batch is counted before the run stops; later batches are not sent. A failure that
+     * acted on nothing at all is thrown as it is, because nothing changed.
+     */
+    private BulkResult eachId(
+            JolokiaBrokerClient client,
+            List<Long> ids,
+            String op,
+            java.util.function.Function<Long, JolokiaRequest> request) {
+        long affected = 0;
+        for (int from = 0; from < ids.size(); from += BY_ID_BATCH) {
+            List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + BY_ID_BATCH));
+            List<Long> later = ids.subList(from + chunk.size(), ids.size());
+            List<JolokiaResponse> responses;
+            try {
+                responses = client.batch(chunk.stream().map(request).toList());
+            } catch (RuntimeException e) {
+                if (affected == 0) {
+                    throw e;
+                }
+                return new BulkResult(affected, List.copyOf(ids.subList(from, ids.size())), e.getMessage());
+            }
+            List<Long> refused = new java.util.ArrayList<>();
+            RuntimeException firstError = null;
+            for (int i = 0; i < chunk.size(); i++) {
+                try {
+                    if (i >= responses.size()) {
+                        throw new BrokerConnectionException(
+                                BrokerConnectionException.Kind.BAD_RESPONSE,
+                                "The broker returned fewer results than operations.");
+                    }
+                    JolokiaResponse res = responses.get(i);
+                    requireOk(res, op);
+                    if (res.value() != null && res.value().asBoolean()) {
+                        affected++;
+                    }
+                } catch (RuntimeException e) {
+                    refused.add(chunk.get(i));
+                    if (firstError == null) {
+                        firstError = e;
+                    }
+                }
+            }
+            if (firstError != null) {
+                if (affected == 0) {
+                    throw firstError;
+                }
+                refused.addAll(later);
+                return new BulkResult(affected, List.copyOf(refused), firstError.getMessage());
             }
         }
-        return n;
+        return new BulkResult(affected, List.of(), null);
     }
 
     private long filterExec(JolokiaBrokerClient client, String queueMbean, String op, Object... args) {

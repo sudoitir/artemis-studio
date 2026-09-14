@@ -16,8 +16,6 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.broker.RateLimitProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
@@ -75,21 +73,18 @@ class ScrapeSchedulerTest {
     @Mock
     org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    NodeCallLimiter limiter;
     ScrapeCycle scrapeCycle;
     SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
 
     @BeforeEach
     void setUp() {
-        limiter = new NodeCallLimiter(new RateLimitProperties(50));
         scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
                 settings,
                 clusters,
                 connections,
-                limiter,
                 scrapeCycle,
                 persist,
                 sweepCursor,

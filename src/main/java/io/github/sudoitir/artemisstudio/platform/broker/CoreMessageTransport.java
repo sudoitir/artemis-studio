@@ -49,6 +49,35 @@ public class CoreMessageTransport implements MessageTransport {
     private final BrokerConnections connections;
     private final CorePool corePool;
     private final JolokiaMessageTransport jolokiaFallback;
+    private final NodeCallLimiter limiter;
+    private final MessageOperations messageOps;
+
+    /**
+     * Up to {@code limit} messages from the head of a queue, and no more — never counted, and
+     * not charged to the Jolokia ceiling. The request-reply sampler's read: bounded by its size,
+     * so a backed-up request queue costs the same to sample as an empty one.
+     */
+    public List<BrowsedMessage> sample(TransportTarget target, int limit) {
+        try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
+            Session session = jms.session();
+            QueueBrowser browser = session.createBrowser(session.createQueue(target.queueName()));
+            List<BrowsedMessage> rows = new ArrayList<>(limit);
+            Enumeration<?> e = browser.getEnumeration();
+            while (rows.size() < limit && e.hasMoreElements()) {
+                rows.add(toBrowsed((Message) e.nextElement()));
+            }
+            browser.close();
+            return List.copyOf(rows);
+        } catch (JMSException ex) {
+            log.debug("Core sample of {} failed, falling back to Jolokia: {}", target.queueName(), ex.getMessage());
+            return jolokiaFallback.browse(target, 1, limit, null).page().messages();
+        }
+    }
+
+    /** The node's limiter key: its Jolokia URL, so Core and Jolokia calls to a node share one ceiling. */
+    private static String permitKey(TransportTarget target) {
+        return target.jolokiaUrl() != null ? target.jolokiaUrl() : target.coreUrl();
+    }
 
     @Override
     public Channel channel() {
@@ -63,35 +92,61 @@ public class CoreMessageTransport implements MessageTransport {
             return new BrowseResult(
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
+        limiter.acquire(permitKey(target), 1);
+        List<BrowsedMessage> rows = new ArrayList<>(size);
         try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
             Session session = jms.session();
             Queue queue = session.createQueue(target.queueName());
             QueueBrowser browser = (filter == null || filter.isBlank())
                     ? session.createBrowser(queue)
                     : session.createBrowser(queue, filter);
-
-            List<BrowsedMessage> rows = new ArrayList<>();
             long index = 0;
-            long total = 0;
             Enumeration<?> e = browser.getEnumeration();
-            while (e.hasMoreElements()) {
+            // Read up to the requested page and stop. Counting by walking the rest of the queue
+            // streamed every message on a deep queue to Studio to show one page of them.
+            while (rows.size() < size && e.hasMoreElements()) {
                 Message m = (Message) e.nextElement();
-                total++;
-                if (index >= skip && rows.size() < size) {
+                if (index++ >= skip) {
                     rows.add(toBrowsed(m));
                 }
-                index++;
             }
-            return new BrowseResult(new BrowsePage(List.copyOf(rows), total), Channel.CORE);
+            browser.close();
         } catch (JMSException ex) {
             log.debug("Core browse of {} failed, falling back to Jolokia: {}", target.queueName(), ex.getMessage());
             return new BrowseResult(
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
+        Count count = count(target, filter);
+        return new BrowseResult(new BrowsePage(List.copyOf(rows), count.total(), count.unavailable()), Channel.CORE);
+    }
+
+    private record Count(Long total, String unavailable) {}
+
+    /**
+     * The broker's own count, over management: the queue's message count, or its count of
+     * messages matching the filter. One request, charged to the node's ceiling by the client.
+     * When it cannot be had, the total is stated as unavailable — never estimated, never zero.
+     */
+    private Count count(TransportTarget target, String filter) {
+        if (target.jolokiaUrl() == null) {
+            return new Count(null, "This node has no management URL, so its message count cannot be read.");
+        }
+        try {
+            JolokiaBrokerClient client = connections.forCluster(target.clusterId(), target.jolokiaUrl());
+            String mbean = BrokerMBeans.queue(
+                    client.resolveBrokerObjectName(), target.address(), target.queueName(), target.routingType());
+            long total = (filter == null || filter.isBlank())
+                    ? messageOps.messageCount(client, mbean)
+                    : messageOps.countMessages(client, mbean, filter);
+            return new Count(total, null);
+        } catch (RuntimeException e) {
+            return new Count(null, "The broker did not return this queue's message count: " + e.getMessage());
+        }
     }
 
     @Override
     public void send(TransportTarget target, SendSpec spec) {
+        limiter.acquire(permitKey(target), 1);
         try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
             Session session = jms.session();
             Queue queue = session.createQueue(target.address());

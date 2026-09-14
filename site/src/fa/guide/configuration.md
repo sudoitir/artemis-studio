@@ -13,7 +13,7 @@ description: متغیرهای محیطی که Artemis Studio می‌خواند،
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | بله | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | بله | اعتبارنامه‌های ذخیره‌شدهٔ بروکر را رمزنگاری می‌کند. Base64 از **دقیقاً ۳۲ بایت**، وگرنه برنامه بالا نمی‌آید: `openssl rand -base64 32` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | خیر | مقادیر `{cipher}` ذخیره‌شده در `studio_config_property` را رمزگشایی می‌کند. کلیدی **متفاوت** از `ARTEMIS_STUDIO_SECRET_KEY` — آن را دوباره استفاده نکنید |
-| `JAVA_OPTS` | خیر | پیش‌فرض `-XX:MaxRAMPercentage=75` |
+| `JAVA_OPTS` | خیر | پیش‌فرض `-XX:MaxRAMPercentage=50` |
 
 `ARTEMIS_STUDIO_SECRET_KEY` در جا قابل چرخش نیست: همان کلیدی است که هر اعتبارنامهٔ ذخیره‌شدهٔ بروکر با آن رمز شده است. گم‌کردنش یعنی وارد کردن دوبارهٔ اعتبارنامهٔ همهٔ اتصال‌ها.
 

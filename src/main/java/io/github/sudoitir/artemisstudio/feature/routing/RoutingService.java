@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeN
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
@@ -16,14 +15,13 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerXmlSnippets;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,12 +55,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RoutingService {
 
-    /**
-     * The name prefix Studio reserves for the diverts that serve message capture.
-     * A divert under it is Studio's by construction, without consulting anything.
-     */
-    public static final String CAPTURE_DIVERT_PREFIX = "artemis-studio.capture.";
-
     /** Ownership Studio can assert. Anything else is left unattributed, on purpose. */
     private static final String OWNER_CAPTURE = "MESSAGE_CAPTURE";
 
@@ -71,7 +63,6 @@ public class RoutingService {
     private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final DivertOperations divertOps;
-    private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
     private final AuditService audit;
 
@@ -144,17 +135,12 @@ public class RoutingService {
         BrokerConnectionException firstError = null;
         for (ClusterNode node : serving) {
             try {
-                limiter.acquire(node.getId());
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
                 merged.addAll(read.apply(client, node.getId(), node.getName()));
             } catch (BrokerConnectionException e) {
                 if (firstError == null) {
                     firstError = e;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
             }
         }
         // A cluster with no diverts at all and a cluster no node answered for are
@@ -180,7 +166,7 @@ public class RoutingService {
     private DivertView toDivertView(List<DivertRow> group, int nodesTotal, Set<String> ownedByOperator) {
         DivertRow first = group.get(0);
         String name = first.uniqueName();
-        boolean capture = name != null && name.startsWith(CAPTURE_DIVERT_PREFIX);
+        boolean capture = name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX);
         String owner = capture ? OWNER_CAPTURE : (ownedByOperator.contains(name) ? OWNER_OPERATOR : null);
         return new DivertView(
                 name,
@@ -194,6 +180,16 @@ public class RoutingService {
                 first.retroactiveResource(),
                 owner,
                 capture ? captureSubscriptionId(name) : null,
+                OWNER_OPERATOR.equals(owner)
+                        ? BrokerXmlSnippets.forDivert(
+                                name,
+                                first.routingName(),
+                                first.address(),
+                                first.forwardingAddress(),
+                                first.exclusive(),
+                                first.filter(),
+                                first.routingType())
+                        : null,
                 group.size(),
                 nodesTotal,
                 group.stream().map(r -> new NodeRef(r.nodeId(), r.nodeName())).toList());
@@ -265,20 +261,11 @@ public class RoutingService {
      * it is a smaller error than claiming an origin the broker does not record at all.
      */
     private Set<String> operatorOwnedDivertNames(UUID clusterId) {
-        Set<String> owned = new LinkedHashSet<>();
-        List<AuditEvent> events = audit.history(clusterId, "DIVERT");
-        for (AuditEvent event : events) {
-            if (event.getTargetName() == null) {
-                continue;
-            }
-            if (LifecycleKind.CREATE_DIVERT.auditName().equals(event.getAction())) {
-                owned.add(event.getTargetName());
-            } else if (LifecycleKind.DELETE_DIVERT.auditName().equals(event.getAction())
-                    && "SUCCESS".equals(event.getOutcome())) {
-                owned.remove(event.getTargetName());
-            }
-        }
-        return owned;
+        return audit.ownedTargetNames(
+                clusterId,
+                LifecycleKind.CREATE_DIVERT.targetType(),
+                LifecycleKind.CREATE_DIVERT.auditName(),
+                LifecycleKind.DELETE_DIVERT.auditName());
     }
 
     // ---- plumbing --------------------------------------------------------

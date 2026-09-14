@@ -5,6 +5,7 @@ import type { components } from "../../kernel/api/schema.d.ts";
 type Schemas = components["schemas"];
 
 export type SqlBoundView = Schemas["BoundView"];
+export type SqlCapturePreviewView = Schemas["CapturePreviewView"];
 export type SqlIndexSubscriptionRequest = Schemas["IndexSubscriptionRequest"];
 export type SqlIndexSubscriptionView = Schemas["IndexSubscriptionView"];
 export type SqlNodeOutcomeView = Schemas["SqlNodeOutcomeView"];
@@ -96,6 +97,17 @@ export function useCreateIndexSubscription(clusterId: string) {
       }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+  });
+}
+
+/** The dry run of creating a subscription: what it would cover and create. Saves nothing, contacts no broker. */
+export function usePreviewIndexSubscription(clusterId: string) {
+  return useMutation<SqlCapturePreviewView, ApiError, SqlIndexSubscriptionRequest>({
+    mutationFn: (body) =>
+      request(`/clusters/${clusterId}/sql/index?dryRun=true`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   });
 }
 

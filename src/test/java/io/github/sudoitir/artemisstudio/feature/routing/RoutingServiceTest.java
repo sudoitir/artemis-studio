@@ -77,6 +77,9 @@ class RoutingServiceTest extends PostgresIntegrationTest {
         JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
         when(connections.forCluster(eq(clusterId), anyString())).thenReturn(client);
+        when(divertOps.addressAvailable(any(), any(), any())).thenReturn(true);
+        when(divertOps.createVerified(any(), any(), any()))
+                .thenReturn(io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus.APPLIED);
     }
 
     private UUID node(String name, String url) {
@@ -155,7 +158,9 @@ class RoutingServiceTest extends PostgresIntegrationTest {
     @Test
     void aDivertStudioCreatedIsAttributedToStudioFromItsOwnAuditTrail() {
         lifecycle.createDivert(
-                clusterId, new CreateDivertRequest("mine", null, "ORDER.IN", "AUDIT.IN", false, null, null), false);
+                clusterId,
+                new CreateDivertRequest("mine", null, "ORDER.IN", "AUDIT.IN", false, null, null, null),
+                false);
 
         when(divertOps.listDiverts(any(), eq(nodeA), anyString()))
                 .thenReturn(List.of(divert(nodeA, "node-a", "mine", "ORDER.IN", "AUDIT.IN")));
@@ -167,7 +172,8 @@ class RoutingServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aDivertStudioCreatedAndThenDeletedIsNoLongerAttributedToStudio() {
-        CreateDivertRequest request = new CreateDivertRequest("mine", null, "ORDER.IN", "AUDIT.IN", false, null, null);
+        CreateDivertRequest request =
+                new CreateDivertRequest("mine", null, "ORDER.IN", "AUDIT.IN", false, null, null, null);
         lifecycle.createDivert(clusterId, request, false);
         lifecycle.deleteDivert(clusterId, "mine", false);
 
@@ -182,7 +188,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
     @Test
     void aCaptureDivertIsAttributedToCaptureAndNamesItsSubscription() {
         UUID subscription = UUID.randomUUID();
-        String name = RoutingService.CAPTURE_DIVERT_PREFIX + "instance." + subscription;
+        String name = DivertOperations.CAPTURE_PREFIX + "instance." + subscription;
         when(divertOps.listDiverts(any(), eq(nodeA), anyString()))
                 .thenReturn(List.of(divert(nodeA, "node-a", name, "ORDER.IN", "cap")));
         when(divertOps.listDiverts(any(), eq(nodeB), anyString())).thenReturn(List.of());

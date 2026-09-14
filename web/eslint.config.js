@@ -11,7 +11,7 @@ const featureEdges = {
   apitokens: ['security'],
   audit: ['security'],
   brokerconfig: ['messages'],
-  rr: ['queues'],
+  rr: ['queues', 'sql'],
   sql: ['messages', 'queues'],
 };
 

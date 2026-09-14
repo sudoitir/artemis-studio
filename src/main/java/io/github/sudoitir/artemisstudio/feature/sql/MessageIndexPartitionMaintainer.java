@@ -47,14 +47,20 @@ public class MessageIndexPartitionMaintainer {
     private final NamedParameterJdbcTemplate jdbc;
     private final MessageIndexSubscriptionRepository subscriptions;
     private final QueueSnapshots snapshots;
+    private final CaptureAddresses captureAddresses;
+    private final org.springframework.transaction.support.TransactionTemplate transactions;
 
     public MessageIndexPartitionMaintainer(
             NamedParameterJdbcTemplate jdbc,
             MessageIndexSubscriptionRepository subscriptions,
-            QueueSnapshots snapshots) {
+            QueueSnapshots snapshots,
+            CaptureAddresses captureAddresses,
+            org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.jdbc = jdbc;
         this.subscriptions = subscriptions;
         this.snapshots = snapshots;
+        this.captureAddresses = captureAddresses;
+        this.transactions = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     }
 
     /** Scheduled by {@code JobScheduler} on the partition-maintenance cron. Idempotent. */
@@ -91,16 +97,21 @@ public class MessageIndexPartitionMaintainer {
                                 autovacuum_vacuum_scale_factor = 0.05,
                                 autovacuum_analyze_scale_factor = 0.02)
                             """.formatted(name));
-            jdbc.getJdbcTemplate().execute("""
-                            WITH moved AS (
-                                DELETE FROM message_index_default
-                                 WHERE observed_at >= '%s' AND observed_at < '%s' RETURNING *
-                            )
-                            INSERT INTO %s SELECT * FROM moved
-                            """.formatted(day, next, name));
-            jdbc.getJdbcTemplate()
-                    .execute("ALTER TABLE message_index ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
-                            .formatted(name, day, next));
+            // One transaction: the attach takes its lock with the move, so a row for that day
+            // inserted into the default partition between the two can no longer make the
+            // attach fail its validation scan.
+            transactions.executeWithoutResult(status -> {
+                jdbc.getJdbcTemplate().execute("""
+                                WITH moved AS (
+                                    DELETE FROM message_index_default
+                                     WHERE observed_at >= '%s' AND observed_at < '%s' RETURNING *
+                                )
+                                INSERT INTO %s SELECT * FROM moved
+                                """.formatted(day, next, name));
+                jdbc.getJdbcTemplate()
+                        .execute("ALTER TABLE message_index ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
+                                .formatted(name, day, next));
+            });
         }
     }
 
@@ -155,10 +166,15 @@ public class MessageIndexPartitionMaintainer {
         }
     }
 
-    /** Every captured queue in one cluster, grouped by the longest retention claiming it. */
+    /**
+     * Every name rows are stored under in one cluster, grouped by the longest retention claiming
+     * it. A sampled row is stored under its queue; a captured row under its address, which is
+     * not the queue name for a multicast address — so both are claimed, or captured payload
+     * would be kept past its subscription's retention.
+     */
     private Map<Integer, List<String>> queuesByRetention(UUID clusterId) {
         List<MessageIndexSubscriptionEntity> ofCluster = subscriptions.findByClusterId(clusterId);
-        Map<Integer, List<String>> byRetention = new LinkedHashMap<>();
+        Map<String, Integer> longest = new LinkedHashMap<>();
         snapshots.forCluster(clusterId).stream()
                 .map(QueueSnapshot::queueName)
                 .distinct()
@@ -166,9 +182,17 @@ public class MessageIndexPartitionMaintainer {
                         .filter(s -> QueueNamePattern.matches(s.getQueuePattern(), queue))
                         .mapToInt(MessageIndexSubscriptionEntity::getRetentionDays)
                         .max()
-                        .ifPresent(retention -> byRetention
-                                .computeIfAbsent(retention, k -> new ArrayList<>())
-                                .add(queue)));
+                        .ifPresent(retention -> longest.merge(queue, retention, Math::max)));
+        for (MessageIndexSubscriptionEntity subscription : ofCluster) {
+            if (subscription.getMode() == CaptureMode.CAPTURE) {
+                for (String address : captureAddresses.of(clusterId, subscription)) {
+                    longest.merge(address, subscription.getRetentionDays(), Math::max);
+                }
+            }
+        }
+        Map<Integer, List<String>> byRetention = new LinkedHashMap<>();
+        longest.forEach((name, retention) ->
+                byRetention.computeIfAbsent(retention, k -> new ArrayList<>()).add(name));
         return byRetention;
     }
 

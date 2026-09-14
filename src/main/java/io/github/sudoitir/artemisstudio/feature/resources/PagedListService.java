@@ -15,15 +15,18 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps.ListPage;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +53,6 @@ public class PagedListService {
     private final BrokerConnections connections;
     private final BrokerListOps listOps;
     private final ResourceViewMapper mapper;
-    private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
@@ -123,9 +125,7 @@ public class PagedListService {
         BrokerConnectionException firstError = null;
         for (ClusterNode node : servingNodes) {
             try {
-                limiter.acquire(node.getId());
-                JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-                ListPage page = listOps.fetch(client, kind.op(), "", -1, -1);
+                ListPage page = fetch(clusterId, node, kind);
                 if (page.data() != null && page.data().isArray()) {
                     NodeRef ref = new NodeRef(node.getId(), node.getName());
                     page.data().forEach(row -> merged.add(rowMapper.apply(row, ref)));
@@ -134,10 +134,6 @@ public class PagedListService {
                 if (firstError == null) {
                     firstError = e;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
             }
         }
         if (merged.isEmpty() && firstError != null) {
@@ -149,6 +145,49 @@ public class PagedListService {
                 .toList();
         return query.paginate(filtered, comparator);
     }
+
+    /**
+     * One node's full list of one kind, shared by every request for it within {@link #FRESH}.
+     *
+     * <p>Every open tab re-reads these views on each stream signal, and each read is a node's
+     * whole list. Concurrent and near-simultaneous reads of the same list therefore wait for
+     * one broker call rather than each making their own. A failed read is not kept, so the
+     * next request tries again.
+     */
+    private ListPage fetch(UUID clusterId, ClusterNode node, ResourceKind kind) {
+        ListKey key = new ListKey(clusterId, node.getId(), kind);
+        long now = System.nanoTime();
+        CompletableFuture<ListPage> mine = new CompletableFuture<>();
+        RecentList winner = recent.compute(
+                key,
+                (k, current) -> current != null && current.freshUntil() > now
+                        ? current
+                        : new RecentList(mine, now + FRESH.toNanos()));
+        if (winner.page() == mine) {
+            try {
+                JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
+                mine.complete(listOps.fetch(client, kind.op(), "", -1, -1));
+            } catch (RuntimeException e) {
+                recent.remove(key, winner);
+                mine.completeExceptionally(e);
+            }
+        }
+        try {
+            return winner.page().join();
+        } catch (CompletionException e) {
+            throw e.getCause() instanceof RuntimeException cause ? cause : e;
+        }
+    }
+
+    /** How long a node's list is shared between requests. Short enough that a view is never visibly stale. */
+    private static final Duration FRESH = Duration.ofSeconds(2);
+
+    private record ListKey(UUID clusterId, UUID nodeId, ResourceKind kind) {}
+
+    private record RecentList(CompletableFuture<ListPage> page, long freshUntil) {}
+
+    /** At most one entry per (cluster, node, kind), so bounded by the estate, not by traffic. */
+    private final Map<ListKey, RecentList> recent = new ConcurrentHashMap<>();
 
     /** One manageable endpoint per NodeID — the active one when the pair reports one. */
     private List<ClusterNode> servingManageableNodes(UUID clusterId) {

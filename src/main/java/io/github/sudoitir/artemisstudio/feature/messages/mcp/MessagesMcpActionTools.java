@@ -172,6 +172,20 @@ public class MessagesMcpActionTools {
                     case Outcome.Affected a ->
                         new McpViews.MutationOutcome(
                                 action, subject, false, a.count(), null, false, String.valueOf(a.node()), "Applied.");
+                    case Outcome.Partial p ->
+                        new McpViews.MutationOutcome(
+                                action,
+                                subject,
+                                false,
+                                p.count(),
+                                null,
+                                false,
+                                String.valueOf(p.node()),
+                                "Partially applied: " + p.count() + " message(s) were acted on before it stopped ("
+                                        + p.error() + "). " + p.notDone().size()
+                                        + " id(s) were not done, starting with "
+                                        + p.notDone().getFirst()
+                                        + ".");
                 };
         };
     }

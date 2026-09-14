@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -102,9 +101,6 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
 
     @MockitoBean
     BrokerConnections connections;
-
-    @MockitoSpyBean
-    io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter limiter;
 
     @MockitoBean
     BrokerConfigOperations ops;
@@ -609,26 +605,6 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         } finally {
             splitBrain.forget(clusterId);
         }
-    }
-
-    @Test
-    void everyWriteTakesItsOwnRateLimitPermit() throws InterruptedException {
-        // Three matches on two live nodes: six writes, and the limiter must be charged
-        // for each of them rather than once per node when the client is opened.
-        BrokerConfigDocument doc = new BrokerConfigDocument(
-                1,
-                List.of(),
-                List.of(
-                        new AddressSettingDecl("a.#", Map.of("maxDeliveryAttempts", 5)),
-                        new AddressSettingDecl("b.#", Map.of("maxDeliveryAttempts", 5)),
-                        new AddressSettingDecl("c.#", Map.of("maxDeliveryAttempts", 5))),
-                List.of(),
-                List.of());
-        config.save(clusterId, doc, null, "test", Source.EDIT);
-
-        apply.apply(clusterId, confirmed(apply.plan(clusterId, BrokerConfigApplyRequest.everything())));
-
-        verify(limiter, atLeast(6)).acquire(any());
     }
 
     // ---- helpers ----------------------------------------------------------

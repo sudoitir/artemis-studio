@@ -54,7 +54,13 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         when(jolokiaFallback.browse(any(), any(Integer.class), any(Integer.class), any()))
                 .thenReturn(new BrowseResult(new MessageBrowser.BrowsePage(List.of(), 0), Channel.JOLOKIA));
 
-        transport = new CoreMessageTransport(connections, corePool, jolokiaFallback);
+        transport = new CoreMessageTransport(
+                connections,
+                corePool,
+                jolokiaFallback,
+                new NodeCallLimiter(
+                        new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+                new MessageOperations());
 
         seed();
     }
@@ -112,6 +118,23 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
                 .orElseThrow();
         assertThat(Base64.getDecoder().decode(bytesMsg.body())).containsExactly(1, 2, 3, 4, 5);
         assertThat(bytesMsg.stringProperties().get("big")).hasSize(4096); // not clipped
+    }
+
+    @Test
+    void aPageReadsOnlyThatPageAndStatesAnUnavailableTotalRatherThanCountingTheQueue() {
+        BrowseResult result = transport.browse(target(), 1, 1, null);
+
+        assertThat(result.servedBy()).isEqualTo(Channel.CORE);
+        assertThat(result.page().messages()).hasSize(1);
+        // This target has no management URL, so the broker's count cannot be read: it is
+        // stated as unavailable, never replaced by the number of messages Studio walked.
+        assertThat(result.page().total()).isNull();
+        assertThat(result.page().totalUnavailable()).contains("no management URL");
+    }
+
+    @Test
+    void aSampleReadsAtMostItsLimit() {
+        assertThat(transport.sample(target(), 1)).hasSize(1);
     }
 
     @Test

@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
-import io.github.sudoitir.artemisstudio.feature.routing.RoutingService;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import java.util.UUID;
 
 /**
@@ -25,17 +25,29 @@ import java.util.UUID;
  */
 public final class CaptureNames {
 
-    /** Address-settings and security-settings match covering every capture object. */
-    public static final String MATCH = RoutingService.CAPTURE_DIVERT_PREFIX + "#";
+    /**
+     * The match earlier versions put their settings on, shared by every Studio instance. Only
+     * ever removed now, once no capture object of any instance is left (ADR-0079).
+     */
+    public static final String LEGACY_MATCH = DivertOperations.CAPTURE_PREFIX + "#";
 
     private CaptureNames() {}
+
+    /**
+     * The address-settings and security-settings match covering this instance's capture objects
+     * and no other instance's, so removing one instance's settings never unbounds or unrestricts
+     * another's capture queues (ADR-0079).
+     */
+    public static String matchFor(String instanceId) {
+        return DivertOperations.CAPTURE_PREFIX + instanceId + ".#";
+    }
 
     /**
      * The tap's name. The divert carries it as-is; the queue and its address take
      * {@link #queueOf}.
      */
     public static String of(String instanceId, String address, UUID subscriptionId) {
-        return RoutingService.CAPTURE_DIVERT_PREFIX + instanceId + '.' + address + '.' + subscriptionId;
+        return DivertOperations.CAPTURE_PREFIX + instanceId + '.' + address + '.' + subscriptionId;
     }
 
     /**
@@ -55,7 +67,7 @@ public final class CaptureNames {
 
     /** Whether this name is a capture object belonging to this instance. */
     public static boolean ownedBy(String name, String instanceId) {
-        return name != null && name.startsWith(RoutingService.CAPTURE_DIVERT_PREFIX + instanceId + '.');
+        return name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX + instanceId + '.');
     }
 
     /** The subscription a capture object serves, or null when the name does not parse. */
@@ -76,7 +88,7 @@ public final class CaptureNames {
         if (!ownedBy(name, instanceId) || subscriptionOf(name) == null) {
             return null;
         }
-        int start = RoutingService.CAPTURE_DIVERT_PREFIX.length() + instanceId.length() + 1;
+        int start = DivertOperations.CAPTURE_PREFIX.length() + instanceId.length() + 1;
         int end = name.lastIndexOf('.');
         return end <= start ? null : name.substring(start, end);
     }

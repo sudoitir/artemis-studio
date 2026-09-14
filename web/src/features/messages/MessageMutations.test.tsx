@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -63,5 +63,34 @@ describe('BulkActionPreview', () => {
 
     await user.type(screen.getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
     expect(runAnyway).toBeEnabled();
+  });
+});
+
+const { MessageActions } = await import('./MessageActions.tsx');
+
+describe('MessageActions', () => {
+  it('reports a by-id operation that stopped part-way, naming the ids left undone', async () => {
+    server.use(
+      http.post('*/api/v1/clusters/c1/queues/ORDERS/messages/actions/delete', () =>
+        HttpResponse.json({
+          affectedCount: 1,
+          notDone: [2],
+          error: 'The broker stopped answering.',
+          partial: true,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MessageActions clusterId="c1" queueName="ORDERS" selected={new Set(['1', '2'])} onCleared={() => {}} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(/Deleted 1 of 2 messages, then stopped/);
+    expect(alert).toHaveTextContent(/Not deleted: 2/);
   });
 });

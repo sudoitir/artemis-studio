@@ -11,7 +11,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -27,7 +26,6 @@ import java.util.function.Function;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -48,8 +46,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li>the caller's topic signal, after commit.
  * </ol>
  *
- * <p>The caller runs in a transaction whose {@code noRollbackFor} covers
- * {@link BulkCapExceededException}, so the audited refusal commits.
+ * <p>No database transaction is held across the fan-out: the audit row and its outcome
+ * each commit on their own (ADR-0078), and a broker call must never pin a pooled
+ * connection for N nodes × the read timeout.
  */
 @Component
 @RequiredArgsConstructor
@@ -57,7 +56,6 @@ public class BrokerCommands {
 
     private final BrokerNodeRepository brokerNodes;
     private final BrokerConnections connections;
-    private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final SettingsService settings;
@@ -68,6 +66,32 @@ public class BrokerCommands {
     @FunctionalInterface
     public interface NodeAction {
         NodeStatus apply(JolokiaBrokerClient client, String brokerMbean);
+    }
+
+    /**
+     * What must be true on one node before the command may touch it, checked in the dry run and
+     * again before the real attempt, so what was previewed is what is enforced.
+     */
+    @FunctionalInterface
+    public interface NodePreflight {
+        Check apply(JolokiaBrokerClient client, String brokerMbean);
+    }
+
+    /**
+     * A preflight's verdict: a refusal fails the node without acting; a warning is shown in the
+     * preview and does not stop the command.
+     */
+    public record Check(String refusal, String warning) {
+
+        public static final Check OK = new Check(null, null);
+
+        public static Check refuse(String reason) {
+            return new Check(reason, null);
+        }
+
+        public static Check warn(String warning) {
+            return new Check(null, warning);
+        }
     }
 
     /** How much one node's attempt would destroy, for the cap check (ADR-0022). */
@@ -89,6 +113,7 @@ public class BrokerCommands {
      * One command.
      *
      * @param estimate {@code null} for a command that destroys nothing
+     * @param preflight {@code null} for a command with nothing to check first
      * @param auditDetail shapes the per-node outcomes into the audit row's detail
      * @param signal the topic signal published after commit
      */
@@ -103,6 +128,7 @@ public class BrokerCommands {
             boolean dryRun,
             boolean override,
             NodeAction action,
+            NodePreflight preflight,
             Estimate estimate,
             Function<List<NodeOutcome>, Object> auditDetail,
             Runnable signal) {
@@ -116,7 +142,6 @@ public class BrokerCommands {
 
     private record Target(BrokerNodeEntity node, boolean live) {}
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public LifecycleOutcome run(Command c) {
         clusterAccess.requireCluster(c.clusterId(), c.permission());
         List<Target> targets = targets(c.clusterId());
@@ -167,11 +192,16 @@ public class BrokerCommands {
                     outcomes.add(NodeOutcome.skipped(id, t.node().getName()));
                     continue;
                 }
+                Check check = preflight(c, t);
+                if (check.refusal() != null) {
+                    outcomes.add(NodeOutcome.failed(id, t.node().getName(), check.refusal()));
+                    continue;
+                }
                 boolean unknown = c.estimate() != null && estimates.get(id) == null;
                 // Stated, never omitted: an absent count reads as zero.
                 String note = unknown
                         ? "This node did not answer, so its " + c.estimate().label() + " is unknown."
-                        : null;
+                        : check.warning();
                 outcomes.add(new NodeOutcome(id, t.node().getName(), NodeStatus.WOULD_APPLY, estimates.get(id), note));
             }
             audit.finish(event, false, total, null, c.auditDetail().apply(outcomes));
@@ -215,6 +245,10 @@ public class BrokerCommands {
         UUID clusterId = c.clusterId();
         UUID nodeId = t.node().getId();
         String nodeName = t.node().getName();
+        Check check = preflight(c, t);
+        if (check.refusal() != null) {
+            return NodeOutcome.failed(nodeId, nodeName, check.refusal());
+        }
         try {
             JolokiaBrokerClient client = clientFor(clusterId, t.node());
             NodeStatus status = c.action().apply(client, client.resolveBrokerObjectName());
@@ -235,6 +269,19 @@ public class BrokerCommands {
                 capabilities.recordWriteRefused(clusterId, e.getMessage());
             }
             return NodeOutcome.failed(nodeId, nodeName, e.getMessage());
+        }
+    }
+
+    /** The command's preflight on one node. A node that cannot be checked is refused, never assumed fine. */
+    private Check preflight(Command c, Target t) {
+        if (c.preflight() == null) {
+            return Check.OK;
+        }
+        try {
+            JolokiaBrokerClient client = clientFor(c.clusterId(), t.node());
+            return c.preflight().apply(client, client.resolveBrokerObjectName());
+        } catch (ManagementRefusal | BrokerConnectionException e) {
+            return Check.refuse("Could not be checked before changing it: " + e.getMessage());
         }
     }
 
@@ -278,14 +325,8 @@ public class BrokerCommands {
         return failed.isEmpty() ? null : String.join(" | ", failed);
     }
 
+    /** Every request the client sends waits for the node's ceiling itself (ADR-0076). */
     private JolokiaBrokerClient clientFor(UUID clusterId, BrokerNodeEntity node) {
-        try {
-            limiter.acquire(node.getId());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
         return connections.forCluster(clusterId, node.getJolokiaUrl());
     }
 

@@ -58,24 +58,45 @@ public final class BrokerXmlSnippets {
             boolean exclusive,
             String filter,
             String routingType) {
-        StringBuilder xml = new StringBuilder();
-        xml.append("<diverts>\n");
-        xml.append("  <divert name=\"").append(name).append("\">\n");
-        xml.append("    <routing-name>")
-                .append(routingName == null || routingName.isBlank() ? name : routingName)
-                .append("</routing-name>\n");
-        xml.append("    <address>").append(address).append("</address>\n");
-        xml.append("    <forwarding-address>").append(forwardingAddress).append("</forwarding-address>\n");
-        if (filter != null && !filter.isBlank()) {
-            xml.append("    <filter string=\"").append(filter).append("\"/>\n");
+        // Written through StAX so a name, address or filter carrying <, & or a quote stays well-formed.
+        java.io.StringWriter out = new java.io.StringWriter();
+        try {
+            javax.xml.stream.XMLStreamWriter w =
+                    javax.xml.stream.XMLOutputFactory.newInstance().createXMLStreamWriter(out);
+            w.writeStartElement("diverts");
+            w.writeCharacters("\n  ");
+            w.writeStartElement("divert");
+            w.writeAttribute("name", name);
+            element(w, "routing-name", routingName == null || routingName.isBlank() ? name : routingName);
+            element(w, "address", address);
+            element(w, "forwarding-address", forwardingAddress);
+            if (filter != null && !filter.isBlank()) {
+                w.writeCharacters("\n    ");
+                w.writeEmptyElement("filter");
+                w.writeAttribute("string", filter);
+            }
+            if (routingType != null && !routingType.isBlank()) {
+                element(w, "routing-type", routingType.toUpperCase());
+            }
+            element(w, "exclusive", String.valueOf(exclusive));
+            w.writeCharacters("\n  ");
+            w.writeEndElement();
+            w.writeCharacters("\n");
+            w.writeEndElement();
+            w.writeCharacters("\n");
+            w.close();
+        } catch (javax.xml.stream.XMLStreamException e) {
+            throw new IllegalStateException("Could not write the divert's broker.xml", e);
         }
-        if (routingType != null && !routingType.isBlank()) {
-            xml.append("    <routing-type>").append(routingType.toUpperCase()).append("</routing-type>\n");
-        }
-        xml.append("    <exclusive>").append(exclusive).append("</exclusive>\n");
-        xml.append("  </divert>\n");
-        xml.append("</diverts>\n");
-        return xml.toString();
+        return out.toString();
+    }
+
+    private static void element(javax.xml.stream.XMLStreamWriter w, String tag, String text)
+            throws javax.xml.stream.XMLStreamException {
+        w.writeCharacters("\n    ");
+        w.writeStartElement(tag);
+        w.writeCharacters(text);
+        w.writeEndElement();
     }
 
     public static String forNotifications() {

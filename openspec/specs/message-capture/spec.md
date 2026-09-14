@@ -152,44 +152,20 @@ capture queue it has been unable to restrict.
 - **WHEN** a capture tap is installed
 - **THEN** access to the capture queue is restricted to Studio's broker identity as part of the same installation
 
-### Requirement: Capture is removable, and bounded even when it is not removed
-
-Deleting a capture subscription SHALL remove every broker object the subscription created,
-on every node, and SHALL state what it will destroy before it can be armed.
-
-The system SHALL remove broker objects it created that no longer correspond to a
-subscription, and SHALL NOT remove capture objects created by another Studio instance.
-
-Where Studio is not running to perform that removal, the tap SHALL remain bounded and SHALL
-cease to exist when the broker restarts.
-
-#### Scenario: Deleting a subscription removes the tap
-
-- **WHEN** an operator deletes a capture subscription
-- **THEN** the divert, capture queue, address setting and security setting created for it are removed from every node
-
-#### Scenario: An orphaned tap is reclaimed
-
-- **WHEN** a capture object created by this Studio instance has no corresponding subscription
-- **THEN** the system removes it without operator action
-
-#### Scenario: Another instance's tap is left alone
-
-- **WHEN** a capture object created by a different Studio instance is present on a broker
-- **THEN** the system does not remove or modify it
-
-#### Scenario: A tap does not outlive a broker restart
-
-- **WHEN** Studio is not running and its broker restarts
-- **THEN** the capture tap no longer exists on that broker
-
 ### Requirement: Capture is bounded in what it stores as well as what it observes
 
 A captured message body larger than the configured per-message limit SHALL be stored
 truncated and marked as truncated, and SHALL NOT be transferred to Studio in full.
 
 A capture subscription SHALL be bounded by a stored-size limit as well as by a retention
-period, and SHALL report what it currently holds against both.
+period, and SHALL report what it currently holds against both. What a subscription holds,
+enforces its size limit against, removes on delete, and ages out by retention SHALL be the
+rows captured for the addresses it covers. This SHALL hold even where an address's name
+differs from the names of the queues bound to it.
+
+Changing a live subscription's bounds or filter SHALL take effect on the broker. The capture
+objects SHALL be re-created with the new values, the change SHALL be audited with the old and
+new values, and the gap SHALL be recorded.
 
 #### Scenario: An oversized body is truncated, not streamed
 
@@ -200,6 +176,16 @@ period, and SHALL report what it currently holds against both.
 
 - **WHEN** an operator views a capture subscription
 - **THEN** it reports the messages and bytes held against both its retention period and its size limit
+
+#### Scenario: A multicast address's footprint is counted
+
+- **WHEN** a subscription captures a multicast address whose bound queues have different names from the address
+- **THEN** its reported holdings, size-limit enforcement, deletion and retention all include those captured rows
+
+#### Scenario: Narrowing a filter takes effect
+
+- **WHEN** an operator narrows the filter of a live capture subscription
+- **THEN** the broker's capture divert uses the new filter, the change is audited with the old and new filter, and the gap is recorded
 
 ### Requirement: Capture does not claim delivery
 
@@ -239,3 +225,42 @@ Governing a captured batch SHALL NOT slow the drain enough to block a producer. 
 
 - **WHEN** an operator arms capture for a queue
 - **THEN** the interface states that complete message bodies are stored for the retention period, with sensitive values masked
+
+### Requirement: A captured message is acknowledged only after it is stored
+
+The system SHALL acknowledge a captured message on the broker only after it has been durably
+stored, or after it has been counted as loss with its cause.
+
+If storing fails, the messages SHALL remain on the capture queue. Draining SHALL pause and
+retry with increasing delay, the node SHALL be reported as degraded with the cause, and
+draining SHALL resume without operator action once storing succeeds. A message redelivered
+after an unacknowledged write SHALL NOT be stored twice.
+
+A message that repeatedly cannot be read SHALL be counted as loss with its cause before it is
+acknowledged. It SHALL NOT be skipped silently. Stopping a drain SHALL store what it has
+received before acknowledging it.
+
+#### Scenario: A database outage loses nothing within the bound
+
+- **WHEN** Studio's database is unavailable for a period during which fewer messages are routed than the capture queue's bound, and then becomes available
+- **THEN** every message routed during the outage is stored once, and none is acknowledged before it was stored
+
+#### Scenario: A database outage beyond the bound is reported
+
+- **WHEN** Studio's database is unavailable long enough that the capture queue reaches its bound
+- **THEN** the dropped messages are counted as loss with the database outage named as the cause, and production traffic is unaffected
+
+#### Scenario: Draining pauses while storing fails
+
+- **WHEN** storing captured messages fails
+- **THEN** the drain pauses and retries with increasing delay rather than consuming continuously, and the node is reported as degraded with the cause
+
+#### Scenario: One drain's acknowledgement never covers another drain's unstored rows
+
+- **WHEN** two capture queues are drained concurrently and one of their writes is slow or fails
+- **THEN** each drain acknowledges only messages whose own rows have been stored
+
+#### Scenario: An unreadable message is counted
+
+- **WHEN** a captured message cannot be read after repeated attempts
+- **THEN** it is counted as loss with the cause named before it is acknowledged

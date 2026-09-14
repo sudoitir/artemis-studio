@@ -15,8 +15,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.broker.RateLimitProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.io.IOException;
@@ -61,9 +59,8 @@ class PagedListServiceTest {
 
     @BeforeEach
     void setUp() {
-        NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(50));
-        service = new PagedListService(
-                nodes, connections, new BrokerListOps(), new ResourceViewMapper(), limiter, clusterAccess);
+        service =
+                new PagedListService(nodes, connections, new BrokerListOps(), new ResourceViewMapper(), clusterAccess);
     }
 
     private JolokiaBrokerClient client(String url, String... fixtures) {
@@ -129,6 +126,35 @@ class PagedListServiceTest {
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
                 .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
+    }
+
+    @Test
+    void concurrentReadsOfTheSameListShareOneBrokerCall() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
+        when(nodes.nodes(clusterId)).thenReturn(List.of(a));
+        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+                .thenReturn(client(URL_A, "search-broker.json", "list-consumers.json"));
+
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
+        try {
+            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<PagedView<ConsumerView>>> reads = new java.util.ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                reads.add(pool.submit(() -> {
+                    start.await();
+                    return service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null));
+                }));
+            }
+            start.countDown();
+            for (var read : reads) {
+                assertThat(read.get().data()).hasSize(1);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        org.mockito.Mockito.verify(connections, org.mockito.Mockito.times(1)).forCluster(clusterId, URL_A);
     }
 
     @Test

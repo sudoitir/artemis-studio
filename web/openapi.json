@@ -1226,7 +1226,11 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/IndexSubscriptionView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/CapturePreviewView"
+                  }, {
+                    "$ref" : "#/components/schemas/IndexSubscriptionView"
+                  } ]
                 }
               }
             }
@@ -1650,6 +1654,8 @@
                     "$ref" : "#/components/schemas/AffectedView"
                   }, {
                     "$ref" : "#/components/schemas/DryRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/PartialView"
                   } ]
                 }
               }
@@ -1710,6 +1716,8 @@
                     "$ref" : "#/components/schemas/AffectedView"
                   }, {
                     "$ref" : "#/components/schemas/DryRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/PartialView"
                   } ]
                 }
               }
@@ -1789,6 +1797,8 @@
                     "$ref" : "#/components/schemas/AffectedView"
                   }, {
                     "$ref" : "#/components/schemas/DryRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/PartialView"
                   } ]
                 }
               }
@@ -6037,6 +6047,10 @@
             "type" : "string",
             "description" : "Why this subscription is recording nothing, or null when it is running. An empty index and a subscription whose pattern matches no queue look identical from a query, so the reason is stated here."
           },
+          "backlogInProgress" : {
+            "type" : "boolean",
+            "description" : "True while a sampled subscription is still indexing the messages that were already on its queues when it started. That walk is spread over several polls to bound broker load, and until it finishes the index is not up to date."
+          },
           "mode" : {
             "type" : "string",
             "description" : "SAMPLE or CAPTURE. A sampled subscription records what a poll saw; a captured one records what the address routed."
@@ -6066,6 +6080,51 @@
             "items" : {
               "$ref" : "#/components/schemas/CaptureNodeView"
             }
+          }
+        }
+      },
+      "CapturePreviewView" : {
+        "type" : "object",
+        "description" : "What creating a capture subscription would do, without doing it: what it covers, where, how much it may hold, and the broker objects and configuration it amounts to.",
+        "properties" : {
+          "addresses" : {
+            "type" : "array",
+            "description" : "The addresses the pattern resolves to. Studio's own capture addresses are never included.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "nodes" : {
+            "type" : "array",
+            "description" : "The live nodes the tap would be installed on.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "ringMessages" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Messages each capture queue holds before the broker drops the oldest."
+          },
+          "ringBytes" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Bytes each capture queue holds before the broker drops the oldest."
+          },
+          "brokerObjects" : {
+            "type" : "array",
+            "description" : "The broker objects created on every listed node.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "brokerXml" : {
+            "type" : "string",
+            "description" : "The equivalent permanent broker.xml for a configuration-managed estate."
+          },
+          "refusal" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why capture would be refused as things stand, or null when it would not."
           }
         }
       },
@@ -6286,6 +6345,33 @@
         },
         "required" : [ "affectedCount", "cap", "node", "overCap" ]
       },
+      "PartialView" : {
+        "type" : "object",
+        "properties" : {
+          "affectedCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "notDone" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "error" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "node" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "affectedCount", "error", "node", "notDone", "partial" ]
+      },
       "MessageActionRequest" : {
         "type" : "object",
         "properties" : {
@@ -6369,21 +6455,28 @@
           "name" : {
             "type" : "string",
             "description" : "The divert's unique name on each node.",
-            "minLength" : 1
+            "maxLength" : 200,
+            "minLength" : 0,
+            "pattern" : "[^\\s,=:*?\"\\\\]*"
           },
           "routingName" : {
             "type" : [ "string", "null" ],
-            "description" : "The routing name; defaults to the divert's name."
+            "description" : "The routing name; defaults to the divert's name.",
+            "maxLength" : 200,
+            "minLength" : 0,
+            "pattern" : "[^\\s,=:*?\"\\\\]*"
           },
           "address" : {
             "type" : "string",
             "description" : "The address whose messages are diverted.",
-            "minLength" : 1
+            "maxLength" : 200,
+            "minLength" : 0
           },
           "forwardingAddress" : {
             "type" : "string",
             "description" : "The address messages are diverted to.",
-            "minLength" : 1
+            "maxLength" : 200,
+            "minLength" : 0
           },
           "exclusive" : {
             "type" : "boolean",
@@ -6392,12 +6485,20 @@
           },
           "filter" : {
             "type" : [ "string", "null" ],
-            "description" : "A filter limiting which messages are diverted."
+            "description" : "A filter limiting which messages are diverted.",
+            "maxLength" : 4000,
+            "minLength" : 0
           },
           "routingType" : {
             "type" : [ "string", "null" ],
             "description" : "Routing type applied to the diverted copy.",
-            "enum" : [ "ANYCAST", "MULTICAST", "PASS", "STRIP" ]
+            "enum" : [ "ANYCAST", "MULTICAST", "PASS", "STRIP" ],
+            "pattern" : "(?i)ANYCAST|MULTICAST|PASS|STRIP"
+          },
+          "acknowledgeCaptureShadowing" : {
+            "type" : "boolean",
+            "default" : false,
+            "description" : "Create an exclusive divert even though its source address is being captured. Capture of that address then observes nothing, because Artemis applies exclusive diverts before every other one."
           }
         },
         "required" : [ "address", "forwardingAddress", "name" ]
@@ -8120,8 +8221,13 @@
             }
           },
           "count" : {
-            "type" : "integer",
-            "format" : "int64"
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The broker's own message count; null when it could not be obtained, never a guess — see countUnavailable."
+          },
+          "countUnavailable" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why count is null. Null whenever count is present."
           },
           "page" : {
             "type" : "integer",
@@ -8139,7 +8245,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "count", "data", "node", "page", "pageSize", "transport" ]
+        "required" : [ "data", "node", "page", "pageSize", "transport" ]
       },
       "MessageSummaryView" : {
         "type" : "object",
@@ -8699,6 +8805,10 @@
             "type" : [ "string", "null" ],
             "format" : "uuid",
             "description" : "The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself."
+          },
+          "brokerXml" : {
+            "type" : [ "string", "null" ],
+            "description" : "The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Studio created it, so the deployed broker.xml does not."
           },
           "nodesPresent" : {
             "type" : "integer",

@@ -26,6 +26,29 @@ class CorePoolTest extends ArtemisIntegrationTest {
     }
 
     @Test
+    void captureDrainsHoldingEverySessionTheyNeedDoNotBlockAnOperatorBrowse() throws Exception {
+        CorePool pool = pool();
+        UUID clusterId = UUID.randomUUID();
+        CoreConnectionSettings settings = settings();
+        java.util.List<CorePool.PooledSession> drains = new java.util.ArrayList<>();
+        try {
+            // More long-held capture sessions than the operator pool allows in total.
+            for (int i = 0; i < 9; i++) {
+                drains.add(pool.borrowForCapture(clusterId, coreUrl(), settings));
+            }
+
+            long started = System.nanoTime();
+            try (CorePool.PooledSession browse = pool.borrow(clusterId, coreUrl(), settings)) {
+                assertThat(browse.session()).isNotNull();
+            }
+            assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(5));
+        } finally {
+            drains.forEach(CorePool.PooledSession::close);
+            pool.forget(clusterId);
+        }
+    }
+
+    @Test
     void aSecondBorrowOnTheSameKeyStillWorks() throws Exception {
         CorePool pool = pool();
         UUID clusterId = UUID.randomUUID();

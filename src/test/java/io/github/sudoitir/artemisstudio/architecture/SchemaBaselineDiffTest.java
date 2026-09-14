@@ -34,7 +34,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "governance_policy",
                     "classification_finding",
                     "policy_version",
-                    "CREATE TABLE message_index(_default)? ")
+                    "CREATE TABLE message_index(_default)? ",
+                    // Capture ring bound lowered to 1,000,000 (ADR-0079, changeset feature-sql 0003).
+                    "CREATE TABLE message_index_subscription ")
             .map(Pattern::compile)
             .toList();
 

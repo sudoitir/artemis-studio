@@ -66,8 +66,8 @@ walks one end to end.
    the reason a broker falls over.
 2. **Safe by default.** Every destructive operation takes `?dryRun=true` and returns
    the affected count without acting. Purge/delete need typed confirmation in the UI.
-3. **Audit everything.** Every mutating call writes an `audit_event` in the same
-   transaction as the command, before the broker call, updated with the outcome.
+3. **Audit everything.** Every mutating call commits an `audit_event` before the broker
+   call and updates it with the outcome, each in its own transaction (ADR-0078).
 4. **Never trust config for HA state.** Poll `Active` on every node to learn who is
    live. Two live in a pair = split-brain = critical alert.
 5. **Honest capability gating.** When a feature is unavailable because the connection

@@ -93,7 +93,7 @@ class CaptureTapTest {
                 // The refusal carries the configuration that would grant it, not just
                 // the fact that it was refused (non-negotiable #5).
                 .contains("security-setting")
-                .contains("artemis-studio.capture.#");
+                .contains("artemis-studio.capture.abc12345.#");
 
         verify(queues, never()).createQueue(any(), any(), any());
         verify(diverts, never()).createDivert(any(), any(), any());
@@ -123,6 +123,66 @@ class CaptureTapTest {
                 .hasMessageContaining("did not deploy");
     }
 
+    @Test
+    void settingsGoOnThisInstancesOwnMatchAndBoundTheQueueInBytes() {
+        installOnCreate();
+
+        tap.install(client, "abc12345", spec);
+
+        org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
+        JolokiaRequest addressSettings = requests.getAllValues().stream()
+                .filter(r -> String.valueOf(r.operation()).startsWith("addAddressSettings"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(addressSettings.toString())
+                .contains("artemis-studio.capture.abc12345.#")
+                .contains("maxSizeBytes");
+    }
+
+    @Test
+    void removingTheLastTapClearsOnlyThisInstancesSettingsWhileAnotherInstanceStillCaptures() {
+        deployed.add(divert("artemis-studio.capture.ff99ff99.PAY.IN." + UUID.randomUUID(), "PAY.IN", "x", false));
+
+        tap.remove(client, "abc12345", "artemis-studio.capture.abc12345.ORDER.IN." + spec.subscriptionId());
+
+        org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
+        List<String> removals = requests.getAllValues().stream()
+                .filter(r -> String.valueOf(r.operation()).startsWith("remove"))
+                .map(Object::toString)
+                .toList();
+        assertThat(removals).isNotEmpty().allSatisfy(r -> assertThat(r).contains("artemis-studio.capture.abc12345.#"));
+    }
+
+    @Test
+    void theLegacySharedMatchGoesOnlyWhenNoCaptureOfAnyInstanceIsLeft() {
+        tap.remove(client, "abc12345", "artemis-studio.capture.abc12345.ORDER.IN." + spec.subscriptionId());
+
+        org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
+        assertThat(requests.getAllValues().stream().map(Object::toString))
+                .anySatisfy(r -> assertThat(r).contains("artemis-studio.capture.#"));
+    }
+
+    @Test
+    void captureIsRefusedUntilTheBrokerRoleIsConfigured() {
+        CaptureTap unconfigured = new CaptureTap(
+                diverts,
+                queues,
+                new CaptureProperties(
+                        null,
+                        Duration.ofSeconds(30),
+                        Duration.ofHours(24),
+                        org.springframework.util.unit.DataSize.ofMegabytes(64)),
+                new ObjectMapper());
+
+        assertThatThrownBy(() -> unconfigured.install(client, "abc12345", spec))
+                .isInstanceOf(CaptureRefusedException.class)
+                .hasMessageContaining("artemis-studio.capture.broker-role");
+        verify(queues, never()).createQueue(any(), any(), any());
+    }
+
     // ---- fixtures --------------------------------------------------------
 
     /** The broker's divert list, as the tap sees it — mutated by a successful create. */
@@ -140,7 +200,11 @@ class CaptureTapTest {
     }
 
     private static CaptureProperties properties() {
-        return new CaptureProperties("amq", Duration.ofSeconds(30), Duration.ofHours(24));
+        return new CaptureProperties(
+                "studio",
+                Duration.ofSeconds(30),
+                Duration.ofHours(24),
+                org.springframework.util.unit.DataSize.ofMegabytes(64));
     }
 
     private static DivertRow divert(String name, String address, String forwarding, boolean exclusive) {

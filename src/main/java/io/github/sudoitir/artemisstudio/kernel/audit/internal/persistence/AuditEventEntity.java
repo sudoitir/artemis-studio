@@ -138,6 +138,12 @@ public class AuditEventEntity implements AuditEvent {
         this.error = error;
     }
 
+    /** A failure after part of the action was done: the count is what was affected before it. */
+    public void markFailure(String error, long affectedCount) {
+        markFailure(error);
+        this.affectedCount = affectedCount;
+    }
+
     /**
      * Attach the per-node detail of a fan-out. Set alongside the outcome, so a
      * partially applied command is reconstructable from this row alone (D4).

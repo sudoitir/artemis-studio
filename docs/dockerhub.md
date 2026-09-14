@@ -59,7 +59,7 @@ docker run -p 8080:8080 \
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | yes | Encrypts stored broker credentials. Base64 of **exactly 32 bytes** or the app will not start: `openssl rand -base64 32` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
-| `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=75` |
+| `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=50` |
 
 **First login.** Username `admin`. The first run against an empty database
 generates the password and prints it **once** to the container log:

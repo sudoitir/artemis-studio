@@ -80,7 +80,19 @@ public class MessageBrowser {
         }
     }
 
-    public record BrowsePage(List<BrowsedMessage> messages, long total) {}
+    /**
+     * One page of a queue and the broker's own count of it.
+     *
+     * @param total the broker's count, or null when it could not be had — never a guess
+     * @param totalUnavailable why {@code total} is null; null whenever it is present
+     */
+    public record BrowsePage(List<BrowsedMessage> messages, Long total, String totalUnavailable) {
+
+        /** A page whose count the broker reported. */
+        public BrowsePage(List<BrowsedMessage> messages, long total) {
+            this(messages, total, null);
+        }
+    }
 
     /**
      * One page of one queue. {@code page} is 1-based; the broker caps
@@ -115,8 +127,11 @@ public class MessageBrowser {
 
         JolokiaResponse count = responses.size() > 1 ? responses.get(1) : null;
         JsonNode totalNode = count != null && count.ok() ? count.attribute(ATTR_MESSAGE_COUNT) : null;
-        long total = totalNode != null && totalNode.isNumber() ? totalNode.asLong() : messages.size();
-        return new BrowsePage(List.copyOf(messages), total);
+        if (totalNode == null || !totalNode.isNumber()) {
+            // Not the page size: an absent count reported as a number reads as the real one.
+            return new BrowsePage(List.copyOf(messages), null, "The broker did not return this queue's message count.");
+        }
+        return new BrowsePage(List.copyOf(messages), totalNode.asLong());
     }
 
     private static BrowsedMessage decodeRow(JsonNode row) {

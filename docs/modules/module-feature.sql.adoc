@@ -20,10 +20,10 @@ _Configuration properties_
 _Others_
 
 * `i.g.s.a.f.s.BrokerQueryExecutor`
+* `i.g.s.a.f.s.CaptureAddresses`
 * `i.g.s.a.f.s.CaptureBus`
 * `i.g.s.a.f.s.CaptureConsumer`
 * `i.g.s.a.f.s.CaptureCoverage`
-* `i.g.s.a.f.s.CaptureBus.Listener` (via `i.g.s.a.f.s.CaptureIndexSink`)
 * `i.g.s.a.f.s.CaptureLoss`
 * `i.g.s.a.f.s.CaptureTap`
 * `i.g.s.a.f.s.IndexQueryExecutor`
@@ -42,7 +42,6 @@ _Others_
 * `i.g.s.a.f.s.SqlTailPoller`
 |Bean references
 |* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
 * `i.g.s.a.p.b.CorePool` (in Broker connectivity)
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)

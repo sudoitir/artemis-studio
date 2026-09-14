@@ -6,16 +6,20 @@ package io.github.sudoitir.artemisstudio.kernel.core;
  *
  * <ol>
  *   <li>{@link #STREAM} — stop accepting and delivering stream events;
- *   <li>{@link #BROKER_CALLS} — stop background jobs and scraping; no new management call starts;
+ *   <li>{@link #JOBS} — no scheduled job starts again, and a running one is given a bounded wait;
+ *   <li>{@link #BUFFERS} — write records still buffered in memory, while the database and broker are up;
+ *   <li>{@link #BROKER_CALLS} — stop scraping; no new management call starts;
  *   <li>{@link #SUBSCRIPTIONS} — close notification subscriptions and message consumers;
  *   <li>{@link #CORE_POOL} — close message-transport connections.
  * </ol>
  *
- * <p>Management clients are built per call and hold nothing open, so nothing follows.
+ * <p>Management clients are shared beans and are shut down with the context, after these.
  */
 public final class ShutdownPhases {
 
     public static final int STREAM = Integer.MAX_VALUE - 1000;
+    public static final int JOBS = STREAM - 500;
+    public static final int BUFFERS = STREAM - 750;
     public static final int BROKER_CALLS = STREAM - 1000;
     public static final int SUBSCRIPTIONS = BROKER_CALLS - 1000;
     public static final int CORE_POOL = SUBSCRIPTIONS - 1000;

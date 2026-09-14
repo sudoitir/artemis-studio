@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,6 +6,11 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { ExpectationsView } from './ExpectationsView.tsx';
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+}));
 
 function expectation(over: Record<string, unknown> = {}) {
   return {
@@ -24,6 +29,11 @@ function expectation(over: Record<string, unknown> = {}) {
 }
 
 describe('ExpectationsView', () => {
+  // The capture hint reads capture subscriptions; a test that is not about it sees none.
+  beforeEach(() => {
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+  });
+
   it('lists declared expectations', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([expectation()])),
@@ -154,5 +164,29 @@ describe('ExpectationsView', () => {
     renderWithProviders(<ExpectationsView clusterId="c1" />);
 
     expect(await screen.findByText(/too broad/)).toBeInTheDocument();
+  });
+
+  it('names traced addresses that are only sampled, and hides the hint once they are captured', async () => {
+    let captured = false;
+    server.use(
+      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([expectation()])),
+      http.get('*/api/v1/clusters/c1/sql/index', () =>
+        HttpResponse.json(
+          captured
+            ? [{ id: 's1', queuePattern: 'orders.#', mode: 'CAPTURE', enabled: true, nodes: [] }]
+            : [{ id: 's1', queuePattern: 'orders.request', mode: 'SAMPLE', enabled: true, nodes: [] }],
+        ),
+      ),
+    );
+    const { unmount } = renderWithProviders(<ExpectationsView clusterId="c1" />);
+
+    expect(await screen.findByText(/orders\.request, orders\.reply are not captured/)).toBeInTheDocument();
+    unmount();
+
+    captured = true;
+    renderWithProviders(<ExpectationsView clusterId="c1" />);
+    expect(await screen.findByText('orders.request')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByText(/are not captured/)).not.toBeInTheDocument();
   });
 });

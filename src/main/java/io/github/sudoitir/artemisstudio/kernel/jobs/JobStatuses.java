@@ -26,6 +26,12 @@ public class JobStatuses {
     private final Map<String, JobStatus> byId = new ConcurrentHashMap<>();
     private final MeterRegistry meters;
 
+    /** Guards {@link #paused} and {@link #inFlight}; runs and {@link #pause} wait on it. */
+    private final Object gate = new Object();
+
+    private boolean paused;
+    private int inFlight;
+
     public JobStatuses(MeterRegistry meters) {
         this.meters = meters;
     }
@@ -44,6 +50,12 @@ public class JobStatuses {
                 .tag("feature", job.featureId())
                 .register(meters);
         return () -> {
+            synchronized (gate) {
+                if (paused) {
+                    return;
+                }
+                inFlight++;
+            }
             byId.computeIfPresent(job.id(), (k, s) -> s.started(Instant.now()));
             long started = System.nanoTime();
             try {
@@ -54,8 +66,39 @@ public class JobStatuses {
                 throw e;
             } finally {
                 timer.record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
+                synchronized (gate) {
+                    inFlight--;
+                    gate.notifyAll();
+                }
             }
         };
+    }
+
+    /**
+     * Stop every job from starting a new run, and wait up to {@code maxWait} for runs already
+     * in progress (operational-health spec: no job starts a broker call once shutdown has begun).
+     * A run still going after the wait is left to finish; the later phases close what it uses.
+     */
+    public void pause(Duration maxWait) {
+        long deadline = System.nanoTime() + maxWait.toNanos();
+        synchronized (gate) {
+            paused = true;
+            try {
+                long remaining;
+                while (inFlight > 0 && (remaining = (deadline - System.nanoTime()) / 1_000_000L) > 0) {
+                    gate.wait(remaining);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /** Let jobs run again, after a stopped context is started. */
+    public void resume() {
+        synchronized (gate) {
+            paused = false;
+        }
     }
 
     /**

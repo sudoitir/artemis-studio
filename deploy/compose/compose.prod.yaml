@@ -86,7 +86,10 @@ services:
       ARTEMIS_STUDIO_DB_USER: ${DB_USER}
       ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
       ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
-      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+      # The broker role Studio's own broker user holds. Required for message capture only:
+      # capture queues are restricted to it, and capture is refused until it is set.
+      ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50}
     ports:
       - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
     depends_on:

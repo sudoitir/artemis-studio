@@ -418,9 +418,8 @@ public class BrokerConfigApplyService {
                 continue;
             }
             try {
-                // Every write is a management POST and is rate-limited like every other
-                // one; the client was charged a single permit when it was opened.
-                reads.permit(node.nodeId());
+                // Every write is a management POST, and the client waits for the node's
+                // ceiling before each one it sends (ADR-0076).
                 StepStatus status = execute(client, broker, p.revision.document(), s);
                 capabilities.recordWriteSucceeded(clusterId);
                 steps.add(stepApply(s, status, Verification.NOT_VERIFIED, null));

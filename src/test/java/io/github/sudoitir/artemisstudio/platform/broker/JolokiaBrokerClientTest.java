@@ -50,6 +50,29 @@ class JolokiaBrokerClientTest {
     }
 
     @Test
+    void everyRequestWaitsForTheNodeCeilingAndABatchPaysPerFiftyOperations() {
+        NodeCallLimiter limiter = org.mockito.Mockito.mock(NodeCallLimiter.class);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(URL)).andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(
+                builder.build(), URL, mapper, new java.util.concurrent.ConcurrentHashMap<>(), null, null, limiter);
+
+        client.single(JolokiaRequest.search("org.apache.activemq.artemis:*"));
+        client.batch(java.util.stream.IntStream.range(0, 120)
+                .mapToObj(i -> JolokiaRequest.read("x", "MessageCount"))
+                .toList());
+
+        // One permit for the single request; 120 operations in one batch cost three, so
+        // batching can never carry more than fifty operations per unit of the ceiling.
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(limiter);
+        order.verify(limiter).acquire(URL, 1);
+        order.verify(limiter).acquire(URL, 3);
+        server.verify();
+    }
+
+    @Test
     void resolvesBrokerObjectNameFromSearch() {
         Fixture f = fixture("search-broker.json", HttpStatus.OK);
 

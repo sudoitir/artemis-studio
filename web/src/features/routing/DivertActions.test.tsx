@@ -109,6 +109,102 @@ describe('creating a divert', () => {
   });
 });
 
+describe('the divert form', () => {
+  it('checks a field on blur, with the message beside it', async () => {
+    server.use(clusterHandler(), meHandler());
+    const user = userEvent.setup();
+    renderWithProviders(<CreateDivertAction clusterId="c1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Create divert' }));
+    await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'bad,name');
+    await user.tab();
+    expect(await screen.findByText(/cannot contain whitespace or any of/)).toBeInTheDocument();
+
+    await user.type(screen.getByRole('textbox', { name: /Divert messages from/ }), 'ORDER.IN');
+    await user.type(screen.getByRole('textbox', { name: /Divert messages to/ }), 'ORDER.IN');
+    await user.tab();
+    expect(await screen.findByText(/cannot forward to the address it reads from/)).toBeInTheDocument();
+  });
+
+  it('puts a server field error on its field and focuses it', async () => {
+    server.use(
+      clusterHandler(),
+      meHandler(),
+      http.post('*/api/v1/clusters/c1/diverts', () =>
+        HttpResponse.json(
+          {
+            type: 'validation',
+            title: 'Invalid request',
+            detail: 'One or more fields are invalid.',
+            errors: [{ field: 'routingName', message: 'ignored' }, { field: 'forwardingAddressDistinct', message: 'Forwards to itself.' }],
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<CreateDivertAction clusterId="c1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Create divert' }));
+    await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'copy');
+    await user.type(screen.getByRole('textbox', { name: /Divert messages from/ }), 'A');
+    await user.type(screen.getByRole('textbox', { name: /Divert messages to/ }), 'B');
+    await user.click(screen.getByRole('button', { name: 'Preview' }));
+
+    expect(await screen.findByText('Forwards to itself.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /Divert messages to/ })).toHaveFocus());
+  });
+
+  it('freezes what was previewed and refuses to offer a create every node refuses', async () => {
+    server.use(
+      clusterHandler(),
+      meHandler(),
+      http.post('*/api/v1/clusters/c1/diverts', () =>
+        HttpResponse.json({
+          outcome: {
+            ...outcome(true),
+            nodes: [{ nodeId: 'n1', nodeName: 'node-a', status: 'FAILED', affected: null, error: 'This divert would complete a cycle of diverts: A → B → A.' }],
+          },
+          brokerXml: BROKER_XML,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<CreateDivertAction clusterId="c1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Create divert' }));
+    await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'ba');
+    await user.type(screen.getByRole('textbox', { name: /Divert messages from/ }), 'B');
+    await user.type(screen.getByRole('textbox', { name: /Divert messages to/ }), 'A');
+    await user.click(screen.getByRole('button', { name: 'Preview' }));
+
+    expect(await screen.findByText(/complete a cycle of diverts/)).toBeInTheDocument();
+    expect(screen.getByText(/Every node refuses it/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create on every live node' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /Name/ })).toHaveAttribute('readonly');
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('textbox', { name: /Name/ })).not.toHaveAttribute('readonly');
+  });
+});
+
+describe('the divert dialog on the keyboard', () => {
+  it('opens from the keyboard, dismisses with Escape and returns focus to the trigger', async () => {
+    server.use(clusterHandler(), meHandler());
+    const user = userEvent.setup();
+    renderWithProviders(<CreateDivertAction clusterId="c1" />);
+
+    const trigger = await screen.findByRole('button', { name: 'Create divert' });
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement | null));
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+});
+
 describe('deleting a divert', () => {
   it('is not offered for a divert message capture owns', async () => {
     server.use(clusterHandler(), meHandler());

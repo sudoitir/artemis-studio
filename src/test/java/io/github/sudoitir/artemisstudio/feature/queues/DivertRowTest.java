@@ -79,4 +79,17 @@ class DivertRowTest {
                 .contains("<routing-type>ANYCAST</routing-type>")
                 .contains("<exclusive>true</exclusive>");
     }
+
+    @Test
+    void theRemedyStaysWellFormedWhateverTheFilterContains() throws Exception {
+        String filter = "a < 3 AND b = \"x\" AND c <> 'y&z'";
+
+        String xml = BrokerXmlSnippets.forDivert("d", null, "A", "B", false, filter, null);
+
+        org.w3c.dom.Document doc = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+        assertThat(((org.w3c.dom.Element) doc.getElementsByTagName("filter").item(0)).getAttribute("string"))
+                .isEqualTo(filter);
+    }
 }

@@ -1,17 +1,38 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Group, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useBridges, useDiverts, type BridgeView, type DivertView } from './api.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
-import { DeleteDivertAction, CreateDivertAction } from './DivertActions.tsx';
+import { BrokerXmlRemedy, DeleteDivertAction, CreateDivertAction, DRIFT_SENTENCE } from './DivertActions.tsx';
 import classes from './RoutingView.module.css';
 
 const PAGE_SIZE = 200;
 
 type Tab = 'diverts' | 'bridges';
+
+/**
+ * A Studio-created divert's ownership, as a control rather than a hover title: it opens the
+ * broker.xml that would make the deployed configuration carry it, reachable from the keyboard.
+ */
+function StudioOwned({ divert }: { divert: DivertView }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setOpen(true)}>
+        Studio — not in broker.xml
+      </Button>
+      <Modal opened={open} onClose={() => setOpen(false)} title={`"${divert.name}" is not in broker.xml`} size="lg">
+        <Stack gap="sm">
+          <Text size="sm">{DRIFT_SENTENCE}</Text>
+          {divert.brokerXml ? <BrokerXmlRemedy xml={divert.brokerXml} /> : null}
+        </Stack>
+      </Modal>
+    </>
+  );
+}
 
 /**
  * A divert's direction as one object: source, arrow, destination.
@@ -80,14 +101,7 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
             message capture
           </Badge>
         ) : r.owner === 'OPERATOR' ? (
-          <Badge
-            size="xs"
-            variant="light"
-            color="gray"
-            title="Created through Studio. It is not in the broker.xml your brokers deploy from."
-          >
-            Studio — not in broker.xml
-          </Badge>
+          <StudioOwned divert={r} />
         ) : (
           <Text size="xs" c="dimmed" title="Studio has no record of creating this divert. That is not a claim about where it came from.">
             not recorded

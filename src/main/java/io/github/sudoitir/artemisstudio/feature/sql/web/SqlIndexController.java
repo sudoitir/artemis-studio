@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.MessageIndexService.Subscrip
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.CaptureNodeView;
+import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.CapturePreviewView;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.IndexSubscriptionRequest;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.IndexSubscriptionView;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -36,7 +37,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class SqlIndexController {
 
     private final MessageIndexService index;
-    private final io.github.sudoitir.artemisstudio.feature.sql.CaptureReconciler capture;
 
     @GetMapping
     public List<IndexSubscriptionView> list(@PathVariable UUID clusterId) {
@@ -48,22 +48,38 @@ public class SqlIndexController {
         return toView(index.create(clusterId, toSpec(request)));
     }
 
+    /**
+     * The dry run of creating a capture subscription: what it would cover, where, how much it
+     * may hold, and the broker objects and configuration it amounts to. Nothing is saved and no
+     * broker is contacted.
+     */
+    @PostMapping(params = "dryRun=true")
+    public CapturePreviewView preview(@PathVariable UUID clusterId, @RequestBody IndexSubscriptionRequest request) {
+        MessageIndexService.Preview p = index.preview(clusterId, toSpec(request));
+        return new CapturePreviewView(
+                p.addresses(),
+                p.nodes(),
+                p.ringMessages(),
+                p.ringBytes(),
+                p.brokerObjects(),
+                p.brokerXml(),
+                p.refusal());
+    }
+
     @PatchMapping("/{id}")
     public IndexSubscriptionView update(
             @PathVariable UUID clusterId, @PathVariable UUID id, @RequestBody IndexSubscriptionRequest request) {
         return toView(index.update(clusterId, id, toSpec(request)));
     }
 
-    /** Deletes the subscription and everything it captured, and says how much that was. */
+    /**
+     * Deletes the subscription and everything it captured, and says how much that was. The
+     * taps it owned are swept by the reconciler, under the cluster lock, once the deletion has
+     * committed — so a node unreachable now is cleaned on its next pass.
+     */
     @DeleteMapping("/{id}")
     public DeletedView delete(@PathVariable UUID clusterId, @PathVariable UUID id) {
-        MessageIndexService.Deleted deleted = index.delete(clusterId, id);
-        if (deleted.hadCapture()) {
-            // Once the deletion has committed, so the sweep sees an empty desired
-            // state and the broker calls are not inside that transaction.
-            capture.reconcileCluster(clusterId);
-        }
-        return new DeletedView(deleted.messagesDestroyed());
+        return new DeletedView(index.delete(clusterId, id).messagesDestroyed());
     }
 
     @Schema(description = "How many captured messages the deletion destroyed.")
@@ -100,6 +116,7 @@ public class SqlIndexController {
                 subscription.footprint().payloadBytes(),
                 iso(subscription.footprint().oldest()),
                 subscription.notCapturing(),
+                subscription.backlogInProgress(),
                 entity.getMode().name(),
                 entity.getRingSize(),
                 entity.getFilterString(),

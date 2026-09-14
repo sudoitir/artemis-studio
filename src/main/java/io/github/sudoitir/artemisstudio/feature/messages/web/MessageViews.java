@@ -76,7 +76,16 @@ public final class MessageViews {
      */
     public record MessagePageView(
             @Schema(requiredMode = REQUIRED) List<MessageSummaryView> data,
-            @Schema(requiredMode = REQUIRED) long count,
+
+            @Schema(
+                    nullable = true,
+                    description = "The broker's own message count; null when it could not be obtained, never"
+                            + " a guess — see countUnavailable.")
+            Long count,
+
+            @Schema(nullable = true, description = "Why count is null. Null whenever count is present.")
+            String countUnavailable,
+
             @Schema(requiredMode = REQUIRED) int page,
             @Schema(requiredMode = REQUIRED) int pageSize,
             @Schema(requiredMode = REQUIRED) UUID node,
@@ -86,6 +95,21 @@ public final class MessageViews {
     public record AffectedView(
             @Schema(requiredMode = REQUIRED) long affectedCount,
             @Schema(requiredMode = REQUIRED) boolean dryRun,
+            @Schema(requiredMode = REQUIRED) UUID node) {}
+
+    /**
+     * An operation by ids that stopped part-way. Some messages were acted on, so this is never
+     * reported as a plain failure: the operator needs to know what already changed.
+     *
+     * @param affectedCount how many were acted on
+     * @param notDone every id that was not acted on: refused by the broker, or never sent after the failure
+     * @param error why it stopped
+     */
+    public record PartialView(
+            @Schema(requiredMode = REQUIRED) long affectedCount,
+            @Schema(requiredMode = REQUIRED) java.util.List<Long> notDone,
+            @Schema(requiredMode = REQUIRED) String error,
+            @Schema(requiredMode = REQUIRED) boolean partial,
             @Schema(requiredMode = REQUIRED) UUID node) {}
 
     /**

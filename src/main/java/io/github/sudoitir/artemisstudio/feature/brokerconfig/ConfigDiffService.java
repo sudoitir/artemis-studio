@@ -15,7 +15,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -56,7 +55,6 @@ public class ConfigDiffService {
     private final QueueSnapshots queueSnapshots;
     private final BrokerConnections connections;
     private final ConfigReader reader;
-    private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
@@ -285,7 +283,6 @@ public class ConfigDiffService {
             return new Read(null, "This node has no management URL, so its configuration cannot be read.");
         }
         try {
-            acquire(node.getId());
             JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
             return new Read(reader.read(client, matches), null);
         } catch (BrokerConnectionException e) {
@@ -355,15 +352,5 @@ public class ConfigDiffService {
                 .toList();
         int drift = (int) entries.stream().filter(Entry::isDrift).count();
         return new ConfigSectionView(section, ConfigDiff.sectionLabel(section), views, drift);
-    }
-
-    private void acquire(UUID nodeId) {
-        try {
-            limiter.acquire(nodeId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Interrupted while waiting for the node rate limiter.");
-        }
     }
 }

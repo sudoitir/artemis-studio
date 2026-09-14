@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreDestinationName;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
@@ -276,8 +275,7 @@ public class RrSampler {
                 queue.routingType(),
                 node.getJolokiaUrl(),
                 node.getCoreUrl());
-        BrowseResult result = coreTransport.browse(target, 1, SAMPLE_PAGE_SIZE, null);
-        return result.page().messages();
+        return coreTransport.sample(target, SAMPLE_PAGE_SIZE);
     }
 
     /** Log once per interval for a key, sharing the failure throttle's budget. */

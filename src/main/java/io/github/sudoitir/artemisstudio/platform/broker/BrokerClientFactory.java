@@ -1,16 +1,20 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.boot.http.client.HttpRedirects;
+import org.springframework.boot.http.client.JdkHttpClientBuilder;
 import org.springframework.boot.ssl.NoSuchSslBundleException;
 import org.springframework.boot.ssl.SslBundle;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.converter.AbstractJacksonHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
@@ -27,15 +31,30 @@ import tools.jackson.databind.json.JsonMapper;
  * TLS material comes from a named Spring SSL bundle (ADR-0009); a missing bundle
  * surfaces as a {@code TLS_FAILED} connection error rather than a silent
  * downgrade.
+ *
+ * <p>The underlying JDK {@link HttpClient} is shared: one per TLS bundle, never one per
+ * call. Each client owns a selector thread and an epoll descriptor that live until the
+ * client is shut down, so building one per Jolokia call leaked threads and descriptors
+ * until the container was OOM-killed. A client is shut down when its settings are
+ * replaced, when its bundle's material is reloaded, and when the context closes.
  */
 @Component
-public class BrokerClientFactory {
+public class BrokerClientFactory implements DisposableBean {
+
+    private static final String PLAIN = "";
 
     private final ObjectMapper mapper;
     private final SslBundles sslBundles;
     private final ClockOffsetRegistry clockOffsets;
     private final NodeCallHealth callHealth;
+    private final NodeCallLimiter limiter;
     private volatile HttpClientSettings baseSettings;
+
+    /** One transport per TLS bundle name ({@link #PLAIN} for none). Replaced wholesale on a timeout change. */
+    private volatile Map<String, Transport> transports = new ConcurrentHashMap<>();
+
+    /** Bundles whose reload handler is registered, so a reload evicts the client built from old material. */
+    private final Set<String> watchedBundles = ConcurrentHashMap.newKeySet();
 
     /** Resolved broker MBean names, shared across every client this factory builds (keyed by Jolokia URL). */
     private final Map<String, String> brokerObjectNames = new ConcurrentHashMap<>();
@@ -45,11 +64,13 @@ public class BrokerClientFactory {
             SslBundles sslBundles,
             BrokerProperties properties,
             ClockOffsetRegistry clockOffsets,
-            NodeCallHealth callHealth) {
+            NodeCallHealth callHealth,
+            NodeCallLimiter limiter) {
         this.mapper = mapper;
         this.sslBundles = sslBundles;
         this.clockOffsets = clockOffsets;
         this.callHealth = callHealth;
+        this.limiter = limiter;
         this.baseSettings = HttpClientSettings.defaults()
                 .withConnectTimeout(properties.connectTimeout())
                 .withReadTimeout(properties.readTimeout())
@@ -62,18 +83,20 @@ public class BrokerClientFactory {
 
     /**
      * Runtime override hook — {@code SettingsService} calls this when either broker
-     * timeout changes. {@code BrokerConnections} builds a client per call rather than
-     * caching one, so the next Jolokia call already uses the new timeouts; only a
-     * request already in flight keeps the old ones.
+     * timeout changes. The shared clients are replaced, so the next Jolokia call uses the
+     * new timeouts; the old clients are shut down gracefully, so a request already in
+     * flight finishes on the old ones.
      */
-    public void setTimeouts(java.time.Duration connectTimeout, java.time.Duration readTimeout) {
-        this.baseSettings =
-                HttpClientSettings.defaults().withConnectTimeout(connectTimeout).withReadTimeout(readTimeout);
+    public void setTimeouts(Duration connectTimeout, Duration readTimeout) {
+        this.baseSettings = baseSettings.withConnectTimeout(connectTimeout).withReadTimeout(readTimeout);
+        Map<String, Transport> old = transports;
+        transports = new ConcurrentHashMap<>();
+        old.values().forEach(Transport::shutdown);
     }
 
     public JolokiaBrokerClient forNode(BrokerConnectionSettings settings, String jolokiaUrl) {
         RestClient.Builder builder = RestClient.builder()
-                .requestFactory(requestFactory(settings))
+                .requestFactory(transport(settings).factory())
                 .messageConverters(converters -> applyJolokiaConverters(converters, mapper));
         if (settings.hasCredentials()) {
             builder.requestInterceptor((request, body, execution) -> {
@@ -82,7 +105,7 @@ public class BrokerClientFactory {
             });
         }
         return new JolokiaBrokerClient(
-                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth);
+                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth, limiter);
     }
 
     /**
@@ -105,15 +128,48 @@ public class BrokerClientFactory {
         converters.add(0, converter);
     }
 
-    private ClientHttpRequestFactory requestFactory(BrokerConnectionSettings settings) {
+    @Override
+    public void destroy() {
+        Map<String, Transport> all = transports;
+        transports = new ConcurrentHashMap<>();
+        all.values().forEach(Transport::shutdown);
+    }
+
+    private Transport transport(BrokerConnectionSettings settings) {
+        String bundle = settings.hasTls() ? settings.tlsBundle() : PLAIN;
+        return transports.computeIfAbsent(bundle, this::build);
+    }
+
+    /**
+     * Mirrors Boot's {@code JdkClientHttpRequestFactoryBuilder}: the client takes every
+     * setting but the read timeout, which the JDK applies per request and so lives on the
+     * request factory. Built here rather than through that builder because the builder
+     * hides the {@link HttpClient}, and a client that cannot be shut down is the leak.
+     */
+    private Transport build(String bundle) {
         HttpClientSettings s = baseSettings;
-        if (settings.hasTls()) {
+        if (!PLAIN.equals(bundle)) {
             // Hostname verification follows the bundle's own SslOptions; the
             // per-cluster verify_hostname flag is surfaced in the topology view
             // so an operator can see it, and is configured on the bundle itself.
-            s = s.withSslBundle(resolveBundle(settings.tlsBundle()));
+            s = s.withSslBundle(resolveBundle(bundle));
+            if (watchedBundles.add(bundle)) {
+                sslBundles.addBundleUpdateHandler(bundle, reloaded -> evict(bundle));
+            }
         }
-        return ClientHttpRequestFactoryBuilder.detect().build(s);
+        HttpClient client = new JdkHttpClientBuilder().build(s.withReadTimeout(null));
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
+        if (s.readTimeout() != null) {
+            factory.setReadTimeout(s.readTimeout());
+        }
+        return new Transport(client, factory);
+    }
+
+    private void evict(String bundle) {
+        Transport stale = transports.remove(bundle);
+        if (stale != null) {
+            stale.shutdown();
+        }
     }
 
     private SslBundle resolveBundle(String name) {
@@ -125,6 +181,12 @@ public class BrokerClientFactory {
                     "TLS is configured for this cluster but SSL bundle '" + name
                             + "' is not defined. Add it under spring.ssl.bundle.",
                     e);
+        }
+    }
+
+    private record Transport(HttpClient client, JdkClientHttpRequestFactory factory) {
+        void shutdown() {
+            client.shutdown();
         }
     }
 }

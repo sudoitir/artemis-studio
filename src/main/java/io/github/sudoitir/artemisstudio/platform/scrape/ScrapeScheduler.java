@@ -5,7 +5,6 @@ import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
@@ -96,7 +95,6 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     private final io.github.sudoitir.artemisstudio.kernel.settings.SettingsService settings;
     private final ClusterDirectory clusters;
     private final BrokerConnections connections;
-    private final NodeCallLimiter limiter;
     private final ScrapeCycle scrapeCycle;
     private final NodeStateRecorder persist;
     private final SweepCursor sweepCursor;
@@ -249,10 +247,8 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     private void runIsolated(ClusterNode node, NodeJob job) {
         try {
-            limiter.acquire(node.getId());
+            // The client waits for the node's ceiling before each request it sends (ADR-0076).
             job.run(node);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         } catch (RuntimeException e) {
             String message =
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
