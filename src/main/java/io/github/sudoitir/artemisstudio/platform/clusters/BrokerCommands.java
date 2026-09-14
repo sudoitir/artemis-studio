@@ -27,7 +27,6 @@ import java.util.function.Function;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -48,8 +47,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li>the caller's topic signal, after commit.
  * </ol>
  *
- * <p>The caller runs in a transaction whose {@code noRollbackFor} covers
- * {@link BulkCapExceededException}, so the audited refusal commits.
+ * <p>No database transaction is held across the fan-out: the audit row and its outcome
+ * each commit on their own (ADR-0078), and a broker call must never pin a pooled
+ * connection for N nodes × the read timeout.
  */
 @Component
 @RequiredArgsConstructor
@@ -116,7 +116,6 @@ public class BrokerCommands {
 
     private record Target(BrokerNodeEntity node, boolean live) {}
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public LifecycleOutcome run(Command c) {
         clusterAccess.requireCluster(c.clusterId(), c.permission());
         List<Target> targets = targets(c.clusterId());

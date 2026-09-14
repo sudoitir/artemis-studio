@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.audit;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditRowWriter;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
@@ -10,20 +11,28 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Writes the audit trail for mutating actions (ADR-0002 non-negotiable #3).
+ * Writes the audit trail for mutating actions (non-negotiable #3, ADR-0078).
  *
- * <p>The caller runs inside a transaction, calls {@link #begin} <em>before</em>
- * the broker call, then {@link #succeed} or {@link #fail} — all in that one
- * transaction, so an action and its audit row commit or roll back together.
- * {@code begin} returns the event; pass it back to record the outcome.
+ * <p>{@link #begin} commits a {@code PENDING} row on its own, so it is durable before the broker
+ * call it describes; pass the returned event to {@link #succeed}, {@link #fail} or {@link #finish},
+ * which commit the outcome on their own too. A broker is not a participant in the caller's
+ * transaction, so neither half may depend on that transaction committing.
+ *
+ * <p>When the caller's transaction rolls back before an outcome was recorded, the row is failed
+ * with that reason, so an action that did not happen never leaves a row that looks in flight.
  */
 @Service
 @RequiredArgsConstructor
 public class AuditService {
 
+    static final String ROLLED_BACK = "The action was rolled back before its outcome was recorded.";
+
+    private final AuditRowWriter writer;
     private final AuditEventRepository events;
     private final ObjectMapper mapper;
     private final ScopeHierarchy clusters;
@@ -44,7 +53,7 @@ public class AuditService {
                 (params == null || params.isEmpty() || filter == null) ? params : filter.filter(params);
         String paramsJson = (written == null || written.isEmpty()) ? null : mapper.writeValueAsString(written);
         Actor a = actor == null ? Actor.system() : actor;
-        return events.save(new AuditEventEntity(
+        AuditEventEntity row = writer.insert(new AuditEventEntity(
                 action,
                 targetType,
                 targetName,
@@ -57,6 +66,8 @@ public class AuditService {
                 nodeId,
                 paramsJson,
                 dryRun));
+        failIfCallerRollsBack(row.getId());
+        return row;
     }
 
     /**
@@ -69,15 +80,16 @@ public class AuditService {
     }
 
     public void succeed(AuditEvent event, long affectedCount) {
-        AuditEventEntity entity = entity(event);
-        entity.markSuccess(affectedCount);
-        events.save(entity);
+        writer.succeed(event.getId(), affectedCount);
     }
 
     public void fail(AuditEvent event, String error) {
-        AuditEventEntity entity = entity(event);
-        entity.markFailure(error);
-        events.save(entity);
+        writer.fail(event.getId(), error);
+    }
+
+    /** An action that failed after affecting some of its targets; the count is recorded with the error. */
+    public void failPartial(AuditEvent event, long affectedCount, String error) {
+        writer.failPartial(event.getId(), affectedCount, error);
     }
 
     /**
@@ -90,18 +102,25 @@ public class AuditService {
      * most of it worked is the lie the audit log exists to prevent.
      */
     public void finish(AuditEvent event, boolean anyFailed, long affectedCount, String error, Object detail) {
-        AuditEventEntity entity = entity(event);
-        entity.attachOutcomeDetail(detail == null ? null : mapper.writeValueAsString(detail));
-        if (anyFailed) {
-            entity.markFailure(error);
-        } else {
-            entity.markSuccess(affectedCount);
-        }
-        events.save(entity);
+        writer.finish(
+                event.getId(),
+                anyFailed,
+                affectedCount,
+                error,
+                detail == null ? null : mapper.writeValueAsString(detail));
     }
 
-    /** Every {@link AuditEvent} is one this service began, so it is always the entity. */
-    private static AuditEventEntity entity(AuditEvent event) {
-        return (AuditEventEntity) event;
+    private void failIfCallerRollsBack(Long id) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    writer.failIfPending(id, ROLLED_BACK);
+                }
+            }
+        });
     }
 }

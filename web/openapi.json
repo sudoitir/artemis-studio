@@ -1650,6 +1650,8 @@
                     "$ref" : "#/components/schemas/AffectedView"
                   }, {
                     "$ref" : "#/components/schemas/DryRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/PartialView"
                   } ]
                 }
               }
@@ -1710,6 +1712,8 @@
                     "$ref" : "#/components/schemas/AffectedView"
                   }, {
                     "$ref" : "#/components/schemas/DryRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/PartialView"
                   } ]
                 }
               }
@@ -1789,6 +1793,8 @@
                     "$ref" : "#/components/schemas/AffectedView"
                   }, {
                     "$ref" : "#/components/schemas/DryRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/PartialView"
                   } ]
                 }
               }
@@ -6285,6 +6291,33 @@
           }
         },
         "required" : [ "affectedCount", "cap", "node", "overCap" ]
+      },
+      "PartialView" : {
+        "type" : "object",
+        "properties" : {
+          "affectedCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "notAttempted" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "error" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "node" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "affectedCount", "error", "node", "notAttempted", "partial" ]
       },
       "MessageActionRequest" : {
         "type" : "object",

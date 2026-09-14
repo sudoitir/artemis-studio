@@ -10,7 +10,6 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
-import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
@@ -26,7 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -93,17 +91,14 @@ public class ConnectionControlService {
 
     // ---- node-scoped closes ----------------------------------------------
 
-    @Transactional(noRollbackFor = {IllegalArgumentException.class})
     public Attempt<CloseResult> closeConnection(UUID clusterId, UUID nodeId, String connectionId, boolean dryRun) {
         return byId(clusterId, nodeId, ConnectionCloseKind.CONNECTION, connectionId, dryRun);
     }
 
-    @Transactional(noRollbackFor = {IllegalArgumentException.class})
     public Attempt<CloseResult> closeSession(UUID clusterId, UUID nodeId, String sessionId, boolean dryRun) {
         return byId(clusterId, nodeId, ConnectionCloseKind.SESSION, sessionId, dryRun);
     }
 
-    @Transactional(noRollbackFor = {IllegalArgumentException.class})
     public Attempt<CloseResult> closeConsumerConnection(
             UUID clusterId, UUID nodeId, String consumerId, boolean dryRun) {
         return byId(clusterId, nodeId, ConnectionCloseKind.CONSUMER, consumerId, dryRun);
@@ -222,7 +217,6 @@ public class ConnectionControlService {
      * because it is "just a disconnect": each consumer it closes returns its
      * in-flight messages to a queue.
      */
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<CloseResult> closeAddressConsumers(
             UUID clusterId, String address, boolean dryRun, boolean override) {
         ConnectionCloseKind kind = ConnectionCloseKind.ADDRESS_CONSUMERS;

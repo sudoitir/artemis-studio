@@ -89,6 +89,21 @@ public final class MessageViews {
             @Schema(requiredMode = REQUIRED) UUID node) {}
 
     /**
+     * An operation by ids that stopped part-way. Some messages were acted on, so this is never
+     * reported as a plain failure: the operator needs to know what already changed.
+     *
+     * @param affectedCount how many were acted on before it stopped
+     * @param notAttempted the id that failed and every id after it
+     * @param error why it stopped
+     */
+    public record PartialView(
+            @Schema(requiredMode = REQUIRED) long affectedCount,
+            @Schema(requiredMode = REQUIRED) java.util.List<Long> notAttempted,
+            @Schema(requiredMode = REQUIRED) String error,
+            @Schema(requiredMode = REQUIRED) boolean partial,
+            @Schema(requiredMode = REQUIRED) UUID node) {}
+
+    /**
      * A point-in-time estimate from the broker for a destructive action, before it runs.
      *
      * @param affectedCount broker-side estimate ({@code countMessages(filter)} / id count / {@code MessageCount})

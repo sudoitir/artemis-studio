@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.Affect
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DryRunView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageDetailView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessagePageView;
+import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.PartialView;
 import io.github.sudoitir.artemisstudio.kernel.core.web.ApiExceptionHandler;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -67,7 +68,7 @@ public class MessageController {
 
     @ApiResponse(
             responseCode = "200",
-            content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class})))
+            content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class, PartialView.class})))
     @PostMapping
     public ResponseEntity<Object> send(
             @PathVariable UUID clusterId,
@@ -80,7 +81,7 @@ public class MessageController {
 
     @ApiResponse(
             responseCode = "200",
-            content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class})))
+            content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class, PartialView.class})))
     @PostMapping("/actions/{action}")
     public ResponseEntity<Object> action(
             @PathVariable UUID clusterId,
@@ -96,7 +97,7 @@ public class MessageController {
 
     @ApiResponse(
             responseCode = "200",
-            content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class})))
+            content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class, PartialView.class})))
     @DeleteMapping
     public ResponseEntity<Object> purge(
             @PathVariable UUID clusterId,
@@ -113,6 +114,7 @@ public class MessageController {
                 switch (outcome) {
                     case Outcome.Affected a -> new AffectedView(a.count(), false, a.node());
                     case Outcome.DryRun d -> new DryRunView(d.count(), d.cap(), d.overCap(), d.node());
+                    case Outcome.Partial p -> new PartialView(p.count(), p.notAttempted(), p.error(), true, p.node());
                 };
         return ResponseEntity.ok(body);
     }

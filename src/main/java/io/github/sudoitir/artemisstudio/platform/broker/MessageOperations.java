@@ -59,28 +59,34 @@ public class MessageOperations {
 
     // ---- by explicit ids (one exec per id; the broker has no id-batch op) ----
 
-    public long moveByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids, String targetQueue) {
-        long moved = 0;
-        for (long id : ids) {
-            JolokiaResponse res = client.single(
-                    JolokiaRequest.exec(queueMbean, "moveMessage(long,java.lang.String)", id, targetQueue));
-            requireOk(res, "moveMessage");
-            if (res.value() != null && res.value().asBoolean()) {
-                moved++;
-            }
+    /**
+     * What an operation on a list of ids did. When it stopped part-way, {@code error} says why
+     * and {@code notAttempted} holds the id that failed and every id after it, so a caller never
+     * reports "failed" for an operation that already acted on some messages.
+     */
+    public record BulkResult(long affected, List<Long> notAttempted, String error) {
+        public boolean partial() {
+            return error != null;
         }
-        return moved;
     }
 
-    public long retryByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
+    public BulkResult moveByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids, String targetQueue) {
+        return eachId(
+                ids,
+                "moveMessage",
+                id -> client.single(
+                        JolokiaRequest.exec(queueMbean, "moveMessage(long,java.lang.String)", id, targetQueue)));
+    }
+
+    public BulkResult retryByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
         return countTrue(client, queueMbean, "retryMessage(long)", ids);
     }
 
-    public long deleteByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
+    public BulkResult deleteByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
         return countTrue(client, queueMbean, "removeMessage(long)", ids);
     }
 
-    public long expireByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
+    public BulkResult expireByIds(JolokiaBrokerClient client, String queueMbean, List<Long> ids) {
         return countTrue(client, queueMbean, "expireMessage(long)", ids);
     }
 
@@ -114,16 +120,32 @@ public class MessageOperations {
 
     // ---- helpers -------------------------------------------------------
 
-    private long countTrue(JolokiaBrokerClient client, String queueMbean, String op, List<Long> ids) {
-        long n = 0;
-        for (long id : ids) {
-            JolokiaResponse res = client.single(JolokiaRequest.exec(queueMbean, op, id));
-            requireOk(res, op);
-            if (res.value() != null && res.value().asBoolean()) {
-                n++;
+    private BulkResult countTrue(JolokiaBrokerClient client, String queueMbean, String op, List<Long> ids) {
+        return eachId(ids, op, id -> client.single(JolokiaRequest.exec(queueMbean, op, id)));
+    }
+
+    /**
+     * Acts on each id in order and counts the ones the broker says it acted on. A failure on the
+     * first id is thrown as it is — nothing was done, so it is a plain failure; a later one ends
+     * the run as partial.
+     */
+    private BulkResult eachId(List<Long> ids, String op, java.util.function.Function<Long, JolokiaResponse> call) {
+        long affected = 0;
+        for (int i = 0; i < ids.size(); i++) {
+            try {
+                JolokiaResponse res = call.apply(ids.get(i));
+                requireOk(res, op);
+                if (res.value() != null && res.value().asBoolean()) {
+                    affected++;
+                }
+            } catch (RuntimeException e) {
+                if (i == 0) {
+                    throw e;
+                }
+                return new BulkResult(affected, List.copyOf(ids.subList(i, ids.size())), e.getMessage());
             }
         }
-        return n;
+        return new BulkResult(affected, List.of(), null);
     }
 
     private long filterExec(JolokiaBrokerClient client, String queueMbean, String op, Object... args) {

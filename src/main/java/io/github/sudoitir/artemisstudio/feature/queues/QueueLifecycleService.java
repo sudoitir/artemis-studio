@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
-import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
@@ -26,7 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -61,7 +59,6 @@ public class QueueLifecycleService {
 
     // ---- entry points ----------------------------------------------------
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> createQueue(UUID clusterId, CreateQueueRequest req, boolean dryRun) {
         ResolvedQueue asked = new ResolvedQueue(req.name(), req.address(), req.routingType());
         return run(clusterId, LifecycleKind.CREATE_QUEUE, req.name(), params(req), dryRun, false, (client, broker) -> {
@@ -88,7 +85,6 @@ public class QueueLifecycleService {
         });
     }
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> updateQueue(
             UUID clusterId, String queueName, UpdateQueueRequest req, boolean dryRun) {
         Map<String, Object> patch = patch(req);
@@ -102,7 +98,6 @@ public class QueueLifecycleService {
         });
     }
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> deleteQueue(UUID clusterId, String queueName, boolean dryRun, boolean override) {
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         return run(
@@ -119,7 +114,6 @@ public class QueueLifecycleService {
                 client -> ops.messageCount(client, queueMbean(client, queue)));
     }
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> setPaused(UUID clusterId, String queueName, boolean paused, boolean dryRun) {
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         LifecycleKind kind = paused ? LifecycleKind.PAUSE_QUEUE : LifecycleKind.RESUME_QUEUE;
@@ -137,7 +131,6 @@ public class QueueLifecycleService {
         });
     }
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> resetCounter(UUID clusterId, String queueName, boolean dryRun) {
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         return run(
@@ -147,7 +140,6 @@ public class QueueLifecycleService {
                 });
     }
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> createAddress(UUID clusterId, CreateAddressRequest req, boolean dryRun) {
         return run(
                 clusterId,
@@ -170,7 +162,6 @@ public class QueueLifecycleService {
      * an unbounded amount of data with no per-queue count in the confirmation is not
      * a safe default, and the safe path costs one extra step.
      */
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> deleteAddress(UUID clusterId, String address, boolean dryRun) {
         return run(clusterId, LifecycleKind.DELETE_ADDRESS, address, Map.of(), dryRun, false, (client, broker) -> {
             try {
@@ -199,7 +190,6 @@ public class QueueLifecycleService {
      * makes that the only way to change one — so a mismatched name is a thing for the
      * operator to look at, not something to reconcile silently.
      */
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> createDivert(UUID clusterId, CreateDivertRequest req, boolean dryRun) {
         Map<String, Object> config = DivertOperations.divertConfig(
                 req.name(),
@@ -221,7 +211,6 @@ public class QueueLifecycleService {
      * the only path, and the confirmation says so rather than implying a restart
      * would do it.
      */
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<LifecycleOutcome> deleteDivert(UUID clusterId, String name, boolean dryRun) {
         return run(clusterId, LifecycleKind.DELETE_DIVERT, name, Map.of(), dryRun, false, (client, broker) -> {
             divertOps.destroyDivert(client, broker, name);

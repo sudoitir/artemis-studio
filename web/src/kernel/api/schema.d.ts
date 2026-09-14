@@ -2397,6 +2397,15 @@ export interface components {
             /** Format: uuid */
             node: string;
         };
+        PartialView: {
+            /** Format: int64 */
+            affectedCount: number;
+            notAttempted: number[];
+            error: string;
+            partial: boolean;
+            /** Format: uuid */
+            node: string;
+        };
         MessageActionRequest: {
             messageIds?: number[];
             filter?: string;
@@ -4947,7 +4956,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"];
+                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
         };
@@ -4974,7 +4983,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"];
+                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
         };
@@ -5006,7 +5015,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"];
+                    "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
         };

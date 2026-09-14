@@ -97,6 +97,12 @@ public class MessageService {
         record Affected(long count, UUID node) implements Outcome {}
 
         record DryRun(long count, long cap, boolean overCap, UUID node) implements Outcome {}
+
+        /**
+         * An operation by ids that stopped part-way: {@code count} were acted on before
+         * {@code error}, and {@code notAttempted} holds the id that failed and every id after it.
+         */
+        record Partial(long count, List<Long> notAttempted, String error, UUID node) implements Outcome {}
     }
 
     // ---- browse -----------------------------------------------------------
@@ -143,7 +149,6 @@ public class MessageService {
 
     // ---- send (Slice 4) -------------------------------------------------
 
-    @Transactional
     public Attempt<Outcome> send(
             UUID clusterId, String queueName, UUID nodeId, SendMessageRequest req, boolean dryRun) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_SEND);
@@ -181,7 +186,6 @@ public class MessageService {
 
     // ---- move / retry / delete / expire (Slices 5 + 6) ----------------
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<Outcome> execute(
             UUID clusterId,
             String queueName,
@@ -238,6 +242,22 @@ public class MessageService {
                 throw new BulkCapExceededException(estimate, cap);
             }
 
+            if (idBased) {
+                MessageOperations.BulkResult result = performByIds(client, mbean, action, req);
+                publishQueuesAfterCommit(clusterId);
+                if (result.partial()) {
+                    // Reported as partial, never as a plain failure: some messages already moved.
+                    audit.failPartial(
+                            event,
+                            result.affected(),
+                            "Stopped after " + result.affected() + " of "
+                                    + req.ids().size() + ": " + result.error());
+                    return new Attempt.Ok<>(
+                            new Outcome.Partial(result.affected(), result.notAttempted(), result.error(), node));
+                }
+                audit.succeed(event, result.affected());
+                return new Attempt.Ok<>(new Outcome.Affected(result.affected(), node));
+            }
             long affected = perform(client, mbean, action, req);
             audit.succeed(event, affected);
             publishQueuesAfterCommit(clusterId);
@@ -245,12 +265,15 @@ public class MessageService {
         } catch (BrokerConnectionException e) {
             audit.fail(event, e.getMessage());
             return new Attempt.Failed<>(e.kind(), e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // A filter the broker rejected. The row is closed as failed rather than left pending.
+            audit.fail(event, e.getMessage());
+            throw e;
         }
     }
 
     // ---- purge (Slice 7) ---------------------------------------------
 
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, IllegalArgumentException.class})
     public Attempt<Outcome> purge(UUID clusterId, String queueName, UUID nodeId, boolean dryRun, boolean override) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.QUEUE_PURGE);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
@@ -301,19 +324,22 @@ public class MessageService {
         return req.ids().size();
     }
 
+    /** A retry-all or a by-filter operation: one broker call, which returns its own count. */
     private long perform(JolokiaBrokerClient client, String mbean, MessageAction action, MessageActionRequest req) {
-        List<Long> ids = req.ids();
-        if (action == MessageAction.RETRY && ids.isEmpty()) {
+        if (action == MessageAction.RETRY && req.ids().isEmpty()) {
             return messageOps.retryAll(client, mbean);
         }
-        if (req.byFilter()) {
-            return switch (action) {
-                case MOVE -> messageOps.moveByFilter(client, mbean, req.filter(), req.targetQueue());
-                case DELETE -> messageOps.deleteByFilter(client, mbean, req.filter());
-                case EXPIRE -> messageOps.expireByFilter(client, mbean, req.filter());
-                case RETRY -> throw new IllegalStateException("unreachable");
-            };
-        }
+        return switch (action) {
+            case MOVE -> messageOps.moveByFilter(client, mbean, req.filter(), req.targetQueue());
+            case DELETE -> messageOps.deleteByFilter(client, mbean, req.filter());
+            case EXPIRE -> messageOps.expireByFilter(client, mbean, req.filter());
+            case RETRY -> throw new IllegalStateException("unreachable");
+        };
+    }
+
+    private MessageOperations.BulkResult performByIds(
+            JolokiaBrokerClient client, String mbean, MessageAction action, MessageActionRequest req) {
+        List<Long> ids = req.ids();
         return switch (action) {
             case MOVE -> messageOps.moveByIds(client, mbean, ids, req.targetQueue());
             case RETRY -> messageOps.retryByIds(client, mbean, ids);
