@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -17,7 +18,12 @@ public class ContentPolicy {
 
     private final PolicyStore store;
     private final PermissionResolver permissions;
-    private final SettingsService settings;
+    /**
+     * Resolved per call, not at construction: a settings contribution can itself depend on something that governs
+     * content (request-reply's correlator does), and the settings service builds every contribution when it starts.
+     */
+    private final ObjectProvider<SettingsService> settings;
+
     private final FindingsRecorder findings;
     private final ObjectMapper mapper;
 
@@ -52,6 +58,9 @@ public class ContentPolicy {
 
     private PolicyEngine engine() {
         return new PolicyEngine(
-                store.current(), settings.intValue(GovernanceSettings.SCAN_LIMIT), mapper, findings::record);
+                store.current(),
+                settings.getObject().intValue(GovernanceSettings.SCAN_LIMIT),
+                mapper,
+                findings::record);
     }
 }

@@ -28,7 +28,13 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "uq_app_user_(issuer|provider)_subject",
                     "oidc_role_mapping", // replaced by the two tables below
                     "identity_group_mapping",
-                    "identity_provider_default_role")
+                    "identity_provider_default_role",
+                    // Data governance (ADR-0075), added after the re-baseline in changesets of their own.
+                    "governance_rule",
+                    "governance_policy",
+                    "classification_finding",
+                    "policy_version",
+                    "CREATE TABLE message_index(_default)? ")
             .map(Pattern::compile)
             .toList();
 

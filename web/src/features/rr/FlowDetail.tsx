@@ -3,6 +3,45 @@ import { CodeHighlight } from '@mantine/code-highlight';
 
 import { useRrFlow } from './api.ts';
 import { stateColorVar, stateLabel } from './rrState.ts';
+import type { components } from '../../kernel/api/schema.d.ts';
+import { RedactionMarks, WithheldNotice } from '../../ui/RedactedValue.tsx';
+
+type RedactionView = components['schemas']['RedactionView'];
+type WithheldView = components['schemas']['WithheldView'];
+
+/**
+ * One timeline event's detail. A captured payload is shown as the governed preview with its marks, or as the
+ * reason it was omitted; any other detail is shown as it came.
+ */
+function EventDetail({ detail }: { detail: Record<string, unknown> }) {
+  if (typeof detail.payloadOmitted === 'string') {
+    return (
+      <Text size="xs" c="dimmed">
+        {detail.payloadOmitted}
+      </Text>
+    );
+  }
+  if ('bodyPreview' in detail) {
+    const redactions = Array.isArray(detail.redactions) ? (detail.redactions as RedactionView[]) : [];
+    const withheld = Array.isArray(detail.withheld) ? (detail.withheld as WithheldView[]) : [];
+    return (
+      <Stack gap={4}>
+        <RedactionMarks redactions={redactions} />
+        <WithheldNotice withheld={withheld} />
+        <CodeHighlight
+          code={typeof detail.bodyPreview === 'string' ? detail.bodyPreview : '(no preview)'}
+          language="text"
+        />
+        {detail.truncated === true ? (
+          <Text size="xs" c="dimmed">
+            Cut to the payload capture limit.
+          </Text>
+        ) : null}
+      </Stack>
+    );
+  }
+  return <CodeHighlight code={JSON.stringify(detail, null, 2)} language="json" />;
+}
 
 /** The `rr_event` timeline and any captured payload for one flow, mirroring {@code MessageDetailPanel}. */
 export function FlowDetail({
@@ -177,12 +216,7 @@ export function FlowDetail({
                       {e.kind}
                     </Badge>
                   </Group>
-                  {e.detail ? (
-                    <CodeHighlight
-                      code={JSON.stringify(e.detail, null, 2)}
-                      language="json"
-                    />
-                  ) : null}
+                  {e.detail ? <EventDetail detail={e.detail} /> : null}
                 </Stack>
               ))}
             </Stack>

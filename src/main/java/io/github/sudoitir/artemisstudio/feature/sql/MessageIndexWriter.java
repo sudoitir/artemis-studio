@@ -1,12 +1,17 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.platform.governance.ContentSealer;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -48,7 +53,32 @@ public class MessageIndexWriter {
     private static final java.time.Duration REDELIVERY_WINDOW = java.time.Duration.ofMinutes(10);
 
     private final JdbcTemplate jdbc;
+    private final SqlGovernance governance;
+    private final ContentSealer sealer;
     private final JsonMapper json = JsonMapper.builder().build();
+
+    /** A row's governed form and the sealed originals of its masked values (ADR-0075 D4). */
+    private record Stored(GovernedMessage governed, byte[] ciphertext, byte[] nonce) {}
+
+    private record Prepared(Captured captured, Stored stored) {}
+
+    /**
+     * The AAD a row's originals are sealed under: its identity across observations, so a blob moved onto another
+     * row does not open. The re-masker and the index reader derive the same value.
+     */
+    static String aad(UUID clusterId, UUID nodeId, String queueName, long messageId) {
+        return "governance:message_index:" + clusterId + ":" + nodeId + ":" + queueName + ":" + messageId;
+    }
+
+    /** The row as Studio may store it: masked for everyone, with its sealable originals sealed. */
+    private Stored stored(UUID clusterId, Row row) {
+        GovernedMessage governed = governance.forStorage(clusterId, row);
+        ContentSealer.SealedOriginals sealed =
+                sealer.seal(aad(clusterId, row.nodeId(), row.queueName(), row.messageId()), governed.sealable());
+        return sealed == null
+                ? new Stored(governed, null, null)
+                : new Stored(governed, sealed.ciphertext(), sealed.nonce());
+    }
 
     /** Record one observation. Returns true when it was a message the index had not held. */
     public boolean observe(UUID clusterId, Row row, Instant at) {
@@ -59,13 +89,17 @@ public class MessageIndexWriter {
         if (updated > 0) {
             return false;
         }
+        // Governed only once it is known to be new: a re-observation stores nothing but its time.
+        Stored stored = stored(clusterId, row);
+        GovernedMessage governed = stored.governed();
         jdbc.update(
                 """
                 INSERT INTO message_index (
                     observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                     priority, message_type, queue_name, address, node_name, correlation_id, group_id,
-                    user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
+                    user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
+                    policy_version, sealed, sealed_nonce)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """,
                 Timestamp.from(at),
@@ -79,16 +113,19 @@ public class MessageIndexWriter {
                 row.queueName(),
                 row.address(),
                 row.nodeName(),
-                row.correlationId(),
-                row.groupId(),
-                row.userId(),
-                row.replyTo(),
+                governed.headers().get("correlationId"),
+                governed.headers().get("groupId"),
+                governed.headers().get("userId"),
+                governed.headers().get("replyTo"),
                 row.jmsType(),
-                row.body(),
-                properties(row),
+                governed.body(),
+                properties(governed.properties()),
                 clusterId,
                 row.nodeId(),
-                row.durable());
+                row.durable(),
+                governed.policyVersion(),
+                new SqlParameterValue(Types.BINARY, stored.ciphertext()),
+                new SqlParameterValue(Types.BINARY, stored.nonce()));
         return true;
     }
 
@@ -125,8 +162,14 @@ public class MessageIndexWriter {
         if (batch.isEmpty()) {
             return;
         }
-        jdbc.batchUpdate(CAPTURED_INSERT, batch, batch.size(), (statement, captured) -> {
+        // Governed before the round trip, so the statement setter only binds.
+        List<Prepared> prepared = batch.stream()
+                .map(captured -> new Prepared(captured, stored(captured.clusterId(), captured.row())))
+                .toList();
+        jdbc.batchUpdate(CAPTURED_INSERT, prepared, prepared.size(), (statement, entry) -> {
+            Captured captured = entry.captured();
             Row row = captured.row();
+            GovernedMessage governed = entry.stored().governed();
             Timestamp at = Timestamp.from(captured.at());
             int i = 0;
             statement.setTimestamp(++i, at);
@@ -141,18 +184,21 @@ public class MessageIndexWriter {
             statement.setString(++i, row.queueName());
             statement.setString(++i, row.address());
             statement.setString(++i, row.nodeName());
-            statement.setString(++i, row.correlationId());
-            statement.setString(++i, row.groupId());
-            statement.setString(++i, row.userId());
-            statement.setString(++i, row.replyTo());
+            statement.setString(++i, governed.headers().get("correlationId"));
+            statement.setString(++i, governed.headers().get("groupId"));
+            statement.setString(++i, governed.headers().get("userId"));
+            statement.setString(++i, governed.headers().get("replyTo"));
             statement.setString(++i, row.jmsType());
-            statement.setString(++i, row.body());
-            statement.setString(++i, properties(row));
+            statement.setString(++i, governed.body());
+            statement.setString(++i, properties(governed.properties()));
             statement.setString(++i, captured.origAddress());
             statement.setObject(++i, captured.clusterId());
             statement.setObject(++i, row.nodeId());
             statement.setBoolean(++i, row.durable());
             statement.setBoolean(++i, row.bodyTruncated());
+            statement.setInt(++i, governed.policyVersion());
+            statement.setObject(++i, entry.stored().ciphertext(), Types.BINARY);
+            statement.setObject(++i, entry.stored().nonce(), Types.BINARY);
             statement.setObject(++i, captured.clusterId());
             statement.setString(++i, row.queueName());
             statement.setObject(++i, row.nodeId());
@@ -166,9 +212,9 @@ public class MessageIndexWriter {
                 observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                 source_message_id, priority, message_type, queue_name, address, node_name,
                 correlation_id, group_id, user_id, reply_to, jms_type, body, props, origin,
-                orig_address, cluster_id, node_id, durable, body_truncated)
+                orig_address, cluster_id, node_id, durable, body_truncated, policy_version, sealed, sealed_nonce)
             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'CAPTURED',
-                   ?, ?, ?, ?, ?
+                   ?, ?, ?, ?, ?, ?, ?, ?
              WHERE NOT EXISTS (
                    SELECT 1 FROM message_index
                     WHERE cluster_id = ? AND queue_name = ? AND node_id = ? AND message_id = ?
@@ -180,7 +226,7 @@ public class MessageIndexWriter {
      * bind plus a cast keeps this off the driver's own type classes, which are a
      * runtime dependency rather than a compile-time one.
      */
-    private String properties(Row row) {
-        return json.writeValueAsString(row.properties() == null ? java.util.Map.of() : row.properties());
+    private String properties(Map<String, Object> properties) {
+        return json.writeValueAsString(properties == null ? Map.of() : properties);
     }
 }

@@ -52,5 +52,8 @@ public final class GovernanceRuleViews {
     /** How many stored rows are still masked under an earlier policy version. */
     public record PolicyView(
             @Schema(requiredMode = REQUIRED) int version,
-            @Schema(requiredMode = REQUIRED) long rowsUnderEarlierVersion) {}
+            @Schema(requiredMode = REQUIRED) long rowsUnderEarlierVersion,
+
+            @Schema(requiredMode = REQUIRED, description = "The count reached its cap; there are at least this many.")
+            boolean capped) {}
 }

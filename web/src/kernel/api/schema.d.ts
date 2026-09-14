@@ -292,6 +292,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/governance/findings/{findingId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/governance/findings/{findingId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environments": {
         parameters: {
             query?: never;
@@ -940,6 +972,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["manifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/governance/remask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["remask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/governance/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["findings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1952,6 +2016,22 @@ export interface components {
             /** Format: uuid */
             scopeId?: string | null;
         };
+        FindingView: {
+            /** Format: uuid */
+            id: string;
+            address: string;
+            location: string;
+            fieldPath: string;
+            dataClass: string;
+            dataClassLabel: string;
+            status: string;
+            /** Format: int64 */
+            hitCount: number;
+            /** Format: date-time */
+            firstSeenAt: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+        };
         Credentials: {
             username: string;
             password: string;
@@ -2675,6 +2755,14 @@ export interface components {
             features: components["schemas"]["ManifestFeatureView"][];
             permissionCatalogue: components["schemas"]["ManifestPermissionView"][];
             identityProviders: components["schemas"]["ManifestIdentityProviderView"][];
+        };
+        PolicyView: {
+            /** Format: int32 */
+            version: number;
+            /** Format: int64 */
+            rowsUnderEarlierVersion: number;
+            /** @description The count reached its cap; there are at least this many. */
+            capped: boolean;
         };
         ClusterSummary: {
             /** Format: uuid */
@@ -4340,6 +4428,50 @@ export interface operations {
             };
         };
     };
+    dismiss: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FindingView"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                findingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FindingView"];
+                };
+            };
+        };
+    };
     list_4: {
         parameters: {
             query?: never;
@@ -5668,6 +5800,48 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ManifestView"];
+                };
+            };
+        };
+    };
+    remask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyView"];
+                };
+            };
+        };
+    };
+    findings: {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FindingView"][];
                 };
             };
         };

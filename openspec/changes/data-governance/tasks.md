@@ -22,7 +22,7 @@
 - [x] 3.3 `EventViews.props` values passed through `governText`
 - [x] 3.4 `kernel.audit` `AuditParamsFilter` SPI with no-op default, applied in `AuditService.begin`; governance implementation masking detected values and literals compared with classified names; tests
 - [x] 3.5 `MessageBrowser.browse` invalid-filter error no longer echoes the selector; test updated
-- [ ] 3.6 ArchUnit rule: `..web..`/`..mcp..` do not call raw body/property accessors of `BrowsedMessage` and `QueryResult.Row`
+- [x] 3.6 ArchUnit rule: `..web..`/`..mcp..` do not call raw body/property accessors of `BrowsedMessage` and `QueryResult.Row`
 
 ## 4. Governance API (phase 1)
 
@@ -40,9 +40,9 @@
 ## 6. Body classification and withheld content (phase 2)
 
 - [x] 6.1 JSON body walk with `BODY_PATH` rules and leaf detectors; text/XML detector pass; base64/unknown withheld; scan-limit truncation withheld with setting key; unit tests
-- [ ] 6.2 Findings aggregator (bounded in-memory map) and flush `ScheduledJob` with batched upsert; test that no per-message write occurs
-- [ ] 6.3 Findings endpoints: list, confirm (creates rule), dismiss (creates exception); audited; integration test
-- [ ] 6.4 `FindingsInbox` UI: table, confirm/dismiss with four outcomes, empty and filtered-empty teaching states, aria-live announcement, keyboard pass test (load `ui-ux-pro-max` first)
+- [x] 6.2 Findings aggregator (bounded in-memory map) and flush `ScheduledJob` with batched upsert; test that no per-message write occurs
+- [x] 6.3 Findings endpoints: list, confirm (creates rule), dismiss (creates exception); audited; integration test
+- [x] 6.4 `FindingsInbox` UI: table, confirm/dismiss with four outcomes, empty and filtered-empty teaching states, aria-live announcement, keyboard pass test (load `ui-ux-pro-max` first)
 
 ## 7. SQL console governance (phase 2)
 
@@ -53,17 +53,17 @@
 
 ## 8. At rest (phase 3)
 
-- [ ] 8.1 Changesets adding `sealed bytea`, `sealed_nonce bytea`, `policy_version integer` to `message_index` (feature/sql) and a policy version handling for `rr_event.detail`
-- [ ] 8.2 `MessageIndexWriter.observe`/`capturedBatch` store governed masked content with sealed originals and policy version
-- [ ] 8.3 `IndexQueryExecutor` re-governs stored rows under the current policy and unseals for clear callers; index-source warning for predicates on fields masked at rest
-- [ ] 8.4 `RrCorrelator` stores governed payload preview with seal; `RequestReplyService` flow detail requires `message:read` for payloads (omitted with reason otherwise) and unseals for clear callers
-- [ ] 8.5 `GovernanceRemaskJob` batching rows with `policy_version < current`; `GET /governance/remask` progress
-- [ ] 8.6 Testcontainers ITs: stored row masked + sealed; full-text search for a stored email finds nothing; unseal only with `message:clear`; credential never stored; re-mask converges after a new rule
-- [ ] 8.7 `FlowDetail` renders governed payloads and the omitted-for-permission state; `RemaskProgress` on the governance screen; capture and index subscription copy states masked storage (load `ui-ux-pro-max` first)
+- [x] 8.1 Changesets adding `sealed bytea`, `sealed_nonce bytea`, `policy_version integer` to `message_index` (feature/sql) and a policy version handling for `rr_event.detail`
+- [x] 8.2 `MessageIndexWriter.observe`/`capturedBatch` store governed masked content with sealed originals and policy version
+- [x] 8.3 `IndexQueryExecutor` re-governs stored rows under the current policy and unseals for clear callers; index-source warning for predicates on fields masked at rest
+- [x] 8.4 `RrCorrelator` stores governed payload preview with seal; `RequestReplyService` flow detail requires `message:read` for payloads (omitted with reason otherwise) and unseals for clear callers
+- [x] 8.5 `GovernanceRemaskJob` batching rows with `policy_version < current`; `GET /governance/remask` progress
+- [x] 8.6 Testcontainers ITs: stored row masked + sealed; full-text search for a stored email finds nothing; unseal only with `message:clear`; credential never stored; re-mask converges after a new rule
+- [x] 8.7 `FlowDetail` renders governed payloads and the omitted-for-permission state; `RemaskProgress` on the governance screen; capture and index subscription copy states masked storage (load `ui-ux-pro-max` first)
 
 ## 9. Documentation and verification
 
-- [ ] 9.1 Site guide `site/src/guide/data-governance.md` (classes, built-ins, inbox, clear permission, separation-of-duties role recipe, at-rest behaviour, upgrade note) linked from the guide sidebar
-- [ ] 9.2 README roadmap item ticked; `docs/architecture.md` governance section
-- [ ] 9.3 `./mvnw verify` and `just verify-web` green
-- [ ] 9.4 Live check on the dev stack: send a message with `Authorization` and a test card number; browse as viewer and as admin; run an index query; inspect `message_index` in the DB shell
+- [x] 9.1 Site guide `site/src/guide/data-governance.md` (classes, built-ins, inbox, clear permission, separation-of-duties role recipe, at-rest behaviour, upgrade note) linked from the guide sidebar
+- [x] 9.2 README roadmap item ticked; `docs/architecture.md` governance section
+- [x] 9.3 `./mvnw verify` and `just verify-web` green
+- [x] 9.4 Live check on the dev stack: send a message with `Authorization` and a test card number; browse as viewer and as admin; run an index query; inspect `message_index` in the DB shell

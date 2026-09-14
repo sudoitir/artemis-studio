@@ -50,6 +50,44 @@ public class SqlGovernance {
         return policy.govern(new GovernContext(clusterId, row.address(), clearAccess), content(row));
     }
 
+    /** A row as Studio may store it: masked for everyone, with sealable originals collected. */
+    public GovernedMessage forStorage(UUID clusterId, Row row) {
+        return forStorage(clusterId, row.address(), content(row));
+    }
+
+    public GovernedMessage forStorage(UUID clusterId, String address, MessageContent content) {
+        return policy.governForStorage(clusterId, address, content);
+    }
+
+    /** The row with its headers, properties and body replaced by {@code content}'s. */
+    static Row withContent(Row row, MessageContent content) {
+        return new Row(
+                row.nodeId(),
+                row.nodeName(),
+                row.queueName(),
+                row.address(),
+                row.messageId(),
+                row.messageType(),
+                row.durable(),
+                row.priority(),
+                row.timestamp(),
+                row.expiration(),
+                row.size(),
+                row.jmsType(),
+                content.headers().get("correlationId"),
+                content.headers().get("groupId"),
+                content.headers().get("userId"),
+                content.headers().get("replyTo"),
+                content.body(),
+                row.bodyTruncated(),
+                content.properties(),
+                row.source(),
+                row.observedAt(),
+                row.lastSeenAt(),
+                row.origin(),
+                row.sourceMessageId());
+    }
+
     static MessageContent content(Row row) {
         Map<String, String> headers = new HashMap<>();
         headers.put("correlationId", row.correlationId());
@@ -115,21 +153,57 @@ public class SqlGovernance {
      * clear access. Ordering counts: sorting by a masked value reveals how the hidden values compare.
      */
     public void guardPredicates(UUID clusterId, QueryAst ast) {
+        String field = maskedField(ast);
+        if (field != null && !clearAccess(clusterId)) {
+            throw new GovernanceRefusedException(field);
+        }
+    }
+
+    /** The first field a predicate or ordering names that a masking rule covers, or null. */
+    public String maskedField(QueryAst ast) {
         List<Term> terms = new ArrayList<>();
         collect(ast.where(), terms);
         if (ast.orderBy() != null) {
             ast.orderBy().forEach(order -> terms.add(order.term()));
         }
-        String field = null;
         for (Term term : terms) {
-            field = classifiedField(term);
+            String field = classifiedField(term);
             if (field != null) {
-                break;
+                return field;
             }
         }
-        if (field != null && !clearAccess(clusterId)) {
-            throw new GovernanceRefusedException(field);
+        return null;
+    }
+
+    /**
+     * An index query that names a masked field says so (message-index spec): the index holds the masked value,
+     * so the predicate compares masked text. Only a caller with clear access reaches this; others were refused.
+     */
+    public QueryPlan withAtRestNotice(QueryPlan plan) {
+        if (plan.resolvedSource() != QueryAst.Source.INDEX) {
+            return plan;
         }
+        String field = maskedField(plan.ast());
+        if (field == null) {
+            return plan;
+        }
+        List<QueryPlan.Notice> notices = new ArrayList<>(plan.notices());
+        notices.add(new QueryPlan.Notice(
+                QueryPlan.Notice.Kind.MASKED_AT_REST,
+                "The index stores " + field + " masked, so this predicate compares masked text and cannot match an"
+                        + " original value. Query the live broker to match the originals."));
+        return new QueryPlan(
+                plan.ast(),
+                plan.resolvedSource(),
+                plan.targets(),
+                plan.selector(),
+                plan.requiresScan(),
+                plan.pushedDown(),
+                plan.scanned(),
+                plan.estimatedMessagesExamined(),
+                plan.effectiveLimit(),
+                plan.captured(),
+                List.copyOf(notices));
     }
 
     private static void collect(Predicate predicate, List<Term> out) {

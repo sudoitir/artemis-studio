@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.governance.web;
 
+import io.github.sudoitir.artemisstudio.platform.governance.FindingsService;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceRemasking;
 import io.github.sudoitir.artemisstudio.platform.governance.GovernanceRuleService;
 import io.github.sudoitir.artemisstudio.platform.governance.web.GovernanceRuleViews.RuleRequest;
 import io.github.sudoitir.artemisstudio.platform.governance.web.GovernanceRuleViews.RuleView;
@@ -25,6 +27,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class GovernanceController {
 
     private final GovernanceRuleService rules;
+    private final GovernanceRemasking remasking;
+    private final FindingsService findings;
+
+    /** The classification inbox. {@code status} is OPEN by default; ALL lists every finding. */
+    @GetMapping("/findings")
+    public List<FindingViews.FindingView> findings(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "OPEN") String status) {
+        return findings.list("ALL".equalsIgnoreCase(status) ? null : status.toUpperCase(java.util.Locale.ROOT));
+    }
+
+    @PostMapping("/findings/{findingId}/confirm")
+    public FindingViews.FindingView confirm(@PathVariable UUID findingId) {
+        return findings.confirm(findingId);
+    }
+
+    @PostMapping("/findings/{findingId}/dismiss")
+    public FindingViews.FindingView dismiss(@PathVariable UUID findingId) {
+        return findings.dismiss(findingId);
+    }
+
+    /** How many stored rows are still masked under an earlier policy version. */
+    @GetMapping("/remask")
+    public GovernanceRuleViews.PolicyView remask() {
+        return remasking.progress();
+    }
 
     @GetMapping("/rules")
     public List<RuleView> rules() {

@@ -16,6 +16,11 @@ class GovernanceJobs {
     }
 
     @Bean
+    ScheduledJob governanceRemaskJob(GovernanceRemasking remasking) {
+        return ScheduledJob.fixedDelay("governance-remask", "governance", () -> Duration.ofMinutes(1), remasking::run);
+    }
+
+    @Bean
     ScheduledJob governancePolicyRefreshJob(PolicyStore store) {
         return ScheduledJob.fixedDelay(
                 "governance-policy-refresh", "governance", () -> Duration.ofSeconds(30), store::refreshIfStale);

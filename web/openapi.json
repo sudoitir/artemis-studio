@@ -891,6 +891,60 @@
         }
       }
     },
+    "/api/v1/governance/findings/{findingId}/dismiss" : {
+      "post" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "dismiss",
+        "parameters" : [ {
+          "name" : "findingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/governance/findings/{findingId}/confirm" : {
+      "post" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "confirm",
+        "parameters" : [ {
+          "name" : "findingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/environments" : {
       "get" : {
         "tags" : [ "environments-controller" ],
@@ -2865,6 +2919,54 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ManifestView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/governance/remask" : {
+      "get" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "remask",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PolicyView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/governance/findings" : {
+      "get" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "findings",
+        "parameters" : [ {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "OPEN"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FindingView"
+                  }
                 }
               }
             }
@@ -5352,6 +5454,46 @@
         },
         "required" : [ "groupName", "roleId", "scopeType" ]
       },
+      "FindingView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "fieldPath" : {
+            "type" : "string"
+          },
+          "dataClass" : {
+            "type" : "string"
+          },
+          "dataClassLabel" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "hitCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "firstSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "address", "dataClass", "dataClassLabel", "fieldPath", "firstSeenAt", "hitCount", "id", "lastSeenAt", "location", "status" ]
+      },
       "Credentials" : {
         "type" : "object",
         "properties" : {
@@ -7075,6 +7217,24 @@
           }
         },
         "required" : [ "contract", "features", "identityProviders", "permissionCatalogue" ]
+      },
+      "PolicyView" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rowsUnderEarlierVersion" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "capped" : {
+            "type" : "boolean",
+            "description" : "The count reached its cap; there are at least this many."
+          }
+        },
+        "required" : [ "capped", "rowsUnderEarlierVersion", "version" ]
       },
       "ClusterSummary" : {
         "type" : "object",

@@ -21,12 +21,39 @@ import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import {
   useCreateRule,
   useDeleteRule,
+  useRemaskProgress,
   useRules,
   useUpdateRule,
   withEnabled,
   type RuleRequest,
   type RuleView,
 } from './api.ts';
+
+/** Whether stored messages have caught up with the policy. Reads always apply the current policy either way. */
+function RemaskStatus() {
+  const progress = useRemaskProgress();
+  if (progress.isPending) {
+    return <Text size="sm">Checking whether stored messages are masked under the current policy…</Text>;
+  }
+  if (progress.isError) {
+    return (
+      <Text size="sm">
+        Could not check whether stored messages are masked under the current policy: {progress.error.message}
+      </Text>
+    );
+  }
+  const { rowsUnderEarlierVersion: rows, capped, version } = progress.data;
+  if (rows === 0) {
+    return <Text size="sm">Every stored message is masked under the current policy (version {version}).</Text>;
+  }
+  return (
+    <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
+      {capped ? 'More than ' : ''}
+      {rows.toLocaleString()} stored message{rows === 1 ? ' is' : 's are'} still masked under an earlier policy.
+      Re-masking runs in the background; reads already apply version {version}.
+    </Text>
+  );
+}
 
 const TARGETS = [
   { value: 'PROPERTY', label: 'Property' },
@@ -207,6 +234,7 @@ export function RulesPanel() {
             {WRITE_REASON}
           </Text>
         )}
+        <RemaskStatus />
       </Stack>
 
       <Group justify="space-between">

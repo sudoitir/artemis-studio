@@ -44,6 +44,7 @@ public class RrCorrelator implements RrObservationSink {
     private final ClockOffsetService clocks;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
+    private final RrPayloads payloads;
     private volatile int defaultDeadlineMs;
     private volatile int payloadCaptureBytes;
 
@@ -68,6 +69,7 @@ public class RrCorrelator implements RrObservationSink {
             ClockOffsetService clocks,
             SseHub sseHub,
             ObjectMapper mapper,
+            RrPayloads payloads,
             RrProperties properties) {
         this.flows = flows;
         this.events = events;
@@ -77,6 +79,7 @@ public class RrCorrelator implements RrObservationSink {
         this.clocks = clocks;
         this.sseHub = sseHub;
         this.mapper = mapper;
+        this.payloads = payloads;
         this.defaultDeadlineMs = properties.defaultDeadlineMs();
         this.payloadCaptureBytes = properties.payloadCaptureBytes();
         this.sampleIntervalMs = (int) properties.sampleInterval().toMillis();
@@ -162,7 +165,20 @@ public class RrCorrelator implements RrObservationSink {
         recentRequestFlow.put(dedupeKey, flow.getId());
 
         boolean capturePayload = expectation != null && expectation.isCapturePayload();
-        recordEvent(flow.getId(), r.nodeId(), "REQUEST_SEEN", r.at(), capturePayload ? detailOf(r) : null);
+        recordEvent(
+                flow.getId(),
+                r.nodeId(),
+                "REQUEST_SEEN",
+                r.at(),
+                capturePayload
+                        ? payload(
+                                r.clusterId(),
+                                r.requestAddress(),
+                                flow.getId(),
+                                "REQUEST_SEEN",
+                                r.at(),
+                                r.bodyPreview())
+                        : null);
         sseHub.publish(r.clusterId(), "rr");
     }
 
@@ -221,7 +237,20 @@ public class RrCorrelator implements RrObservationSink {
         RrExpectationEntity expectation =
                 flow.getRequestAddress() == null ? null : expectationFor(flow.getClusterId(), flow.getRequestAddress());
         boolean capturePayload = expectation != null && expectation.isCapturePayload();
-        recordEvent(flow.getId(), r.nodeId(), t.eventKind(), r.at(), capturePayload ? detailOf(r) : null);
+        recordEvent(
+                flow.getId(),
+                r.nodeId(),
+                t.eventKind(),
+                r.at(),
+                capturePayload
+                        ? payload(
+                                r.clusterId(),
+                                r.replyDestination(),
+                                flow.getId(),
+                                t.eventKind(),
+                                r.at(),
+                                r.bodyPreview())
+                        : null);
         sseHub.publish(r.clusterId(), "rr");
     }
 
@@ -377,21 +406,17 @@ public class RrCorrelator implements RrObservationSink {
         events.save(new RrEventEntity(flowId, nodeId, kind, at, json));
     }
 
-    private Map<String, Object> detailOf(Observation.RequestSeen r) {
-        return capturedPayload(r.bodyPreview());
-    }
-
-    private Map<String, Object> detailOf(Observation.ReplySeen r) {
-        return capturedPayload(r.bodyPreview());
-    }
-
-    /** Truncates a captured body to {@code artemis-studio.rr.payload-capture-bytes} (design.md, bounded capture). */
-    private Map<String, Object> capturedPayload(String bodyPreview) {
+    /**
+     * A captured body, truncated to {@code artemis-studio.rr.payload-capture-bytes} (design.md, bounded capture)
+     * and stored governed: masked, with its originals sealed to this event (ADR-0075 D4).
+     */
+    private Map<String, Object> payload(
+            UUID clusterId, String address, UUID flowId, String kind, Instant at, String bodyPreview) {
         if (bodyPreview == null) {
             return null;
         }
         boolean truncated = bodyPreview.length() > payloadCaptureBytes;
         String stored = truncated ? bodyPreview.substring(0, payloadCaptureBytes) : bodyPreview;
-        return truncated ? Map.of("bodyPreview", stored, "truncated", true) : Map.of("bodyPreview", stored);
+        return payloads.stored(clusterId, address, flowId, kind, at, stored, truncated);
     }
 }

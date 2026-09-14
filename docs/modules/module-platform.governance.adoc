@@ -1,0 +1,23 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.platform.governance`
+|Spring components
+|_Services_
+
+* `i.g.s.a.p.g.FindingsService`
+* `i.g.s.a.p.g.GovernanceRuleService`
+
+_Others_
+
+* `i.g.s.a.p.g.ClearViewAudit`
+* `i.g.s.a.p.g.ContentPolicy`
+* `i.g.s.a.p.g.ContentSealer`
+* `i.g.s.a.p.g.GovernanceRemasking`
+* `i.g.s.a.p.g.GovernanceSettings`
+|Bean references
+|* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.s.SecretVault` (in Security)
+|===

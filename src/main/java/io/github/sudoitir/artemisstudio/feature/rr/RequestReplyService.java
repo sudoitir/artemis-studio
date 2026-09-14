@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventEntity;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventRepository;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
@@ -22,6 +23,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
@@ -30,7 +32,12 @@ import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
+import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernContext;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernancePermissions;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,6 +75,9 @@ public class RequestReplyService {
     private final CoreSubscriptionManager subscriptions;
     private final ClockOffsetService clocks;
     private final SettingsService settings;
+    private final PermissionResolver permissions;
+    private final RrPayloads payloads;
+    private final ClearViewAudit clearViews;
 
     // ---- expectations -------------------------------------------------
 
@@ -400,17 +410,53 @@ public class RequestReplyService {
                 f.getReplyEnqueuedAt(),
                 f.getRequestSkewMs(),
                 f.getReplySkewMs(),
-                withEvents ? eventViews(f.getId()) : null);
+                withEvents ? eventViews(f) : null);
     }
 
-    private List<RrEventView> eventViews(UUID flowId) {
-        return events.findByFlowIdOrderByTsAsc(flowId).stream()
-                .map(this::toEventView)
-                .toList();
+    /**
+     * A flow's timeline. A captured payload needs message read permission on the cluster, and is governed for the
+     * caller: masked, or unsealed and marked as sensitive with clear access (request-reply-tracing spec).
+     */
+    private List<RrEventView> eventViews(RrFlowEntity flow) {
+        UUID clusterId = flow.getClusterId();
+        boolean payloadsReadable = permissions.can(clusterId, MessagePermissions.MESSAGE_READ);
+        boolean clearAccess = payloadsReadable && permissions.can(clusterId, GovernancePermissions.MESSAGE_CLEAR);
+        List<GovernedMessage> served = new ArrayList<>();
+        List<RrEventView> views = new ArrayList<>();
+        for (RrEventEntity e : events.findByFlowIdOrderByTsAsc(flow.getId())) {
+            views.add(toEventView(flow, e, payloadsReadable, clearAccess, served));
+        }
+        clearViews.record(
+                new GovernContext(clusterId, flow.getRequestAddress(), clearAccess),
+                "RR_FLOW",
+                flow.getId().toString(),
+                served);
+        return views;
     }
 
-    private RrEventView toEventView(RrEventEntity e) {
-        return new RrEventView(e.getSeq(), e.getTs(), e.getKind(), e.getNodeId(), parseDetail(e.getDetail()));
+    private RrEventView toEventView(
+            RrFlowEntity flow,
+            RrEventEntity e,
+            boolean payloadsReadable,
+            boolean clearAccess,
+            List<GovernedMessage> served) {
+        Map<String, Object> detail = parseDetail(e.getDetail());
+        if (detail != null && detail.containsKey(RrPayloads.BODY_PREVIEW)) {
+            if (!payloadsReadable) {
+                detail = Map.of(
+                        "payloadOmitted",
+                        "The captured payload is omitted: reading it needs the message:read permission on this"
+                                + " cluster.");
+            } else {
+                String address =
+                        "REQUEST_SEEN".equals(e.getKind()) ? flow.getRequestAddress() : flow.getReplyDestination();
+                RrPayloads.Viewed viewed = payloads.view(
+                        flow.getClusterId(), address, flow.getId(), e.getKind(), e.getTs(), detail, clearAccess);
+                served.add(viewed.governed());
+                detail = viewed.detail();
+            }
+        }
+        return new RrEventView(e.getSeq(), e.getTs(), e.getKind(), e.getNodeId(), detail);
     }
 
     private Map<String, Object> parseDetail(String json) {

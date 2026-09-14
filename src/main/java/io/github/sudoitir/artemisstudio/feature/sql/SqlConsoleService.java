@@ -51,7 +51,7 @@ public class SqlConsoleService {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         QueryAst ast = parser.parse(sql);
         governance.guardPredicates(clusterId, ast);
-        return planner.plan(clusterId, ast);
+        return governance.withAtRestNotice(planner.plan(clusterId, ast));
     }
 
     /**
@@ -63,7 +63,7 @@ public class SqlConsoleService {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         QueryAst ast = parser.parse(sql);
         governance.guardPredicates(clusterId, ast);
-        QueryPlan plan = planner.plan(clusterId, ast);
+        QueryPlan plan = governance.withAtRestNotice(planner.plan(clusterId, ast));
         planner.enforceCostCeiling(plan);
 
         Actor actor = actorResolver.resolve();

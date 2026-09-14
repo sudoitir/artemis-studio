@@ -87,7 +87,12 @@ public record QueryPlan(
              * The notice names them, because an average over nodes is a lie about all
              * of them.
              */
-            CAPTURE_NODE_GAP
+            CAPTURE_NODE_GAP,
+            /**
+             * The query compares a field the index stores masked (ADR-0075 D4), so the predicate matches
+             * masked text and cannot find an original value. The live broker holds the originals.
+             */
+            MASKED_AT_REST
         }
     }
 

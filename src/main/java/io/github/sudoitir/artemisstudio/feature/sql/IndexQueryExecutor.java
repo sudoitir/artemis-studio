@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Bound;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.platform.governance.ContentSealer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -42,6 +43,8 @@ public class IndexQueryExecutor {
 
     private final JdbcTemplate jdbc;
     private final SqlProperties properties;
+    private final SqlGovernance governance;
+    private final ContentSealer sealer;
     private final JsonMapper json = JsonMapper.builder().build();
 
     /** A fragment plus the values that fill its placeholders. */
@@ -54,7 +57,7 @@ public class IndexQueryExecutor {
                 SELECT observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                        priority, message_type, queue_name, address, node_name, correlation_id, group_id,
                        user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
-                       origin, orig_address, source_message_id, body_truncated
+                       origin, orig_address, source_message_id, body_truncated, sealed, sealed_nonce
                   FROM message_index
                  WHERE cluster_id = ?
                 """);
@@ -84,7 +87,10 @@ public class IndexQueryExecutor {
         jdbc.execute("SET LOCAL statement_timeout = "
                 + Math.max(1000, properties.timeout().toMillis()));
 
-        List<Row> rows = jdbc.query(sql.toString(), this::toRow, binds.toArray());
+        // Resolved on the caller's thread. Only a caller with clear access has stored originals unsealed; everyone
+        // else reads the masked stored row, which the console governs again under the current policy.
+        boolean clearAccess = governance.clearAccess(clusterId);
+        List<Row> rows = jdbc.query(sql.toString(), (rs, n) -> toRow(rs, clusterId, clearAccess), binds.toArray());
 
         List<Bound> bounds = new ArrayList<>();
         if (rows.size() > plan.effectiveLimit()) {
@@ -341,8 +347,8 @@ public class IndexQueryExecutor {
 
     // ---- mapping --------------------------------------------------------
 
-    private Row toRow(ResultSet rs, int rowNum) throws SQLException {
-        return new Row(
+    private Row toRow(ResultSet rs, UUID clusterId, boolean clearAccess) throws SQLException {
+        Row row = new Row(
                 rs.getObject("node_id", UUID.class),
                 rs.getString("node_name"),
                 rs.getString("queue_name"),
@@ -367,6 +373,15 @@ public class IndexQueryExecutor {
                 instant(rs.getTimestamp("last_seen_at")),
                 rs.getString("origin"),
                 rs.getObject("source_message_id", Long.class));
+        byte[] sealed = rs.getBytes("sealed");
+        if (!clearAccess || sealed == null) {
+            return row;
+        }
+        Map<String, String> originals = sealer.unseal(
+                MessageIndexWriter.aad(clusterId, row.nodeId(), row.queueName(), row.messageId()),
+                sealed,
+                rs.getBytes("sealed_nonce"));
+        return SqlGovernance.withContent(row, ContentSealer.restore(SqlGovernance.content(row), originals));
     }
 
     private Instant instant(Timestamp timestamp) {
