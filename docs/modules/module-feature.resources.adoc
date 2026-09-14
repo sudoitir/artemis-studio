@@ -23,7 +23,6 @@ _Others_
 |Bean references
 |* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
 * `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.SseHub` (in Event stream)

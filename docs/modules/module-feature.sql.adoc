@@ -41,7 +41,6 @@ _Others_
 * `i.g.s.a.f.s.SqlTailPoller`
 |Bean references
 |* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
 * `i.g.s.a.p.b.CorePool` (in Broker connectivity)
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
