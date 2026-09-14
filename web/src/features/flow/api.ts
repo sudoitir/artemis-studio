@@ -27,6 +27,7 @@ export function flowQueryString(search: FlowSearch): string {
   params.set('rank', search.rank ?? 'IN');
   params.set('limit', String(search.limit ?? DEFAULT_LIMIT));
   params.set('groupBy', search.groupBy ?? 'CLIENT_ID');
+  if (search.layers) params.set('layers', search.layers);
   return params.toString();
 }
 

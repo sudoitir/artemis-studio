@@ -49,6 +49,19 @@ describe('flow layout', () => {
     }
   });
 
+  it('puts other nodes and remote brokers in a column after the consumers', async () => {
+    const g = graph();
+    g.nodes!.push(node('remote:node:abc', 'REMOTE', 'node-b', { role: 'CLUSTER_NODE' }) as never);
+    g.nodes!.push(node('queue:$.artemis.internal.sf.demo.abc', 'QUEUE', 'sf', { role: 'STORE_AND_FORWARD' }) as never);
+    g.edges!.push(edge('queue:$.artemis.internal.sf.demo.abc', 'remote:node:abc', 'CLUSTER_HOP', 7) as never);
+    const positions = await runLayout(toElkGraph(g));
+
+    const consumers = g.nodes!.filter((n) => n.kind === 'CONSUMER').map((n) => positions[n.id!].x);
+    expect(positions['remote:node:abc'].x).toBeGreaterThan(Math.max(...consumers));
+    const model = toReactFlow(g, positions, new Map(), null);
+    expect(model.nodes.find((n) => n.id === 'remote:node:abc')?.type).toBe('remote');
+  });
+
   it('keeps the same layout signature when only rates change', () => {
     expect(layoutSignature(graph(10))).toBe(layoutSignature(graph(9_000)));
     const grown = graph();

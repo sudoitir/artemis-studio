@@ -3587,6 +3587,13 @@
             "default" : "CLIENT_ID",
             "enum" : [ "CLIENT_ID", "USER", "HOST" ]
           }
+        }, {
+          "name" : "layers",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -8693,7 +8700,7 @@
           },
           "state" : {
             "type" : "string",
-            "enum" : [ "OK", "UNREACHABLE", "PERMISSION_DENIED", "COUNTER_UNAVAILABLE", "FAILED" ]
+            "enum" : [ "OK", "UNREACHABLE", "PERMISSION_DENIED", "COUNTER_UNAVAILABLE", "ROUTING_UNAVAILABLE", "FAILED" ]
           },
           "message" : {
             "type" : "string"
@@ -8734,7 +8741,7 @@
           },
           "kind" : {
             "type" : "string",
-            "enum" : [ "PRODUCE", "ROUTE", "CONSUME" ]
+            "enum" : [ "PRODUCE", "ROUTE", "CONSUME", "DIVERT", "BRIDGE", "CLUSTER_HOP", "WILDCARD", "DEAD_LETTER", "EXPIRY" ]
           },
           "source" : {
             "type" : "string"
@@ -8769,11 +8776,34 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "exclusive" : {
+            "type" : "boolean"
+          },
+          "filter" : {
+            "type" : "string"
+          },
+          "transformer" : {
+            "type" : "string"
+          },
+          "bypassed" : {
+            "type" : "boolean"
+          },
+          "presentOn" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "presentOf" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "studio" : {
+            "type" : "boolean"
+          },
           "faults" : {
             "type" : "array",
             "items" : {
               "type" : "string",
-              "enum" : [ "NO_CONSUMER", "STALLED" ]
+              "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
             }
           }
         }
@@ -8831,6 +8861,18 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "layers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "assumptions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
           "brokerNodes" : {
             "type" : "array",
             "items" : {
@@ -8872,7 +8914,11 @@
           },
           "kind" : {
             "type" : "string",
-            "enum" : [ "PRODUCER", "ADDRESS", "QUEUE", "CONSUMER" ]
+            "enum" : [ "PRODUCER", "ADDRESS", "QUEUE", "CONSUMER", "REMOTE" ]
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "STORE_AND_FORWARD", "TEMPORARY", "ANONYMOUS", "CAPTURE", "DEAD_LETTER", "EXPIRY", "CLUSTER_NODE", "BRIDGE_TARGET" ]
           },
           "label" : {
             "type" : "string"
@@ -8923,7 +8969,7 @@
             "type" : "array",
             "items" : {
               "type" : "string",
-              "enum" : [ "NO_CONSUMER", "STALLED" ]
+              "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
             }
           }
         }

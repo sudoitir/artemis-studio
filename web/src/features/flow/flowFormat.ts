@@ -41,6 +41,21 @@ export function rateSourceLabel(edge: Pick<FlowEdgeView, 'rateSource' | 'average
 export const FAULT_LABELS: Record<string, string> = {
   NO_CONSUMER: 'no consumer',
   STALLED: 'stalled',
+  BRIDGE_DOWN: 'not connected',
+  PARTIAL_PRESENCE: 'partly deployed',
+};
+
+/** How the table and inspector name each kind of edge, from its source's side. */
+export const RELATION: Record<string, string> = {
+  PRODUCE: 'produces to',
+  ROUTE: 'routes to',
+  CONSUME: 'consumed by',
+  DIVERT: 'diverts to',
+  BRIDGE: 'bridges to',
+  CLUSTER_HOP: 'redistributes to',
+  WILDCARD: 'also reaches',
+  DEAD_LETTER: 'dead-letters to',
+  EXPIRY: 'expires to',
 };
 
 export const RANK_LABELS: Record<string, string> = {
@@ -64,12 +79,48 @@ export function rateSortValue(rate: number | null | undefined, descending: boole
   return rate;
 }
 
-/** The text an edge carries: how a route delivers, the rate, and any fault, in words. */
+/** The text an edge carries: what it does, the rate where one is counted, and any fault, in words. */
 export function edgeText(view: FlowEdgeView): string {
   const parts: string[] = [];
-  if (view.kind === 'ROUTE' && view.delivery) parts.push(view.delivery === 'COPY' ? 'copy' : 'shared');
-  parts.push(rateLabel(view));
-  for (const f of view.faults ?? []) parts.push(FAULT_LABELS[f] ?? f.toLowerCase());
+  switch (view.kind) {
+    case 'ROUTE':
+      if (view.delivery) parts.push(view.delivery === 'COPY' ? 'copy' : 'shared');
+      if (view.filter) parts.push('filtered');
+      if (view.bypassed) parts.push('bypassed by an exclusive divert');
+      parts.push(rateLabel(view));
+      break;
+    case 'DIVERT':
+      parts.push(view.exclusive ? 'reroutes' : 'copies');
+      if (view.filter) parts.push('filtered');
+      if (view.transformer) parts.push('transformed');
+      parts.push(rateLabel(view));
+      break;
+    case 'BRIDGE':
+      parts.push('bridge', rateLabel(view));
+      break;
+    case 'CLUSTER_HOP':
+      parts.push('redistributes', rateLabel(view));
+      break;
+    case 'WILDCARD':
+      parts.push('matches');
+      break;
+    case 'DEAD_LETTER':
+      parts.push('on failure');
+      break;
+    case 'EXPIRY':
+      parts.push('on expiry');
+      break;
+    default:
+      parts.push(rateLabel(view));
+  }
+  for (const f of view.faults ?? []) {
+    parts.push(
+      f === 'PARTIAL_PRESENCE' && view.presentOn !== undefined && view.presentOn !== null
+        ? `on ${view.presentOn} of ${view.presentOf} nodes`
+        : (FAULT_LABELS[f] ?? f.toLowerCase()),
+    );
+  }
+  if (view.studio) parts.push('Studio capture');
   if (view.stale) parts.push('stale');
   return parts.join(' · ');
 }

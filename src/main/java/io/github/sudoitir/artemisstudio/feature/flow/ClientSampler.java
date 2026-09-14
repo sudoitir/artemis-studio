@@ -7,12 +7,17 @@ import io.github.sudoitir.artemisstudio.feature.flow.ClientEdges.Edge;
 import io.github.sudoitir.artemisstudio.feature.flow.ClientEdges.Kind;
 import io.github.sudoitir.artemisstudio.feature.flow.ClientEdges.Member;
 import io.github.sudoitir.artemisstudio.feature.flow.FlowStore.NodeSample;
+import io.github.sudoitir.artemisstudio.feature.flow.FlowStore.Route;
+import io.github.sudoitir.artemisstudio.feature.flow.FlowStore.RouteKind;
 import io.github.sudoitir.artemisstudio.feature.flow.MemberDeltas.MemberRate;
 import io.github.sudoitir.artemisstudio.feature.flow.MemberDeltas.Reading;
+import io.github.sudoitir.artemisstudio.feature.queues.BridgeRow;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
@@ -27,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -41,12 +47,14 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Samples producers and consumers of the clusters whose flow is observed (ADR-0081).
+ * Samples producers, consumers and the routing between them for the clusters whose flow is observed
+ * (ADR-0081).
  *
- * <p>Per observed cluster: take the {@code FLOW_SAMPLE} lock or skip; per serving node, one bulk
- * POST carrying {@code listProducers} and {@code listConsumers}, capped at the per-node row
- * setting; per-member deltas; aggregation into client edges; one short transaction per node after
- * the broker calls; a {@code flow} signal only when what was persisted changed.
+ * <p>Per observed cluster: take the {@code FLOW_SAMPLE} lock or skip; per serving node, <em>one</em>
+ * bulk POST carrying the producer and consumer listings, divert and bridge pattern reads, listings
+ * of store-and-forward, temporary and filtered queues, and the dead-letter and expiry addresses, all
+ * capped at the per-node row setting; per-object deltas; one short transaction per node after the
+ * broker calls; a {@code flow} signal only when what was persisted changed.
  */
 @Component
 @RequiredArgsConstructor
@@ -55,6 +63,20 @@ public class ClientSampler {
 
     static final String LIST_PRODUCERS = "listProducers(java.lang.String,int,int)";
     static final String LIST_CONSUMERS = "listConsumers(java.lang.String,int,int)";
+    static final String LIST_QUEUES = "listQueues(java.lang.String,int,int)";
+    static final String ADDRESS_SETTINGS = "getAddressSettingsAsJSON(java.lang.String)";
+
+    /** Queues a cluster connection creates to move messages to another node, named for that node. */
+    static final String STORE_AND_FORWARD_PREFIX = "$.artemis.internal.sf.";
+
+    private static final String STORE_AND_FORWARD_QUEUES =
+            "{\"field\":\"name\",\"operation\":\"CONTAINS\",\"value\":\"" + STORE_AND_FORWARD_PREFIX + "\"}";
+    private static final String TEMPORARY_QUEUES =
+            "{\"field\":\"temporary\",\"operation\":\"EQUALS\",\"value\":\"true\"}";
+    private static final String FILTERED_QUEUES = "{\"field\":\"filter\",\"operation\":\"NOT_EQUALS\",\"value\":\"\"}";
+
+    private static final String ROUTING_UNAVAILABLE = "ROUTING_UNAVAILABLE";
+    private static final String COUNTER_UNAVAILABLE = "COUNTER_UNAVAILABLE";
 
     private final FlowStore store;
     private final ClusterDirectory directory;
@@ -124,10 +146,10 @@ public class ClientSampler {
         for (var entry : pending.entrySet()) {
             ClusterNode node = entry.getKey();
             NodeResult result = entry.getValue().resultNow();
-            List<Edge> edges = result.sample().errorKind() == null || result.partial()
-                    ? edges(clusterDeltas, node.getId(), result)
-                    : List.of();
-            store.persistNode(result.sample(), edges);
+            boolean usable = result.sample().errorKind() == null || result.partial();
+            List<Edge> edges = usable ? edges(clusterDeltas, node.getId(), result) : List.of();
+            List<Route> routes = usable ? rateRoutes(clusterDeltas, node.getId(), result) : List.of();
+            store.persistNode(result.sample(), edges, routes);
             meters.counter("studio.flow.sample.rows").increment(result.members().size());
             if (result.truncated()) {
                 meters.counter("studio.flow.sample.truncated").increment();
@@ -143,8 +165,18 @@ public class ClientSampler {
                             e.address(),
                             e.queue(),
                             e.memberCount(),
-                            e.rate() == null ? -1L : Math.round(e.rate() * 10),
+                            rounded(e.rate()),
                             e.stalled())));
+            routes.stream()
+                    .sorted(Comparator.comparing(Route::toString))
+                    .forEach(r -> digest.add(List.of(
+                            r.kind(),
+                            String.valueOf(r.name()),
+                            String.valueOf(r.source()),
+                            String.valueOf(r.target()),
+                            r.exclusive(),
+                            r.connected(),
+                            rounded(r.rate()))));
         }
         timing.stop(meters.timer("studio.flow.sample.duration"));
         Integer previous = digests.put(clusterId, digest.hashCode());
@@ -154,7 +186,7 @@ public class ClientSampler {
         log.debug("Flow sweep of cluster {}: {} node(s)", clusterId, nodes.size());
     }
 
-    /** Both listings from one node in one POST. Broker I/O only; nothing here touches the database. */
+    /** Everything flow reads from one node, in one POST. Broker I/O only; nothing here touches the database. */
     NodeResult sampleNode(UUID clusterId, ClusterNode node, int cap) {
         Instant at = clock.instant();
         try {
@@ -162,10 +194,17 @@ public class ClientSampler {
             String mbean = client.resolveBrokerObjectName();
             List<JolokiaResponse> entries = client.batch(List.of(
                     JolokiaRequest.exec(mbean, LIST_PRODUCERS, "", 1, cap),
-                    JolokiaRequest.exec(mbean, LIST_CONSUMERS, "", 1, cap)));
-            if (entries.size() != 2) {
+                    JolokiaRequest.exec(mbean, LIST_CONSUMERS, "", 1, cap),
+                    JolokiaRequest.readAll(BrokerMBeans.divertsPattern(mbean)),
+                    JolokiaRequest.readAll(BrokerMBeans.bridgesPattern(mbean)),
+                    JolokiaRequest.exec(mbean, LIST_QUEUES, STORE_AND_FORWARD_QUEUES, 1, cap),
+                    JolokiaRequest.exec(mbean, LIST_QUEUES, TEMPORARY_QUEUES, 1, cap),
+                    JolokiaRequest.exec(mbean, LIST_QUEUES, FILTERED_QUEUES, 1, cap),
+                    JolokiaRequest.exec(mbean, ADDRESS_SETTINGS, "#")));
+            if (entries.size() != 8) {
                 return failed(clusterId, node, at, "BAD_RESPONSE", "The broker returned an incomplete response.");
             }
+
             Listing producers = listing(client, entries.get(0));
             Listing consumers = listing(client, entries.get(1));
             List<Member> members = new ArrayList<>();
@@ -183,10 +222,22 @@ public class ClientSampler {
                         new Reading(memberId(row), num(row, "messagesAcknowledged"), num(row, "messagesInTransit")));
                 members.add(member(Kind.CONSUME, row, str(row, "address"), str(row, "queue")));
             }
+
+            List<String> routingErrors = new ArrayList<>();
+            List<Route> routes = routes(client, node, entries, routingErrors);
+
             String errorKind = producers.error() != null
                     ? producers.errorKind()
-                    : consumers.error() != null ? consumers.errorKind() : counterMissing ? "COUNTER_UNAVAILABLE" : null;
-            String error = producers.error() != null ? producers.error() : consumers.error();
+                    : consumers.error() != null
+                            ? consumers.errorKind()
+                            : counterMissing
+                                    ? COUNTER_UNAVAILABLE
+                                    : routingErrors.isEmpty() ? null : ROUTING_UNAVAILABLE;
+            String error = producers.error() != null
+                    ? producers.error()
+                    : consumers.error() != null
+                            ? consumers.error()
+                            : routingErrors.isEmpty() ? null : routingErrors.getFirst();
             NodeSample sample = new NodeSample(
                     node.getId(),
                     clusterId,
@@ -198,17 +249,151 @@ public class ClientSampler {
                     error,
                     errorKind);
             boolean partial = errorKind == null
-                    || "COUNTER_UNAVAILABLE".equals(errorKind)
+                    || COUNTER_UNAVAILABLE.equals(errorKind)
+                    || ROUTING_UNAVAILABLE.equals(errorKind)
                     || !producers.rows().isEmpty()
                     || !consumers.rows().isEmpty();
             boolean truncated = producers.total() > producers.rows().size()
                     || consumers.total() > consumers.rows().size();
-            return new NodeResult(sample, members, producerReadings, consumerReadings, partial, truncated);
+            return new NodeResult(sample, members, producerReadings, consumerReadings, routes, partial, truncated);
         } catch (BrokerConnectionException e) {
             return failed(clusterId, node, at, e.kind().name(), e.getMessage());
         } catch (RuntimeException e) {
             return failed(clusterId, node, at, "BAD_RESPONSE", e.getMessage());
         }
+    }
+
+    /** The routing entries of a node's POST, each read on its own: one failing entry loses only itself. */
+    private static List<Route> routes(
+            JolokiaBrokerClient client, ClusterNode node, List<JolokiaResponse> entries, List<String> errors) {
+        List<Route> routes = new ArrayList<>();
+        for (JsonNode attrs : patternRead(entries.get(2), errors)) {
+            DivertRow d = DivertRow.parse(attrs, node.getId(), node.getName());
+            routes.add(new Route(
+                    RouteKind.DIVERT,
+                    d.uniqueName(),
+                    d.address(),
+                    d.forwardingAddress(),
+                    d.filter(),
+                    d.transformerClassName(),
+                    d.exclusive(),
+                    true,
+                    0,
+                    null));
+        }
+        for (JsonNode attrs : patternRead(entries.get(3), errors)) {
+            BridgeRow b = BridgeRow.parse(attrs, node.getId(), node.getName());
+            routes.add(new Route(
+                    RouteKind.BRIDGE,
+                    b.name(),
+                    b.queueName(),
+                    b.forwardingAddress(),
+                    b.filterString(),
+                    b.transformerClassName(),
+                    false,
+                    b.connected(),
+                    b.messagesAcknowledged(),
+                    null));
+        }
+        for (JsonNode row : queueRows(client, entries.get(4), errors)) {
+            String name = str(row, "name");
+            if (name != null && name.startsWith(STORE_AND_FORWARD_PREFIX)) {
+                routes.add(new Route(
+                        RouteKind.STORE_AND_FORWARD,
+                        name,
+                        str(row, "address"),
+                        receivingNodeId(name),
+                        null,
+                        null,
+                        false,
+                        true,
+                        num(row, "messagesAdded"),
+                        null));
+            }
+        }
+        for (JsonNode row : queueRows(client, entries.get(5), errors)) {
+            routes.add(new Route(
+                    RouteKind.TEMPORARY_QUEUE,
+                    str(row, "name"),
+                    str(row, "address"),
+                    str(row, "name"),
+                    null,
+                    null,
+                    false,
+                    true,
+                    0,
+                    null));
+        }
+        for (JsonNode row : queueRows(client, entries.get(6), errors)) {
+            String filter = str(row, "filter");
+            if (filter != null && !filter.isBlank()) {
+                routes.add(new Route(
+                        RouteKind.QUEUE_FILTER,
+                        str(row, "name"),
+                        str(row, "address"),
+                        str(row, "name"),
+                        filter,
+                        null,
+                        false,
+                        true,
+                        0,
+                        null));
+            }
+        }
+        JolokiaResponse settings = entries.get(7);
+        if (settings.ok()) {
+            JsonNode parsed = client.parsed(settings);
+            addressRoute(routes, RouteKind.DEAD_LETTER, str(parsed, "deadLetterAddress"));
+            addressRoute(routes, RouteKind.EXPIRY, str(parsed, "expiryAddress"));
+        } else {
+            errors.add(entryError(settings));
+        }
+        return routes;
+    }
+
+    private static void addressRoute(List<Route> routes, RouteKind kind, String address) {
+        if (address != null && !address.isBlank()) {
+            routes.add(new Route(kind, "#", "#", address, null, null, false, true, 0, null));
+        }
+    }
+
+    /**
+     * The attribute maps of a Jolokia pattern read. A pattern that matches nothing answers 404 for that
+     * entry alone, which means "none of these on this node", not a failure.
+     */
+    private static List<JsonNode> patternRead(JolokiaResponse entry, List<String> errors) {
+        if (entry.status() == 404) {
+            return List.of();
+        }
+        if (!entry.ok()) {
+            errors.add(entryError(entry));
+            return List.of();
+        }
+        JsonNode value = entry.value();
+        List<JsonNode> out = new ArrayList<>();
+        if (value != null && value.isObject()) {
+            for (String objectName : value.propertyNames()) {
+                JsonNode attrs = value.get(objectName);
+                if (attrs != null && attrs.isObject()) {
+                    out.add(attrs);
+                }
+            }
+        }
+        return out;
+    }
+
+    private static List<JsonNode> queueRows(JolokiaBrokerClient client, JolokiaResponse entry, List<String> errors) {
+        Listing listing = listing(client, entry);
+        if (listing.error() != null) {
+            errors.add(listing.error());
+        }
+        return listing.rows();
+    }
+
+    /** {@code $.artemis.internal.sf.<cluster-connection>.<nodeID>}: the node id is the last segment. */
+    static String receivingNodeId(String storeAndForwardQueue) {
+        int dot = storeAndForwardQueue.lastIndexOf('.');
+        return dot < 0 ? storeAndForwardQueue : storeAndForwardQueue.substring(dot + 1);
     }
 
     private List<Edge> edges(Map<String, MemberDeltas> clusterDeltas, UUID nodeId, NodeResult result) {
@@ -242,6 +427,39 @@ public class ClientSampler {
         return ClientEdges.aggregate(rated);
     }
 
+    /** Bridges and store-and-forward queues carry a counter; their rate is its delta, like a client's. */
+    private List<Route> rateRoutes(Map<String, MemberDeltas> clusterDeltas, UUID nodeId, NodeResult result) {
+        List<Reading> readings = result.routes().stream()
+                .filter(ClientSampler::counted)
+                .map(r -> new Reading(r.kind() + ":" + r.name(), r.counter(), 0))
+                .toList();
+        Map<String, MemberRate> rates = clusterDeltas
+                .computeIfAbsent(nodeId + "/R", k -> new MemberDeltas())
+                .apply(result.sample().sampledAt(), readings);
+        return result.routes().stream()
+                .map(r -> {
+                    MemberRate rate = counted(r) ? rates.get(r.kind() + ":" + r.name()) : null;
+                    return rate == null
+                            ? r
+                            : new Route(
+                                    r.kind(),
+                                    r.name(),
+                                    r.source(),
+                                    r.target(),
+                                    r.filter(),
+                                    r.transformer(),
+                                    r.exclusive(),
+                                    r.connected(),
+                                    r.counter(),
+                                    rate.rate());
+                })
+                .toList();
+    }
+
+    private static boolean counted(Route r) {
+        return r.kind() == RouteKind.BRIDGE || r.kind() == RouteKind.STORE_AND_FORWARD;
+    }
+
     private static Member member(Kind kind, JsonNode row, String address, String queue) {
         return new Member(
                 kind,
@@ -263,8 +481,8 @@ public class ClientSampler {
 
     private static Listing listing(JolokiaBrokerClient client, JolokiaResponse entry) {
         if (!entry.ok()) {
-            String error = entry.error() != null ? entry.error() : "status " + entry.status();
-            String lower = error.toLowerCase(java.util.Locale.ROOT);
+            String error = entryError(entry);
+            String lower = error.toLowerCase(Locale.ROOT);
             String kind = entry.status() == 403 || lower.contains("permission") || lower.contains("security")
                     ? "PERMISSION_DENIED"
                     : "BAD_RESPONSE";
@@ -280,9 +498,14 @@ public class ClientSampler {
         return new Listing(rows, total, null, null);
     }
 
+    private static String entryError(JolokiaResponse entry) {
+        return entry.error() != null ? entry.error() : "status " + entry.status();
+    }
+
     private static NodeResult failed(UUID clusterId, ClusterNode node, Instant at, String kind, String error) {
         return new NodeResult(
                 new NodeSample(node.getId(), clusterId, at, 0, 0, 0, 0, error, kind),
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
@@ -307,6 +530,10 @@ public class ClientSampler {
         meters.counter("studio.flow.sample.skipped", "reason", reason).increment();
     }
 
+    private static long rounded(Double rate) {
+        return rate == null ? -1L : Math.round(rate * 10);
+    }
+
     private static String firstNonBlank(String a, String b) {
         return a != null && !a.isBlank() ? a : b;
     }
@@ -318,6 +545,7 @@ public class ClientSampler {
             List<Member> members,
             List<Reading> producerReadings,
             List<Reading> consumerReadings,
+            List<Route> routes,
             boolean partial,
             boolean truncated) {}
 }

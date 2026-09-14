@@ -53,6 +53,12 @@
   border-radius: var(--mantine-radius-sm);
 }
 
+.node[data-shape='hex'] {
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+  padding-inline: 22px;
+  border-style: dashed;
+}
+
 .node:hover {
   border-color: var(--as-flow-edge-busy);
 }
@@ -171,6 +177,33 @@
   stroke: var(--as-flow-fault);
 }
 
+.edge[data-kind='DIVERT'] {
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+}
+
+.edge[data-kind='WILDCARD'] {
+  stroke-dasharray: 1 3;
+  stroke-width: 1px;
+}
+
+.edge[data-kind='DEAD_LETTER'],
+.edge[data-kind='EXPIRY'] {
+  stroke-dasharray: 8 3 1 3;
+  stroke-width: 1px;
+}
+
+.edge[data-kind='CLUSTER_HOP'] {
+  stroke-dasharray: 10 4;
+}
+
+.edgeInner {
+  stroke: var(--as-graph-node-bg);
+  stroke-width: 1.25px;
+  pointer-events: none;
+}
+
+.edgeInner[data-dimmed],
 .edge[data-dimmed] {
   opacity: var(--as-flow-dim);
 }
@@ -261,6 +294,31 @@
 
 .legendLine[data-tier='unknown'] {
   border-block-start-style: dotted;
+}
+
+.legendLine[data-kind='DIVERT'] {
+  border-block-start-style: dotted;
+  border-block-start-width: 2px;
+}
+
+.legendLine[data-kind='BRIDGE'] {
+  border-block-start-style: double;
+  border-block-start-width: 4px;
+}
+
+.legendLine[data-kind='CLUSTER_HOP'] {
+  border-block-start-style: dashed;
+  border-block-start-width: 3px;
+}
+
+.legendLine[data-kind='DEAD_LETTER'] {
+  border-block-start-style: dashed;
+  border-block-start-width: 1px;
+}
+
+.legendShape[data-shape='hex'] {
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: var(--as-text-dimmed);
 }
 
 .legendLine[data-fault] {

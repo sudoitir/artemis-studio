@@ -55,8 +55,8 @@ class FlowStoreTest extends PostgresIntegrationTest {
 
     @Test
     void aSweepReplacesTheNodesEdgesAndKeepsAnUnknownRateUnknown() {
-        store.persistNode(sample(t0, null), List.of(edge("orders", 12.5), edge("refunds", null)));
-        store.persistNode(sample(t0.plusSeconds(15), null), List.of(edge("orders", 20.0)));
+        store.persistNode(sample(t0, null), List.of(edge("orders", 12.5), edge("refunds", null)), List.of());
+        store.persistNode(sample(t0.plusSeconds(15), null), List.of(edge("orders", 20.0)), List.of());
 
         var edges = store.edges(clusterId);
         assertThat(edges).singleElement().satisfies(e -> {
@@ -65,15 +65,15 @@ class FlowStoreTest extends PostgresIntegrationTest {
             assertThat(e.sampledAt()).isEqualTo(t0.plusSeconds(15));
         });
 
-        store.persistNode(sample(t0.plusSeconds(30), null), List.of(edge("orders", null)));
+        store.persistNode(sample(t0.plusSeconds(30), null), List.of(edge("orders", null)), List.of());
         assertThat(store.edges(clusterId).getFirst().edge().rate()).isNull();
     }
 
     @Test
     void aFailedNodeDropsItsEdgesAndRecordsWhy() {
-        store.persistNode(sample(t0, null), List.of(edge("orders", 1.0)));
+        store.persistNode(sample(t0, null), List.of(edge("orders", 1.0)), List.of());
 
-        store.persistNode(sample(t0.plusSeconds(15), "UNREACHABLE"), List.of());
+        store.persistNode(sample(t0.plusSeconds(15), "UNREACHABLE"), List.of(), List.of());
 
         assertThat(store.edges(clusterId)).isEmpty();
         assertThat(store.nodeSamples(clusterId))
@@ -84,13 +84,43 @@ class FlowStoreTest extends PostgresIntegrationTest {
     @Test
     void anUnobservedClusterIsForgottenLeaseAndAll() {
         store.renew(clusterId, t0);
-        store.persistNode(sample(t0, null), List.of(edge("orders", 1.0)));
+        store.persistNode(sample(t0, null), List.of(edge("orders", 1.0)), List.of());
 
         store.forgetUnobserved(t0.plusSeconds(1));
 
         assertThat(store.edges(clusterId)).isEmpty();
         assertThat(store.nodeSamples(clusterId)).isEmpty();
         assertThat(store.observedClusters(t0.minusSeconds(1))).doesNotContain(clusterId);
+    }
+
+    @Test
+    void routesAreReplacedPerSweepAndKeepAnUnknownRateUnknown() {
+        var divert = new FlowStore.Route(
+                FlowStore.RouteKind.DIVERT,
+                "orders-audit",
+                "ORDERS",
+                "AUDIT",
+                "color='red'",
+                null,
+                true,
+                true,
+                0,
+                null);
+        var bridge = new FlowStore.Route(
+                FlowStore.RouteKind.BRIDGE, "to-dc2", "ORDERS", "ORDERS.remote", null, null, false, false, 900, 12.0);
+        store.persistNode(sample(t0, null), List.of(), List.of(divert, bridge));
+        store.persistNode(sample(t0.plusSeconds(15), null), List.of(), List.of(divert));
+
+        assertThat(store.routes(clusterId)).singleElement().satisfies(r -> {
+            assertThat(r.route().name()).isEqualTo("orders-audit");
+            assertThat(r.route().exclusive()).isTrue();
+            assertThat(r.route().filter()).isEqualTo("color='red'");
+            assertThat(r.route().rate()).isNull();
+        });
+
+        store.renew(clusterId, t0);
+        store.forgetUnobserved(t0.plusSeconds(1));
+        assertThat(store.routes(clusterId)).isEmpty();
     }
 
     private NodeSample sample(Instant at, String errorKind) {

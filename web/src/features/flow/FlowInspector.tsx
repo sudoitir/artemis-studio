@@ -13,6 +13,18 @@ const KIND_WORD: Record<string, string> = {
   CONSUMER: 'Consuming client',
   ADDRESS: 'Address',
   QUEUE: 'Queue',
+  REMOTE: 'Remote',
+};
+
+const ROLE_WORD: Record<string, string> = {
+  STORE_AND_FORWARD: 'Cluster redistribution queue',
+  TEMPORARY: 'Temporary queues, collapsed',
+  ANONYMOUS: 'Producers that name no address',
+  CAPTURE: "Studio's message capture",
+  DEAD_LETTER: 'Dead-letter address',
+  EXPIRY: 'Expiry address',
+  CLUSTER_NODE: 'Another node of this cluster',
+  BRIDGE_TARGET: 'A bridge target outside this cluster',
 };
 
 /**
@@ -52,6 +64,7 @@ export function FlowInspector({
     navigate({ to: `/clusters/$clusterId/${path}`, params: { clusterId }, search: { q: node.label } });
 
   const facts: Array<[string, string]> = [];
+  if (node.role) facts.push(['What it is', ROLE_WORD[node.role] ?? node.role.toLowerCase()]);
   if (node.kind === 'QUEUE') {
     facts.push([
       'Backlog',
@@ -136,10 +149,12 @@ export function FlowInspector({
         {flowList('Flow out', outbound, (e) => e.target)}
 
         <Stack gap="xs">
-          <Button size="xs" variant="default" onClick={() => onFocus(focusOf(node))}>
-            Focus the view on this
-          </Button>
-          {node.kind === 'QUEUE' || node.kind === 'ADDRESS' ? (
+          {focusOf(node) ? (
+            <Button size="xs" variant="default" onClick={() => onFocus(focusOf(node)!)}>
+              Focus the view on this
+            </Button>
+          ) : null}
+          {(node.kind === 'QUEUE' || node.kind === 'ADDRESS') && !node.role ? (
             <Button size="xs" variant="subtle" onClick={() => open('queues')}>
               Open in Queues
             </Button>

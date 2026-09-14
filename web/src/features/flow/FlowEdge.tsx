@@ -60,11 +60,17 @@ export const FlowEdge = memo(function FlowEdge({
         fill="none"
         className={classes.edge}
         data-tier={tier}
+        data-kind={view.kind}
         data-fault={fault || undefined}
         data-stale={view.stale || undefined}
         data-dimmed={d.dimmed || undefined}
-        style={{ strokeWidth: STROKE_WIDTH[tier] }}
+        style={{ strokeWidth: view.kind === 'BRIDGE' || view.kind === 'CLUSTER_HOP' ? STROKE_WIDTH[tier] + 2 : STROKE_WIDTH[tier] }}
       />
+      {view.kind === 'BRIDGE' || view.kind === 'CLUSTER_HOP' ? (
+        // A second, narrower stroke in the canvas colour turns one line into two: forwarding
+        // between brokers reads differently from routing inside one.
+        <path d={path} fill="none" className={classes.edgeInner} data-dimmed={d.dimmed || undefined} />
+      ) : null}
       {showText && motion !== 'off' && d.dots > 0 && !d.dimmed ? (
         <FlowDots path={path} seconds={crossingSeconds(speedBucket(view.rate))} count={d.dots} />
       ) : null}

@@ -3359,7 +3359,7 @@ export interface components {
             nodeId?: string;
             name?: string;
             /** @enum {string} */
-            state?: "OK" | "UNREACHABLE" | "PERMISSION_DENIED" | "COUNTER_UNAVAILABLE" | "FAILED";
+            state?: "OK" | "UNREACHABLE" | "PERMISSION_DENIED" | "COUNTER_UNAVAILABLE" | "ROUTING_UNAVAILABLE" | "FAILED";
             message?: string;
             /** Format: date-time */
             sampledAt?: string;
@@ -3377,7 +3377,7 @@ export interface components {
         FlowEdgeView: {
             id?: string;
             /** @enum {string} */
-            kind?: "PRODUCE" | "ROUTE" | "CONSUME";
+            kind?: "PRODUCE" | "ROUTE" | "CONSUME" | "DIVERT" | "BRIDGE" | "CLUSTER_HOP" | "WILDCARD" | "DEAD_LETTER" | "EXPIRY";
             source?: string;
             target?: string;
             /** Format: double */
@@ -3393,7 +3393,16 @@ export interface components {
             delivery?: "COPY" | "SHARED";
             /** Format: int32 */
             members?: number;
-            faults?: ("NO_CONSUMER" | "STALLED")[];
+            exclusive?: boolean;
+            filter?: string;
+            transformer?: string;
+            bypassed?: boolean;
+            /** Format: int32 */
+            presentOn?: number;
+            /** Format: int32 */
+            presentOf?: number;
+            studio?: boolean;
+            faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
         };
         FlowFocusView: {
             kind?: string;
@@ -3413,6 +3422,8 @@ export interface components {
             measuring?: boolean;
             /** Format: int64 */
             sampleIntervalSeconds?: number;
+            layers?: string[];
+            assumptions?: string[];
             brokerNodes?: components["schemas"]["FlowBrokerNodeView"][];
         };
         FlowKpis: {
@@ -3430,7 +3441,9 @@ export interface components {
         FlowNodeView: {
             id?: string;
             /** @enum {string} */
-            kind?: "PRODUCER" | "ADDRESS" | "QUEUE" | "CONSUMER";
+            kind?: "PRODUCER" | "ADDRESS" | "QUEUE" | "CONSUMER" | "REMOTE";
+            /** @enum {string} */
+            role?: "STORE_AND_FORWARD" | "TEMPORARY" | "ANONYMOUS" | "CAPTURE" | "DEAD_LETTER" | "EXPIRY" | "CLUSTER_NODE" | "BRIDGE_TARGET";
             label?: string;
             /** Format: int32 */
             members?: number;
@@ -3443,7 +3456,7 @@ export interface components {
             hosts?: string[];
             users?: string[];
             brokerNodes?: string[];
-            faults?: ("NO_CONSUMER" | "STALLED")[];
+            faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
         };
         FlowTotals: {
             /** Format: int32 */
@@ -6351,6 +6364,7 @@ export interface operations {
                 rank?: "IN" | "OUT" | "BACKLOG";
                 limit?: number;
                 groupBy?: "CLIENT_ID" | "USER" | "HOST";
+                layers?: string;
             };
             header?: never;
             path: {

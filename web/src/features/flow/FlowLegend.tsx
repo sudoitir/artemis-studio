@@ -17,6 +17,10 @@ export function FlowLegend({ motion }: { motion: 'running' | 'paused' | 'off' })
         queue, bar = backlog
       </span>
       <span className={classes.legendItem}>
+        <span className={classes.legendShape} data-shape="hex" aria-hidden="true" />
+        other node or broker
+      </span>
+      <span className={classes.legendItem}>
         <span className={classes.legendLine} data-tier="busy" aria-hidden="true" />
         busy (50+ msg/s)
       </span>
@@ -31,6 +35,22 @@ export function FlowLegend({ motion }: { motion: 'running' | 'paused' | 'off' })
       <span className={classes.legendItem}>
         <span className={classes.legendLine} data-tier="unknown" aria-hidden="true" />
         measuring
+      </span>
+      <span className={classes.legendItem}>
+        <span className={classes.legendLine} data-kind="DIVERT" aria-hidden="true" />
+        divert (not counted by the broker)
+      </span>
+      <span className={classes.legendItem}>
+        <span className={classes.legendLine} data-kind="BRIDGE" aria-hidden="true" />
+        bridge
+      </span>
+      <span className={classes.legendItem}>
+        <span className={classes.legendLine} data-kind="CLUSTER_HOP" aria-hidden="true" />
+        cluster redistribution
+      </span>
+      <span className={classes.legendItem}>
+        <span className={classes.legendLine} data-kind="DEAD_LETTER" aria-hidden="true" />
+        dead letter or expiry
       </span>
       <span className={classes.legendItem}>
         <span className={classes.legendLine} data-fault="true" aria-hidden="true" />

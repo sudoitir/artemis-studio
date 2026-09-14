@@ -67,7 +67,20 @@ Identity needs no session or connection listing: on Artemis 2.44 every producer 
 `clientID`, `user`, `protocol`, `address`, `remoteAddress`, `msgSent`, and every consumer row
 `clientID`, `user`, `protocol`, `queue`, `address`, `remoteAddress`, `filter`,
 `messagesAcknowledged`, `messagesInTransit` (recorded by probe, task 1.2). The envelope's
-`count` against rows returned gives per-node truncation. A sweep for a cluster does not start while the
+`count` against rows returned gives per-node truncation.
+
+The same POST carries the routing objects layer 4 draws, each one entry, so there is still one
+request per node per sweep:
+- divert and bridge attributes through Jolokia **pattern reads** (`BrokerMBeans.divertsPattern`,
+  `bridgesPattern`), parsed with the existing `DivertRow.parse` / `BridgeRow.parse`. A pattern that
+  matches nothing returns that entry alone as 404 and is read as "none" (probed on 2.44);
+- `listQueues` filtered to store-and-forward queues (`name CONTAINS $.artemis.internal.sf`),
+  temporary queues (`temporary EQUALS true`) and filtered queues (`filter NOT_EQUALS ""`), each
+  capped at the row setting. The platform queue sweep drops internal queues and keeps neither the
+  temporary flag nor the filter, so these cannot come from `queue_snapshot`;
+- `getAddressSettingsAsJSON("#")` for the dead-letter and expiry addresses, as `DlqService` reads them.
+Bridge and store-and-forward rates are per-object counter deltas, like client rates. Results are
+persisted to `flow_route` (changeset feature-flow 0002). A sweep for a cluster does not start while the
 previous one runs.
 *Alternative*: paging through all rows. Rejected: breaks one-request-per-node, and an
 unbounded walk is exactly the load non-negotiable #1 forbids. Truncation is stated instead
@@ -84,7 +97,7 @@ protocol, address, queue) and written in one short transaction replacing that no
 *Alternative*: summing group counters. Rejected, because a member leaving makes the sum
 negative.
 
-### D5. Schema: three disposable cache tables, padding-ordered, churn-tuned
+### D5. Schema: four disposable cache tables, padding-ordered, churn-tuned
 Under `db/changelog/feature/flow/`:
 - `flow_demand(observed_until timestamptz, cluster_id uuid PK)`.
 - `flow_client_edge(sampled_at timestamptz, rate double precision NULL, unacked bigint,
@@ -95,7 +108,11 @@ Under `db/changelog/feature/flow/`:
 - `flow_node_sample(sampled_at timestamptz, producers_seen integer, producers_total integer,
   consumers_seen integer, consumers_total integer, error text, error_kind text,
   node_id uuid PK, cluster_id uuid)`.
-Both sample tables: `fillfactor = 70`, per-table aggressive autovacuum (non-negotiable #7).
+- `flow_route(sampled_at timestamptz, rate double precision NULL, counter bigint, kind text,
+  name text, source text, target text, filter text, transformer text, node_id uuid,
+  cluster_id uuid, exclusive boolean, connected boolean)` for diverts, bridges, store-and-forward,
+  temporary and filtered queues and the dead-letter / expiry addresses (changeset 0002).
+The sample tables: `fillfactor = 70`, per-table aggressive autovacuum (non-negotiable #7).
 FKs to `cluster`/`broker_node` with `ON DELETE CASCADE`, following allowed dependencies.
 Rows untouched for three sweeps are reaped; a cluster with an expired lease is cleared after
 three intervals.

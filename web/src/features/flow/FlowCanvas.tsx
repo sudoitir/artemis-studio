@@ -17,11 +17,11 @@ import { allocateDots } from './edgeEncoding.ts';
 import { FlowEdge } from './FlowEdge.tsx';
 import { DENSE_NODES, layoutSignature, pathThrough, toReactFlow } from './flowLayout.ts';
 import { FlowLegend } from './FlowLegend.tsx';
-import { AddressNode, ClientNode, LaneNode, QueueNode } from './FlowNodes.tsx';
+import { AddressNode, ClientNode, LaneNode, QueueNode, RemoteNode } from './FlowNodes.tsx';
 import { useFlowLayout } from './useFlowLayout.ts';
 import classes from './FlowCanvas.module.css';
 
-const nodeTypes = { client: ClientNode, address: AddressNode, queue: QueueNode, lane: LaneNode };
+const nodeTypes = { client: ClientNode, address: AddressNode, queue: QueueNode, remote: RemoteNode, lane: LaneNode };
 const edgeTypes = { flow: FlowEdge };
 
 /** Labels and dots below this zoom would be unreadable specks; widths still carry the rate. */

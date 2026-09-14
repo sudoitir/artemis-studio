@@ -7,9 +7,11 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.flow.ClientEdges.Kind;
 import io.github.sudoitir.artemisstudio.feature.flow.FlowStore.StoredEdge;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
@@ -44,6 +46,9 @@ class FlowSamplerIT extends PostgresIntegrationTest {
 
     @Autowired
     BrokerClientFactory clients;
+
+    @Autowired
+    DivertOperations divertOps;
 
     @Autowired
     ClusterRepository clusters;
@@ -114,6 +119,56 @@ class FlowSamplerIT extends PostgresIntegrationTest {
                     .singleElement()
                     .satisfies(s -> assertThat(s.errorKind()).isNull());
         }
+    }
+
+    @Test
+    void routingIsSampledInTheSameSweepFromARealBroker() {
+        String suffix = Long.toString(System.nanoTime());
+        String source = "flow.it.src." + suffix;
+        String target = "flow.it.dst." + suffix;
+        String filtered = "flow.it.red." + suffix;
+        JolokiaBrokerClient client = connections.forCluster(clusterId, ArtemisIntegrationTest.jolokiaUrl());
+        assertThat(client.execOnBroker(
+                                "createQueue(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)",
+                                source,
+                                filtered,
+                                "color='red'",
+                                true,
+                                "ANYCAST")
+                        .ok())
+                .isTrue();
+        String broker = client.resolveBrokerObjectName();
+        assertThat(client.execOnBroker("createAddress(java.lang.String,java.lang.String)", target, "ANYCAST")
+                        .ok())
+                .isTrue();
+        // Studio's own divert path: the JSON overload, which carries no null argument.
+        divertOps.createDivert(
+                client,
+                broker,
+                DivertOperations.divertConfig(
+                        "flow-it-" + suffix, "flow-it-" + suffix, source, target, true, null, "ANYCAST"));
+
+        sampler.sweep(clusterId);
+
+        List<FlowStore.Route> routes = store.routes(clusterId).stream()
+                .map(FlowStore.StoredRoute::route)
+                .toList();
+        assertThat(routes)
+                .anySatisfy(r -> {
+                    assertThat(r.kind()).isEqualTo(FlowStore.RouteKind.DIVERT);
+                    assertThat(r.source()).isEqualTo(source);
+                    assertThat(r.target()).isEqualTo(target);
+                    assertThat(r.exclusive()).isTrue();
+                })
+                .anySatisfy(r -> {
+                    assertThat(r.kind()).isEqualTo(FlowStore.RouteKind.QUEUE_FILTER);
+                    assertThat(r.target()).isEqualTo(filtered);
+                    assertThat(r.filter()).isEqualTo("color='red'");
+                })
+                .anySatisfy(r -> assertThat(r.kind()).isEqualTo(FlowStore.RouteKind.DEAD_LETTER));
+        assertThat(store.nodeSamples(clusterId))
+                .singleElement()
+                .satisfies(n -> assertThat(n.errorKind()).as(n.error()).isNull());
     }
 
     @Test

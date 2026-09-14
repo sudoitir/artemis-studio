@@ -28,6 +28,7 @@ public class FlowController {
      * @param focus {@code client:<name>}, {@code address:<name>} or {@code queue:<name>}
      * @param hops how far a focus reaches, 1 to 3
      * @param limit paths to draw, at most 200
+     * @param layers comma-separated routing layers; blank for diverts, bridges and cluster
      */
     @GetMapping
     public ResponseEntity<FlowGraphView> graph(
@@ -37,8 +38,9 @@ public class FlowController {
             @RequestParam(defaultValue = "IN") FlowQuery.Rank rank,
             @RequestParam(defaultValue = "" + FlowQuery.DEFAULT_LIMIT) int limit,
             @RequestParam(defaultValue = "CLIENT_ID") FlowQuery.GroupBy groupBy,
+            @RequestParam(required = false) String layers,
             WebRequest request) {
-        FlowGraphView view = graphs.graph(clusterId, FlowQuery.of(focus, hops, rank, limit, groupBy));
+        FlowGraphView view = graphs.graph(clusterId, FlowQuery.of(focus, hops, rank, limit, groupBy, layers));
         String etag = "\"" + Integer.toHexString(view.hashCode()) + "\"";
         if (request.checkNotModified(etag)) {
             return ResponseEntity.status(304).eTag(etag).build();

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
+  Chip,
   Button,
   CloseButton,
   Group,
@@ -29,7 +30,10 @@ import {
   DEFAULT_LIMIT,
   FLOW_GROUPINGS,
   FLOW_LIMITS,
+  FLOW_LAYERS,
   FLOW_RANKS,
+  layersParam,
+  parseLayers,
   focusOf,
   parseFocus,
   type FlowGroupBy,
@@ -38,6 +42,15 @@ import {
 } from './flowSearch.ts';
 import { FlowTable } from './FlowTable.tsx';
 import classes from './FlowView.module.css';
+
+const LAYER_LABELS: Record<string, string> = {
+  DIVERTS: 'Diverts',
+  BRIDGES: 'Bridges',
+  CLUSTER: 'Cluster hops',
+  DEAD_LETTER: 'Dead letter & expiry',
+  TEMPORARY: 'Temporary queues',
+  CAPTURE: 'Studio capture',
+};
 
 const FIND_GROUPS: Array<{ group: string; kinds: string[] }> = [
   { group: 'Clients', kinds: ['PRODUCER', 'CONSUMER'] },
@@ -216,7 +229,8 @@ function FlowBody({
   const findData = FIND_GROUPS.map(({ group, kinds }) => {
     const seen = new Map<string, string>();
     for (const n of nodes) {
-      if (kinds.includes(n.kind ?? '')) seen.set(focusOf(n), n.label ?? '');
+      const focus = focusOf(n);
+      if (focus && kinds.includes(n.kind ?? '')) seen.set(focus, n.label ?? '');
     }
     return {
       group,
@@ -308,6 +322,31 @@ function FlowBody({
               ) : null}
             </Group>
           </Group>
+
+          <Group gap="xs" align="center" wrap="wrap">
+            <Text size="xs" c="dimmed" id="flow-layers">
+              Layers
+            </Text>
+            <Chip.Group
+              multiple
+              value={parseLayers(search.layers)}
+              onChange={(value) => setSearch({ layers: layersParam(value as never[]) })}
+            >
+              <Group gap={6} wrap="wrap" role="group" aria-labelledby="flow-layers">
+                {FLOW_LAYERS.map((layer) => (
+                  <Chip key={layer} value={layer} size="xs" variant="outline">
+                    {LAYER_LABELS[layer]}
+                  </Chip>
+                ))}
+              </Group>
+            </Chip.Group>
+          </Group>
+
+          {(data.assumptions ?? []).map((assumption) => (
+            <Text key={assumption} size="xs" c="dimmed">
+              {assumption}
+            </Text>
+          ))}
 
           {tab === 'graph' ? (
             <div className={classes.graphLayout} data-inspecting={selected ? true : undefined}>

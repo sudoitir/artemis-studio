@@ -5,7 +5,7 @@ conventional commit. Design refs are `design.md` D1–D10.
 
 ## 1. Groundwork
 
-- [ ] 1.1 Confirm via ctx7 the `elkjs` version to pin, its worker entry for Vite, and the `layerChoiceConstraint` option key; confirm `useReducedMotion` in `@mantine/hooks` 9 and the React Flow 12 edge/`useStore` APIs used (D7, D8)
+- [x] 1.1 Confirm via ctx7 the `elkjs` version to pin, its worker entry for Vite, and the `layerChoiceConstraint` option key; confirm `useReducedMotion` in `@mantine/hooks` 9 and the React Flow 12 edge/`useStore` APIs used (D7, D8)
 - [x] 1.2 Against the project's Artemis image (existing `ArtemisIntegrationTest`), record the JSON fields of `listProducers`, `listConsumers`, `listSessions`, `listConnections` used by the sampler, and the bulk-exec response's total count (D3)
 - [x] 1.3 Accept ADR-0080 and ADR-0081 (status → accepted) and add them to the ADR index
 
@@ -47,7 +47,7 @@ conventional commit. Design refs are `design.md` D1–D10.
 - [x] 5.4 `FlowTable` on the existing virtualised table: kind, source → target, rate + source + age, nodes, faults; sort announcement; "measuring…" never sorted as zero
 - [x] 5.5 Empty, filtered-empty, focus-matches-nothing, loading placeholder states
 - [x] 5.6 RTL tests by role: bound text, URL-restored state, measuring vs zero, banners, empty states
-- [ ] 5.7 Commit layer 1 (`feat(flow): …`) after `just verify`
+- [x] 5.7 Commit layer 1 (`feat(flow): …`) after `just verify`
 
 ## 6. Layer 2 — Graph
 
@@ -59,7 +59,7 @@ conventional commit. Design refs are `design.md` D1–D10.
 - [x] 6.6 Path emphasis on hover/focus/select (others dimmed); focus via the inspector, the table and a find box; Esc clears. The "Focus flow on…" palette group is dropped: the palette renders on every cluster page, and a flow read there would renew the sampling lease with nobody watching (ADR-0081)
 - [x] 6.7 `FlowInspector` (Overview with queue sparkline via metrics, Members with links to resources close flows, Routing); focus returns to node on close
 - [x] 6.8 Screen-reader status summary; keyboard-only test (tab → Enter → Esc returns focus); Graph/Table parity test
-- [ ] 6.9 Commit layer 2 after `just verify`
+- [x] 6.9 Commit layer 2 after `just verify`
 
 ## 7. Layer 3 — Motion
 
@@ -68,18 +68,19 @@ conventional commit. Design refs are `design.md` D1–D10.
 - [x] 7.3 Pause control, `useReducedMotion` (no dots rendered), `document.hidden` and off-screen → `pauseAnimations()`; tests for reduced motion and Pause (operator-ui delta)
 - [x] 7.4 Node enter/exit transform transitions (200 ms), disabled under reduced motion
 - [ ] 7.5 Perf check: 200-edge canvas profile at 60 fps; record result in the PR
-- [ ] 7.6 Commit layer 3 after `just verify`
+- [x] 7.6 Commit layer 3 after `just verify` (landed together with layer 2 in one verified commit)
 
 ## 8. Layer 4 — Routing layers
 
-- [ ] 8.1 Layers parameter end to end (diverts, bridges, cluster on by default; DLQ/expiry, temporary, capture taps off)
-- [ ] 8.2 Queue filters on route edges (not carried by `queue_snapshot`; read with the routing objects). Diverts from `RoutingService`: exclusive "reroutes" with bypassed marks, copy, filter/transformer glyphs, "not counted by broker", partial presence fault
-- [ ] 8.3 Bridges: local vs remote destination node, Δ acknowledged rate from the bridge counter read in the same per-node sweep POST (bridge MBean names from a cached search), not-connected and partial presence faults
-- [ ] 8.4 Cluster hops from `$.artemis.internal.sf.*` queues to receiving node; internal addresses/queues excluded otherwise
-- [ ] 8.5 Wildcard matcher (default syntax) with stated assumption; `WildcardMatcherTest`
-- [ ] 8.6 Anonymous producer node; temporary queues collapsed per client; capture taps marked when shown
-- [ ] 8.7 DLA / expiry edges from address settings for shown addresses only, cached five minutes, through the limiter
-- [ ] 8.8 Service tests for each routing edge kind; IT with an exclusive and a copy divert against the real broker
+- [x] 8.0 Sampler reads routing in the same POST (divert/bridge pattern reads, filtered `listQueues` for store-and-forward / temporary / filtered queues, `getAddressSettingsAsJSON("#")`); `flow_route` cache (changeset 0002); IT against the real broker
+- [x] 8.1 Layers parameter end to end (diverts, bridges, cluster on by default; DLQ/expiry, temporary, capture taps off)
+- [x] 8.2 Queue filters on route edges (not carried by `queue_snapshot`; read with the routing objects). Diverts from `RoutingService`: exclusive "reroutes" with bypassed marks, copy, filter/transformer glyphs, "not counted by broker", partial presence fault
+- [x] 8.3 Bridges: local vs remote destination node, Δ acknowledged rate from the bridge pattern read in the same per-node sweep POST, not-connected and partial presence faults
+- [x] 8.4 Cluster hops from store-and-forward queues (sampled, not from `queue_snapshot`, which drops internal queues) to the receiving node; internal addresses/queues excluded otherwise
+- [x] 8.5 Wildcard matcher (default syntax) with stated assumption; `WildcardMatcherTest`
+- [x] 8.6 Anonymous producer node; temporary queues collapsed per client; capture taps marked when shown
+- [x] 8.7 DLA / expiry edges from the sampled `getAddressSettingsAsJSON("#")`, layer off by default
+- [x] 8.8 Service tests for each routing edge kind; IT with an exclusive and a copy divert against the real broker
 - [ ] 8.9 Commit layer 4 after `just verify`
 
 ## 9. Verification and docs
@@ -88,4 +89,4 @@ conventional commit. Design refs are `design.md` D1–D10.
 - [ ] 9.2 Close all flow views; confirm sampling stops within the lease (`studio.flow.sample.skipped{reason=no-lease}`)
 - [ ] 9.3 Contrast check of new tokens in light and dark; keyboard-only pass
 - [ ] 9.4 Site guide page for Flow with `just shots` screenshot
-- [ ] 9.5 `openspec validate flow-visualization --strict` passes
+- [x] 9.5 `openspec validate flow-visualization --strict` passes

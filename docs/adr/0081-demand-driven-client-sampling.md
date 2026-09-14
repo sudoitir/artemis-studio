@@ -33,8 +33,12 @@ result through the database.
 - **Who samples.** The sampler takes `ClusterLock` scope `FLOW_SAMPLE` per cluster and skips
   the cluster when the lock is held elsewhere. It never overlaps its own previous sweep.
 - **What it sends.** One bulk POST per serving node per sweep (scrape-scheduling):
-  - `listProducers` and `listConsumers`, nothing else. Their rows already carry client id,
-    user, protocol and remote address, so sessions and connections are never listed.
+  - `listProducers` and `listConsumers`. Their rows already carry client id, user, protocol and
+    remote address, so sessions and connections are never listed.
+  - The routing the flow graph draws, as further entries of the same POST: divert and bridge
+    attributes through Jolokia pattern reads, `listQueues` filtered to store-and-forward,
+    temporary and filtered queues, and the dead-letter and expiry addresses from
+    `getAddressSettingsAsJSON("#")`. The platform queue sweep keeps none of these.
   - Each listing is page 1 with a size capped by `flow.maxRowsPerNode`, and truncation is
     reported.
   - All of it goes through the per-node ceiling (ADR-0076).

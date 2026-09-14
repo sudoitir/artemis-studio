@@ -12,6 +12,7 @@ const KIND_WORD: Record<string, string> = {
   CONSUMER: 'Consuming client',
   ADDRESS: 'Address',
   QUEUE: 'Queue',
+  REMOTE: 'Remote',
 };
 
 function faultWords(view: FlowNodeView): string[] {
@@ -44,7 +45,7 @@ function Frame({
 }: {
   id: string;
   data: FlowNodeData;
-  shape: 'pill' | 'tag' | 'box';
+  shape: 'pill' | 'tag' | 'box' | 'hex';
   inbound: boolean;
   outbound: boolean;
   children: ReactNode;
@@ -98,6 +99,19 @@ export const ClientNode = memo(function ClientNode({ id, data }: NodeProps) {
   );
 });
 
+const ADDRESS_ROLE: Record<string, string> = {
+  ANONYMOUS: 'no address named — chosen per message',
+  DEAD_LETTER: 'dead-letter address',
+  EXPIRY: 'expiry address',
+  CAPTURE: "Studio's message capture",
+};
+
+const QUEUE_ROLE: Record<string, string> = {
+  STORE_AND_FORWARD: 'cluster redistribution',
+  TEMPORARY: 'short-lived reply queues',
+  CAPTURE: "Studio's message capture",
+};
+
 const DELIVERY: Record<string, string> = {
   MULTICAST: 'multicast · every queue gets a copy',
   ANYCAST: 'anycast · queues share',
@@ -107,6 +121,7 @@ export const AddressNode = memo(function AddressNode({ id, data }: NodeProps) {
   const d = data as FlowNodeData;
   const v = d.view;
   const routing = (v.routingTypes ?? []).map((t) => DELIVERY[t] ?? t.toLowerCase());
+  const role = v.role ? ADDRESS_ROLE[v.role] : undefined;
   return (
     <Frame id={id} data={d} shape="tag" inbound outbound>
       <div className={classes.head}>
@@ -114,7 +129,7 @@ export const AddressNode = memo(function AddressNode({ id, data }: NodeProps) {
           {v.label}
         </span>
       </div>
-      <span className={classes.meta}>{routing.length ? routing.join(' / ') : 'no queue bound'}</span>
+      <span className={classes.meta}>{role ?? (routing.length ? routing.join(' / ') : 'no queue bound')}</span>
     </Frame>
   );
 });
@@ -134,8 +149,27 @@ export const QueueNode = memo(function QueueNode({ id, data }: NodeProps) {
         <span className={classes.depthFill} style={{ inlineSize: `${Math.round(d.depth * 100)}%` }} />
       </span>
       <span className={classes.meta}>
-        {swept ? `${formatCount(v.messageCount!)} waiting · ${v.consumerCount ?? 0} consumers` : 'not swept yet'}
+        {v.role && QUEUE_ROLE[v.role]
+          ? QUEUE_ROLE[v.role]
+          : swept
+            ? `${formatCount(v.messageCount!)} waiting · ${v.consumerCount ?? 0} consumers`
+            : 'not swept yet'}
       </span>
+    </Frame>
+  );
+});
+
+export const RemoteNode = memo(function RemoteNode({ id, data }: NodeProps) {
+  const d = data as FlowNodeData;
+  const v = d.view;
+  return (
+    <Frame id={id} data={d} shape="hex" inbound outbound={false}>
+      <div className={classes.head}>
+        <span className={classes.label} title={v.label}>
+          {v.label}
+        </span>
+      </div>
+      <span className={classes.meta}>{v.role === 'CLUSTER_NODE' ? 'another node of this cluster' : 'outside this cluster'}</span>
     </Frame>
   );
 });

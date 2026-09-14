@@ -8,7 +8,7 @@ import type { FlowEdgeView, FlowGraphView, FlowNodeView } from './api.ts';
  * tested with the real engine and run unchanged in a web worker.
  */
 
-export const COLUMNS = ['PRODUCER', 'ADDRESS', 'QUEUE', 'CONSUMER'] as const;
+export const COLUMNS = ['PRODUCER', 'ADDRESS', 'QUEUE', 'CONSUMER', 'REMOTE'] as const;
 export type Column = (typeof COLUMNS)[number];
 
 export const COLUMN_TITLES: Record<Column, string> = {
@@ -16,6 +16,7 @@ export const COLUMN_TITLES: Record<Column, string> = {
   ADDRESS: 'Addresses',
   QUEUE: 'Queues',
   CONSUMER: 'Consumers',
+  REMOTE: 'Other nodes and brokers',
 };
 
 export const NODE_SIZE: Record<Column, { width: number; height: number }> = {
@@ -23,6 +24,7 @@ export const NODE_SIZE: Record<Column, { width: number; height: number }> = {
   ADDRESS: { width: 208, height: 58 },
   QUEUE: { width: 228, height: 78 },
   CONSUMER: { width: 216, height: 64 },
+  REMOTE: { width: 208, height: 60 },
 };
 
 /** Above this many nodes the canvas renders only what is on screen and shows a minimap (ADR-0056). */
@@ -76,6 +78,10 @@ export function toElkGraph(graph: FlowGraphView): ElkNode {
       'elk.algorithm': 'layered',
       'elk.direction': 'RIGHT',
       'elk.partitioning.activate': 'true',
+      // Unrelated paths are separate components, and ELK lays components out one by one and packs
+      // them side by side — which would put a later column's node left of an earlier one. One layout
+      // for the whole graph keeps every column where the partitions say.
+      'elk.separateConnectedComponents': 'false',
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
       'elk.layered.spacing.nodeNodeBetweenLayers': '132',
       'elk.spacing.nodeNode': '22',
@@ -138,7 +144,7 @@ export function toReactFlow(
   const deepest = Math.max(1, ...placed.map((n) => n.messageCount ?? 0));
   const nodes: Node[] = placed.map((n) => ({
     id: n.id!,
-    type: column(n) === 'QUEUE' ? 'queue' : column(n) === 'ADDRESS' ? 'address' : 'client',
+    type: { QUEUE: 'queue', ADDRESS: 'address', REMOTE: 'remote', PRODUCER: 'client', CONSUMER: 'client' }[column(n)],
     position: positions[n.id!],
     ...NODE_SIZE[column(n)],
     draggable: false,

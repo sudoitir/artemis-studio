@@ -39,6 +39,42 @@ public class FlowStore {
             String error,
             String errorKind) {}
 
+    /** What a routing row describes (ADR-0081): the objects the flow graph draws beyond clients. */
+    public enum RouteKind {
+        DIVERT,
+        BRIDGE,
+        STORE_AND_FORWARD,
+        TEMPORARY_QUEUE,
+        QUEUE_FILTER,
+        DEAD_LETTER,
+        EXPIRY
+    }
+
+    /**
+     * One sampled routing object on one node.
+     *
+     * @param source a divert's or bridge's origin (address or queue); a queue row's address
+     * @param target a divert's or bridge's forwarding address; a queue row's queue name; a
+     *     store-and-forward queue's receiving node id; a dead-letter or expiry address
+     * @param counter the broker counter a rate is taken from (bridge acknowledged, store-and-forward
+     *     added); 0 when the object has none
+     * @param rate messages per second since the previous sweep, or null when not computable
+     */
+    public record Route(
+            RouteKind kind,
+            String name,
+            String source,
+            String target,
+            String filter,
+            String transformer,
+            boolean exclusive,
+            boolean connected,
+            long counter,
+            Double rate) {}
+
+    /** A persisted routing row as a reader sees it. */
+    public record StoredRoute(UUID nodeId, Instant sampledAt, Route route) {}
+
     /** A persisted client edge as a reader sees it. */
     public record StoredEdge(UUID nodeId, Instant sampledAt, Edge edge) {}
 
@@ -76,6 +112,24 @@ public class FlowStore {
                cluster_id      = EXCLUDED.cluster_id
             """;
 
+    private static final String UPSERT_ROUTE = """
+            INSERT INTO flow_route
+              (sampled_at, rate, counter, kind, name, source, target, filter, transformer,
+               node_id, cluster_id, exclusive, connected)
+            VALUES
+              (:sampledAt, :rate, :counter, :kind, :name, :source, :target, :filter, :transformer,
+               :nodeId, :clusterId, :exclusive, :connected)
+            ON CONFLICT (node_id, kind, name, source, target) DO UPDATE SET
+               sampled_at  = EXCLUDED.sampled_at,
+               rate        = EXCLUDED.rate,
+               counter     = EXCLUDED.counter,
+               filter      = EXCLUDED.filter,
+               transformer = EXCLUDED.transformer,
+               cluster_id  = EXCLUDED.cluster_id,
+               exclusive   = EXCLUDED.exclusive,
+               connected   = EXCLUDED.connected
+            """;
+
     private final NamedParameterJdbcTemplate jdbc;
 
     /** Extend a cluster's observation lease to at least {@code until}; never shortens it. */
@@ -101,7 +155,7 @@ public class FlowStore {
      * being shown instead of being shown stale.
      */
     @Transactional
-    public void persistNode(NodeSample sample, List<Edge> edges) {
+    public void persistNode(NodeSample sample, List<Edge> edges, List<Route> routes) {
         if (!edges.isEmpty()) {
             SqlParameterSource[] rows =
                     edges.stream().map(e -> edgeParams(sample, e)).toArray(SqlParameterSource[]::new);
@@ -109,6 +163,15 @@ public class FlowStore {
         }
         jdbc.update(
                 "DELETE FROM flow_client_edge WHERE node_id = :nodeId AND sampled_at < :sampledAt",
+                new MapSqlParameterSource("nodeId", sample.nodeId())
+                        .addValue("sampledAt", Timestamp.from(sample.sampledAt())));
+        if (!routes.isEmpty()) {
+            jdbc.batchUpdate(
+                    UPSERT_ROUTE,
+                    routes.stream().map(r -> routeParams(sample, r)).toArray(SqlParameterSource[]::new));
+        }
+        jdbc.update(
+                "DELETE FROM flow_route WHERE node_id = :nodeId AND sampled_at < :sampledAt",
                 new MapSqlParameterSource("nodeId", sample.nodeId())
                         .addValue("sampledAt", Timestamp.from(sample.sampledAt())));
         jdbc.update(UPSERT_NODE, nodeParams(sample));
@@ -121,6 +184,7 @@ public class FlowStore {
         String stale = "SELECT cluster_id FROM flow_demand WHERE observed_until < :before";
         jdbc.update("DELETE FROM flow_client_edge WHERE cluster_id IN (" + stale + ")", p);
         jdbc.update("DELETE FROM flow_node_sample WHERE cluster_id IN (" + stale + ")", p);
+        jdbc.update("DELETE FROM flow_route WHERE cluster_id IN (" + stale + ")", p);
         jdbc.update("DELETE FROM flow_demand WHERE observed_until < :before", p);
     }
 
@@ -148,6 +212,43 @@ public class FlowStore {
                         rs.getInt("consumers_total"),
                         rs.getString("error"),
                         rs.getString("error_kind")));
+    }
+
+    public List<StoredRoute> routes(UUID clusterId) {
+        return jdbc.query(
+                "SELECT * FROM flow_route WHERE cluster_id = :clusterId",
+                Map.of("clusterId", clusterId),
+                (rs, i) -> new StoredRoute(
+                        rs.getObject("node_id", UUID.class),
+                        rs.getTimestamp("sampled_at").toInstant(),
+                        new Route(
+                                RouteKind.valueOf(rs.getString("kind")),
+                                rs.getString("name"),
+                                rs.getString("source"),
+                                rs.getString("target"),
+                                rs.getString("filter"),
+                                rs.getString("transformer"),
+                                rs.getBoolean("exclusive"),
+                                rs.getBoolean("connected"),
+                                rs.getLong("counter"),
+                                rs.getObject("rate", Double.class))));
+    }
+
+    private static SqlParameterSource routeParams(NodeSample s, Route r) {
+        return new MapSqlParameterSource()
+                .addValue("sampledAt", Timestamp.from(s.sampledAt()))
+                .addValue("rate", r.rate())
+                .addValue("counter", r.counter())
+                .addValue("kind", r.kind().name())
+                .addValue("name", r.name() == null ? "" : r.name())
+                .addValue("source", r.source() == null ? "" : r.source())
+                .addValue("target", r.target() == null ? "" : r.target())
+                .addValue("filter", r.filter())
+                .addValue("transformer", r.transformer())
+                .addValue("nodeId", s.nodeId())
+                .addValue("clusterId", s.clusterId())
+                .addValue("exclusive", r.exclusive())
+                .addValue("connected", r.connected());
     }
 
     private static Edge edge(ResultSet rs) throws SQLException {

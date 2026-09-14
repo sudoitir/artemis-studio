@@ -4,20 +4,16 @@ import { Text } from '@mantine/core';
 import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import type { FlowEdgeView, FlowGraphView, FlowNodeView } from './api.ts';
-import { FAULT_LABELS, rateLabel, rateSortValue, rateSourceLabel } from './flowFormat.ts';
+import { edgeText, FAULT_LABELS, RELATION, rateSortValue, rateSourceLabel } from './flowFormat.ts';
 import classes from './FlowView.module.css';
 
-const RELATION: Record<string, string> = {
-  PRODUCE: 'produces to',
-  ROUTE: 'routes to',
-  CONSUME: 'consumed by',
-};
 
 const KIND: Record<string, string> = {
   PRODUCER: 'client',
   ADDRESS: 'address',
   QUEUE: 'queue',
   CONSUMER: 'client',
+  REMOTE: 'remote',
 };
 
 interface Row {
@@ -56,10 +52,10 @@ export function FlowTable({
       sortKey: 'rate',
       numeric: true,
       width: 150,
-      accessor: (r) => rateLabel(r.edge),
+      accessor: (r) => edgeText(r.edge),
       cell: (r) => (
         <Text size="sm" className={r.edge.stale ? classes.stale : classes.figure}>
-          {rateLabel(r.edge)}
+          {edgeText(r.edge)}
         </Text>
       ),
     },
@@ -153,6 +149,14 @@ function focusFor(row: Row): string | null {
       return row.to ? `client:${row.to.label}` : null;
     case 'ROUTE':
       return row.to ? `queue:${row.to.label}` : null;
+    case 'DIVERT':
+    case 'WILDCARD':
+    case 'DEAD_LETTER':
+    case 'EXPIRY':
+      return row.to?.kind === 'ADDRESS' ? `address:${row.to.label}` : null;
+    case 'BRIDGE':
+    case 'CLUSTER_HOP':
+      return row.from ? `queue:${row.from.label}` : null;
     default:
       return null;
   }

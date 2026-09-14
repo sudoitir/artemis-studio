@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.flow;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -20,7 +21,9 @@ import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowEdgeView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowGraphView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowNodeView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeKind;
+import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeRole;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeSampleState;
+import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.RateSource;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -60,6 +63,8 @@ class FlowGraphServiceTest {
     private final List<QueueSnapshot> queues = new ArrayList<>();
     private final List<StoredEdge> edges = new ArrayList<>();
     private final List<NodeSample> samples = new ArrayList<>();
+    private final List<FlowStore.StoredRoute> routes = new ArrayList<>();
+    private final UUID nodeB = UUID.randomUUID();
     private final Map<String, SubjectRate> added = new HashMap<>();
     private final Map<String, SubjectRate> acked = new HashMap<>();
 
@@ -76,6 +81,7 @@ class FlowGraphServiceTest {
         when(snapshots.forCluster(clusterId)).thenReturn(queues);
         when(store.edges(clusterId)).thenReturn(edges);
         when(store.nodeSamples(clusterId)).thenReturn(samples);
+        when(store.routes(clusterId)).thenReturn(routes);
         when(metrics.latestRateWithTimeBySubject(eq(clusterId), eq("messagesAdded"), any(), any()))
                 .thenReturn(added);
         when(metrics.latestRateWithTimeBySubject(eq(clusterId), eq("messagesAcked"), any(), any()))
@@ -146,7 +152,7 @@ class FlowGraphServiceTest {
             rate(added, "q" + i, Math.pow(10, i / 5.0), Duration.ofSeconds(15));
         }
 
-        FlowGraphView graph = service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 500, GroupBy.CLIENT_ID));
+        FlowGraphView graph = service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 500, GroupBy.CLIENT_ID, null));
         FlowGraphView top = service.graph(clusterId, query(null, 3));
 
         assertThat(graph.totals().clamped()).isTrue();
@@ -195,7 +201,8 @@ class FlowGraphServiceTest {
         edge(Kind.CONSUME, "billing", "refunds", "refunds", 1.0, 1, false);
 
         FlowGraphView one = service.graph(clusterId, query("queue:orders", 40));
-        FlowGraphView two = service.graph(clusterId, FlowQuery.of("queue:orders", 2, Rank.IN, 40, GroupBy.CLIENT_ID));
+        FlowGraphView two =
+                service.graph(clusterId, FlowQuery.of("queue:orders", 2, Rank.IN, 40, GroupBy.CLIENT_ID, null));
         FlowGraphView none = service.graph(clusterId, query("queue:gone", 40));
 
         assertThat(one.nodes()).extracting(FlowNodeView::id).doesNotContain("queue:refunds");
@@ -216,7 +223,7 @@ class FlowGraphServiceTest {
                 now,
                 new Edge(Kind.CONSUME, "b", "u2", "10.0.0.5", "AMQP", "orders", "orders", 2.0, 0, 1, false)));
 
-        FlowGraphView byHost = service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.HOST));
+        FlowGraphView byHost = service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.HOST, null));
         FlowGraphView byClient = service.graph(clusterId, query(null, 40));
 
         assertThat(byHost.nodes())
@@ -278,8 +285,238 @@ class FlowGraphServiceTest {
         assertThat(graph.totals().paths()).isZero();
     }
 
+    @Test
+    void anExclusiveDivertReroutesMarksTheAddressesQueuesBypassedAndStatesPartialPresence() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        samples.add(sample(null, 1, 1));
+        samples.add(new NodeSample(nodeB, clusterId, now, 1, 1, 1, 1, null, null));
+        route(nodeA, FlowStore.RouteKind.DIVERT, "orders-audit", "ORDERS", "AUDIT", null, true, true, null);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        FlowEdgeView divert = edge(graph, EdgeKind.DIVERT);
+        assertThat(divert.source()).isEqualTo("address:ORDERS");
+        assertThat(divert.target()).isEqualTo("address:AUDIT");
+        assertThat(divert.exclusive()).isTrue();
+        assertThat(divert.rateSource()).isEqualTo(RateSource.NONE);
+        assertThat(divert.rate()).isNull();
+        assertThat(divert.presentOn()).isEqualTo(1);
+        assertThat(divert.presentOf()).isEqualTo(2);
+        assertThat(divert.faults()).containsExactly(Fault.PARTIAL_PRESENCE);
+        assertThat(edge(graph, EdgeKind.ROUTE).bypassed()).isTrue();
+        assertThat(graph.kpis().faults()).isEqualTo(1);
+    }
+
+    @Test
+    void aBridgeToAnAddressOutsideTheClusterIsRemoteAndItsOutageIsAFault() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        samples.add(sample(null, 1, 1));
+        route(nodeA, FlowStore.RouteKind.BRIDGE, "to-dc2", "ORDERS.in", "dc2.orders", null, false, false, 5.0);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        FlowEdgeView bridge = edge(graph, EdgeKind.BRIDGE);
+        assertThat(bridge.target()).isEqualTo("remote:bridge:dc2.orders");
+        assertThat(bridge.rate()).isEqualTo(5.0);
+        assertThat(bridge.faults()).containsExactly(Fault.BRIDGE_DOWN);
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.kind() == NodeKind.REMOTE)
+                .singleElement()
+                .satisfies(n -> assertThat(n.role()).isEqualTo(NodeRole.BRIDGE_TARGET));
+    }
+
+    @Test
+    void aStoreAndForwardQueueHopsToTheNodeItIsNamedForOnlyWithTheClusterLayer() {
+        ClusterNode a = mock(ClusterNode.class);
+        when(a.getId()).thenReturn(nodeA);
+        when(a.getName()).thenReturn("node-a");
+        ClusterNode b = mock(ClusterNode.class);
+        when(b.getId()).thenReturn(nodeB);
+        when(b.getName()).thenReturn("node-b");
+        when(b.getArtemisNodeId()).thenReturn("abc-123");
+        when(directory.nodes(clusterId)).thenReturn(List.of(a, b));
+        route(
+                nodeA,
+                FlowStore.RouteKind.STORE_AND_FORWARD,
+                "$.artemis.internal.sf.demo.abc-123",
+                "$.artemis.internal.sf.demo.abc-123",
+                "abc-123",
+                null,
+                false,
+                true,
+                7.0);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+        FlowGraphView without =
+                service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "DIVERTS"));
+
+        FlowEdgeView hop = edge(graph, EdgeKind.CLUSTER_HOP);
+        assertThat(hop.rate()).isEqualTo(7.0);
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.id().equals(hop.target()))
+                .singleElement()
+                .satisfies(n -> {
+                    assertThat(n.label()).isEqualTo("node-b");
+                    assertThat(n.role()).isEqualTo(NodeRole.CLUSTER_NODE);
+                });
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.id().equals(hop.source()))
+                .singleElement()
+                .satisfies(n -> assertThat(n.role()).isEqualTo(NodeRole.STORE_AND_FORWARD));
+        assertThat(without.edges()).noneMatch(e -> e.kind() == EdgeKind.CLUSTER_HOP);
+    }
+
+    @Test
+    void temporaryQueuesCollapseIntoOneNodePerClientOnlyWhenAsked() {
+        route(nodeA, FlowStore.RouteKind.TEMPORARY_QUEUE, "tmp.1", "tmp.1", "tmp.1", null, false, true, null);
+        route(nodeA, FlowStore.RouteKind.TEMPORARY_QUEUE, "tmp.2", "tmp.2", "tmp.2", null, false, true, null);
+        edge(Kind.CONSUME, "rpc-client", "tmp.1", "tmp.1", 1.0, 1, false);
+        edge(Kind.CONSUME, "rpc-client", "tmp.2", "tmp.2", 2.0, 1, false);
+
+        FlowGraphView hidden = service.graph(clusterId, query(null, 40));
+        FlowGraphView shown =
+                service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "TEMPORARY"));
+
+        assertThat(hidden.nodes()).isEmpty();
+        assertThat(shown.nodes())
+                .filteredOn(n -> n.kind() == NodeKind.QUEUE)
+                .singleElement()
+                .satisfies(n -> {
+                    assertThat(n.label()).isEqualTo("temporary queues ×2");
+                    assertThat(n.role()).isEqualTo(NodeRole.TEMPORARY);
+                });
+        assertThat(edge(shown, EdgeKind.CONSUME).rate()).isEqualTo(3.0);
+    }
+
+    @Test
+    void aWildcardSubscriptionIsJoinedToTheAddressesItMatchesAndSaysWhatItAssumes() {
+        queue("orders.all", "orders.#", "MULTICAST", 0, 1);
+        edge(Kind.PRODUCE, "shop", "orders.eu", "", 3.0, 1, false);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        FlowEdgeView wildcard = edge(graph, EdgeKind.WILDCARD);
+        assertThat(wildcard.source()).isEqualTo("address:orders.eu");
+        assertThat(wildcard.target()).isEqualTo("address:orders.#");
+        assertThat(graph.assumptions()).containsExactly(FlowGraphService.WILDCARD_ASSUMPTION);
+    }
+
+    @Test
+    void anAnonymousProducerIsDrawnToItsOwnNodeRatherThanOmitted() {
+        edge(Kind.PRODUCE, "legacy-app", "", "", 4.0, 1, false);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.kind() == NodeKind.ADDRESS)
+                .singleElement()
+                .satisfies(n -> {
+                    assertThat(n.role()).isEqualTo(NodeRole.ANONYMOUS);
+                    assertThat(n.label()).contains("chosen per message");
+                });
+        assertThat(edge(graph, EdgeKind.PRODUCE).rate()).isEqualTo(4.0);
+    }
+
+    @Test
+    void studioCaptureTapsAreHiddenUnlessTheirLayerIsOn() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        queue("artemis-studio.capture.x.q", "artemis-studio.capture.x.q", "ANYCAST", 0, 1);
+        route(
+                nodeA,
+                FlowStore.RouteKind.DIVERT,
+                "artemis-studio.capture.x",
+                "ORDERS",
+                "artemis-studio.capture.x.q",
+                null,
+                false,
+                true,
+                null);
+
+        FlowGraphView hidden = service.graph(clusterId, query(null, 40));
+        FlowGraphView shown =
+                service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "DIVERTS,CAPTURE"));
+
+        assertThat(hidden.nodes()).noneMatch(n -> n.label().startsWith("artemis-studio.capture"));
+        assertThat(hidden.edges()).noneMatch(e -> e.kind() == EdgeKind.DIVERT);
+        assertThat(edge(shown, EdgeKind.DIVERT).studio()).isTrue();
+    }
+
+    @Test
+    void aFilteredQueueCarriesItsFilterOnItsRoute() {
+        queue("ORDERS.red", "ORDERS", "MULTICAST", 0, 1);
+        route(
+                nodeA,
+                FlowStore.RouteKind.QUEUE_FILTER,
+                "ORDERS.red",
+                "ORDERS",
+                "ORDERS.red",
+                "color='red'",
+                false,
+                true,
+                null);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(edge(graph, EdgeKind.ROUTE).filter()).isEqualTo("color='red'");
+    }
+
+    @Test
+    void deadLetterRoutesAreDrawnOnlyWithTheirLayer() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        route(nodeA, FlowStore.RouteKind.DEAD_LETTER, "#", "#", "DLQ", null, false, true, null);
+
+        FlowGraphView hidden = service.graph(clusterId, query(null, 40));
+        FlowGraphView shown =
+                service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "DEAD_LETTER"));
+
+        assertThat(hidden.edges()).noneMatch(e -> e.kind() == EdgeKind.DEAD_LETTER);
+        FlowEdgeView dla = edge(shown, EdgeKind.DEAD_LETTER);
+        assertThat(dla.target()).isEqualTo("address:DLQ");
+        assertThat(shown.nodes())
+                .filteredOn(n -> n.id().equals("address:DLQ"))
+                .singleElement()
+                .satisfies(n -> assertThat(n.role()).isEqualTo(NodeRole.DEAD_LETTER));
+    }
+
+    @Test
+    void anUnknownLayerIsRefusedAndBlankMeansTheDefaults() {
+        assertThatThrownBy(() -> FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "diverts,bogus"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bogus");
+        assertThat(FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, " ").layers())
+                .isEqualTo(FlowQuery.DEFAULT_LAYERS);
+    }
+
+    @Test
+    void aNodeWhoseRoutingCouldNotBeReadSaysSoWhileItsClientsStayShown() {
+        samples.add(new NodeSample(nodeA, clusterId, now, 1, 1, 1, 1, "divert read refused", "ROUTING_UNAVAILABLE"));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(graph.brokerNodes()).singleElement().satisfies(n -> {
+            assertThat(n.state()).isEqualTo(NodeSampleState.ROUTING_UNAVAILABLE);
+            assertThat(n.message()).contains("divert read refused");
+        });
+    }
+
+    private void route(
+            UUID node,
+            FlowStore.RouteKind kind,
+            String name,
+            String source,
+            String target,
+            String filter,
+            boolean exclusive,
+            boolean connected,
+            Double rate) {
+        routes.add(new FlowStore.StoredRoute(
+                node,
+                now.minusSeconds(5),
+                new FlowStore.Route(kind, name, source, target, filter, null, exclusive, connected, 0, rate)));
+    }
+
     private FlowQuery query(String focus, int limit) {
-        return FlowQuery.of(focus, 1, Rank.IN, limit, GroupBy.CLIENT_ID);
+        return FlowQuery.of(focus, 1, Rank.IN, limit, GroupBy.CLIENT_ID, null);
     }
 
     private void queue(String name, String address, String routingType, long messages, long consumers) {

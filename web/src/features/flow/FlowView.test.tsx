@@ -177,6 +177,16 @@ describe('FlowView', () => {
     }
   });
 
+  it('turns a routing layer on through the URL', async () => {
+    serve(graph());
+    renderWithProviders(<FlowView />);
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Dead letter & expiry' }));
+
+    const call = routerState.navigate.mock.calls.at(-1)?.[0] as { search: (prev: object) => Record<string, unknown> };
+    expect(call.search({})).toEqual({ layers: 'BRIDGES,CLUSTER,DEAD_LETTER,DIVERTS' });
+  });
+
   it('offers ranking, grouping and the bound as labelled controls', async () => {
     routerState.search = { tab: 'table' };
     serve(graph());

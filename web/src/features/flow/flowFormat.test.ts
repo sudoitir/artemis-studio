@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { rateLabel, rateSortValue, rateSourceLabel, totalRateLabel } from './flowFormat.ts';
+import { edgeText, rateLabel, rateSortValue, rateSourceLabel, totalRateLabel } from './flowFormat.ts';
 import { flowQueryString } from './api.ts';
-import { parseFocus, validateFlowSearch } from './flowSearch.ts';
+import { layersParam, parseFocus, parseLayers, validateFlowSearch } from './flowSearch.ts';
 
 describe('flow formatting', () => {
   it('never shows an unknown rate as zero', () => {
@@ -27,12 +27,49 @@ describe('flow formatting', () => {
   });
 });
 
+describe('routing edge text', () => {
+  it('says what a divert does, where it is missing, and that the broker does not count it', () => {
+    expect(
+      edgeText({
+        kind: 'DIVERT',
+        exclusive: true,
+        filter: "color='red'",
+        rateSource: 'NONE',
+        stale: false,
+        bypassed: false,
+        studio: false,
+        presentOn: 1,
+        presentOf: 2,
+        faults: ['PARTIAL_PRESENCE'],
+      }),
+    ).toBe('reroutes · filtered · not counted by broker · on 1 of 2 nodes');
+  });
+
+  it('names a bridge that is down, a bypassed route and a wildcard match in words', () => {
+    expect(
+      edgeText({ kind: 'BRIDGE', rate: 5, rateSource: 'SAMPLER', stale: false, bypassed: false, studio: false, faults: ['BRIDGE_DOWN'] }),
+    ).toBe('bridge · 5 msg/s · not connected');
+    expect(
+      edgeText({ kind: 'ROUTE', delivery: 'SHARED', rateSource: 'QUEUE_METRIC', rate: 2, stale: false, bypassed: true, studio: false, faults: [] }),
+    ).toBe('shared · bypassed by an exclusive divert · 2 msg/s');
+    expect(edgeText({ kind: 'WILDCARD', rateSource: 'NONE', stale: false, bypassed: false, studio: false, faults: [] })).toBe('matches');
+  });
+});
+
 describe('flow search', () => {
   it('keeps only valid, non-default values', () => {
     expect(
       validateFlowSearch({ focus: 'queue:ORDERS.inbound', rank: 'IN', limit: '100', groupBy: 'HOST', hops: '9', sort: 'bad sort' }),
     ).toEqual({ focus: 'queue:ORDERS.inbound', limit: 100, groupBy: 'HOST' });
     expect(validateFlowSearch({ focus: 'orders' })).toEqual({});
+  });
+
+  it('keeps the default layers out of the URL and says NONE for no layers', () => {
+    expect(parseLayers(undefined)).toEqual(['BRIDGES', 'CLUSTER', 'DIVERTS']);
+    expect(layersParam(['DIVERTS', 'CLUSTER', 'BRIDGES'])).toBeUndefined();
+    expect(layersParam([])).toBe('NONE');
+    expect(parseLayers('NONE')).toEqual([]);
+    expect(validateFlowSearch({ layers: 'dead_letter,diverts,bogus' })).toEqual({ layers: 'DEAD_LETTER,DIVERTS' });
   });
 
   it('parses a focus with a colon in its name', () => {

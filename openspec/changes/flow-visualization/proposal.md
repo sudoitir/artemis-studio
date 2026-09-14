@@ -51,10 +51,10 @@ are stored, client lists and routing objects are readable.
 
 ## Impact
 
-- **Backend**: new module `feature/flow` (sampler, graph assembly, controller, three tables
-  under `db/changelog/feature/flow/`); `kernel/stream/SseHub` gains a per-topic subscriber
-  query; `platform/clusters/ClusterLock` gains a scope; `platform/scrape/MetricSamples`
-  gains a latest-rate-with-timestamp read; `feature/routing/RoutingService` is read.
+- **Backend**: new module `feature/flow` (sampler, graph assembly, controller, four tables
+  under `db/changelog/feature/flow/`); `platform/clusters/ClusterLock` gains a scope;
+  `platform/scrape/MetricSamples` gains a per-node latest-rate-with-timestamp read; the
+  `feature.queues` divert and bridge parsers are reused on Jolokia pattern reads.
 - **API**: `GET /api/v1/clusters/{id}/flow`; SSE topic `flow`.
 - **Frontend**: new feature `web/src/features/flow`; new dependency `elkjs`; new
   `--as-flow-*` tokens.

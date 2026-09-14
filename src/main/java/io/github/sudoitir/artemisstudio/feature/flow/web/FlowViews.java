@@ -12,13 +12,43 @@ public final class FlowViews {
         PRODUCER,
         ADDRESS,
         QUEUE,
-        CONSUMER
+        CONSUMER,
+        /** Outside what the graph's columns hold: another cluster node, or a bridge's remote target. */
+        REMOTE
+    }
+
+    /** What a node stands for when it is not an ordinary client, address or queue. */
+    public enum NodeRole {
+        /** A queue a cluster connection moves messages through to another node. */
+        STORE_AND_FORWARD,
+        /** Several temporary queues of one client, collapsed into one node. */
+        TEMPORARY,
+        /** Where producers that name no address send: the address is chosen per message. */
+        ANONYMOUS,
+        /** A queue or address Studio's message capture owns. */
+        CAPTURE,
+        DEAD_LETTER,
+        EXPIRY,
+        /** A broker node of this cluster, reached through store-and-forward. */
+        CLUSTER_NODE,
+        /** A bridge target that is not an address of this cluster. */
+        BRIDGE_TARGET
     }
 
     public enum EdgeKind {
         PRODUCE,
         ROUTE,
-        CONSUME
+        CONSUME,
+        /** An address's messages taken (exclusive) or copied to another address. Not counted by the broker. */
+        DIVERT,
+        /** A queue forwarded to an address, locally or on another broker. */
+        BRIDGE,
+        /** Messages a node moves to another node of the cluster. */
+        CLUSTER_HOP,
+        /** A concrete address whose messages also reach a wildcard address's queues. */
+        WILDCARD,
+        DEAD_LETTER,
+        EXPIRY
     }
 
     /** Where an edge's rate came from. {@code NONE}: the broker keeps no count for it. */
@@ -40,7 +70,11 @@ public final class FlowViews {
         /** Messages are waiting on a queue that has no consumer. */
         NO_CONSUMER,
         /** Unacknowledged messages outstanding and nothing acknowledged for two sweeps. */
-        STALLED
+        STALLED,
+        /** A bridge that is not connected to its target on every node it is deployed on. */
+        BRIDGE_DOWN,
+        /** A divert or bridge deployed on only some of the sampled nodes. */
+        PARTIAL_PRESENCE
     }
 
     /** A serving node's part in the latest sweep. */
@@ -49,12 +83,15 @@ public final class FlowViews {
         UNREACHABLE,
         PERMISSION_DENIED,
         COUNTER_UNAVAILABLE,
+        ROUTING_UNAVAILABLE,
         FAILED
     }
 
     /**
-     * @param members connections or consumers a client node stands for; null for addresses and queues
-     * @param messageCount waiting messages on a queue; null for other kinds
+     * @param role what the node stands for beyond its kind; null for an ordinary client, address or queue
+     * @param members connections or consumers a client node stands for, or temporary queues a collapsed
+     *     node stands for; null otherwise
+     * @param messageCount waiting messages on a queue; null for other kinds and for a queue not swept yet
      * @param consumerCount consumers attached to a queue; null for other kinds
      * @param routingTypes an address's routing types; empty for other kinds
      * @param brokerNodes names of the nodes this resource or client was seen on
@@ -62,6 +99,7 @@ public final class FlowViews {
     public record FlowNodeView(
             String id,
             NodeKind kind,
+            NodeRole role,
             String label,
             Integer members,
             Long messageCount,
@@ -79,7 +117,15 @@ public final class FlowViews {
      * @param averagedOverSeconds set when the rate is an average over a span much longer than a sweep
      * @param stale the rate is older than three of its source's intervals
      * @param delivery for a route edge, whether its queue receives copies or shares
-     * @param members producers or consumers the edge aggregates; null for a route
+     * @param members producers or consumers the edge aggregates; null otherwise
+     * @param exclusive for a divert, whether it takes the message rather than copying it
+     * @param filter a divert's, bridge's or filtered queue's selector
+     * @param transformer a divert's or bridge's transformer class
+     * @param bypassed for a route edge, an exclusive divert without a filter takes this address's
+     *     messages before they reach the queue
+     * @param presentOn nodes a divert or bridge is deployed on; null for other kinds
+     * @param presentOf nodes sampled, against which {@code presentOn} is counted
+     * @param studio the object is Studio's own (a capture tap)
      */
     public record FlowEdgeView(
             String id,
@@ -93,6 +139,13 @@ public final class FlowViews {
             boolean stale,
             Delivery delivery,
             Integer members,
+            Boolean exclusive,
+            String filter,
+            String transformer,
+            boolean bypassed,
+            Integer presentOn,
+            Integer presentOf,
+            boolean studio,
             List<Fault> faults) {}
 
     /** Totals over every path in the cluster, not only the shown ones. Rates are null when none is known. */
@@ -129,6 +182,8 @@ public final class FlowViews {
     /**
      * @param sampledAt the newest client sample; null before the first sweep
      * @param measuring no sweep has completed since this cluster became observed
+     * @param layers the routing layers drawn
+     * @param assumptions what the drawing assumes and cannot read from the broker, in words
      */
     public record FlowGraphView(
             List<FlowNodeView> nodes,
@@ -139,5 +194,7 @@ public final class FlowViews {
             Instant sampledAt,
             boolean measuring,
             long sampleIntervalSeconds,
+            List<String> layers,
+            List<String> assumptions,
             List<FlowBrokerNodeView> brokerNodes) {}
 }

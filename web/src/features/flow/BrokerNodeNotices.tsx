@@ -7,6 +7,7 @@ const TITLES: Record<string, string> = {
   UNREACHABLE: 'did not answer',
   PERMISSION_DENIED: 'refused to list clients',
   COUNTER_UNAVAILABLE: 'reports no rate counters',
+  ROUTING_UNAVAILABLE: 'could not read its routing',
   FAILED: 'sampling failed',
 };
 
@@ -25,7 +26,7 @@ export function BrokerNodeNotices({ nodes }: { nodes: FlowBrokerNodeView[] }) {
         <Alert
           key={node.nodeId}
           variant="light"
-          color={node.state === 'COUNTER_UNAVAILABLE' ? 'gray' : 'yellow'}
+          color={node.state === 'COUNTER_UNAVAILABLE' || node.state === 'ROUTING_UNAVAILABLE' ? 'gray' : 'yellow'}
           title={`${node.name ?? 'A node'} ${TITLES[node.state ?? 'FAILED'] ?? TITLES.FAILED}`}
         >
           <Stack gap="xs">

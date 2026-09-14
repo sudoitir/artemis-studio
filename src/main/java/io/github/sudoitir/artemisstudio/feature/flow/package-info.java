@@ -5,6 +5,7 @@
 @ApplicationModule(
         displayName = "Flow",
         allowedDependencies = {
+            "feature.queues",
             "kernel.core",
             "kernel.jobs",
             "kernel.plugin",
