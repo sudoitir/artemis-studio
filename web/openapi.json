@@ -7148,6 +7148,30 @@
           }
         }
       },
+      "RedactionView" : {
+        "type" : "object",
+        "properties" : {
+          "location" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "dataClass" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "clear" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "action", "clear", "dataClass", "label", "location", "path" ]
+      },
       "ResultView" : {
         "type" : "object",
         "description" : "A finished query, without its rows: those arrived as row frames.",
@@ -7272,6 +7296,20 @@
             "type" : "integer",
             "format" : "int64",
             "description" : "The message's id on its source queue, for a captured row. Null when the broker did not copy _AMQ_ORIG_MESSAGE_ID, which is what makes verifying it against the live broker impossible."
+          },
+          "redactions" : {
+            "type" : "array",
+            "description" : "Every sensitive value in this row, masked or shown in clear by grant.",
+            "items" : {
+              "$ref" : "#/components/schemas/RedactionView"
+            }
+          },
+          "withheld" : {
+            "type" : "array",
+            "description" : "Content of this row that was not shown, and why.",
+            "items" : {
+              "$ref" : "#/components/schemas/WithheldView"
+            }
           }
         }
       },
@@ -7357,6 +7395,21 @@
             "description" : "True when the query has no predicate, so enqueued minus shown is exactly the number that passed through unobserved. When false the difference also holds messages that simply did not match."
           }
         }
+      },
+      "WithheldView" : {
+        "type" : "object",
+        "properties" : {
+          "location" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "settingKey" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "location", "reason" ]
       },
       "ResourceQuery" : {
         "type" : "object",
@@ -7983,30 +8036,6 @@
         },
         "required" : [ "bodyTruncated", "durable", "expiration", "messageId", "priority", "propertyCount", "redactions", "size", "timestamp", "type" ]
       },
-      "RedactionView" : {
-        "type" : "object",
-        "properties" : {
-          "location" : {
-            "type" : "string"
-          },
-          "path" : {
-            "type" : "string"
-          },
-          "dataClass" : {
-            "type" : "string"
-          },
-          "label" : {
-            "type" : "string"
-          },
-          "action" : {
-            "type" : "string"
-          },
-          "clear" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "action", "clear", "dataClass", "label", "location", "path" ]
-      },
       "MessageDetailView" : {
         "type" : "object",
         "properties" : {
@@ -8116,21 +8145,6 @@
           }
         },
         "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "redactions", "size", "stringProperties", "timestamp", "transport", "type", "withheld" ]
-      },
-      "WithheldView" : {
-        "type" : "object",
-        "properties" : {
-          "location" : {
-            "type" : "string"
-          },
-          "reason" : {
-            "type" : "string"
-          },
-          "settingKey" : {
-            "type" : [ "string", "null" ]
-          }
-        },
-        "required" : [ "location", "reason" ]
       },
       "PagedViewProducerView" : {
         "type" : "object",

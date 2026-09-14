@@ -37,6 +37,12 @@ class GovernanceAuditParamsFilterTest {
     }
 
     @Test
+    void aConsoleLiteralOnADottedPropertyIsRedacted() {
+        assertThat(filter.text("SELECT * FROM \"ORDERS\" WHERE props.customerEmail = 'jane' AND props.region = 'eu'"))
+                .isEqualTo("SELECT * FROM \"ORDERS\" WHERE props.customerEmail = '[redacted]' AND props.region = 'eu'");
+    }
+
+    @Test
     void nestedParametersAreWalkedAndKeysKept() {
         Map<String, ?> out = filter.filter(
                 Map.of("filter", "customerEmail <> 'x'", "ids", List.of("customerEmail = 'y'"), "count", 3));

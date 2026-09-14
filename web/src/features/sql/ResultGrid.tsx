@@ -4,6 +4,8 @@ import { Badge, Group, Text } from "@mantine/core";
 import type { SqlRowView } from './api.ts';
 import { absoluteLabel } from "../../kernel/time/time.ts";
 import { useDisplayZone } from "../../kernel/time/timezone.ts";
+import { RedactionMarks } from "../../ui/RedactedValue.tsx";
+import { redactionsAt } from "../../ui/redactions.ts";
 import { VirtualTable, type GridColumn } from "../../ui/VirtualTable.tsx";
 import { VerifyOnBroker } from "./VerifyOnBroker.tsx";
 import { rowKey } from "./useSqlTail.ts";
@@ -105,6 +107,18 @@ function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
               truncated
             </Badge>
           ) : null}
+          {(r.withheld ?? []).length > 0 ? (
+            <Badge
+              size="xs"
+              variant="outline"
+              color="gray"
+              tt="none"
+              title={(r.withheld ?? []).map((w) => w.reason).join(" ")}
+            >
+              withheld
+            </Badge>
+          ) : null}
+          <RedactionMarks redactions={redactionsAt(r.redactions ?? [], "BODY")} />
         </Group>
       ),
     },

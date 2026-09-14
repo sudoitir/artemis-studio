@@ -76,6 +76,13 @@ class BrokerQueryExecutorTest {
 
     // ---- harness --------------------------------------------------------
 
+    /** A caller with clear access, so these tests see the broker's content exactly as they did before governance. */
+    static SqlGovernance clearGovernance() {
+        SqlGovernance governance = mock(SqlGovernance.class);
+        when(governance.clearAccess(any())).thenReturn(true);
+        return governance;
+    }
+
     private SqlProperties props(long scanCap, int maxRows, Duration timeout) {
         return new SqlProperties(
                 50, scanCap, maxRows, Long.MAX_VALUE, timeout, 2, Duration.ofSeconds(5), Duration.ofSeconds(1));
@@ -93,7 +100,8 @@ class BrokerQueryExecutorTest {
     private QueryResult run(
             String sql, MessageTransport transport, SqlProperties properties, BrokerQueryExecutor.Sink sink) {
         QueryPlanner planner = planner(properties);
-        BrokerQueryExecutor executor = new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties);
+        BrokerQueryExecutor executor =
+                new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties, clearGovernance());
         QueryPlan plan = planner.plan(CLUSTER, parser.parse(sql));
         return executor.execute(CLUSTER, plan, transport, sink);
     }
@@ -229,6 +237,51 @@ class BrokerQueryExecutorTest {
             assertThat(row.source()).isEqualTo(QueryAst.Source.BROKER);
         });
         assertThat(result.isPartial()).isFalse();
+    }
+
+    @Test
+    void aCallerWithoutClearAccessSearchesTheMaskedBodyNotTheRawOne() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 5)));
+        SqlGovernance masked = mock(SqlGovernance.class);
+        when(masked.clearAccess(any())).thenReturn(false);
+        when(masked.forEvaluation(any(), any(), any())).thenAnswer(call -> {
+            BrowsedMessage m = call.getArgument(2);
+            return new BrowsedMessage(
+                    m.messageId(),
+                    m.type(),
+                    m.durable(),
+                    m.priority(),
+                    m.timestamp(),
+                    m.expiration(),
+                    m.size(),
+                    m.groupId(),
+                    m.correlationId(),
+                    m.replyTo(),
+                    m.userId(),
+                    "[redacted personal data]",
+                    m.bodyEncoding(),
+                    m.contentType(),
+                    m.bodyTruncated(),
+                    m.observedLimitBytes(),
+                    m.stringProperties(),
+                    m.intProperties(),
+                    m.longProperties(),
+                    m.doubleProperties(),
+                    m.booleanProperties());
+        });
+        SqlProperties properties = props(50_000, 2_000, Duration.ofSeconds(30));
+        QueryPlanner planner = planner(properties);
+        BrokerQueryExecutor executor = new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties, masked);
+
+        QueryResult result = executor.execute(
+                CLUSTER,
+                planner.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\" WHERE body LIKE '%needle%'")),
+                transportServing(5, false),
+                new CountingSink());
+
+        // Every raw body contains the needle; none of the bodies the caller may see does.
+        assertThat(result.rows()).isEmpty();
+        assertThat(result.nodes().getFirst().examined()).isEqualTo(5);
     }
 
     @Test

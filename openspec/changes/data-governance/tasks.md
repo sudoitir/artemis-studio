@@ -46,10 +46,10 @@
 
 ## 7. SQL console governance (phase 2)
 
-- [ ] 7.1 SQL row views (stream rows, tail rows, done result) built from `GovernedMessage` per cluster context; `clearFields` added to the query audit row
-- [ ] 7.2 SQL audit text masked via the governance filter (literals compared with classified fields)
-- [ ] 7.3 Predicate guard: refuse predicates on classified headers/properties without `message:clear`, naming the field; body scan predicates evaluated over governed body; tests
-- [ ] 7.4 SQL grid cells and export use governed values; export notice states masked content (load `ui-ux-pro-max` first)
+- [x] 7.1 SQL row views (stream rows, tail rows, done result) built from `GovernedMessage` per cluster context; `clearFields` added to the query audit row
+- [x] 7.2 SQL audit text masked via the governance filter (literals compared with classified fields)
+- [x] 7.3 Predicate guard: refuse predicates on classified headers/properties without `message:clear`, naming the field; body scan predicates evaluated over governed body; tests
+- [x] 7.4 SQL grid cells and export use governed values; export notice states masked content (load `ui-ux-pro-max` first)
 
 ## 8. At rest (phase 3)
 

@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews.RedactionView;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews.WithheldView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
@@ -112,7 +114,13 @@ public final class SqlViews {
                     description = "The message's id on its source queue, for a captured row. Null when the"
                             + " broker did not copy _AMQ_ORIG_MESSAGE_ID, which is what makes verifying it"
                             + " against the live broker impossible.")
-            Long sourceMessageId) {}
+            Long sourceMessageId,
+
+            @Schema(description = "Every sensitive value in this row, masked or shown in clear by grant.")
+            List<RedactionView> redactions,
+
+            @Schema(description = "Content of this row that was not shown, and why.")
+            List<WithheldView> withheld) {}
 
     @Schema(description = "What one node contributed, including nothing and why.")
     public record SqlNodeOutcomeView(

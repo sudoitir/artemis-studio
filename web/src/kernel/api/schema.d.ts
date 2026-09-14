@@ -2709,6 +2709,14 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        RedactionView: {
+            location: string;
+            path: string;
+            dataClass: string;
+            label: string;
+            action: string;
+            clear: boolean;
+        };
         /** @description A finished query, without its rows: those arrived as row frames. */
         ResultView: {
             /** @description Every target's outcome, including the ones that did not answer. */
@@ -2767,6 +2775,10 @@ export interface components {
              * @description The message's id on its source queue, for a captured row. Null when the broker did not copy _AMQ_ORIG_MESSAGE_ID, which is what makes verifying it against the live broker impossible.
              */
             sourceMessageId?: number;
+            /** @description Every sensitive value in this row, masked or shown in clear by grant. */
+            redactions?: components["schemas"]["RedactionView"][];
+            /** @description Content of this row that was not shown, and why. */
+            withheld?: components["schemas"]["WithheldView"][];
         };
         /** @description What one node contributed, including nothing and why. */
         SqlNodeOutcomeView: {
@@ -2809,6 +2821,11 @@ export interface components {
             lastPollAt?: string;
             /** @description True when the query has no predicate, so enqueued minus shown is exactly the number that passed through unobserved. When false the difference also holds messages that simply did not match. */
             everyMessageMatches?: boolean;
+        };
+        WithheldView: {
+            location: string;
+            reason: string;
+            settingKey?: string | null;
         };
         ResourceQuery: {
             q?: string;
@@ -3073,14 +3090,6 @@ export interface components {
             propertyCount: number;
             redactions: components["schemas"]["RedactionView"][];
         };
-        RedactionView: {
-            location: string;
-            path: string;
-            dataClass: string;
-            label: string;
-            action: string;
-            clear: boolean;
-        };
         MessageDetailView: {
             /** Format: int64 */
             messageId: number;
@@ -3124,11 +3133,6 @@ export interface components {
             };
             redactions: components["schemas"]["RedactionView"][];
             withheld: components["schemas"]["WithheldView"][];
-        };
-        WithheldView: {
-            location: string;
-            reason: string;
-            settingKey?: string | null;
         };
         PagedViewProducerView: {
             data: components["schemas"]["ProducerView"][];

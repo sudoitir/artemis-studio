@@ -66,6 +66,8 @@ class GovernanceAuditParamsFilter implements AuditParamsFilter {
     }
 
     private boolean classified(String name) {
-        return policy.classifies(Location.PROPERTY, name) || policy.classifies(Location.HEADER, name);
+        // The SQL console addresses a property as props.<name>; a selector names it bare.
+        String bare = name.regionMatches(true, 0, "props.", 0, 6) ? name.substring(6) : name;
+        return policy.classifies(Location.PROPERTY, bare) || policy.classifies(Location.HEADER, bare);
     }
 }

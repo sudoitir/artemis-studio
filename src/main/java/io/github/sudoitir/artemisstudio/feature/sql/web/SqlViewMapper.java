@@ -11,6 +11,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.RowView;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.SqlNodeOutcomeView;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.TailStatusView;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.TargetView;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -51,7 +53,8 @@ public class SqlViewMapper {
                 toView(plan));
     }
 
-    public RowView toView(QueryResult.Row row) {
+    /** A row as the caller may see it: every header, property and body value from the governed message. */
+    public RowView toView(QueryResult.Row row, GovernedMessage governed) {
         return new RowView(
                 row.nodeId(),
                 row.nodeName(),
@@ -65,18 +68,20 @@ public class SqlViewMapper {
                 row.expiration(),
                 row.size(),
                 row.jmsType(),
-                row.correlationId(),
-                row.groupId(),
-                row.userId(),
-                row.replyTo(),
-                row.body(),
+                governed.headers().get("correlationId"),
+                governed.headers().get("groupId"),
+                governed.headers().get("userId"),
+                governed.headers().get("replyTo"),
+                governed.body(),
                 row.bodyTruncated(),
-                row.properties(),
+                governed.properties(),
                 row.source().name(),
                 text(row.observedAt()),
                 text(row.lastSeenAt()),
                 row.origin(),
-                row.sourceMessageId());
+                row.sourceMessageId(),
+                GovernanceViews.redactions(governed),
+                GovernanceViews.withheld(governed));
     }
 
     public SqlNodeOutcomeView toView(QueryResult.NodeOutcome outcome) {

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
 import io.github.sudoitir.artemisstudio.feature.sql.CostRefusedException;
+import io.github.sudoitir.artemisstudio.feature.sql.GovernanceRefusedException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlConsoleService;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
@@ -48,6 +49,15 @@ public class SqlProblemAdvice {
         problem.setProperty("estimate", e.estimate());
         problem.setProperty("ceiling", e.ceiling());
         problem.setProperty("hint", e.hint());
+        return problem;
+    }
+
+    /** A predicate or ordering on a masked field from a caller without clear access (sql-console spec). */
+    @ExceptionHandler(GovernanceRefusedException.class)
+    public ProblemDetail onGovernanceRefused(GovernanceRefusedException e) {
+        ProblemDetail problem = Problems.of(
+                HttpStatus.FORBIDDEN, "masked-field-predicate", "The query filters on a masked field", e.getMessage());
+        problem.setProperty("field", e.field());
         return problem;
     }
 

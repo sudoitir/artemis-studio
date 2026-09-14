@@ -59,6 +59,7 @@ public class BrokerQueryExecutor {
     private final MessagePredicate residuals;
     private final QueryPlanner planner;
     private final SqlProperties properties;
+    private final SqlGovernance governance;
 
     /** Where a caller receives rows and per-node outcomes as they happen. */
     public interface Sink {
@@ -68,6 +69,11 @@ public class BrokerQueryExecutor {
 
         /** True once the caller has gone away, so no further broker read is issued. */
         boolean isCancelled();
+
+        /** Sensitive values this sink served in clear so far, by class, for the query's audit record. */
+        default Map<String, Long> clearServed() {
+            return Map.of();
+        }
     }
 
     public QueryResult execute(UUID clusterId, QueryPlan plan, MessageTransport transport, Sink sink) {
@@ -91,6 +97,9 @@ public class BrokerQueryExecutor {
             Function<Target, String> extraSelector) {
         SqlProperties limits = properties;
         Split split = planner.splitOf(plan.ast());
+        // Resolved here, on the caller's thread: the per-node threads below carry no security context.
+        // A tail poll has none either, so it evaluates over masked content — the safe side.
+        boolean clearAccess = governance.clearAccess(clusterId);
 
         Map<UUID, ClusterNode> nodesById = new LinkedHashMap<>();
         nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
@@ -157,7 +166,8 @@ public class BrokerQueryExecutor {
                                 deadline,
                                 limits,
                                 bounds,
-                                extraSelector);
+                                extraSelector,
+                                clearAccess);
                         outcomes.add(outcome);
                         sink.nodeFinished(outcome);
                     }
@@ -214,7 +224,8 @@ public class BrokerQueryExecutor {
             long deadline,
             SqlProperties limits,
             List<Bound> bounds,
-            Function<Target, String> extraSelector) {
+            Function<Target, String> extraSelector,
+            boolean clearAccess) {
 
         // The selector is re-rendered per node, because a relative window means
         // something different on a node whose clock is measurably offset (ADR-0053).
@@ -307,7 +318,11 @@ public class BrokerQueryExecutor {
                 if (message.bodyTruncated()) {
                     truncationSeen.set(true);
                 }
-                if (!residual.test(message)) {
+                // A body search over the raw body would confirm a value the caller only ever sees masked.
+                BrowsedMessage evaluated = split.scan() == null || clearAccess
+                        ? message
+                        : governance.forEvaluation(clusterId, target.address(), message);
+                if (!residual.test(evaluated)) {
                     continue;
                 }
                 matched++;

@@ -46,6 +46,34 @@ public class ClearViewAudit {
         audit.succeed(event, total);
     }
 
+    /**
+     * Record classes and counts already tallied, for an actor resolved earlier — a stream that ends on a thread
+     * with no request, such as a tail closing.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void record(
+            io.github.sudoitir.artemisstudio.kernel.security.Actor actor,
+            GovernContext context,
+            String targetType,
+            String targetName,
+            Map<String, Long> classes,
+            long messages) {
+        if (classes.isEmpty()) {
+            return;
+        }
+        long total = classes.values().stream().mapToLong(Long::longValue).sum();
+        AuditEvent event = audit.begin(
+                actor,
+                ACTION,
+                targetType,
+                targetName,
+                context.clusterId(),
+                null,
+                Map.of("classes", classes, "messages", messages),
+                false);
+        audit.succeed(event, total);
+    }
+
     /** Class name to count of values served clear, for callers that fold them into their own audit row. */
     public static Map<String, Long> classesServedClear(Collection<GovernedMessage> messages) {
         Map<String, Long> classes = new TreeMap<>();

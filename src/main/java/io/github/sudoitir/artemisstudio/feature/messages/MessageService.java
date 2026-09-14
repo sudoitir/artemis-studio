@@ -421,8 +421,11 @@ public class MessageService {
         }
     }
 
-    /** The broker's message in the policy's neutral shape: its identifying headers and every property. */
-    static MessageContent content(BrowsedMessage m) {
+    /**
+     * The broker's message in the policy's neutral shape: its identifying headers and every property.
+     * Shared with the SQL console, which governs the same messages.
+     */
+    public static MessageContent content(BrowsedMessage m) {
         Map<String, String> headers = new HashMap<>();
         headers.put("correlationId", m.correlationId());
         headers.put("groupId", m.groupId());
