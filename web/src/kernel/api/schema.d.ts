@@ -3414,6 +3414,8 @@ export interface components {
              * @description The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself.
              */
             captureSubscriptionId?: string | null;
+            /** @description The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Studio created it, so the deployed broker.xml does not. */
+            brokerXml?: string | null;
             /** Format: int32 */
             nodesPresent: number;
             /** Format: int32 */

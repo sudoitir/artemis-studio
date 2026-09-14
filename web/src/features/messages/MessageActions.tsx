@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button, Group, Menu, Modal, Paper, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Group, Menu, Modal, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
-import { useMessageAction, type MessageActionKind } from './api.ts';
+import { useMessageAction, type MessageActionKind, type PartialView } from './api.ts';
 import { BulkActionPreview } from './BulkActionPreview.tsx';
 
 const LABEL: Record<MessageActionKind, string> = {
@@ -34,6 +34,7 @@ export function MessageActions({
   const [confirm, setConfirm] = useState<MessageActionKind | null>(null);
   const [target, setTarget] = useState('');
   const [bulk, setBulk] = useState<MessageActionKind | null>(null);
+  const [partial, setPartial] = useState<PartialView | null>(null);
 
   const ids = [...selected].map(Number).filter((n) => Number.isFinite(n));
 
@@ -46,6 +47,13 @@ export function MessageActions({
       },
       {
         onSuccess: (r) => {
+          if ('notDone' in r) {
+            // Partial is the outcome that matters most: the done part cannot be undone, and
+            // the operator has to see which ids are still where they were. It stays in the
+            // dialog rather than in a toast that disappears.
+            setPartial(r);
+            return;
+          }
           notifications.show({
             message: `${LABEL[action]}d ${'affectedCount' in r ? r.affectedCount : ids.length} messages`,
           });
@@ -96,11 +104,29 @@ export function MessageActions({
 
       <Modal
         opened={confirm !== null}
-        onClose={() => setConfirm(null)}
+        onClose={() => {
+          if (run.isPending) return;
+          setConfirm(null);
+          if (partial) {
+            setPartial(null);
+            onCleared();
+          }
+        }}
         title={confirm ? `${LABEL[confirm]} ${selected.size} messages?` : ''}
         size="md"
       >
         <Stack gap="sm">
+          {partial && confirm ? (
+            <Alert
+              color="yellow"
+              variant="light"
+              role="alert"
+              title={`${LABEL[confirm]}d ${partial.affectedCount} of ${ids.length} messages, then stopped`}
+            >
+              {partial.error} Not {LABEL[confirm].toLowerCase()}d: {partial.notDone.join(', ')}. Close this
+              and select them again to retry.
+            </Alert>
+          ) : null}
           {confirm === 'move' ? (
             <TextInput
               label="Target queue"
@@ -120,7 +146,7 @@ export function MessageActions({
               size="xs"
               color="red"
               loading={run.isPending}
-              disabled={confirm === 'move' && !target}
+              disabled={(confirm === 'move' && !target) || partial !== null}
               onClick={() => confirm && doAction(confirm)}
             >
               {confirm ? LABEL[confirm] : ''}

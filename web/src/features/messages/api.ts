@@ -13,6 +13,7 @@ export type MessageActionRequest = Schemas["MessageActionRequest"];
 export type MessageDetailView = Schemas["MessageDetailView"];
 export type MessagePageView = Schemas["MessagePageView"];
 export type MessageSummaryView = Schemas["MessageSummaryView"];
+export type PartialView = Schemas["PartialView"];
 export type SendMessageRequest = Schemas["SendMessageRequest"];
 
 export type MessageActionKind = "move" | "retry" | "delete" | "expire";
@@ -144,7 +145,7 @@ export interface ActionVars {
 
 export function useMessageAction(clusterId: string, queueName: string) {
   const qc = useQueryClient();
-  return useMutation<AffectedView | DryRunView, ApiError, ActionVars>({
+  return useMutation<AffectedView | DryRunView | PartialView, ApiError, ActionVars>({
     mutationFn: ({ action, body, node, dryRun, override }) =>
       request(
         `${messagesBase(clusterId, queueName)}/actions/${action}${mutationQuery(node, dryRun, override)}`,

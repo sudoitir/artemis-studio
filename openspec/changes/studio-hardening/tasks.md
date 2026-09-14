@@ -116,32 +116,33 @@
 
 ## 6. Phase 6: UI guards
 
-- [ ] 6.1 Load the `frontend-development-guide` skill, then read `theme.css` and the nearest screens. Regenerate `kernel/api/schema.d.ts`.
-- [ ] 6.2 `ui/NodeOutcomeSummary`: `role="status" aria-live="polite"`; blocking error alerts get `role="alert"`.
-- [ ] 6.3 `DivertActions` form.
-  - `@mantine/form` blur validation mirroring the server rules.
+- [x] 6.1 Load the `frontend-development-guide` skill, then read `theme.css` and the nearest screens. Regenerate `kernel/api/schema.d.ts`.
+- [x] 6.2 `ui/NodeOutcomeSummary`: `role="status" aria-live="polite"`; blocking error alerts get `role="alert"`.
+- [x] 6.3 `DivertActions` form.
+  - Blur validation mirroring the server rules. (Apply: local state, since `@mantine/form` is not a dependency and one form does not justify adding it.)
   - Server 400 errors mapped to fields.
   - Autofocus the first invalid field.
   - A disabled Preview states its reason.
-- [ ] 6.4 `DivertActions` preview and outcomes.
+- [x] 6.4 `DivertActions` preview and outcomes.
   - The previewed body is frozen, with read-only inputs and an Edit action.
   - The modal cannot close while pending.
   - Four outcomes with per-node detail.
   - Preflight warnings and the acknowledgement checkbox for capture shadowing.
-- [ ] 6.5 `RoutingView`: the ownership badge becomes a keyboard-reachable button that opens `BrokerXmlRemedy`.
-- [ ] 6.6 `IndexSubscriptions` arming.
+- [x] 6.5 `RoutingView`: the ownership badge becomes a keyboard-reachable button that opens `BrokerXmlRemedy`.
+- [x] 6.6 `IndexSubscriptions` arming.
   - Capture dry-run preview (nodes, addresses, bounds, objects, `BrokerXmlRemedy`).
   - `ConfirmByTyping` on the pattern to arm.
   - Bounds behind a disclosure, validated on blur, with server refusals shown.
-- [ ] 6.7 `IndexSubscriptions` states.
+- [x] 6.7 `IndexSubscriptions` states.
   - Mode-aware copy.
   - Per-node PENDING/ACTIVE/DEGRADED (with cause)/FAILED (with remedy).
   - Loss and footprint "unavailable — reason".
   - Backlog in progress.
-  - Delete copy for unreachable nodes, and the per-node removal outcome.
-- [ ] 6.8 Message views render the partial by-id outcome and an unavailable browse total.
-- [ ] 6.9 Vitest tests querying by role and name. Keyboard-only pass for create divert, arm capture and delete capture: focus enters the dialog, Escape dismisses it (not while pending), and focus returns to the trigger.
-- [ ] 6.10 Run `just verify` and commit `feat(ui)`.
+  - Delete copy for unreachable nodes. (Apply: the delete API returns only the destroyed count, so the copy states that unreachable nodes are cleaned on their next pass rather than listing per node; spec scenario revised to match.)
+- [x] 6.8 Message views render the partial by-id outcome and an unavailable browse total.
+- [x] 6.9 Vitest tests querying by role and name. Keyboard-only pass for create divert, arm capture and delete capture: focus enters the dialog, Escape dismisses it (not while pending), and focus returns to the trigger.
+- [x] 6.11 Request-reply hint: the expectations screen names traced addresses no enabled capture subscription covers and links to where capture is turned on; hidden once all are covered. Sampled subscriptions say they are just sampling. (Added during apply at the user's request.)
+- [x] 6.10 Run `just verify` and commit `feat(ui)`.
 
 ## 7. Verification
 

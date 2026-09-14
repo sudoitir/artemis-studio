@@ -104,7 +104,8 @@ export function OutcomeSummary({
   rows: OutcomeRow[];
 }) {
   return (
-    <div className={classes.summary}>
+    // A live region, so a screen reader hears what a destructive command did without hunting for it.
+    <div className={classes.summary} role="status" aria-live="polite">
       <div className={classes.headline}>
         <Text size="sm" className={classes.verdict} data-tone={verdictTone}>
           {verdict}

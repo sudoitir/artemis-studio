@@ -157,7 +157,10 @@ export function MessagesView() {
         <Group gap="xs">
           {messages.data ? (
             <Text size="xs" c="dimmed">
-              {messages.data.count} message{messages.data.count === 1 ? '' : 's'} · read from{' '}
+              {messages.data.count == null
+                ? `total unavailable — ${messages.data.countUnavailable ?? 'the broker did not report it'}`
+                : `${messages.data.count} message${messages.data.count === 1 ? '' : 's'}`}{' '}
+              · read from{' '}
               {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
             </Text>
           ) : null}
@@ -219,8 +222,9 @@ export function MessagesView() {
   }
 
   const rows = messages.data?.data ?? [];
-  const total = messages.data?.count ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // An unavailable total is stated, never read as zero: the page count is then unknown too.
+  const total = messages.data?.count;
+  const lastPage = total == null ? null : Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const setNode = (node: string | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, node: node || undefined, page: undefined }) });
@@ -253,7 +257,7 @@ export function MessagesView() {
           ) : null}
         </Group>
         <Text size="xs" c="dimmed">
-          page {page} of {lastPage}
+          {lastPage == null ? `page ${page} · total unavailable` : `page ${page} of ${lastPage}`}
         </Text>
       </Group>
 

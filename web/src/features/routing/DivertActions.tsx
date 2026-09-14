@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Alert, Button, Code, CopyButton, Group, Modal, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useRef, useState } from 'react';
+import { Alert, Button, Checkbox, Code, CopyButton, Group, Modal, Stack, Switch, Text, TextInput } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
 import { useCreateDivert, useDeleteDivert, type DivertMutationView, type DivertView, type LifecycleOutcomeView } from './api.ts';
@@ -48,11 +48,45 @@ export function BrokerXmlRemedy({ xml }: { xml: string }) {
   );
 }
 
+type DivertField = 'name' | 'address' | 'forwardingAddress' | 'filter';
+
+const FIELD_ORDER: DivertField[] = ['name', 'address', 'forwardingAddress', 'filter'];
+
+/** The server's rules (LifecycleRequests.CreateDivertRequest), checked on blur so the message sits beside its field. */
+function divertError(field: DivertField, values: Record<DivertField, string>): string | null {
+  const value = values[field].trim();
+  switch (field) {
+    case 'name':
+      if (!value) return 'A divert needs a name.';
+      if (value.length > 200) return 'At most 200 characters.';
+      if (/[\s,=:*?"\\]/.test(value)) return 'A divert name cannot contain whitespace or any of , = : * ? " \\';
+      if (value.startsWith('artemis-studio.capture.')) return 'This namespace belongs to message capture.';
+      return null;
+    case 'address':
+      if (!value) return 'A divert needs the address it reads from.';
+      return value.length > 200 ? 'At most 200 characters.' : null;
+    case 'forwardingAddress':
+      if (!value) return 'A divert needs the address it forwards to.';
+      if (value.length > 200) return 'At most 200 characters.';
+      return value === values.address.trim() ? 'A divert cannot forward to the address it reads from.' : null;
+    case 'filter':
+      return value.length > 4000 ? 'At most 4000 characters.' : null;
+  }
+}
+
+/** A server field error, on the field the operator can correct. */
+function serverFieldFor(field: string): DivertField | null {
+  if (field === 'forwardingAddressDistinct') return 'forwardingAddress';
+  return (FIELD_ORDER as string[]).includes(field) ? (field as DivertField) : null;
+}
+
 /**
  * Create a divert across every live node.
  *
  * <p>The preview and the configuration remedy arrive in the same response and are
  * rendered together above the creating control, so neither can be skipped past.
+ * While a preview is shown the form is read-only: what is created is exactly what
+ * was previewed, and changing it means going back to edit and previewing again.
  */
 export function CreateDivertAction({ clusterId }: { clusterId: string }) {
   const { can, loading } = useCan();
@@ -61,24 +95,92 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
   const gate = gateFor(can('divert:write', clusterId), PERMISSION_LABEL, write, loading || cluster.isPending);
 
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [forwardingAddress, setForwardingAddress] = useState('');
-  const [filter, setFilter] = useState('');
+  const [values, setValues] = useState<Record<DivertField, string>>({
+    name: '',
+    address: '',
+    forwardingAddress: '',
+    filter: '',
+  });
   const [exclusive, setExclusive] = useState(false);
+  const [acknowledge, setAcknowledge] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<DivertField, string | null>>>({});
   const [preview, setPreview] = useState<DivertMutationView | null>(null);
   const [result, setResult] = useState<DivertMutationView | null>(null);
+  const refs = useRef<Partial<Record<DivertField, HTMLInputElement | null>>>({});
 
   const create = useCreateDivert(clusterId);
-  const body = { name, address, forwardingAddress, filter: filter || undefined, exclusive, acknowledgeCaptureShadowing: false };
-  const complete = name.trim() !== '' && address.trim() !== '' && forwardingAddress.trim() !== '';
+  const frozen = preview !== null || result !== null;
+  const body = {
+    name: values.name.trim(),
+    address: values.address.trim(),
+    forwardingAddress: values.forwardingAddress.trim(),
+    filter: values.filter.trim() || undefined,
+    exclusive,
+    acknowledgeCaptureShadowing: exclusive && acknowledge,
+  };
+
+  const set = (field: DivertField) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value;
+    setValues((prev) => ({ ...prev, [field]: value }));
+  };
+  const blur = (field: DivertField) => () => setErrors((prev) => ({ ...prev, [field]: divertError(field, values) }));
+
+  const focusFirst = (found: Partial<Record<DivertField, string | null>>) => {
+    const first = FIELD_ORDER.find((f) => found[f]);
+    if (first) refs.current[first]?.focus();
+  };
+
+  const requestPreview = () => {
+    const found = Object.fromEntries(FIELD_ORDER.map((f) => [f, divertError(f, values)]));
+    setErrors(found);
+    if (FIELD_ORDER.some((f) => found[f])) {
+      focusFirst(found);
+      return;
+    }
+    create.mutate(
+      { body, dryRun: true },
+      {
+        onSuccess: setPreview,
+        onError: (error) => {
+          const mapped: Partial<Record<DivertField, string>> = {};
+          for (const fe of error.fieldErrors) {
+            const field = serverFieldFor(fe.field);
+            if (field) mapped[field] = fe.message;
+          }
+          setErrors(mapped);
+          focusFirst(mapped);
+        },
+      },
+    );
+  };
 
   const close = () => {
+    // Closing mid-request would hide the outcome of a change that is still being made.
+    if (create.isPending) return;
     setOpen(false);
     setPreview(null);
     setResult(null);
+    setErrors({});
     create.reset();
   };
+
+  const refused = preview?.outcome.nodes.filter((n) => n.status === 'FAILED') ?? [];
+
+  const input = (field: DivertField, label: string, description?: string) => (
+    <TextInput
+      ref={(el) => {
+        refs.current[field] = el;
+      }}
+      label={label}
+      description={description}
+      value={values[field]}
+      onChange={set(field)}
+      onBlur={blur(field)}
+      error={errors[field]}
+      readOnly={frozen}
+      size="xs"
+    />
+  );
 
   return (
     <>
@@ -90,35 +192,14 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
 
       <Modal opened={open} onClose={close} title="Create a divert" size="lg">
         <Stack gap="sm">
-          <TextInput
-            label="Name"
-            description="Unique on each node."
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            size="xs"
-          />
-          <TextInput
-            label="Divert messages from"
-            value={address}
-            onChange={(e) => setAddress(e.currentTarget.value)}
-            size="xs"
-          />
-          <TextInput
-            label="Divert messages to"
-            value={forwardingAddress}
-            onChange={(e) => setForwardingAddress(e.currentTarget.value)}
-            size="xs"
-          />
-          <TextInput
-            label="Filter"
-            description="Optional. Only messages matching it are diverted."
-            value={filter}
-            onChange={(e) => setFilter(e.currentTarget.value)}
-            size="xs"
-          />
+          {input('name', 'Name', 'Unique on each node.')}
+          {input('address', 'Divert messages from')}
+          {input('forwardingAddress', 'Divert messages to')}
+          {input('filter', 'Filter', 'Optional. Only messages matching it are diverted.')}
           <Switch
             size="xs"
             checked={exclusive}
+            disabled={frozen}
             onChange={(e) => setExclusive(e.currentTarget.checked)}
             label="Exclusive — take the message instead of copying it"
             description={
@@ -127,8 +208,18 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
                 : 'Traffic is copied. Its current destinations keep receiving it.'
             }
           />
+          {exclusive ? (
+            <Checkbox
+              size="xs"
+              checked={acknowledge}
+              disabled={frozen}
+              onChange={(e) => setAcknowledge(e.currentTarget.checked)}
+              label="Create it even if this address is being captured"
+              description="Capture of the address would then record nothing while this divert exists. Needed only when the preview says the address is captured."
+            />
+          ) : null}
 
-          {create.isError ? (
+          {create.isError && create.error.fieldErrors.length === 0 ? (
             <Alert color="red" variant="light" title={create.error.title}>
               {create.error.message}
             </Alert>
@@ -147,6 +238,13 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
           ) : preview ? (
             <Stack gap="sm">
               <NodeOutcomeSummary outcome={preview.outcome} />
+              {refused.length > 0 ? (
+                <Alert color="red" variant="light" title="This divert would be refused">
+                  {refused.length === preview.outcome.nodes.length
+                    ? 'Every node refuses it, for the reason under each node above. Edit it and preview again.'
+                    : 'Some nodes refuse it, for the reason under each node above. Creating it anyway applies it only where it is not refused.'}
+                </Alert>
+              ) : null}
               <Alert variant="light" color="yellow" title="Before you create this">
                 <Stack gap="sm">
                   <Text size="xs">{DRIFT_SENTENCE}</Text>
@@ -163,24 +261,21 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
               </Button>
             ) : preview ? (
               <>
-                <Button size="xs" variant="subtle" onClick={() => setPreview(null)}>
-                  Back
+                <Button size="xs" variant="subtle" disabled={create.isPending} onClick={() => setPreview(null)}>
+                  Edit
                 </Button>
-                <Button
-                  size="xs"
-                  loading={create.isPending}
-                  onClick={() => create.mutate({ body, dryRun: false }, { onSuccess: setResult })}
-                >
-                  Create on every live node
-                </Button>
+                {refused.length === preview.outcome.nodes.length ? null : (
+                  <Button
+                    size="xs"
+                    loading={create.isPending}
+                    onClick={() => create.mutate({ body, dryRun: false }, { onSuccess: setResult })}
+                  >
+                    Create on every live node
+                  </Button>
+                )}
               </>
             ) : (
-              <Button
-                size="xs"
-                loading={create.isPending}
-                disabled={!complete}
-                onClick={() => create.mutate({ body, dryRun: true }, { onSuccess: setPreview })}
-              >
+              <Button size="xs" loading={create.isPending} onClick={requestPreview}>
                 Preview
               </Button>
             )}
@@ -218,6 +313,7 @@ export function DeleteDivertAction({ clusterId, divert }: { clusterId: string; d
   }
 
   const close = () => {
+    if (remove.isPending) return;
     setOpen(false);
     setPreview(null);
     setResult(null);

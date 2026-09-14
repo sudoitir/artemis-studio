@@ -99,4 +99,28 @@ next reconciliation. After the deletion, it SHALL show the per-node removal outc
 #### Scenario: An unreachable node's cleanup is stated
 
 - **WHEN** an operator deletes a capture subscription while one of its nodes is unreachable
-- **THEN** the outcome lists that node as pending removal on its next reconciliation, rather than as removed
+- **THEN** the confirmation states that a node that does not answer is cleaned on its next reconciliation, rather than claiming every node was cleaned
+
+### Requirement: Sampling is named as sampling where capture would see more
+
+Wherever a sampled subscription is chosen or listed, the UI SHALL say briefly that it is only
+sampling and that a message consumed between two polls is not recorded.
+
+Where request-reply tracing depends on addresses that no enabled capture subscription covers,
+the UI SHALL show a short hint naming those addresses and where capture is turned on. The hint
+SHALL disappear once every such address is captured.
+
+#### Scenario: A traced address that is only sampled gets a hint
+
+- **WHEN** an operator traces a request address and a reply address, and neither is captured
+- **THEN** the tracing screen names both as only sampled and points to where capture is turned on
+
+#### Scenario: The hint goes away once capture covers the addresses
+
+- **WHEN** an enabled capture-everything subscription covers every traced address
+- **THEN** no capture hint is shown
+
+#### Scenario: A sampled subscription says it is only sampling
+
+- **WHEN** an operator views or creates a sampled subscription
+- **THEN** it is described as just sampling, which misses messages consumed between polls

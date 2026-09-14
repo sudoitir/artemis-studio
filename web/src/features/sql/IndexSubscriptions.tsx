@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Code,
+  Collapse,
   Group,
   Loader,
   NumberInput,
@@ -17,7 +18,16 @@ import {
 import { notifications } from "@mantine/notifications";
 import { useParams } from "@tanstack/react-router";
 
-import { useCreateIndexSubscription, useDeleteIndexSubscription, useIndexSubscriptions, useUpdateIndexSubscription, type SqlIndexSubscriptionView } from './api.ts';
+import {
+  useCreateIndexSubscription,
+  useDeleteIndexSubscription,
+  useIndexSubscriptions,
+  usePreviewIndexSubscription,
+  useUpdateIndexSubscription,
+  type SqlCapturePreviewView,
+  type SqlIndexSubscriptionRequest,
+  type SqlIndexSubscriptionView,
+} from './api.ts';
 import { useCan } from "../../kernel/auth/useCan.ts";
 import { ConfirmByTyping } from "../../ui/ConfirmByTyping.tsx";
 import classes from "./IndexSubscriptions.module.css";
@@ -85,9 +95,11 @@ function CaptureBlastRadius({
           <Code>broker.xml</Code>, is a <Code>divert</Code> onto{" "}
           <Code>artemis-studio.capture.…</Code> with{" "}
           <Code>&lt;exclusive&gt;false&lt;/exclusive&gt;</Code>, plus an{" "}
-          <Code>address-setting</Code> for <Code>artemis-studio.capture.#</Code>{" "}
-          with <Code>DROP</Code>, a <Code>ring-size</Code> and an{" "}
-          <Code>expiry-delay</Code>.
+          <Code>address-setting</Code> for{" "}
+          <Code>artemis-studio.capture.&lt;instance&gt;.#</Code> with{" "}
+          <Code>DROP</Code>, a <Code>ring-size</Code>, a{" "}
+          <Code>max-size-bytes</Code> and an <Code>expiry-delay</Code>. The
+          preview below shows the exact configuration.
         </Text>
       </Stack>
     </Alert>
@@ -126,12 +138,106 @@ function CaptureNodes({
               : node.state === "FAILED"
                 ? "not capturing"
                 : "not reached yet"}
-          {node.droppedEstimate
-            ? ` · about ${node.droppedEstimate.toLocaleString()} missed`
-            : ""}
+          {node.state === "DEGRADED" && subscription.filterString
+            ? " · how many were missed is unavailable — a capture filter makes the broker's routed count incomparable with what was stored"
+            : node.droppedEstimate
+              ? ` · about ${node.droppedEstimate.toLocaleString()} missed`
+              : ""}
           {node.detail ? ` — ${node.detail}` : ""}
         </Text>
       ))}
+    </Stack>
+  );
+}
+
+/** A bound the server enforces, checked on blur with the same limits so a refusal is seen beside its field. */
+interface Limit {
+  label: string;
+  description: string;
+  min: number;
+  max: number;
+}
+
+const LIMITS = {
+  ringSize: {
+    label: "Ring size (messages per node)",
+    description: "How many copies each capture queue holds before the broker drops the oldest.",
+    min: 100,
+    max: 1_000_000,
+  },
+  maxMegabytes: {
+    label: "Stored payload limit (MB)",
+    description: "Payload this subscription may keep in Studio's database before it reports itself degraded.",
+    min: 1,
+    max: 1_000_000,
+  },
+  maxRate: {
+    label: "Rate limit (messages per second)",
+    description: "Messages beyond this are counted as missed rather than stored.",
+    min: 1,
+    max: 1_000_000,
+  },
+  bodyCapKilobytes: {
+    label: "Body stored per message (KB)",
+    description: "A longer body is stored truncated, and marked so.",
+    min: 1,
+    max: 16 * 1024,
+  },
+} satisfies Record<string, Limit>;
+
+type BoundField = keyof typeof LIMITS;
+
+function rangeError(limit: Limit, value: number | string): string | null {
+  if (value === "") return null;
+  const n = Number(value);
+  return n < limit.min || n > limit.max
+    ? `Must be between ${limit.min.toLocaleString()} and ${limit.max.toLocaleString()}.`
+    : null;
+}
+
+/** What capture would do, from the server's dry run — the same objects it will create. */
+function CapturePreview({ preview }: { preview: SqlCapturePreviewView }) {
+  if (preview.refusal) {
+    return (
+      <Alert color="red" variant="light" role="alert" title="Capture would be refused">
+        {preview.refusal}
+      </Alert>
+    );
+  }
+  const addresses = preview.addresses ?? [];
+  const nodes = preview.nodes ?? [];
+  return (
+    <Stack gap={6} role="status" aria-live="polite">
+      <Text size="sm">
+        Covers {addresses.length} address{addresses.length === 1 ? "" : "es"}:{" "}
+        {addresses.join(", ")}
+      </Text>
+      <Text size="sm">
+        Installed on {nodes.length} live node{nodes.length === 1 ? "" : "s"}:{" "}
+        {nodes.join(", ")}
+      </Text>
+      <Text size="sm">
+        Each capture queue holds at most{" "}
+        {(preview.ringMessages ?? 0).toLocaleString()} messages or{" "}
+        {bytes(preview.ringBytes ?? 0)}, whichever is reached first. Past that
+        the broker drops the oldest copy and Studio reports it as missed.
+      </Text>
+      <Text size="xs" fw={600}>
+        Created on every listed node
+      </Text>
+      <Stack gap={2}>
+        {(preview.brokerObjects ?? []).map((object) => (
+          <Code key={object}>{object}</Code>
+        ))}
+      </Stack>
+      {preview.brokerXml ? (
+        <>
+          <Text size="xs" fw={600}>
+            The equivalent broker.xml
+          </Text>
+          <Code block>{preview.brokerXml}</Code>
+        </>
+      ) : null}
     </Stack>
   );
 }
@@ -142,6 +248,9 @@ function CaptureNodes({
  * <p>What will be kept, and for how long, is stated on the form itself rather than
  * in documentation. An operator cannot consent to storing bodies they were never
  * told were being stored, and this is the last screen before it starts.
+ *
+ * <p>Capture is armed from its dry run: the form freezes on what was previewed and
+ * the pattern is typed to confirm, so what the operator agreed to is what is created.
  */
 function CreateSubscription({
   clusterId,
@@ -153,11 +262,69 @@ function CreateSubscription({
   canCapture: boolean;
 }) {
   const create = useCreateIndexSubscription(clusterId);
+  const previewCapture = usePreviewIndexSubscription(clusterId);
   const [pattern, setPattern] = useState("");
-  const [retentionDays, setRetentionDays] = useState(7);
-  const [intervalMs, setIntervalMs] = useState(5000);
+  const [retentionDays, setRetentionDays] = useState<number | string>(7);
+  const [intervalMs, setIntervalMs] = useState<number | string>(5000);
   const [mode, setMode] = useState<"SAMPLE" | "CAPTURE">("SAMPLE");
   const [filterString, setFilterString] = useState("");
+  const [showBounds, setShowBounds] = useState(false);
+  const [bounds, setBounds] = useState<Record<BoundField, number | string>>({
+    ringSize: "",
+    maxMegabytes: "",
+    maxRate: "",
+    bodyCapKilobytes: "",
+  });
+  const [errors, setErrors] = useState<Partial<Record<string, string | null>>>({});
+  const [preview, setPreview] = useState<SqlCapturePreviewView | null>(null);
+
+  const frozen = preview !== null;
+  const capture = mode === "CAPTURE";
+  const retention = Number(retentionDays) || 7;
+  const permitted = capture ? canCapture : canWrite;
+  const invalid = Object.values(errors).some(Boolean);
+
+  const check = (field: string, error: string | null) =>
+    setErrors((prev) => ({ ...prev, [field]: error }));
+
+  const optional = (value: number | string, scale = 1) =>
+    value === "" ? undefined : Number(value) * scale;
+
+  const body: SqlIndexSubscriptionRequest = {
+    queuePattern: pattern.trim(),
+    retentionDays: retention,
+    intervalMs: Number(intervalMs) || 5000,
+    enabled: true,
+    mode,
+    filterString: capture ? filterString.trim() || undefined : undefined,
+    ringSize: capture ? optional(bounds.ringSize) : undefined,
+    maxBytes: capture ? optional(bounds.maxMegabytes, 1024 * 1024) : undefined,
+    maxRate: capture ? optional(bounds.maxRate) : undefined,
+    bodyCapBytes: capture ? optional(bounds.bodyCapKilobytes, 1024) : undefined,
+  };
+
+  const start = () =>
+    create.mutate(body, {
+      onSuccess: () => {
+        notifications.show({
+          message: capture
+            ? `Capturing ${body.queuePattern} — the tap is installed on the next pass`
+            : `Now sampling ${body.queuePattern}`,
+        });
+        setPattern("");
+        setPreview(null);
+      },
+    });
+
+  const blocked = !permitted
+    ? capture
+      ? "Turning capture on needs the capture write permission."
+      : "Creating a subscription needs the settings write permission."
+    : pattern.trim().length === 0
+      ? "Enter a queue or pattern first."
+      : invalid
+        ? "Correct the highlighted fields first."
+        : null;
 
   return (
     <Stack gap="xs" maw={520}>
@@ -166,12 +333,14 @@ function CreateSubscription({
         description="Artemis wildcards: * is one level, # is many. ORDER.# captures every ORDER queue."
         placeholder="ORDER.IN"
         value={pattern}
+        readOnly={frozen}
         onChange={(e) => setPattern(e.currentTarget.value)}
         size="xs"
       />
       <SegmentedControl
         size="xs"
         value={mode}
+        readOnly={frozen}
         onChange={(v) => setMode(v as "SAMPLE" | "CAPTURE")}
         data={[
           { value: "SAMPLE", label: "Sample" },
@@ -180,15 +349,16 @@ function CreateSubscription({
       />
       <Text size="xs" c="dimmed">
         {mode === "SAMPLE"
-          ? "Studio polls these queues and records what it saw. A message that arrives and is consumed between two polls is never recorded."
+          ? "Just sampling: Studio polls these queues and records what it saw. A message that arrives and is consumed between two polls is never recorded."
           : "Studio installs a divert-fed tap on every live node and records everything the address routed, whether or not anything consumed it. It changes the broker's routing configuration."}
       </Text>
-      {mode === "CAPTURE" ? (
+      {capture ? (
         <TextInput
           label="Capture filter (optional)"
           description="An Artemis filter expression. Narrows both what the broker copies and what Studio stores."
           placeholder="tenant = 'acme'"
           value={filterString}
+          readOnly={frozen}
           onChange={(e) => setFilterString(e.currentTarget.value)}
           size="xs"
         />
@@ -199,78 +369,123 @@ function CreateSubscription({
           min={1}
           max={90}
           value={retentionDays}
-          onChange={(v) => setRetentionDays(typeof v === "number" ? v : 7)}
+          readOnly={frozen}
+          error={errors.retentionDays}
+          onChange={setRetentionDays}
+          onBlur={() => check("retentionDays", rangeError({ label: "", description: "", min: 1, max: 90 }, retentionDays))}
           size="xs"
         />
         <NumberInput
           label="Read every (ms)"
           min={1000}
+          max={3_600_000}
           step={1000}
           value={intervalMs}
-          onChange={(v) => setIntervalMs(typeof v === "number" ? v : 5000)}
+          readOnly={frozen}
+          error={errors.intervalMs}
+          onChange={setIntervalMs}
+          onBlur={() =>
+            check("intervalMs", rangeError({ label: "", description: "", min: 1000, max: 3_600_000 }, intervalMs))
+          }
           size="xs"
         />
       </Group>
-      {mode === "CAPTURE" ? (
-        <CaptureBlastRadius pattern={pattern} retentionDays={retentionDays} />
+      {capture ? (
+        <>
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            aria-expanded={showBounds}
+            onClick={() => setShowBounds((open) => !open)}
+          >
+            {showBounds ? "Hide capture bounds" : "Capture bounds (defaults apply when left empty)"}
+          </Button>
+          <Collapse expanded={showBounds}>
+            <Stack gap="xs">
+              {(Object.keys(LIMITS) as BoundField[]).map((field) => (
+                <NumberInput
+                  key={field}
+                  label={LIMITS[field].label}
+                  description={LIMITS[field].description}
+                  min={LIMITS[field].min}
+                  max={LIMITS[field].max}
+                  value={bounds[field]}
+                  readOnly={frozen}
+                  error={errors[field]}
+                  onChange={(v) => setBounds((prev) => ({ ...prev, [field]: v }))}
+                  onBlur={() => check(field, rangeError(LIMITS[field], bounds[field]))}
+                  size="xs"
+                />
+              ))}
+            </Stack>
+          </Collapse>
+          <CaptureBlastRadius pattern={pattern} retentionDays={retention} />
+        </>
       ) : null}
       <Alert color="yellow" variant="light" title="This stores message bodies">
         <Text size="sm">
           Studio will keep a copy of every message it observes on{" "}
           {pattern.trim() || "these queues"} — headers, application properties
-          and the body — in its own database for {retentionDays} day
-          {retentionDays === 1 ? "" : "s"}, and then delete it. That copy is
-          searchable by anyone who can read messages on this cluster. Capture is
-          sampled, so it records what was seen, not everything that passed
-          through. Sensitive values are stored masked and credentials are never
-          stored; the originals of other masked values are sealed, and only
-          users with <code>message:clear</code> can see them.
+          and the body — in its own database for {retention} day
+          {retention === 1 ? "" : "s"}, and then delete it. That copy is
+          searchable by anyone who can read messages on this cluster.{" "}
+          {capture
+            ? "Capture records everything the address routed, up to its bounds; anything past them is counted as missed, never silently dropped."
+            : "Sampling records what was seen, not everything that passed through."}{" "}
+          Sensitive values are stored masked and credentials are never stored;
+          the originals of other masked values are sealed, and only users with{" "}
+          <code>message:clear</code> can see them.
         </Text>
       </Alert>
-      <Group>
-        <Button
-          size="xs"
-          disabled={
-            (mode === "CAPTURE" ? !canCapture : !canWrite) ||
-            pattern.trim().length === 0
-          }
-          loading={create.isPending}
-          onClick={() =>
-            create.mutate(
-              {
-                queuePattern: pattern.trim(),
-                retentionDays,
-                intervalMs,
-                enabled: true,
-                mode,
-                filterString: filterString.trim() || undefined,
-              },
-              {
-                onSuccess: () => {
-                  notifications.show({
-                    message:
-                      mode === "CAPTURE"
-                        ? `Capturing ${pattern.trim()} — the tap is installed on the next pass`
-                        : `Now sampling ${pattern.trim()}`,
-                  });
-                  setPattern("");
-                },
-                onError: (err) =>
-                  notifications.show({ color: "red", message: err.message }),
-              },
-            )
-          }
-        >
-          {mode === "CAPTURE" ? "Start capturing" : "Start sampling"}
-        </Button>
-        {(mode === "CAPTURE" ? !canCapture : !canWrite) ? (
-          <Text size="xs" c="dimmed">
-            {mode === "CAPTURE"
-              ? "Turning capture on needs the capture write permission."
-              : "Creating a subscription needs the settings write permission."}
-          </Text>
-        ) : null}
-      </Group>
+
+      {create.isError ? (
+        <Alert color="red" variant="light" role="alert" title={create.error.title}>
+          {create.error.message}
+        </Alert>
+      ) : null}
+      {previewCapture.isError ? (
+        <Alert color="red" variant="light" role="alert" title={previewCapture.error.title}>
+          {previewCapture.error.message}
+        </Alert>
+      ) : null}
+
+      {capture && preview ? (
+        <Stack gap="xs">
+          <CapturePreview preview={preview} />
+          {preview.refusal ? null : (
+            <ConfirmByTyping
+              token={body.queuePattern ?? ""}
+              confirmLabel="Start capturing"
+              loading={create.isPending}
+              disabled={!canCapture}
+              onConfirm={start}
+            />
+          )}
+          <Group>
+            <Button size="compact-xs" variant="subtle" disabled={create.isPending} onClick={() => setPreview(null)}>
+              Edit
+            </Button>
+          </Group>
+        </Stack>
+      ) : (
+        <Group>
+          <Button
+            size="xs"
+            disabled={blocked !== null}
+            loading={capture ? previewCapture.isPending : create.isPending}
+            onClick={() =>
+              capture ? previewCapture.mutate(body, { onSuccess: setPreview }) : start()
+            }
+          >
+            {capture ? "Preview capture" : "Start sampling"}
+          </Button>
+          {blocked ? (
+            <Text size="xs" c="dimmed">
+              {blocked}
+            </Text>
+          ) : null}
+        </Group>
+      )}
     </Stack>
   );
 }
@@ -311,6 +526,23 @@ function SubscriptionRow({
               ? ` · filter ${subscription.filterString}`
               : ""}
           </Text>
+          {subscription.notCapturing ? (
+            <Text size="xs" c="var(--as-warning)">
+              Recording nothing — {subscription.notCapturing}
+            </Text>
+          ) : null}
+          {subscription.backlogInProgress ? (
+            <Text size="xs" c="dimmed">
+              Still indexing the messages that were already on these queues, a
+              few pages per poll; until that finishes the index is not up to date.
+            </Text>
+          ) : null}
+          {subscription.mode !== "CAPTURE" ? (
+            <Text size="xs" c="dimmed">
+              Just sampling: a message consumed between two polls is never
+              recorded. Capture everything to record all of them.
+            </Text>
+          ) : null}
           <CaptureNodes subscription={subscription} />
         </Stack>
       </Table.Td>
@@ -357,7 +589,7 @@ function SubscriptionRow({
               {held === 1 ? "" : "s"} it holds. They cannot be recovered — a
               consumed message cannot be observed a second time.
               {subscription.mode === "CAPTURE"
-                ? " It also removes the divert, the capture queue, the address setting and the security setting from every node they were installed on. Nothing else removes them."
+                ? " It also removes the divert, the capture queue, the address setting and the security setting from every node that answers now; a node that is unreachable is cleaned on its next reconcile pass. Nothing else removes them."
                 : ""}
             </Text>
             <ConfirmByTyping

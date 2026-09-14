@@ -8806,6 +8806,10 @@
             "format" : "uuid",
             "description" : "The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself."
           },
+          "brokerXml" : {
+            "type" : [ "string", "null" ],
+            "description" : "The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Studio created it, so the deployed broker.xml does not."
+          },
           "nodesPresent" : {
             "type" : "integer",
             "format" : "int32"

@@ -88,4 +88,25 @@ describe('MessagesView', () => {
       expect(screen.getAllByLabelText('Node to browse').length).toBeGreaterThan(0),
     );
   });
+
+  it('states an unavailable total instead of showing zero', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    server.use(
+      http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () =>
+        HttpResponse.json({
+          data: [],
+          count: null,
+          countUnavailable: 'the broker did not answer the count in time',
+          page: 1,
+          pageSize: 200,
+          node: 'n1',
+        }),
+      ),
+    );
+    renderWithProviders(<MessagesView />);
+
+    expect(await screen.findByText(/total unavailable — the broker did not answer the count in time/)).toBeInTheDocument();
+    expect(screen.getByText(/page 1 · total unavailable/)).toBeInTheDocument();
+    expect(screen.queryByText(/^0 messages/)).not.toBeInTheDocument();
+  });
 });

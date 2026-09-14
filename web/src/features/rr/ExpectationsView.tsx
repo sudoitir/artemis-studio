@@ -16,6 +16,7 @@ import styles from './ExpectationsView.module.css';
 
 import { useServerNow } from '../../kernel/time/time.ts';
 import { AddressPicker } from '../queues/index.ts';
+import { CaptureHint } from '../sql/index.ts';
 import { ReplyAddressesHelp, ReplyAddressesInput } from './ReplyAddressesInput.tsx';
 import { useCreateRrExpectation, useDeleteRrExpectation, useRrDiagnostics, useRrExpectations, useUpdateRrExpectation, type ExpectationView } from './api.ts';
 import { ExpectationStatus } from './TracingDiagnostics.tsx';
@@ -174,6 +175,14 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           <ReplyAddressesHelp clusterId={clusterId} value={replyAddresses} />
         </div>
       </div>
+
+      <CaptureHint
+        clusterId={clusterId}
+        purpose="request-reply tracing"
+        addresses={(expectations.data ?? [])
+          .filter((e) => e.enabled)
+          .flatMap((e) => [e.requestAddress, ...e.resolvedReplyAddresses])}
+      />
 
       {expectations.isPending ? (
         <Text size="sm" c="dimmed">

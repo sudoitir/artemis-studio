@@ -59,6 +59,13 @@ public final class RoutingViews {
                             + " reinstate it, so the deletion would appear to succeed and then undo itself.")
             UUID captureSubscriptionId,
 
+            @Schema(
+                    requiredMode = RequiredMode.NOT_REQUIRED,
+                    nullable = true,
+                    description = "The <divert> element that would make broker configuration carry this divert,"
+                            + " when owner is OPERATOR: Studio created it, so the deployed broker.xml does not.")
+            String brokerXml,
+
             @Schema(requiredMode = REQUIRED) int nodesPresent,
             @Schema(requiredMode = REQUIRED) int nodesTotal,
             @Schema(requiredMode = REQUIRED) List<NodeRef> perNode) {}

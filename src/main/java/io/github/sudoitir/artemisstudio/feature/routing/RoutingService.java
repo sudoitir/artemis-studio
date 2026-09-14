@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerXmlSnippets;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
@@ -179,6 +180,16 @@ public class RoutingService {
                 first.retroactiveResource(),
                 owner,
                 capture ? captureSubscriptionId(name) : null,
+                OWNER_OPERATOR.equals(owner)
+                        ? BrokerXmlSnippets.forDivert(
+                                name,
+                                first.routingName(),
+                                first.address(),
+                                first.forwardingAddress(),
+                                first.exclusive(),
+                                first.filter(),
+                                first.routingType())
+                        : null,
                 group.size(),
                 nodesTotal,
                 group.stream().map(r -> new NodeRef(r.nodeId(), r.nodeName())).toList());

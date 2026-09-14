@@ -108,3 +108,13 @@ describe('NodeOutcomeSummary', () => {
     expect(screen.queryByText(/would destroy/)).not.toBeInTheDocument();
   });
 });
+
+describe('NodeOutcomeSummary announcement', () => {
+  it('is a polite live region, so a screen reader hears the outcome', () => {
+    renderWithProviders(<NodeOutcomeSummary outcome={outcome()} />);
+
+    const region = screen.getByRole('status');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region).toHaveTextContent(/Applied to all 1 nodes/);
+  });
+});
