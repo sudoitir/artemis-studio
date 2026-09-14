@@ -19,6 +19,26 @@ description: The environment variables Artemis Studio reads, which are required,
 broker credential was encrypted with. Losing it means re-entering every
 connection's credentials.
 
+## Features
+
+Every optional feature can be turned off at startup, and is on unless you do:
+
+```bash
+ARTEMIS_STUDIO_FEATURES_SQL_ENABLED=false        # artemis-studio.features.sql.enabled
+```
+
+The ids are `queues`, `resources`, `messages`, `routing`, `metrics`, `alerting`,
+`events`, `rr`, `sql`, `brokerconfig`, `triage`, `mcp`, `apitokens`, `identity-local`
+and `identity-oidc`; in an environment variable a dash becomes an underscore. A disabled
+feature has no screens, no API and no assistant tools: its navigation entry is gone, its
+address explains that it is off and names this property, and its API answers
+`404 feature-disabled`. Its tables are still migrated, so turning it back on is a
+restart. The kernel and platform (clusters, brokers, scrape, security, audit, settings,
+stream) cannot be turned off, and a feature another one `requires` cannot be turned off
+while that one is on — Studio refuses to start and says which.
+
+`GET /api/v1/manifest` lists what this installation has enabled.
+
 ## The two planes
 
 Configuration is deliberately split in two, and the split is about who changes a

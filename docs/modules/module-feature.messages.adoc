@@ -1,0 +1,29 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.messages`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.m.DlqService`
+* `i.g.s.a.f.m.MessageService`
+
+_Others_
+
+* `i.g.s.a.f.m.MessagesFeature`
+|Bean references
+|* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.b.MessageOperations` (in Broker connectivity)
+* `i.g.s.a.p.b.JolokiaMessageTransport` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.p.m.McpProperties` (in MCP server)
+|===

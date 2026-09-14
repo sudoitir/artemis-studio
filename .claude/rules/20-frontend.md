@@ -16,7 +16,7 @@ the alternative misleads someone in that state.
   matters most and the one most likely to be skipped.
 - **A destructive action states its blast radius before it can be armed** — the
   resource, the nodes, and how much data will be destroyed. Confirm by typing the
-  resource's name, using `shared/ConfirmByTyping.tsx`. Never a checkbox, a second
+  resource's name, using `ui/ConfirmByTyping.tsx`. Never a checkbox, a second
   click, or a countdown.
 - **An unavailable estimate is stated, never omitted.** An absent number reads as
   zero, which is the most dangerous possible misreading.
@@ -37,7 +37,7 @@ the alternative misleads someone in that state.
   of evidence locks operators out of brokers that work fine. See ADR-0049 D5.
 - **The explanation is keyboard-reachable**, never hover-only. A disabled control
   takes no focus, so the explanation hangs off something that does.
-- **Gate on `auth/useCan.ts`**, never a hand-rolled grant check, and only ever to
+- **Gate on `kernel/auth/useCan.ts`**, never a hand-rolled grant check, and only ever to
   disable-with-a-reason. The server is the enforcement point.
 - **While grants are still loading, offer the control.** Rendering "you do not have
   permission" before the answer arrives is a claim that has not been checked.
@@ -83,10 +83,31 @@ the alternative misleads someone in that state.
 
 - New tabular views use the existing virtualised table, with its paging, sorting,
   sort announcement and node attribution.
-- Destructive confirmations use `shared/ConfirmByTyping.tsx`.
-- A per-node result uses `shared/NodeOutcomeSummary.tsx`, for the preview *and* the
+- Destructive confirmations use `ui/ConfirmByTyping.tsx`.
+- A per-node result uses `ui/NodeOutcomeSummary.tsx`, for the preview *and* the
   result, so what was confirmed and what happened are comparable.
-- DTOs come from `api/schema.d.ts`, generated. Never hand-written.
+- DTOs come from `kernel/api/schema.d.ts`, generated. Never hand-written; a feature
+  names the ones it uses in its `api.ts`.
+
+## Where code goes
+
+The binding decisions are ADR-0070 and ADR-0074; `docs/architecture.md` has the map.
+
+- **A screen belongs to a feature**: `src/features/<id>/`, named after its backend
+  module. Its `feature.ts` calls `defineFeature` with its routes, navigation, palette
+  groups, stream topic handlers and slot contributions, and `src/app/features.ts` lists
+  it. Its hooks and query keys are in its own `api.ts`.
+- **The kernel never imports a feature.** A shared screen shows another feature's
+  panel through a kernel-owned slot (`kernel/slots.ts`); a new slot is a kernel change
+  with a consumer, not a speculative one.
+- **Another feature is reached only through its `index.ts`**, and only along an edge
+  listed in `web/eslint.config.js`. Prefer a slot to a new edge.
+- **Navigation** names one of the kernel's groups (`kernel/nav/groups.ts`). Adding a
+  group is a kernel change.
+- **Shared presentational components** are in `src/ui/`, which imports nothing of the
+  app but generated DTO types.
+- A feature's view is wrapped in `featureView`, so a disabled feature's address
+  explains itself instead of failing.
 
 ## State ownership
 
@@ -98,7 +119,8 @@ what a URL can hold.
 ## Tests
 
 Query **by role and accessible name**, never by class or test id — the harness in
-`src/test/render.tsx` is set up for it. A destructive flow gets an asserted
+`src/test/render.tsx` is set up for it. `renderAppAt(path)` renders the composed app
+over an in-memory history when the real router is what is under test. A destructive flow gets an asserted
 keyboard-only pass: focus enters the dialog, escape dismisses it, focus returns to
 the trigger.
 

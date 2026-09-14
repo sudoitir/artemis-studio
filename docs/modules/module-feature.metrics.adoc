@@ -1,0 +1,21 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.metrics`
+|Spring components
+|_Controllers_
+
+* `i.g.s.a.f.m.web.MetricsController`
+
+_Services_
+
+* `i.g.s.a.f.m.MetricQueryService`
+
+_Others_
+
+* `i.g.s.a.f.m.MetricsFeature`
+|Bean references
+|* `i.g.s.a.p.s.MetricSamples` (in Scraping)
+* `i.g.s.a.p.s.MetricSampleReaper` (in Scraping)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+|===

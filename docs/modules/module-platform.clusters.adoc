@@ -1,0 +1,43 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.platform.clusters`
+|Spring components
+|_Controllers_
+
+* `i.g.s.a.p.c.web.ClusterController`
+* `i.g.s.a.p.c.web.EnvironmentsController`
+
+_Services_
+
+* `i.g.s.a.p.c.CapabilityLedger`
+* `i.g.s.a.p.c.ClusterService`
+* `i.g.s.a.p.c.EnvironmentService`
+
+_Others_
+
+* `i.g.s.a.p.c.BrokerCommands`
+* `i.g.s.a.p.c.BrokerNodeMapper` (via `i.g.s.a.p.c.BrokerNodeMapperImpl`)
+* `i.g.s.a.p.c.ClusterDirectory`
+* `i.g.s.a.p.c.ClusterEnvironmentIndex`
+* `i.g.s.a.p.c.ClusterLock`
+* `i.g.s.a.p.c.ClusterViewMapper` (via `i.g.s.a.p.c.ClusterViewMapperImpl`)
+* `i.g.s.a.p.c.HaStateEvaluator`
+* `i.g.s.a.p.c.NodeStateRecorder`
+* `i.g.s.a.p.c.SplitBrainRegistry`
+* `i.g.s.a.p.c.TopologyDiscovery`
+|Bean references
+|* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.SecretVault` (in Security)
+* `i.g.s.a.p.b.BrokerClientFactory` (in Broker connectivity)
+* `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
+* `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
+* `i.g.s.a.k.s.ScopedGrants` (in Security)
+|===

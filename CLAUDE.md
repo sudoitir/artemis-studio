@@ -7,6 +7,32 @@ first-class request-reply tracing. Open source, Apache-2.0.
 The full design rationale is in `docs/architecture.md` and the ADRs. The remaining
 work is the Roadmap in `README.md` — each item is a self-contained session.
 
+## Layout: kernel, platform, features (ADR-0069)
+
+Studio is a modular monolith with the same module ids on both sides:
+
+- **Backend** `io.github.sudoitir.artemisstudio`: `kernel.*` (core, plugin, security,
+  audit, settings, jobs, stream) defines contracts and never imports a platform or
+  feature type; `platform.*` (broker, clusters, scrape, mcp) is what features build on;
+  `feature.*` is one module per capability. `app/StudioFeatures` is the one list of
+  modules. Boundaries are checked by `ModularityTest` (Spring Modulith) and
+  `BoundaryRulesTest` (ArchUnit); `docs/modules/` is generated from the same model.
+- **Frontend** `web/src`: `kernel/` (contract, manifest, slots, nav groups, routing
+  roots, api, stream, auth, shell), `ui/` (shared presentational components),
+  `features/<id>/`, `app/` (the composition root: `features.ts`, `router.ts`).
+  eslint-plugin-boundaries enforces the edges (ADR-0074).
+
+**Where a new feature goes.** A backend module `feature/<id>/` with `package-info.java`
+(`@ApplicationModule(allowedDependencies)`), an `<Id>Module` holding its
+`FeatureDescriptor`, an `<Id>Feature` carrying `@FeatureModule("<id>")`, its tables in
+`db/changelog/feature/<id>/` (included from the master changelog), and an
+`@ApplicationModuleTest`; registered in `app/StudioFeatures`. A frontend folder
+`web/src/features/<id>/` with `feature.ts` (`defineFeature`: routes, nav, palette,
+topics, slots) and `api.ts`, listed in `web/src/app/features.ts`; its id added to
+`FEATURE_IDS`. Cross-feature needs are a slot or a named public export on an allowed
+edge, never a reach into another module's internals. The site guide "Build a plugin"
+walks one end to end.
+
 ## Stack (fixed — changing any of these needs an ADR)
 
 - **Backend**: Java 25, Spring Boot 4.1.0, Maven. Package root
@@ -16,8 +42,8 @@ work is the Roadmap in `README.md` — each item is a self-contained session.
   component boilerplate and **MapStruct** for entity↔domain↔DTO mapping
   (ADR-0014) — needs the Lombok IDE plugin.
 - **Database**: PostgreSQL. Schema via **Liquibase** — XML master changelog
-  (`src/main/resources/db/changelog/db.changelog-master.xml`), one SQL changeset
-  file per concern under `changes/`. Boot runs migrations on startup; the
+  (`src/main/resources/db/changelog/db.changelog-master.xml`) including one changelog
+  per module, with one SQL changeset file per concern under that module's `changes/`. Boot runs migrations on startup; the
   `liquibase-maven-plugin` (`just db-*`) is for humans. Postgres owns config,
   users, and audit; broker-derived tables (`queue_snapshot`, `metric_sample`) are
   a disposable cache.
@@ -55,7 +81,10 @@ work is the Roadmap in `README.md` — each item is a self-contained session.
    first, on purpose. High-churn tables carry per-table `autovacuum` / `fillfactor`
    storage parameters in the same changeset. Server-level tuning lives in
    `deploy/postgres/postgresql.tuning.conf` (and inline in the compose files).
-   Never edit a released changeset — add a new one.
+   Never edit a released changeset — add a new one. Each module owns its tables and
+   its changelog under `db/changelog/<layer>/<id>/`; a cross-module foreign key follows
+   an allowed dependency. The per-module re-baseline (ADR-0072) was a one-time,
+   recorded exception to this rule, not a precedent.
 8. **Logical CSS properties** (`inline-start`, `block-end`), never `left`/`right`.
 9. **State has one owner.** Server state via TanStack Query; navigable state in the
    URL; local state stays local. No global store for what a URL can hold.

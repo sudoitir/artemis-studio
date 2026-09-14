@@ -1,0 +1,41 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.brokerconfig`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.b.BrokerConfigApplyService`
+* `i.g.s.a.f.b.BrokerConfigDriftService`
+* `i.g.s.a.f.b.BrokerConfigRecommendationService`
+* `i.g.s.a.f.b.BrokerConfigService`
+* `i.g.s.a.f.b.ConfigDiffService`
+
+_Configuration properties_
+
+* `i.g.s.a.f.b.BrokerConfigProperties`
+
+_Others_
+
+* `i.g.s.a.f.b.BrokerConfigFeature`
+* `i.g.s.a.f.b.BrokerConfigOperations`
+* `i.g.s.a.f.b.BrokerConfigReads`
+* `i.g.s.a.f.b.BrokerConfigSettings`
+* `i.g.s.a.f.b.ConfigReader`
+|Bean references
+|* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.c.CapabilityLedger` (in Clusters)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.p.c.ClusterLock` (in Clusters)
+* `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.f.q.QueueLifecycleOperations` (in Queues)
+* `i.g.s.a.f.q.DivertOperations` (in Queues)
+* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.a.p.c.ClusterService` (in Clusters)
+* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+|===

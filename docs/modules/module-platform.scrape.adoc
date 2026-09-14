@@ -1,0 +1,37 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.platform.scrape`
+|Spring components
+|_Repositories_
+
+* `i.g.s.a.p.s.MetricSamples`
+
+_Configuration properties_
+
+* `i.g.s.a.p.s.MetricProperties`
+* `i.g.s.a.p.s.ScrapeProperties`
+
+_Others_
+
+* `i.g.s.a.p.s.MetricPartitionMaintainer`
+* `i.g.s.a.p.s.MetricSampleReaper`
+* `i.g.s.a.p.s.MetricSampleWriter`
+* `i.g.s.a.p.s.QueueSnapshotUpsert`
+* `i.g.s.a.p.s.QueueSnapshots`
+* `i.g.s.a.p.s.ScrapeCycle`
+* `i.g.s.a.p.s.ScrapeScheduler`
+* `i.g.s.a.p.s.ScrapeSettings`
+* `i.g.s.a.p.s.StreamSignals`
+* `i.g.s.a.p.s.SweepCursor`
+|Bean references
+|* `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.a.p.c.NodeStateRecorder` (in Clusters)
+* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+|===

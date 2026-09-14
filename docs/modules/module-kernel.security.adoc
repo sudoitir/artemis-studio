@@ -1,0 +1,24 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.security`
+|Spring components
+|_Configuration properties_
+
+* `i.g.s.a.k.s.SecretKeyProperties`
+
+_Others_
+
+* `i.g.s.a.k.s.ActorResolver`
+* `i.g.s.a.k.s.ClusterAccessGuard`
+* `i.g.s.a.k.s.GrantLoader`
+* `i.g.s.a.k.s.IdentityProvisioner`
+* `i.g.s.a.k.s.PermissionResolver`
+* `i.g.s.a.k.s.ScopedGrants`
+* `i.g.s.a.k.s.SecretVault`
+* `i.g.s.a.k.s.SessionAuthentication`
+* `i.g.s.a.k.s.UserAccounts`
+|Bean references
+|* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.a.k.p.IdentityProviderListing` (in Plugin contract)
+|===

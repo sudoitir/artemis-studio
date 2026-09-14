@@ -1,0 +1,51 @@
+package io.github.sudoitir.artemisstudio.kernel.plugin.internal;
+
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Answers a request for a disabled feature's API with a {@code 404} that says so
+ * and names the property that enables it (feature-modules spec). Registered at the
+ * default order, so it runs after the security filter chain: an unauthenticated
+ * caller still gets {@code 401} and learns nothing about the installation.
+ */
+@Component
+@RequiredArgsConstructor
+class FeatureDisabledFilter extends OncePerRequestFilter {
+
+    private final FeatureRegistry registry;
+    private final JsonMapper json;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !request.getRequestURI().startsWith("/api/");
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        Optional<FeatureDescriptor> owner = registry.disabledOwnerOf(request.getRequestURI());
+        if (owner.isEmpty()) {
+            chain.doFilter(request, response);
+            return;
+        }
+        ProblemDetail problem = new FeatureDisabledException(owner.get()).toProblem();
+        response.setStatus(HttpStatus.NOT_FOUND.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        json.writeValue(response.getOutputStream(), problem);
+    }
+}

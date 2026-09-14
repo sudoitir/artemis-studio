@@ -1,0 +1,21 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.platform.mcp`
+|Spring components
+|_Configuration properties_
+
+* `i.g.s.a.p.m.McpProperties`
+
+_Others_
+
+* `i.g.s.a.p.m.McpCatalogResources`
+* `i.g.s.a.p.m.McpHelpTool`
+* `i.g.s.a.p.m.McpRunbookPrompts`
+* `i.g.s.a.p.m.McpServerInstructions`
+* `i.g.s.a.p.m.SettingsMcpTools`
+|Bean references
+|* `i.g.s.a.p.c.ClusterService` (in Clusters)
+* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+|===

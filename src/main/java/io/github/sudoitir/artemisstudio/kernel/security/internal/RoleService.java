@@ -1,0 +1,108 @@
+package io.github.sudoitir.artemisstudio.kernel.security.internal;
+
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleView;
+import java.util.List;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Custom role CRUD. Built-in roles ({@code ADMIN}/{@code OPERATOR}/{@code VIEWER},
+ * {@code role.builtin = true}) can be granted to users but never edited or
+ * deleted (authorization spec, design.md decision 4) — the permission model is
+ * fully dynamic, so this immutability is the only thing stopping an operator
+ * from quietly hollowing out a built-in role's meaning.
+ */
+@Service
+@RequiredArgsConstructor
+public class RoleService {
+
+    private final RoleRepository roles;
+    private final RolePermissionRepository rolePermissions;
+    private final FeatureRegistry features;
+    private final UserRoleRepository userRoles;
+    private final AdministrationAudit audit;
+
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional(readOnly = true)
+    public List<RoleView> list() {
+        return roles.findAllByOrderByName().stream().map(this::toView).toList();
+    }
+
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    public List<PermissionView> catalogue() {
+        return features.enabled().stream()
+                .flatMap(d -> d.permissions().stream())
+                .map(p -> new PermissionView(p.action(), p.label()))
+                .toList();
+    }
+
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional
+    public RoleView create(RoleRequest request) {
+        if (roles.findByName(request.name()).isPresent()) {
+            throw new ConflictException("duplicate-role-name", "A role named '" + request.name() + "' already exists.");
+        }
+        RoleEntity role = roles.save(new RoleEntity(request.name(), false));
+        savePermissions(role.getId(), request.permissions());
+        audit.changed("ROLE_CREATE", "role", role.getName(), null);
+        return toView(role);
+    }
+
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional
+    public RoleView update(UUID roleId, RoleRequest request) {
+        RoleEntity role = requireEditable(roleId);
+        role.setName(request.name());
+        roles.save(role);
+        rolePermissions.deleteByIdRoleId(roleId);
+        savePermissions(roleId, request.permissions());
+        audit.changed("ROLE_UPDATE", "role", role.getName(), null);
+        return toView(role);
+    }
+
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional
+    public void delete(UUID roleId) {
+        RoleEntity role = requireEditable(roleId);
+        if (userRoles.countByIdRoleId(roleId) > 0) {
+            throw new ConflictException("role-in-use", "This role is still granted to at least one user.");
+        }
+        roles.delete(role); // cascades role_permission
+        audit.changed("ROLE_DELETE", "role", role.getName(), null);
+    }
+
+    private void savePermissions(UUID roleId, List<String> permissions) {
+        for (String action : permissions) {
+            rolePermissions.save(new RolePermissionEntity(roleId, action));
+        }
+    }
+
+    private RoleEntity requireEditable(UUID roleId) {
+        RoleEntity role = roles.findById(roleId).orElseThrow(() -> new NotFoundException("role", roleId));
+        if (role.isBuiltin()) {
+            throw new ConflictException("builtin-role", "Built-in roles cannot be changed or deleted.");
+        }
+        return role;
+    }
+
+    private RoleView toView(RoleEntity role) {
+        List<String> permissions = rolePermissions.findByIdRoleId(role.getId()).stream()
+                .map(RolePermissionEntity::getAction)
+                .toList();
+        return new RoleView(role.getId(), role.getName(), role.isBuiltin(), permissions);
+    }
+}

@@ -28,7 +28,12 @@ just fmt        # Palantir Java Format (Spotless) + eslint --fix
 - Frontend: no raw colour/spacing literals in components — tokens only
   (`web/src/theme.ts` → `web/src/theme.css` → component). Logical CSS properties
   (`inline-start`, not `left`).
-- Migrations: new Liquibase changeset, never edit a released one.
+- Migrations: new Liquibase changeset in the owning module's changelog, never edit a
+  released one.
+- Code goes in its module: `kernel`, `platform` or a feature, on the backend and in
+  `web/src` alike. `CLAUDE.md` ("Layout") and the site's
+  [plugin guide](https://sudoitir.github.io/artemis-studio/guide/plugins) say where;
+  `just verify` fails on a boundary violation.
 
 ## Pull requests
 

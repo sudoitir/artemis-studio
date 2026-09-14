@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.modulith.Modulithic;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -16,7 +17,23 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * governance (auth, RBAC, environments). Remaining work is the Roadmap in
  * {@code README.md}; the living specs are under {@code openspec/}.
  */
-@SpringBootApplication
+@SpringBootApplication(
+        scanBasePackages = {
+            "io.github.sudoitir.artemisstudio.app",
+            "io.github.sudoitir.artemisstudio.kernel",
+            "io.github.sudoitir.artemisstudio.platform"
+        })
+// The kernel is what every module stands on, so each module's own test bootstraps it (ADR-0069).
+@Modulithic(
+        sharedModules = {
+            "kernel.audit",
+            "kernel.core",
+            "kernel.jobs",
+            "kernel.plugin",
+            "kernel.security",
+            "kernel.settings",
+            "kernel.stream"
+        })
 @ConfigurationPropertiesScan
 @EnableScheduling
 public class ArtemisStudioApplication {

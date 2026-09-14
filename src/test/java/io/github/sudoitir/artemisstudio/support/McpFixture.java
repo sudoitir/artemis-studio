@@ -1,15 +1,15 @@
 package io.github.sudoitir.artemisstudio.support;
 
-import io.github.sudoitir.artemisstudio.persist.AppUserEntity;
-import io.github.sudoitir.artemisstudio.persist.AppUserRepository;
-import io.github.sudoitir.artemisstudio.persist.RoleEntity;
-import io.github.sudoitir.artemisstudio.persist.RolePermissionEntity;
-import io.github.sudoitir.artemisstudio.persist.RolePermissionRepository;
-import io.github.sudoitir.artemisstudio.persist.RoleRepository;
-import io.github.sudoitir.artemisstudio.persist.UserRoleEntity;
-import io.github.sudoitir.artemisstudio.persist.UserRoleRepository;
-import io.github.sudoitir.artemisstudio.security.ApiTokenService;
-import io.github.sudoitir.artemisstudio.security.Grant;
+import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -54,7 +54,7 @@ public final class McpFixture {
         // carries the nil UUID sentinel (014-identity.sql), not null. The token/owner
         // grant intersection compares scope ids for equality, so both sides must use it.
         UUID scope = scopeType == Grant.ScopeType.GLOBAL
-                ? io.github.sudoitir.artemisstudio.security.ScopeIds.GLOBAL
+                ? io.github.sudoitir.artemisstudio.kernel.security.ScopeIds.GLOBAL
                 : scopeId;
         String username = "mcp-" + UUID.randomUUID();
         AppUserEntity user = AppUserEntity.local(username, username + "@example.test", "{noop}unused");

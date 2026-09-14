@@ -6,10 +6,12 @@
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!--
-      Master changelog. XML here, DDL in the .sql files it includes, in order.
+      Master changelog: one include per module, in dependency order (ADR-0072). A
+      module owns its tables; its changelog lives beside its changesets under
+      db/changelog/<module>/, and a new module adds one include here.
 
       Conventions for every changeset (see docs/adr/0008):
-        * One logical concern per file.
+        * One logical concern per file, inside the module that owns the table.
         * Columns are ordered to minimise Postgres row padding: 8-byte-aligned
           types first (timestamptz, bigint, double precision), then 4-byte
           (integer, and the varlena types text/jsonb/bytea/inet), then the
@@ -17,33 +19,21 @@
           key not first) is deliberate and worth it on the wide, high-row tables.
         * High-churn tables carry per-table autovacuum and fillfactor storage
           parameters, set in the same file as the table.
+        * A cross-module foreign key follows an allowed module dependency.
         * Never edit a released changeset. Add a new one.
     -->
 
-    <include file="db/changelog/changes/001-extensions.sql"     relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/002-estate.sql"         relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/003-identity.sql"       relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/004-audit.sql"          relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/005-broker-cache.sql"   relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/006-alerting.sql"       relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/007-request-reply.sql"  relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/008-node-ha-state.sql"  relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/009-studio-settings.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/010-broker-events.sql"   relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/011-request-reply-keys.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/012-metric-partitions.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/013-alerting.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/014-identity.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/015-queue-paused.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/016-studio-config-property.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/017-rr-reply-addresses.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/018-audit-outcome-detail.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/019-management-write-evidence.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/020-clock-skew-and-latency-source.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/021-message-index.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/022-message-capture.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/023-message-index-fulltext.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/024-broker-configuration.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/025-broker-config-sync-basis.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/kernel/core/changelog.xml"          relativeToChangelogFile="false"/>
+    <include file="db/changelog/kernel/security/changelog.xml"      relativeToChangelogFile="false"/>
+    <include file="db/changelog/kernel/audit/changelog.xml"         relativeToChangelogFile="false"/>
+    <include file="db/changelog/kernel/settings/changelog.xml"      relativeToChangelogFile="false"/>
+    <include file="db/changelog/platform/clusters/changelog.xml"    relativeToChangelogFile="false"/>
+    <include file="db/changelog/platform/scrape/changelog.xml"      relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/apitokens/changelog.xml"    relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/events/changelog.xml"       relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/alerting/changelog.xml"     relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/rr/changelog.xml"           relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/sql/changelog.xml"          relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/brokerconfig/changelog.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

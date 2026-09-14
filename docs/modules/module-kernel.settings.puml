@@ -1,0 +1,37 @@
+@startuml
+title <size:24>Settings</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
+  Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Settings, "Settings", $techn="Module", $descr="", $tags="", $link="")
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Security, "Security", $techn="Module", $descr="", $tags="", $link="")
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "Audit log", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

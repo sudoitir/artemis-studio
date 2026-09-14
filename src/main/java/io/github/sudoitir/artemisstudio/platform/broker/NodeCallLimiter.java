@@ -1,0 +1,102 @@
+package io.github.sudoitir.artemisstudio.platform.broker;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+/**
+ * A per-node rate ceiling on management calls (CLAUDE.md non-negotiable #1 —
+ * "Studio must never be the reason a broker falls over").
+ *
+ * <p>One {@link Semaphore} per broker node, sized to the configured
+ * calls-per-second. {@link #acquire(UUID)} is taken before <em>every</em>
+ * management POST — the scrape tiers and the on-demand paths alike (message
+ * browse / operations, the capability probe): an operator hammering the message
+ * grid is throttled the same as the scheduler. {@link #refill()} tops every
+ * bucket back up to the ceiling once a second. This is a coarse token bucket: it
+ * bounds sustained rate and absorbs a one-second burst.
+ */
+// ponytail: per-node Semaphore + 1s refill. Swap for Bucket4j only if precise
+// sub-second burst shaping is ever needed — same call sites.
+@Component
+@Slf4j
+public class NodeCallLimiter {
+
+    private final Map<UUID, Semaphore> perNode = new ConcurrentHashMap<>();
+    private final Map<UUID, Duration> lastWait = new ConcurrentHashMap<>();
+    private volatile int permitsPerSecond;
+    private volatile boolean closed;
+
+    public NodeCallLimiter(RateLimitProperties properties) {
+        this.permitsPerSecond = Math.max(1, properties.managementCallsPerSecond());
+    }
+
+    /** Runtime override hook — {@code SettingsService} calls this when the ceiling changes. */
+    public void setPermitsPerSecond(int permitsPerSecond) {
+        this.permitsPerSecond = Math.max(1, permitsPerSecond);
+    }
+
+    public int permitsPerSecond() {
+        return permitsPerSecond;
+    }
+
+    /**
+     * Block until a permit for this node is available, then take it. A permit is
+     * returned by the next {@link #refill()}, not by the caller — the bucket
+     * drains within a tick and is topped back up each second.
+     */
+    public void acquire(UUID nodeId) throws InterruptedException {
+        if (closed) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.UNREACHABLE,
+                    "Studio is shutting down; no new broker call is started.");
+        }
+        Semaphore sem = perNode.computeIfAbsent(nodeId, k -> new Semaphore(permitsPerSecond, true));
+        long waitStarted = System.nanoTime();
+        boolean acquired = sem.tryAcquire(1, 5, TimeUnit.SECONDS);
+        lastWait.put(nodeId, Duration.ofNanos(System.nanoTime() - waitStarted));
+        if (!acquired) {
+            throw new InterruptedException("Timed out waiting for a scrape permit for node " + nodeId);
+        }
+    }
+
+    /** Top every node's bucket back up to the current ceiling. Driven every second by {@code BrokerJobs}. */
+    public void refill() {
+        int ceiling = permitsPerSecond;
+        perNode.forEach((nodeId, sem) -> {
+            int deficit = ceiling - sem.availablePermits();
+            if (deficit > 0) {
+                sem.release(deficit);
+            } else if (deficit < 0) {
+                // Ceiling was lowered at runtime; drain the surplus without blocking.
+                sem.tryAcquire(-deficit);
+            }
+        });
+    }
+
+    /** Refuse every later call: Studio is shutting down (operational-health spec). */
+    public void close() {
+        closed = true;
+    }
+
+    /** Accept calls again after a stopped context has been started. */
+    public void open() {
+        closed = false;
+    }
+
+    /** How long the latest call to this node waited for a permit; zero before any. */
+    public Duration lastWait(UUID nodeId) {
+        return lastWait.getOrDefault(nodeId, Duration.ZERO);
+    }
+
+    /** Drop a node's bucket when its cluster is removed. */
+    public void forget(UUID nodeId) {
+        perNode.remove(nodeId);
+        lastWait.remove(nodeId);
+    }
+}

@@ -1,0 +1,23 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.settings`
+|Spring components
+|_Controllers_
+
+* `i.g.s.a.k.s.web.SettingsController`
+
+_Services_
+
+* `i.g.s.a.k.s.SettingsService`
+
+_Others_
+
+* `i.g.s.a.k.s.StudioInstance`
+|Bean references
+|* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|===

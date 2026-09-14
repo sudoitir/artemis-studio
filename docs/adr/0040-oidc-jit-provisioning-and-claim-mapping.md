@@ -1,6 +1,6 @@
 # ADR-0040: OIDC — JIT provisioning, principal swap after the exchange, claim mapping re-applied every login
 
-- **Status**: accepted
+- **Status**: accepted; mapping model superseded by [ADR-0073](0073-identity-provider-spi.md)
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 

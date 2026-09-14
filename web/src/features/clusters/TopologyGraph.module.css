@@ -1,0 +1,259 @@
+.wrapper {
+  position: relative;
+  block-size: clamp(420px, 60vh, 720px);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-graph-node-bg);
+  overflow: hidden;
+}
+
+/* One logical node = one group. The axis lives INSIDE the group, in React
+   Flow's transformed pane, so it stays registered to the boxes it groups under
+   every pan and zoom — unlike the fixed-position overlay it replaces. */
+.group {
+  position: relative;
+  block-size: 100%;
+  inline-size: 100%;
+  border: 1px dashed var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: transparent;
+}
+
+.groupAxis {
+  position: absolute;
+  inset-inline: 10px;
+  block-size: 0;
+  border-block-start: 2px solid var(--as-axis);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.group[data-status='behind'] .groupAxis,
+.group[data-status='suspected'] .groupAxis {
+  border-block-start-style: dashed;
+  border-block-start-color: var(--as-axis-broken);
+}
+
+.group[data-status='critical'] .groupAxis {
+  border-block-start-color: var(--as-node-split-brain);
+}
+
+.axisNote {
+  transform: translateY(-50%);
+  padding-inline: 8px;
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+  background: var(--as-graph-node-bg);
+}
+
+.group[data-status='critical'] .axisNote {
+  color: var(--as-node-split-brain);
+}
+
+/* The shared NodeID, set on the group's own edge — the identity the pair is. */
+.groupId {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-start: 10px;
+  font-family: var(--mantine-font-family-monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--as-text-dimmed);
+}
+
+/* The box is pinned to the slot `layout.ts` reserved for it (NODE_W x NODE_H).
+   Its content is variable — a name can wrap, an unreachable endpoint carries an
+   error sentence — and the layout's pixels are not negotiable, so the two
+   variable lines clamp instead of pushing the box over the standby below it. */
+.node {
+  position: relative;
+  z-index: 1;
+  inline-size: 260px;
+  block-size: 132px;
+  padding: 10px 12px;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-graph-node-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+/* React Flow owns `transform` on its own node wrapper, so the promotion
+   transition has to sit there — on `.node` it never fires. */
+:global(.react-flow__node) {
+  transition: transform 240ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.react-flow__node) {
+    transition: none;
+  }
+}
+
+.node[data-offset] {
+  transform: translateX(18px);
+}
+
+.node[data-kind='unmanaged'] {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.node:focus-visible {
+  outline: 2px solid var(--as-text);
+  outline-offset: 2px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name {
+  font-weight: 600;
+  font-size: var(--mantine-font-size-sm);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 10px;
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.word {
+  color: var(--as-text);
+}
+
+/* Marks are told apart by SHAPE — fill, ring, half-fill, dash — not by two
+   greys eight pixels apart. Colour still enters only for a fault (theme.css:
+   "health is the absence of colour"). */
+.mark {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1.5px solid var(--as-node-backup);
+}
+
+/* filled disc */
+.mark[data-kind='live'] {
+  background: var(--as-node-live);
+  border-color: var(--as-node-live);
+}
+
+/* hollow ring — the default above */
+.mark[data-kind='standby'] {
+  background: transparent;
+}
+
+/* half-filled */
+.mark[data-kind='behind'] {
+  border-color: var(--as-axis-broken);
+  background: linear-gradient(
+    to bottom,
+    var(--as-axis-broken) 0 50%,
+    transparent 50% 100%
+  );
+}
+
+/* filled, amber */
+.mark[data-kind='down'] {
+  background: var(--as-node-down);
+  border-color: var(--as-node-down);
+}
+
+/* dashed ring */
+.mark[data-kind='unmanaged'] {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--as-node-unmanaged);
+}
+
+.addr {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--as-text-dimmed);
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.handle {
+  opacity: 0;
+}
+
+.cta {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+}
+
+/* A static row under the canvas, not a floating panel that covers nodes when
+   the frame is small. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding-block-start: 8px;
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendEdge {
+  inline-size: 18px;
+  block-size: 0;
+  border-block-start: 2px solid var(--as-graph-edge);
+}
+
+.legendEdge[data-kind='behind'] {
+  border-block-start-style: dashed;
+  border-block-start-color: var(--as-graph-edge-behind);
+}
+
+.legendAxis {
+  inline-size: 18px;
+  block-size: 0;
+  border-block-start: 2px solid var(--as-axis);
+}
+
+.empty {
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}

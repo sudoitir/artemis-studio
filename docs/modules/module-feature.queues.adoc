@@ -1,0 +1,19 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.queues`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.q.QueueLifecycleService`
+
+_Others_
+
+* `i.g.s.a.f.q.DivertOperations`
+* `i.g.s.a.f.q.QueueLifecycleOperations`
+* `i.g.s.a.f.q.QueuesFeature`
+|Bean references
+|* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.p.c.BrokerCommands` (in Clusters)
+|===

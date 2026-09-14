@@ -1,0 +1,54 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.alerting`
+|Spring components
+|_Controllers_
+
+* `i.g.s.a.f.a.web.AlertSummaryController`
+* `i.g.s.a.f.a.web.AlertsController`
+* `i.g.s.a.f.a.web.NotificationChannelsController`
+
+_Services_
+
+* `i.g.s.a.f.a.AlertEvaluator`
+* `i.g.s.a.f.a.AlertRuleService`
+* `i.g.s.a.f.a.AlertService`
+* `i.g.s.a.f.a.NotificationChannelService`
+
+_Configuration properties_
+
+* `i.g.s.a.f.a.AlertingProperties`
+
+_Others_
+
+* `i.g.s.a.f.a.AlertDispatcher`
+* `i.g.s.a.f.a.AlertViewMapper`
+* `i.g.s.a.f.a.AlertingFeature`
+* `i.g.s.a.f.a.AlertingSettings`
+* `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.GaugeCondition`)
+* `i.g.s.a.f.a.NotificationHttpConfig`
+* `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.RateCondition`)
+* `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.SlackSender`)
+* `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.SlowConsumerCondition`)
+* `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.StateCondition`)
+* `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.WebhookSender`)
+|Bean references
+|* `i.g.s.a.k.s.SecretVault` (in Security)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.p.s.MetricSamples` (in Scraping)
+* `i.g.s.a.p.s.ScrapeProperties` (in Scraping)
+* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
+* `i.g.s.a.p.c.BrokerNodeMapper` (in Clusters)
+* `i.g.s.a.p.c.HaStateEvaluator` (in Clusters)
+* `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
+|Events listened to
+|* `i.g.s.a.p.s.ScrapeTierCompleted` 
+* `i.g.s.a.p.c.ClusterRegistered` 
+|===

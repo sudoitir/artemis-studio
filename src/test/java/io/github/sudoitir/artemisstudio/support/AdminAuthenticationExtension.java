@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.support;
 
-import io.github.sudoitir.artemisstudio.security.Grant;
-import io.github.sudoitir.artemisstudio.security.Permissions;
-import io.github.sudoitir.artemisstudio.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import java.util.Set;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;

@@ -148,6 +148,42 @@
         }
       }
     },
+    "/api/v1/identity/providers/{providerId}/group-mappings/default-role" : {
+      "put" : {
+        "tags" : [ "group-mapping-controller" ],
+        "operationId" : "setDefaultRole",
+        "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DefaultRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupMappingsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/environments/{environmentId}" : {
       "put" : {
         "tags" : [ "environments-controller" ],
@@ -693,20 +729,25 @@
         }
       }
     },
-    "/api/v1/oidc/mappings" : {
+    "/api/v1/identity/providers/{providerId}/group-mappings" : {
       "get" : {
-        "tags" : [ "oidc-mapping-controller" ],
+        "tags" : [ "group-mapping-controller" ],
         "operationId" : "list_3",
+        "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "description" : "OK",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/OidcMappingView"
-                  }
+                  "$ref" : "#/components/schemas/GroupMappingsView"
                 }
               }
             }
@@ -714,13 +755,21 @@
         }
       },
       "post" : {
-        "tags" : [ "oidc-mapping-controller" ],
+        "tags" : [ "group-mapping-controller" ],
         "operationId" : "create_3",
+        "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/OidcMappingRequest"
+                "$ref" : "#/components/schemas/GroupMappingRequest"
               }
             }
           },
@@ -732,7 +781,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/OidcMappingView"
+                  "$ref" : "#/components/schemas/GroupMappingView"
                 }
               }
             }
@@ -2285,7 +2334,7 @@
     },
     "/api/v1/auth/logout" : {
       "post" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "logout",
         "responses" : {
           "204" : {
@@ -2296,7 +2345,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -2600,6 +2649,27 @@
         }
       }
     },
+    "/api/v1/system/jobs" : {
+      "get" : {
+        "tags" : [ "jobs-controller" ],
+        "operationId" : "jobs",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JobStatusView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stream" : {
       "get" : {
         "tags" : [ "stream-controller" ],
@@ -2675,6 +2745,24 @@
                   "items" : {
                     "$ref" : "#/components/schemas/PermissionView"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/manifest" : {
+      "get" : {
+        "tags" : [ "manifest-controller" ],
+        "operationId" : "manifest",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ManifestView"
                 }
               }
             }
@@ -3095,7 +3183,7 @@
     },
     "/api/v1/clusters/{clusterId}/nodes/{nodeId}/config" : {
       "get" : {
-        "tags" : [ "cluster-controller" ],
+        "tags" : [ "node-config-controller" ],
         "operationId" : "nodeConfig",
         "parameters" : [ {
           "name" : "clusterId",
@@ -3926,7 +4014,7 @@
     },
     "/api/v1/auth/providers" : {
       "get" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "providers",
         "responses" : {
           "200" : {
@@ -3936,7 +4024,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/ProviderView"
+                    "$ref" : "#/components/schemas/IdentityProviderView"
                   }
                 }
               }
@@ -3947,7 +4035,7 @@
     },
     "/api/v1/auth/me" : {
       "get" : {
-        "tags" : [ "auth-controller" ],
+        "tags" : [ "auth-session-controller" ],
         "operationId" : "me",
         "responses" : {
           "200" : {
@@ -4047,11 +4135,18 @@
         }
       }
     },
-    "/api/v1/oidc/mappings/{mappingId}" : {
+    "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}" : {
       "delete" : {
-        "tags" : [ "oidc-mapping-controller" ],
+        "tags" : [ "group-mapping-controller" ],
         "operationId" : "delete_5",
         "parameters" : [ {
+          "name" : "providerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
           "name" : "mappingId",
           "in" : "path",
           "required" : true,
@@ -4195,7 +4290,7 @@
           "email" : {
             "type" : [ "string", "null" ]
           },
-          "authSource" : {
+          "providerId" : {
             "type" : "string"
           },
           "disabled" : {
@@ -4211,7 +4306,7 @@
             }
           }
         },
-        "required" : [ "authSource", "disabled", "grants", "id", "mustChangePassword", "username" ]
+        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "username" ]
       },
       "UpdateSettingRequest" : {
         "type" : "object",
@@ -4260,6 +4355,58 @@
           }
         },
         "required" : [ "builtin", "id", "name", "permissions" ]
+      },
+      "DefaultRoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roleId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        }
+      },
+      "GroupMappingView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "groupName" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "groupName", "id", "roleId", "roleName", "scopeType" ]
+      },
+      "GroupMappingsView" : {
+        "type" : "object",
+        "properties" : {
+          "defaultRoleId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "mappings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GroupMappingView"
+            }
+          }
+        },
+        "required" : [ "defaultRoleId", "mappings" ]
       },
       "EnvironmentRequest" : {
         "type" : "object",
@@ -5005,14 +5152,10 @@
         },
         "required" : [ "createdAt", "id", "name", "prefix" ]
       },
-      "OidcMappingRequest" : {
+      "GroupMappingRequest" : {
         "type" : "object",
         "properties" : {
-          "claim" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "claimValue" : {
+          "groupName" : {
             "type" : "string",
             "minLength" : 1
           },
@@ -5021,44 +5164,15 @@
             "format" : "uuid"
           },
           "scopeType" : {
-            "type" : "string"
+            "type" : "string",
+            "minLength" : 1
           },
           "scopeId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid"
           }
         },
-        "required" : [ "claim", "claimValue", "roleId", "scopeType" ]
-      },
-      "OidcMappingView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "claim" : {
-            "type" : "string"
-          },
-          "claimValue" : {
-            "type" : "string"
-          },
-          "roleId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "roleName" : {
-            "type" : "string"
-          },
-          "scopeType" : {
-            "type" : "string"
-          },
-          "scopeId" : {
-            "type" : [ "string", "null" ],
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "claim", "claimValue", "id", "roleId", "roleName", "scopeType" ]
+        "required" : [ "groupName", "roleId", "scopeType" ]
       },
       "Credentials" : {
         "type" : "object",
@@ -5138,75 +5252,6 @@
           }
         },
         "required" : [ "reason", "status" ]
-      },
-      "ConfigRecommendationView" : {
-        "type" : "object",
-        "description" : "One capability gap and what would close it",
-        "properties" : {
-          "capability" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "rationale" : {
-            "type" : "string"
-          },
-          "appliable" : {
-            "type" : "boolean",
-            "description" : "Whether Studio can write this over the management API, or the operator must edit broker.xml and restart"
-          },
-          "section" : {
-            "type" : [ "string", "null" ],
-            "enum" : [ "ADDRESS_SETTING", "SECURITY_SETTING" ]
-          },
-          "match" : {
-            "type" : [ "string", "null" ]
-          },
-          "values" : {
-            "type" : "object",
-            "additionalProperties" : { },
-            "description" : "The whole entry that would be written, the node's current keys included — a runtime write replaces the entry rather than merging"
-          },
-          "roles" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            },
-            "description" : "Permission type to role names, prefilled from the broker"
-          },
-          "keys" : {
-            "type" : "array",
-            "description" : "The keys this recommendation itself sets",
-            "items" : {
-              "type" : "string"
-            }
-          },
-          "manualSnippet" : {
-            "type" : [ "string", "null" ]
-          }
-        },
-        "required" : [ "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
-      },
-      "ConfigRecommendationsView" : {
-        "type" : "object",
-        "description" : "What the capability probe suggests declaring, and what still needs a broker.xml edit",
-        "properties" : {
-          "seededFrom" : {
-            "type" : [ "string", "null" ],
-            "description" : "The node the current values were read from; null when none could be read"
-          },
-          "recommendations" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ConfigRecommendationView"
-            }
-          }
-        },
-        "required" : [ "recommendations" ]
       },
       "LogicalNodeView" : {
         "type" : "object",
@@ -5299,12 +5344,13 @@
           "topology" : {
             "$ref" : "#/components/schemas/TopologyView"
           },
-          "recommendations" : {
-            "$ref" : "#/components/schemas/ConfigRecommendationsView",
-            "description" : "What the probe suggests declaring once the cluster is registered, seeded from what the reachable node is running"
+          "contributions" : {
+            "type" : "object",
+            "additionalProperties" : { },
+            "description" : "What each enabled feature adds to the check, keyed by feature id and read from the reachable node. brokerconfig contributes a ConfigRecommendationsView: what to declare once the cluster is registered"
           }
         },
-        "required" : [ "capabilities", "discoveredNodes", "reachableSeeds", "recommendations", "topology" ]
+        "required" : [ "capabilities", "contributions", "discoveredNodes", "reachableSeeds", "topology" ]
       },
       "TopologyView" : {
         "type" : "object",
@@ -6532,6 +6578,10 @@
       "LoginRequest" : {
         "type" : "object",
         "properties" : {
+          "provider" : {
+            "type" : [ "string", "null" ],
+            "description" : "The credential provider to sign in with. Omit for local."
+          },
           "username" : {
             "type" : "string",
             "minLength" : 1
@@ -6652,6 +6702,48 @@
         },
         "required" : [ "nowMs" ]
       },
+      "JobStatusView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "featureId" : {
+            "type" : "string",
+            "description" : "The module that owns the job."
+          },
+          "lastStart" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastEnd" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ],
+            "description" : "The most recent run's failure; absent once a later run succeeds."
+          },
+          "runs" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "failures" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "nextRun" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "When the scheduler next intends to start it."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "Whether no run has finished within three of the job's intervals."
+          }
+        },
+        "required" : [ "degraded", "failures", "featureId", "id", "runs" ]
+      },
       "SseEmitter" : {
         "type" : "object",
         "properties" : {
@@ -6711,6 +6803,100 @@
           }
         },
         "required" : [ "action", "label" ]
+      },
+      "ManifestFeatureView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "enabledProperty" : {
+            "type" : "string"
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "topics" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "enabled", "enabledProperty", "id", "kind", "permissions", "title", "topics" ]
+      },
+      "ManifestIdentityProviderView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "startPath" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "id", "kind", "label", "startPath" ]
+      },
+      "ManifestPermissionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "featureId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "action", "featureId", "label" ]
+      },
+      "ManifestView" : {
+        "type" : "object",
+        "properties" : {
+          "contract" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "features" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ManifestFeatureView"
+            }
+          },
+          "permissionCatalogue" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ManifestPermissionView"
+            }
+          },
+          "identityProviders" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ManifestIdentityProviderView"
+            }
+          }
+        },
+        "required" : [ "contract", "features", "identityProviders", "permissionCatalogue" ]
       },
       "ClusterSummary" : {
         "type" : "object",
@@ -8305,6 +8491,75 @@
         },
         "required" : [ "createdAt", "createdBy", "document", "revision", "source" ]
       },
+      "ConfigRecommendationView" : {
+        "type" : "object",
+        "description" : "One capability gap and what would close it",
+        "properties" : {
+          "capability" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "rationale" : {
+            "type" : "string"
+          },
+          "appliable" : {
+            "type" : "boolean",
+            "description" : "Whether Studio can write this over the management API, or the operator must edit broker.xml and restart"
+          },
+          "section" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "ADDRESS_SETTING", "SECURITY_SETTING" ]
+          },
+          "match" : {
+            "type" : [ "string", "null" ]
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : { },
+            "description" : "The whole entry that would be written, the node's current keys included — a runtime write replaces the entry rather than merging"
+          },
+          "roles" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "description" : "Permission type to role names, prefilled from the broker"
+          },
+          "keys" : {
+            "type" : "array",
+            "description" : "The keys this recommendation itself sets",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "manualSnippet" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
+      },
+      "ConfigRecommendationsView" : {
+        "type" : "object",
+        "description" : "What the capability probe suggests declaring, and what still needs a broker.xml edit",
+        "properties" : {
+          "seededFrom" : {
+            "type" : [ "string", "null" ],
+            "description" : "The node the current values were read from; null when none could be read"
+          },
+          "recommendations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigRecommendationView"
+            }
+          }
+        },
+        "required" : [ "recommendations" ]
+      },
       "ConfigAddressSettingKeyView" : {
         "type" : "object",
         "description" : "One address-setting key: its two names, type, allowed values and hazard class",
@@ -8694,6 +8949,9 @@
           "error" : {
             "type" : [ "string", "null" ]
           },
+          "clusterName" : {
+            "type" : [ "string", "null" ]
+          },
           "nodeId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid"
@@ -8835,20 +9093,26 @@
         },
         "required" : [ "count", "data", "page", "pageSize" ]
       },
-      "ProviderView" : {
+      "IdentityProviderView" : {
         "type" : "object",
         "properties" : {
-          "registrationId" : {
+          "id" : {
             "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "CREDENTIAL for a username and password form; REDIRECT for sign-in elsewhere.",
+            "enum" : [ "CREDENTIAL", "REDIRECT" ]
           },
           "label" : {
             "type" : "string"
           },
-          "authorizationUrl" : {
-            "type" : "string"
+          "startPath" : {
+            "type" : [ "string", "null" ],
+            "description" : "Where a redirect provider's sign-in begins."
           }
         },
-        "required" : [ "authorizationUrl", "label", "registrationId" ]
+        "required" : [ "id", "kind", "label" ]
       },
       "ClusterFiringCountView" : {
         "type" : "object",

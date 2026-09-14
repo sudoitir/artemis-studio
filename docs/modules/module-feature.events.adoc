@@ -1,0 +1,29 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.events`
+|Spring components
+|_Controllers_
+
+* `i.g.s.a.f.e.web.EventController`
+
+_Services_
+
+* `i.g.s.a.f.e.BrokerEventService`
+
+_Configuration properties_
+
+* `i.g.s.a.f.e.EventsProperties`
+
+_Others_
+
+* `i.g.s.a.f.e.BrokerEventReaper`
+* `i.g.s.a.f.e.BrokerEventWriter`
+* `i.g.s.a.f.e.BrokerEventPublisher` (via `i.g.s.a.f.e.EventStreamPublisher`)
+* `i.g.s.a.f.e.EventsFeature`
+* `i.g.s.a.f.e.EventsSettings`
+* `i.g.s.a.f.e.TopicCoalescer`
+|Bean references
+|* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+|===
