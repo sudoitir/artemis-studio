@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -20,11 +19,10 @@ import org.springframework.stereotype.Component;
  * against (ADR-0077), so the drain writes to it directly and acknowledges only what
  * committed. A listener is best-effort: its failure is logged and never reaches the store.
  *
- * <p>It also holds the per-subscription ingest rate cap, and it holds it here rather
- * than in each sink for one reason: a firehose has to be stopped once, in front of
- * everything, or it starves the other subscriptions on the way to being dropped by
- * each sink separately. Over-rate messages are dropped and counted — never buffered,
- * because a buffer in front of an unbounded producer only moves the failure.
+ * <p>It also holds the per-subscription ingest rate cap, shared by every drain of that
+ * subscription. Over the cap a drain waits rather than drops (ADR-0077): the message stays in
+ * the bounded capture queue, so a firehose is slowed without Studio buffering it, and the only
+ * way the cap can turn into loss is the queue's own, counted, bound.
  */
 @Component
 @Slf4j
@@ -51,14 +49,15 @@ public class CaptureBus {
     }
 
     /**
-     * Offer a captured message. Returns false when the subscription's rate cap rejected
-     * it, which the caller counts as a drop against that node and does not store.
+     * Take a permit from the subscription's rate cap. Returns 0 when this message is admitted,
+     * or how many milliseconds to wait before asking again.
      */
-    public boolean publish(Captured captured, int maxRatePerSecond) {
-        RateGate gate = gates.computeIfAbsent(captured.subscriptionId(), id -> new RateGate());
-        if (!gate.allow(maxRatePerSecond)) {
-            return false;
-        }
+    public long admit(UUID subscriptionId, int maxRatePerSecond) {
+        return gates.computeIfAbsent(subscriptionId, id -> new RateGate()).admit(maxRatePerSecond);
+    }
+
+    /** Hand an admitted message to the listeners. */
+    public void publish(Captured captured) {
         for (Listener listener : listeners) {
             try {
                 listener.captured(captured);
@@ -67,7 +66,6 @@ public class CaptureBus {
                 log.debug("A capture listener rejected a message: {}", e.getMessage());
             }
         }
-        return true;
     }
 
     /** Forget a subscription's rate state. */
@@ -76,20 +74,24 @@ public class CaptureBus {
     }
 
     /**
-     * A one-second token bucket. Deliberately not a smoothing limiter: capture is
-     * bursty by nature and the cap exists to stop a sustained firehose, not to
-     * reshape a spike into latency.
+     * A one-second window. Deliberately not a smoothing limiter: capture is bursty by nature
+     * and the cap exists to hold a sustained firehose to a rate, not to reshape a spike.
      */
     private static final class RateGate {
-        private final AtomicLong windowStart = new AtomicLong(System.currentTimeMillis() / 1000L);
-        private final AtomicLong count = new AtomicLong();
+        private long second = -1;
+        private long count;
 
-        boolean allow(int maxPerSecond) {
-            long second = System.currentTimeMillis() / 1000L;
-            if (windowStart.getAndSet(second) != second) {
-                count.set(0);
+        synchronized long admit(int maxPerSecond) {
+            long now = System.currentTimeMillis();
+            if (now / 1000L != second) {
+                second = now / 1000L;
+                count = 0;
             }
-            return count.incrementAndGet() <= maxPerSecond;
+            if (count < maxPerSecond) {
+                count++;
+                return 0;
+            }
+            return 1000L - now % 1000L;
         }
     }
 }

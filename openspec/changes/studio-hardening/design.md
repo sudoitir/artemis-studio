@@ -112,7 +112,7 @@ The new ADR supersedes the limiter-placement text of ADR-0025.
 ### D3 — Capture acknowledgement and backpressure (ADR-0077)
 **Chosen.**
 - **Per-drain buffers.** Each `Drain` owns its batch. `CaptureBus.publish` returns
-  `Accepted | RateLimited`. The index write is called by the drain, synchronously, and
+  whether the rate gate admits a message now. The index write is called by the drain, synchronously, and
   throws on failure. Other bus listeners (console tails) stay best-effort and isolated.
 - **Acknowledge only after commit.** `acknowledge()` acknowledges only after the write
   commits.
@@ -131,7 +131,11 @@ The new ADR supersedes the limiter-placement text of ADR-0025.
 - **Unreadable message.** `recover()`. After 3 consecutive failures on the same
   `JMSMessageID`, count it as loss (cause `UNREADABLE`) and acknowledge it. This stops a
   poison message stalling the tap forever.
-- **Rate cap.** A rejection increments the node's loss counter (cause `RATE_LIMIT`).
+- **Rate cap (revised during apply).** Over the cap, the drain waits for the next permit
+  (releasing its lock, like the store backoff) instead of dropping. The fault run measured
+  why: after a 2-minute Postgres outage the redelivered backlog exceeded the 500/s cap and
+  about 17,800 of 30,000 messages were acknowledged unstored. Waiting leaves them in the
+  bounded ring, so the cap can only turn into loss through the ring's own bound.
 - **Close.** `consumer.close()` first, which waits for `onMessage` to finish (JMS 2.0
   §8.7), then write the batch and acknowledge, then close the session.
 

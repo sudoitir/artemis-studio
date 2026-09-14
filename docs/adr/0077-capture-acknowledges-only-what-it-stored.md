@@ -50,8 +50,11 @@ We will:
 4. **Unreadable messages.** An unreadable message is recovered and retried. After three
    consecutive failures on the same message it is counted as loss with its cause, and only
    then acknowledged, after the rows before it have been stored.
-5. **Rate-cap drops.** Rate-cap rejections are counted, and named as the cause when loss
-   is reported.
+5. **The rate cap throttles, never drops.** Over the cap, a drain waits for the next permit,
+   releasing its lock, and the capture queue holds the backlog within its bound. A cap that
+   dropped and counted turned every database outage into loss once the backlog redelivered
+   faster than the cap: measured on the dev stack, about 17,800 of 30,000 messages
+   acknowledged unstored after a 2-minute outage.
 6. **Stopping a drain.** A stopping drain closes its consumer first, which waits for
    in-flight delivery. It then stores what it holds, and acknowledges only if that store
    succeeded.

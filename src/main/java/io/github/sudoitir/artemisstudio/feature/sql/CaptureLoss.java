@@ -29,8 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  * ({@code MessagesAdded} in {@code queue_snapshot}) that is neither stored nor still waiting in
  * the subscription's capture queues. A message in the ring has not been lost yet — counting it
  * would report every in-flight backlog as loss, and nothing would ever take it back. A positive
- * remainder is messages the ring dropped, the rate cap rejected, or that arrived while the tap
- * was not installed. There is deliberately no second gap metric.
+ * remainder is messages the ring dropped, or that arrived while the tap was not installed. There is deliberately no second gap metric.
  * The causes the drains recorded ({@link CaptureConsumer.Shortfall}) are named with it.
  *
  * <p>It is an estimate, and the product says so. Both terms come from sampled counters. What
@@ -171,22 +170,14 @@ public class CaptureLoss {
                     .append("), so capture paused without acknowledging them and is retrying; the capture queue"
                             + " holds the backlog up to its bound and drops the oldest beyond it.");
         }
-        if (shortfall.rateLimited() > 0) {
-            detail.append(" ")
-                    .append(shortfall.rateLimited())
-                    .append(" were over the subscription's ingest rate cap; raise the cap or narrow the filter.");
-        }
         if (shortfall.unreadable() > 0) {
             detail.append(" ")
                     .append(shortfall.unreadable())
                     .append(" could not be read after repeated attempts and were counted as lost.");
         }
-        if (lost > 0
-                && shortfall.storeFailure() == null
-                && shortfall.rateLimited() == 0
-                && shortfall.unreadable() == 0) {
+        if (lost > 0 && shortfall.storeFailure() == null && shortfall.unreadable() == 0) {
             detail.append(" The capture queue drops the oldest when Studio cannot keep up; raise the ring size or"
-                    + " narrow the capture filter.");
+                    + " the rate limit, or narrow the capture filter.");
         }
         return detail.toString().trim();
     }

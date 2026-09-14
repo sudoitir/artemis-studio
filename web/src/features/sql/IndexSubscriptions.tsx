@@ -173,7 +173,7 @@ const LIMITS = {
   },
   maxRate: {
     label: "Rate limit (messages per second)",
-    description: "Messages beyond this are counted as missed rather than stored.",
+    description: "Capture slows to this rate; the capture queue holds the backlog up to its bound.",
     min: 1,
     max: 1_000_000,
   },

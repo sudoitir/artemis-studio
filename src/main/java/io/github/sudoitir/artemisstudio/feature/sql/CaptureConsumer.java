@@ -106,14 +106,12 @@ public class CaptureConsumer {
      *
      * @param storeFailure the last store error, or null when every store since succeeded
      */
-    public record Shortfall(long rateLimited, long unreadable, String storeFailure) {
-        static final Shortfall NONE = new Shortfall(0, 0, null);
+    public record Shortfall(long unreadable, String storeFailure) {
+        static final Shortfall NONE = new Shortfall(0, null);
 
         Shortfall plus(Shortfall other) {
             return new Shortfall(
-                    rateLimited + other.rateLimited,
-                    unreadable + other.unreadable,
-                    other.storeFailure != null ? other.storeFailure : storeFailure);
+                    unreadable + other.unreadable, other.storeFailure != null ? other.storeFailure : storeFailure);
         }
     }
 
@@ -260,7 +258,6 @@ public class CaptureConsumer {
         private int readFailures;
         private int storeFailures;
 
-        private long rateLimited;
         private long unreadable;
         private String storeFailure;
 
@@ -287,22 +284,26 @@ public class CaptureConsumer {
             }
             failingMessageId = null;
             readFailures = 0;
+            // Over the rate cap the drain waits, releasing its lock, and the message stays in the
+            // bounded capture queue (ADR-0077). A drain closed while waiting has neither recorded
+            // nor acknowledged it, so the broker redelivers it.
+            long wait;
+            while ((wait = bus.admit(spec.subscriptionId(), spec.maxRate())) > 0) {
+                waitUnlessClosed(wait);
+                if (closed) {
+                    return;
+                }
+            }
             lastDelivered = message;
             delivered++;
-            boolean admitted = bus.publish(
-                    new CaptureBus.Captured(
-                            spec.clusterId(),
-                            spec.subscriptionId(),
-                            captured.row(),
-                            captured.origAddress(),
-                            captured.sourceMessageId(),
-                            captured.at()),
-                    spec.maxRate());
-            if (admitted) {
-                batch.add(captured);
-            } else {
-                rateLimited++;
-            }
+            batch.add(captured);
+            bus.publish(new CaptureBus.Captured(
+                    spec.clusterId(),
+                    spec.subscriptionId(),
+                    captured.row(),
+                    captured.origAddress(),
+                    captured.sourceMessageId(),
+                    captured.at()));
             if (delivered >= ACK_BATCH) {
                 commit();
             }
@@ -422,8 +423,7 @@ public class CaptureConsumer {
         }
 
         synchronized Shortfall takeShortfall() {
-            Shortfall taken = new Shortfall(rateLimited, unreadable, storeFailure);
-            rateLimited = 0;
+            Shortfall taken = new Shortfall(unreadable, storeFailure);
             unreadable = 0;
             storeFailure = null;
             return taken;

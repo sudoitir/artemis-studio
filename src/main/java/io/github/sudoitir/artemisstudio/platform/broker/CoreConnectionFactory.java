@@ -55,7 +55,12 @@ public class CoreConnectionFactory {
         factory.setInitialConnectAttempts(1);
         factory.setReconnectAttempts(0);
         factory.setCallTimeout(properties.readTimeout().toMillis());
-        factory.setConnectionTTL(properties.readTimeout().toMillis() * 2);
+        // The client pings once per failure-check period and the broker drops a connection that
+        // sends nothing for a TTL, so the TTL must outlast several pings. With the defaults a 20s
+        // TTL against a 30s ping closed every idle capture connection, and every one whose
+        // listener was waiting on the database.
+        factory.setClientFailureCheckPeriod(properties.readTimeout().toMillis());
+        factory.setConnectionTTL(properties.readTimeout().toMillis() * 3);
         return factory;
     }
 

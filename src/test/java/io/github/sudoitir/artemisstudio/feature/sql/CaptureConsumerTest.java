@@ -143,6 +143,27 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         assertThat(consumer.drainingOn(nodeId)).isEmpty();
     }
 
+    /**
+     * Measured on the dev stack: after a Postgres outage the redelivered backlog ran past the
+     * subscription's rate cap, and a cap that dropped acknowledged most of it unstored.
+     */
+    @Test
+    void aBacklogOverTheRateCapIsSlowedAndStoredNotDropped() throws Exception {
+        doAnswer(invocation -> {
+                    stored.addAll(List.copyOf(invocation.getArgument(0)));
+                    return null;
+                })
+                .when(writer)
+                .capturedBatch(anyList());
+        String queue = "capture.rate." + UUID.randomUUID();
+        send(queue, 6 * BATCH);
+
+        consumer.start(spec(queue, "ORDER.IN", 100));
+
+        awaitTrue(() -> stored.size() >= 6 * BATCH, Duration.ofSeconds(30));
+        assertThat(stored).hasSize(6 * BATCH);
+    }
+
     @Test
     void aPoisonMessageIsRetriedThenCountedAsLostAndAcknowledged() throws Exception {
         jakarta.jms.Session session = mock(jakarta.jms.Session.class);
@@ -171,6 +192,10 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
     }
 
     private CaptureConsumer.Spec spec(String queue, String sourceAddress) {
+        return spec(queue, sourceAddress, 10_000);
+    }
+
+    private CaptureConsumer.Spec spec(String queue, String sourceAddress, int maxRate) {
         return new CaptureConsumer.Spec(
                 clusterId,
                 nodeId,
@@ -181,7 +206,7 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
                 queue,
                 sourceAddress,
                 10_000,
-                10_000);
+                maxRate);
     }
 
     private static void send(String queue, int count) throws Exception {

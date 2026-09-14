@@ -68,8 +68,7 @@ SHALL never tap its own taps.
 Where the system cannot record every captured message, it SHALL report the estimated number
 not recorded, per subscription and per node, with the cause named. This covers at least:
 - the capture queue dropped messages;
-- Studio could not keep up;
-- a configured ingest rate limit was reached;
+- Studio could not keep up, including while a configured ingest rate limit slowed it;
 - Studio's database was unavailable;
 - a message could not be read.
 
@@ -107,10 +106,10 @@ message once per queue.
 - **WHEN** a captured address has two bound queues and every routed message is recorded
 - **THEN** no loss is reported
 
-#### Scenario: Rate-limited messages are counted
+#### Scenario: A rate limit slows capture and discards nothing
 
-- **WHEN** messages are discarded because a subscription's ingest rate limit was reached
-- **THEN** they are counted in the subscription's loss with the rate limit named as the cause
+- **WHEN** messages arrive faster than a subscription's ingest rate limit, including a backlog redelivered after Studio's database recovers
+- **THEN** capture slows to the limit, the capture queue holds the backlog within its bound, and every message it still holds is stored; only messages the queue drops at its bound are counted as loss
 
 ### Requirement: Capture is per node and survives failover
 
