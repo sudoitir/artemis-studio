@@ -111,6 +111,32 @@ for a in ORDERS.inbound PAYMENTS.capture SHIPPING.events NOTIFICATIONS.email AUD
   consume artemis-primary "$a" 1
 done
 
+say "attaching long-lived applications, so Flow has clients to sample"
+# The bursts below connect, send a few hundred messages and disconnect: real, but
+# gone before Flow can sample the same client twice, and a rate needs two samples.
+# These stay attached for the whole run and past it, each under its own client id
+# (Artemis refuses a client id already in use), at steady rates. Detached inside the
+# broker container, so the loop's `wait` below does not wait for them.
+app() { # node kind client-id address sleep-ms
+  local count=$(( (TRAFFIC_MINUTES + 30) * 60 * 1000 / $5 ))
+  if [ "$2" = producer ]; then
+    $COMPOSE exec -d "$1" $JAR producer --url tcp://localhost:61616 --user artemis --password artemis \
+      --clientID "$3" --destination "queue://$4" --message-count "$count" --sleep "$5" --message-size 512
+  else
+    $COMPOSE exec -d "$1" $JAR consumer --url tcp://localhost:61616 --user artemis --password artemis \
+      --clientID "$3" --destination "queue://$4" --message-count "$count" --sleep "$5" --receive-timeout 600000
+  fi
+}
+app artemis-primary   producer order-service        ORDERS.inbound      40
+app artemis-primary   consumer billing-service      ORDERS.inbound      45
+app artemis-primary   consumer fraud-screening      ORDERS.inbound      90
+app artemis-secondary producer payments-gateway     PAYMENTS.capture    80
+app artemis-secondary consumer ledger-writer        PAYMENTS.capture    85
+app artemis-primary   producer warehouse-events     SHIPPING.events     150
+app artemis-primary   consumer shipment-tracker     SHIPPING.events     160
+# Sends and nobody reads: the queue backs up, and Flow marks it "no consumer".
+app artemis-secondary producer notification-service NOTIFICATIONS.email 120
+
 say "driving traffic for ${TRAFFIC_MINUTES} minutes"
 deadline=$(( $(date +%s) + TRAFFIC_MINUTES * 60 ))
 while [ "$(date +%s)" -lt "$deadline" ]; do

@@ -67,7 +67,12 @@ public class ClusterLock {
          * {@code RECONCILE} made a drift pass and the capture reconciler wait for each
          * other for no reason, while leaving two drift passes free to stack.
          */
-        CONFIG_DRIFT(NAMESPACE + 2);
+        CONFIG_DRIFT(NAMESPACE + 2),
+        /**
+         * Client-activity sampling for the flow view (ADR-0081): one instance samples a
+         * cluster, every instance serves the persisted result.
+         */
+        FLOW_SAMPLE(NAMESPACE + 3);
 
         private final int namespace;
 

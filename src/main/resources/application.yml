@@ -191,6 +191,12 @@ artemis-studio:
     payload-capture-bytes: 4096    # captured request/reply body cap when an expectation enables capture
     retention: 7d                  # RrFlowReaper trims older rr_flow/rr_event rows
     reaper-cron: "0 20 3 * * *"    # RrFlowReaper
+  flow:
+    # Client-activity sampling for the flow view (ADR-0081). Runs only while a cluster's
+    # flow is observed; one listProducers + listConsumers POST per serving node per sweep.
+    sample-interval: 15s           # ClientSampler cadence, floored at 10s
+    max-rows-per-node: 5000        # page size of each listing; the view states when a node has more
+    demand-lease: 60s              # sampling continues this long after the last flow view closes
   alerting:
     # Notification delivery (Phase 7, ADR-0036). A separate RestClient from the
     # broker one — never shares the per-node rate limiter or a broker TLS bundle.

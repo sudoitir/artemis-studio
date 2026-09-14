@@ -30,6 +30,7 @@ export const FEATURE_IDS = [
   'rr',
   'sql',
   'brokerconfig',
+  'flow',
   'triage',
   'apitokens',
   'identity-local',

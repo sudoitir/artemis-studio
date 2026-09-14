@@ -32,6 +32,56 @@ public class MetricSamples {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * A subject's counter rate between its oldest and newest sample in a window.
+     *
+     * @param asOf the newest sample's time, so a reader can state the rate's age
+     * @param span the time between the two samples the rate spans — a slow-tier queue's
+     *     rate is an average over minutes, and a reader must be able to say so
+     */
+    public record SubjectRate(double rate, Instant asOf, Duration span) {}
+
+    /**
+     * Like {@link #latestRateBySubject}, but computed per node and summed, divided by the
+     * time each node's samples actually span rather than by the window, and carrying the
+     * longest span and the newest sample's time. A subject with no node sampled twice in
+     * the window is omitted, never zero.
+     */
+    public Map<String, SubjectRate> latestRateWithTimeBySubject(
+            UUID clusterId, String metric, Instant from, Instant to) {
+        // Per node first: each node's counter is its own lifetime count, so max - min across
+        // nodes would subtract one broker's counter from another's.
+        String sql = """
+                SELECT subject_name,
+                       sum(delta / span_seconds) AS rate,
+                       max(as_of) AS as_of,
+                       max(span_seconds) AS span_seconds
+                  FROM (SELECT subject_name,
+                               GREATEST(max(value) - min(value), 0)::double precision AS delta,
+                               max(ts) AS as_of,
+                               EXTRACT(EPOCH FROM max(ts) - min(ts))::double precision AS span_seconds
+                          FROM metric_sample
+                         WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                           AND ts >= :from AND ts < :to
+                         GROUP BY subject_name, node_id
+                        HAVING count(*) >= 2 AND max(ts) > min(ts)) per_node
+                 GROUP BY subject_name
+                """;
+        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
+                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
+        Map<String, SubjectRate> out = new java.util.HashMap<>();
+        jdbc.query(sql, p, rs -> {
+            double spanSeconds = rs.getDouble("span_seconds");
+            out.put(
+                    rs.getString("subject_name"),
+                    new SubjectRate(
+                            rs.getDouble("rate"),
+                            rs.getTimestamp("as_of").toInstant(),
+                            Duration.ofMillis(Math.round(spanSeconds * 1000))));
+        });
+        return out;
+    }
+
     public List<Bucket> gaugeSeries(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
         String sql = """

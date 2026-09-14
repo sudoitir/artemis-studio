@@ -1,0 +1,33 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.flow`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.f.FlowGraphService`
+
+_Repositories_
+
+* `i.g.s.a.f.f.FlowStore`
+
+_Configuration properties_
+
+* `i.g.s.a.f.f.FlowProperties`
+
+_Others_
+
+* `i.g.s.a.f.f.ClientSampler`
+* `i.g.s.a.f.f.FlowDemand`
+* `i.g.s.a.f.f.FlowFeature`
+* `i.g.s.a.f.f.FlowSettings`
+|Bean references
+|* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.c.ClusterLock` (in Clusters)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.p.s.MetricSamples` (in Scraping)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+|===

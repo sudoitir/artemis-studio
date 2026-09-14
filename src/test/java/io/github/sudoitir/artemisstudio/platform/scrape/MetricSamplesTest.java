@@ -106,6 +106,56 @@ class MetricSamplesTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void latestRateWithTimeDividesByTheSpanItCoversAndReportsItsAge() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sample("messagesAdded", "orders", base.plusSeconds(10), 100.0);
+        sample("messagesAdded", "orders", base.plusSeconds(310), 400.0);
+        sample("messagesAdded", "fresh-queue", base, 5.0);
+
+        Map<String, MetricSamples.SubjectRate> rates =
+                repository.latestRateWithTimeBySubject(clusterId, "messagesAdded", base, base.plusSeconds(900));
+
+        assertThat(rates).doesNotContainKey("fresh-queue");
+        MetricSamples.SubjectRate orders = rates.get("orders");
+        assertThat(orders.rate()).isEqualTo(1.0); // 300 messages over the 300s the samples span
+        assertThat(orders.asOf()).isEqualTo(base.plusSeconds(310));
+        assertThat(orders.span()).isEqualTo(Duration.ofSeconds(300));
+    }
+
+    @Test
+    void latestRateWithTimeSumsPerNodeRatesInsteadOfSubtractingOneNodesCounterFromAnothers() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        UUID otherNode = UUID.randomUUID();
+        sample("messagesAdded", "orders", base, 100.0);
+        sample("messagesAdded", "orders", base.plusSeconds(10), 200.0);
+        jdbc.update(
+                """
+                INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
+                VALUES (:ts, :value, 'QUEUE', 'orders', 'messagesAdded', :c, :n)
+                """, Map.of("ts", java.sql.Timestamp.from(base), "value", 90_000.0, "c", clusterId, "n", otherNode));
+        jdbc.update(
+                """
+                INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
+                VALUES (:ts, :value, 'QUEUE', 'orders', 'messagesAdded', :c, :n)
+                """,
+                Map.of(
+                        "ts",
+                        java.sql.Timestamp.from(base.plusSeconds(10)),
+                        "value",
+                        90_050.0,
+                        "c",
+                        clusterId,
+                        "n",
+                        otherNode));
+
+        MetricSamples.SubjectRate orders = repository
+                .latestRateWithTimeBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60))
+                .get("orders");
+
+        assertThat(orders.rate()).isEqualTo(15.0); // 10/s on one node + 5/s on the other
+    }
+
+    @Test
     void latestRateBySubjectOmitsAnUnderSampledSubject() {
         Instant base = Instant.parse("2026-01-01T00:00:00Z");
         sample("messagesAdded", "fresh-queue", base, 5.0); // only one sample in the window
