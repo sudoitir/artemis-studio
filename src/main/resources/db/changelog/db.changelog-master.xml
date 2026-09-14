@@ -27,6 +27,7 @@
     <include file="db/changelog/kernel/security/changelog.xml"      relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/audit/changelog.xml"         relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/settings/changelog.xml"      relativeToChangelogFile="false"/>
+    <include file="db/changelog/platform/governance/changelog.xml"  relativeToChangelogFile="false"/>
     <include file="db/changelog/platform/clusters/changelog.xml"    relativeToChangelogFile="false"/>
     <include file="db/changelog/platform/scrape/changelog.xml"      relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/apitokens/changelog.xml"    relativeToChangelogFile="false"/>

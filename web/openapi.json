@@ -184,10 +184,65 @@
         }
       }
     },
+    "/api/v1/governance/rules/{ruleId}" : {
+      "put" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "name" : "ruleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "name" : "ruleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/environments/{environmentId}" : {
       "put" : {
         "tags" : [ "environments-controller" ],
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "name" : "environmentId",
           "in" : "path",
@@ -222,7 +277,7 @@
       },
       "delete" : {
         "tags" : [ "environments-controller" ],
-        "operationId" : "delete_1",
+        "operationId" : "delete_2",
         "parameters" : [ {
           "name" : "environmentId",
           "in" : "path",
@@ -506,7 +561,7 @@
     "/api/v1/channels/{channelId}" : {
       "put" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "name" : "channelId",
           "in" : "path",
@@ -541,7 +596,7 @@
       },
       "delete" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "delete_2",
+        "operationId" : "delete_3",
         "parameters" : [ {
           "name" : "channelId",
           "in" : "path",
@@ -789,6 +844,53 @@
         }
       }
     },
+    "/api/v1/governance/rules" : {
+      "get" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "rules",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RuleView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "governance-controller" ],
+        "operationId" : "create_4",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/environments" : {
       "get" : {
         "tags" : [ "environments-controller" ],
@@ -811,7 +913,7 @@
       },
       "post" : {
         "tags" : [ "environments-controller" ],
-        "operationId" : "create_4",
+        "operationId" : "create_5",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1044,7 +1146,7 @@
       },
       "post" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "create_5",
+        "operationId" : "create_6",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2055,7 +2157,7 @@
     "/api/v1/clusters/{clusterId}/alerts/rules" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
-        "operationId" : "rules",
+        "operationId" : "rules_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2266,7 +2368,7 @@
       },
       "post" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "create_6",
+        "operationId" : "create_7",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2374,7 +2476,7 @@
     "/api/v1/clusters/{clusterId}/sql/index/{id}" : {
       "delete" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "delete_3",
+        "operationId" : "delete_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2407,7 +2509,7 @@
       },
       "patch" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "update_3",
+        "operationId" : "update_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2798,7 +2900,7 @@
       },
       "delete" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "delete_4",
+        "operationId" : "delete_5",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -4138,7 +4240,7 @@
     "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}" : {
       "delete" : {
         "tags" : [ "group-mapping-controller" ],
-        "operationId" : "delete_5",
+        "operationId" : "delete_6",
         "parameters" : [ {
           "name" : "providerId",
           "in" : "path",
@@ -4407,6 +4509,82 @@
           }
         },
         "required" : [ "defaultRoleId", "mappings" ]
+      },
+      "RuleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "addressPattern" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 255,
+            "minLength" : 0,
+            "pattern" : "[^\\s]*"
+          },
+          "target" : {
+            "type" : "string",
+            "pattern" : "HEADER|PROPERTY|BODY_PATH"
+          },
+          "selector" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 0
+          },
+          "dataClass" : {
+            "type" : "string",
+            "pattern" : "CREDENTIAL|PAN|IBAN|EMAIL|PHONE|NATIONAL_ID|PERSONAL"
+          },
+          "action" : {
+            "type" : [ "string", "null" ],
+            "pattern" : "DROP|PARTIAL|REDACT"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "dataClass", "enabled", "selector", "target" ]
+      },
+      "RuleView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "addressPattern" : {
+            "type" : [ "string", "null" ]
+          },
+          "target" : {
+            "type" : "string"
+          },
+          "selector" : {
+            "type" : "string"
+          },
+          "dataClass" : {
+            "type" : "string"
+          },
+          "dataClassLabel" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : [ "string", "null" ]
+          },
+          "defaultAction" : {
+            "type" : "string"
+          },
+          "builtin" : {
+            "type" : "boolean"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "exception" : {
+            "type" : "boolean"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "builtin", "dataClass", "dataClassLabel", "defaultAction", "enabled", "exception", "id", "selector", "target", "updatedAt" ]
       },
       "EnvironmentRequest" : {
         "type" : "object",
@@ -7795,9 +7973,39 @@
           "propertyCount" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "redactions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RedactionView"
+            }
           }
         },
-        "required" : [ "bodyTruncated", "durable", "expiration", "messageId", "priority", "propertyCount", "size", "timestamp", "type" ]
+        "required" : [ "bodyTruncated", "durable", "expiration", "messageId", "priority", "propertyCount", "redactions", "size", "timestamp", "type" ]
+      },
+      "RedactionView" : {
+        "type" : "object",
+        "properties" : {
+          "location" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "dataClass" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "clear" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "action", "clear", "dataClass", "label", "location", "path" ]
       },
       "MessageDetailView" : {
         "type" : "object",
@@ -7893,9 +8101,36 @@
             "additionalProperties" : {
               "type" : "boolean"
             }
+          },
+          "redactions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RedactionView"
+            }
+          },
+          "withheld" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/WithheldView"
+            }
           }
         },
-        "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "size", "stringProperties", "timestamp", "transport", "type" ]
+        "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "redactions", "size", "stringProperties", "timestamp", "transport", "type", "withheld" ]
+      },
+      "WithheldView" : {
+        "type" : "object",
+        "properties" : {
+          "location" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "settingKey" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "location", "reason" ]
       },
       "PagedViewProducerView" : {
         "type" : "object",

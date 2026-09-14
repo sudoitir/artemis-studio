@@ -68,7 +68,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/environments/{environmentId}": {
+    "/api/v1/governance/rules/{ruleId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -79,6 +79,22 @@ export interface paths {
         put: operations["update_1"];
         post?: never;
         delete: operations["delete_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/environments/{environmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_2"];
+        post?: never;
+        delete: operations["delete_2"];
         options?: never;
         head?: never;
         patch?: never;
@@ -172,9 +188,9 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_2"];
+        put: operations["update_3"];
         post?: never;
-        delete: operations["delete_2"];
+        delete: operations["delete_3"];
         options?: never;
         head?: never;
         patch?: never;
@@ -260,6 +276,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/governance/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["rules"];
+        put?: never;
+        post: operations["create_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environments": {
         parameters: {
             query?: never;
@@ -269,7 +301,7 @@ export interface paths {
         };
         get: operations["list_4"];
         put?: never;
-        post: operations["create_4"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -349,7 +381,7 @@ export interface paths {
         };
         get: operations["list_6"];
         put?: never;
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -635,7 +667,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["rules"];
+        get: operations["rules_1"];
         put?: never;
         post: operations["createRule"];
         delete?: never;
@@ -685,7 +717,7 @@ export interface paths {
         };
         get: operations["list_7"];
         put?: never;
-        post: operations["create_6"];
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -766,10 +798,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["delete_3"];
+        delete: operations["delete_4"];
         options?: never;
         head?: never;
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/clusters/{clusterId}/queues/{queueName}": {
@@ -926,7 +958,7 @@ export interface paths {
         get: operations["get_1"];
         put?: never;
         post?: never;
-        delete: operations["delete_4"];
+        delete: operations["delete_5"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1502,7 +1534,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["delete_5"];
+        delete: operations["delete_6"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1598,6 +1630,30 @@ export interface components {
             /** Format: uuid */
             defaultRoleId: string | null;
             mappings: components["schemas"]["GroupMappingView"][];
+        };
+        RuleRequest: {
+            addressPattern?: string | null;
+            target: string;
+            selector: string;
+            dataClass: string;
+            action?: string | null;
+            enabled: boolean;
+        };
+        RuleView: {
+            /** Format: uuid */
+            id: string;
+            addressPattern?: string | null;
+            target: string;
+            selector: string;
+            dataClass: string;
+            dataClassLabel: string;
+            action?: string | null;
+            defaultAction: string;
+            builtin: boolean;
+            enabled: boolean;
+            exception: boolean;
+            /** Format: date-time */
+            updatedAt: string;
         };
         EnvironmentRequest: {
             name: string;
@@ -3015,6 +3071,15 @@ export interface components {
             bodyTruncated: boolean;
             /** Format: int32 */
             propertyCount: number;
+            redactions: components["schemas"]["RedactionView"][];
+        };
+        RedactionView: {
+            location: string;
+            path: string;
+            dataClass: string;
+            label: string;
+            action: string;
+            clear: boolean;
         };
         MessageDetailView: {
             /** Format: int64 */
@@ -3057,6 +3122,13 @@ export interface components {
             booleanProperties: {
                 [key: string]: boolean;
             };
+            redactions: components["schemas"]["RedactionView"][];
+            withheld: components["schemas"]["WithheldView"][];
+        };
+        WithheldView: {
+            location: string;
+            reason: string;
+            settingKey?: string | null;
         };
         PagedViewProducerView: {
             data: components["schemas"]["ProducerView"][];
@@ -3691,6 +3763,52 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleView"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
                 environmentId: string;
             };
             cookie?: never;
@@ -3712,7 +3830,7 @@ export interface operations {
             };
         };
     };
-    delete_1: {
+    delete_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3924,7 +4042,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -3950,7 +4068,7 @@ export interface operations {
             };
         };
     };
-    delete_2: {
+    delete_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -4174,6 +4292,50 @@ export interface operations {
             };
         };
     };
+    rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleView"][];
+                };
+            };
+        };
+    };
+    create_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleView"];
+                };
+            };
+        };
+    };
     list_4: {
         parameters: {
             query?: never;
@@ -4194,7 +4356,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -4373,7 +4535,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -4969,7 +5131,7 @@ export interface operations {
             };
         };
     };
-    rules: {
+    rules_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5115,7 +5277,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5223,7 +5385,7 @@ export interface operations {
             };
         };
     };
-    delete_3: {
+    delete_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -5246,7 +5408,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -5528,7 +5690,7 @@ export interface operations {
             };
         };
     };
-    delete_4: {
+    delete_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -6376,7 +6538,7 @@ export interface operations {
             };
         };
     };
-    delete_5: {
+    delete_6: {
         parameters: {
             query?: never;
             header?: never;

@@ -6,7 +6,9 @@ import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEven
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +40,9 @@ public class BrokerEventService {
      * {@code StreamController}, which applies the same check before subscribing.
      */
     private final ClusterAccessGuard clusterAccess;
+
+    /** Notification props carry filter strings and user-supplied names; the detectors run over them. */
+    private final ContentPolicy contentPolicy;
 
     @Transactional(readOnly = true)
     public BrokerEventPageView page(
@@ -94,11 +99,16 @@ public class BrokerEventService {
         if (json == null || json.isBlank()) {
             return Map.of();
         }
+        Map<String, Object> props;
         try {
-            return mapper.readValue(json, PROPS_TYPE);
+            props = mapper.readValue(json, PROPS_TYPE);
         } catch (RuntimeException e) {
             return Map.of();
         }
+        Map<String, Object> governed = new LinkedHashMap<>();
+        props.forEach((key, value) ->
+                governed.put(key, value instanceof String text ? contentPolicy.governText(text) : value));
+        return governed;
     }
 
     private static String blankToNull(String v) {

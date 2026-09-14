@@ -23,6 +23,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaMessageTransport;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageOperations;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
@@ -32,9 +33,16 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Transpo
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
+import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernContext;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews;
+import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
+import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -76,6 +84,8 @@ public class MessageService {
     private final SettingsService settings;
     private final SseHub sseHub;
     private final ClusterAccessGuard clusterAccess;
+    private final ContentPolicy contentPolicy;
+    private final ClearViewAudit clearViews;
 
     /** Resolved (node, address, routingType) for a queue name on a cluster. */
     record ResolvedQueue(ClusterNode node, String address, String routingType) {}
@@ -96,8 +106,16 @@ public class MessageService {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         BrowseResult result = browseAt(clusterId, queueName, resolved, page, Math.min(size, BROKER_PAGE_CAP), filter);
-        List<MessageSummaryView> rows =
-                result.page().messages().stream().map(MessageService::toSummary).toList();
+        GovernContext context = contentPolicy.context(clusterId, resolved.address());
+        List<BrowsedMessage> messages = result.page().messages();
+        List<GovernedMessage> governed = messages.stream()
+                .map(m -> contentPolicy.govern(context, content(m)))
+                .toList();
+        List<MessageSummaryView> rows = new java.util.ArrayList<>(messages.size());
+        for (int i = 0; i < messages.size(); i++) {
+            rows.add(toSummary(messages.get(i), governed.get(i)));
+        }
+        clearViews.record(context, "QUEUE", queueName, governed);
         return new MessagePageView(
                 rows,
                 result.page().total(),
@@ -112,11 +130,15 @@ public class MessageService {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         BrowseResult result = browseAt(clusterId, queueName, resolved, 1, BROKER_PAGE_CAP, filter);
-        return result.page().messages().stream()
+        BrowsedMessage message = result.page().messages().stream()
                 .filter(m -> m.messageId() == messageId)
                 .findFirst()
-                .map(m -> toDetail(m, resolved.node().getId(), result.servedBy().name()))
                 .orElseThrow(() -> new NotFoundException("message", messageId));
+        GovernContext context = contentPolicy.context(clusterId, resolved.address());
+        GovernedMessage governed = contentPolicy.govern(context, content(message));
+        clearViews.record(context, "MESSAGE", queueName + "/" + messageId, List.of(governed));
+        return toDetail(
+                message, governed, resolved.node().getId(), result.servedBy().name());
     }
 
     // ---- send (Slice 4) -------------------------------------------------
@@ -399,7 +421,25 @@ public class MessageService {
         }
     }
 
-    private static MessageSummaryView toSummary(BrowsedMessage m) {
+    /** The broker's message in the policy's neutral shape: its identifying headers and every property. */
+    static MessageContent content(BrowsedMessage m) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("correlationId", m.correlationId());
+        headers.put("groupId", m.groupId());
+        headers.put("userId", m.userId());
+        headers.put("replyTo", m.replyTo());
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.putAll(m.stringProperties());
+        properties.putAll(m.intProperties());
+        properties.putAll(m.longProperties());
+        properties.putAll(m.doubleProperties());
+        properties.putAll(m.booleanProperties());
+        return new MessageContent(
+                headers, properties, m.body(), m.bodyEncoding() == MessageBrowser.BodyEncoding.BASE64, m.contentType());
+    }
+
+    private static MessageSummaryView toSummary(BrowsedMessage m, GovernedMessage g) {
+        String body = g.body();
         return new MessageSummaryView(
                 m.messageId(),
                 m.type(),
@@ -408,14 +448,34 @@ public class MessageService {
                 m.timestamp(),
                 m.expiration(),
                 m.size(),
-                m.groupId(),
-                m.correlationId(),
-                m.bodyPreview(),
+                g.headers().get("groupId"),
+                g.headers().get("correlationId"),
+                body == null ? null : body.length() <= 200 ? body : body.substring(0, 200),
                 m.bodyTruncated(),
-                m.propertyCount());
+                m.propertyCount(),
+                GovernanceViews.redactions(g));
     }
 
-    private static MessageDetailView toDetail(BrowsedMessage m, UUID node, String transport) {
+    private static MessageDetailView toDetail(BrowsedMessage m, GovernedMessage g, UUID node, String transport) {
+        // A masked value is a marker string whatever its original type, so it is listed with the strings.
+        Map<String, String> strings = new LinkedHashMap<>();
+        Map<String, Long> ints = new LinkedHashMap<>();
+        Map<String, Long> longs = new LinkedHashMap<>();
+        Map<String, Double> doubles = new LinkedHashMap<>();
+        Map<String, Boolean> booleans = new LinkedHashMap<>();
+        g.properties().forEach((name, value) -> {
+            if (value instanceof Long l && m.intProperties().containsKey(name)) {
+                ints.put(name, l);
+            } else if (value instanceof Long l && m.longProperties().containsKey(name)) {
+                longs.put(name, l);
+            } else if (value instanceof Double d) {
+                doubles.put(name, d);
+            } else if (value instanceof Boolean b) {
+                booleans.put(name, b);
+            } else {
+                strings.put(name, String.valueOf(value));
+            }
+        });
         return new MessageDetailView(
                 m.messageId(),
                 m.type(),
@@ -424,20 +484,22 @@ public class MessageService {
                 m.timestamp(),
                 m.expiration(),
                 m.size(),
-                m.groupId(),
-                m.correlationId(),
-                m.userId(),
-                m.body(),
+                g.headers().get("groupId"),
+                g.headers().get("correlationId"),
+                g.headers().get("userId"),
+                g.body(),
                 m.bodyEncoding().name(),
                 m.contentType(),
                 m.bodyTruncated(),
                 m.observedLimitBytes(),
                 transport,
                 node,
-                m.stringProperties(),
-                m.intProperties(),
-                m.longProperties(),
-                m.doubleProperties(),
-                m.booleanProperties());
+                strings,
+                ints,
+                longs,
+                doubles,
+                booleans,
+                GovernanceViews.redactions(g),
+                GovernanceViews.withheld(g));
     }
 }

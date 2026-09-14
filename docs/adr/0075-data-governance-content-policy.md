@@ -1,6 +1,6 @@
 # ADR-0075: Data governance is a content policy enforced at typed choke points
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-09-14
 - **Deciders**: maintainer
 

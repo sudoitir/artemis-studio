@@ -1,45 +1,45 @@
 ## 1. Decision and scaffolding
 
-- [ ] 1.1 ADR-0075 accepted and linked from `docs/adr/README.md`
-- [ ] 1.2 Create `platform/governance` module: `package-info.java` (allowedDependencies per design D1), `GovernanceModule` descriptor (permissions `message:clear`, `governance:read`, `governance:write`; setting key `governance.scan-limit`; api prefix `/governance/**`), `GovernanceFeature` with `@FeatureModule`, registered in `app/StudioFeatures`
-- [ ] 1.3 `GovernanceSettings` contribution: `governance.scan-limit` INT, default 262144
-- [ ] 1.4 Liquibase `db/changelog/platform/governance/` with `governance_rule`, `classification_finding`, `governance_policy`, seeded built-in CREDENTIAL rules; included from the master changelog
-- [ ] 1.5 `GovernanceModuleTest` (`@ApplicationModuleTest`); `ModularityTest` and `BoundaryRulesTest` green
+- [x] 1.1 ADR-0075 accepted and linked from `docs/adr/README.md`
+- [x] 1.2 Create `platform/governance` module: `package-info.java` (allowedDependencies per design D1), `GovernanceModule` descriptor (required; permissions `message:clear`, `governance:read`, `governance:write`; setting key `governance.scan-limit`; api prefix `/api/v1/governance`), registered in `app/StudioFeatures` (a platform module is scanned by the application, so it has no `@FeatureModule` class)
+- [x] 1.3 `GovernanceSettings` contribution: `governance.scan-limit` INT, default 262144
+- [x] 1.4 Liquibase `db/changelog/platform/governance/` with `governance_rule`, `classification_finding`, `governance_policy`, seeded built-in CREDENTIAL rules; included from the master changelog
+- [x] 1.5 `GovernanceModuleTest` (`@ApplicationModuleTest`); `ModularityTest` and `BoundaryRulesTest` green
 
 ## 2. Policy engine (phase 1 core)
 
-- [ ] 2.1 Public types `DataClass`, `Action`, `Location`, `Redaction`, `Withheld`, `MessageContent`, `GovernedMessage`, `GovernContext`, `ContentPolicy`
-- [ ] 2.2 Detectors (PAN+Luhn, IBAN+mod-97, email, phone, bearer/JWT) with unit tests for positives and negatives
-- [ ] 2.3 Rule matching (address pattern, header/property name glob, case-insensitive) and precedence (rule over detector, exception over detector) with unit tests
-- [ ] 2.4 Policy snapshot loaded from the DB, reloaded on rule-change event; `version()` from `governance_policy`
-- [ ] 2.5 `govern` for headers and properties: DROP/PARTIAL/REDACT/CLEAR, clear-access semantics (credentials always dropped), `sealable` collection; `governText` for free text
-- [ ] 2.6 `context(clusterId, address)` resolving `message:clear` via `PermissionResolver`; `VIEW_CLEAR` audit helper recording classes and counts only
+- [x] 2.1 Public types `DataClass`, `Action`, `Location`, `Redaction`, `Withheld`, `MessageContent`, `GovernedMessage`, `GovernContext`, `ContentPolicy`
+- [x] 2.2 Detectors (PAN+Luhn, IBAN+mod-97, email, phone, bearer/JWT) with unit tests for positives and negatives
+- [x] 2.3 Rule matching (address pattern, header/property name glob, case-insensitive) and precedence (rule over detector, exception over detector) with unit tests
+- [x] 2.4 Policy snapshot loaded from the DB, reloaded on rule-change event; `version()` from `governance_policy`
+- [x] 2.5 `govern` for headers and properties: DROP/PARTIAL/REDACT/CLEAR, clear-access semantics (credentials always dropped), `sealable` collection; `governText` for free text
+- [x] 2.6 `context(clusterId, address)` resolving `message:clear` via `PermissionResolver`; `VIEW_CLEAR` audit helper recording classes and counts only
 
 ## 3. Egress: messages, MCP, events, audit (phase 1)
 
-- [ ] 3.1 `MessageService` browse/detail govern each message; `MessageSummaryView`/`MessageDetailView` built from `GovernedMessage` with `redactions` and `withheld`; `VIEW_CLEAR` audited when clear values served
-- [ ] 3.2 MCP `browse_messages` returns governed detail; MCP view carries redaction markers; test that `Authorization` never appears
-- [ ] 3.3 `EventViews.props` values passed through `governText`
-- [ ] 3.4 `kernel.audit` `AuditParamsFilter` SPI with no-op default, applied in `AuditService.begin`; governance implementation masking detected values and literals compared with classified names; tests
-- [ ] 3.5 `MessageBrowser.browse` invalid-filter error no longer echoes the selector; test updated
+- [x] 3.1 `MessageService` browse/detail govern each message; `MessageSummaryView`/`MessageDetailView` built from `GovernedMessage` with `redactions` and `withheld`; `VIEW_CLEAR` audited when clear values served
+- [x] 3.2 MCP `browse_messages` returns governed detail; MCP view carries redaction markers; test that `Authorization` never appears
+- [x] 3.3 `EventViews.props` values passed through `governText`
+- [x] 3.4 `kernel.audit` `AuditParamsFilter` SPI with no-op default, applied in `AuditService.begin`; governance implementation masking detected values and literals compared with classified names; tests
+- [x] 3.5 `MessageBrowser.browse` invalid-filter error no longer echoes the selector; test updated
 - [ ] 3.6 ArchUnit rule: `..web..`/`..mcp..` do not call raw body/property accessors of `BrowsedMessage` and `QueryResult.Row`
 
 ## 4. Governance API (phase 1)
 
-- [ ] 4.1 Rules endpoints (list/create/update/delete) with permission checks, built-in delete refused, disable audited, version bump in the same transaction
-- [ ] 4.2 Integration test: rule CRUD permissions and audit rows
-- [ ] 4.3 Regenerate `web/src/kernel/api/schema.d.ts`
+- [x] 4.1 Rules endpoints (list/create/update/delete) with permission checks, built-in delete refused, disable audited, version bump in the same transaction
+- [x] 4.2 Integration test: rule CRUD permissions and audit rows
+- [x] 4.3 Regenerate `web/src/kernel/api/schema.d.ts`
 
 ## 5. Frontend: redacted values and rules (phase 1)
 
-- [ ] 5.1 Load `ui-ux-pro-max`; `ui/RedactedValue.tsx` and `ui/WithheldNotice.tsx` using `--as-*` tokens, class in words, keyboard-reachable explanation; tests by role/name
-- [ ] 5.2 `MessageDetailPanel` renders governed properties/body with `RedactedValue`/`WithheldNotice`; copy/download state masked content
-- [ ] 5.3 `features/governance` feature (`feature.ts`, `api.ts`, `FEATURE_IDS`, admin nav, `featureView`) with `RulesPanel`: list, create/edit form (labels, blur validation), built-ins not deletable, enable toggle, disabled-with-reason without `governance:write`
-- [ ] 5.4 Frontend tests for `RulesPanel` gating and form validation
+- [x] 5.1 Load `ui-ux-pro-max`; `ui/RedactedValue.tsx` and `ui/WithheldNotice.tsx` using `--as-*` tokens, class in words, keyboard-reachable explanation; tests by role/name
+- [x] 5.2 `MessageDetailPanel` renders governed properties/body with `RedactedValue`/`WithheldNotice`; copy/download state masked content
+- [x] 5.3 `features/governance` feature (`feature.ts`, `api.ts`, `FEATURE_IDS`, admin nav, `featureView`) with `RulesPanel`: list, create/edit form (labels, blur validation), built-ins not deletable, enable toggle, disabled-with-reason without `governance:write`
+- [x] 5.4 Frontend tests for `RulesPanel` gating and form validation
 
 ## 6. Body classification and withheld content (phase 2)
 
-- [ ] 6.1 JSON body walk with `BODY_PATH` rules and leaf detectors; text/XML detector pass; base64/unknown withheld; scan-limit truncation withheld with setting key; unit tests
+- [x] 6.1 JSON body walk with `BODY_PATH` rules and leaf detectors; text/XML detector pass; base64/unknown withheld; scan-limit truncation withheld with setting key; unit tests
 - [ ] 6.2 Findings aggregator (bounded in-memory map) and flush `ScheduledJob` with batched upsert; test that no per-message write occurs
 - [ ] 6.3 Findings endpoints: list, confirm (creates rule), dismiss (creates exception); audited; integration test
 - [ ] 6.4 `FindingsInbox` UI: table, confirm/dismiss with four outcomes, empty and filtered-empty teaching states, aria-live announcement, keyboard pass test (load `ui-ux-pro-max` first)

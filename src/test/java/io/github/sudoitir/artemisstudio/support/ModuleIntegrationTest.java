@@ -77,12 +77,14 @@ public abstract class ModuleIntegrationTest {
     void startsWithItsModuleAndDirectDependenciesOnly() {
         Set<String> bootstrapped = bootstrappedPackages(execution);
         String own = execution.getModule().getBasePackage().getName();
+        // A platform module is checked against platform beans, a feature against feature beans.
+        String layer = own.startsWith(ROOT + ".platform.") ? ROOT + ".platform." : FEATURES;
         List<String> featureBeanPackages = Arrays.stream(context.getBeanDefinitionNames())
                 .map(context.getBeanFactory()::getSingleton)
                 .filter(Objects::nonNull)
                 .filter(bean -> !Mockito.mockingDetails(bean).isMock())
                 .map(bean -> ClassUtils.getUserClass(bean).getPackageName())
-                .filter(name -> name.startsWith(FEATURES))
+                .filter(name -> name.startsWith(layer))
                 .toList();
 
         assertThat(featureBeanPackages).anyMatch(name -> within(name, own));

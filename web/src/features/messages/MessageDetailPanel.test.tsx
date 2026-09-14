@@ -30,6 +30,8 @@ function detail(over: Record<string, unknown> = {}) {
     longProperties: {},
     doubleProperties: {},
     booleanProperties: {},
+    redactions: [],
+    withheld: [],
     ...over,
   };
 }
@@ -46,6 +48,29 @@ describe('MessageDetailPanel', () => {
     queueName: 'PHASE3.SRC',
     onClose: () => {},
   };
+
+  it('labels a masked property in words and explains a withheld body instead of dumping it', async () => {
+    mockDetail(
+      detail({
+        stringProperties: { contact: '[redacted email]' },
+        body: null,
+        bodyEncoding: 'BASE64',
+        redactions: [
+          { location: 'PROPERTY', path: 'contact', dataClass: 'EMAIL', label: 'email', action: 'REDACT', clear: false },
+        ],
+        withheld: [
+          { location: 'BODY', reason: 'Binary body cannot be classified, so it is withheld.', settingKey: null },
+        ],
+      }),
+    );
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByText('[redacted email]')).toBeInTheDocument();
+    expect(screen.getByText('Masked: email')).toBeInTheDocument();
+    expect(screen.getByText('Body withheld')).toBeInTheDocument();
+    expect(screen.getByText('Binary body cannot be classified, so it is withheld.')).toBeInTheDocument();
+    expect(screen.queryByText(/00000000/)).not.toBeInTheDocument();
+  });
 
   it('shows the truncation banner with the broker.xml snippet when bodyTruncated', async () => {
     mockDetail(detail({ bodyTruncated: true, observedLimitBytes: 256 }));
