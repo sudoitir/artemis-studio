@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
-import io.github.sudoitir.artemisstudio.feature.routing.RoutingService;
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -55,6 +55,6 @@ public class CaptureAddresses {
 
     /** Whether a name belongs to Studio's own capture objects, which no capture may cover. */
     public static boolean isCaptureObject(String name) {
-        return name != null && name.startsWith(RoutingService.CAPTURE_DIVERT_PREFIX);
+        return name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX);
     }
 }

@@ -1,13 +1,19 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 /** Request bodies for the queue, address and divert lifecycle API (ADR-0049, ADR-0065). */
 public final class LifecycleRequests {
 
     private LifecycleRequests() {}
+
+    /** No whitespace and none of the characters a broker management object name cannot safely carry. */
+    public static final String MANAGEMENT_NAME = "[^\\s,=:*?\"\\\\]*";
 
     /**
      * A queue to create. {@code address}, {@code routingType}, {@code name} and
@@ -103,16 +109,22 @@ public final class LifecycleRequests {
      * {@code broker.xml} that would close that gap is generated from these values.
      */
     public record CreateDivertRequest(
-            @NotBlank @Schema(description = "The divert's unique name on each node.")
+            @NotBlank @Size(max = 200) @Pattern(
+                    regexp = MANAGEMENT_NAME,
+                    message = "A divert name cannot contain whitespace or any of , = : * ? \" \\")
+            @Schema(description = "The divert's unique name on each node.")
             String name,
 
+            @Size(max = 200) @Pattern(
+                    regexp = MANAGEMENT_NAME,
+                    message = "A routing name cannot contain whitespace or any of , = : * ? \" \\")
             @Schema(nullable = true, description = "The routing name; defaults to the divert's name.")
             String routingName,
 
-            @NotBlank @Schema(description = "The address whose messages are diverted.")
+            @NotBlank @Size(max = 200) @Schema(description = "The address whose messages are diverted.")
             String address,
 
-            @NotBlank @Schema(description = "The address messages are diverted to.")
+            @NotBlank @Size(max = 200) @Schema(description = "The address messages are diverted to.")
             String forwardingAddress,
 
             @Schema(
@@ -121,17 +133,35 @@ public final class LifecycleRequests {
                     defaultValue = "false")
             Boolean exclusive,
 
-            @Schema(nullable = true, description = "A filter limiting which messages are diverted.")
+            @Size(max = 4000) @Schema(nullable = true, description = "A filter limiting which messages are diverted.")
             String filter,
 
+            @Pattern(
+                    regexp = "(?i)ANYCAST|MULTICAST|PASS|STRIP",
+                    message = "A divert's routing type is ANYCAST, MULTICAST, PASS or STRIP.")
             @Schema(
                     nullable = true,
                     description = "Routing type applied to the diverted copy.",
                     allowableValues = {"ANYCAST", "MULTICAST", "PASS", "STRIP"})
-            String routingType) {
+            String routingType,
+
+            @Schema(
+                    description = "Create an exclusive divert even though its source address is being captured."
+                            + " Capture of that address then observes nothing, because Artemis applies exclusive"
+                            + " diverts before every other one.",
+                    defaultValue = "false")
+            Boolean acknowledgeCaptureShadowing) {
 
         public CreateDivertRequest {
             exclusive = exclusive != null && exclusive;
+            acknowledgeCaptureShadowing = acknowledgeCaptureShadowing != null && acknowledgeCaptureShadowing;
+        }
+
+        /** A divert that forwards to the address it reads from would feed itself. */
+        @JsonIgnore
+        @Schema(hidden = true)
+        @AssertTrue(message = "A divert cannot forward to the address it reads from.") public boolean isForwardingAddressDistinct() {
+            return address == null || !address.equals(forwardingAddress);
         }
     }
 }

@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
+import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Check;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAction;
@@ -56,6 +57,7 @@ public class QueueLifecycleService {
     private final SseHub sseHub;
     private final BrokerCommands commands;
     private final ObjectMapper mapper;
+    private final jakarta.validation.Validator validator;
 
     // ---- entry points ----------------------------------------------------
 
@@ -184,13 +186,15 @@ public class QueueLifecycleService {
      * same fan-out every other topology mutation uses, with the same per-node
      * outcomes and the same preview.
      *
-     * <p>A node that already has a divert by this name reports {@code ALREADY}. The
-     * configuration is not compared the way {@code createQueue} compares a queue's:
-     * unlike a queue, a divert is cheap to delete and recreate, and the routing spec
-     * makes that the only way to change one — so a mismatched name is a thing for the
-     * operator to look at, not something to reconcile silently.
+     * <p>Each node is checked first, in the preview and again for real: a forwarding
+     * address that is not there would make producers to the source fail, and a cycle
+     * would copy a message around it indefinitely. The result is what the broker
+     * deployed, read back — an identical divert already there is {@code ALREADY}, a
+     * different one under the same name fails naming the difference.
      */
     public Attempt<LifecycleOutcome> createDivert(UUID clusterId, CreateDivertRequest req, boolean dryRun) {
+        requireValid(req);
+        refuseCaptureName(req.name());
         Map<String, Object> config = DivertOperations.divertConfig(
                 req.name(),
                 req.routingName(),
@@ -199,10 +203,66 @@ public class QueueLifecycleService {
                 Boolean.TRUE.equals(req.exclusive()),
                 req.filter(),
                 req.routingType());
-        return run(clusterId, LifecycleKind.CREATE_DIVERT, req.name(), config, dryRun, false, (client, broker) -> {
-            divertOps.createDivert(client, broker, config);
-            return NodeStatus.APPLIED;
-        });
+        Map<String, Object> audited = new LinkedHashMap<>(config);
+        audited.put("acknowledgeCaptureShadowing", req.acknowledgeCaptureShadowing());
+        return new Attempt.Ok<>(commands.run(Command.builder()
+                .clusterId(clusterId)
+                .permission(LifecycleKind.CREATE_DIVERT.permission())
+                .auditAction(LifecycleKind.CREATE_DIVERT.auditName())
+                .targetType(LifecycleKind.CREATE_DIVERT.targetType())
+                .targetName(req.name())
+                .params(audited)
+                .dryRun(dryRun)
+                .preflight((client, broker) -> divertPreflight(client, broker, req))
+                .action((client, broker) -> divertOps.createVerified(client, broker, config))
+                .signal(() -> sseHub.publish(clusterId, "queues"))
+                .build()));
+    }
+
+    private Check divertPreflight(JolokiaBrokerClient client, String broker, CreateDivertRequest req) {
+        List<DivertRow> existing = divertOps.listDiverts(client, null, null);
+        String cycle = DivertOperations.cycle(existing, req.name(), req.address(), req.forwardingAddress());
+        if (cycle != null) {
+            return Check.refuse("This divert would complete a cycle of diverts: " + cycle
+                    + ". A message would be copied around it without end.");
+        }
+        if (!divertOps.addressAvailable(client, broker, req.forwardingAddress())) {
+            return Check.refuse("The forwarding address '" + req.forwardingAddress() + "' does not exist on this node"
+                    + " and is not created automatically, so producers to '" + req.address() + "' would fail."
+                    + " Create the address first, or declare it in broker.xml: <addresses><address name=\""
+                    + req.forwardingAddress() + "\"><anycast/></address></addresses>");
+        }
+        boolean captured = existing.stream()
+                .anyMatch(d -> d.uniqueName() != null
+                        && d.uniqueName().startsWith(DivertOperations.CAPTURE_PREFIX)
+                        && req.address().equals(d.address()));
+        if (Boolean.TRUE.equals(req.exclusive()) && captured) {
+            String effect = "'" + req.address() + "' is being captured, and Artemis applies exclusive diverts before"
+                    + " every other one: capture of it would observe nothing while this divert exists.";
+            return Boolean.TRUE.equals(req.acknowledgeCaptureShadowing())
+                    ? Check.warn(effect)
+                    : Check.refuse(effect + " Set acknowledgeCaptureShadowing to create it anyway.");
+        }
+        return Check.OK;
+    }
+
+    /** Bean validation for callers that do not pass through a validated controller argument (MCP). */
+    private void requireValid(CreateDivertRequest req) {
+        var violations = validator.validate(req);
+        if (!violations.isEmpty()) {
+            throw new IllegalArgumentException(violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining("; ")));
+        }
+    }
+
+    /** Capture's diverts are managed by their subscription (ADR-0079), whichever API is asked. */
+    private static void refuseCaptureName(String name) {
+        if (name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX)) {
+            throw new IllegalArgumentException("'" + name + "' is in the namespace reserved for message capture ("
+                    + DivertOperations.CAPTURE_PREFIX + "). Manage it from its capture subscription instead.");
+        }
     }
 
     /**
@@ -212,6 +272,7 @@ public class QueueLifecycleService {
      * would do it.
      */
     public Attempt<LifecycleOutcome> deleteDivert(UUID clusterId, String name, boolean dryRun) {
+        refuseCaptureName(name);
         return run(clusterId, LifecycleKind.DELETE_DIVERT, name, Map.of(), dryRun, false, (client, broker) -> {
             divertOps.destroyDivert(client, broker, name);
             return NodeStatus.APPLIED;

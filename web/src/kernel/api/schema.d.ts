@@ -2480,6 +2480,11 @@ export interface components {
              * @enum {string|null}
              */
             routingType?: "ANYCAST" | "MULTICAST" | "PASS" | "STRIP" | null;
+            /**
+             * @description Create an exclusive divert even though its source address is being captured. Capture of that address then observes nothing, because Artemis applies exclusive diverts before every other one.
+             * @default false
+             */
+            acknowledgeCaptureShadowing: boolean;
         };
         DivertMutationView: {
             outcome: components["schemas"]["LifecycleOutcomeView"];

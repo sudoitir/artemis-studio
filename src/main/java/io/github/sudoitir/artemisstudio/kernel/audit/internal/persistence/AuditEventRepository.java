@@ -15,13 +15,29 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
     List<AuditEventEntity> findByClusterIdOrderByTsDesc(UUID clusterId);
 
     /**
-     * Every non-preview audit row for one target type on a cluster, oldest first, so
-     * a caller can fold them into "what does Studio still own". Used by the routing
-     * view, which has no other record of the diverts Studio created: the broker keeps
-     * none (ADR-0065 D2), so Studio's own audit trail is the only honest source of
-     * ownership for an operator-created divert.
+     * The target names whose latest non-preview event is a creation, counting a deletion only
+     * when it succeeded: "Studio created this and has no record of removing it". One row per
+     * name, so the routing view never loads the target type's whole history. The broker keeps
+     * no origin for a divert (ADR-0065 D2), so this audit trail is the only honest source.
      */
-    List<AuditEventEntity> findByClusterIdAndTargetTypeAndDryRunFalseOrderByTsAsc(UUID clusterId, String targetType);
+    @Query(nativeQuery = true, value = """
+            SELECT target_name FROM (
+                SELECT DISTINCT ON (target_name) target_name, action
+                FROM audit_event
+                WHERE cluster_id = :clusterId
+                  AND target_type = :targetType
+                  AND dry_run = false
+                  AND target_name IS NOT NULL
+                  AND (action = :created OR (action = :deleted AND outcome = 'SUCCESS'))
+                ORDER BY target_name, ts DESC, id DESC
+            ) latest
+            WHERE action = :created
+            """)
+    List<String> findOwnedTargetNames(
+            @Param("clusterId") UUID clusterId,
+            @Param("targetType") String targetType,
+            @Param("created") String created,
+            @Param("deleted") String deleted);
 
     /**
      * Filtered, newest-first page for the audit-log screen. String filters are

@@ -6455,21 +6455,28 @@
           "name" : {
             "type" : "string",
             "description" : "The divert's unique name on each node.",
-            "minLength" : 1
+            "maxLength" : 200,
+            "minLength" : 0,
+            "pattern" : "[^\\s,=:*?\"\\\\]*"
           },
           "routingName" : {
             "type" : [ "string", "null" ],
-            "description" : "The routing name; defaults to the divert's name."
+            "description" : "The routing name; defaults to the divert's name.",
+            "maxLength" : 200,
+            "minLength" : 0,
+            "pattern" : "[^\\s,=:*?\"\\\\]*"
           },
           "address" : {
             "type" : "string",
             "description" : "The address whose messages are diverted.",
-            "minLength" : 1
+            "maxLength" : 200,
+            "minLength" : 0
           },
           "forwardingAddress" : {
             "type" : "string",
             "description" : "The address messages are diverted to.",
-            "minLength" : 1
+            "maxLength" : 200,
+            "minLength" : 0
           },
           "exclusive" : {
             "type" : "boolean",
@@ -6478,12 +6485,20 @@
           },
           "filter" : {
             "type" : [ "string", "null" ],
-            "description" : "A filter limiting which messages are diverted."
+            "description" : "A filter limiting which messages are diverted.",
+            "maxLength" : 4000,
+            "minLength" : 0
           },
           "routingType" : {
             "type" : [ "string", "null" ],
             "description" : "Routing type applied to the diverted copy.",
-            "enum" : [ "ANYCAST", "MULTICAST", "PASS", "STRIP" ]
+            "enum" : [ "ANYCAST", "MULTICAST", "PASS", "STRIP" ],
+            "pattern" : "(?i)ANYCAST|MULTICAST|PASS|STRIP"
+          },
+          "acknowledgeCaptureShadowing" : {
+            "type" : "boolean",
+            "default" : false,
+            "description" : "Create an exclusive divert even though its source address is being captured. Capture of that address then observes nothing, because Artemis applies exclusive diverts before every other one."
           }
         },
         "required" : [ "address", "forwardingAddress", "name" ]

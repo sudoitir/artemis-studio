@@ -171,6 +171,22 @@ The new ADR supersedes the limiter-placement text of ADR-0025.
   role refuses capture with the property name. `amq` logs a warning and is shown on the
   subscription.
 
+**Divert creation (revised during apply).**
+- The reserved prefix constant moved to `DivertOperations.CAPTURE_PREFIX`, which both
+  routing and capture already depend on.
+- Preflight is an optional `BrokerCommands.Command.preflight`, run per node in the dry run
+  and again before the real attempt. A refusal fails the node; a warning appears in the
+  preview only.
+- Source equal to forwarding is refused by bean validation (`@AssertTrue`), not per node.
+  `QueueLifecycleService` validates the request itself as well, so MCP gets the same
+  checks.
+- `DivertOperations.createVerified` holds the before/after check for operator diverts.
+  `CaptureTap.install` keeps its own equivalent check through `installedNames`; moving it
+  would change nothing it does.
+- **Not measured:** how Artemis behaves when diverts form a cycle. The shared test broker is
+  used by every integration test, so it was not put at risk. Cycles are refused regardless,
+  so Studio relies on no broker-side protection.
+
 ### D6 — Capture correctness details
 - **Footprint, loss, retention, delete.** They match captured rows with
   `queue_name IN (addressesFor(subscription))`, using the same resolver as the reconciler.

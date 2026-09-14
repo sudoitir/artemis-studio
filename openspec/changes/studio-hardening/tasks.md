@@ -27,7 +27,7 @@
   - pause the drain's flow with `Backoff`;
   - mark the node DEGRADED (`STORE_UNAVAILABLE`);
   - resume on success.
-- [ ] 2.5 Handle unreadable messages: `recover()`, then after 3 failures on the same message id count it as loss (`UNREADABLE`) and acknowledge it. Add a poison-message test.
+- [x] 2.5 Handle unreadable messages: `recover()`, then after 3 failures on the same message id count it as loss (`UNREADABLE`) and acknowledge it. Add a poison-message test.
 - [x] 2.6 Count rate-cap rejections as loss (`RATE_LIMIT`).
 - [x] 2.7 Fix `Drain.close()` ordering: close the consumer, then write the batch, then acknowledge, then close the session.
 - [x] 2.8 `AuditService.begin`/`finish`/`fail` run in `REQUIRES_NEW`. Add a test that the pending row is committed before the broker call, using a broker stub that reads the audit table during the call.
@@ -95,24 +95,24 @@
 
 ## 5. Phase 5: Divert correctness
 
-- [ ] 5.1 Extract divert deployment verification from `CaptureTap` into `DivertOperations`.
+- [x] 5.1 Divert deployment verification in `DivertOperations.createVerified`. (Apply: `CaptureTap` keeps its equivalent `installedNames` check; see design.md D5.)
   - `createDivert` compares against `listDiverts` after the request.
   - The result is APPLIED, ALREADY, or FAILED with the differing fields, or FAILED as not deployed.
-- [ ] 5.2 Preflight shared by the dry run and the real request.
+- [x] 5.2 Preflight shared by the dry run and the real request.
   - Refuse source equal to forwarding.
   - Refuse a forwarding address that neither exists nor is auto-created, with the `broker.xml` remedy.
-  - Refuse a divert cycle, naming it; first measure Artemis 2.56 behaviour on the dev stack and note it in ADR-0079.
+  - Refuse a divert cycle, naming it. (Apply: Artemis' own cycle behaviour was not measured, so the shared test broker was not put at risk; design.md D5 records that cycles are refused regardless.)
   - Warn about an exclusive divert on a captured address, requiring `acknowledgeCaptureShadowing`.
-- [ ] 5.3 Refuse capture-prefixed names in create and delete at the service, so REST and MCP are both covered.
-- [ ] 5.4 `CreateDivertRequest` validation: `@Pattern` routing type, `@Size(max=200)`, name regex, and a class-level distinct-addresses check. Return 400 with per-field errors, reusing the `BrokerConfigValidator` rules.
-- [ ] 5.5 `BrokerXmlSnippets` emits XML via the StAX writer. Test with `<`, `&` and `"` in the filter.
-- [ ] 5.6 `RoutingService.operatorOwnedDivertNames` makes a bounded query (latest event per name) instead of loading the full history.
-- [ ] 5.7 Integration tests on Testcontainers Artemis:
+- [x] 5.3 Refuse capture-prefixed names in create and delete at the service, so REST and MCP are both covered.
+- [x] 5.4 `CreateDivertRequest` validation: `@Pattern` routing type, `@Size(max=200)`, name regex, and a class-level distinct-addresses check. Return 400 with per-field errors, reusing the `BrokerConfigValidator` rules.
+- [x] 5.5 `BrokerXmlSnippets` emits XML via the StAX writer. Test with `<`, `&` and `"` in the filter.
+- [x] 5.6 `RoutingService.operatorOwnedDivertNames` makes a bounded query (latest event per name) instead of loading the full history.
+- [x] 5.7 Integration tests on Testcontainers Artemis:
   - duplicate name gives ALREADY or FAILED;
   - a missing forwarding address is refused;
   - A→B then B→A is refused;
   - a capture-prefix name is refused over REST and MCP.
-- [ ] 5.8 Run `./mvnw verify` and commit `fix(routing)`.
+- [x] 5.8 Run `./mvnw verify` and commit `fix(routing)`.
 
 ## 6. Phase 6: UI guards
 

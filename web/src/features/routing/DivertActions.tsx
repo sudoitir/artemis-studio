@@ -70,7 +70,7 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
   const [result, setResult] = useState<DivertMutationView | null>(null);
 
   const create = useCreateDivert(clusterId);
-  const body = { name, address, forwardingAddress, filter: filter || undefined, exclusive };
+  const body = { name, address, forwardingAddress, filter: filter || undefined, exclusive, acknowledgeCaptureShadowing: false };
   const complete = name.trim() !== '' && address.trim() !== '' && forwardingAddress.trim() !== '';
 
   const close = () => {

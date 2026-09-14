@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeN
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.BridgeView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
@@ -22,7 +21,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,12 +53,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class RoutingService {
-
-    /**
-     * The name prefix Studio reserves for the diverts that serve message capture.
-     * A divert under it is Studio's by construction, without consulting anything.
-     */
-    public static final String CAPTURE_DIVERT_PREFIX = "artemis-studio.capture.";
 
     /** Ownership Studio can assert. Anything else is left unattributed, on purpose. */
     private static final String OWNER_CAPTURE = "MESSAGE_CAPTURE";
@@ -173,7 +165,7 @@ public class RoutingService {
     private DivertView toDivertView(List<DivertRow> group, int nodesTotal, Set<String> ownedByOperator) {
         DivertRow first = group.get(0);
         String name = first.uniqueName();
-        boolean capture = name != null && name.startsWith(CAPTURE_DIVERT_PREFIX);
+        boolean capture = name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX);
         String owner = capture ? OWNER_CAPTURE : (ownedByOperator.contains(name) ? OWNER_OPERATOR : null);
         return new DivertView(
                 name,
@@ -258,20 +250,11 @@ public class RoutingService {
      * it is a smaller error than claiming an origin the broker does not record at all.
      */
     private Set<String> operatorOwnedDivertNames(UUID clusterId) {
-        Set<String> owned = new LinkedHashSet<>();
-        List<AuditEvent> events = audit.history(clusterId, "DIVERT");
-        for (AuditEvent event : events) {
-            if (event.getTargetName() == null) {
-                continue;
-            }
-            if (LifecycleKind.CREATE_DIVERT.auditName().equals(event.getAction())) {
-                owned.add(event.getTargetName());
-            } else if (LifecycleKind.DELETE_DIVERT.auditName().equals(event.getAction())
-                    && "SUCCESS".equals(event.getOutcome())) {
-                owned.remove(event.getTargetName());
-            }
-        }
-        return owned;
+        return audit.ownedTargetNames(
+                clusterId,
+                LifecycleKind.CREATE_DIVERT.targetType(),
+                LifecycleKind.CREATE_DIVERT.auditName(),
+                LifecycleKind.DELETE_DIVERT.auditName());
     }
 
     // ---- plumbing --------------------------------------------------------

@@ -46,7 +46,8 @@ public class QueuesMcpTools {
             Boolean nonDestructive,
             Long ringSize,
             String forwardingAddress,
-            String routingName) {}
+            String routingName,
+            Boolean acknowledgeCaptureShadowing) {}
 
     /**
      * Queue, address and divert lifecycle, as <b>one</b> tool discriminated by
@@ -109,7 +110,7 @@ public class QueuesMcpTools {
 
     private static QueueConfigBody parseConfig(String raw) {
         if (raw == null || raw.isBlank()) {
-            return new QueueConfigBody(null, null, null, null, null, null, null, null, null, null, null);
+            return new QueueConfigBody(null, null, null, null, null, null, null, null, null, null, null, null);
         }
         return McpErrors.parse("config", raw, QueueConfigBody.class);
     }
@@ -159,7 +160,8 @@ public class QueuesMcpTools {
                 body.forwardingAddress(),
                 body.exclusive(),
                 body.filter(),
-                body.routingType());
+                body.routingType(),
+                body.acknowledgeCaptureShadowing());
     }
 
     private static CreateAddressRequest addressRequest(String name, QueueConfigBody body) {
