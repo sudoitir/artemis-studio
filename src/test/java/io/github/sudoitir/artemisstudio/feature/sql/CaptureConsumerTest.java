@@ -128,6 +128,21 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         assertThat(batchAddresses).allSatisfy(addresses -> assertThat(addresses).hasSize(1));
     }
 
+    @Test
+    void aDrainWhoseConnectionFailedIsNoLongerReportedAsDraining() throws Exception {
+        String queue = "capture.dead." + UUID.randomUUID();
+        send(queue, 1);
+        CaptureConsumer.Spec spec = spec(queue, "ORDER.IN");
+        consumer.start(spec);
+        assertThat(consumer.isDraining(nodeId, spec.name())).isTrue();
+
+        consumer.connectionFailed(clusterId, nodeId, new jakarta.jms.JMSException("AMQ219016: connection failure"));
+
+        // The reconciler installs a tap again whenever its node is not draining it.
+        assertThat(consumer.isDraining(nodeId, spec.name())).isFalse();
+        assertThat(consumer.drainingOn(nodeId)).isEmpty();
+    }
+
     private long count(String address) {
         return stored.stream().filter(c -> c.row().address().equals(address)).count();
     }

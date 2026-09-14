@@ -72,8 +72,8 @@
 - [x] 4.1 Write ADR-0079 (per-instance capture objects, reserved prefix, required broker role).
 - [x] 4.2 Match captured rows by `queue_name IN (addressesFor(subscription))` in `CaptureLoss`, `MessageIndexService` (footprint, `maxBytes`, delete) and `MessageIndexPartitionMaintainer` (retention). Test with a multicast address whose queues have different names.
 - [x] 4.3 Reconciler reinstalls when a tap is not draining or its divert is absent from `actual`, and stops drains on non-serving nodes. Test: a divert deleted out of band is reinstalled.
-- [ ] 4.4 Add an `ExceptionListener` on each capture drain connection that removes the drain and marks the node PENDING, so the next pass reinstalls it and records the gap. Test with a broker restart.
-- [ ] 4.5 Bounds and filter edits flag the subscription's nodes for reinstall, audited with old and new values. Test that a narrowed filter reaches the broker divert.
+- [x] 4.4 Add an `ExceptionListener` on each capture drain connection that removes the drain and marks the node PENDING, so the next pass reinstalls it and records the gap. Test with a broker restart.
+- [x] 4.5 Bounds and filter edits flag the subscription's nodes for reinstall, audited with old and new values. Test that a narrowed filter reaches the broker divert.
 - [x] 4.6 Scope `CaptureNames.MATCH` per instance. `CaptureTap.remove` clears only that match. Startup removes the legacy shared match only when no capture diverts remain. Test with two instance ids.
 - [x] 4.7 Add `max-ring-bytes` (default 64 MiB) as `maxSizeBytes` on the capture address settings. Add a changeset lowering the ring-size CHECK to 1,000,000 and clamping existing rows.
 - [x] 4.8 Reserve the capture prefix: exclude it in `addressesFor`, and reject patterns in `validPattern` that can only match it. Test that `#` never taps capture queues.
@@ -88,9 +88,9 @@
   - Report `null` with reason `FILTERED` when a filter is set.
   - Clear DEGRADED after a clean interval, and record a loss window.
 - [x] 4.12 Bound the per-pass footprint and loss queries so they do not scan every partition. Implemented as retention-bounded queries (`observed_at >= now - retention`, served by partition pruning) instead of `captured_rows`/`captured_bytes` counter columns: counters would need the subscription id threaded through the capture writer plus decrements on retention and delete, for the same effect.
-- [ ] 4.13 Delete and disable stop every drain of the subscription before deleting rows. `SqlIndexController` reconciles under `clusterLock.runIfHeld`. Test that no rows remain after deleting while messages flow.
+- [x] 4.13 Delete and disable stop every drain of the subscription before deleting rows. `SqlIndexController` reconciles under `clusterLock.runIfHeld`. Test that no rows remain after deleting while messages flow.
 - [x] 4.14 Run the partition move-from-default and ATTACH in one transaction.
-- [ ] 4.15 Add `POST /sql/index?dryRun=true` returning nodes, addresses, ring bounds, broker objects and `brokerXml`, without saving or touching a broker. Bean-validate request bounds, returning 400 instead of clamping, and include every bound in the audit params.
+- [x] 4.15 Add `POST /sql/index?dryRun=true` returning nodes, addresses, ring bounds, broker objects and `brokerXml`, without saving or touching a broker. Bean-validate request bounds, returning 400 instead of clamping, and include every bound in the audit params.
 - [ ] 4.16 Run `./mvnw verify` and commit `fix(capture)!` with the migration steps in the body (broker role required, ring clamp).
 
 ## 5. Phase 5: Divert correctness

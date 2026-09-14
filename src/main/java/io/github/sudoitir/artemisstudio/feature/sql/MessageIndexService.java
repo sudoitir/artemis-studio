@@ -52,6 +52,69 @@ public class MessageIndexService {
     private final CaptureAddresses captureAddresses;
     private final CaptureConsumer consumers;
     private final CaptureReconciler reconciler;
+    private final CaptureTap tap;
+    private final CaptureProperties captureProperties;
+    private final io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance instance;
+
+    /** What creating a capture subscription would do on the broker, resolved without changing anything. */
+    public record Preview(
+            List<String> addresses,
+            List<String> nodes,
+            long ringMessages,
+            long ringBytes,
+            List<String> brokerObjects,
+            String brokerXml,
+            String refusal) {}
+
+    /**
+     * The dry run of {@link #create} for a capture subscription (message-capture spec): the same
+     * permission and the same validation, then what it resolves to — addresses, target nodes,
+     * bounds and broker objects — with nothing saved and no broker contacted.
+     */
+    @Transactional(readOnly = true)
+    public Preview preview(UUID clusterId, Spec spec) {
+        clusterAccess.requireCluster(clusterId, SqlPermissions.CAPTURE_WRITE);
+        MessageIndexSubscriptionEntity draft = new MessageIndexSubscriptionEntity();
+        draft.setId(UUID.randomUUID());
+        draft.setClusterId(clusterId);
+        draft.setQueuePattern(validPattern(spec.queuePattern()));
+        draft.setMode(CaptureMode.CAPTURE);
+        if (spec.retentionDays() != null) {
+            draft.setRetentionDays(validRetention(spec.retentionDays()));
+        }
+        applyBounds(draft, spec);
+
+        List<String> addresses = List.copyOf(captureAddresses.of(clusterId, draft));
+        List<String> nodeNames = reconciler.servingNodes(clusterId).stream()
+                .map(ClusterNode::getName)
+                .toList();
+        List<String> objects = new ArrayList<>();
+        for (String address : addresses) {
+            String name = CaptureNames.of(instance.id(), address, draft.getId());
+            objects.add("divert " + name + " (non-exclusive, from " + address + ")");
+            objects.add("queue " + CaptureNames.queueOf(name) + " (non-durable, ring " + draft.getRingSize() + ")");
+        }
+        if (!addresses.isEmpty()) {
+            objects.add("address-setting " + CaptureNames.matchFor(instance.id()));
+            objects.add("security-setting " + CaptureNames.matchFor(instance.id()));
+        }
+        String role = captureProperties.brokerRole();
+        String refusal = addresses.isEmpty()
+                ? "The pattern '" + draft.getQueuePattern() + "' matches no address on this cluster, so nothing would"
+                        + " be captured."
+                : role == null || role.isBlank()
+                        ? "Capture needs artemis-studio.capture.broker-role (ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE) set to"
+                                + " the broker role Studio's own user holds."
+                        : null;
+        return new Preview(
+                addresses,
+                nodeNames,
+                draft.getRingSize(),
+                captureProperties.maxRingBytes().toBytes(),
+                List.copyOf(objects),
+                tap.captureBrokerXml(instance.id(), draft.getRingSize()),
+                refusal);
+    }
 
     /**
      * What a subscription is currently costing.

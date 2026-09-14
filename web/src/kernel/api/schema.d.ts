@@ -2285,6 +2285,29 @@ export interface components {
             /** @description Capture state per node. Empty for a sampled subscription. A node missing from this list is one capture has not reached, which is not the same as one that is capturing nothing. */
             nodes?: components["schemas"]["CaptureNodeView"][];
         };
+        /** @description What creating a capture subscription would do, without doing it: what it covers, where, how much it may hold, and the broker objects and configuration it amounts to. */
+        CapturePreviewView: {
+            /** @description The addresses the pattern resolves to. Studio's own capture addresses are never included. */
+            addresses?: string[];
+            /** @description The live nodes the tap would be installed on. */
+            nodes?: string[];
+            /**
+             * Format: int64
+             * @description Messages each capture queue holds before the broker drops the oldest.
+             */
+            ringMessages?: number;
+            /**
+             * Format: int64
+             * @description Bytes each capture queue holds before the broker drops the oldest.
+             */
+            ringBytes?: number;
+            /** @description The broker objects created on every listed node. */
+            brokerObjects?: string[];
+            /** @description The equivalent permanent broker.xml for a configuration-managed estate. */
+            brokerXml?: string;
+            /** @description Why capture would be refused as things stand, or null when it would not. */
+            refusal?: string | null;
+        };
         CreateExpectationRequest: {
             requestAddress: string;
             replyAddresses?: string[];
@@ -4708,7 +4731,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IndexSubscriptionView"];
+                    "*/*": components["schemas"]["CapturePreviewView"] | components["schemas"]["IndexSubscriptionView"];
                 };
             };
         };

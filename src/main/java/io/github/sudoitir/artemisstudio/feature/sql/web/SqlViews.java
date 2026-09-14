@@ -232,6 +232,35 @@ public final class SqlViews {
             @Schema(description = "Bytes of body stored per message; a longer body is stored truncated.")
             Integer bodyCapBytes) {}
 
+    @Schema(
+            description = "What creating a capture subscription would do, without doing it: what it covers, where,"
+                    + " how much it may hold, and the broker objects and configuration it amounts to.")
+    public record CapturePreviewView(
+            @Schema(
+                    description = "The addresses the pattern resolves to. Studio's own capture addresses are never"
+                            + " included.")
+            List<String> addresses,
+
+            @Schema(description = "The live nodes the tap would be installed on.")
+            List<String> nodes,
+
+            @Schema(description = "Messages each capture queue holds before the broker drops the oldest.")
+            long ringMessages,
+
+            @Schema(description = "Bytes each capture queue holds before the broker drops the oldest.")
+            long ringBytes,
+
+            @Schema(description = "The broker objects created on every listed node.")
+            List<String> brokerObjects,
+
+            @Schema(description = "The equivalent permanent broker.xml for a configuration-managed estate.")
+            String brokerXml,
+
+            @Schema(
+                    nullable = true,
+                    description = "Why capture would be refused as things stand, or null when it would not.")
+            String refusal) {}
+
     @Schema(description = "What capture is doing on one node. Per node, because a tap is a node-local object.")
     public record CaptureNodeView(
             UUID nodeId,

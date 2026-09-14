@@ -1226,7 +1226,11 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/IndexSubscriptionView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/CapturePreviewView"
+                  }, {
+                    "$ref" : "#/components/schemas/IndexSubscriptionView"
+                  } ]
                 }
               }
             }
@@ -6076,6 +6080,51 @@
             "items" : {
               "$ref" : "#/components/schemas/CaptureNodeView"
             }
+          }
+        }
+      },
+      "CapturePreviewView" : {
+        "type" : "object",
+        "description" : "What creating a capture subscription would do, without doing it: what it covers, where, how much it may hold, and the broker objects and configuration it amounts to.",
+        "properties" : {
+          "addresses" : {
+            "type" : "array",
+            "description" : "The addresses the pattern resolves to. Studio's own capture addresses are never included.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "nodes" : {
+            "type" : "array",
+            "description" : "The live nodes the tap would be installed on.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "ringMessages" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Messages each capture queue holds before the broker drops the oldest."
+          },
+          "ringBytes" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Bytes each capture queue holds before the broker drops the oldest."
+          },
+          "brokerObjects" : {
+            "type" : "array",
+            "description" : "The broker objects created on every listed node.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "brokerXml" : {
+            "type" : "string",
+            "description" : "The equivalent permanent broker.xml for a configuration-managed estate."
+          },
+          "refusal" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why capture would be refused as things stand, or null when it would not."
           }
         }
       },

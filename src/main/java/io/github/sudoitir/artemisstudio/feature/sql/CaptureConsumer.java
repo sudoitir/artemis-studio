@@ -163,6 +163,12 @@ public class CaptureConsumer {
             MessageConsumer consumer = session.createConsumer(session.createQueue(spec.captureQueue()));
             Drain drain = new Drain(spec, jms, consumer);
             consumer.setMessageListener(drain);
+            // A broker restart or a dropped connection kills the session silently: the drain
+            // would stay registered, reading nothing, while capture reported ACTIVE. The drains
+            // on a node share one pooled connection, so its failure ends all of them, and the
+            // next reconcile pass re-creates the queue and records the gap (message-capture spec).
+            jms.connection()
+                    .setExceptionListener(failure -> connectionFailed(spec.clusterId(), spec.nodeId(), failure));
             running.put(key(spec.nodeId(), spec.name()), drain);
             log.info(
                     "Draining capture queue {} for {} on {}",
@@ -181,6 +187,28 @@ public class CaptureConsumer {
         if (drain != null) {
             drain.close();
         }
+    }
+
+    /**
+     * The connection behind a node's drains failed: forget every drain on that node so the next
+     * pass installs them again. Their sessions are already dead, so nothing is acknowledged — what
+     * they held unacknowledged is redelivered to the drains that replace them, or dropped by the
+     * bounded queue and counted as loss if the broker restarted with it.
+     */
+    void connectionFailed(UUID clusterId, UUID nodeId, JMSException failure) {
+        running.entrySet().removeIf(entry -> {
+            Spec spec = entry.getValue().spec;
+            if (!spec.clusterId().equals(clusterId) || !spec.nodeId().equals(nodeId)) {
+                return false;
+            }
+            entry.getValue().abandon();
+            log.warn(
+                    "Capture of {} on {} lost its broker connection and will be re-created on the next pass: {}",
+                    spec.sourceAddress(),
+                    spec.nodeName(),
+                    failure.getMessage());
+            return true;
+        });
     }
 
     /**
@@ -446,6 +474,22 @@ public class CaptureConsumer {
                     null,
                     "CAPTURED",
                     null);
+        }
+
+        /** Give up a drain whose connection is already gone: wake it, and release what it holds without writing. */
+        void abandon() {
+            synchronized (this) {
+                closed = true;
+                batch.clear();
+                lastDelivered = null;
+                notifyAll();
+            }
+            try {
+                consumer.close();
+            } catch (JMSException | RuntimeException ignored) {
+                // the connection is already dead
+            }
+            jms.close();
         }
 
         /**

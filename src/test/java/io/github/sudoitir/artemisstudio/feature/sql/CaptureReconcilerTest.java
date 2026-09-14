@@ -183,6 +183,23 @@ class CaptureReconcilerTest {
     }
 
     @Test
+    void reinstallRemovesTheSubscriptionsTapsAndInstallsThemAgain() throws Exception {
+        // Installed before the reinstall; gone once it has removed them.
+        when(tap.installedNames(any(), eq(INSTANCE)))
+                .thenReturn(List.of(WANTED))
+                .thenReturn(List.of());
+
+        reconciler.reinstall(CLUSTER, SUBSCRIPTION);
+
+        // The old divert and queue carry the old filter; a divert is never changed in place.
+        var order = org.mockito.Mockito.inOrder(consumers, tap);
+        order.verify(consumers).stop(NODE, WANTED);
+        order.verify(tap).remove(any(), eq(INSTANCE), eq(WANTED));
+        order.verify(tap).install(any(), eq(INSTANCE), any());
+        verify(tap, times(1)).remove(any(), any(), any());
+    }
+
+    @Test
     void aNodeThatStoppedServingKeepsNoDrain() {
         BrokerNodeEntity gone = mock(BrokerNodeEntity.class);
         UUID goneId = UUID.randomUUID();

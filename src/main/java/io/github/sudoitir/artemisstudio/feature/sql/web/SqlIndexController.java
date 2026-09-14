@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.MessageIndexService.Subscrip
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.CaptureNodeView;
+import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.CapturePreviewView;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.IndexSubscriptionRequest;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.IndexSubscriptionView;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -45,6 +46,24 @@ public class SqlIndexController {
     @PostMapping
     public IndexSubscriptionView create(@PathVariable UUID clusterId, @RequestBody IndexSubscriptionRequest request) {
         return toView(index.create(clusterId, toSpec(request)));
+    }
+
+    /**
+     * The dry run of creating a capture subscription: what it would cover, where, how much it
+     * may hold, and the broker objects and configuration it amounts to. Nothing is saved and no
+     * broker is contacted.
+     */
+    @PostMapping(params = "dryRun=true")
+    public CapturePreviewView preview(@PathVariable UUID clusterId, @RequestBody IndexSubscriptionRequest request) {
+        MessageIndexService.Preview p = index.preview(clusterId, toSpec(request));
+        return new CapturePreviewView(
+                p.addresses(),
+                p.nodes(),
+                p.ringMessages(),
+                p.ringBytes(),
+                p.brokerObjects(),
+                p.brokerXml(),
+                p.refusal());
     }
 
     @PatchMapping("/{id}")
