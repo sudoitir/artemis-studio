@@ -58,7 +58,32 @@ public class SqlTailPoller {
      * take seconds; the shared scheduler also drives the SSE heartbeat and the alert
      * dispatcher, and neither may be held up behind a tail.
      */
-    private final ExecutorService polls = Executors.newVirtualThreadPerTaskExecutor();
+    private volatile ExecutorService polls = Executors.newVirtualThreadPerTaskExecutor();
+
+    /**
+     * Stop starting polls and wait, bounded, for the ones in flight — at shutdown, before the
+     * broker clients they use are released. Replaced on {@link #resumePolls} because an executor
+     * cannot be restarted and a stopped context can be started again.
+     */
+    public void closePolls() {
+        ExecutorService closing = polls;
+        closing.shutdown();
+        try {
+            if (!closing.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                closing.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            closing.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Accept polls again after a stopped context is started. */
+    public void resumePolls() {
+        if (polls.isShutdown()) {
+            polls = Executors.newVirtualThreadPerTaskExecutor();
+        }
+    }
 
     /** Where a tail's output goes. The poller knows nothing about how it is delivered. */
     public interface Listener {

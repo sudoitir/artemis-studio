@@ -16,6 +16,12 @@ class SqlJobs {
         return new ShutdownStep("capture", ShutdownPhases.SUBSCRIPTIONS, consumer::closeAll);
     }
 
+    /** In-flight tail polls finish, and no new one starts, before broker calls are refused. */
+    @Bean
+    ShutdownStep sqlTailShutdown(SqlTailPoller poller) {
+        return new ShutdownStep("sql-tail-polls", ShutdownPhases.BROKER_CALLS, poller::closePolls, poller::resumePolls);
+    }
+
     /**
      * The tail cadence is a property rather than a setting: it is the interval at which
      * an operator's own open query re-reads a broker, floored by

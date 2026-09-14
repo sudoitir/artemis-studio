@@ -10,40 +10,40 @@
 - [x] 1.4 Add a test that a redirect is still not followed after `setTimeouts`.
 - [x] 1.5 `CoreSubscriptionManager.start`: close the client, and so its factory, when start fails. Add a test that a failed `createConnection` closes the factory.
 - [x] 1.6 Set `MaxRAMPercentage=50` in `Dockerfile`, `deploy/compose/.env.example` and `deploy/compose/compose.prod.yaml`, and update any docs mentioning 75.
-- [ ] 1.7 Run `./mvnw test -Dtest='BrokerClientFactoryTest,CoreSubscriptionManagerTest'` and `just fmt`. Commit `fix(broker)` and `fix(deploy)` with operator-facing bodies.
+- [x] 1.7 Run `./mvnw test -Dtest='BrokerClientFactoryTest,CoreSubscriptionManagerTest'` and `just fmt`. Commit `fix(broker)` and `fix(deploy)` with operator-facing bodies.
 
 ## 2. Phase 2: Data safety and audit durability
 
-- [ ] 2.1 Write ADR-0077 (capture acknowledgement and backpressure) and ADR-0078 (audit row in its own transaction). Reword CLAUDE.md non-negotiable #3.
-- [ ] 2.2 Write failing tests first.
+- [x] 2.1 Write ADR-0077 (capture acknowledgement and backpressure) and ADR-0078 (audit row in its own transaction). Reword CLAUDE.md non-negotiable #3.
+- [x] 2.2 Write failing tests first.
   - A capture drain against Testcontainers Artemis with a writer that fails N times: after recovery, stored rows equal messages routed, with no duplicates.
   - Two concurrent drains with one slow writer: neither drain acknowledges before its own rows commit.
-- [ ] 2.3 Replace `CaptureIndexSink`'s shared buffer with per-drain batches.
+- [x] 2.3 Replace `CaptureIndexSink`'s shared buffer with per-drain batches.
   - `CaptureBus.publish` returns accepted or rate-limited.
   - The index write throws on failure; console-tail listeners stay isolated.
-- [ ] 2.4 Make `CaptureConsumer.Drain` acknowledge only after commit. On a write failure:
+- [x] 2.4 Make `CaptureConsumer.Drain` acknowledge only after commit. On a write failure:
   - do not acknowledge;
   - call `session.recover()`;
   - pause the drain's flow with `Backoff`;
   - mark the node DEGRADED (`STORE_UNAVAILABLE`);
   - resume on success.
 - [ ] 2.5 Handle unreadable messages: `recover()`, then after 3 failures on the same message id count it as loss (`UNREADABLE`) and acknowledge it. Add a poison-message test.
-- [ ] 2.6 Count rate-cap rejections as loss (`RATE_LIMIT`).
-- [ ] 2.7 Fix `Drain.close()` ordering: close the consumer, then write the batch, then acknowledge, then close the session.
-- [ ] 2.8 `AuditService.begin`/`finish`/`fail` run in `REQUIRES_NEW`. Add a test that the pending row is committed before the broker call, using a broker stub that reads the audit table during the call.
-- [ ] 2.9 Remove `@Transactional` around broker fan-out in `BrokerCommands.run`, `QueueLifecycleService` and `MessageService` mutations. Keep local state writes in short transactions, and record an invalid filter as FAILED.
-- [ ] 2.10 Give `MessageOperations` by-id operations a partial-result contract: `(affected, notAttempted, error)`, with `affected` recorded on the audit failure. Add a test.
-- [ ] 2.11 `BrokerEventWriter`: re-queue a failed batch at the head of the buffer, counting overflow as a drop. Add a test for a DB failure.
-- [ ] 2.12 Add a `JOBS` shutdown phase before `BROKER_CALLS`.
+- [x] 2.6 Count rate-cap rejections as loss (`RATE_LIMIT`).
+- [x] 2.7 Fix `Drain.close()` ordering: close the consumer, then write the batch, then acknowledge, then close the session.
+- [x] 2.8 `AuditService.begin`/`finish`/`fail` run in `REQUIRES_NEW`. Add a test that the pending row is committed before the broker call, using a broker stub that reads the audit table during the call.
+- [x] 2.9 Remove `@Transactional` around broker fan-out in `BrokerCommands.run`, `QueueLifecycleService` and `MessageService` mutations. Keep local state writes in short transactions, and record an invalid filter as FAILED.
+- [x] 2.10 Give `MessageOperations` by-id operations a partial-result contract: `(affected, notAttempted, error)`, with `affected` recorded on the audit failure. Add a test.
+- [x] 2.11 `BrokerEventWriter`: re-queue a failed batch at the head of the buffer, counting overflow as a drop. Add a test for a DB failure.
+- [x] 2.12 Add a `JOBS` shutdown phase before `BROKER_CALLS`.
   - It stops `JobScheduler` triggers and waits a bounded time for running jobs.
   - It flushes `BrokerEventWriter` a final time.
   - `SqlTailPoller.polls` is closed.
   - Extend `ShutdownOrderTest`.
-- [ ] 2.13 Run `./mvnw verify`, then commit `fix(capture)` and `fix(audit)`.
+- [x] 2.13 Run `./mvnw verify`, then commit `fix(capture)` and `fix(audit)`.
 
 ## 3. Phase 3: Broker pressure
 
-- [ ] 3.1 Write ADR-0076 (limiter permit per HTTP request, inside the client), superseding ADR-0025's limiter placement.
+- [x] 3.1 Write ADR-0076 (limiter permit per HTTP request, inside the client), superseding ADR-0025's limiter placement.
 - [ ] 3.2 Write failing tests first.
   - `JolokiaBrokerClientTest`: a batch of 120 operations takes 3 permits.
   - Registration and capability probes take permits.
