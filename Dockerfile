@@ -28,5 +28,5 @@ WORKDIR /app
 COPY --from=app /src/target/artemis-studio.jar app.jar
 USER studio
 EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75"
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=50"
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

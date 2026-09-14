@@ -86,7 +86,7 @@ services:
       ARTEMIS_STUDIO_DB_USER: ${DB_USER}
       ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
       ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
-      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50}
     ports:
       - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
     depends_on:

@@ -13,7 +13,7 @@ description: Artemis Studio 读取的环境变量、哪些是必需的，以及�
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | 是 | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | 是 | 用于加密存储的 Broker 凭据。必须是**恰好 32 字节**的 Base64，否则应用不会启动：`openssl rand -base64 32` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | 否 | 用于解密 `studio_config_property` 中存放的 `{cipher}` 值。这是与 `ARTEMIS_STUDIO_SECRET_KEY` **不同**的一把密钥——不要复用 |
-| `JAVA_OPTS` | 否 | 默认为 `-XX:MaxRAMPercentage=75` |
+| `JAVA_OPTS` | 否 | 默认为 `-XX:MaxRAMPercentage=50` |
 
 `ARTEMIS_STUDIO_SECRET_KEY` 无法就地轮换：它是所有已存储 Broker 凭据的加密密钥。丢失它意味着需要重新录入每一个连接的凭据。
 
