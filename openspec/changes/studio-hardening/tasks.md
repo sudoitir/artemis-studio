@@ -1,15 +1,15 @@
 ## 1. Phase 1: Thread and FD leak, heap default
 
-- [ ] 1.1 Write `BrokerClientFactoryTest`. Warm up 20 `forNode` calls, then make 200 more, and assert the live thread count grows by less than 10, interleaving `setTimeouts`. Run it and confirm it fails on current code.
-- [ ] 1.2 Verify with ctx7 or the Boot 4.1.1 source that `JdkHttpClientBuilder` plus `JdkClientHttpRequestFactory.setReadTimeout` reproduce `JdkClientHttpRequestFactoryBuilder` (connect timeout, SSL bundle, `DONT_FOLLOW`).
-- [ ] 1.3 Rework `BrokerClientFactory` to hold one transport per TLS bundle.
+- [x] 1.1 Write `BrokerClientFactoryTest`. Warm up 20 `forNode` calls, then make 200 more, and assert the live thread count grows by less than 10, interleaving `setTimeouts`. Run it and confirm it fails on current code.
+- [x] 1.2 Verify with ctx7 or the Boot 4.1.1 source that `JdkHttpClientBuilder` plus `JdkClientHttpRequestFactory.setReadTimeout` reproduce `JdkClientHttpRequestFactoryBuilder` (connect timeout, SSL bundle, `DONT_FOLLOW`).
+- [x] 1.3 Rework `BrokerClientFactory` to hold one transport per TLS bundle.
   - Swap and `shutdown()` the old clients in `setTimeouts`, keeping `DONT_FOLLOW`.
   - Evict a bundle's client on `addBundleUpdateHandler`.
   - `DisposableBean.destroy()` shuts every client down.
   - Correct the javadoc.
-- [ ] 1.4 Add a test that a redirect is still not followed after `setTimeouts`.
-- [ ] 1.5 `CoreSubscriptionManager.start`: close the client, and so its factory, when start fails. Add a test that a failed `createConnection` closes the factory.
-- [ ] 1.6 Set `MaxRAMPercentage=50` in `Dockerfile`, `deploy/compose/.env.example` and `deploy/compose/compose.prod.yaml`, and update any docs mentioning 75.
+- [x] 1.4 Add a test that a redirect is still not followed after `setTimeouts`.
+- [x] 1.5 `CoreSubscriptionManager.start`: close the client, and so its factory, when start fails. Add a test that a failed `createConnection` closes the factory.
+- [x] 1.6 Set `MaxRAMPercentage=50` in `Dockerfile`, `deploy/compose/.env.example` and `deploy/compose/compose.prod.yaml`, and update any docs mentioning 75.
 - [ ] 1.7 Run `./mvnw test -Dtest='BrokerClientFactoryTest,CoreSubscriptionManagerTest'` and `just fmt`. Commit `fix(broker)` and `fix(deploy)` with operator-facing bodies.
 
 ## 2. Phase 2: Data safety and audit durability

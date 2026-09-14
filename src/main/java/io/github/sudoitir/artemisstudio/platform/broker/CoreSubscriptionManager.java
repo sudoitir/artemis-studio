@@ -90,16 +90,23 @@ public class CoreSubscriptionManager {
     }
 
     private void start(UUID clusterId, UUID nodeId, NodeEndpoint endpoint) {
+        CoreEventClient client = null;
         try {
             CoreConnectionSettings settings = connections.coreSettingsFor(clusterId);
             ActiveMQConnectionFactory factory = connectionFactory.build(settings, CoreUrl.dialable(endpoint.coreUrl()));
-            CoreEventClient client = new CoreEventClient(clusterId, nodeId, factory, mapper, sinks);
+            client = new CoreEventClient(clusterId, nodeId, factory, mapper, sinks);
             client.start();
             active.put(nodeId, client);
             retry.remove(nodeId);
             lastFailure.remove(nodeId);
             log.info("Subscribed to activemq.notifications on node {} ({})", endpoint.name(), clusterId);
         } catch (Exception e) {
+            if (client != null) {
+                // A failed start still built a factory, and may have opened a connection.
+                // Retried with backoff against an unreachable node, leaving them open
+                // accumulates threads for as long as the node stays down.
+                client.close();
+            }
             CoreEventClient.Kind kind = CoreEventClient.classify(e);
             lastFailure.put(nodeId, new CoreEventClient.State.Failed(kind, e.getMessage(), Instant.now()));
             retry.computeIfAbsent(nodeId, k -> newBackoff()).recordFailure();
