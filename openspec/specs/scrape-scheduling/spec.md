@@ -72,11 +72,19 @@ operation, or queue.
 
 ### Requirement: Management calls are rate-limited per node
 
-The system SHALL enforce a configurable ceiling on management calls per second
-to each individual node, applied before every management request Studio issues
-to that node — whether from a scrape tick or from an operator-initiated
-operation such as a message browse or mutation. The default ceiling SHALL be
-conservative so that Studio is never the reason a broker is overloaded.
+The system SHALL enforce a configurable ceiling on management requests per second to each
+individual node. The ceiling SHALL be applied to every HTTP request Studio issues to that
+node, whatever the origin:
+- a scrape tick;
+- an operator-initiated operation such as a message browse or mutation;
+- cluster registration and rediscovery;
+- a capability probe;
+- a multi-step command;
+- capture installation or removal.
+
+A single request that carries many operations SHALL count against the ceiling in proportion
+to the operations it carries, so batching can never be used to exceed it. The default
+ceiling SHALL be conservative so that Studio is never the reason a broker is overloaded.
 
 #### Scenario: Bursts are shaped, not dropped
 
@@ -94,6 +102,21 @@ conservative so that Studio is never the reason a broker is overloaded.
   being scraped
 - **THEN** both the scrape and the operator call are counted against the same
   per-node per-second ceiling
+
+#### Scenario: A multi-request command counts every request
+
+- **WHEN** a command issues several management requests to one node, such as installing a capture tap
+- **THEN** each of those requests is counted against that node's ceiling, not only the first
+
+#### Scenario: Registration and capability probes are counted
+
+- **WHEN** a cluster is registered, rediscovered, or has its capabilities probed
+- **THEN** every management request that issues to a node is counted against that node's ceiling
+
+#### Scenario: A large batch cannot exceed the ceiling
+
+- **WHEN** an operation carries more operations in one request than the ceiling allows per second
+- **THEN** it is spread across as many seconds as the ceiling requires
 
 ### Requirement: Network I/O is outside database transactions
 

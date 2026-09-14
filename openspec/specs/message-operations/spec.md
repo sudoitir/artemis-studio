@@ -37,7 +37,14 @@ single-message response SHALL state which channel served it.
 
 Over the Core client, because a queue browser has no server-side offset, a
 requested page beyond a bounded browse depth SHALL be served over Jolokia
-instead, and the response SHALL state that it was.
+instead, and the response SHALL state that it was. A Core browse SHALL read no
+more messages from the broker than the requested page requires. It SHALL NOT read
+the rest of the queue to count it.
+
+The response's total SHALL come from the broker's own count: the queue's message count
+when there is no filter, or the broker's count of messages matching the filter. Where
+that count is not available, the response SHALL state that the total is unavailable
+and why. It SHALL NOT report a guessed or partial number, and SHALL NOT report zero.
 
 A filter expression the broker rejects SHALL be reported as invalid without
 repeating the expression's text, because a filter can carry sensitive literals.
@@ -45,7 +52,17 @@ repeating the expression's text, because a filter can carry sensitive literals.
 #### Scenario: Browse returns a page
 
 - **WHEN** an operator browses a queue that holds more messages than the page size
-- **THEN** the response contains one page of message summaries and the queue's total message count
+- **THEN** the response contains one page of message summaries and either the queue's total message count or a statement that the total is unavailable
+
+#### Scenario: A Core browse of a deep queue reads only its page
+
+- **WHEN** an operator requests the first page of a queue holding many thousands of messages over the Core client
+- **THEN** no more messages than that page requires are read from the broker, and the total comes from the broker's count
+
+#### Scenario: An unavailable total is stated, not zero
+
+- **WHEN** the broker's count for a browse cannot be obtained
+- **THEN** the response states that the total is unavailable and why, and does not report zero
 
 #### Scenario: Browse honours a filter
 
@@ -148,6 +165,14 @@ an Artemis filter expression. Move SHALL take a target queue. The affected-count
 result SHALL be the broker's own operation result where the broker returns one,
 and otherwise the number of ids acted on.
 
+An operation by ids SHALL send its ids to the broker in bounded batches, never one request
+per id. When it fails after acting on some ids, the result SHALL be reported as partial:
+- the count affected before the failure;
+- the ids not attempted;
+- the error.
+
+It SHALL NOT be reported as a plain failure that implies nothing changed.
+
 #### Scenario: Delete by ids
 
 - **WHEN** an operator deletes three messages by id
@@ -163,6 +188,16 @@ and otherwise the number of ids acted on.
 
 - **WHEN** an operator retries messages on a dead-letter queue
 - **THEN** each is returned to its original address
+
+#### Scenario: A large id list is batched
+
+- **WHEN** an operator deletes several hundred messages by id
+- **THEN** the ids are sent to the broker in bounded batches rather than one request per id
+
+#### Scenario: A failure part-way is reported as partial
+
+- **WHEN** a move by ids fails after some of the ids were moved
+- **THEN** the result is partial and states how many were moved, which ids were not attempted, and the error
 
 ### Requirement: A queue can be purged
 
@@ -226,12 +261,14 @@ be typed.
 
 ### Requirement: Every mutation writes an audit event in its own transaction
 
-Every message mutation SHALL write an `audit_event` row in the same database
-transaction as the command: created with a pending outcome before the broker
-call, updated to success with the affected count or to failure with the error
-after. A dry run SHALL also be audited, marked as a dry run with a success
-outcome. A broker failure SHALL still leave a committed failure row and SHALL be
-returned to the caller as a structured problem response.
+Every message mutation SHALL write an `audit_event` row that is committed with a pending
+outcome before the broker call, in its own transaction, and updated after the call to
+success with the affected count or to failure with the error. After a partial failure, the
+row SHALL also carry the count affected before it.
+
+A dry run SHALL also be audited, marked as a dry run with a success outcome. A broker
+failure SHALL still leave a committed failure row and SHALL be returned to the caller as a
+structured problem response.
 
 #### Scenario: Successful mutation is audited
 
@@ -245,6 +282,11 @@ returned to the caller as a structured problem response.
 - **THEN** a committed `audit_event` records the failure and its error, and the
   caller receives a structured problem response
 
+#### Scenario: Partial mutation is audited with its count
+
+- **WHEN** a delete by ids fails after removing some of the ids
+- **THEN** a committed `audit_event` records the failure, the error, and the count removed before the failure
+
 #### Scenario: Dry run is audited
 
 - **WHEN** a mutation runs in dry-run mode
@@ -255,12 +297,14 @@ returned to the caller as a structured problem response.
 
 The system SHALL gate the message views on the connection's `MESSAGE_IO`
 capability, rendering the capability reason and `broker.xml` guidance rather than
-hiding the controls when it is unavailable. Every Jolokia call a message
-operation makes SHALL pass through the per-node management-call rate limiter.
-Selecting the Core client for a browse, single-message read, or send SHALL NOT
-change the audit, dry-run, bulk-cap, or typed-confirmation behaviour of any
-operation; those apply identically regardless of channel. Core subscription
-connections are not counted against the per-node call limiter.
+hiding the controls when it is unavailable. Every Jolokia request a message operation
+issues, including each batch of a by-ids operation and the count read of a browse, SHALL
+pass through the per-node management-call rate limiter.
+
+Selecting the Core client for a browse, single-message read, or send SHALL NOT change the
+audit, dry-run, bulk-cap, or typed-confirmation behaviour of any operation; those apply
+identically regardless of channel. Core subscription connections are not counted against
+the per-node call limiter.
 
 #### Scenario: Unavailable capability is explained, not hidden
 
@@ -270,7 +314,7 @@ connections are not counted against the per-node call limiter.
 #### Scenario: Operator calls are rate-limited per node
 
 - **WHEN** message operations issue Jolokia calls to a node
-- **THEN** those calls are subject to the same per-node per-second ceiling as the scrape scheduler
+- **THEN** each request, including every batch of a by-ids operation, is subject to the same per-node per-second ceiling as the scrape scheduler
 
 #### Scenario: Channel choice does not weaken safety
 
