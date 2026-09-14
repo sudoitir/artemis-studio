@@ -147,10 +147,11 @@
 ## 7. Verification
 
 - [ ] 7.1 Soak on `just dev-up`: 2 clusters, UI open, capture running. At t=0 and t=30m, thread count by name prefix and fd count are flat, and per-node request rate stays at or below the ceiling. Trace any growing `SimpleAsyncTaskExecutor-*` prefix.
+  - (Apply: the soak found capture reporting about 2,400 messages as missed with 360,000 routed and 360,000 stored. Messages still waiting in the capture ring counted as loss at each pass, and the catch-up was never subtracted. `CaptureLoss` now counts the ring as accounted for, and a counter that goes backwards resets the baseline.)
 - [ ] 7.2 Fault injection at ~200 msg/s while capturing:
   - stop Postgres for 2 minutes: routed = stored + reported loss;
   - restart the broker: capture resumes and the gap is recorded;
   - delete the capture divert over Jolokia: it is reinstalled;
   - kill Studio mid-batch: no loss, no duplicates.
 - [ ] 7.3 Divert refusals and outcomes verified over UI, REST and MCP. Contrast checked in both schemes.
-- [ ] 7.4 Run `openspec validate studio-hardening --strict` and `just verify` clean.
+- [x] 7.4 Run `openspec validate studio-hardening --strict` and `just verify` clean.

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
@@ -24,10 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * What capture missed, per node (ADR-0062 D7).
  *
- * <p>The measurement is the change in what was routed to the covered addresses, from
- * {@code MessagesAdded} in {@code queue_snapshot} differenced between passes, minus the rows
- * actually written. A positive remainder is messages the ring dropped, the rate cap rejected,
- * or that arrived while the tap was not installed. There is deliberately no second gap metric.
+ * <p>The measurement is the change, between passes, in what was routed to the covered addresses
+ * ({@code MessagesAdded} in {@code queue_snapshot}) that is neither stored nor still waiting in
+ * the subscription's capture queues. A message in the ring has not been lost yet — counting it
+ * would report every in-flight backlog as loss, and nothing would ever take it back. A positive
+ * remainder is messages the ring dropped, the rate cap rejected, or that arrived while the tap
+ * was not installed. There is deliberately no second gap metric.
  * The causes the drains recorded ({@link CaptureConsumer.Shortfall}) are named with it.
  *
  * <p>It is an estimate, and the product says so. Both terms come from sampled counters. What
@@ -57,7 +60,12 @@ public class CaptureLoss {
     /** What was routed and written at the previous pass, per (subscription, node), and when. */
     private final Map<String, Mark> marks = new ConcurrentHashMap<>();
 
-    private record Mark(long routed, long captured, Instant at) {}
+    private record Mark(long routed, long captured, long inRing, Instant at) {
+
+        long unaccounted() {
+            return routed - captured - inRing;
+        }
+    }
 
     /** Called at the end of each reconcile pass. Reads Postgres only — no broker call. */
     @Transactional
@@ -96,19 +104,26 @@ public class CaptureLoss {
             return;
         }
 
-        long routed = routedToCovered(clusterId, covered, node.getNodeId());
+        List<QueueSnapshot> onNode = snapshots.forCluster(clusterId).stream()
+                .filter(row -> node.getNodeId().equals(row.nodeId()))
+                .toList();
+        long routed = routedToCovered(onNode, covered);
+        long inRing = inCaptureQueues(onNode, subscription.getId());
         long captured = capturedRows(clusterId, subscription, covered, node.getNodeId());
         String key = subscription.getId() + "|" + node.getNodeId();
         Instant now = Instant.now();
-        Mark previous = marks.put(key, new Mark(routed, captured, now));
-        if (previous == null) {
-            // The first pass has no interval to difference; it establishes the marks.
+        Mark current = new Mark(routed, captured, inRing, now);
+        Mark previous = marks.put(key, current);
+        // The first pass has no interval to difference. A counter that went backwards — a
+        // broker restart resets MessagesAdded, retention deletes stored rows — has no interval
+        // either; the pass re-establishes the marks rather than reporting the jump as loss.
+        if (previous == null || routed < previous.routed() || captured < previous.captured()) {
             if (shortfall.storeFailure() != null) {
                 degrade(node, lossDetail(0, null, shortfall));
             }
             return;
         }
-        long lost = Math.max(0, routed - previous.routed()) - Math.max(0, captured - previous.captured());
+        long lost = current.unaccounted() - previous.unaccounted();
         if (lost > NOISE_FLOOR || shortfall.storeFailure() != null) {
             if (lost > NOISE_FLOOR) {
                 node.setDroppedEstimate(node.getDroppedEstimate() + lost);
@@ -207,14 +222,27 @@ public class CaptureLoss {
      * address — the highest of its queues — rather than summed, which counted every message
      * once per queue and reported loss that never happened.
      */
-    private long routedToCovered(UUID clusterId, Set<String> covered, UUID nodeId) {
-        return snapshots.forCluster(clusterId).stream()
-                .filter(row -> nodeId.equals(row.nodeId()))
+    private static long routedToCovered(List<QueueSnapshot> onNode, Set<String> covered) {
+        return onNode.stream()
                 .filter(row -> covered.contains(row.address()))
                 .collect(Collectors.toMap(QueueSnapshot::address, QueueSnapshot::messagesAdded, Math::max))
                 .values()
                 .stream()
                 .mapToLong(Long::longValue)
+                .sum();
+    }
+
+    /**
+     * Messages the subscription's capture queues on this node still hold: routed, not yet stored,
+     * and not lost. A capture queue is named after its subscription ({@link CaptureNames}).
+     */
+    private static long inCaptureQueues(List<QueueSnapshot> onNode, UUID subscriptionId) {
+        String suffix = "." + subscriptionId + ".q";
+        return onNode.stream()
+                .filter(row -> row.queueName() != null
+                        && row.queueName().startsWith(DivertOperations.CAPTURE_PREFIX)
+                        && row.queueName().endsWith(suffix))
+                .mapToLong(QueueSnapshot::messageCount)
                 .sum();
     }
 
