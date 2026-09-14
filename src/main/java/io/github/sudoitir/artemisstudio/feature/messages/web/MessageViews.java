@@ -76,7 +76,16 @@ public final class MessageViews {
      */
     public record MessagePageView(
             @Schema(requiredMode = REQUIRED) List<MessageSummaryView> data,
-            @Schema(requiredMode = REQUIRED) long count,
+
+            @Schema(
+                    nullable = true,
+                    description = "The broker's own message count; null when it could not be obtained, never"
+                            + " a guess — see countUnavailable.")
+            Long count,
+
+            @Schema(nullable = true, description = "Why count is null. Null whenever count is present.")
+            String countUnavailable,
+
             @Schema(requiredMode = REQUIRED) int page,
             @Schema(requiredMode = REQUIRED) int pageSize,
             @Schema(requiredMode = REQUIRED) UUID node,

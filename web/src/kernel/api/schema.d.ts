@@ -3155,8 +3155,13 @@ export interface components {
         };
         MessagePageView: {
             data: components["schemas"]["MessageSummaryView"][];
-            /** Format: int64 */
-            count: number;
+            /**
+             * Format: int64
+             * @description The broker's own message count; null when it could not be obtained, never a guess — see countUnavailable.
+             */
+            count?: number | null;
+            /** @description Why count is null. Null whenever count is present. */
+            countUnavailable?: string | null;
             /** Format: int32 */
             page: number;
             /** Format: int32 */

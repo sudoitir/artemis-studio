@@ -20,7 +20,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseR
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -58,7 +57,6 @@ class BrokerQueryExecutorTest {
     private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
-    private NodeCallLimiter limiter;
     private BrokerNodeEntity node;
 
     @BeforeEach
@@ -67,7 +65,6 @@ class BrokerQueryExecutorTest {
         nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
-        limiter = mock(NodeCallLimiter.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
         when(coverage.isIndexed(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
@@ -101,7 +98,7 @@ class BrokerQueryExecutorTest {
             String sql, MessageTransport transport, SqlProperties properties, BrokerQueryExecutor.Sink sink) {
         QueryPlanner planner = planner(properties);
         BrokerQueryExecutor executor =
-                new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties, clearGovernance());
+                new BrokerQueryExecutor(nodes, residuals, planner, properties, clearGovernance());
         QueryPlan plan = planner.plan(CLUSTER, parser.parse(sql));
         return executor.execute(CLUSTER, plan, transport, sink);
     }
@@ -271,7 +268,7 @@ class BrokerQueryExecutorTest {
         });
         SqlProperties properties = props(50_000, 2_000, Duration.ofSeconds(30));
         QueryPlanner planner = planner(properties);
-        BrokerQueryExecutor executor = new BrokerQueryExecutor(nodes, limiter, residuals, planner, properties, masked);
+        BrokerQueryExecutor executor = new BrokerQueryExecutor(nodes, residuals, planner, properties, masked);
 
         QueryResult result = executor.execute(
                 CLUSTER,
@@ -434,14 +431,5 @@ class BrokerQueryExecutorTest {
                 props(50_000, 2_000, Duration.ofSeconds(30)));
 
         assertThat(result.notices()).extracting(Notice::kind).doesNotContain(Notice.Kind.BODY_TRUNCATED);
-    }
-
-    @Test
-    void everyBrokerReadTakesARateLimitPermit() throws Exception {
-        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 3)));
-
-        run("SELECT * FROM \"ORDER.IN\"", transportServing(3, false), props(50_000, 2_000, Duration.ofSeconds(30)));
-
-        org.mockito.Mockito.verify(limiter, org.mockito.Mockito.atLeastOnce()).acquire(node.getId());
     }
 }

@@ -11,7 +11,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
@@ -64,7 +63,6 @@ public class ConnectionControlService {
     private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final ConnectionOperations ops;
-    private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final SseHub sseHub;
@@ -272,13 +270,6 @@ public class ConnectionControlService {
     }
 
     private JolokiaBrokerClient clientFor(UUID clusterId, ClusterNode node) {
-        try {
-            limiter.acquire(node.getId());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
         return connections.forCluster(clusterId, node.getJolokiaUrl());
     }
 

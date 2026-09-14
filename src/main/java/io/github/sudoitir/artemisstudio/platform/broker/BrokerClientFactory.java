@@ -47,6 +47,7 @@ public class BrokerClientFactory implements DisposableBean {
     private final SslBundles sslBundles;
     private final ClockOffsetRegistry clockOffsets;
     private final NodeCallHealth callHealth;
+    private final NodeCallLimiter limiter;
     private volatile HttpClientSettings baseSettings;
 
     /** One transport per TLS bundle name ({@link #PLAIN} for none). Replaced wholesale on a timeout change. */
@@ -63,11 +64,13 @@ public class BrokerClientFactory implements DisposableBean {
             SslBundles sslBundles,
             BrokerProperties properties,
             ClockOffsetRegistry clockOffsets,
-            NodeCallHealth callHealth) {
+            NodeCallHealth callHealth,
+            NodeCallLimiter limiter) {
         this.mapper = mapper;
         this.sslBundles = sslBundles;
         this.clockOffsets = clockOffsets;
         this.callHealth = callHealth;
+        this.limiter = limiter;
         this.baseSettings = HttpClientSettings.defaults()
                 .withConnectTimeout(properties.connectTimeout())
                 .withReadTimeout(properties.readTimeout())
@@ -102,7 +105,7 @@ public class BrokerClientFactory implements DisposableBean {
             });
         }
         return new JolokiaBrokerClient(
-                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth);
+                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth, limiter);
     }
 
     /**

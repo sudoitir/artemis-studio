@@ -44,18 +44,18 @@
 ## 3. Phase 3: Broker pressure
 
 - [x] 3.1 Write ADR-0076 (limiter permit per HTTP request, inside the client), superseding ADR-0025's limiter placement.
-- [ ] 3.2 Write failing tests first.
+- [x] 3.2 Write failing tests first.
   - `JolokiaBrokerClientTest`: a batch of 120 operations takes 3 permits.
   - Registration and capability probes take permits.
-- [ ] 3.3 Move limiter acquisition into `JolokiaBrokerClient` (keyed by Jolokia URL, one permit per 50 operations). A timeout restores the interrupt flag and maps to a stable error.
-- [ ] 3.4 Delete call-site `limiter.acquire` calls: `ScrapeScheduler`, `BrokerCommands`, `MessageService`, `BrokerQueryExecutor`, `DlqService`, `MessageVerifier`, `BrokerConfigApplyService`, `RoutingService`, `ConfigDiffService`, and any others found by grep.
+- [x] 3.3 Move limiter acquisition into `JolokiaBrokerClient` (keyed by Jolokia URL, one permit per 50 operations). A timeout restores the interrupt flag and maps to a stable error.
+- [x] 3.4 Delete call-site `limiter.acquire` calls: `ScrapeScheduler`, `BrokerCommands`, `MessageService`, `BrokerQueryExecutor`, `DlqService`, `MessageVerifier`, `BrokerConfigApplyService`, `RoutingService`, `ConfigDiffService`, and any others found by grep.
 - [ ] 3.5 Add Micrometer `studio.broker.requests{node}` and `studio.broker.permit.wait{node}`. Document the recommended alerts in the site guide.
-- [ ] 3.6 Bound `CoreMessageTransport.browse`.
+- [x] 3.6 Bound `CoreMessageTransport.browse`.
   - Stop at `skip + size`.
   - Get the total from `MessageCount` or `countMessages(filter)`, or return `null` with a reason.
   - Make `BrowsePage.total` nullable with its reason.
   - Add a Testcontainers test: page 1 of a 10k-message queue reads at most one page.
-- [ ] 3.7 Give `RrSampler` a `sample(target, limit)` path that never counts.
+- [x] 3.7 Give `RrSampler` a `sample(target, limit)` path that never counts.
 - [ ] 3.8 Check with ctx7 whether an Artemis filter over message ids can replace the per-id exec loop. Then batch by-id operations in chunks of 50 per POST, keeping the partial contract.
 - [ ] 3.9 Add a single-flight 2s cache per `(cluster, node, kind)` to `PagedListService`. Test: 10 concurrent requests make 1 broker call.
 - [ ] 3.10 Bound sampled index backlog walks with `backlog-pages-per-tick` (default 5).

@@ -8153,8 +8153,13 @@
             }
           },
           "count" : {
-            "type" : "integer",
-            "format" : "int64"
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The broker's own message count; null when it could not be obtained, never a guess — see countUnavailable."
+          },
+          "countUnavailable" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why count is null. Null whenever count is present."
           },
           "page" : {
             "type" : "integer",
@@ -8172,7 +8177,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "count", "data", "node", "page", "pageSize", "transport" ]
+        "required" : [ "data", "node", "page", "pageSize", "transport" ]
       },
       "MessageSummaryView" : {
         "type" : "object",

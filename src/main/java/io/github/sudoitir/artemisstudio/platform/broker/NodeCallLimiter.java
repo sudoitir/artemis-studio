@@ -1,39 +1,41 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * A per-node rate ceiling on management calls (CLAUDE.md non-negotiable #1 —
+ * A per-node rate ceiling on management requests (CLAUDE.md non-negotiable #1 —
  * "Studio must never be the reason a broker falls over").
  *
- * <p>One {@link Semaphore} per broker node, sized to the configured
- * calls-per-second. {@link #acquire(UUID)} is taken before <em>every</em>
- * management POST — the scrape tiers and the on-demand paths alike (message
- * browse / operations, the capability probe): an operator hammering the message
- * grid is throttled the same as the scheduler. {@link #refill()} tops every
- * bucket back up to the ceiling once a second. This is a coarse token bucket: it
- * bounds sustained rate and absorbs a one-second burst.
+ * <p>One {@link Semaphore} per broker node, sized to the configured requests-per-second and
+ * keyed by the node's Jolokia URL. {@link #acquire} is called by the transports themselves
+ * before <em>every</em> request they send (ADR-0076) — never by a feature — so a new caller
+ * cannot forget it and a caller that grows a second request is charged for it.
+ * {@link #refill()} tops every bucket back up to the ceiling once a second. This is a coarse
+ * token bucket: it bounds sustained rate and absorbs a one-second burst.
  */
 // ponytail: per-node Semaphore + 1s refill. Swap for Bucket4j only if precise
 // sub-second burst shaping is ever needed — same call sites.
 @Component
-@Slf4j
 public class NodeCallLimiter {
 
-    private final Map<UUID, Semaphore> perNode = new ConcurrentHashMap<>();
-    private final Map<UUID, Duration> lastWait = new ConcurrentHashMap<>();
+    /** How long one permit may be waited for before the request is refused rather than queued without end. */
+    private static final Duration MAX_WAIT = Duration.ofSeconds(5);
+
+    private final Map<String, Semaphore> perNode = new ConcurrentHashMap<>();
+    private final Map<String, Duration> lastWait = new ConcurrentHashMap<>();
+    private final MeterRegistry meters;
     private volatile int permitsPerSecond;
     private volatile boolean closed;
 
-    public NodeCallLimiter(RateLimitProperties properties) {
+    public NodeCallLimiter(RateLimitProperties properties, MeterRegistry meters) {
         this.permitsPerSecond = Math.max(1, properties.managementCallsPerSecond());
+        this.meters = meters;
     }
 
     /** Runtime override hook — {@code SettingsService} calls this when the ceiling changes. */
@@ -46,29 +48,50 @@ public class NodeCallLimiter {
     }
 
     /**
-     * Block until a permit for this node is available, then take it. A permit is
-     * returned by the next {@link #refill()}, not by the caller — the bucket
-     * drains within a tick and is topped back up each second.
+     * Wait for {@code permits} of this node's ceiling and take them, for one request. A permit
+     * is returned by the next {@link #refill()}, not by the caller. Permits are taken one at a
+     * time, so a request needing more than the ceiling spreads over seconds instead of waiting
+     * forever for a burst that can never be available.
+     *
+     * @throws BrokerConnectionException when Studio is shutting down, when capacity does not
+     *     come within the wait, or when the thread is interrupted (its interrupt status kept)
      */
-    public void acquire(UUID nodeId) throws InterruptedException {
+    public void acquire(String node, int permits) {
         if (closed) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE,
                     "Studio is shutting down; no new broker call is started.");
         }
-        Semaphore sem = perNode.computeIfAbsent(nodeId, k -> new Semaphore(permitsPerSecond, true));
-        long waitStarted = System.nanoTime();
-        boolean acquired = sem.tryAcquire(1, 5, TimeUnit.SECONDS);
-        lastWait.put(nodeId, Duration.ofNanos(System.nanoTime() - waitStarted));
-        if (!acquired) {
-            throw new InterruptedException("Timed out waiting for a scrape permit for node " + nodeId);
+        Semaphore sem = perNode.computeIfAbsent(node, k -> new Semaphore(permitsPerSecond, true));
+        long started = System.nanoTime();
+        try {
+            for (int i = 0; i < permits; i++) {
+                if (!sem.tryAcquire(MAX_WAIT.toNanos(), TimeUnit.NANOSECONDS)) {
+                    meters.counter("studio.broker.permit.timeouts", "node", node)
+                            .increment();
+                    throw new BrokerConnectionException(
+                            BrokerConnectionException.Kind.UNREACHABLE,
+                            "Timed out waiting for this node's management-call ceiling: Studio is already calling"
+                                    + " it as fast as the configured rate allows.");
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.UNREACHABLE,
+                    "Interrupted while waiting for this node's management-call ceiling.");
+        } finally {
+            Duration waited = Duration.ofNanos(System.nanoTime() - started);
+            lastWait.put(node, waited);
+            meters.timer("studio.broker.permit.wait", "node", node).record(waited);
         }
+        meters.counter("studio.broker.requests", "node", node).increment();
     }
 
     /** Top every node's bucket back up to the current ceiling. Driven every second by {@code BrokerJobs}. */
     public void refill() {
         int ceiling = permitsPerSecond;
-        perNode.forEach((nodeId, sem) -> {
+        perNode.forEach((node, sem) -> {
             int deficit = ceiling - sem.availablePermits();
             if (deficit > 0) {
                 sem.release(deficit);
@@ -89,14 +112,8 @@ public class NodeCallLimiter {
         closed = false;
     }
 
-    /** How long the latest call to this node waited for a permit; zero before any. */
-    public Duration lastWait(UUID nodeId) {
-        return lastWait.getOrDefault(nodeId, Duration.ZERO);
-    }
-
-    /** Drop a node's bucket when its cluster is removed. */
-    public void forget(UUID nodeId) {
-        perNode.remove(nodeId);
-        lastWait.remove(nodeId);
+    /** How long the latest request to this node waited for a permit; zero before any. */
+    public Duration lastWait(String node) {
+        return lastWait.getOrDefault(node, Duration.ZERO);
     }
 }

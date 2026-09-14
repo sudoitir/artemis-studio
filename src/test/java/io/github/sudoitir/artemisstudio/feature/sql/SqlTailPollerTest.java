@@ -17,7 +17,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseR
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -57,7 +56,6 @@ class SqlTailPollerTest {
     private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
-    private NodeCallLimiter limiter;
     private BrokerNodeEntity node;
     private final AtomicLong messagesAdded = new AtomicLong(100);
 
@@ -67,7 +65,6 @@ class SqlTailPollerTest {
         nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
-        limiter = mock(NodeCallLimiter.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
         when(coverage.isIndexed(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
@@ -190,7 +187,7 @@ class SqlTailPollerTest {
                 snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
         return new SqlTailPoller(
                 new BrokerQueryExecutor(
-                        nodes, limiter, residuals, planner, properties, BrokerQueryExecutorTest.clearGovernance()),
+                        nodes, residuals, planner, properties, BrokerQueryExecutorTest.clearGovernance()),
                 snapshots);
     }
 

@@ -4,7 +4,6 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperati
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
@@ -28,7 +27,6 @@ public class BrokerConfigReads {
     private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final BrokerConfigOperations ops;
-    private final NodeCallLimiter limiter;
 
     /** The cluster's logical nodes, live member first where one exists. */
     public List<ClusterNode> targets(UUID clusterId) {
@@ -58,27 +56,11 @@ public class BrokerConfigReads {
         }
     }
 
-    /** A client for one node, after a limiter permit; a write path uses this too. */
-    public JolokiaBrokerClient client(UUID clusterId, ClusterNode node) {
-        permit(node.getId());
-        return connections.forCluster(clusterId, node.getJolokiaUrl());
-    }
-
     /**
-     * One per-node permit, for a caller that already holds a client.
-     *
-     * <p>The permit belongs to the call, not to the connection: an apply takes one
-     * client and then issues a POST per step on it, so charging only the client left
-     * a fifty-step plan spending a single permit and sending fifty requests as fast
-     * as the broker would take them (non-negotiable #1).
+     * A client for one node; a write path uses this too. The client waits for the node's ceiling
+     * before every request it sends (ADR-0076), so a fifty-step apply is charged fifty permits.
      */
-    public void permit(UUID nodeId) {
-        try {
-            limiter.acquire(nodeId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
+    public JolokiaBrokerClient client(UUID clusterId, ClusterNode node) {
+        return connections.forCluster(clusterId, node.getJolokiaUrl());
     }
 }

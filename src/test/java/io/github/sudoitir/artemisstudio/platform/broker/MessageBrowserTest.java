@@ -49,7 +49,7 @@ class MessageBrowserTest {
     void decodesFourRowsWithTypedPropertyMapsFromAPlainArray() {
         BrowsePage page = browser.browse(client("browse.json", 4), MBEAN, 1, 50, "");
 
-        assertThat(page.total()).isEqualTo(4);
+        assertThat(page.total()).isEqualTo(4L);
         assertThat(page.messages()).hasSize(4);
 
         BrowsedMessage first = page.messages().get(0);

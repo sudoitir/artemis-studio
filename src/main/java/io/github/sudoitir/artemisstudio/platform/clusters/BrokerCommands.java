@@ -11,7 +11,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -57,7 +56,6 @@ public class BrokerCommands {
 
     private final BrokerNodeRepository brokerNodes;
     private final BrokerConnections connections;
-    private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final SettingsService settings;
@@ -277,14 +275,8 @@ public class BrokerCommands {
         return failed.isEmpty() ? null : String.join(" | ", failed);
     }
 
+    /** Every request the client sends waits for the node's ceiling itself (ADR-0076). */
     private JolokiaBrokerClient clientFor(UUID clusterId, BrokerNodeEntity node) {
-        try {
-            limiter.acquire(node.getId());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
         return connections.forCluster(clusterId, node.getJolokiaUrl());
     }
 

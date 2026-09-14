@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -37,7 +36,6 @@ public class DlqService {
     private final QueueSnapshots queueSnapshots;
     private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
-    private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
@@ -53,7 +51,6 @@ public class DlqService {
         Map<String, String> kinds = new LinkedHashMap<>();
         boolean settingsAvailable;
         try {
-            acquire(manageable.getId());
             JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
             JsonNode settings = client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
             String dla = text(settings, "deadLetterAddress");
@@ -100,16 +97,6 @@ public class DlqService {
             addresses.add(new DlqAddress(address, entry.getValue(), queues));
         }
         return new DlqView(addresses, true);
-    }
-
-    private void acquire(UUID nodeId) {
-        try {
-            limiter.acquire(nodeId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
     }
 
     private static String text(JsonNode node, String field) {

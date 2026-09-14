@@ -18,7 +18,6 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditE
 import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -59,7 +58,6 @@ class CaptureReconcilerTest {
         captureNodes = mock(MessageCaptureNodeRepository.class);
         ClusterDirectory nodes = mock(ClusterDirectory.class);
         BrokerConnections connections = mock(BrokerConnections.class);
-        NodeCallLimiter limiter = mock(NodeCallLimiter.class);
         ClusterLock lock = mock(ClusterLock.class);
         tap = mock(CaptureTap.class);
         consumers = mock(CaptureConsumer.class);
@@ -93,7 +91,6 @@ class CaptureReconcilerTest {
                 captureNodes,
                 nodes,
                 connections,
-                limiter,
                 lock,
                 tap,
                 consumers,

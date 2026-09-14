@@ -17,7 +17,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.util.ArrayList;
@@ -71,7 +70,6 @@ public class RoutingService {
     private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final DivertOperations divertOps;
-    private final NodeCallLimiter limiter;
     private final ClusterAccessGuard clusterAccess;
     private final AuditService audit;
 
@@ -144,17 +142,12 @@ public class RoutingService {
         BrokerConnectionException firstError = null;
         for (ClusterNode node : serving) {
             try {
-                limiter.acquire(node.getId());
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
                 merged.addAll(read.apply(client, node.getId(), node.getName()));
             } catch (BrokerConnectionException e) {
                 if (firstError == null) {
                     firstError = e;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
             }
         }
         // A cluster with no diverts at all and a cluster no node answered for are

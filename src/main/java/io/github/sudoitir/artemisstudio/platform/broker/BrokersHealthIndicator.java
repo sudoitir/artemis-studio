@@ -43,7 +43,11 @@ class BrokersHealthIndicator extends AbstractHealthIndicator {
             detail.put("lastSuccess", latest.map(Calls::lastSuccess).orElse(null));
             detail.put("lastFailure", latest.map(Calls::lastFailure).orElse(null));
             detail.put("lastError", latest.map(Calls::lastError).orElse(null));
-            detail.put("rateLimitWaitMs", limiter.lastWait(node.id()).toMillis());
+            detail.put(
+                    "rateLimitWaitMs",
+                    node.jolokiaUrl() == null
+                            ? 0L
+                            : limiter.lastWait(node.jolokiaUrl()).toMillis());
             failing |= latest.map(Calls::failing).orElse(false);
             perNode.put(node.id().toString(), detail);
         }

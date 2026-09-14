@@ -27,7 +27,9 @@ class BrokerClientFactoryTest {
             mock(SslBundles.class),
             new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000),
             new ClockOffsetRegistry(Clock.systemUTC()),
-            new NodeCallHealth());
+            new NodeCallHealth(),
+            new NodeCallLimiter(
+                    new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
 
     @org.junit.jupiter.api.AfterEach
     void tearDown() {

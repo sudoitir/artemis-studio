@@ -55,7 +55,6 @@ public class BrokerQueryExecutor {
     private static final int PAGE_SIZE = MessageBrowser.BROKER_PAGE_CAP;
 
     private final ClusterDirectory nodes;
-    private final NodeCallLimiter limiter;
     private final MessagePredicate residuals;
     private final QueryPlanner planner;
     private final SqlProperties properties;
@@ -268,19 +267,8 @@ public class BrokerQueryExecutor {
 
             BrowseResult result;
             try {
-                limiter.acquire(node.getId());
+                // Either transport waits for the node's ceiling before it reads (ADR-0076).
                 result = transport.browse(transportTarget, page, PAGE_SIZE, selector);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return new NodeOutcome(
-                        node.getId(),
-                        target.nodeName(),
-                        target.queueName(),
-                        NodeOutcome.Status.FAILED,
-                        examinedHere,
-                        matched,
-                        servedBy,
-                        "Timed out waiting for a rate-limit permit for this node.");
             } catch (BrokerConnectionException e) {
                 return new NodeOutcome(
                         node.getId(),

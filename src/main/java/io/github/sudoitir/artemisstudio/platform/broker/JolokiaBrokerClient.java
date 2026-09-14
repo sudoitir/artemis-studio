@@ -53,8 +53,17 @@ public class JolokiaBrokerClient {
 
     private volatile String cachedBrokerObjectName;
 
+    /**
+     * The per-node ceiling, taken before every request this client sends (ADR-0076). Null only
+     * where a client is built directly, outside the application: a test or a one-off probe.
+     */
+    private final NodeCallLimiter limiter;
+
+    /** Operations one permit covers in a batch request, so batching cannot exceed the ceiling. */
+    static final int OPERATIONS_PER_PERMIT = 50;
+
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
-        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null);
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null, null);
     }
 
     public JolokiaBrokerClient(
@@ -63,13 +72,15 @@ public class JolokiaBrokerClient {
             ObjectMapper mapper,
             Map<String, String> sharedBrokerObjectNames,
             ClockOffsetRegistry clockOffsets,
-            NodeCallHealth callHealth) {
+            NodeCallHealth callHealth,
+            NodeCallLimiter limiter) {
         this.restClient = restClient;
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
         this.sharedBrokerObjectNames = sharedBrokerObjectNames;
         this.clockOffsets = clockOffsets;
         this.callHealth = callHealth;
+        this.limiter = limiter;
         this.cachedBrokerObjectName = sharedBrokerObjectNames.get(jolokiaUrl);
     }
 
@@ -77,8 +88,16 @@ public class JolokiaBrokerClient {
         return jolokiaUrl;
     }
 
+    /** Wait for the node's ceiling: one permit per request, and one per {@value #OPERATIONS_PER_PERMIT} operations. */
+    private void permit(int operations) {
+        if (limiter != null) {
+            limiter.acquire(jolokiaUrl, Math.max(1, (operations + OPERATIONS_PER_PERMIT - 1) / OPERATIONS_PER_PERMIT));
+        }
+    }
+
     /** Send a bulk request; the returned list is positionally aligned with {@code requests}. */
     public List<JolokiaResponse> batch(List<JolokiaRequest> requests) {
+        permit(requests.size());
         long t0 = studioMillis();
         JolokiaResponse[] body = post(requests, JolokiaResponse[].class);
         long t1 = studioMillis();
@@ -104,6 +123,7 @@ public class JolokiaBrokerClient {
 
     /** Send a single request. */
     public JolokiaResponse single(JolokiaRequest request) {
+        permit(1);
         long t0 = studioMillis();
         JolokiaResponse body = post(request, JolokiaResponse.class);
         long t1 = studioMillis();

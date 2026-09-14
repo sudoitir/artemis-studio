@@ -30,7 +30,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
-import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
@@ -57,8 +56,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * Message browse and the destructive message operations for one queue on one
  * node (ADR-0021, ADR-0022). {@code address} / {@code routingType} come from the
- * cached {@code queue_snapshot} row, never the client. Every broker call takes a
- * {@link NodeCallLimiter} permit first (non-negotiable #1); every mutation writes
+ * cached {@code queue_snapshot} row, never the client. Every broker request waits for
+ * the node's rate ceiling in the transport itself (non-negotiable #1, ADR-0076); every mutation writes
  * an {@code audit_event} in its own transaction, before the broker call, updated
  * with the outcome (non-negotiable #3); a dry run is a broker-side estimate,
  * still audited with {@code dry_run = true}. A successful mutation nudges the SSE
@@ -78,7 +77,6 @@ public class MessageService {
     private final JolokiaMessageTransport jolokiaTransport;
     private final CoreMessageTransport coreTransport;
     private final CoreSubscriptionManager subscriptions;
-    private final NodeCallLimiter limiter;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final SettingsService settings;
@@ -125,6 +123,7 @@ public class MessageService {
         return new MessagePageView(
                 rows,
                 result.page().total(),
+                result.page().totalUnavailable(),
                 page,
                 size,
                 resolved.node().getId(),
@@ -164,7 +163,6 @@ public class MessageService {
                     resolved.node().getId()));
         }
         try {
-            acquire(resolved.node().getId());
             transportFor(clusterId)
                     .send(
                             targetOf(clusterId, queueName, resolved),
@@ -352,7 +350,6 @@ public class MessageService {
 
     private BrowseResult browseAt(
             UUID clusterId, String queueName, ResolvedQueue resolved, int page, int size, String filter) {
-        acquire(resolved.node().getId());
         return transportFor(clusterId).browse(targetOf(clusterId, queueName, resolved), page, size, filter);
     }
 
@@ -374,7 +371,6 @@ public class MessageService {
     }
 
     private JolokiaBrokerClient clientFor(UUID clusterId, ResolvedQueue resolved) {
-        acquire(resolved.node().getId());
         return connections.forCluster(clusterId, resolved.node().getJolokiaUrl());
     }
 
@@ -435,16 +431,6 @@ public class MessageService {
                     .orElse(candidates.get(0));
         }
         return new ResolvedQueue(chosen, any.address(), any.routingType());
-    }
-
-    private void acquire(UUID nodeId) {
-        try {
-            limiter.acquire(nodeId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE, "Timed out waiting for a per-node call permit.");
-        }
     }
 
     /**

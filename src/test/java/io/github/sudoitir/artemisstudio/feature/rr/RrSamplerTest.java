@@ -15,10 +15,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerTime;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsePage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -138,14 +135,13 @@ class RrSamplerTest {
                 saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false));
 
         CoreMessageTransport transport = mock(CoreMessageTransport.class);
-        when(transport.browse(any(TransportTarget.class), anyInt(), anyInt(), any()))
-                .thenAnswer(invocation -> {
-                    TransportTarget target = invocation.getArgument(0);
-                    if ("core://broken:61616".equals(target.coreUrl())) {
-                        throw new IllegalStateException("node unreachable");
-                    }
-                    return new BrowseResult(new BrowsePage(List.of(message(1L, "corr-1")), 1L), Channel.CORE);
-                });
+        when(transport.sample(any(TransportTarget.class), anyInt())).thenAnswer(invocation -> {
+            TransportTarget target = invocation.getArgument(0);
+            if ("core://broken:61616".equals(target.coreUrl())) {
+                throw new IllegalStateException("node unreachable");
+            }
+            return List.of(message(1L, "corr-1"));
+        });
 
         Fixture f = samplerOver(
                 List.of(node("a-broken", "core://broken:61616"), node("b-healthy", "core://healthy:61616")),
@@ -167,12 +163,11 @@ class RrSamplerTest {
 
         List<String> browsed = new ArrayList<>();
         CoreMessageTransport transport = mock(CoreMessageTransport.class);
-        when(transport.browse(any(TransportTarget.class), anyInt(), anyInt(), any()))
-                .thenAnswer(invocation -> {
-                    TransportTarget target = invocation.getArgument(0);
-                    browsed.add(target.coreUrl() + " " + target.address());
-                    return new BrowseResult(new BrowsePage(List.of(), 0L), Channel.CORE);
-                });
+        when(transport.sample(any(TransportTarget.class), anyInt())).thenAnswer(invocation -> {
+            TransportTarget target = invocation.getArgument(0);
+            browsed.add(target.coreUrl() + " " + target.address());
+            return List.of();
+        });
 
         Fixture f = samplerOver(
                 List.of(node("n1", "core://one:61616"), node("n2", "core://two:61616")), expectation, transport);
@@ -201,11 +196,10 @@ class RrSamplerTest {
 
         List<String> browsed = new ArrayList<>();
         CoreMessageTransport transport = mock(CoreMessageTransport.class);
-        when(transport.browse(any(TransportTarget.class), anyInt(), anyInt(), any()))
-                .thenAnswer(invocation -> {
-                    browsed.add(((TransportTarget) invocation.getArgument(0)).coreUrl());
-                    return new BrowseResult(new BrowsePage(List.of(), 0L), Channel.CORE);
-                });
+        when(transport.sample(any(TransportTarget.class), anyInt())).thenAnswer(invocation -> {
+            browsed.add(((TransportTarget) invocation.getArgument(0)).coreUrl());
+            return List.of();
+        });
 
         Fixture f = samplerOver(List.of(errored, noCore, node("n-ok", "core://ok:61616")), expectation, transport);
 
@@ -241,14 +235,13 @@ class RrSamplerTest {
         RrExpectationEntity expectation =
                 saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 1, false));
         CoreMessageTransport transport = mock(CoreMessageTransport.class);
-        when(transport.browse(any(TransportTarget.class), anyInt(), anyInt(), any()))
-                .thenReturn(new BrowseResult(new BrowsePage(List.of(), 0L), Channel.CORE));
+        when(transport.sample(any(TransportTarget.class), anyInt())).thenReturn(List.of());
         Fixture f = samplerOver(List.of(node("broker-1", "tcp://10.0.0.1:61616")), expectation, transport);
 
         // One sample per minute: the second tick, moments later, must not browse.
         f.sampler().tick();
         f.sampler().tick();
 
-        verify(transport, times(1)).browse(any(TransportTarget.class), anyInt(), anyInt(), any());
+        verify(transport, times(1)).sample(any(TransportTarget.class), anyInt());
     }
 }
