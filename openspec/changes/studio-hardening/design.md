@@ -207,6 +207,7 @@ The new ADR supersedes the limiter-placement text of ADR-0025.
   - They are incremented in the same transaction as `capturedBatch`.
   - Retention and delete decrement or reset them.
   - They replace the per-pass `count(*)` / `sum(octet_length)` scans.
+- **Footprint query bound (revised during apply).** Instead of `captured_rows`/`captured_bytes` counter columns, footprint, held bytes and loss queries are bounded to the subscription's retention window (`observed_at >= now - retention - 1d`), which partition pruning serves. Counters would have coupled the capture writer to subscription ids and needed decrements on retention and delete for the same result.
 - **Delete ordering.** Delete and disable stop every drain of the subscription
   (`consumers.stop`), then delete rows, then reconcile under `clusterLock.runIfHeld`.
 - **Partition maintenance.** The move-from-default and ATTACH run in one transaction.

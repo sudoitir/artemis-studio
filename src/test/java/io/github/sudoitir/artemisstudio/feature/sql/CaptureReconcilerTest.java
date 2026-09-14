@@ -51,12 +51,15 @@ class CaptureReconcilerTest {
     private CaptureTap tap;
     private CaptureConsumer consumers;
     private CaptureReconciler reconciler;
+    private ClusterDirectory nodes;
+    private AuditService audit;
+    private BrokerNodeEntity nodeEntity;
 
     @BeforeEach
     void setUp() {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
         captureNodes = mock(MessageCaptureNodeRepository.class);
-        ClusterDirectory nodes = mock(ClusterDirectory.class);
+        nodes = mock(ClusterDirectory.class);
         BrokerConnections connections = mock(BrokerConnections.class);
         ClusterLock lock = mock(ClusterLock.class);
         tap = mock(CaptureTap.class);
@@ -64,17 +67,18 @@ class CaptureReconcilerTest {
         CaptureBus bus = mock(CaptureBus.class);
         StudioInstance instance = mock(StudioInstance.class);
         QueryPlanner planner = mock(QueryPlanner.class);
-        AuditService audit = mock(AuditService.class);
+        audit = mock(AuditService.class);
         AuditEventEntity auditEvent = mock(AuditEventEntity.class);
 
         when(instance.id()).thenReturn(INSTANCE);
-        BrokerNodeEntity node = node();
-        when(nodes.nodes(CLUSTER)).thenReturn(List.of(node));
+        nodeEntity = node();
+        when(nodes.nodes(CLUSTER)).thenReturn(List.of(nodeEntity));
         when(connections.forCluster(any(), any())).thenReturn(mock(JolokiaBrokerClient.class));
         MessageIndexSubscriptionEntity subscription = subscription();
         when(subscriptions.findByEnabledTrue()).thenReturn(List.of(subscription));
         QueryPlan plan = plan();
         when(planner.plan(any(), any())).thenReturn(plan);
+        CaptureAddresses addresses = new CaptureAddresses(planner, new SqlQueryParser());
         when(audit.begin(any(), anyString(), anyString(), any(), any(), any(), any(), eq(false)))
                 .thenReturn(auditEvent);
         when(captureNodes.findBySubscriptionIdAndNodeId(any(), any())).thenReturn(Optional.empty());
@@ -96,8 +100,7 @@ class CaptureReconcilerTest {
                 consumers,
                 bus,
                 instance,
-                new SqlQueryParser(),
-                planner,
+                addresses,
                 audit,
                 mock(CaptureLoss.class));
     }
@@ -150,6 +153,52 @@ class CaptureReconcilerTest {
 
         verify(tap, never()).remove(any(), any(), eq(OTHER_STUDIO));
         verify(tap, times(1)).installedNames(any(), eq(INSTANCE));
+    }
+
+    @Test
+    void aDivertRemovedOutOfBandIsReinstalledEvenWhileItsDrainIsRunning() throws Exception {
+        // The drain is still attached to its queue, but the divert feeding it is gone: capture
+        // would report ACTIVE while recording nothing.
+        when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of());
+        when(consumers.isDraining(NODE, WANTED)).thenReturn(true);
+
+        reconciler.reconcileCluster(CLUSTER);
+
+        verify(consumers).stop(NODE, WANTED);
+        verify(tap).install(any(), eq(INSTANCE), any());
+    }
+
+    @Test
+    void aRefusedTapIsRecordedOnceAndNotRetriedEveryPass() throws Exception {
+        when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of());
+        when(tap.install(any(), eq(INSTANCE), any()))
+                .thenThrow(new CaptureRefusedException("the filter is not valid selector syntax", null));
+
+        reconciler.reconcileCluster(CLUSTER);
+        reconciler.reconcileCluster(CLUSTER);
+        reconciler.reconcileCluster(CLUSTER);
+
+        verify(tap, times(1)).install(any(), eq(INSTANCE), any());
+        verify(audit, times(1)).begin(any(), eq("INSTALL_CAPTURE"), anyString(), any(), any(), any(), any(), eq(false));
+    }
+
+    @Test
+    void aNodeThatStoppedServingKeepsNoDrain() {
+        BrokerNodeEntity gone = mock(BrokerNodeEntity.class);
+        UUID goneId = UUID.randomUUID();
+        when(gone.getId()).thenReturn(goneId);
+        when(gone.getName()).thenReturn("old-primary");
+        when(gone.getJolokiaUrl()).thenReturn("http://old:8161/console/jolokia");
+        when(gone.getActive()).thenReturn(false);
+        when(gone.getLastError()).thenReturn("unreachable");
+        when(nodes.nodes(CLUSTER)).thenReturn(List.of(nodeEntity, gone));
+        when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of(WANTED));
+        when(consumers.isDraining(NODE, WANTED)).thenReturn(true);
+        when(consumers.drainingOn(goneId)).thenReturn(java.util.Set.of(WANTED));
+
+        reconciler.reconcileCluster(CLUSTER);
+
+        verify(consumers).stop(goneId, WANTED);
     }
 
     // ---- fixtures --------------------------------------------------------

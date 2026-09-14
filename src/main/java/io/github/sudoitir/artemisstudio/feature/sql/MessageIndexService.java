@@ -49,6 +49,9 @@ public class MessageIndexService {
     private final ActorResolver actorResolver;
     private final AuditService audit;
     private final JdbcTemplate jdbc;
+    private final CaptureAddresses captureAddresses;
+    private final CaptureConsumer consumers;
+    private final CaptureReconciler reconciler;
 
     /**
      * What a subscription is currently costing.
@@ -128,8 +131,8 @@ public class MessageIndexService {
         entity.setId(UUID.randomUUID());
         entity.setClusterId(clusterId);
         entity.setQueuePattern(pattern);
-        entity.setIntervalMs(Math.max(1000, spec.intervalMs() == null ? 5000L : spec.intervalMs()));
-        entity.setRetentionDays(Math.clamp(spec.retentionDays() == null ? 7 : spec.retentionDays(), 1, 90));
+        entity.setIntervalMs(spec.intervalMs() == null ? 5000L : validInterval(spec.intervalMs()));
+        entity.setRetentionDays(spec.retentionDays() == null ? 7 : validRetention(spec.retentionDays()));
         entity.setCaptureFrom(Instant.now());
         entity.setCreatedAt(Instant.now());
         entity.setCreatedBy(actorName());
@@ -137,25 +140,16 @@ public class MessageIndexService {
         entity.setMode(mode);
         applyBounds(entity, spec);
 
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("queuePattern", pattern);
+        params.put("mode", mode.name());
+        params.put("intervalMs", entity.getIntervalMs());
+        params.put("retentionDays", entity.getRetentionDays());
+        params.put("storesMessageBodies", true);
+        // What sets exposure is exactly what gets audited: every bound the capture runs under.
+        params.putAll(bounds(entity));
         AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                "sql.index.create",
-                "CLUSTER",
-                pattern,
-                clusterId,
-                null,
-                Map.of(
-                        "queuePattern",
-                        pattern,
-                        "mode",
-                        mode.name(),
-                        "intervalMs",
-                        entity.getIntervalMs(),
-                        "retentionDays",
-                        entity.getRetentionDays(),
-                        "storesMessageBodies",
-                        true),
-                false);
+                actorResolver.resolve(), "sql.index.create", "CLUSTER", pattern, clusterId, null, params, false);
         try {
             MessageIndexSubscriptionEntity saved = subscriptions.save(entity);
             audit.succeed(event, 1);
@@ -183,6 +177,15 @@ public class MessageIndexService {
                         ? SqlPermissions.CAPTURE_WRITE
                         : SettingsPermissions.SETTINGS_WRITE);
 
+        Map<String, Object> before = bounds(entity);
+        CaptureMode modeBefore = entity.getMode();
+        boolean enabledBefore = entity.isEnabled();
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("enabled", String.valueOf(spec.enabled()));
+        params.put("mode", String.valueOf(target));
+        params.put("intervalMs", String.valueOf(spec.intervalMs()));
+        params.put("retentionDays", String.valueOf(spec.retentionDays()));
+        before.forEach((k, v) -> params.put(k + "Before", String.valueOf(v)));
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "sql.index.update",
@@ -190,30 +193,36 @@ public class MessageIndexService {
                 entity.getQueuePattern(),
                 clusterId,
                 null,
-                Map.of(
-                        "enabled", String.valueOf(spec.enabled()),
-                        "mode", String.valueOf(target),
-                        "intervalMs", String.valueOf(spec.intervalMs()),
-                        "retentionDays", String.valueOf(spec.retentionDays())),
+                params,
                 false);
         try {
             if (spec.enabled() != null) {
                 entity.setEnabled(spec.enabled());
             }
             if (spec.intervalMs() != null) {
-                entity.setIntervalMs(Math.max(1000, spec.intervalMs()));
+                entity.setIntervalMs(validInterval(spec.intervalMs()));
             }
             if (spec.retentionDays() != null) {
-                entity.setRetentionDays(Math.clamp(spec.retentionDays(), 1, 90));
+                entity.setRetentionDays(validRetention(spec.retentionDays()));
             }
             entity.setMode(target);
             applyBounds(entity, spec);
             MessageIndexSubscriptionEntity saved = subscriptions.save(entity);
+            Map<String, Object> after = bounds(saved);
             audit.succeed(event, 1);
-            // A disabled subscription stops capturing at once rather than at the next
+            // A disabled subscription stops recording at once rather than at the next
             // reconcile: an operator who turns capture off has usually just decided
             // that this payload should not be stored.
             capture.stop(id);
+            boolean stillCapturing = saved.getMode() == CaptureMode.CAPTURE && saved.isEnabled();
+            if (modeBefore == CaptureMode.CAPTURE && (!stillCapturing || !enabledBefore)) {
+                consumers.stopSubscription(id);
+            }
+            if (stillCapturing && !after.equals(before)) {
+                // The tap on the broker still carries the old filter and bounds, and a divert is
+                // never changed in place: re-create it once this change has committed.
+                afterCommit(() -> reconciler.reinstall(clusterId, id));
+            }
             converge(saved);
             return describe(saved, footprint(saved));
         } catch (RuntimeException e) {
@@ -242,15 +251,22 @@ public class MessageIndexService {
                 Map.of("queuePattern", entity.getQueuePattern(), "capturedMessages", before.messages()),
                 false);
         try {
+            // Recording stops before any row is deleted, so nothing captured after the operator's
+            // decision survives it (message-capture spec).
             capture.stop(id);
+            consumers.stopSubscription(id);
             long destroyed = deleteCaptured(entity);
             subscriptions.delete(entity);
             audit.succeed(event, destroyed);
-            // The taps this subscription owned are now orphans. The reconciler is the
-            // only thing that removes one (ADR-0062 D4), and the caller sweeps once
-            // this transaction has committed — deliberately not from in here, which
-            // would make broker calls inside the transaction that deleted the rows.
-            return new Deleted(destroyed, entity.getMode() == CaptureMode.CAPTURE);
+            boolean hadCapture = entity.getMode() == CaptureMode.CAPTURE;
+            if (hadCapture) {
+                // The taps this subscription owned are now orphans. The reconciler is the only
+                // thing that removes one (ADR-0062 D4), under the cluster lock, once this
+                // transaction has committed — never from in here, which would make broker calls
+                // inside the transaction that deleted the rows.
+                afterCommit(() -> reconciler.reconcileNow(clusterId));
+            }
+            return new Deleted(destroyed, hadCapture);
         } catch (RuntimeException e) {
             audit.fail(event, e.getMessage());
             throw e;
@@ -263,30 +279,77 @@ public class MessageIndexService {
         return mode == CaptureMode.CAPTURE ? SqlPermissions.CAPTURE_WRITE : SettingsPermissions.SETTINGS_WRITE;
     }
 
+    /** The largest capture queue, in messages (ADR-0079). The byte bound on the broker is the other half. */
+    static final long MAX_RING_SIZE = 1_000_000L;
+
     /**
-     * Bounds are clamped rather than rejected. Every one of them exists to keep a
-     * runaway subscription from becoming an incident, so a value outside the range is
-     * a value someone typed, not a reason to refuse the whole change. An unset bound
-     * keeps whatever the entity already carries, which for a new subscription is the
-     * field's own default — the defaults live on the entity so that a subscription
-     * created any other way is bounded too.
+     * Bounds outside their range are refused, naming the field and the range, never adjusted.
+     * A value silently changed into range is a value the operator did not choose, applied to
+     * how much production payload is copied and stored (operator-ui spec). An unset bound keeps
+     * whatever the entity already carries, which for a new subscription is the field's own
+     * default — the defaults live on the entity so that a subscription created any other way is
+     * bounded too.
      */
     private static void applyBounds(MessageIndexSubscriptionEntity entity, Spec spec) {
         if (spec.ringSize() != null) {
-            entity.setRingSize(Math.clamp(spec.ringSize(), 100L, 10_000_000L));
+            entity.setRingSize(inRange("ringSize", spec.ringSize(), 100L, MAX_RING_SIZE));
         }
         if (spec.maxBytes() != null) {
-            entity.setMaxBytes(Math.max(1L, spec.maxBytes()));
+            entity.setMaxBytes(inRange("maxBytes", spec.maxBytes(), 1L, Long.MAX_VALUE));
         }
         if (spec.maxRate() != null) {
-            entity.setMaxRate(Math.clamp(spec.maxRate(), 1, 1_000_000));
+            entity.setMaxRate((int) inRange("maxRate", spec.maxRate(), 1, 1_000_000));
         }
         if (spec.bodyCapBytes() != null) {
-            entity.setBodyCapBytes(Math.clamp(spec.bodyCapBytes(), 1024, 16 * 1024 * 1024));
+            entity.setBodyCapBytes((int) inRange("bodyCapBytes", spec.bodyCapBytes(), 1024, 16 * 1024 * 1024));
         }
         if (spec.filterString() != null) {
+            if (spec.filterString().length() > 4096) {
+                throw new IllegalArgumentException("filterString is longer than 4096 characters.");
+            }
             entity.setFilterString(spec.filterString().isBlank() ? null : spec.filterString());
         }
+    }
+
+    private static long validInterval(long intervalMs) {
+        return inRange("intervalMs", intervalMs, 1000, 3_600_000);
+    }
+
+    private static int validRetention(int retentionDays) {
+        return (int) inRange("retentionDays", retentionDays, 1, 90);
+    }
+
+    private static long inRange(String field, long value, long min, long max) {
+        if (value < min || value > max) {
+            throw new IllegalArgumentException(
+                    field + " must be between " + min + " and " + max + "; got " + value + ".");
+        }
+        return value;
+    }
+
+    /** Every bound that sets what a subscription copies and keeps. */
+    private static Map<String, Object> bounds(MessageIndexSubscriptionEntity entity) {
+        Map<String, Object> bounds = new java.util.LinkedHashMap<>();
+        bounds.put("ringSize", entity.getRingSize());
+        bounds.put("maxBytes", entity.getMaxBytes());
+        bounds.put("maxRate", entity.getMaxRate());
+        bounds.put("bodyCapBytes", entity.getBodyCapBytes());
+        bounds.put("filterString", String.valueOf(entity.getFilterString()));
+        return bounds;
+    }
+
+    private static void afterCommit(Runnable action) {
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        action.run();
+                    }
+                });
     }
 
     /**
@@ -313,11 +376,16 @@ public class MessageIndexService {
     }
 
     /**
-     * The queues this subscription's pattern currently claims. Rows are keyed by queue
-     * name rather than by subscription id, because a message on a queue two
-     * subscriptions match is one captured message, not two.
+     * The names this subscription's rows are stored under. Rows are keyed by name rather than
+     * by subscription id, because a message two subscriptions match is one message, not two.
+     * A sampled row carries the queue it was seen on; a captured row carries the address it was
+     * routed to, which is not the queue name for a multicast address or a queue named
+     * differently from its address.
      */
     private List<String> queuesOf(MessageIndexSubscriptionEntity subscription) {
+        if (subscription.getMode() == CaptureMode.CAPTURE) {
+            return List.copyOf(captureAddresses.of(subscription.getClusterId(), subscription));
+        }
         return snapshots.forCluster(subscription.getClusterId()).stream()
                 .map(QueueSnapshot::queueName)
                 .distinct()
@@ -383,6 +451,15 @@ public class MessageIndexService {
         }
         if (trimmed.indexOf('"') >= 0 || trimmed.indexOf('\'') >= 0) {
             throw new IllegalArgumentException("A queue pattern cannot contain a quote character.");
+        }
+        if (trimmed.length() > 1000) {
+            throw new IllegalArgumentException("A queue pattern is longer than 1000 characters.");
+        }
+        if (CaptureAddresses.isCaptureObject(trimmed)) {
+            // Studio's own capture queues are never captured: doing so taps the taps (ADR-0079).
+            throw new IllegalArgumentException("A pattern under "
+                    + io.github.sudoitir.artemisstudio.feature.routing.RoutingService.CAPTURE_DIVERT_PREFIX
+                    + " names Studio's own capture objects, which cannot be captured.");
         }
         return trimmed;
     }

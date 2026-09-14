@@ -87,9 +87,10 @@ public class CaptureTap {
         String broker = client.resolveBrokerObjectName();
         refuseIfShadowedByExclusiveDivert(client, spec.address());
 
+        requireBrokerRole();
         String name = CaptureNames.of(instanceId, spec.address(), spec.subscriptionId());
-        applyAddressSettings(client, broker, spec.ringSize());
-        applySecuritySettings(client, broker);
+        applyAddressSettings(client, broker, instanceId, spec.ringSize());
+        applySecuritySettings(client, broker, instanceId);
 
         String queue = CaptureNames.queueOf(name);
         tolerateAlready(() -> queueOps.createAddress(client, broker, queue, "ANYCAST"));
@@ -126,10 +127,48 @@ public class CaptureTap {
         tolerateAlready(() -> queueOps.destroyQueue(client, broker, queue));
         tolerateAlready(() -> queueOps.deleteAddress(client, broker, queue));
         if (installedNames(client, instanceId).isEmpty()) {
-            client.single(JolokiaRequest.exec(broker, "removeAddressSettings(java.lang.String)", CaptureNames.MATCH));
-            client.single(JolokiaRequest.exec(broker, "removeSecuritySettings(java.lang.String)", CaptureNames.MATCH));
+            // Only this instance's settings: another Studio's capture queues keep their DROP
+            // policy and their restriction for as long as that Studio has taps (ADR-0079).
+            removeSettings(client, broker, CaptureNames.matchFor(instanceId));
+            // The shared match earlier versions wrote for every instance goes only once no
+            // capture divert from any instance is left on this node.
+            boolean anyCaptureLeft = divertOps.listDiverts(client, null, null).stream()
+                    .anyMatch(d -> CaptureAddresses.isCaptureObject(d.uniqueName()));
+            if (!anyCaptureLeft) {
+                removeSettings(client, broker, CaptureNames.LEGACY_MATCH);
+            }
         }
     }
+
+    private static void removeSettings(JolokiaBrokerClient client, String broker, String match) {
+        client.single(JolokiaRequest.exec(broker, "removeAddressSettings(java.lang.String)", match));
+        client.single(JolokiaRequest.exec(broker, "removeSecuritySettings(java.lang.String)", match));
+    }
+
+    /**
+     * Capture queues are restricted to Studio's own broker role, and Studio cannot discover
+     * which role that is. With no role configured there is nothing to restrict to, so capture
+     * is refused rather than installed readable by whoever the broker authorises (ADR-0079).
+     */
+    private void requireBrokerRole() {
+        String role = properties.brokerRole();
+        if (role == null || role.isBlank()) {
+            throw new CaptureRefusedException(
+                    "Capture restricts its queues to the broker role Studio's own user holds, and none is configured."
+                            + " Set artemis-studio.capture.broker-role (ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE) to that"
+                            + " role, then capture starts on the next pass.",
+                    null);
+        }
+        if ("amq".equals(role) && warnedDefaultRole.compareAndSet(false, true)) {
+            log.warn(
+                    "Capture queues are restricted to the broker role 'amq', which every user created by `artemis create`"
+                            + " holds. Give Studio's broker user a dedicated role and set"
+                            + " artemis-studio.capture.broker-role to it.");
+        }
+    }
+
+    private final java.util.concurrent.atomic.AtomicBoolean warnedDefaultRole =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     /**
      * The divert's routing name, which must not collide with any existing binding.
@@ -177,7 +216,7 @@ public class CaptureTap {
 
     // ---- the four objects ------------------------------------------------
 
-    private void applyAddressSettings(JolokiaBrokerClient client, String broker, long ringSize) {
+    private void applyAddressSettings(JolokiaBrokerClient client, String broker, String instanceId, long ringSize) {
         Map<String, Object> settings = new LinkedHashMap<>();
         settings.put("addressFullMessagePolicy", "DROP");
         settings.put("defaultRingSize", ringSize);
@@ -187,6 +226,9 @@ public class CaptureTap {
         // (ADR-0077); with the broker's default of 10 attempts and no dead-letter address, a
         // long database outage would silently discard what the bounded queue was holding.
         settings.put("maxDeliveryAttempts", -1);
+        // Bounded in bytes as well as messages: a ring of large messages is otherwise bounded
+        // only by the broker's global size, which is not a bound on this tap (ADR-0079).
+        settings.put("maxSizeBytes", properties.maxRingBytes().toBytes());
         // Auto-create the capture *address*, and nothing else. This is a safety
         // property, not a convenience: the divert lives in the bindings journal and
         // therefore replicates to a backup, while the non-durable capture queue does
@@ -201,14 +243,14 @@ public class CaptureTap {
         settings.put("autoCreateQueues", false);
         settings.put("autoDeleteQueues", false);
         JolokiaResponse res = client.single(JolokiaRequest.exec(
-                broker, ADD_ADDRESS_SETTINGS, CaptureNames.MATCH, mapper.writeValueAsString(settings)));
+                broker, ADD_ADDRESS_SETTINGS, CaptureNames.matchFor(instanceId), mapper.writeValueAsString(settings)));
         if (!res.ok()) {
             throw new CaptureRefusedException(
                     "This broker would not accept the address settings that bound the capture queue: "
                             + res.error()
                             + ". Without them an abandoned capture queue could page production payload to disk, so "
                             + "capture is refused rather than installed unbounded.",
-                    captureBrokerXml(ringSize));
+                    captureBrokerXml(instanceId, ringSize));
         }
     }
 
@@ -218,12 +260,12 @@ public class CaptureTap {
      * inside the server and is not a client send, so granting it would only widen who
      * can write into the capture address.
      */
-    private void applySecuritySettings(JolokiaBrokerClient client, String broker) {
+    private void applySecuritySettings(JolokiaBrokerClient client, String broker, String instanceId) {
         String role = properties.brokerRole();
         JolokiaResponse res = client.single(JolokiaRequest.exec(
                 broker,
                 ADD_SECURITY_SETTINGS,
-                CaptureNames.MATCH,
+                CaptureNames.matchFor(instanceId),
                 "", // send
                 role, // consume
                 "", // createDurableQueue
@@ -241,7 +283,7 @@ public class CaptureTap {
                     "This broker would not let Studio restrict the capture queue: " + res.error()
                             + ". The capture queue is a complete second copy of this address's payload, so it is not "
                             + "created at all rather than created readable by every client the broker authorises.",
-                    captureBrokerXml(0));
+                    captureBrokerXml(instanceId, 0));
         }
     }
 
@@ -264,7 +306,7 @@ public class CaptureTap {
     }
 
     /** The configuration an operator would add to make a refusal go away. */
-    public String captureBrokerXml(long ringSize) {
+    public String captureBrokerXml(String instanceId, long ringSize) {
         return """
                 <security-settings>
                   <security-setting match="%1$s">
@@ -279,15 +321,17 @@ public class CaptureTap {
                   <address-setting match="%1$s">
                     <address-full-policy>DROP</address-full-policy>
                     <default-ring-size>%3$d</default-ring-size>
-                    <expiry-delay>%4$d</expiry-delay>
+                    <max-size-bytes>%4$d</max-size-bytes>
+                    <expiry-delay>%5$d</expiry-delay>
                     <auto-create-expiry-resources>false</auto-create-expiry-resources>
                     <max-delivery-attempts>-1</max-delivery-attempts>
                   </address-setting>
                 </address-settings>
                 """.formatted(
-                        CaptureNames.MATCH,
+                        CaptureNames.matchFor(instanceId),
                         properties.brokerRole(),
                         ringSize,
+                        properties.maxRingBytes().toBytes(),
                         properties.expiry().toMillis());
     }
 

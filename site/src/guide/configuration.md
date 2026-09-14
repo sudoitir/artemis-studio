@@ -12,6 +12,7 @@ description: The environment variables Artemis Studio reads, which are required,
 | `ARTEMIS_STUDIO_DB_URL` | yes | `jdbc:postgresql://host:5432/artemis_studio` |
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | yes | Encrypts stored broker credentials. Base64 of **exactly 32 bytes**, or the application will not start: `openssl rand -base64 32` |
+| `ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE` | for capture | The broker role Studio's own broker user holds. Capture queues are restricted to it, and message capture is refused until it is set. Use a dedicated role, not the default `amq` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values stored in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
 | `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=50` |
 

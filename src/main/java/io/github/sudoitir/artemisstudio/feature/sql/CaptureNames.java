@@ -25,10 +25,22 @@ import java.util.UUID;
  */
 public final class CaptureNames {
 
-    /** Address-settings and security-settings match covering every capture object. */
-    public static final String MATCH = RoutingService.CAPTURE_DIVERT_PREFIX + "#";
+    /**
+     * The match earlier versions put their settings on, shared by every Studio instance. Only
+     * ever removed now, once no capture object of any instance is left (ADR-0079).
+     */
+    public static final String LEGACY_MATCH = RoutingService.CAPTURE_DIVERT_PREFIX + "#";
 
     private CaptureNames() {}
+
+    /**
+     * The address-settings and security-settings match covering this instance's capture objects
+     * and no other instance's, so removing one instance's settings never unbounds or unrestricts
+     * another's capture queues (ADR-0079).
+     */
+    public static String matchFor(String instanceId) {
+        return RoutingService.CAPTURE_DIVERT_PREFIX + instanceId + ".#";
+    }
 
     /**
      * The tap's name. The divert carries it as-is; the queue and its address take

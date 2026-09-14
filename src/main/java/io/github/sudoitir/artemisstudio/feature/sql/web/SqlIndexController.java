@@ -36,7 +36,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class SqlIndexController {
 
     private final MessageIndexService index;
-    private final io.github.sudoitir.artemisstudio.feature.sql.CaptureReconciler capture;
 
     @GetMapping
     public List<IndexSubscriptionView> list(@PathVariable UUID clusterId) {
@@ -54,16 +53,14 @@ public class SqlIndexController {
         return toView(index.update(clusterId, id, toSpec(request)));
     }
 
-    /** Deletes the subscription and everything it captured, and says how much that was. */
+    /**
+     * Deletes the subscription and everything it captured, and says how much that was. The
+     * taps it owned are swept by the reconciler, under the cluster lock, once the deletion has
+     * committed — so a node unreachable now is cleaned on its next pass.
+     */
     @DeleteMapping("/{id}")
     public DeletedView delete(@PathVariable UUID clusterId, @PathVariable UUID id) {
-        MessageIndexService.Deleted deleted = index.delete(clusterId, id);
-        if (deleted.hadCapture()) {
-            // Once the deletion has committed, so the sweep sees an empty desired
-            // state and the broker calls are not inside that transaction.
-            capture.reconcileCluster(clusterId);
-        }
-        return new DeletedView(deleted.messagesDestroyed());
+        return new DeletedView(index.delete(clusterId, id).messagesDestroyed());
     }
 
     @Schema(description = "How many captured messages the deletion destroyed.")

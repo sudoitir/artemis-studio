@@ -183,6 +183,20 @@ public class CaptureConsumer {
         }
     }
 
+    /**
+     * Stop every drain of one subscription, on every node — before its rows are deleted or its
+     * capture is turned off, so nothing is written after the operator's decision.
+     */
+    public void stopSubscription(UUID subscriptionId) {
+        running.entrySet().removeIf(entry -> {
+            if (!entry.getValue().spec.subscriptionId().equals(subscriptionId)) {
+                return false;
+            }
+            entry.getValue().close();
+            return true;
+        });
+    }
+
     /** Close everything this holds open. Called at its shutdown phase. */
     public void closeAll() {
         running.values().forEach(Drain::close);

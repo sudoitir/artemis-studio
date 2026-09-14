@@ -120,6 +120,9 @@ services:
       # 32 bytes or the app refuses to start. DEV ONLY — for prod run
       # `openssl rand -base64 32` and keep it out of source control.
       ARTEMIS_STUDIO_SECRET_KEY: "YXJ0ZW1pcy1zdHVkaW8tZGV2LWluc2VjdXJlLWtleS0="
+      # The dev brokers' users hold only the default `amq` role. Studio warns about it;
+      # a real deployment gives Studio's broker user a dedicated role.
+      ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: amq
     ports:
       # Loopback only: the API is unauthenticated until Phase 8 (ADR-0002 area).
       - "127.0.0.1:8080:8080"

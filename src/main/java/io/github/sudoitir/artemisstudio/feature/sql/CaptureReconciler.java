@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -36,9 +39,8 @@ import org.springframework.stereotype.Component;
  * path — a promoted backup carries no capture divert, and the next pass installs one.
  *
  * <p>Desired state is the {@code CAPTURE} subscriptions in Postgres, expanded through
- * the same planner an operator's own query uses, so "which queues does this pattern
- * mean" has exactly one answer in the product. Actual state is each node's own divert
- * names, filtered to this instance's prefix.
+ * {@link CaptureAddresses}. Actual state is each node's own divert names, filtered to this
+ * instance's prefix, together with which of those this instance is draining.
  *
  * <p>Two ownership rules, and they are not the same rule. A divert belonging to
  * another Studio is never touched — its name says so, and nothing else could tell us
@@ -61,8 +63,7 @@ public class CaptureReconciler {
     private final CaptureConsumer consumers;
     private final CaptureBus bus;
     private final StudioInstance instance;
-    private final SqlQueryParser parser;
-    private final QueryPlanner planner;
+    private final CaptureAddresses addresses;
     private final AuditService audit;
     private final CaptureLoss loss;
 
@@ -72,7 +73,16 @@ public class CaptureReconciler {
      * subscription left means the taps were already removed, and a restart with one
      * left repopulates this on the next install.
      */
-    private final Set<UUID> installedOn = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Set<UUID> installedOn = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Taps refused for a reason that will not change until something about the tap or its
+     * node does, keyed by node and tap, with what they were refused under. A refusal is
+     * recorded once as FAILED and audited once; later passes neither retry it against the
+     * broker nor write another audit row until the fingerprint changes (message-capture spec).
+     * In memory, so a restart tries each once more, which is the right place to re-check.
+     */
+    private final Map<String, String> refused = new ConcurrentHashMap<>();
 
     /**
      * One sweep of every cluster Studio knows about, once, at startup.
@@ -95,14 +105,57 @@ public class CaptureReconciler {
     /** Registered with {@code JobScheduler}. One pass per cluster that captures anything. */
     public void reconcile() {
         for (UUID clusterId : capturingClusters()) {
-            clusterLock.runIfHeld(clusterId, () -> {
-                try {
-                    reconcileCluster(clusterId);
-                } catch (RuntimeException e) {
-                    log.warn("Capture reconcile for cluster {} did not complete: {}", clusterId, e.getMessage());
-                }
-            });
+            reconcileNow(clusterId);
         }
+    }
+
+    /**
+     * One pass over one cluster, under its lock — for a caller outside the scheduled pass, such
+     * as a deletion's sweep. Never unlocked: two passes racing each other could each remove what
+     * the other just installed.
+     */
+    public void reconcileNow(UUID clusterId) {
+        clusterLock.runIfHeld(clusterId, () -> {
+            try {
+                reconcileCluster(clusterId);
+            } catch (RuntimeException e) {
+                log.warn("Capture reconcile for cluster {} did not complete: {}", clusterId, e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Remove a subscription's taps, then converge — so a changed filter or bound is installed
+     * afresh rather than left on the broker under the old values. The divert and queue are
+     * only ever created, never updated in place, so re-creating them is the one way a change
+     * reaches the broker. The period between removal and reinstall is recorded as a gap.
+     */
+    public void reinstall(UUID clusterId, UUID subscriptionId) {
+        clusterLock.runIfHeld(clusterId, () -> {
+            refused.keySet().removeIf(key -> key.endsWith("." + subscriptionId));
+            for (ClusterNode node : servingNodes(clusterId)) {
+                try {
+                    JolokiaBrokerClient client = client(clusterId, node);
+                    for (String name : tap.installedNames(client, instance.id())) {
+                        if (subscriptionId.equals(CaptureNames.subscriptionOf(name))) {
+                            consumers.stop(node.getId(), name);
+                            tap.remove(client, instance.id(), name);
+                        }
+                    }
+                } catch (RuntimeException e) {
+                    log.warn(
+                            "Could not remove the capture taps of {} on {} to re-create them: {}",
+                            subscriptionId,
+                            node.getName(),
+                            e.getMessage());
+                }
+            }
+            try {
+                reconcileCluster(clusterId);
+            } catch (RuntimeException e) {
+                log.warn("Capture reconcile for cluster {} did not complete: {}", clusterId, e.getMessage());
+            }
+        });
     }
 
     /**
@@ -132,9 +185,9 @@ public class CaptureReconciler {
      * node, and a database transaction held open across broker HTTP would tie up a
      * connection for as long as the slowest broker takes to answer. Each write here
      * is its own short transaction, and the loop is idempotent, so a pass that dies
-     * half-way is simply repeated.
+     * half-way is simply repeated. Callers take the cluster lock ({@link #reconcileNow}).
      */
-    public void reconcileCluster(UUID clusterId) {
+    void reconcileCluster(UUID clusterId) {
         List<ClusterNode> serving = servingNodes(clusterId);
         List<MessageIndexSubscriptionEntity> capturing = subscriptions.findByEnabledTrue().stream()
                 .filter(s -> clusterId.equals(s.getClusterId()))
@@ -164,7 +217,24 @@ public class CaptureReconciler {
                 }
             }
         }
+        stopDrainsOnNodesNoLongerServing(clusterId, serving);
         loss.measure(clusterId);
+    }
+
+    /**
+     * A node that failed over away, or stopped answering, keeps no drain: the pooled
+     * connection it holds points at a broker that is not serving the address any more.
+     */
+    private void stopDrainsOnNodesNoLongerServing(UUID clusterId, List<ClusterNode> serving) {
+        Set<UUID> servingIds = serving.stream().map(ClusterNode::getId).collect(Collectors.toSet());
+        for (ClusterNode node : nodes.nodes(clusterId)) {
+            if (servingIds.contains(node.getId())) {
+                continue;
+            }
+            for (String name : consumers.drainingOn(node.getId())) {
+                consumers.stop(node.getId(), name);
+            }
+        }
     }
 
     /** One tap that should exist: a subscription's source address on a node. */
@@ -189,7 +259,7 @@ public class CaptureReconciler {
             UUID clusterId, List<MessageIndexSubscriptionEntity> capturing, List<ClusterNode> serving) {
         Map<UUID, List<Desired>> byNode = new LinkedHashMap<>();
         for (MessageIndexSubscriptionEntity subscription : capturing) {
-            for (String address : addressesFor(clusterId, subscription)) {
+            for (String address : addresses.of(clusterId, subscription)) {
                 for (ClusterNode node : serving) {
                     byNode.computeIfAbsent(node.getId(), k -> new ArrayList<>())
                             .add(new Desired(
@@ -200,28 +270,6 @@ public class CaptureReconciler {
             }
         }
         return byNode;
-    }
-
-    /**
-     * The addresses one subscription covers, through the same planner an operator's own
-     * query uses — so "which queues does this pattern mean" has exactly one answer in
-     * the product. One capture queue per address however many queues are bound to it: a
-     * divert copies at address routing (D3).
-     */
-    private Set<String> addressesFor(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
-        QueryPlan plan;
-        try {
-            plan = planner.plan(
-                    clusterId, parser.parse("SELECT * FROM broker.\"" + subscription.getQueuePattern() + '"'));
-        } catch (RuntimeException e) {
-            log.debug("Capture pattern '{}' could not be resolved: {}", subscription.getQueuePattern(), e.getMessage());
-            return Set.of();
-        }
-        Set<String> addresses = new LinkedHashSet<>();
-        for (QueryPlan.Target target : plan.targets()) {
-            addresses.add(target.address() == null ? target.queueName() : target.address());
-        }
-        return addresses;
     }
 
     // ---- one node --------------------------------------------------------
@@ -236,12 +284,20 @@ public class CaptureReconciler {
         // Drift only. A pass that re-asserts what is already there would be one
         // management write per tap per interval, forever, for no change (D4).
         for (Desired d : wanted) {
-            // Draining is the whole-tap health check. A divert alone is not enough: a
-            // promoted backup inherits the divert through the bindings journal but not
-            // the non-durable capture queue, so "the divert is there" would skip
-            // exactly the node that needs the queue rebuilt.
-            if (consumers.isDraining(node.getId(), d.name())) {
+            // A tap is healthy only when both halves are: the divert is on the broker and
+            // this instance is draining its queue. Draining alone is not enough — a divert
+            // removed out of band leaves the drain reading an empty queue while capture
+            // reports ACTIVE. The divert alone is not enough either: a promoted backup
+            // inherits the divert through the bindings journal but not the non-durable
+            // capture queue.
+            if (consumers.isDraining(node.getId(), d.name()) && actual.contains(d.name())) {
                 continue;
+            }
+            if (fingerprint(d, node).equals(refused.get(refusalKey(node, d)))) {
+                continue;
+            }
+            if (consumers.isDraining(node.getId(), d.name())) {
+                consumers.stop(node.getId(), d.name());
             }
             install(clusterId, node, d);
         }
@@ -281,8 +337,14 @@ public class CaptureReconciler {
                         desired.subscription().getId()),
                 false);
         try {
-            // Idempotent in both directions, so it is safe to run whenever this node
-            // is not already draining — which is the only time it runs.
+            // Checked before anything is created: a tap nobody can drain copies production
+            // payload into a queue that only fills.
+            if (node.getCoreUrl() == null) {
+                throw new CaptureRefusedException(
+                        "This node has no Core URL registered, and capture is drained over the Core protocol. "
+                                + "Add one to the cluster's connection and capture starts on the next pass.",
+                        null);
+            }
             tap.install(
                     client(clusterId, node),
                     instance.id(),
@@ -293,27 +355,47 @@ public class CaptureReconciler {
                             desired.subscription().getFilterString()));
             startDraining(clusterId, node, desired);
             installedOn.add(clusterId);
+            refused.remove(refusalKey(node, desired));
             state(desired, node, CaptureState.ACTIVE, null, true);
             audit.succeed(event, 1);
         } catch (CaptureRefusedException e) {
             // A statement about the broker's configuration, not a transient failure:
-            // the next pass will get the same answer, so it is recorded as the reason
-            // this node is not captured rather than retried silently.
-            state(desired, node, CaptureState.FAILED, e.getMessage(), false);
-            audit.fail(event, e.getMessage());
+            // the next pass will get the same answer, so it is recorded once as the reason
+            // this node is not captured rather than retried and re-audited every pass.
+            refuse(node, desired, e.getMessage(), event);
+        } catch (ManagementRefusal e) {
+            if (e.kind() == ManagementRefusal.Kind.ARGUMENT) {
+                // The broker rejected what was asked — an invalid filter, typically. Asking
+                // again with the same arguments gets the same answer.
+                refuse(node, desired, "The broker rejected this capture: " + e.getMessage(), event);
+            } else {
+                state(desired, node, CaptureState.PENDING, reason(e), false);
+                audit.fail(event, reason(e));
+            }
         } catch (RuntimeException | jakarta.jms.JMSException e) {
             state(desired, node, CaptureState.PENDING, reason(e), false);
             audit.fail(event, reason(e));
         }
     }
 
+    private void refuse(ClusterNode node, Desired desired, String why, AuditEvent event) {
+        refused.put(refusalKey(node, desired), fingerprint(desired, node));
+        state(desired, node, CaptureState.FAILED, why, false);
+        audit.fail(event, why);
+    }
+
+    private static String refusalKey(ClusterNode node, Desired desired) {
+        return node.getId() + "|" + desired.name();
+    }
+
+    /** Everything a refusal could depend on; a change to any of it is worth asking the broker again. */
+    private static String fingerprint(Desired desired, ClusterNode node) {
+        MessageIndexSubscriptionEntity s = desired.subscription();
+        return s.getRingSize() + "|" + s.getFilterString() + "|" + s.getBodyCapBytes() + "|" + s.getMaxRate() + "|"
+                + node.getCoreUrl() + "|" + node.getJolokiaUrl();
+    }
+
     private void startDraining(UUID clusterId, ClusterNode node, Desired desired) throws jakarta.jms.JMSException {
-        if (node.getCoreUrl() == null) {
-            throw new CaptureRefusedException(
-                    "This node has no Core URL registered, and capture is drained over the Core protocol. "
-                            + "Add one to the cluster's connection and capture starts on the next pass.",
-                    null);
-        }
         consumers.start(new CaptureConsumer.Spec(
                 clusterId,
                 node.getId(),
@@ -389,7 +471,7 @@ public class CaptureReconciler {
      * pick the dead one and leave the live node untapped for exactly the interval an
      * operator is watching. A node with a standing error is not serving anything.
      */
-    private List<ClusterNode> servingNodes(UUID clusterId) {
+    List<ClusterNode> servingNodes(UUID clusterId) {
         List<ClusterNode> all = nodes.nodes(clusterId);
         List<ClusterNode> answering =
                 all.stream().filter(n -> n.getLastError() == null).toList();
