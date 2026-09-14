@@ -29,11 +29,41 @@ const REWRITES: Array<[RegExp, string]> = [
   [/\]\(xxxx-\*\.md\)/g, '](#)'],
 ];
 
-async function copyMarkdown(from: string, to: string, skip: (name: string) => boolean) {
+/**
+ * Changelog entries are commit bodies, and prose like "static <core> settings" is
+ * parsed by VitePress as a Vue element that never closes, failing the build. Escape
+ * a tag-like `<` outside fenced blocks and inline code; everything else is untouched.
+ */
+function escapeBareTags(text: string): string {
+  let fenced = false;
+  return text
+    .split('\n')
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        fenced = !fenced;
+        return line;
+      }
+      if (fenced) return line;
+      return line
+        .split(/(`[^`]*`)/)
+        .map((part) => (part.startsWith('`') ? part : part.replace(/<(?=[A-Za-z/!])/g, '&lt;')))
+        .join('');
+    })
+    .join('\n');
+}
+
+async function copyMarkdown(
+  from: string,
+  to: string,
+  skip: (name: string) => boolean,
+  transform: (text: string) => string = (text) => text,
+) {
   await mkdir(to, { recursive: true });
   for (const name of await readdir(from)) {
     if (!name.endsWith('.md') || skip(name)) continue;
-    const body = REWRITES.reduce((text, [find, put]) => text.replace(find, put), await readFile(join(from, name), 'utf8'));
+    const body = transform(
+      REWRITES.reduce((text, [find, put]) => text.replace(find, put), await readFile(join(from, name), 'utf8')),
+    );
     // README.md is the directory's index everywhere in this repo; VitePress wants index.md.
     await writeFile(join(to, name === 'README.md' ? 'index.md' : name), body);
   }
@@ -45,7 +75,7 @@ await rm(join(SRC, 'public/img'), { recursive: true, force: true });
 await copyMarkdown(join(REPO, 'docs'), REFERENCE, (name) => name !== 'architecture.md');
 // `000-template.md` is a form to fill in, not a decision anyone needs to read.
 await copyMarkdown(join(REPO, 'docs/adr'), join(REFERENCE, 'adr'), (name) => name === '000-template.md');
-await copyMarkdown(join(REPO, 'changelog'), join(REFERENCE, 'changelog'), () => false);
+await copyMarkdown(join(REPO, 'changelog'), join(REFERENCE, 'changelog'), () => false, escapeBareTags);
 
 await cp(join(REPO, 'docs/img'), join(SRC, 'public/img'), { recursive: true });
 
