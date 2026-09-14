@@ -47,8 +47,39 @@ public class CorePool {
      */
     public PooledSession borrow(UUID clusterId, String coreUrl, CoreConnectionSettings settings, int acknowledgeMode)
             throws JMSException {
-        String key = clusterId + "|" + coreUrl;
-        JmsPoolConnectionFactory pool = pools.computeIfAbsent(key, k -> buildPool(clusterId, coreUrl, settings));
+        return borrow(clusterId, coreUrl, settings, acknowledgeMode, OPERATOR, OPERATOR_SESSIONS);
+    }
+
+    /**
+     * A session for a capture drain, which holds it for as long as the tap runs. Drains borrow
+     * from their own pool, so however many taps a node carries, an operator's browse or send
+     * never waits for a session one of them is holding (core-transport spec).
+     */
+    public PooledSession borrowForCapture(UUID clusterId, String coreUrl, CoreConnectionSettings settings)
+            throws JMSException {
+        return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, CAPTURE, CAPTURE_SESSIONS);
+    }
+
+    private static final String OPERATOR = "";
+    private static final String CAPTURE = "|capture";
+
+    /** Short-lived browse, send and sampling sessions per node. */
+    private static final int OPERATOR_SESSIONS = 8;
+
+    /** Long-lived capture drains per node: one session per tap. */
+    private static final int CAPTURE_SESSIONS = 256;
+
+    private PooledSession borrow(
+            UUID clusterId,
+            String coreUrl,
+            CoreConnectionSettings settings,
+            int acknowledgeMode,
+            String purpose,
+            int maxSessions)
+            throws JMSException {
+        String key = clusterId + "|" + coreUrl + purpose;
+        JmsPoolConnectionFactory pool =
+                pools.computeIfAbsent(key, k -> buildPool(clusterId, coreUrl, settings, key, maxSessions));
         Connection connection = settings.hasCredentials()
                 ? pool.createConnection(settings.username(), settings.password())
                 : pool.createConnection();
@@ -57,15 +88,16 @@ public class CorePool {
         return new PooledSession(connection, session);
     }
 
-    private JmsPoolConnectionFactory buildPool(UUID clusterId, String coreUrl, CoreConnectionSettings settings) {
+    private JmsPoolConnectionFactory buildPool(
+            UUID clusterId, String coreUrl, CoreConnectionSettings settings, String key, int maxSessions) {
         ActiveMQConnectionFactory delegate = connectionFactory.build(settings, coreUrl);
         JmsPoolConnectionFactory pool = new JmsPoolConnectionFactory();
         pool.setConnectionFactory(delegate);
         pool.setMaxConnections(1);
-        pool.setMaxSessionsPerConnection(8);
+        pool.setMaxSessionsPerConnection(maxSessions);
         keysByCluster
                 .computeIfAbsent(clusterId, k -> ConcurrentHashMap.newKeySet())
-                .add(clusterId + "|" + coreUrl);
+                .add(key);
         return pool;
     }
 

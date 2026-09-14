@@ -115,7 +115,22 @@ public class SqlTailPoller {
      *     the number that passed through unobserved. When false the difference also
      *     contains messages that simply did not match, and the two cannot be separated
      */
-    public record TailStatus(long enqueued, long shown, long polls, Instant lastPollAt, boolean everyMessageMatches) {}
+    public record TailStatus(
+            long enqueued,
+            long shown,
+            long polls,
+            Instant lastPollAt,
+            boolean everyMessageMatches,
+            /** True while a tail started from the beginning is still walking the messages already on a queue. */
+            boolean backlogInProgress) {}
+
+    /**
+     * Pages of one queue a tail that starts from the beginning reads per tick. Its first
+     * polls walk a backlog; this spreads a deep one over several ticks instead of reading
+     * it all at once (message-index spec).
+     */
+    // ponytail: a constant, not a setting. Make it one if an operator ever needs to tune it.
+    static final int BACKLOG_PAGES_PER_TICK = 5;
 
     /** A running tail. Held by the caller so it can stop it. */
     public final class Tail {
@@ -145,6 +160,11 @@ public class SqlTailPoller {
         private final AtomicBoolean polling = new AtomicBoolean();
         private volatile boolean stopped;
 
+        /** Pages per target per poll: bounded for a tail that walks a backlog, unbounded otherwise. */
+        private final int maxPagesPerTarget;
+
+        private volatile boolean backlogInProgress;
+
         private Tail(
                 UUID clusterId,
                 QueryPlan plan,
@@ -157,6 +177,8 @@ public class SqlTailPoller {
             this.transport = transport;
             this.listener = listener;
             this.minInterval = minInterval;
+            this.maxPagesPerTarget = fromBeginning ? BACKLOG_PAGES_PER_TICK : Integer.MAX_VALUE;
+            this.backlogInProgress = fromBeginning;
             this.everyMessageMatches =
                     plan.pushedDown().isEmpty() && plan.scanned().isEmpty();
             for (Target target : plan.targets()) {
@@ -307,11 +329,27 @@ public class SqlTailPoller {
         if (tail.cancelled()) {
             return;
         }
-        executor.execute(tail.clusterId, tail.plan, tail.transport, new TailSink(tail), tail::selectorFor);
+        QueryResult result = executor.execute(
+                tail.clusterId,
+                tail.plan,
+                tail.transport,
+                new TailSink(tail),
+                tail::selectorFor,
+                tail.maxPagesPerTarget);
         tail.pollCount.incrementAndGet();
+        if (tail.maxPagesPerTarget != Integer.MAX_VALUE) {
+            // A target that filled every page it was allowed has more behind it.
+            long full = (long) tail.maxPagesPerTarget * BrokerQueryExecutor.PAGE_SIZE;
+            tail.backlogInProgress = result.nodes().stream().anyMatch(outcome -> outcome.examined() >= full);
+        }
         measureGap(tail);
         tail.listener.status(new TailStatus(
-                tail.enqueued.get(), tail.shown.get(), tail.pollCount.get(), Instant.now(), tail.everyMessageMatches));
+                tail.enqueued.get(),
+                tail.shown.get(),
+                tail.pollCount.get(),
+                Instant.now(),
+                tail.everyMessageMatches,
+                tail.backlogInProgress));
     }
 
     /**

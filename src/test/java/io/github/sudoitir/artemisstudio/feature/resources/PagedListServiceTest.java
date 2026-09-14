@@ -129,6 +129,35 @@ class PagedListServiceTest {
     }
 
     @Test
+    void concurrentReadsOfTheSameListShareOneBrokerCall() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
+        when(nodes.nodes(clusterId)).thenReturn(List.of(a));
+        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+                .thenReturn(client(URL_A, "search-broker.json", "list-consumers.json"));
+
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
+        try {
+            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<PagedView<ConsumerView>>> reads = new java.util.ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                reads.add(pool.submit(() -> {
+                    start.await();
+                    return service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null));
+                }));
+            }
+            start.countDown();
+            for (var read : reads) {
+                assertThat(read.get().data()).hasSize(1);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        org.mockito.Mockito.verify(connections, org.mockito.Mockito.times(1)).forCluster(clusterId, URL_A);
+    }
+
+    @Test
     void noManageableNodeIsAnUnreachableProblem() {
         UUID clusterId = UUID.randomUUID();
         when(nodes.nodes(clusterId)).thenReturn(List.of());

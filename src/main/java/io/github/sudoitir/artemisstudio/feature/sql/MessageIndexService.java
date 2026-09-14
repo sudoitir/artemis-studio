@@ -64,9 +64,15 @@ public class MessageIndexService {
      *     when it is running. An empty index and a broken subscription look identical
      *     from a query, so the reason travels with the subscription rather than being
      *     left in a log.
+     * @param backlogInProgress whether a sampled subscription is still indexing the messages
+     *     that were already on its queues, so its index is not yet up to date
      */
     public record Subscription(
-            MessageIndexSubscriptionEntity entity, Footprint footprint, String notCapturing, List<CaptureNode> nodes) {}
+            MessageIndexSubscriptionEntity entity,
+            Footprint footprint,
+            String notCapturing,
+            boolean backlogInProgress,
+            List<CaptureNode> nodes) {}
 
     /** Per-node capture state with the node's name resolved, which the state row does not carry. */
     public record CaptureNode(MessageCaptureNodeEntity state, String nodeName) {}
@@ -84,7 +90,11 @@ public class MessageIndexService {
                         .toList()
                 : List.of();
         return new Subscription(
-                entity, footprint, capture.notCapturingReason(entity.getId()).orElse(null), captureState);
+                entity,
+                footprint,
+                capture.notCapturingReason(entity.getId()).orElse(null),
+                entity.getMode() != CaptureMode.CAPTURE && capture.backlogInProgress(entity.getId()),
+                captureState);
     }
 
     /** The bounds and mode a subscription is created or changed with. Null means "leave it". */

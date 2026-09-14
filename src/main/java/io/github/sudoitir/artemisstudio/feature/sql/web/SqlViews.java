@@ -275,6 +275,12 @@ public final class SqlViews {
             String notCapturing,
 
             @Schema(
+                    description = "True while a sampled subscription is still indexing the messages that were"
+                            + " already on its queues when it started. That walk is spread over several polls to"
+                            + " bound broker load, and until it finishes the index is not up to date.")
+            boolean backlogInProgress,
+
+            @Schema(
                     description = "SAMPLE or CAPTURE. A sampled subscription records what a poll saw;"
                             + " a captured one records what the address routed.")
             String mode,

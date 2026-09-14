@@ -182,9 +182,9 @@ public class MessagesMcpActionTools {
                                 false,
                                 String.valueOf(p.node()),
                                 "Partially applied: " + p.count() + " message(s) were acted on before it stopped ("
-                                        + p.error() + "). " + p.notAttempted().size()
+                                        + p.error() + "). " + p.notDone().size()
                                         + " id(s) were not done, starting with "
-                                        + p.notAttempted().getFirst()
+                                        + p.notDone().getFirst()
                                         + ".");
                 };
         };

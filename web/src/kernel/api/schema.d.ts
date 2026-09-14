@@ -2269,6 +2269,8 @@ export interface components {
             oldestObservedAt?: string;
             /** @description Why this subscription is recording nothing, or null when it is running. An empty index and a subscription whose pattern matches no queue look identical from a query, so the reason is stated here. */
             notCapturing?: string;
+            /** @description True while a sampled subscription is still indexing the messages that were already on its queues when it started. That walk is spread over several polls to bound broker load, and until it finishes the index is not up to date. */
+            backlogInProgress?: boolean;
             /** @description SAMPLE or CAPTURE. A sampled subscription records what a poll saw; a captured one records what the address routed. */
             mode?: string;
             /** Format: int64 */
@@ -2400,7 +2402,7 @@ export interface components {
         PartialView: {
             /** Format: int64 */
             affectedCount: number;
-            notAttempted: number[];
+            notDone: number[];
             error: string;
             partial: boolean;
             /** Format: uuid */

@@ -204,7 +204,9 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void deleteByIdsRealCountsTheBrokerBooleans() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, BOOL_TRUE, BOOL_TRUE));
+        // Both ids go to the broker in one batch request (ADR-0076), answered positionally.
+        when(connections.forCluster(eq(clusterId), eq(URL)))
+                .thenReturn(client(SEARCH, "[" + BOOL_TRUE + "," + BOOL_TRUE + "]"));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)

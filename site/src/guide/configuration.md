@@ -69,6 +69,29 @@ Postgres owns configuration, users and the audit trail. The broker-derived
 tables — `queue_snapshot`, `metric_sample` — are a **disposable cache**: losing
 them costs you history, never truth.
 
+## Monitoring
+
+`/actuator/prometheus` exports what an operator needs to tell whether Studio itself is
+healthy and whether it is loading a broker:
+
+| Metric | Meaning |
+|---|---|
+| `jvm_threads_live_threads` | Live threads in Studio. Steady in normal operation. |
+| `studio_broker_requests_total{node}` | Management requests Studio issued to one node. |
+| `studio_broker_permit_wait_seconds{node}` | Time requests waited for that node's rate ceiling. |
+| `studio_broker_permit_timeouts_total{node}` | Requests refused because the ceiling stayed full for 5 seconds. |
+
+Recommended alerts:
+
+- **Thread growth** — `jvm_threads_live_threads` above a few hundred, or rising steadily
+  for an hour. Studio's threads are bounded by configuration, not by time.
+- **Studio at the broker ceiling** — the rate of `studio_broker_requests_total` for a node
+  close to `ARTEMIS_STUDIO_RATE_LIMIT_MANAGEMENT_CALLS_PER_SECOND`, or permit wait time
+  rising. Studio is calling that node as fast as it is allowed to; the ceiling is doing its
+  job, but views of that node will lag.
+- **Permit timeouts** — any increase of `studio_broker_permit_timeouts_total`. A request
+  was refused rather than queued without end; check what is holding that node's ceiling.
+
 ## Broker connections
 
 Registered through the UI, not the environment. A connection stores a seed

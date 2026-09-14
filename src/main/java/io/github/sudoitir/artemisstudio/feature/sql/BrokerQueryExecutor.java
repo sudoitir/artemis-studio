@@ -52,7 +52,7 @@ import org.springframework.stereotype.Component;
 public class BrokerQueryExecutor {
 
     /** The broker will not return more than this per browse, whatever we ask for. */
-    private static final int PAGE_SIZE = MessageBrowser.BROKER_PAGE_CAP;
+    static final int PAGE_SIZE = MessageBrowser.BROKER_PAGE_CAP;
 
     private final ClusterDirectory nodes;
     private final MessagePredicate residuals;
@@ -79,6 +79,15 @@ public class BrokerQueryExecutor {
         return execute(clusterId, plan, transport, sink, target -> null);
     }
 
+    public QueryResult execute(
+            UUID clusterId,
+            QueryPlan plan,
+            MessageTransport transport,
+            Sink sink,
+            Function<Target, String> extraSelector) {
+        return execute(clusterId, plan, transport, sink, extraSelector, Integer.MAX_VALUE);
+    }
+
     /**
      * As {@link #execute(UUID, QueryPlan, MessageTransport, Sink)}, with one extra
      * selector clause per target — the tail's high-water mark (ADR-0058 D7).
@@ -87,13 +96,17 @@ public class BrokerQueryExecutor {
      * the broker skips what has already been seen. Filtering here instead would mean
      * re-reading an entire queue every few seconds, which is exactly the thing
      * non-negotiable #1 exists to prevent.
+     *
+     * <p>{@code maxPagesPerTarget} bounds how much of one queue a single call reads, so a tail
+     * indexing a deep backlog walks it over several ticks rather than in one (message-index spec).
      */
     public QueryResult execute(
             UUID clusterId,
             QueryPlan plan,
             MessageTransport transport,
             Sink sink,
-            Function<Target, String> extraSelector) {
+            Function<Target, String> extraSelector,
+            int maxPagesPerTarget) {
         SqlProperties limits = properties;
         Split split = planner.splitOf(plan.ast());
         // Resolved here, on the caller's thread: the per-node threads below carry no security context.
@@ -166,7 +179,8 @@ public class BrokerQueryExecutor {
                                 limits,
                                 bounds,
                                 extraSelector,
-                                clearAccess);
+                                clearAccess,
+                                maxPagesPerTarget);
                         outcomes.add(outcome);
                         sink.nodeFinished(outcome);
                     }
@@ -224,7 +238,8 @@ public class BrokerQueryExecutor {
             SqlProperties limits,
             List<Bound> bounds,
             Function<Target, String> extraSelector,
-            boolean clearAccess) {
+            boolean clearAccess,
+            int maxPagesPerTarget) {
 
         // The selector is re-rendered per node, because a relative window means
         // something different on a node whose clock is measurably offset (ADR-0053).
@@ -321,7 +336,7 @@ public class BrokerQueryExecutor {
                     break;
                 }
             }
-            if (messages.size() < PAGE_SIZE || rows.size() >= plan.effectiveLimit()) {
+            if (messages.size() < PAGE_SIZE || rows.size() >= plan.effectiveLimit() || page >= maxPagesPerTarget) {
                 break;
             }
             page++;

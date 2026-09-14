@@ -114,7 +114,7 @@ public class MessageController {
                 switch (outcome) {
                     case Outcome.Affected a -> new AffectedView(a.count(), false, a.node());
                     case Outcome.DryRun d -> new DryRunView(d.count(), d.cap(), d.overCap(), d.node());
-                    case Outcome.Partial p -> new PartialView(p.count(), p.notAttempted(), p.error(), true, p.node());
+                    case Outcome.Partial p -> new PartialView(p.count(), p.notDone(), p.error(), true, p.node());
                 };
         return ResponseEntity.ok(body);
     }

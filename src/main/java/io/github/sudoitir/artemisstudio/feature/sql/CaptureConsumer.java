@@ -156,11 +156,8 @@ public class CaptureConsumer {
         // reported — `host:port`, with no scheme — and the Core client rejects that
         // with "Schema <host> not found". Normalising here rather than at the caller
         // keeps one answer to what a dialable Core URL is.
-        PooledSession jms = corePool.borrow(
-                spec.clusterId(),
-                CoreUrl.dialable(spec.coreUrl()),
-                connections.coreSettingsFor(spec.clusterId()),
-                Session.CLIENT_ACKNOWLEDGE);
+        PooledSession jms = corePool.borrowForCapture(
+                spec.clusterId(), CoreUrl.dialable(spec.coreUrl()), connections.coreSettingsFor(spec.clusterId()));
         try {
             Session session = jms.session();
             MessageConsumer consumer = session.createConsumer(session.createQueue(spec.captureQueue()));

@@ -100,6 +100,7 @@ public class SqlIndexController {
                 subscription.footprint().payloadBytes(),
                 iso(subscription.footprint().oldest()),
                 subscription.notCapturing(),
+                subscription.backlogInProgress(),
                 entity.getMode().name(),
                 entity.getRingSize(),
                 entity.getFilterString(),

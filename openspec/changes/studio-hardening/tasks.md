@@ -49,20 +49,20 @@
   - Registration and capability probes take permits.
 - [x] 3.3 Move limiter acquisition into `JolokiaBrokerClient` (keyed by Jolokia URL, one permit per 50 operations). A timeout restores the interrupt flag and maps to a stable error.
 - [x] 3.4 Delete call-site `limiter.acquire` calls: `ScrapeScheduler`, `BrokerCommands`, `MessageService`, `BrokerQueryExecutor`, `DlqService`, `MessageVerifier`, `BrokerConfigApplyService`, `RoutingService`, `ConfigDiffService`, and any others found by grep.
-- [ ] 3.5 Add Micrometer `studio.broker.requests{node}` and `studio.broker.permit.wait{node}`. Document the recommended alerts in the site guide.
+- [x] 3.5 Add Micrometer `studio.broker.requests{node}` and `studio.broker.permit.wait{node}`. Document the recommended alerts in the site guide.
 - [x] 3.6 Bound `CoreMessageTransport.browse`.
   - Stop at `skip + size`.
   - Get the total from `MessageCount` or `countMessages(filter)`, or return `null` with a reason.
   - Make `BrowsePage.total` nullable with its reason.
   - Add a Testcontainers test: page 1 of a 10k-message queue reads at most one page.
 - [x] 3.7 Give `RrSampler` a `sample(target, limit)` path that never counts.
-- [ ] 3.8 Check with ctx7 whether an Artemis filter over message ids can replace the per-id exec loop. Then batch by-id operations in chunks of 50 per POST, keeping the partial contract.
-- [ ] 3.9 Add a single-flight 2s cache per `(cluster, node, kind)` to `PagedListService`. Test: 10 concurrent requests make 1 broker call.
-- [ ] 3.10 Bound sampled index backlog walks with `backlog-pages-per-tick` (default 5).
+- [x] 3.8 Check with ctx7 whether an Artemis filter over message ids can replace the per-id exec loop. Then batch by-id operations in chunks of 50 per POST, keeping the partial contract.
+- [x] 3.9 Add a single-flight 2s cache per `(cluster, node, kind)` to `PagedListService`. Test: 10 concurrent requests make 1 broker call.
+- [x] 3.10 Bound sampled index backlog walks with `backlog-pages-per-tick` (default 5).
   - Persist the position in the tail mark.
   - Expose `backlogInProgress` on the subscription.
   - Add a test.
-- [ ] 3.11 Set `consumerWindowSize` in `CoreConnectionFactory` (verify the 2.56 URL parameter via ctx7).
+- [x] 3.11 Set `consumerWindowSize` in `CoreConnectionFactory` (verify the 2.56 URL parameter via ctx7).
   - `CorePool` gets a separate `|capture` key sized to the tap ceiling.
   - Test: capture drains beyond 8 do not block a browse.
 - [ ] 3.12 Run `./mvnw verify` and commit `perf(broker)`.

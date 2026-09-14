@@ -66,6 +66,18 @@ public class MessageIndexCapture {
         return java.util.Optional.ofNullable(notCapturing.get(subscriptionId));
     }
 
+    /**
+     * Subscriptions still walking the messages that were already on their queues when indexing
+     * started. That walk is spread over several polls (message-index spec), and until it is done
+     * the index is not up to date, which the subscription must say.
+     */
+    private final Set<UUID> walkingBacklog = ConcurrentHashMap.newKeySet();
+
+    /** Whether this subscription is still indexing the messages that were on its queues when it started. */
+    public boolean backlogInProgress(UUID subscriptionId) {
+        return walkingBacklog.contains(subscriptionId);
+    }
+
     /** Registered with {@code JobScheduler}; the tail poller does the actual reading. */
     public void reconcile() {
         // A CAPTURE subscription is drained by the capture consumer, not polled here.
@@ -87,6 +99,7 @@ public class MessageIndexCapture {
         });
 
         notCapturing.keySet().retainAll(wanted);
+        walkingBacklog.retainAll(wanted);
 
         for (MessageIndexSubscriptionEntity subscription : enabled) {
             try {
@@ -149,7 +162,7 @@ public class MessageIndexCapture {
                 clusterId,
                 plan,
                 console.transportFor(clusterId),
-                new IndexSink(clusterId),
+                new IndexSink(clusterId, subscription.getId()),
                 Duration.ofMillis(subscription.getIntervalMs()),
                 true);
         running.put(subscription.getId(), new Capture(tail, fingerprint));
@@ -164,9 +177,13 @@ public class MessageIndexCapture {
     /** Writes what a poll saw. Nothing is delivered anywhere else. */
     private final class IndexSink implements SqlTailPoller.Listener {
         private final UUID clusterId;
+        private final UUID subscriptionId;
 
-        private IndexSink(UUID clusterId) {
+        private IndexSink(UUID clusterId, UUID subscriptionId) {
             this.clusterId = clusterId;
+            this.subscriptionId = subscriptionId;
+            // A new tail starts from the beginning, so it is walking a backlog until a poll says it is not.
+            walkingBacklog.add(subscriptionId);
         }
 
         @Override
@@ -190,7 +207,13 @@ public class MessageIndexCapture {
         @Override
         public void status(SqlTailPoller.TailStatus status) {
             // The gap between enqueued and captured is reported to the operator on the
-            // subscription, from the index's own counts, rather than kept per poll.
+            // subscription, from the index's own counts, rather than kept per poll. Whether the
+            // backlog walk is still going is only known here.
+            if (status.backlogInProgress()) {
+                walkingBacklog.add(subscriptionId);
+            } else {
+                walkingBacklog.remove(subscriptionId);
+            }
         }
 
         @Override

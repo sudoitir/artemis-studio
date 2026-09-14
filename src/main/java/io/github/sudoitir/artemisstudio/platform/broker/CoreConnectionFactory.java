@@ -24,6 +24,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CoreConnectionFactory {
 
+    /** Bytes of messages a Core consumer or browser buffers ahead of reading them. */
+    static final int CONSUMER_WINDOW_BYTES = 64 * 1024;
+
     private final BrokerProperties properties;
     private final SslBundles sslBundles;
 
@@ -33,7 +36,10 @@ public class CoreConnectionFactory {
     }
 
     public ActiveMQConnectionFactory build(CoreConnectionSettings settings, String dialableCoreUrl) {
-        String url = dialableCoreUrl + "?useTopologyForLoadBalancing=false";
+        // A bounded prefetch: the default 1 MiB per consumer and browser is buffered in Studio
+        // whether or not it is read, which a browse of one page or a paused capture drain
+        // never needs (core-transport spec).
+        String url = dialableCoreUrl + "?useTopologyForLoadBalancing=false;consumerWindowSize=" + CONSUMER_WINDOW_BYTES;
         if (settings.hasTls()) {
             // ponytail: one shared default SSLContext for every Core connection. Per-connection
             // broker trust material would need a custom Artemis SSLContextFactory; add that only

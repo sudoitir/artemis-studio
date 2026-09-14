@@ -101,13 +101,13 @@ public final class MessageViews {
      * An operation by ids that stopped part-way. Some messages were acted on, so this is never
      * reported as a plain failure: the operator needs to know what already changed.
      *
-     * @param affectedCount how many were acted on before it stopped
-     * @param notAttempted the id that failed and every id after it
+     * @param affectedCount how many were acted on
+     * @param notDone every id that was not acted on: refused by the broker, or never sent after the failure
      * @param error why it stopped
      */
     public record PartialView(
             @Schema(requiredMode = REQUIRED) long affectedCount,
-            @Schema(requiredMode = REQUIRED) java.util.List<Long> notAttempted,
+            @Schema(requiredMode = REQUIRED) java.util.List<Long> notDone,
             @Schema(requiredMode = REQUIRED) String error,
             @Schema(requiredMode = REQUIRED) boolean partial,
             @Schema(requiredMode = REQUIRED) UUID node) {}

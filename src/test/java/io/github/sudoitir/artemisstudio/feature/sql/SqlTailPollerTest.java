@@ -171,7 +171,59 @@ class SqlTailPollerTest {
         assertThat(listener.statuses.getLast().everyMessageMatches()).isFalse();
     }
 
+    @Test
+    void aDeepBacklogIsWalkedABoundedNumberOfPagesPerTickAndSaysItIsStillGoing() {
+        DeepTransport transport = new DeepTransport();
+        CollectingListener listener = new CollectingListener();
+        SqlTailPoller poller = poller();
+        poller.start(CLUSTER, plan("SELECT * FROM \"ORDER.IN\""), transport, listener, Duration.ZERO, true);
+
+        poller.tick();
+        await(() -> !listener.statuses.isEmpty());
+
+        assertThat(transport.pagesRead.get()).isEqualTo(SqlTailPoller.BACKLOG_PAGES_PER_TICK);
+        assertThat(listener.statuses.getLast().backlogInProgress()).isTrue();
+    }
+
+    @Test
+    void aShallowBacklogIsFinishedInOneTick() {
+        CollectingListener listener = new CollectingListener();
+        SqlTailPoller poller = poller();
+        poller.start(
+                CLUSTER, plan("SELECT * FROM \"ORDER.IN\""), new RecordingTransport(3), listener, Duration.ZERO, true);
+
+        poller.tick();
+        await(() -> !listener.statuses.isEmpty());
+
+        assertThat(listener.statuses.getLast().backlogInProgress()).isFalse();
+    }
+
     // ---- harness --------------------------------------------------------
+
+    /** A queue deeper than any tick may read: every page is full, and every message is distinct. */
+    private static final class DeepTransport implements MessageTransport {
+        final java.util.concurrent.atomic.AtomicInteger pagesRead = new java.util.concurrent.atomic.AtomicInteger();
+
+        @Override
+        public Channel channel() {
+            return Channel.JOLOKIA;
+        }
+
+        @Override
+        public BrowseResult browse(TransportTarget target, int page, int size, String filter) {
+            pagesRead.incrementAndGet();
+            List<BrowsedMessage> messages = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                messages.add(message((page - 1) * size + i));
+            }
+            return new BrowseResult(new BrowsePage(messages, 1_000_000L), Channel.JOLOKIA);
+        }
+
+        @Override
+        public void send(TransportTarget target, SendSpec spec) {
+            throw new UnsupportedOperationException();
+        }
+    }
 
     private SqlTailPoller poller() {
         SqlProperties properties = new SqlProperties(

@@ -97,10 +97,10 @@ public class MessageService {
         record DryRun(long count, long cap, boolean overCap, UUID node) implements Outcome {}
 
         /**
-         * An operation by ids that stopped part-way: {@code count} were acted on before
-         * {@code error}, and {@code notAttempted} holds the id that failed and every id after it.
+         * An operation by ids that stopped part-way: {@code count} were acted on, and
+         * {@code notDone} holds every id that was not — refused, or never sent after {@code error}.
          */
-        record Partial(long count, List<Long> notAttempted, String error, UUID node) implements Outcome {}
+        record Partial(long count, List<Long> notDone, String error, UUID node) implements Outcome {}
     }
 
     // ---- browse -----------------------------------------------------------
@@ -251,7 +251,7 @@ public class MessageService {
                             "Stopped after " + result.affected() + " of "
                                     + req.ids().size() + ": " + result.error());
                     return new Attempt.Ok<>(
-                            new Outcome.Partial(result.affected(), result.notAttempted(), result.error(), node));
+                            new Outcome.Partial(result.affected(), result.notDone(), result.error(), node));
                 }
                 audit.succeed(event, result.affected());
                 return new Attempt.Ok<>(new Outcome.Affected(result.affected(), node));
