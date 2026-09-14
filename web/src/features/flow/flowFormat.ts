@@ -63,3 +63,13 @@ export function rateSortValue(rate: number | null | undefined, descending: boole
   if (rate === null || rate === undefined) return descending ? -Infinity : Infinity;
   return rate;
 }
+
+/** The text an edge carries: how a route delivers, the rate, and any fault, in words. */
+export function edgeText(view: FlowEdgeView): string {
+  const parts: string[] = [];
+  if (view.kind === 'ROUTE' && view.delivery) parts.push(view.delivery === 'COPY' ? 'copy' : 'shared');
+  parts.push(rateLabel(view));
+  for (const f of view.faults ?? []) parts.push(FAULT_LABELS[f] ?? f.toLowerCase());
+  if (view.stale) parts.push('stale');
+  return parts.join(' · ');
+}

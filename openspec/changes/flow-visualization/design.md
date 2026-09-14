@@ -154,8 +154,7 @@ rejected, because it adds a second rendering system and loses per-edge accessibi
 
 ### D9. Screen composition reuses the kernel and existing UI
 `feature.ts` (route `flow` under `clusterRoute`, `featureView`, `validateSearch` for `tab,
-lens, focus, rank, limit, groupBy, layers, nodes`; nav `observe` order 15; palette "Focus
-flow on…"; `streamTopics.flow` invalidates). `useFlowGraph` = TanStack Query + `poll(15_000)`
+lens, focus, rank, limit, groupBy, layers, nodes`; nav `observe` order 15; `streamTopics.flow` invalidates). `useFlowGraph` = TanStack Query + `poll(15_000)`
 + `keepPreviousData`; `useClusterStream(['flow'])` is the demand signal. Components:
 `FlowView` (toolbar, KPI strip, footer bound), `FlowCanvas`, `nodes/*`, `FlowEdge`,
 `FlowLegend` (from exported marks, as in topology), `FlowInspector` (Overview, Members,
@@ -164,6 +163,9 @@ Routing; member rows link to the resources route that owns the `ConfirmByTyping`
 above the ADR-0056 threshold: `onlyRenderVisibleElements`, `MiniMap`, stated. Tokens
 `--as-flow-edge`, `--as-flow-edge-busy`, `--as-flow-dot`, `--as-flow-fault`,
 `--as-flow-dim`, `--as-flow-lane` in both schemes, contrast measured.
+
+No command-palette group: the palette renders on every cluster page, and a flow read
+from it would renew the sampling lease while nobody is watching (ADR-0081).
 
 ### D10. Observability of the sampler itself
 Micrometer `studio.flow.sample.duration` (timer, tag cluster), `studio.flow.sample.rows`,

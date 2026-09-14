@@ -24,3 +24,68 @@
 .empty {
   max-inline-size: 64ch;
 }
+
+/* Graph beside its inspector; stacked when the column is too narrow for both. */
+.graphLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mantine-spacing-md);
+  align-items: start;
+}
+
+.graphLayout[data-inspecting] {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+}
+
+@media (max-width: 64em) {
+  .graphLayout[data-inspecting] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.inspector {
+  padding: var(--mantine-spacing-md);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface);
+  max-block-size: clamp(520px, 68vh, 880px);
+  overflow: auto;
+}
+
+.inspectorTitle {
+  min-inline-size: 0;
+}
+
+.breakAnywhere {
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--mantine-spacing-xs);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.fact dt {
+  color: var(--as-text-dimmed);
+}
+
+.fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.flowRow {
+  display: grid;
+  gap: 0;
+  padding-block: 4px;
+  border-block-end: 1px solid var(--as-border);
+}

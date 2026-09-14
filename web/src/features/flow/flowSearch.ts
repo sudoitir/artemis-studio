@@ -1,3 +1,5 @@
+import type { FlowNodeView } from './api.ts';
+
 /**
  * What the flow view is showing, as URL search params (non-negotiable #9): a shared or reloaded
  * address restores the same focus, ranking, grouping, bound and sort.
@@ -12,6 +14,8 @@ export type FlowRank = (typeof FLOW_RANKS)[number];
 export type FlowGroupBy = (typeof FLOW_GROUPINGS)[number];
 
 export interface FlowSearch {
+  /** The graph is the default view; the table is its accessible twin. */
+  tab?: 'table';
   /** `client:<name>`, `address:<name>` or `queue:<name>`. */
   focus?: string;
   hops?: number;
@@ -26,6 +30,7 @@ const FOCUS = /^(client|address|queue):.+$/;
 
 export function validateFlowSearch(raw: Record<string, unknown>): FlowSearch {
   const out: FlowSearch = {};
+  if (raw.tab === 'table') out.tab = 'table';
   if (typeof raw.focus === 'string' && FOCUS.test(raw.focus)) out.focus = raw.focus;
   const hops = Number(raw.hops);
   if (Number.isInteger(hops) && hops >= 2 && hops <= 3) out.hops = hops;
@@ -50,4 +55,10 @@ export function parseFocus(focus: string | undefined): { kind: 'client' | 'addre
   if (!focus || !FOCUS.test(focus)) return null;
   const colon = focus.indexOf(':');
   return { kind: focus.slice(0, colon) as 'client' | 'address' | 'queue', name: focus.slice(colon + 1) };
+}
+
+/** The URL focus for a node: clients by their grouped label, resources by name. */
+export function focusOf(node: FlowNodeView): string {
+  const kind = node.kind === 'QUEUE' ? 'queue' : node.kind === 'ADDRESS' ? 'address' : 'client';
+  return `${kind}:${node.label}`;
 }

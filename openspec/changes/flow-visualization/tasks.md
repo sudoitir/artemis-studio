@@ -51,22 +51,22 @@ conventional commit. Design refs are `design.md` D1–D10.
 
 ## 6. Layer 2 — Graph
 
-- [ ] 6.1 `layout.worker.ts` + `useElkLayout`: layered RIGHT, column constraints, model-order seeding, node-set signature keying; `layout.test.ts` (columns, rate-only update keeps positions) (D7)
-- [ ] 6.2 Node components (client pill, address tag with A/M badge, queue box with depth bar, consumer group ×N, remote/broker) with accessible names and focus ring (ui-ux-pro-max pass)
-- [ ] 6.3 Static `FlowEdge`: width tiers, idle dashed, rate label with tabular figures, measuring / not counted / stale, fault glyph + word
-- [ ] 6.4 `FlowCanvas`: React Flow with drag/connect off, controls, fit with maxZoom 1, refit on node-set change, LOD by zoom, dense mode with `onlyRenderVisibleElements` + `MiniMap` stated
-- [ ] 6.5 `FlowLegend` generated from exported node/edge marks, docked in view
-- [ ] 6.6 Path emphasis on hover/select (dim others to 0.3); focus via click, search combobox and a "Focus flow on…" palette group; breadcrumb; Esc clears
-- [ ] 6.7 `FlowInspector` (Overview with queue sparkline via metrics, Members with links to resources close flows, Routing); focus returns to node on close
-- [ ] 6.8 Screen-reader status summary; keyboard-only test (tab → Enter → Esc returns focus); Graph/Table parity test
+- [x] 6.1 `layout.worker.ts` + `useElkLayout`: layered RIGHT, column constraints, model-order seeding, node-set signature keying; `layout.test.ts` (columns, rate-only update keeps positions) (D7)
+- [x] 6.2 Node components (client pill, address tag with A/M badge, queue box with depth bar, consumer group ×N, remote/broker) with accessible names and focus ring (ui-ux-pro-max pass)
+- [x] 6.3 Static `FlowEdge`: width tiers, idle dashed, rate label with tabular figures, measuring / not counted / stale, fault glyph + word
+- [x] 6.4 `FlowCanvas`: React Flow with drag/connect off, controls, fit with maxZoom 1, refit on node-set change, LOD by zoom, dense mode with `onlyRenderVisibleElements` + `MiniMap` stated
+- [x] 6.5 `FlowLegend` generated from exported node/edge marks, docked in view
+- [x] 6.6 Path emphasis on hover/focus/select (others dimmed); focus via the inspector, the table and a find box; Esc clears. The "Focus flow on…" palette group is dropped: the palette renders on every cluster page, and a flow read there would renew the sampling lease with nobody watching (ADR-0081)
+- [x] 6.7 `FlowInspector` (Overview with queue sparkline via metrics, Members with links to resources close flows, Routing); focus returns to node on close
+- [x] 6.8 Screen-reader status summary; keyboard-only test (tab → Enter → Esc returns focus); Graph/Table parity test
 - [ ] 6.9 Commit layer 2 after `just verify`
 
 ## 7. Layer 3 — Motion
 
-- [ ] 7.1 Speed buckets, dot counts and global budget as pure functions; `edgeEncoding.test.ts` (D8)
-- [ ] 7.2 `animateMotion` dots in `FlowEdge`, memoised on (path, bucket, dots); a test that a same-bucket refresh does not re-render the dots
-- [ ] 7.3 Pause control, `useReducedMotion` (no dots rendered), `document.hidden` and off-screen → `pauseAnimations()`; tests for reduced motion and Pause (operator-ui delta)
-- [ ] 7.4 Node enter/exit transform transitions (200 ms), disabled under reduced motion
+- [x] 7.1 Speed buckets, dot counts and global budget as pure functions; `edgeEncoding.test.ts` (D8)
+- [x] 7.2 `animateMotion` dots in `FlowEdge`, memoised on (path, bucket, dots); a test that a same-bucket refresh does not re-render the dots
+- [x] 7.3 Pause control, `useReducedMotion` (no dots rendered), `document.hidden` and off-screen → `pauseAnimations()`; tests for reduced motion and Pause (operator-ui delta)
+- [x] 7.4 Node enter/exit transform transitions (200 ms), disabled under reduced motion
 - [ ] 7.5 Perf check: 200-edge canvas profile at 60 fps; record result in the PR
 - [ ] 7.6 Commit layer 3 after `just verify`
 

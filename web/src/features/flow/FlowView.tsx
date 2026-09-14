@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -13,11 +14,15 @@ import {
   Title,
   VisuallyHidden,
 } from '@mantine/core';
+import { useReducedMotion } from '@mantine/hooks';
+import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { useFlowGraph, type FlowGraphView } from './api.ts';
 import { BrokerNodeNotices } from './BrokerNodeNotices.tsx';
+import { FlowCanvas } from './FlowCanvas.tsx';
+import { FlowInspector } from './FlowInspector.tsx';
 import { FlowKpis } from './FlowKpis.tsx';
 import { GROUP_LABELS, RANK_LABELS, totalRateLabel } from './flowFormat.ts';
 import {
@@ -25,6 +30,7 @@ import {
   FLOW_GROUPINGS,
   FLOW_LIMITS,
   FLOW_RANKS,
+  focusOf,
   parseFocus,
   type FlowGroupBy,
   type FlowRank,
@@ -33,10 +39,17 @@ import {
 import { FlowTable } from './FlowTable.tsx';
 import classes from './FlowView.module.css';
 
+const FIND_GROUPS: Array<{ group: string; kinds: string[] }> = [
+  { group: 'Clients', kinds: ['PRODUCER', 'CONSUMER'] },
+  { group: 'Addresses', kinds: ['ADDRESS'] },
+  { group: 'Queues', kinds: ['QUEUE'] },
+];
+
 /**
  * Flow: which clients produce to which addresses, how those route into queues, and who consumes
  * them — bounded to the busiest paths, focusable on any one resource, with every rate's source and
- * age stated (flow-visualization spec). Everything that describes the view lives in the URL.
+ * age stated (flow-visualization spec). Everything that describes the view lives in the URL; what is
+ * hovered, selected or paused is local to this visit.
  */
 export function FlowView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
@@ -138,16 +151,15 @@ export function FlowView() {
       ) : graph.data === undefined ? (
         <Stack gap="sm" aria-busy="true" aria-label="Loading flow">
           <Skeleton height={72} />
-          <Skeleton height={360} />
+          <Skeleton height={420} />
         </Stack>
       ) : (
         <FlowBody
+          clusterId={clusterId}
           data={graph.data}
           search={search}
-          onSortChange={(sort) => setSearch({ sort })}
-          onFocus={(next) => setSearch({ focus: next, hops: undefined })}
-          onClearFocus={() => setSearch({ focus: undefined, hops: undefined })}
           rank={rank}
+          setSearch={setSearch}
         />
       )}
     </Stack>
@@ -155,30 +167,67 @@ export function FlowView() {
 }
 
 function FlowBody({
+  clusterId,
   data,
   search,
   rank,
-  onSortChange,
-  onFocus,
-  onClearFocus,
+  setSearch,
 }: {
+  clusterId: string;
   data: FlowGraphView;
   search: FlowSearch;
   rank: FlowRank;
-  onSortChange: (sort: string | undefined) => void;
-  onFocus: (focus: string) => void;
-  onClearFocus: () => void;
+  setSearch: (patch: Partial<Record<keyof FlowSearch, unknown>>) => void;
 }) {
   const now = useServerNow();
+  const reducedMotion = useReducedMotion();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
+  const opener = useRef<HTMLElement | null>(null);
+
   const totals = data.totals ?? { paths: 0, shown: 0, limit: DEFAULT_LIMIT, clamped: false };
   const kpis = data.kpis ?? { backlog: 0, clients: 0, faults: 0 };
-  const brokerNodes = data.brokerNodes ?? [];
   const nothingAtAll = (totals.paths ?? 0) === 0 && (kpis.clients ?? 0) === 0 && !data.focus;
+  const tab = search.tab ?? 'graph';
+  const nodes = data.nodes ?? [];
+
+  const select = useCallback((id: string | null) => {
+    if (id) {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setSelected(id);
+    } else {
+      setSelected(null);
+    }
+  }, []);
+
+  const closeInspector = () => {
+    setSelected(null);
+    const back = opener.current;
+    if (back?.isConnected) back.focus();
+  };
+
+  const focusOn = (next: string) => {
+    setSelected(null);
+    setSearch({ focus: next, hops: undefined });
+  };
+
+  // Values are focus strings, unique by construction: an address and its queue commonly share a
+  // name, and a client that both produces and consumes is one client.
+  const findData = FIND_GROUPS.map(({ group, kinds }) => {
+    const seen = new Map<string, string>();
+    for (const n of nodes) {
+      if (kinds.includes(n.kind ?? '')) seen.set(focusOf(n), n.label ?? '');
+    }
+    return {
+      group,
+      items: [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label)),
+    };
+  }).filter((g) => g.items.length > 0);
 
   return (
     <Stack gap="md">
       <FlowKpis kpis={kpis} />
-      <BrokerNodeNotices nodes={brokerNodes} />
+      <BrokerNodeNotices nodes={data.brokerNodes ?? []} />
 
       {data.measuring ? (
         <Text size="sm" c="dimmed" role="status">
@@ -190,10 +239,8 @@ function FlowBody({
       {data.focus && !data.focus.matched ? (
         <Alert variant="light" color="gray" title={`Nothing matches the focus ${data.focus.kind} ${data.focus.name}`}>
           <Stack gap="xs" align="flex-start">
-            <Text size="sm">
-              It may have been deleted, or its clients disconnected since the address was shared.
-            </Text>
-            <Button size="xs" variant="default" onClick={onClearFocus}>
+            <Text size="sm">It may have been deleted, or its clients disconnected since the address was shared.</Text>
+            <Button size="xs" variant="default" onClick={() => setSearch({ focus: undefined, hops: undefined })}>
               Clear focus
             </Button>
           </Stack>
@@ -208,13 +255,82 @@ function FlowBody({
               consumers.
             </Text>
             <Text size="sm" c="dimmed">
-              Clients appear here within one sampling interval of attaching. New queues appear once the queue
-              sweep has read them.
+              Clients appear here within one sampling interval of attaching. New queues appear once the queue sweep
+              has read them.
             </Text>
           </Stack>
         </Paper>
       ) : (
-        <FlowTable graph={data} sort={search.sort} onSortChange={onSortChange} onFocus={onFocus} />
+        <Stack gap="sm">
+          <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
+            <SegmentedControl
+              size="xs"
+              aria-label="View as"
+              data={[
+                { value: 'graph', label: 'Graph' },
+                { value: 'table', label: 'Table' },
+              ]}
+              value={tab}
+              onChange={(value) => setSearch({ tab: value === 'table' ? 'table' : undefined })}
+            />
+            <Group gap="sm" align="flex-end" wrap="wrap">
+              <Select
+                label="Find in this view"
+                placeholder="Client, address or queue"
+                size="xs"
+                w={260}
+                searchable
+                clearable
+                limit={30}
+                data={findData}
+                value={null}
+                nothingFoundMessage="Not in the shown paths — raise the limit to reach more"
+                onChange={(value) => {
+                  if (value) focusOn(value);
+                }}
+              />
+              {tab === 'graph' ? (
+                reducedMotion ? (
+                  <Text size="xs" c="dimmed">
+                    Motion off: your system asks for reduced motion.
+                  </Text>
+                ) : (
+                  <Button
+                    size="xs"
+                    variant="default"
+                    aria-pressed={paused}
+                    leftSection={paused ? <IconPlayerPlay size={14} /> : <IconPlayerPause size={14} />}
+                    onClick={() => setPaused((p) => !p)}
+                  >
+                    {paused ? 'Resume motion' : 'Pause motion'}
+                  </Button>
+                )
+              ) : null}
+            </Group>
+          </Group>
+
+          {tab === 'graph' ? (
+            <div className={classes.graphLayout} data-inspecting={selected ? true : undefined}>
+              <FlowCanvas graph={data} selectedId={selected} onSelect={select} paused={paused} />
+              {selected ? (
+                <FlowInspector
+                  graph={data}
+                  nodeId={selected}
+                  clusterId={clusterId}
+                  onClose={closeInspector}
+                  onFocus={focusOn}
+                />
+              ) : null}
+            </div>
+          ) : (
+            <FlowTable
+              graph={data}
+              sort={search.sort}
+              onSortChange={(sort) => setSearch({ sort })}
+              onFocus={(next) => setSearch({ focus: next, hops: undefined })}
+            />
+          )}
+        </Stack>
       )}
 
       <div className={classes.footer}>
@@ -234,9 +350,7 @@ function FlowBody({
         ) : null}
         <Text size="xs" c="dimmed">
           Totals cover every path.{' '}
-          {data.sampledAt
-            ? `Clients sampled ${elapsedLabel(now - Date.parse(data.sampledAt))} ago.`
-            : 'Clients not sampled yet.'}
+          {data.sampledAt ? `Clients sampled ${elapsedLabel(now - Date.parse(data.sampledAt))} ago.` : 'Clients not sampled yet.'}
         </Text>
       </div>
 

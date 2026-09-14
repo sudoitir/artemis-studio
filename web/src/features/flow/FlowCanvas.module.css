@@ -1,0 +1,275 @@
+.wrapper {
+  position: relative;
+  block-size: clamp(520px, 68vh, 880px);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-graph-node-bg);
+  overflow: hidden;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* ── nodes ─────────────────────────────────────────────────────────────── */
+
+.node {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  padding-block: 8px;
+  padding-inline: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid var(--as-border);
+  background: var(--as-flow-node-bg);
+  color: var(--as-text);
+  cursor: pointer;
+  transition:
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+/* Shape carries kind, so kinds are told apart without colour. */
+.node[data-shape='pill'] {
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+
+.node[data-shape='tag'] {
+  border-radius: var(--mantine-radius-xs);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 10px 50%);
+  padding-inline: 22px 26px;
+}
+
+.node[data-shape='box'] {
+  border-radius: var(--mantine-radius-sm);
+}
+
+.node:hover {
+  border-color: var(--as-flow-edge-busy);
+}
+
+.node:focus-visible {
+  outline: 2px solid var(--as-text);
+  outline-offset: 3px;
+}
+
+.node[data-fault] {
+  border-color: var(--as-flow-fault);
+}
+
+.node[data-dimmed] {
+  opacity: var(--as-flow-dim);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.label {
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count,
+.meta {
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fault {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--as-flow-fault);
+}
+
+.depth {
+  display: block;
+  block-size: 4px;
+  border-radius: 2px;
+  background: var(--as-border);
+  overflow: hidden;
+}
+
+.depthFill {
+  display: block;
+  block-size: 100%;
+  background: var(--as-flow-depth);
+}
+
+.node[data-fault] .depthFill {
+  background: var(--as-flow-fault);
+}
+
+.handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  block-size: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--as-flow-lane);
+  cursor: default;
+}
+
+.laneCount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* ── edges ─────────────────────────────────────────────────────────────── */
+
+.edge {
+  stroke: var(--as-flow-edge);
+  transition: opacity 160ms ease;
+}
+
+.edge[data-tier='busy'] {
+  stroke: var(--as-flow-edge-busy);
+}
+
+.edge[data-tier='idle'] {
+  stroke-dasharray: 4 4;
+}
+
+.edge[data-tier='unknown'] {
+  stroke-dasharray: 1 5;
+  stroke-linecap: round;
+}
+
+.edge[data-stale] {
+  stroke-dasharray: 6 3;
+}
+
+.edge[data-fault] {
+  stroke: var(--as-flow-fault);
+}
+
+.edge[data-dimmed] {
+  opacity: var(--as-flow-dim);
+}
+
+.dot {
+  fill: var(--as-flow-dot);
+}
+
+.edgeLabel {
+  position: absolute;
+  padding-block: 1px;
+  padding-inline: 6px;
+  border-radius: 999px;
+  background: var(--as-graph-node-bg);
+  border: 1px solid var(--as-border);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.edgeLabel[data-fault] {
+  color: var(--as-flow-fault);
+  border-color: var(--as-flow-fault);
+}
+
+.edgeLabel[data-dimmed] {
+  opacity: var(--as-flow-dim);
+}
+
+.minimapNode {
+  fill: var(--as-flow-edge);
+}
+
+/* ── legend ────────────────────────────────────────────────────────────── */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding-block-start: 8px;
+  font-size: 11px;
+  color: var(--as-text-dimmed);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendShape {
+  inline-size: 18px;
+  block-size: 10px;
+  border: 1px solid var(--as-text-dimmed);
+}
+
+.legendShape[data-shape='pill'] {
+  border-radius: 999px;
+}
+
+.legendShape[data-shape='tag'] {
+  clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%);
+  background: var(--as-text-dimmed);
+}
+
+.legendShape[data-shape='box'] {
+  border-radius: 2px;
+}
+
+.legendLine {
+  inline-size: 22px;
+  block-size: 0;
+  border-block-start: 1.75px solid var(--as-flow-edge);
+}
+
+.legendLine[data-tier='busy'] {
+  border-block-start-width: 3px;
+  border-block-start-color: var(--as-flow-edge-busy);
+}
+
+.legendLine[data-tier='idle'] {
+  border-block-start-style: dashed;
+  border-block-start-width: 1px;
+}
+
+.legendLine[data-tier='unknown'] {
+  border-block-start-style: dotted;
+}
+
+.legendLine[data-fault] {
+  border-block-start-color: var(--as-flow-fault);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node,
+  .edge {
+    transition: none;
+  }
+}

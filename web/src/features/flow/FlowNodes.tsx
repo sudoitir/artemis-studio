@@ -1,0 +1,151 @@
+import { memo, useContext, type ReactNode } from 'react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
+
+import type { FlowNodeView } from './api.ts';
+import { FlowCanvasContext } from './canvasContext.ts';
+import { FAULT_LABELS, formatCount } from './flowFormat.ts';
+import type { FlowNodeData, LaneData } from './flowLayout.ts';
+import classes from './FlowCanvas.module.css';
+
+const KIND_WORD: Record<string, string> = {
+  PRODUCER: 'Producing client',
+  CONSUMER: 'Consuming client',
+  ADDRESS: 'Address',
+  QUEUE: 'Queue',
+};
+
+function faultWords(view: FlowNodeView): string[] {
+  return (view.faults ?? []).map((f) => FAULT_LABELS[f] ?? f.toLowerCase());
+}
+
+/** The sentence a screen reader hears for a node: what it is, its figures, and what is wrong. */
+function nodeSentence(view: FlowNodeView): string {
+  const parts = [`${KIND_WORD[view.kind ?? ''] ?? 'Node'} ${view.label}`];
+  if (view.kind === 'QUEUE') {
+    parts.push(
+      view.messageCount === null || view.messageCount === undefined
+        ? 'not swept yet'
+        : `${formatCount(view.messageCount)} waiting, ${view.consumerCount ?? 0} consumers`,
+    );
+  }
+  if ((view.members ?? 0) > 1) parts.push(`${view.members} connections`);
+  const faults = faultWords(view);
+  if (faults.length) parts.push(`fault: ${faults.join(', ')}`);
+  return `${parts.join(', ')}.`;
+}
+
+function Frame({
+  id,
+  data,
+  shape,
+  inbound,
+  outbound,
+  children,
+}: {
+  id: string;
+  data: FlowNodeData;
+  shape: 'pill' | 'tag' | 'box';
+  inbound: boolean;
+  outbound: boolean;
+  children: ReactNode;
+}) {
+  const { select, emphasize } = useContext(FlowCanvasContext);
+  const faults = faultWords(data.view);
+  return (
+    <div
+      className={classes.node}
+      data-shape={shape}
+      data-fault={faults.length > 0 || undefined}
+      data-dimmed={data.dimmed || undefined}
+      role="button"
+      tabIndex={0}
+      aria-label={nodeSentence(data.view)}
+      onClick={() => select(id)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          select(id);
+        }
+      }}
+      onMouseEnter={() => emphasize(id)}
+      onMouseLeave={() => emphasize(null)}
+      onFocus={() => emphasize(id)}
+      onBlur={() => emphasize(null)}
+    >
+      {inbound ? <Handle type="target" position={Position.Left} className={classes.handle} isConnectable={false} /> : null}
+      {children}
+      {faults.length ? <span className={classes.fault}>{faults.join(', ')}</span> : null}
+      {outbound ? <Handle type="source" position={Position.Right} className={classes.handle} isConnectable={false} /> : null}
+    </div>
+  );
+}
+
+export const ClientNode = memo(function ClientNode({ id, data }: NodeProps) {
+  const d = data as FlowNodeData;
+  const v = d.view;
+  const producing = v.kind === 'PRODUCER';
+  const meta = [producing ? 'produces' : 'consumes', ...(v.protocols ?? []), ...(v.brokerNodes ?? [])];
+  return (
+    <Frame id={id} data={d} shape="pill" inbound={!producing} outbound={producing}>
+      <div className={classes.head}>
+        <span className={classes.label} title={v.label}>
+          {v.label}
+        </span>
+        {(v.members ?? 0) > 1 ? <span className={classes.count}>×{v.members}</span> : null}
+      </div>
+      <span className={classes.meta}>{meta.join(' · ')}</span>
+    </Frame>
+  );
+});
+
+const DELIVERY: Record<string, string> = {
+  MULTICAST: 'multicast · every queue gets a copy',
+  ANYCAST: 'anycast · queues share',
+};
+
+export const AddressNode = memo(function AddressNode({ id, data }: NodeProps) {
+  const d = data as FlowNodeData;
+  const v = d.view;
+  const routing = (v.routingTypes ?? []).map((t) => DELIVERY[t] ?? t.toLowerCase());
+  return (
+    <Frame id={id} data={d} shape="tag" inbound outbound>
+      <div className={classes.head}>
+        <span className={classes.label} title={v.label}>
+          {v.label}
+        </span>
+      </div>
+      <span className={classes.meta}>{routing.length ? routing.join(' / ') : 'no queue bound'}</span>
+    </Frame>
+  );
+});
+
+export const QueueNode = memo(function QueueNode({ id, data }: NodeProps) {
+  const d = data as FlowNodeData;
+  const v = d.view;
+  const swept = v.messageCount !== null && v.messageCount !== undefined;
+  return (
+    <Frame id={id} data={d} shape="box" inbound outbound>
+      <div className={classes.head}>
+        <span className={classes.label} title={v.label}>
+          {v.label}
+        </span>
+      </div>
+      <span className={classes.depth} aria-hidden="true">
+        <span className={classes.depthFill} style={{ inlineSize: `${Math.round(d.depth * 100)}%` }} />
+      </span>
+      <span className={classes.meta}>
+        {swept ? `${formatCount(v.messageCount!)} waiting · ${v.consumerCount ?? 0} consumers` : 'not swept yet'}
+      </span>
+    </Frame>
+  );
+});
+
+export const LaneNode = memo(function LaneNode({ data }: NodeProps) {
+  const d = data as LaneData;
+  return (
+    <div className={classes.lane}>
+      {d.title}
+      <span className={classes.laneCount}>{d.count}</span>
+    </div>
+  );
+});

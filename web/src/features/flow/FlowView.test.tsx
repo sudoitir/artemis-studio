@@ -158,7 +158,27 @@ describe('FlowView', () => {
     expect(call.search({ focus: 'queue:ARCHIVE.gone', rank: 'OUT' })).toEqual({ focus: undefined, hops: undefined, rank: 'OUT' });
   });
 
+  it('draws no moving dots when the system asks for reduced motion, and says why', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: query.includes('prefers-reduced-motion'),
+    })) as typeof window.matchMedia;
+    try {
+      serve(graph({ measuring: false, sampledAt: '2026-09-14T10:00:00Z' }));
+      const { container } = renderWithProviders(<FlowView />);
+
+      expect(await screen.findByText(/Motion is off \(reduced motion\)/)).toBeInTheDocument();
+      expect(screen.getByText('Motion off: your system asks for reduced motion.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Pause motion' })).not.toBeInTheDocument();
+      expect(container.querySelector('animateMotion')).toBeNull();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
   it('offers ranking, grouping and the bound as labelled controls', async () => {
+    routerState.search = { tab: 'table' };
     serve(graph());
     renderWithProviders(<FlowView />);
 
