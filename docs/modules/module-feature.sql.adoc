@@ -20,6 +20,7 @@ _Configuration properties_
 _Others_
 
 * `i.g.s.a.f.s.BrokerQueryExecutor`
+* `i.g.s.a.f.s.CaptureAddresses`
 * `i.g.s.a.f.s.CaptureBus`
 * `i.g.s.a.f.s.CaptureConsumer`
 * `i.g.s.a.f.s.CaptureCoverage`

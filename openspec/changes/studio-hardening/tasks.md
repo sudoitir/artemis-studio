@@ -91,7 +91,7 @@
 - [x] 4.13 Delete and disable stop every drain of the subscription before deleting rows. `SqlIndexController` reconciles under `clusterLock.runIfHeld`. Test that no rows remain after deleting while messages flow.
 - [x] 4.14 Run the partition move-from-default and ATTACH in one transaction.
 - [x] 4.15 Add `POST /sql/index?dryRun=true` returning nodes, addresses, ring bounds, broker objects and `brokerXml`, without saving or touching a broker. Bean-validate request bounds, returning 400 instead of clamping, and include every bound in the audit params.
-- [ ] 4.16 Run `./mvnw verify` and commit `fix(capture)!` with the migration steps in the body (broker role required, ring clamp).
+- [x] 4.16 Run `./mvnw verify` and commit `fix(capture)!` with the migration steps in the body (broker role required, ring clamp).
 
 ## 5. Phase 5: Divert correctness
 
