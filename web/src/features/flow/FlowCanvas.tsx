@@ -7,6 +7,7 @@ import {
   ReactFlowProvider,
   useReactFlow,
   useStore,
+  useStoreApi,
 } from '@xyflow/react';
 import { Alert, Loader } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
@@ -33,16 +34,37 @@ function ZoomDetail({ onChange }: { onChange: (showText: boolean) => void }) {
   return null;
 }
 
-/** Fit once per layout: a new set of nodes gets a fresh view, a rate-only refresh keeps the operator's. */
+/** The smallest zoom a fresh view opens at: above TEXT_ZOOM, so rates and dots are drawn. */
+const OPEN_ZOOM = 0.7;
+const MARGIN = 24;
+
+/**
+ * Fit once per layout: a new set of nodes gets a fresh view, a rate-only refresh keeps the operator's.
+ * A graph too large to fit legibly opens at a readable zoom, from its first row, rather than shrunk to
+ * specks; the minimap and panning reach the rest.
+ */
 function RefitOnLayout({ signature }: { signature: string | null }) {
   const flow = useReactFlow();
+  const store = useStoreApi();
   useEffect(() => {
     if (!signature) return;
+    // Read the size when fitting, not as a dependency: opening the inspector narrows the canvas, and
+    // that must not throw away the operator's pan and zoom.
     const frame = requestAnimationFrame(() => {
-      void flow.fitView({ padding: 0.12, maxZoom: 1 });
+      const { width, height } = store.getState();
+      if (width === 0 || height === 0) return;
+      const bounds = flow.getNodesBounds(flow.getNodes());
+      const fit = Math.min(width / (bounds.width + 2 * MARGIN), height / (bounds.height + 2 * MARGIN));
+      if (fit >= OPEN_ZOOM) {
+        void flow.fitView({ padding: 0.12, maxZoom: 1 });
+        return;
+      }
+      const zoom = Math.min(1, Math.max(OPEN_ZOOM, width / (bounds.width + 2 * MARGIN)));
+      const x = Math.max(MARGIN, (width - bounds.width * zoom) / 2) - bounds.x * zoom;
+      void flow.setViewport({ x, y: MARGIN - bounds.y * zoom, zoom });
     });
     return () => cancelAnimationFrame(frame);
-  }, [flow, signature]);
+  }, [flow, store, signature]);
   return null;
 }
 
@@ -149,8 +171,6 @@ export function FlowCanvas({
               edges={model.edges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
-              fitView
-              fitViewOptions={{ padding: 0.12, maxZoom: 1 }}
               minZoom={0.15}
               maxZoom={1.6}
               nodesDraggable={false}
@@ -164,7 +184,7 @@ export function FlowCanvas({
             >
               <Background gap={24} />
               <Controls showInteractive={false} />
-              {dense ? <MiniMap pannable zoomable nodeClassName={classes.minimapNode} /> : null}
+              <MiniMap pannable zoomable nodeClassName={classes.minimapNode} ariaLabel="Overview of the whole graph" />
               <ZoomDetail onChange={setShowText} />
               <RefitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
             </ReactFlow>

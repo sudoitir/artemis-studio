@@ -67,9 +67,17 @@ export function layoutSignature(graph: FlowGraphView): string {
 }
 
 export function toElkGraph(graph: FlowGraphView): ElkNode {
+  // Model order puts the busiest paths first, so a view that opens at the top opens on traffic, and an
+  // idle dead-letter or redistribution queue sinks to the bottom of its column.
+  const busiest = new Map<string, number>();
+  for (const e of graph.edges ?? []) {
+    for (const id of [e.source!, e.target!]) busiest.set(id, Math.max(busiest.get(id) ?? 0, e.rate ?? 0));
+  }
   const nodes = [...(graph.nodes ?? [])].sort(
     (a, b) =>
-      COLUMNS.indexOf(column(a)) - COLUMNS.indexOf(column(b)) || (a.label ?? '').localeCompare(b.label ?? ''),
+      COLUMNS.indexOf(column(a)) - COLUMNS.indexOf(column(b)) ||
+      (busiest.get(b.id!) ?? 0) - (busiest.get(a.id!) ?? 0) ||
+      (a.label ?? '').localeCompare(b.label ?? ''),
   );
   const ids = new Set(nodes.map((n) => n.id));
   return {
@@ -83,7 +91,7 @@ export function toElkGraph(graph: FlowGraphView): ElkNode {
       // for the whole graph keeps every column where the partitions say.
       'elk.separateConnectedComponents': 'false',
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '132',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '104',
       'elk.spacing.nodeNode': '22',
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
     },

@@ -1,6 +1,7 @@
 .wrapper {
   position: relative;
-  block-size: clamp(520px, 68vh, 880px);
+  /* Nearly a full screen once scrolled to: a flow graph is tall, and the page header is not. */
+  block-size: clamp(560px, calc(100dvh - 120px), 1100px);
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
   background: var(--as-graph-node-bg);
