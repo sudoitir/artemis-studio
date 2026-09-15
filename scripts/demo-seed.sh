@@ -111,20 +111,59 @@ for a in ORDERS.inbound PAYMENTS.capture SHIPPING.events NOTIFICATIONS.email AUD
   consume artemis-primary "$a" 1
 done
 
+say "building production routing: fan-out, wildcard, filters, diverts, capture, bridge"
+# The shape of a real estate, so Flow has something to explain. Everything but the bridge goes
+# through Studio's own audited API; creating something that already exists (a second run) is
+# reported by Studio and is not a failure here. The bridge uses the broker's own management
+# operations, because Studio shows bridges and never changes them.
+routing() { # label path body
+  local code
+  code=$(api POST "/clusters/$cluster$2" -d "$3" -o /dev/null -w '%{http_code}') || true
+  echo "  $1: HTTP $code"
+}
+routing "fan-out address"        /addresses '{"name":"ORDERS.events","routingTypes":"MULTICAST"}'
+for q in billing analytics audit; do
+  routing "fan-out queue $q"     /queues "{\"address\":\"ORDERS.events\",\"name\":\"ORDERS.events.$q\",\"routingType\":\"MULTICAST\",\"durable\":true}"
+done
+routing "wildcard address"       /addresses '{"name":"ORDERS.#","routingTypes":"MULTICAST"}'
+routing "wildcard queue"         /queues '{"address":"ORDERS.#","name":"ORDERS.all.monitor","routingType":"MULTICAST","durable":true}'
+routing "filtered queue"         /queues '{"address":"SHIPPING.events","name":"SHIPPING.express","routingType":"ANYCAST","durable":true,"filter":"express = true"}'
+routing "legacy address"         /addresses '{"name":"LEGACY.orders","routingTypes":"ANYCAST"}'
+routing "exclusive divert"       /diverts '{"name":"legacy-erp-reroute","address":"LEGACY.orders","forwardingAddress":"ORDERS.inbound","exclusive":true,"routingType":"ANYCAST"}'
+routing "copy divert"            /diverts '{"name":"orders-audit-copy","address":"ORDERS.inbound","forwardingAddress":"AUDIT.trail","exclusive":false,"routingType":"ANYCAST"}'
+routing "priority address"       /queues '{"address":"SHIPPING.priority","name":"SHIPPING.priority","routingType":"ANYCAST","durable":true,"autoCreateAddress":true}'
+routing "filtered copy divert"   /diverts '{"name":"shipping-priority-copy","address":"SHIPPING.events","forwardingAddress":"SHIPPING.priority","exclusive":false,"filter":"priority > 6","routingType":"ANYCAST"}'
+routing "capture subscription"   /sql/index '{"queuePattern":"PAYMENTS.capture","mode":"CAPTURE","retentionDays":1,"ringSize":10000}'
+
+# A bridge from the primary pair to the secondary one: audit records archived in the other
+# data centre. Runtime-deployed through the broker's management operations (not persisted).
+jolokia() { # node json
+  $COMPOSE exec -T "$1" curl -sS -u artemis:artemis -H 'Origin: http://localhost' \
+    -H 'Content-Type: application/json' -d "$2" http://localhost:8161/console/jolokia >/dev/null 2>&1 || true
+}
+PRIMARY_MBEAN='org.apache.activemq.artemis:broker=\"primary\"'
+jolokia artemis-primary "{\"type\":\"exec\",\"mbean\":\"$PRIMARY_MBEAN\",\"operation\":\"addConnector(java.lang.String,java.lang.String)\",\"arguments\":[\"secondary-connector\",\"tcp://artemis-secondary:61616\"]}"
+jolokia artemis-primary "{\"type\":\"exec\",\"mbean\":\"$PRIMARY_MBEAN\",\"operation\":\"createBridge(java.lang.String)\",\"arguments\":[\"{\\\"name\\\":\\\"audit-archive-dc2\\\",\\\"queue-name\\\":\\\"AUDIT.trail\\\",\\\"forwarding-address\\\":\\\"AUDIT.archive\\\",\\\"static-connectors\\\":[\\\"secondary-connector\\\"],\\\"user\\\":\\\"artemis\\\",\\\"password\\\":\\\"artemis\\\",\\\"reconnect-attempts\\\":-1}\"]}"
+echo "  bridge audit-archive-dc2: requested"
+
 say "attaching long-lived applications, so Flow has clients to sample"
 # The bursts below connect, send a few hundred messages and disconnect: real, but
 # gone before Flow can sample the same client twice, and a rate needs two samples.
 # These stay attached for the whole run and past it, each under its own client id
 # (Artemis refuses a client id already in use), at steady rates. Detached inside the
 # broker container, so the loop's `wait` below does not wait for them.
+# A destination that names its scheme (topic:// for a multicast publisher) is used as given;
+# anything else, including an address::queue subscriber queue, is a queue.
+destination() { case "$1" in *://*) echo "$1" ;; *) echo "queue://$1" ;; esac; }
+
 app() { # node kind client-id address sleep-ms
   local count=$(( (TRAFFIC_MINUTES + 30) * 60 * 1000 / $5 ))
   if [ "$2" = producer ]; then
     $COMPOSE exec -d "$1" $JAR producer --url tcp://localhost:61616 --user artemis --password artemis \
-      --clientID "$3" --destination "queue://$4" --message-count "$count" --sleep "$5" --message-size 512
+      --clientID "$3" --destination "$(destination "$4")" --message-count "$count" --sleep "$5" --message-size 512
   else
     $COMPOSE exec -d "$1" $JAR consumer --url tcp://localhost:61616 --user artemis --password artemis \
-      --clientID "$3" --destination "queue://$4" --message-count "$count" --sleep "$5" --receive-timeout 600000
+      --clientID "$3" --destination "$(destination "$4")" --message-count "$count" --sleep "$5" --receive-timeout 600000
   fi
 }
 app artemis-primary   producer order-service        ORDERS.inbound      40
@@ -134,6 +173,19 @@ app artemis-secondary producer payments-gateway     PAYMENTS.capture    80
 app artemis-secondary consumer ledger-writer        PAYMENTS.capture    85
 app artemis-primary   producer warehouse-events     SHIPPING.events     150
 app artemis-primary   consumer shipment-tracker     SHIPPING.events     160
+# Multicast fan-out: one publisher, three subscribers, each with its own copy.
+app artemis-primary   producer order-events         topic://ORDERS.events 60
+app artemis-primary   consumer billing-ledger       ORDERS.events::ORDERS.events.billing   70
+app artemis-primary   consumer analytics-pipeline   ORDERS.events::ORDERS.events.analytics 90
+app artemis-primary   consumer ops-monitor          ORDERS.#::ORDERS.all.monitor           120
+# An old system still writing to its legacy address; the exclusive divert reroutes it all.
+app artemis-primary   producer legacy-erp           LEGACY.orders       200
+app artemis-primary   consumer express-courier      SHIPPING.events::SHIPPING.express      150
+app artemis-primary   consumer priority-desk        SHIPPING.priority   300
+# Produced on the primary, consumed only on the secondary: the cluster moves it across (ON_DEMAND).
+app artemis-primary   producer inventory-feed       INVENTORY.sync      100
+app artemis-secondary consumer inventory-sync       INVENTORY.sync      110
+app artemis-secondary consumer audit-archiver       AUDIT.archive       250
 # Sends and nobody reads: the queue backs up, and Flow marks it "no consumer".
 app artemis-secondary producer notification-service NOTIFICATIONS.email 120
 

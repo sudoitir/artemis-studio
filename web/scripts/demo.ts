@@ -158,6 +158,24 @@ await clip('demo', async (page, clusterId, mark) => {
   await page.getByText(/dead-letter queues/i).first().waitFor({ timeout: 20_000 });
   await hold(page, 2_000);
 
+  // Who produces where and who consumes it, moving: the view no other Artemis console has.
+  await navigate(page, 'Flow');
+  // The richer routing view: diverts, the bridge, cluster hops and Studio's capture tap.
+  await page.goto(`${BASE}/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`);
+  await page
+    .locator('.react-flow__node-queue')
+    .first()
+    .waitFor({ timeout: 60_000 })
+    .catch(() => console.warn('demo: flow graph not drawn — let the seed run longer'));
+  await hold(page, 3_200);
+  // Hovering a queue keeps its whole path bright and fades the rest.
+  await page
+    .locator('.react-flow__node-queue')
+    .first()
+    .hover()
+    .catch(() => {});
+  await hold(page, 2_000);
+
   await navigate(page, 'Metrics');
   await page
     .locator('.recharts-area, .recharts-line')

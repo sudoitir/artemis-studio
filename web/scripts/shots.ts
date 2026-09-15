@@ -74,6 +74,23 @@ async function main() {
       ready: () => page.locator('.react-flow__node').first().waitFor({ timeout: 30_000 }),
     },
     {
+      file: 'flow.png',
+      // The flow view samples clients only while it is open, and rates need two samples: open it,
+      // wait for real nodes, then give the sampler two sweeps before photographing.
+      // Routing layers on, Studio's capture tap included; dead-letter edges stay off (one per queue).
+      path: `/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`,
+      height: 1100,
+      ready: async () => {
+        await page.locator('.react-flow__node-queue').first().waitFor({ timeout: 60_000 });
+        await page
+          .getByText(/msg\/s/)
+          .first()
+          .waitFor({ timeout: 60_000 })
+          .catch(() => console.warn('flow.png: no measured rate yet — the seed may not be running'));
+        await page.waitForTimeout(2_000);
+      },
+    },
+    {
       file: 'queues.png',
       path: `/clusters/${clusterId}/queues`,
       ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
