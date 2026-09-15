@@ -29,33 +29,63 @@ and SQL over your messages — from a single instance.
 > are pre-stable dev builds (`sudoit1/artemis-studio:dev` — no `:latest` yet).
 > Expect breaking changes.
 
-## SQL over your messages
+![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue, message flow and the charts](docs/img/demo.gif)
 
-Artemis cannot answer *"where did order 4471 go?"*. Its only server-side filter
-is a JMS selector: message headers only — **never the body** — one queue, one
-node at a time.
+## What it does
 
-```sql
-SELECT * FROM "ORDER.*"
-WHERE body->>'orderId' = '4471'
-LIMIT 50
-```
+| Cluster topology | Cross-node queues |
+|---|---|
+| [![Live/backup topology with replication and a shared-NodeID axis](docs/img/topology.png)](docs/img/topology.png) | [![Every queue across every node in one virtualised grid](docs/img/queues.png)](docs/img/queues.png) |
+| **Client and message flow** | **SQL Console** |
+| [![Flow: moving dots carry each path's rate; hovering a queue keeps its whole path bright](docs/img/flow.gif)](docs/img/flow.gif) | [![The SQL Console: a query across every queue in the cluster, its cost classified before it runs, then a live tail](docs/img/sql-console.gif)](docs/img/sql-console.gif) |
+| **Metrics and charts** | **Governance** |
+| [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
 
-![The SQL Console: a query across every queue in the cluster, its cost classified before it runs, then a live tail](docs/img/sql-console.gif)
+- **Topology** — live/backup pairs and replication state, with the HA role polled
+  from every node on every cycle. Never read from config; two live in a pair is a
+  split-brain alert.
+- **Flow** — which application sends where, through which address, divert, bridge
+  or cluster hop, into which queue, and who consumes it, at what rate. Clients are
+  sampled only while someone is watching, and faults such as a backlog with no
+  consumer are stated in words.
+- **[SQL Console](https://sudoitir.github.io/artemis-studio/guide/sql-console)** —
+  Artemis cannot answer *"where did order 4471 go?"*: its only server-side filter is
+  a JMS selector over headers, never the body, one queue and one node at a time.
+  Studio can:
 
-A restricted, read-only dialect — `SELECT` only, parsed to an AST and validated
-against a fixed column catalogue, so no mutation is expressible at all. Header
-predicates become a JMS selector and cost nothing; body predicates are a scan.
-**The plan strip says which, before the query runs**, and a query over the cost
-ceiling is refused with the estimate rather than truncated — a truncated result
-is indistinguishable from a complete one at a glance.
+  ```sql
+  SELECT * FROM "ORDER.*"
+  WHERE body->>'orderId' = '4471'
+  LIMIT 50
+  ```
 
-Add a live tail, and — opt-in, per queue — **complete capture**: a non-exclusive
-divert copies the address into a ring-bounded queue Studio owns and drains, so a
-message that arrived and was consumed between two polls is still there to query.
-Bounded on the broker by construction, restricted to Studio's own role, and removed
-only when you say so.
-[More →](https://sudoitir.github.io/artemis-studio/guide/sql-console)
+  A read-only `SELECT` dialect validated against a fixed column catalogue, so no
+  mutation is expressible. Header predicates become a JMS selector and cost nothing;
+  body predicates are a scan, and **the plan strip says which before the query
+  runs**. A query over the cost ceiling is refused with its estimate, never silently
+  truncated. Add a live tail and, opt-in per queue, **complete capture**: a
+  broker-bounded copy Studio drains, so a message consumed between two polls is still
+  there to query.
+- **Cross-node resources** — queues, addresses, consumers, sessions, connections
+  and producers in one virtualised table, attributed per node, over SSE.
+- **Message operations** — browse, send, move, retry, expire, delete, purge, with
+  `?dryRun=true` on every mutating call, a server-enforced bulk cap, and per-node
+  outcomes.
+- **Request-reply tracing** — requests correlated to replies across addresses and
+  nodes, with latency and timeout statistics against declared expectations.
+- **[Broker configuration](https://sudoitir.github.io/artemis-studio/guide/broker-configuration)**
+  — declare the address settings, security settings, diverts and queues a cluster
+  should run; apply them canary-first with every hazard stated before a write, or
+  export a `broker.xml` fragment; see each node's drift from the declaration. The
+  capability gaps Studio can close over the management API become a declaration in
+  one action, seeded from what the node is running. A first run is offered the
+  cluster's own state as revision 1 — never adopted for you — and an apply reports
+  each node as it lands, canary first.
+- **Governance** — authentication everywhere, a role/permission model scoped
+  global → environment → cluster, API tokens, optional OIDC/SSO, and an audit
+  event written in the same transaction as the command.
+- **[MCP server](https://sudoitir.github.io/artemis-studio/guide/mcp)** — the same
+  capabilities for an assistant, under the same grants and the same audit trail.
 
 ## Why
 
@@ -102,48 +132,6 @@ Every variable, the reverse-proxy requirement for the SSE stream, and first-logi
 recovery are in the [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration).
 
 </details>
-
-![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue and the charts](docs/img/demo.gif)
-
-## What else it does
-
-| Cluster topology | Cross-node queues |
-|---|---|
-| [![Live/backup topology with replication and a shared-NodeID axis](docs/img/topology.png)](docs/img/topology.png) | [![Every queue across every node in one virtualised grid](docs/img/queues.png)](docs/img/queues.png) |
-| **Metrics and charts** | **Governance** |
-| [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
-| **Client and message flow** | **SQL Console** |
-| [![Applications, addresses, diverts, a bridge and queues in columns, each path carrying its measured rate](docs/img/flow.png)](docs/img/flow.png) | [![A query across every queue in the cluster with its cost classified before it runs](docs/img/sql.png)](docs/img/sql.png) |
-
-![Flow: moving dots carry each path's rate; hovering a queue keeps its whole path bright](docs/img/flow.gif)
-
-- **Topology** — live/backup pairs and replication state, with the HA role polled
-  from every node on every cycle. Never read from config; two live in a pair is a
-  split-brain alert.
-- **Flow** — which application sends where, through which address, divert, bridge
-  or cluster hop, into which queue, and who consumes it, at what rate. Clients are
-  sampled only while someone is watching, and faults such as a backlog with no
-  consumer are stated in words.
-- **Cross-node resources** — queues, addresses, consumers, sessions, connections
-  and producers in one virtualised table, attributed per node, over SSE.
-- **Message operations** — browse, send, move, retry, expire, delete, purge, with
-  `?dryRun=true` on every mutating call, a server-enforced bulk cap, and per-node
-  outcomes.
-- **Request-reply tracing** — requests correlated to replies across addresses and
-  nodes, with latency and timeout statistics against declared expectations.
-- **[Broker configuration](https://sudoitir.github.io/artemis-studio/guide/broker-configuration)**
-  — declare the address settings, security settings, diverts and queues a cluster
-  should run; apply them canary-first with every hazard stated before a write, or
-  export a `broker.xml` fragment; see each node's drift from the declaration. The
-  capability gaps Studio can close over the management API become a declaration in
-  one action, seeded from what the node is running. A first run is offered the
-  cluster's own state as revision 1 — never adopted for you — and an apply reports
-  each node as it lands, canary first.
-- **Governance** — authentication everywhere, a role/permission model scoped
-  global → environment → cluster, API tokens, optional OIDC/SSO, and an audit
-  event written in the same transaction as the command.
-- **[MCP server](https://sudoitir.github.io/artemis-studio/guide/mcp)** — the same
-  capabilities for an assistant, under the same grants and the same audit trail.
 
 ## Built on four rules
 
