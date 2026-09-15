@@ -168,8 +168,10 @@ just verify          # everything CI runs
 ```
 
 `ADMIN_PASSWORD=… just demo` adds a second live/backup pair and fills all four
-with realistic traffic — a consumer-less address whose depth climbs, a real
-dead-letter backlog, one stopped node. The screenshots and the GIFs above are
+with realistic traffic — applications behind diverts, a bridge and cluster hops,
+a consumer-less address whose depth climbs, a real dead-letter backlog, one
+stopped node. On a fresh stack the printed password is one-time, so add
+`NEW_ADMIN_PASSWORD=…` the first time and use that password afterwards. The screenshots and the GIFs above are
 recorded from it, by `just shots` and `just demo-gif`; nothing is staged.
 
 Every feature goes through **OpenSpec** (`/opsx:propose` → `apply` → `archive`),

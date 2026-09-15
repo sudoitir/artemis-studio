@@ -82,6 +82,7 @@ dev-up:
 
 # Dev stack plus a second live/backup pair, filled with realistic traffic.
 # Needs the admin password `just dev-up` printed: ADMIN_PASSWORD=... just demo
+# On a fresh stack that password is one-time; add NEW_ADMIN_PASSWORD=... the first time.
 [group('develop')]
 demo:
     {{compose_demo}} up --build -d

@@ -57,10 +57,28 @@ say "signing in to Studio"
 # One unauthenticated GET to be issued the CSRF cookie the login POST must echo.
 curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/auth/me" >/dev/null || true
 
-if ! api POST /auth/login -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}" \
-     | grep -q '"username"'; then
+login=$(api POST /auth/login -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}")
+if ! grep -q '"username"' <<<"$login"; then
   echo "login failed — is the password the one 'just dev-up' printed?" >&2
   exit 1
+fi
+# A fresh stack's admin password is one-time: every other call answers 423 until it is
+# changed. Change it only to a password the operator chose, never one invented here.
+if grep -q '"mustChangePassword":true' <<<"$login"; then
+  if [ -z "${NEW_ADMIN_PASSWORD:-}" ]; then
+    echo "Studio requires the one-time admin password to be changed first." >&2
+    echo "Rerun with NEW_ADMIN_PASSWORD=<a password you choose>, and use that password from then on." >&2
+    exit 1
+  fi
+  say "changing the one-time admin password to NEW_ADMIN_PASSWORD"
+  # The change re-establishes the session, so the cookies stay valid for the rest of the run.
+  status=$(python3 -c 'import json,sys; print(json.dumps({"currentPassword": sys.argv[1], "newPassword": sys.argv[2]}))' \
+      "$ADMIN_PASSWORD" "$NEW_ADMIN_PASSWORD" \
+    | api POST /auth/password --data-binary @- -o /dev/null -w '%{http_code}')
+  if [ "$status" != 204 ]; then
+    echo "changing the admin password failed with HTTP $status" >&2
+    exit 1
+  fi
 fi
 
 say "registering the demo cluster"
