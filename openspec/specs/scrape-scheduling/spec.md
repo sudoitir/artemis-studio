@@ -20,6 +20,13 @@ completion of the medium and slow tiers' per-cluster fan-out SHALL trigger
 evaluation of that cluster's metric-threshold alert rules. Alert evaluation
 SHALL NOT delay or block the scrape tick it is triggered from.
 
+In addition, the system SHALL poll a cluster's client activity — producers and
+consumers — on a demand-driven schedule
+that runs only while that cluster's flow is observed. Its interval SHALL be
+configurable with a lower bound, it SHALL obey the same one-request-per-node and
+per-node ceiling rules as the tiers, and it SHALL NOT run at all for a cluster
+nobody is observing.
+
 #### Scenario: Fast tier reads HA and topology
 
 - **WHEN** the fast tier runs for a manageable node
@@ -51,6 +58,12 @@ SHALL NOT delay or block the scrape tick it is triggered from.
   or metric samples for a tick
 - **THEN** that cluster's metric-threshold alert rules are evaluated against the
   state just persisted
+
+#### Scenario: Client activity is polled only while observed
+
+- **WHEN** a cluster's flow stops being observed and its observation lease expires
+- **THEN** the client-activity schedule issues no further requests to that
+  cluster's nodes until it is observed again
 
 ### Requirement: One batched request per node per tick
 

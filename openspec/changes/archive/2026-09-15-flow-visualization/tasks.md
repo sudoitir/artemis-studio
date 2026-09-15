@@ -85,8 +85,8 @@ conventional commit. Design refs are `design.md` D1–D10.
 
 ## 9. Verification and docs
 
-- [ ] 9.1 `just demo` walkthrough: no-consumer fault, stopped node unreachable, rates after ~15 s, reroute divert, cluster hop, layers, focus + reload, table parity, reduced motion
-- [ ] 9.2 Close all flow views; confirm sampling stops within the lease (`studio.flow.sample.skipped{reason=no-lease}`)
+- [x] 9.1 `just demo` walkthrough: no-consumer fault, stopped node unreachable, rates after ~15 s, reroute divert, cluster hop, layers, focus + reload, table parity, reduced motion (live demo, production image: 4 no-consumer faults; with routing layers on, 1 bridge, 4 diverts incl. "reroutes" with a bypassed queue, 2 cluster hops, 2 wildcard matches, 17 routes, 9 produce, 11 consume; first sweep within 15 s of a read; focus on `queue:ORDERS.inbound` matched at 1 hop; reduced motion draws no dots. The demo stops `artemis-secondary-backup`, a standby Flow does not sample, so both serving brokers read OK; the unreachable-node banner is covered by the view tests rather than this walkthrough)
+- [x] 9.2 Close all flow views; confirm sampling stops within the lease (`studio.flow.sample.skipped{reason=no-lease}`) (demo stack: one flow read at 02:50:23 UTC; sweeps every ~15 s until 02:51:21, none after; lease row and cached samples cleared by 02:52:27)
 - [x] 9.3 Contrast check of new tokens in light and dark; keyboard-only pass (fault text 4.89:1 on nodes and 5.59:1 on the canvas in dark, 5.46:1 in light; edges on the dimmed step ~5:1; real-browser keyboard pass: a node takes focus, Enter opens details, Escape closes and returns focus)
-- [ ] 9.4 Site guide page for Flow with `just shots` screenshot
+- [x] 9.4 Site guide page for Flow with `just shots` screenshot (`site/src/guide/flow.md`; `flow.png` from `just shots`, `flow.gif` from `just demo-gif`, both in `docs/img` and the site's images)
 - [x] 9.5 `openspec validate flow-visualization --strict` passes
