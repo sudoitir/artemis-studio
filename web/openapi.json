@@ -3532,6 +3532,83 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/flow" : {
+      "get" : {
+        "tags" : [ "flow-controller" ],
+        "operationId" : "graph",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "focus",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "hops",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "name" : "rank",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "IN",
+            "enum" : [ "IN", "OUT", "BACKLOG" ]
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 40
+          }
+        }, {
+          "name" : "groupBy",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "CLIENT_ID",
+            "enum" : [ "CLIENT_ID", "USER", "HOST" ]
+          }
+        }, {
+          "name" : "layers",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FlowGraphView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
@@ -8611,6 +8688,311 @@
           }
         },
         "required" : [ "from", "series", "step", "to", "truncated" ]
+      },
+      "FlowBrokerNodeView" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "OK", "UNREACHABLE", "PERMISSION_DENIED", "COUNTER_UNAVAILABLE", "ROUTING_UNAVAILABLE", "FAILED" ]
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "sampledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "producersSeen" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "producersTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "consumersSeen" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "consumersTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "truncated" : {
+            "type" : "boolean"
+          },
+          "brokerXmlSnippet" : {
+            "type" : "string"
+          }
+        }
+      },
+      "FlowEdgeView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "PRODUCE", "ROUTE", "CONSUME", "DIVERT", "BRIDGE", "CLUSTER_HOP", "WILDCARD", "DEAD_LETTER", "EXPIRY" ]
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "target" : {
+            "type" : "string"
+          },
+          "rate" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "rateSource" : {
+            "type" : "string",
+            "enum" : [ "SAMPLER", "QUEUE_METRIC", "NONE" ]
+          },
+          "asOf" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "averagedOverSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "stale" : {
+            "type" : "boolean"
+          },
+          "delivery" : {
+            "type" : "string",
+            "enum" : [ "COPY", "SHARED" ]
+          },
+          "members" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "exclusive" : {
+            "type" : "boolean"
+          },
+          "filter" : {
+            "type" : "string"
+          },
+          "transformer" : {
+            "type" : "string"
+          },
+          "bypassed" : {
+            "type" : "boolean"
+          },
+          "presentOn" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "presentOf" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "studio" : {
+            "type" : "boolean"
+          },
+          "faults" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
+            }
+          }
+        }
+      },
+      "FlowFocusView" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "hops" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "matched" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "FlowGraphView" : {
+        "type" : "object",
+        "properties" : {
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FlowNodeView"
+            }
+          },
+          "edges" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FlowEdgeView"
+            }
+          },
+          "kpis" : {
+            "$ref" : "#/components/schemas/FlowKpis"
+          },
+          "totals" : {
+            "$ref" : "#/components/schemas/FlowTotals"
+          },
+          "focus" : {
+            "$ref" : "#/components/schemas/FlowFocusView"
+          },
+          "sampledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "measuring" : {
+            "type" : "boolean"
+          },
+          "sampleIntervalSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "layers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "assumptions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "brokerNodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FlowBrokerNodeView"
+            }
+          }
+        }
+      },
+      "FlowKpis" : {
+        "type" : "object",
+        "properties" : {
+          "inRate" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "outRate" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "backlog" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "clients" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "faults" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "FlowNodeView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "PRODUCER", "ADDRESS", "QUEUE", "CONSUMER", "REMOTE" ]
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "STORE_AND_FORWARD", "TEMPORARY", "ANONYMOUS", "CAPTURE", "DEAD_LETTER", "EXPIRY", "CLUSTER_NODE", "BRIDGE_TARGET" ]
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "members" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "messageCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "consumerCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "routingTypes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "protocols" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "hosts" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "users" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "brokerNodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "faults" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
+            }
+          }
+        }
+      },
+      "FlowTotals" : {
+        "type" : "object",
+        "properties" : {
+          "paths" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "shown" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "limit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "clamped" : {
+            "type" : "boolean"
+          }
+        }
       },
       "BrokerEventPageView" : {
         "type" : "object",

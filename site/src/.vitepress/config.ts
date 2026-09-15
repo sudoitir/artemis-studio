@@ -71,6 +71,7 @@ export default defineConfig({
               { text: 'Quickstart', link: '/guide/quickstart' },
               { text: 'Configuration', link: '/guide/configuration' },
               { text: 'SQL Console', link: '/guide/sql-console' },
+              { text: 'Flow', link: '/guide/flow' },
               { text: 'Message capture', link: '/guide/message-capture' },
               { text: 'Data governance', link: '/guide/data-governance' },
               { text: 'Broker configuration', link: '/guide/broker-configuration' },

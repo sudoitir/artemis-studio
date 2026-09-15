@@ -28,6 +28,10 @@
     "kind" : "FEATURE",
     "required" : false
   }, {
+    "id" : "flow",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
     "id" : "governance",
     "kind" : "PLATFORM",
     "required" : true

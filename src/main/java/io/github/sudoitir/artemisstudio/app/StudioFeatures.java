@@ -8,6 +8,8 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigFeature
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigModule;
 import io.github.sudoitir.artemisstudio.feature.events.EventsFeature;
 import io.github.sudoitir.artemisstudio.feature.events.EventsModule;
+import io.github.sudoitir.artemisstudio.feature.flow.FlowFeature;
+import io.github.sudoitir.artemisstudio.feature.flow.FlowModule;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalFeature;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalModule;
 import io.github.sudoitir.artemisstudio.feature.identityoidc.IdentityOidcFeature;
@@ -61,6 +63,7 @@ import org.springframework.context.annotation.Import;
     RrFeature.class,
     SqlFeature.class,
     BrokerConfigFeature.class,
+    FlowFeature.class,
     TriageFeature.class,
     ApiTokensFeature.class,
     IdentityLocalFeature.class,
@@ -90,6 +93,7 @@ public class StudioFeatures {
                 RrModule.DESCRIPTOR,
                 SqlModule.DESCRIPTOR,
                 BrokerConfigModule.DESCRIPTOR,
+                FlowModule.DESCRIPTOR,
                 TriageModule.DESCRIPTOR,
                 ApiTokensModule.DESCRIPTOR,
                 IdentityLocalModule.DESCRIPTOR,

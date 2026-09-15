@@ -26,9 +26,10 @@ password(); // fail before launching a browser if it is missing
 
 // A query with one pushdown predicate and one target wildcard: the plan strip
 // then has something to classify, which is the part of this screen worth showing.
+// No ORDER BY: sorting reads every message under ORDERS.*, which on a demo that has run for a while
+// runs to the console's 30 s bound. Unsorted, the scan stops at the limit.
 const SQL = `SELECT * FROM "ORDERS.*"
 WHERE props.tenant = 'acme'
-ORDER BY timestamp DESC
 LIMIT 200`;
 
 /**
@@ -55,6 +56,7 @@ async function main() {
   const shots: Array<{
     file: string;
     path: string;
+    width?: number;
     height?: number;
     /** Drives the view into the state worth photographing, before `ready`. */
     before?: () => Promise<unknown>;
@@ -72,6 +74,30 @@ async function main() {
       path: `/clusters/${clusterId}/topology`,
       // A node box, not the frame: the frame renders before the data arrives.
       ready: () => page.locator('.react-flow__node').first().waitFor({ timeout: 30_000 }),
+    },
+    {
+      file: 'flow.png',
+      // The flow view samples clients only while it is open, and rates need two samples: open it,
+      // wait for real nodes, then give the sampler two sweeps before photographing.
+      // Routing layers on, Studio's capture tap included; dead-letter edges stay off (one per queue).
+      path: `/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`,
+      // Wide: five columns and their routing hops only fit side by side at a legible zoom on a wide screen.
+      width: 1920,
+      height: 1300,
+      ready: async () => {
+        await page.locator('.react-flow__node-queue').first().waitFor({ timeout: 60_000 });
+        // Client nodes arrive with the sampler's first sweep and their rates with the second. Reload
+        // once both exist, so the layout orders every column busiest first.
+        await page
+          .locator('.react-flow__node-client')
+          .first()
+          .waitFor({ timeout: 90_000 })
+          .catch(() => console.warn('flow.png: no sampled clients yet — the seed may not be running'));
+        await page.waitForTimeout(35_000);
+        await page.reload();
+        await page.locator('.react-flow__node-client').first().waitFor({ timeout: 60_000 });
+        await page.waitForTimeout(2_000);
+      },
     },
     {
       file: 'queues.png',
@@ -104,7 +130,8 @@ async function main() {
         await page.keyboard.type(SQL);
         await page.getByRole('button', { name: 'Run', exact: true }).click();
       },
-      ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
+      // Longer than the console's own 30 s query bound, so a slow broker still yields its rows.
+      ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }),
     },
     {
       file: 'governance.png',
@@ -183,7 +210,7 @@ async function main() {
   ];
 
   for (const shot of shots) {
-    await page.setViewportSize({ width: 1440, height: shot.height ?? 900 });
+    await page.setViewportSize({ width: shot.width ?? 1440, height: shot.height ?? 900 });
     await page.goto(`${BASE}${shot.path}`);
     try {
       await shot.before?.();

@@ -36,7 +36,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "policy_version",
                     "CREATE TABLE message_index(_default)? ",
                     // Capture ring bound lowered to 1,000,000 (ADR-0079, changeset feature-sql 0003).
-                    "CREATE TABLE message_index_subscription ")
+                    "CREATE TABLE message_index_subscription ",
+                    // Flow sampling caches (ADR-0081, changeset feature-flow 0001).
+                    "flow_(demand|client_edge|node_sample|route)")
             .map(Pattern::compile)
             .toList();
 

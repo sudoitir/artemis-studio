@@ -78,6 +78,22 @@
   --as-graph-edge: var(--as-border);
   --as-graph-edge-behind: var(--mantine-color-yellow-5);
 
+  /* Flow graph (ADR-0080). Healthy flow is monochrome: an edge's width and moving
+     dots carry the rate, and colour enters only for a fault. Edges sit on the
+     dimmed text step (~5:1 on the body in both schemes, above the 3:1 floor for
+     graphical marks); a busy edge and its dots on the body text step. */
+  --as-flow-node-bg: var(--mantine-color-default);
+  --as-flow-edge: var(--as-text-dimmed);
+  --as-flow-edge-busy: var(--as-text);
+  --as-flow-dot: var(--as-text);
+  /* Fault words sit on nodes as small bold text, so the 4.5:1 floor applies. red-6 measures 4.13:1
+     on the node background; red-5 measures 4.89:1 there and 5.59:1 on the canvas. */
+  --as-flow-fault: var(--mantine-color-red-5);
+  --as-flow-depth: var(--as-text-dimmed);
+  --as-flow-lane: var(--as-text-dimmed);
+  /* Opacity of what a path emphasis sets aside — faded, never gone (>= 0.2). */
+  --as-flow-dim: 0.28;
+
   /* Request-reply flow state (Phase 5). */
   --as-rr-in-flight: var(--as-text-dimmed); /* awaiting reply — normal, not a warning */
   --as-rr-resolved: var(--as-text); /* completed */
@@ -130,6 +146,7 @@
   --as-graph-edge-behind: var(--mantine-color-yellow-7);
   --as-alert-dot: var(--mantine-color-red-7);
   --as-rr-failed: var(--mantine-color-red-7);
+  --as-flow-fault: var(--as-danger); /* #c92a2a: 5.46:1 on white */
   --as-chart-2: var(--mantine-color-blue-7);
   --as-grid-row-fresh: rgba(28, 126, 214, 0.1);
   /* Editor tokens are body text, so the AA 4.5:1 floor applies to all three.

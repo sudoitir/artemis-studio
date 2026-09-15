@@ -1220,6 +1220,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["graph"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/events": {
         parameters: {
             query?: never;
@@ -3338,6 +3354,118 @@ export interface components {
             step: string;
             truncated: boolean;
             series: components["schemas"]["MetricSeries"][];
+        };
+        FlowBrokerNodeView: {
+            nodeId?: string;
+            name?: string;
+            /** @enum {string} */
+            state?: "OK" | "UNREACHABLE" | "PERMISSION_DENIED" | "COUNTER_UNAVAILABLE" | "ROUTING_UNAVAILABLE" | "FAILED";
+            message?: string;
+            /** Format: date-time */
+            sampledAt?: string;
+            /** Format: int32 */
+            producersSeen?: number;
+            /** Format: int32 */
+            producersTotal?: number;
+            /** Format: int32 */
+            consumersSeen?: number;
+            /** Format: int32 */
+            consumersTotal?: number;
+            truncated?: boolean;
+            brokerXmlSnippet?: string;
+        };
+        FlowEdgeView: {
+            id?: string;
+            /** @enum {string} */
+            kind?: "PRODUCE" | "ROUTE" | "CONSUME" | "DIVERT" | "BRIDGE" | "CLUSTER_HOP" | "WILDCARD" | "DEAD_LETTER" | "EXPIRY";
+            source?: string;
+            target?: string;
+            /** Format: double */
+            rate?: number;
+            /** @enum {string} */
+            rateSource?: "SAMPLER" | "QUEUE_METRIC" | "NONE";
+            /** Format: date-time */
+            asOf?: string;
+            /** Format: int64 */
+            averagedOverSeconds?: number;
+            stale?: boolean;
+            /** @enum {string} */
+            delivery?: "COPY" | "SHARED";
+            /** Format: int32 */
+            members?: number;
+            exclusive?: boolean;
+            filter?: string;
+            transformer?: string;
+            bypassed?: boolean;
+            /** Format: int32 */
+            presentOn?: number;
+            /** Format: int32 */
+            presentOf?: number;
+            studio?: boolean;
+            faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
+        };
+        FlowFocusView: {
+            kind?: string;
+            name?: string;
+            /** Format: int32 */
+            hops?: number;
+            matched?: boolean;
+        };
+        FlowGraphView: {
+            nodes?: components["schemas"]["FlowNodeView"][];
+            edges?: components["schemas"]["FlowEdgeView"][];
+            kpis?: components["schemas"]["FlowKpis"];
+            totals?: components["schemas"]["FlowTotals"];
+            focus?: components["schemas"]["FlowFocusView"];
+            /** Format: date-time */
+            sampledAt?: string;
+            measuring?: boolean;
+            /** Format: int64 */
+            sampleIntervalSeconds?: number;
+            layers?: string[];
+            assumptions?: string[];
+            brokerNodes?: components["schemas"]["FlowBrokerNodeView"][];
+        };
+        FlowKpis: {
+            /** Format: double */
+            inRate?: number;
+            /** Format: double */
+            outRate?: number;
+            /** Format: int64 */
+            backlog?: number;
+            /** Format: int32 */
+            clients?: number;
+            /** Format: int32 */
+            faults?: number;
+        };
+        FlowNodeView: {
+            id?: string;
+            /** @enum {string} */
+            kind?: "PRODUCER" | "ADDRESS" | "QUEUE" | "CONSUMER" | "REMOTE";
+            /** @enum {string} */
+            role?: "STORE_AND_FORWARD" | "TEMPORARY" | "ANONYMOUS" | "CAPTURE" | "DEAD_LETTER" | "EXPIRY" | "CLUSTER_NODE" | "BRIDGE_TARGET";
+            label?: string;
+            /** Format: int32 */
+            members?: number;
+            /** Format: int64 */
+            messageCount?: number;
+            /** Format: int64 */
+            consumerCount?: number;
+            routingTypes?: string[];
+            protocols?: string[];
+            hosts?: string[];
+            users?: string[];
+            brokerNodes?: string[];
+            faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
+        };
+        FlowTotals: {
+            /** Format: int32 */
+            paths?: number;
+            /** Format: int32 */
+            shown?: number;
+            /** Format: int32 */
+            limit?: number;
+            clamped?: boolean;
         };
         BrokerEventPageView: {
             data: components["schemas"]["BrokerEventView"][];
@@ -6224,6 +6352,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["HealthView"];
+                };
+            };
+        };
+    };
+    graph: {
+        parameters: {
+            query?: {
+                focus?: string;
+                hops?: number;
+                rank?: "IN" | "OUT" | "BACKLOG";
+                limit?: number;
+                groupBy?: "CLIENT_ID" | "USER" | "HOST";
+                layers?: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FlowGraphView"];
                 };
             };
         };

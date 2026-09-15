@@ -96,8 +96,12 @@ dead-letter backlog, and one stopped node.
 
 ```bash
 just dev-up                          # Postgres + an Artemis pair + Studio
-ADMIN_PASSWORD=… just demo           # a second pair, plus realistic traffic
+ADMIN_PASSWORD=… NEW_ADMIN_PASSWORD=… just demo   # a second pair, plus realistic traffic
 ```
+
+The password `just dev-up` prints is one-time: Studio refuses everything else until it
+is changed. `NEW_ADMIN_PASSWORD` is the one you choose; the seed changes it for you on
+the first run, and later runs need only `ADMIN_PASSWORD` set to it.
 
 Nothing in that seed writes to `metric_sample` or `queue_snapshot` directly —
 the traffic is produced and consumed through the broker's own CLI, so the charts

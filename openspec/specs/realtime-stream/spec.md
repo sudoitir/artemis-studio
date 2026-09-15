@@ -9,7 +9,7 @@ the client behaves when the stream is unavailable.
 
 ### Requirement: One multiplexed event stream per cluster
 
-The system SHALL expose a single streaming endpoint that a client opens with a cluster identifier and a set of topics, and that delivers named events for the subscribed topics only. The recognised topics SHALL be exactly those declared by the installation's enabled features. With every feature enabled, they SHALL include topology, health, queues, events, consumers, sessions, connections, request-reply, alerts and configuration. A topic name the endpoint does not recognise, including a topic of a disabled feature, SHALL be ignored rather than rejected.
+The system SHALL expose a single streaming endpoint that a client opens with a cluster identifier and a set of topics, and that delivers named events for the subscribed topics only. The recognised topics SHALL be exactly those declared by the installation's enabled features. With every feature enabled, they SHALL include topology, health, queues, events, consumers, sessions, connections, request-reply, alerts, configuration and flow. A topic name the endpoint does not recognise, including a topic of a disabled feature, SHALL be ignored rather than rejected.
 
 A topic carries state that is the same for every subscriber of a cluster. Delivery specific to one client's request, where the payload depends on parameters that client supplied and no other subscriber shares, SHALL NOT be added as a topic on this stream. It SHALL be served by its own stream, scoped to that request, which ends when that client disconnects. Such a stream SHALL apply the same permission check, the same heartbeat, and the same subscriber-release behaviour as this one.
 
@@ -33,6 +33,11 @@ A topic carries state that is the same for every subscriber of a cluster. Delive
 - **WHEN** a client opens the stream for a cluster requesting the alerts topic
 - **THEN** it receives an alerts signal event whenever that cluster's alert firing state changes, and no topic it did not request
 
+#### Scenario: Client subscribes to the flow topic
+
+- **WHEN** a client opens the stream for a cluster requesting the flow topic
+- **THEN** the client receives a flow signal whenever a sampling sweep changes that cluster's flow state
+
 #### Scenario: A disabled feature's topic is ignored
 
 - **WHEN** a client requests the alerts topic and the topology topic on an installation with alerting disabled
@@ -46,13 +51,14 @@ A topic carries state that is the same for every subscriber of a cluster. Delive
 ### Requirement: Events are change signals derived from polling or push
 
 Signal-topic events (topology, health, queues, consumers, sessions, connections,
-alerts) SHALL each carry their topic, the cluster they concern, and a timestamp, and
+alerts, flow) SHALL each carry their topic, the cluster they concern, and a timestamp, and
 SHALL signal that the topic's data has changed so the client can refetch it. A
 signal-topic event SHALL be emitted only on an actual change: for a scrape-path
 topic, only when a scrape tick changed that topic's persisted state; for a
 push-path topic, only when a received notification implies that topic is stale;
 for the alerts topic, only when an alert evaluation tick changes a firing state for
-that cluster.
+that cluster; for the flow topic, only when a client-activity sweep changed that
+cluster's persisted flow state.
 
 The events topic is the exception: it SHALL carry the full broker-event payload
 and a monotonic event id, not a bare signal, and its events SHALL originate from
@@ -85,6 +91,11 @@ the push path.
 - **WHEN** an alert evaluation tick for a cluster produces no new firing or
   resolution
 - **THEN** no alerts event is emitted for that tick
+
+#### Scenario: A flow sweep that changed nothing emits nothing
+
+- **WHEN** a client-activity sweep for a cluster persists the same flow state as the previous sweep
+- **THEN** no flow event is emitted for that sweep
 
 ### Requirement: A reconnecting client replays missed broker events
 
