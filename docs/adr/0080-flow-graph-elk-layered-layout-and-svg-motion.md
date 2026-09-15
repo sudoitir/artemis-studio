@@ -18,7 +18,7 @@ every 15-second refresh, and with a cost bounded independent of cluster size (AD
 
 We will add `elkjs` (exact version pinned) and lay out the flow graph with ELK's `layered`
 algorithm: direction right, one layer per column via `layerChoiceConstraint`, model order
-seeded from the previous layout, run in a web worker, re-run only when the set of drawn
+seeded from the previous layout, run in ELK's own web worker (`elk-api` posting to `elk-worker.min.js`), re-run only when the set of drawn
 nodes changes.
 
 We will animate flow with SVG `<animateMotion>` dots inside a custom React Flow edge: rate

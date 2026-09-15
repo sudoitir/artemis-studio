@@ -4,37 +4,40 @@ import type { ElkNode } from 'elkjs/lib/elk-api';
 import type { FlowGraphView } from './api.ts';
 import { layoutSignature, positionsFrom, toElkGraph, type Positions } from './flowLayout.ts';
 
-type Pending = { resolve: (p: Positions) => void; reject: (e: Error) => void };
+import elkWorkerUrl from 'elkjs/lib/elk-worker.min.js?url';
 
-let worker: Worker | null = null;
-let nextId = 0;
-const pending = new Map<number, Pending>();
+/** What an ELK instance offers, whichever way the bundler hands the CommonJS module over. */
+type Elk = { layout(graph: ElkNode): Promise<ElkNode> };
+type ElkConstructor = new (options?: { workerUrl?: string }) => Elk;
 
-function layoutWorker(): Worker {
-  if (worker) return worker;
-  worker = new Worker(new URL('./layout.worker.ts', import.meta.url), { type: 'module' });
-  worker.onmessage = (event: MessageEvent<{ id: number; positions?: Positions; error?: string }>) => {
-    const waiter = pending.get(event.data.id);
-    pending.delete(event.data.id);
-    if (!waiter) return;
-    if (event.data.positions) waiter.resolve(event.data.positions);
-    else waiter.reject(new Error(event.data.error ?? 'layout failed'));
-  };
-  return worker;
+/**
+ * elkjs is CommonJS. A bundler may hand over the constructor as the module's default or as the
+ * module itself; Node hands it over as the default. Take whichever is the constructor.
+ */
+function constructorOf(module: unknown): ElkConstructor {
+  const candidate = (module as { default?: unknown }).default ?? module;
+  return candidate as ElkConstructor;
 }
 
-/** Lay a graph out in the worker, or on this thread where there is no worker (tests, old runtimes). */
-export function runLayout(graph: ElkNode): Promise<Positions> {
-  if (typeof Worker === 'undefined') {
-    return import('elkjs/lib/elk.bundled.js').then(async ({ default: ELK }) =>
-      positionsFrom(await new ELK().layout(graph)),
-    );
-  }
-  const id = nextId++;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    layoutWorker().postMessage({ id, graph });
-  });
+let elk: Promise<Elk> | null = null;
+
+/**
+ * ELK's own worker runs the layout (ADR-0080): elk-api on this thread posts to elk-worker.min.js,
+ * so a large graph never blocks the page. Where there is no Worker (Node, tests), the bundled build
+ * runs on this thread instead. The instance is created once; a failed layout rejects, and the canvas
+ * says the graph could not be laid out.
+ */
+function elkInstance(): Promise<Elk> {
+  elk ??=
+    typeof Worker === 'undefined'
+      ? import('elkjs/lib/elk.bundled.js').then((m) => new (constructorOf(m))())
+      : import('elkjs/lib/elk-api.js').then((m) => new (constructorOf(m))({ workerUrl: elkWorkerUrl }));
+  return elk;
+}
+
+/** Lay a graph out and return where each node goes. */
+export async function runLayout(graph: ElkNode): Promise<Positions> {
+  return positionsFrom(await (await elkInstance()).layout(graph));
 }
 
 /**
