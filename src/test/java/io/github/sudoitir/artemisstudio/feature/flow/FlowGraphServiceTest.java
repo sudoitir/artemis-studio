@@ -367,6 +367,39 @@ class FlowGraphServiceTest {
     }
 
     @Test
+    void aClusterHopNamesThePairsServingEndpointNotItsStandby() {
+        ClusterNode serving = mock(ClusterNode.class);
+        when(serving.getId()).thenReturn(nodeA);
+        when(serving.getName()).thenReturn("artemis-secondary");
+        when(serving.getArtemisNodeId()).thenReturn("pair-2");
+        when(serving.getActive()).thenReturn(true);
+        ClusterNode standby = mock(ClusterNode.class);
+        when(standby.getId()).thenReturn(nodeB);
+        when(standby.getName()).thenReturn("artemis-secondary-backup");
+        when(standby.getArtemisNodeId()).thenReturn("pair-2");
+        when(standby.getActive()).thenReturn(false);
+        // The standby sorts after its serving endpoint, which is exactly how the directory lists them.
+        when(directory.nodes(clusterId)).thenReturn(List.of(serving, standby));
+        route(
+                nodeA,
+                FlowStore.RouteKind.STORE_AND_FORWARD,
+                "$.artemis.internal.sf.demo.pair-2",
+                "$.artemis.internal.sf.demo.pair-2",
+                "pair-2",
+                null,
+                false,
+                true,
+                3.0);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.kind() == NodeKind.REMOTE)
+                .singleElement()
+                .satisfies(n -> assertThat(n.label()).isEqualTo("artemis-secondary"));
+    }
+
+    @Test
     void temporaryQueuesCollapseIntoOneNodePerClientOnlyWhenAsked() {
         route(nodeA, FlowStore.RouteKind.TEMPORARY_QUEUE, "tmp.1", "tmp.1", "tmp.1", null, false, true, null);
         route(nodeA, FlowStore.RouteKind.TEMPORARY_QUEUE, "tmp.2", "tmp.2", "tmp.2", null, false, true, null);

@@ -112,7 +112,12 @@ public class FlowGraphService {
         for (ClusterNode n : directory.nodes(clusterId)) {
             nodeNames.put(n.getId(), n.getName());
             if (n.getArtemisNodeId() != null) {
-                nodeNamesByArtemisId.put(n.getArtemisNodeId(), n.getName());
+                // A live/backup pair shares one NodeID: name the logical node by its serving endpoint,
+                // never by whichever of the pair happens to be listed last.
+                String nodeId = n.getArtemisNodeId();
+                if (!nodeNamesByArtemisId.containsKey(nodeId) || Boolean.TRUE.equals(n.getActive())) {
+                    nodeNamesByArtemisId.put(nodeId, n.getName());
+                }
             }
         }
 
