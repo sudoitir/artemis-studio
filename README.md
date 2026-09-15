@@ -15,6 +15,7 @@ safe message operations, and SQL over your messages — all from a single instan
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/sudoitir/artemis-studio)](https://github.com/sudoitir/artemis-studio/commits/main)
 [![Stars](https://img.shields.io/github/stars/sudoitir/artemis-studio?style=flat)](https://github.com/sudoitir/artemis-studio/stargazers)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sudoitir/artemis-studio)
 
 [**Docs**](https://sudoitir.github.io/artemis-studio/) ·
 [Quickstart](https://sudoitir.github.io/artemis-studio/guide/quickstart) ·
@@ -194,7 +195,7 @@ from the commit messages ([`changelog/`](changelog/)).
 
 |     |                                                                                                                                                                                                  |
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [x] | **A · Data governance:** sensitive header/property masking, PII auto-classification, and role-based redaction                                                                                    |
+| [ ] | **A · Improve CI/CD:** Optimize CI/CD so source changes trigger image publishing, site changes trigger site deployment, and relevant checks run only when needed.                                |
 | [ ] | **A · Cross-broker message transfer:** move messages between queues on different brokers, forced redistribution of specific messages, and arbitrary queue-to-queue transfers across remote nodes |
 | [ ] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
 | [ ] | **A · Observability export:** OpenTelemetry metrics                                                                                                                                              |
@@ -209,13 +210,11 @@ from the commit messages ([`changelog/`](changelog/)).
 | [ ] | **C · Compliance tooling:** content/PII search and predicate-based message deletion with audit                                                                                                   |
 | [ ] | **C · SLA tracking:** queue depth, request-reply latency, and consumption-violation tracking                                                                                                     |
 | [ ] | **C · Environment promotion:** compare and promote queues, addresses, and routing definitions across environments                                                                                |
-| [x] | **C · Broker configuration:** declared address settings, security settings, diverts and queues per cluster; applied canary-first over management or exported as `broker.xml`; advisory drift, never auto-reconciled |
-| [ ] | **C · Static configuration verification:** compare the parts of `broker.xml` the management API cannot apply — `global-max-size`, `<ha-policy>`, acceptors — against a declared expectation                    |
+| [ ] | **C · Static configuration verification:** compare the parts of `broker.xml` the management API cannot apply — `global-max-size`, `<ha-policy>`, acceptors — against a declared expectation      |
 | [ ] | **C · Capacity forecasting:** predict queue growth and broker pressure from metric history                                                                                                       |
 | [ ] | **C · Audit export:** filtered audit-trail export and retention controls                                                                                                                         |
 | [ ] | **D · SQL processors:** filter and transform, aggregation; joins only if a safe Artemis model is proven                                                                                          |
 | [ ] | **D · Message replay:** replay captured payloads as single, batch, or transformed messages                                                                                                       |
-| [x] | **D · Flow visualization:** client connectivity and message-flow visualization                                                                                                                   |
 | [ ] | **D · ArkMQ operator:** Kubernetes-native cluster discovery and registration                                                                                                                     |
 | [ ] | **E · Schema detection:** message schema inference and payload structure catalog                                                                                                                 |
 | [ ] | **E · Scheduled reports:** CSV/JSON reports with distribution lists and alert-attached reports                                                                                                   |
