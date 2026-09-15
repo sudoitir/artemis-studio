@@ -205,15 +205,23 @@ await clip('flow', async (page, clusterId, mark) => {
   mark();
   await hold(page, 3_000);
 
-  // Hovering a queue keeps its whole path bright and fades the rest. A named, busy queue near the top:
-  // the first queue in document order can sit outside the visible canvas, under the pane.
+  // Hovering a queue keeps its whole path bright and fades the rest. The canvas clips its nodes, so a
+  // queue outside the visible part is covered by the pane: pick the first one wholly inside it.
   await page.locator('.react-flow').scrollIntoViewIfNeeded();
-  const queue = page.locator('.react-flow__node-queue').filter({ hasText: 'PAYMENTS.capture' }).first();
-  await queue.hover();
+  const canvas = (await page.locator('.react-flow').boundingBox())!;
+  let target: { x: number; y: number } | null = null;
+  for (const box of await Promise.all((await page.locator('.react-flow__node-queue').all()).map((q) => q.boundingBox()))) {
+    if (box && box.y > canvas.y + 40 && box.y + box.height < canvas.y + canvas.height - 40 && box.x + box.width < canvas.x + canvas.width) {
+      target = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      break;
+    }
+  }
+  if (!target) throw new Error('flow: no queue is wholly on screen');
+  await page.mouse.move(target.x, target.y, { steps: 12 });
   await hold(page, 2_400);
 
   // Selecting it opens the inspector: rates, members and routing for that one node.
-  await queue.click();
+  await page.mouse.click(target.x, target.y);
   await page.getByRole('complementary', { name: /^Details of / }).waitFor({ timeout: 10_000 }).catch(() => {});
   await hold(page, 3_000);
   await page.keyboard.press('Escape');
