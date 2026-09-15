@@ -55,6 +55,7 @@ async function main() {
   const shots: Array<{
     file: string;
     path: string;
+    width?: number;
     height?: number;
     /** Drives the view into the state worth photographing, before `ready`. */
     before?: () => Promise<unknown>;
@@ -79,14 +80,21 @@ async function main() {
       // wait for real nodes, then give the sampler two sweeps before photographing.
       // Routing layers on, Studio's capture tap included; dead-letter edges stay off (one per queue).
       path: `/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`,
-      height: 1100,
+      // Wide: five columns and their routing hops only fit side by side at a legible zoom on a wide screen.
+      width: 1920,
+      height: 1300,
       ready: async () => {
         await page.locator('.react-flow__node-queue').first().waitFor({ timeout: 60_000 });
+        // Client nodes arrive with the sampler's first sweep and their rates with the second. Reload
+        // once both exist, so the layout orders every column busiest first.
         await page
-          .getByText(/msg\/s/)
+          .locator('.react-flow__node-client')
           .first()
-          .waitFor({ timeout: 60_000 })
-          .catch(() => console.warn('flow.png: no measured rate yet — the seed may not be running'));
+          .waitFor({ timeout: 90_000 })
+          .catch(() => console.warn('flow.png: no sampled clients yet — the seed may not be running'));
+        await page.waitForTimeout(35_000);
+        await page.reload();
+        await page.locator('.react-flow__node-client').first().waitFor({ timeout: 60_000 });
         await page.waitForTimeout(2_000);
       },
     },
@@ -200,7 +208,7 @@ async function main() {
   ];
 
   for (const shot of shots) {
-    await page.setViewportSize({ width: 1440, height: shot.height ?? 900 });
+    await page.setViewportSize({ width: shot.width ?? 1440, height: shot.height ?? 900 });
     await page.goto(`${BASE}${shot.path}`);
     try {
       await shot.before?.();

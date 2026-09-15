@@ -64,7 +64,7 @@ async function navigate(page: Page, name: string | RegExp) {
   await page.getByRole('link', { name, exact: typeof name === 'string' }).first().click();
 }
 
-async function encode(webm: string, name: string, skip: number) {
+async function encode(webm: string, name: string, skip: number, size: typeof SIZE, gifWidth: number) {
   // Recording starts when the context does, so the first seconds are the login
   // screen and the navigation to the first view. `mark()` says where the part
   // worth watching begins; everything before it is cut.
@@ -72,7 +72,7 @@ async function encode(webm: string, name: string, skip: number) {
   // 128 colours rather than 256: a dark UI with a small accent palette does not
   // use them, and the smaller table is a visibly smaller file.
   const palette = join(dirname(webm), 'palette.png');
-  const filters = `fps=${FPS},scale=${GIF_WIDTH}:-1:flags=lanczos`;
+  const filters = `fps=${FPS},scale=${gifWidth}:-1:flags=lanczos`;
   await run('ffmpeg', ['-y', ...trim, '-vf', `${filters},palettegen=max_colors=128:stats_mode=diff`, palette]);
   await run('ffmpeg', [
     '-y',
@@ -88,7 +88,7 @@ async function encode(webm: string, name: string, skip: number) {
   await run('ffmpeg', [
     '-y',
     ...trim,
-    '-vf', `scale=${SIZE.width}:-2`,
+    '-vf', `scale=${size.width}:-2`,
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '26', '-movflags', '+faststart', '-an',
     join(OUT, `${name}.mp4`),
   ]);
@@ -99,14 +99,15 @@ async function encode(webm: string, name: string, skip: number) {
 async function clip(
   name: string,
   drive: (page: Page, clusterId: string, mark: () => void) => Promise<void>,
+  { size = SIZE, gifWidth = GIF_WIDTH } = {},
 ) {
   const dir = await mkdtemp(join(tmpdir(), `artemis-studio-${name}-`));
   const browser = await chromium.launch();
   const started = Date.now();
   const context = await browser.newContext({
-    viewport: SIZE,
+    viewport: size,
     colorScheme: 'dark',
-    recordVideo: { dir, size: SIZE },
+    recordVideo: { dir, size },
   });
   const page = await context.newPage();
   let skip = 0;
@@ -121,7 +122,7 @@ async function clip(
   }
   const [video] = (await readdir(dir)).filter((f) => f.endsWith('.webm'));
   if (!video) throw new Error(`${name}: playwright wrote no video into ${dir}`);
-  await encode(join(dir, video), name, skip);
+  await encode(join(dir, video), name, skip, size, gifWidth);
   await rm(dir, { recursive: true, force: true });
 }
 
@@ -160,8 +161,6 @@ await clip('demo', async (page, clusterId, mark) => {
 
   // Who produces where and who consumes it, moving: the view no other Artemis console has.
   await navigate(page, 'Flow');
-  // The richer routing view: diverts, the bridge, cluster hops and Studio's capture tap.
-  await page.goto(`${BASE}/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`);
   await page
     .locator('.react-flow__node-queue')
     .first()
@@ -185,7 +184,43 @@ await clip('demo', async (page, clusterId, mark) => {
   await hold(page, 1_800);
 });
 
-// ── 2. The SQL Console, on its own ───────────────────────────────────────────
+// ── 2. Flow, on its own ──────────────────────────────────────────────────────
+await clip('flow', async (page, clusterId, mark) => {
+  // Every routing layer the seed builds: diverts, the bridge, cluster hops and Studio's capture tap.
+  await page.goto(`${BASE}/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`);
+  // Client rates come from the sampler's second sweep; a clip without them is a screenshot. Reload once
+  // they exist, so the layout orders every column busiest first. All before `mark()`.
+  await page
+    .locator('.react-flow__node-client')
+    .first()
+    .waitFor({ timeout: 90_000 })
+    .catch(() => console.warn('flow: no sampled clients — is the seed still driving traffic?'));
+  // Collapse the sidebar before the reload, so the graph is fitted to the wider canvas it is filmed in.
+  await page.keyboard.press('ControlOrMeta+b');
+  await page.waitForTimeout(35_000);
+  await page.reload();
+  await page.locator('.react-flow__node-client').first().waitFor({ timeout: 60_000 });
+  await page.locator('animateMotion').first().waitFor({ state: 'attached', timeout: 30_000 }).catch(() => {});
+  await streamLive(page, 'flow');
+  mark();
+  await hold(page, 3_000);
+
+  // Hovering a queue keeps its whole path bright and fades the rest.
+  const queue = page.locator('.react-flow__node-queue').first();
+  await queue.hover();
+  await hold(page, 2_400);
+
+  // Selecting it opens the inspector: rates, members and routing for that one node.
+  await queue.click();
+  await page.getByRole('complementary', { name: /^Details of / }).waitFor({ timeout: 10_000 }).catch(() => {});
+  await hold(page, 3_000);
+  await page.keyboard.press('Escape');
+  await page.mouse.move(4, 4);
+  await hold(page, 1_600);
+  // Wider than the other clips, and without the sidebar: five columns only fit legibly side by side.
+}, { size: { width: 1600, height: 1000 }, gifWidth: 1200 });
+
+// ── 3. The SQL Console, on its own ───────────────────────────────────────────
 await clip('sql-console', async (page, _clusterId, mark) => {
   // Through the queues first, the way an operator arrives: one management read
   // settles the console's capability verdict, so the clip is not spent under a

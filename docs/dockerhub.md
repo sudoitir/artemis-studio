@@ -27,6 +27,8 @@ enabling the management endpoints you almost certainly already run.
 | [![Live/backup topology with replication and shared-NodeID axis](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/topology.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/topology.png) | [![Every queue across every node in one virtualized grid](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/queues.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/queues.png) |
 | **Metrics and charts** | **Governance (RBAC, environments, tokens, SSO)** |
 | [![Depth, throughput and consumer charts from partitioned Postgres](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/metrics.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/governance.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/governance.png) |
+| **Client and message flow** | **SQL Console** |
+| [![Applications, addresses, diverts, a bridge and queues in columns, each path carrying its measured rate](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/flow.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/flow.png) | [![A query across every queue in the cluster with its cost classified before it runs](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/sql.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/sql.png) |
 
 ---
 

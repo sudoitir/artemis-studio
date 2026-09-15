@@ -112,10 +112,18 @@ recovery are in the [configuration guide](https://sudoitir.github.io/artemis-stu
 | [![Live/backup topology with replication and a shared-NodeID axis](docs/img/topology.png)](docs/img/topology.png) | [![Every queue across every node in one virtualised grid](docs/img/queues.png)](docs/img/queues.png) |
 | **Metrics and charts** | **Governance** |
 | [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
+| **Client and message flow** | **SQL Console** |
+| [![Applications, addresses, diverts, a bridge and queues in columns, each path carrying its measured rate](docs/img/flow.png)](docs/img/flow.png) | [![A query across every queue in the cluster with its cost classified before it runs](docs/img/sql.png)](docs/img/sql.png) |
+
+![Flow: moving dots carry each path's rate; hovering a queue keeps its whole path bright](docs/img/flow.gif)
 
 - **Topology** — live/backup pairs and replication state, with the HA role polled
   from every node on every cycle. Never read from config; two live in a pair is a
   split-brain alert.
+- **Flow** — which application sends where, through which address, divert, bridge
+  or cluster hop, into which queue, and who consumes it, at what rate. Clients are
+  sampled only while someone is watching, and faults such as a backlog with no
+  consumer are stated in words.
 - **Cross-node resources** — queues, addresses, consumers, sessions, connections
   and producers in one virtualised table, attributed per node, over SSE.
 - **Message operations** — browse, send, move, retry, expire, delete, purge, with
@@ -209,7 +217,7 @@ with a `.sha256`, and its notes are generated from the commit messages
 | [ ] | **C · Audit export:** filtered audit-trail export and retention controls                                                                                                                         |
 | [ ] | **D · SQL processors:** filter and transform, aggregation; joins only if a safe Artemis model is proven                                                                                          |
 | [ ] | **D · Message replay:** replay captured payloads as single, batch, or transformed messages                                                                                                       |
-| [ ] | **D · Flow visualization:** client connectivity and message-flow visualization                                                                                                                   |
+| [x] | **D · Flow visualization:** client connectivity and message-flow visualization                                                                                                                   |
 | [ ] | **D · ArkMQ operator:** Kubernetes-native cluster discovery and registration                                                                                                                     |
 | [ ] | **E · Schema detection:** message schema inference and payload structure catalog                                                                                                                 |
 | [ ] | **E · Scheduled reports:** CSV/JSON reports with distribution lists and alert-attached reports                                                                                                   |

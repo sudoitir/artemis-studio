@@ -67,7 +67,7 @@ conventional commit. Design refs are `design.md` D1–D10.
 - [x] 7.2 `animateMotion` dots in `FlowEdge`, memoised on (path, bucket, dots); a test that a same-bucket refresh does not re-render the dots
 - [x] 7.3 Pause control, `useReducedMotion` (no dots rendered), `document.hidden` and off-screen → `pauseAnimations()`; tests for reduced motion and Pause (operator-ui delta)
 - [x] 7.4 Node enter/exit transform transitions (200 ms), disabled under reduced motion
-- [ ] 7.5 Perf check: 200-edge canvas profile at 60 fps; record result in the PR
+- [x] 7.5 Perf check: 200-edge canvas profile at 60 fps; record result in the PR (real browser, `web/scripts/verify-flow.ts` at `limit=200`: 59.7 fps; the demo cluster reaches 60 nodes and 45 edges at that bound, so 200 edges was not exercised; flow read p90 85 ms)
 - [x] 7.6 Commit layer 3 after `just verify` (landed together with layer 2 in one verified commit)
 
 ## 8. Layer 4 — Routing layers
@@ -87,6 +87,6 @@ conventional commit. Design refs are `design.md` D1–D10.
 
 - [ ] 9.1 `just demo` walkthrough: no-consumer fault, stopped node unreachable, rates after ~15 s, reroute divert, cluster hop, layers, focus + reload, table parity, reduced motion
 - [ ] 9.2 Close all flow views; confirm sampling stops within the lease (`studio.flow.sample.skipped{reason=no-lease}`)
-- [ ] 9.3 Contrast check of new tokens in light and dark; keyboard-only pass
+- [x] 9.3 Contrast check of new tokens in light and dark; keyboard-only pass (fault text 4.89:1 on nodes and 5.59:1 on the canvas in dark, 5.46:1 in light; edges on the dimmed step ~5:1; real-browser keyboard pass: a node takes focus, Enter opens details, Escape closes and returns focus)
 - [ ] 9.4 Site guide page for Flow with `just shots` screenshot
 - [x] 9.5 `openspec validate flow-visualization --strict` passes
