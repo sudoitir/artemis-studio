@@ -205,8 +205,10 @@ await clip('flow', async (page, clusterId, mark) => {
   mark();
   await hold(page, 3_000);
 
-  // Hovering a queue keeps its whole path bright and fades the rest.
-  const queue = page.locator('.react-flow__node-queue').first();
+  // Hovering a queue keeps its whole path bright and fades the rest. A named, busy queue near the top:
+  // the first queue in document order can sit outside the visible canvas, under the pane.
+  await page.locator('.react-flow').scrollIntoViewIfNeeded();
+  const queue = page.locator('.react-flow__node-queue').filter({ hasText: 'PAYMENTS.capture' }).first();
   await queue.hover();
   await hold(page, 2_400);
 

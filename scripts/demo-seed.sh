@@ -143,6 +143,10 @@ routing "fan-out address"        /addresses '{"name":"ORDERS.events","routingTyp
 for q in billing analytics audit; do
   routing "fan-out queue $q"     /queues "{\"address\":\"ORDERS.events\",\"name\":\"ORDERS.events.$q\",\"routingType\":\"MULTICAST\",\"durable\":true}"
 done
+# Orders parked for manual review: nothing consumes them, so the SQL Console always has JSON
+# bodies to search, however long the demo has been running.
+routing "held orders address"    /addresses '{"name":"ORDERS.held","routingTypes":"ANYCAST"}'
+routing "held orders queue"      /queues '{"address":"ORDERS.held","name":"ORDERS.held","routingType":"ANYCAST","durable":true}'
 routing "wildcard address"       /addresses '{"name":"ORDERS.#","routingTypes":"MULTICAST"}'
 routing "wildcard queue"         /queues '{"address":"ORDERS.#","name":"ORDERS.all.monitor","routingType":"MULTICAST","durable":true}'
 routing "filtered queue"         /queues '{"address":"SHIPPING.events","name":"SHIPPING.express","routingType":"ANYCAST","durable":true,"filter":"express = true"}'
@@ -241,7 +245,7 @@ say "sending a few JSON orders, so the SQL Console has a body to search"
 # `body->>'orderId' = ...`, has something real to find.
 for id in 4471 4472 4473 4474 4475 4476 4477 4478; do
   tenant=$([ $((id % 2)) -eq 0 ] && echo acme || echo globex)
-  api POST "/clusters/$cluster/queues/ORDERS.inbound/messages" -d "{
+  api POST "/clusters/$cluster/queues/ORDERS.held/messages" -d "{
     \"type\": 3,
     \"durable\": true,
     \"body\": \"{\\\"orderId\\\": \\\"$id\\\", \\\"tenant\\\": \\\"$tenant\\\", \\\"total\\\": $((id % 97 + 12)).50, \\\"currency\\\": \\\"EUR\\\"}\",

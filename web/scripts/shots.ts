@@ -26,9 +26,10 @@ password(); // fail before launching a browser if it is missing
 
 // A query with one pushdown predicate and one target wildcard: the plan strip
 // then has something to classify, which is the part of this screen worth showing.
+// No ORDER BY: sorting reads every message under ORDERS.*, which on a demo that has run for a while
+// runs to the console's 30 s bound. Unsorted, the scan stops at the limit.
 const SQL = `SELECT * FROM "ORDERS.*"
 WHERE props.tenant = 'acme'
-ORDER BY timestamp DESC
 LIMIT 200`;
 
 /**
@@ -129,7 +130,8 @@ async function main() {
         await page.keyboard.type(SQL);
         await page.getByRole('button', { name: 'Run', exact: true }).click();
       },
-      ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
+      // Longer than the console's own 30 s query bound, so a slow broker still yields its rows.
+      ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }),
     },
     {
       file: 'governance.png',
