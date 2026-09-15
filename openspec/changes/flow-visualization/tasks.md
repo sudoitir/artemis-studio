@@ -51,7 +51,7 @@ conventional commit. Design refs are `design.md` D1–D10.
 
 ## 6. Layer 2 — Graph
 
-- [x] 6.1 `layout.worker.ts` + `useElkLayout`: layered RIGHT, column constraints, model-order seeding, node-set signature keying; `layout.test.ts` (columns, rate-only update keeps positions) (D7)
+- [x] 6.1 ELK's own worker via `elk-api` + `useFlowLayout`: layered RIGHT, column constraints, model-order seeding, node-set signature keying; `layout.test.ts` (columns, rate-only update keeps positions) (D7)
 - [x] 6.2 Node components (client pill, address tag with A/M badge, queue box with depth bar, consumer group ×N, remote/broker) with accessible names and focus ring (ui-ux-pro-max pass)
 - [x] 6.3 Static `FlowEdge`: width tiers, idle dashed, rate label with tabular figures, measuring / not counted / stale, fault glyph + word
 - [x] 6.4 `FlowCanvas`: React Flow with drag/connect off, controls, fit with maxZoom 1, refit on node-set change, LOD by zoom, dense mode with `onlyRenderVisibleElements` + `MiniMap` stated
@@ -81,7 +81,7 @@ conventional commit. Design refs are `design.md` D1–D10.
 - [x] 8.6 Anonymous producer node; temporary queues collapsed per client; capture taps marked when shown
 - [x] 8.7 DLA / expiry edges from the sampled `getAddressSettingsAsJSON("#")`, layer off by default
 - [x] 8.8 Service tests for each routing edge kind; IT with an exclusive and a copy divert against the real broker
-- [ ] 8.9 Commit layer 4 after `just verify`
+- [x] 8.9 Commit layer 4 after `just verify`
 
 ## 9. Verification and docs
 

@@ -146,7 +146,7 @@ whole client set and ranks after download.
 `elkjs` layered algorithm, direction RIGHT, fixed columns via
 `org.eclipse.elk.layered.layering.layerChoiceConstraint` (producers 0, addresses 1, queues
 2, consumers 3, remote 4), model order considered and seeded from the previous layout's
-vertical order. It runs in a worker (`layout.worker.ts`) and re-runs only when the sorted
+vertical order. It runs in ELK's own worker (`elk-api` on the page posting to `elk-worker.min.js`, whose URL Vite emits) — never ELK's bundled build inside a worker of ours, which would try to start a nested worker and re-runs only when the sorted
 node-id signature changes; rate-only refreshes reuse positions. Node entry/exit uses 200 ms
 transform transitions, disabled under reduced motion.
 *Alternatives*: the hand layout from `clusters/layout.ts`, rejected because it has no crossing
