@@ -106,13 +106,13 @@ public class MetricSamples {
                 SELECT bucket, sum(delta) / :stepSeconds AS v
                   FROM (
                     SELECT date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
-                           subject_name,
                            GREATEST(max(value) - min(value), 0) AS delta
                       FROM metric_sample
                      WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
                        AND (:subjectName::text IS NULL OR subject_name = :subjectName)
                        AND ts >= :from AND ts < :to
-                     GROUP BY bucket, subject_name
+                     -- Per node too: the same queue on two nodes is two unrelated lifetime counters.
+                     GROUP BY bucket, subject_name, node_id
                   ) delta_per_subject
                  GROUP BY bucket ORDER BY bucket
                 """;
@@ -130,32 +130,12 @@ public class MetricSamples {
      * window instead of {@code date_bin} buckets. A subject with fewer than two
      * samples in the window has no computable rate and is omitted, never
      * reported as zero — reporting zero would read as "throughput dropped" for
-     * a queue simply not sampled twice yet.
+     * a queue simply not sampled twice yet. Computed per node and summed, as
+     * {@link #latestRateWithTimeBySubject}: a queue on two nodes has two unrelated counters.
      */
     public Map<String, Double> latestRateBySubject(UUID clusterId, String metric, Instant from, Instant to) {
-        String sql = """
-                SELECT subject_name, GREATEST(max(value) - min(value), 0) / :windowSeconds AS rate
-                  FROM metric_sample
-                 WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
-                   AND ts >= :from AND ts < :to
-                 GROUP BY subject_name
-                HAVING count(*) >= 2
-                """;
-        double windowSeconds = Math.max(1, Duration.between(from, to).getSeconds());
-        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
-                        "clusterId",
-                        clusterId,
-                        "metric",
-                        metric,
-                        "from",
-                        Timestamp.from(from),
-                        "to",
-                        Timestamp.from(to)))
-                .addValue("windowSeconds", windowSeconds);
         Map<String, Double> out = new java.util.HashMap<>();
-        jdbc.query(sql, p, rs -> {
-            out.put(rs.getString("subject_name"), rs.getDouble("rate"));
-        });
+        latestRateWithTimeBySubject(clusterId, metric, from, to).forEach((subject, r) -> out.put(subject, r.rate()));
         return out;
     }
 
