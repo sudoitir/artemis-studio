@@ -31,7 +31,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Pinned; verified against Maven Central during workspace setup. -->
-        <artemis.version>2.56.0</artemis.version>
+        <artemis.version>2.57.0</artemis.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <spotless.version>3.10.2</spotless.version>
         <palantir-java-format.version>2.97.0</palantir-java-format.version>
@@ -50,7 +50,7 @@
         <spring-cloud.version>2025.1.3</spring-cloud.version>
         <spring-modulith.version>2.1.1</spring-modulith.version>
         <!-- SQL Console dialect parser (ADR-0058). Not BOM-managed. -->
-        <jsqlparser.version>5.3</jsqlparser.version>
+        <jsqlparser.version>5.4</jsqlparser.version>
         <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
         <node.version>v22.14.0</node.version>
 
