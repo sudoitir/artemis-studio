@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -109,4 +110,73 @@ describe('MessagesView', () => {
     expect(screen.getByText(/page 1 · total unavailable/)).toBeInTheDocument();
     expect(screen.queryByText(/^0 messages/)).not.toBeInTheDocument();
   });
+
+  it('renders every message of a populated page and opens the one clicked', async () => {
+    const summary = (messageId: number, body: string, truncated = false) => ({
+      messageId,
+      type: 3,
+      durable: true,
+      priority: 4,
+      timestamp: 1789847475826 + messageId,
+      expiration: 0,
+      size: body.length,
+      groupId: null,
+      correlationId: null,
+      bodyPreview: body,
+      bodyTruncated: truncated,
+      propertyCount: 1,
+      redactions: [],
+    });
+    mockCluster([endpoint('n1', 'primary'), endpoint('n2', 'secondary')]);
+    server.use(
+      http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () =>
+        HttpResponse.json({
+          data: [summary(101, 'order A-1'), summary(102, 'order A-2', true), summary(103, 'order A-3')],
+          count: 3,
+          countUnavailable: null,
+          page: 1,
+          pageSize: 200,
+          node: 'n2',
+          transport: 'CORE',
+        }),
+      ),
+      http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages/102', () =>
+        HttpResponse.json({
+          ...summary(102, 'order A-2', true),
+          userId: null,
+          body: 'order A-2',
+          bodyEncoding: 'TEXT',
+          contentType: null,
+          observedLimitBytes: null,
+          transport: 'CORE',
+          node: 'n2',
+          stringProperties: { orderId: 'A-2' },
+          intProperties: {},
+          longProperties: {},
+          doubleProperties: {},
+          booleanProperties: {},
+          withheld: [],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+
+    // The count and the node it was read from — the second endpoint, not the first listed.
+    expect(await screen.findByText(/3 messages · read from secondary/)).toBeInTheDocument();
+    const rows = await screen.findAllByRole('row');
+    // Row 0 is the header.
+    expect(rows).toHaveLength(4);
+    expect(within(rows[1]).getByText('order A-1')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('order A-2')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('truncated')).toBeInTheDocument();
+    expect(within(rows[3]).getByText('order A-3')).toBeInTheDocument();
+    expect(screen.queryByText('No messages match')).not.toBeInTheDocument();
+
+    await user.click(within(rows[2]).getByText('order A-2'));
+
+    const drawer = await screen.findByRole('dialog', { name: 'Message 102' });
+    expect(await within(drawer).findByText('A-2')).toBeInTheDocument();
+  });
 });
+
