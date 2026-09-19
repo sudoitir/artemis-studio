@@ -35,6 +35,8 @@ import org.springframework.stereotype.Component;
  *   <li>A {@code QueueBrowser} has no server-side offset, so a page past a bounded
  *       depth ({@link MessageBrowser#BROKER_PAGE_CAP}) is served over Jolokia
  *       instead, and {@link BrowseResult#servedBy()} says so (non-negotiable #1).
+ *   <li>A page shorter than the broker's count says it should be is read again over
+ *       Jolokia: on a paging queue the browser's enumeration ends part-way through.
  *   <li>By-id / by-filter mutations carry no payload and stay on Jolokia
  *       ({@link MessageOperations}) — no Core method here (ADR-0029, D9).
  * </ul>
@@ -117,6 +119,18 @@ public class CoreMessageTransport implements MessageTransport {
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
         Count count = count(target, filter);
+        if (count.total() != null && rows.size() < Math.min(size, count.total() - skip)) {
+            // The JMS browser stops at the first message not already on the client
+            // (receiveImmediate), which on a paging queue is part-way through. A page shorter
+            // than the broker's own count says it should be is read again over management.
+            log.debug(
+                    "Core browse of {} came up short ({} of {}), reading over Jolokia",
+                    target.queueName(),
+                    rows.size(),
+                    count.total() - skip);
+            return new BrowseResult(
+                    jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
+        }
         return new BrowseResult(new BrowsePage(List.copyOf(rows), count.total(), count.unavailable()), Channel.CORE);
     }
 
