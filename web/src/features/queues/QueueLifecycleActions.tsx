@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Alert, Button, Checkbox, Group, Modal, Stack, Text } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
 import { useDeleteQueue, useSetQueuePaused, type LifecycleOutcomeView, type QueueView } from './api.ts';
@@ -131,8 +131,11 @@ export function QueueLifecycleActions({
 
 /**
  * The destructive flow. Opens on a preview, so the typed confirmation is armed
- * only once the operator has been shown the blast radius: which nodes, and how
- * many messages will be destroyed on each.
+ * only once the operator has been shown the blast radius: which nodes, how many
+ * messages will be destroyed on each, and which diverts go with the queue.
+ *
+ * <p>Disconnecting consumers is the operator's explicit choice (ADR-0084). Changing
+ * it takes the preview again, so what is confirmed is always what was previewed.
  */
 function DeleteQueueDialog({
   clusterId,
@@ -151,15 +154,14 @@ function DeleteQueueDialog({
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
   const [previewFailed, setPreviewFailed] = useState<string | null>(null);
+  const [disconnectConsumers, setDisconnectConsumers] = useState(false);
 
-  // The preview runs when the dialog opens, not on a second click: the operator
-  // asked to delete, and the estimate is what they need in order to decide.
-  const onOpen = () => {
+  const takePreview = (disconnect: boolean) => {
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
     remove.mutate(
-      { dryRun: true },
+      { dryRun: true, disconnectConsumers: disconnect },
       {
         onSuccess: setPreview,
         onError: (e) => setPreviewFailed(e.message),
@@ -167,13 +169,20 @@ function DeleteQueueDialog({
     );
   };
 
+  // The preview runs when the dialog opens, not on a second click: the operator
+  // asked to delete, and the estimate is what they need in order to decide.
+  const onOpen = () => takePreview(disconnectConsumers);
+
   const close = () => {
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
+    setDisconnectConsumers(false);
     remove.reset();
     onClose();
   };
+
+  const consumers = queue.totalConsumerCount;
 
   const overCap = preview?.overCap ?? false;
 
@@ -190,6 +199,27 @@ function DeleteQueueDialog({
           This destroys the queue on every live node of the cluster, along with every message it
           holds. Nothing here can be undone, and a queue recreated afterwards is a new, empty one.
         </Text>
+        <Text size="sm">
+          A divert that forwards into this queue&apos;s address is removed with it when the delete
+          leaves nothing bound there — otherwise the divert would bring the queue back, or break its
+          producers. Each node below names the diverts it removes and the ones it keeps.
+        </Text>
+
+        <Checkbox
+          label="Disconnect this queue's consumers"
+          description={`${consumers.toLocaleString()} ${
+            consumers === 1 ? 'consumer was' : 'consumers were'
+          } attached at the last scrape. Without this, a node where the queue has consumers refuses the delete. A client that reconnects can create the queue again if auto-create is on.`}
+          checked={disconnectConsumers}
+          // Locked while any call is in flight: a new preview on the same mutation would drop
+          // the real delete's result, and the operator would never see what it did.
+          disabled={result !== null || remove.isPending}
+          onChange={(e) => {
+            const next = e.currentTarget.checked;
+            setDisconnectConsumers(next);
+            takePreview(next);
+          }}
+        />
 
         <div aria-live="polite">
           {remove.isPending && !preview ? (
@@ -245,7 +275,7 @@ function DeleteQueueDialog({
             disabled={remove.isPending}
             onConfirm={() =>
               remove.mutate(
-                { override: overCap },
+                { dryRun: false, override: overCap, disconnectConsumers },
                 { onSuccess: setResult },
               )
             }

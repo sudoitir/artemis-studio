@@ -62,13 +62,19 @@ public class QueueLifecycleController {
         return respond(lifecycle.updateQueue(clusterId, queueName, request, dryRun));
     }
 
+    /**
+     * Delete a queue (ADR-0084). A node where the queue has consumers is refused unless
+     * {@code disconnectConsumers} is set, and the diverts that forward only into this queue
+     * are removed with it; the preview names both.
+     */
     @DeleteMapping("/queues/{queueName}")
     public LifecycleOutcomeView deleteQueue(
             @PathVariable UUID clusterId,
             @PathVariable String queueName,
             @RequestParam(defaultValue = "false") boolean dryRun,
-            @RequestParam(defaultValue = "false") boolean override) {
-        return respond(lifecycle.deleteQueue(clusterId, queueName, dryRun, override));
+            @RequestParam(defaultValue = "false") boolean override,
+            @RequestParam(defaultValue = "false") boolean disconnectConsumers) {
+        return respond(lifecycle.deleteQueue(clusterId, queueName, dryRun, override, disconnectConsumers));
     }
 
     @PostMapping("/queues/{queueName}/pause")

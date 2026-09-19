@@ -61,7 +61,7 @@ public class QueuesMcpTools {
      */
     @McpTool(
             name = "queue_lifecycle",
-            description = "Queue and address lifecycle across a cluster's live nodes. Previews by default.",
+            description = "Queue, address and divert lifecycle, cluster-wide. Previews first.",
             annotations =
                     @McpTool.McpAnnotations(
                             readOnlyHint = false,
@@ -80,12 +80,14 @@ public class QueuesMcpTools {
             @McpToolParam(required = false) String config,
             @McpToolParam(required = false) Boolean dryRun,
             @McpToolParam(required = false) String confirm,
-            @McpToolParam(required = false) Boolean override) {
+            @McpToolParam(required = false) Boolean override,
+            @McpToolParam(required = false) Boolean disconnectConsumers) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String subject = McpArgs.required("name", name);
         LifecycleKind op = McpArgs.enumOf(LifecycleKind.class, "kind", kind, null);
         boolean dry = McpArgs.flag(dryRun, true);
         boolean over = McpArgs.flag(override, false);
+        boolean disconnect = McpArgs.flag(disconnectConsumers, false);
         if (!dry && op.destructive()) {
             McpArgs.confirm(subject, confirm);
         }
@@ -97,7 +99,7 @@ public class QueuesMcpTools {
                 switch (op) {
                     case CREATE_QUEUE -> lifecycle.createQueue(id, createRequest(subject, body), dry);
                     case UPDATE_QUEUE -> lifecycle.updateQueue(id, subject, updateRequest(body), dry);
-                    case DELETE_QUEUE -> lifecycle.deleteQueue(id, subject, dry, over);
+                    case DELETE_QUEUE -> lifecycle.deleteQueue(id, subject, dry, over, disconnect);
                     case PAUSE_QUEUE -> lifecycle.setPaused(id, subject, true, dry);
                     case RESUME_QUEUE -> lifecycle.setPaused(id, subject, false, dry);
                     case RESET_QUEUE_COUNTER -> lifecycle.resetCounter(id, subject, dry);

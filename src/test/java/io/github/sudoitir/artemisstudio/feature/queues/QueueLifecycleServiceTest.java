@@ -3,9 +3,11 @@ package io.github.sudoitir.artemisstudio.feature.queues;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -22,6 +24,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
+import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
@@ -38,6 +41,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -78,6 +82,17 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     @MockitoBean
     QueueLifecycleOperations ops;
 
+    @MockitoBean
+    DivertOperations divertOps;
+
+    @MockitoBean
+    DeclaredDiverts declaredDiverts;
+
+    @MockitoBean
+    CaptureTaps captureTaps;
+
+    private JolokiaBrokerClient client;
+
     private UUID clusterId;
     private UUID liveId;
     private UUID deadId;
@@ -89,7 +104,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         liveId = node("live", LIVE_URL, true);
         deadId = node("dead", DEAD_URL, false);
 
-        JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
+        client = mock(JolokiaBrokerClient.class);
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
         when(connections.forCluster(eq(clusterId), anyString())).thenReturn(client);
     }
@@ -179,9 +194,10 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     @Test
     void aDeleteDryRunReportsWhatWouldBeDestroyedPerNodeAndDestroysNothing() {
         seedQueue();
+        onTheNode(0, QUEUE);
         when(ops.messageCount(any(), anyString())).thenReturn(42L);
 
-        LifecycleOutcome outcome = ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false));
+        LifecycleOutcome outcome = ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false));
 
         assertThat(outcome.totalAffected()).isEqualTo(42L);
         assertThat(outcome.nodes().stream()
@@ -190,7 +206,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
                         .orElseThrow()
                         .affected())
                 .isEqualTo(42L);
-        verify(ops, never()).destroyQueue(any(), anyString(), anyString());
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
     }
 
     // ---- the bulk cap (D6) ------------------------------------------------
@@ -198,22 +214,24 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     @Test
     void aDeleteOverTheCapIsRefusedWithoutAnOverride() {
         seedQueue();
+        onTheNode(0, QUEUE);
         when(ops.messageCount(any(), anyString())).thenReturn(Long.MAX_VALUE / 2);
 
-        assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, false, false))
+        assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, false, false, false))
                 .isInstanceOf(BulkCapExceededException.class);
-        verify(ops, never()).destroyQueue(any(), anyString(), anyString());
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
     }
 
     @Test
     void aDeleteOverTheCapProceedsWithAnExplicitOverride() {
         seedQueue();
+        onTheNode(0, QUEUE);
         when(ops.messageCount(any(), anyString())).thenReturn(Long.MAX_VALUE / 2);
 
-        LifecycleOutcome outcome = ok(lifecycle.deleteQueue(clusterId, QUEUE, false, true));
+        LifecycleOutcome outcome = ok(lifecycle.deleteQueue(clusterId, QUEUE, false, true, false));
 
         assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
-        verify(ops).destroyQueue(any(), anyString(), eq(QUEUE));
+        verify(ops).destroyQueue(any(), anyString(), eq(QUEUE), eq(false));
     }
 
     // ---- partial failure (D3, D4) -----------------------------------------
@@ -248,6 +266,234 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         assertThat(events.get(0).getOutcomeDetail()).contains("APPLIED").contains("SKIPPED_NOT_LIVE");
     }
 
+    // ---- delete: consumers and dependent diverts (ADR-0084) ----------------
+
+    private static final String ADDRESS = "orders.addr";
+
+    /** What the delete preflight reads on the live node: the queue's consumers and the address's queues. */
+    private void onTheNode(long consumers, String... addressQueues) {
+        when(ops.deleteState(any(), anyString(), eq(ADDRESS), eq(QUEUE), anyString()))
+                .thenReturn(new QueueLifecycleOperations.DeleteState(
+                        List.of(addressQueues).contains(QUEUE), consumers, List.of(addressQueues)));
+    }
+
+    private void diverts(DivertRow... rows) {
+        when(divertOps.listDiverts(any(), any(), any())).thenReturn(List.of(rows));
+    }
+
+    private static DivertRow divert(String name, String from, String to) {
+        return new DivertRow(null, null, name, name, from, to, null, "STRIP", null, false, false);
+    }
+
+    private NodeOutcome live(LifecycleOutcome outcome) {
+        return outcome.nodes().stream()
+                .filter(n -> n.nodeId().equals(liveId))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Test
+    void aQueueWithConsumersIsRefusedInThePreviewNamingTheFlagAndIsNotDestroyed() {
+        seedQueue();
+        onTheNode(2, QUEUE);
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+        assertThat(preview.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(preview.error()).contains("2 consumers").contains("disconnectConsumers");
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+        assertThat(real.status()).isEqualTo(NodeStatus.FAILED);
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void disconnectingConsumersIsWarnedInThePreviewAndSentForReal() {
+        seedQueue();
+        onTheNode(2, QUEUE);
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, true)));
+        assertThat(preview.status()).isEqualTo(NodeStatus.WOULD_APPLY);
+        assertThat(preview.error()).contains("2 consumers").contains("disconnected");
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, true)));
+        assertThat(real.status()).isEqualTo(NodeStatus.APPLIED);
+        verify(ops).destroyQueue(any(), anyString(), eq(QUEUE), eq(true));
+        assertThat(realAudit("DELETE_QUEUE").getParams()).contains("disconnectConsumers");
+    }
+
+    @Test
+    void aDivertIntoTheQueuesLastAddressIsNamedInThePreviewAndRemovedBeforeTheQueue() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+        assertThat(preview.status()).isEqualTo(NodeStatus.WOULD_APPLY);
+        assertThat(preview.error())
+                .contains("feed")
+                .contains("incoming → " + ADDRESS)
+                .contains("broker.xml");
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+        assertThat(real.status()).isEqualTo(NodeStatus.APPLIED);
+        assertThat(real.error()).contains("feed");
+        InOrder order = inOrder(divertOps, ops);
+        order.verify(divertOps).destroyDivert(any(), anyString(), eq("feed"));
+        order.verify(ops).destroyQueue(any(), anyString(), eq(QUEUE), eq(false));
+        // Enough in the audit row to recreate the divert exactly.
+        assertThat(realAudit("DELETE_QUEUE").getOutcomeDetail())
+                .contains("feed")
+                .contains("incoming")
+                .contains("STRIP");
+    }
+
+    @Test
+    void aDivertIntoAnAddressThatKeepsAnotherQueueIsLeftAlone() {
+        seedQueue();
+        onTheNode(0, QUEUE, "orders.audit");
+        diverts(divert("feed", "incoming", ADDRESS));
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.APPLIED);
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+    }
+
+    @Test
+    void aDivertFromTheQueuesAddressIsKeptAndTheReasonGiven() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("fan-out", ADDRESS, "elsewhere"));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+        assertThat(preview.error()).contains("fan-out").contains("kept");
+
+        ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false));
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+    }
+
+    @Test
+    void anIncomingDivertIsKeptWhileADivertFromTheAddressKeepsItBound() {
+        // incoming → ADDRESS → elsewhere: the address outlives its last queue through fan-out,
+        // so removing feed would cut a chain the delete does not otherwise touch.
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS), divert("fan-out", ADDRESS, "elsewhere"));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+        assertThat(preview.error()).contains("'feed'").contains("fan-out").contains("kept");
+        assertThat(preview.error()).doesNotContain("Removed with the queue");
+
+        ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false));
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+    }
+
+    @Test
+    void aCaptureTapIsNeverRemovedByAQueueDelete() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        String tap = DivertOperations.CAPTURE_PREFIX + "x";
+        diverts(divert(tap, ADDRESS, tap));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+        assertThat(preview.error()).contains(tap).contains("removed by its capture subscription");
+
+        ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false));
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+    }
+
+    @Test
+    void aCaptureTapStillCoveringAnotherQueueOnTheAddressIsNamedAsKept() {
+        seedQueue();
+        onTheNode(0, QUEUE, "orders.audit");
+        String tap = DivertOperations.CAPTURE_PREFIX + "x";
+        diverts(divert(tap, ADDRESS, tap));
+        when(captureTaps.coversWithout(clusterId, tap, ADDRESS, QUEUE)).thenReturn(true);
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.error()).contains(tap).contains("kept").doesNotContain("removed by its capture");
+    }
+
+    @Test
+    void aDeclaredDependentDivertIsNamedAsComingBack() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+        when(declaredDiverts.names(clusterId)).thenReturn(java.util.Set.of("feed"));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.error()).contains("declared configuration");
+    }
+
+    @Test
+    void aDivertThatCannotBeRemovedKeepsTheQueue() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "connection refused"))
+                .when(divertOps)
+                .destroyDivert(any(), anyString(), eq("feed"));
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(real.error()).contains("feed").contains("not deleted");
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void aQueueDeleteThatFailsAfterItsDivertsNamesTheDivertsAlreadyRemoved() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.HAS_CONSUMERS, "A consumer attached."))
+                .when(ops)
+                .destroyQueue(any(), anyString(), eq(QUEUE), anyBoolean());
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(real.error()).contains("A consumer attached.").contains("feed");
+    }
+
+    @Test
+    void aNodeWithoutTheQueueRemovesNothingAndIsAlreadyThere() {
+        seedQueue();
+        onTheNode(0, "someone.else");
+        diverts(divert("feed", "incoming", ADDRESS));
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.ALREADY, "Already absent"))
+                .when(ops)
+                .destroyQueue(any(), anyString(), eq(QUEUE), anyBoolean());
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.ALREADY);
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+    }
+
+    // ---- queue resolution -------------------------------------------------
+
+    @Test
+    void aQueueTheScrapeHasNotReachedIsFoundOnTheLiveNode() {
+        when(client.search(org.mockito.ArgumentMatchers.contains("queue=\"" + QUEUE + "\"")))
+                .thenReturn(List.of("org.apache.activemq.artemis:broker=\"b\",component=addresses,address=\"" + ADDRESS
+                        + "\",subcomponent=queues,routing-type=\"anycast\",queue=\"" + QUEUE + "\""));
+        onTheNode(0, QUEUE);
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.status()).isEqualTo(NodeStatus.WOULD_APPLY);
+    }
+
+    @Test
+    void aQueueNoNodeHasIsNotFound() {
+        assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, true, false, false))
+                .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.core.NotFoundException.class);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     /**
@@ -259,6 +505,14 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         return auditEvents.findAll().stream()
                 .filter(e -> action.equals(e.getAction()) && clusterId.equals(e.getClusterId()))
                 .toList();
+    }
+
+    /** The one real (not previewed) row for an action. */
+    private AuditEventEntity realAudit(String action) {
+        List<AuditEventEntity> real =
+                auditFor(action).stream().filter(e -> !e.isDryRun()).toList();
+        assertThat(real).hasSize(1);
+        return real.get(0);
     }
 
     private static LifecycleOutcome ok(Attempt<LifecycleOutcome> attempt) {

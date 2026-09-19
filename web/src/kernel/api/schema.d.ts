@@ -2406,7 +2406,7 @@ export interface components {
              * @description Messages destroyed, or that would be destroyed, on this node.
              */
             affected?: number | null;
-            /** @description Why this node failed. */
+            /** @description Why this node failed; otherwise what the preview warned about this node, which a real run repeats on its result. */
             error?: string | null;
         };
         SendMessageRequest: {
@@ -5750,6 +5750,7 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
                 override?: boolean;
+                disconnectConsumers?: boolean;
             };
             header?: never;
             path: {

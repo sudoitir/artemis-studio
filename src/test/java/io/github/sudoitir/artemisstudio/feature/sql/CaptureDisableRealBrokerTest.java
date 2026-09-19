@@ -113,7 +113,7 @@ class CaptureDisableRealBrokerTest extends PostgresIntegrationTest {
         String divert = CaptureNames.of(instance.id(), address, subscriptionId);
         quietly(() -> indexes.delete(clusterId, subscriptionId));
         quietly(() -> divertOps.destroyDivert(client, broker, divert));
-        quietly(() -> queueOps.destroyQueue(client, broker, CaptureNames.queueOf(divert)));
+        quietly(() -> queueOps.destroyQueue(client, broker, CaptureNames.queueOf(divert), false));
         quietly(() -> queueOps.deleteAddress(client, broker, address));
         clusters.deleteById(clusterId);
     }

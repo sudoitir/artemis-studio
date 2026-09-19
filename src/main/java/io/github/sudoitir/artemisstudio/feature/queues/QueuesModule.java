@@ -43,6 +43,12 @@ public final class QueuesModule {
                                             + "is a per-node list: a node already in the requested state reports "
                                             + "ALREADY, and one that was not live reports SKIPPED_NOT_LIVE rather "
                                             + "than a failure. Re-running after a partial application converges."),
+                            McpToolDef.Param.note(
+                                    "disconnectConsumers",
+                                    "delete_queue only, default false. A node where the queue has consumers "
+                                            + "refuses the delete without it; with it they are closed. A divert "
+                                            + "that forwards into the queue's address, where it is the last queue, "
+                                            + "is removed with it, and the preview names it per node."),
                             McpToolDef.Param.note("dryRun", McpToolDef.DRY_RUN),
                             McpToolDef.Param.note("confirm", McpToolDef.CONFIRM))))
             .build();

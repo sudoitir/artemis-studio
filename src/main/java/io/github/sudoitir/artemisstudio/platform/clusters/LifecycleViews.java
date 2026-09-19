@@ -39,7 +39,10 @@ public final class LifecycleViews {
             @Schema(nullable = true, description = "Messages destroyed, or that would be destroyed, on this node.")
             Long affected,
 
-            @Schema(nullable = true, description = "Why this node failed.")
+            @Schema(
+                    nullable = true,
+                    description = "Why this node failed; otherwise what the preview warned about this node, which"
+                            + " a real run repeats on its result.")
             String error) {}
 
     /**

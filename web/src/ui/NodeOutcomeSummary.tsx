@@ -154,15 +154,21 @@ export function OutcomeSummary({
 function verdictFor(outcome: LifecycleOutcomeView): { text: string; tone?: 'warning' | 'danger' } {
   const targets = outcome.nodes.filter((n) => n.status !== 'SKIPPED_NOT_LIVE').length;
   const skipped = outcome.nodes.length - targets;
+  const failed = outcome.nodes.filter((n) => n.status === 'FAILED').length;
 
   if (outcome.dryRun) {
+    // A node its preflight refused is not one the command would apply to; counting it there
+    // would put "would apply" above a row that says "failed".
+    const refused = failed > 0 ? `, ${failed} refused` : '';
     const suffix = skipped > 0 ? `, ${skipped} not live and will be skipped` : '';
-    return { text: `Would apply to ${targets} of ${outcome.nodes.length} nodes${suffix}` };
+    return {
+      text: `Would apply to ${targets - failed} of ${outcome.nodes.length} nodes${refused}${suffix}`,
+      tone: failed === 0 ? undefined : failed === targets ? 'danger' : 'warning',
+    };
   }
   if (outcome.partial) {
     return { text: 'Applied to some nodes and not others', tone: 'warning' };
   }
-  const failed = outcome.nodes.filter((n) => n.status === 'FAILED').length;
   if (failed > 0 && failed === targets) {
     return { text: 'Failed on every node', tone: 'danger' };
   }

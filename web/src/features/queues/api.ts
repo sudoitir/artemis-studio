@@ -80,14 +80,21 @@ export function useUpdateQueue(clusterId: string, queueName: string) {
   );
 }
 
+/**
+ * Delete a queue. `disconnectConsumers` closes its consumers so a node with any can delete it;
+ * without it such a node refuses (ADR-0084).
+ */
 export function useDeleteQueue(clusterId: string, queueName: string) {
-  return useLifecycleMutation<LifecycleVars>(
+  return useLifecycleMutation<LifecycleVars & { disconnectConsumers?: boolean }>(
     clusterId,
-    ({ dryRun, override }) =>
-      request(
-        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${lifecycleQuery(dryRun, override)}`,
+    ({ dryRun, override, disconnectConsumers }) => {
+      const query = lifecycleQuery(dryRun, override);
+      const flag = disconnectConsumers ? `${query ? "&" : "?"}disconnectConsumers=true` : "";
+      return request(
+        `${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${query}${flag}`,
         { method: "DELETE" },
-      ),
+      );
+    },
   );
 }
 

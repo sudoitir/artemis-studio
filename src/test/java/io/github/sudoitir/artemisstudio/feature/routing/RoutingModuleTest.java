@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.routing;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.support.ModuleIntegrationTest;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
@@ -10,7 +10,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 class RoutingModuleTest extends ModuleIntegrationTest {
 
-    /** Queue lifecycle, a direct dependency, reads queue snapshots from the scrape module. */
+    /** Queue lifecycle, a direct dependency, locates queues through the scrape module. */
     @MockitoBean
-    QueueSnapshots queueSnapshots;
+    QueueLocator queueLocator;
 }

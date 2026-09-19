@@ -2650,6 +2650,14 @@
             "type" : "boolean",
             "default" : false
           }
+        }, {
+          "name" : "disconnectConsumers",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
         } ],
         "responses" : {
           "200" : {
@@ -6352,7 +6360,7 @@
           },
           "error" : {
             "type" : [ "string", "null" ],
-            "description" : "Why this node failed."
+            "description" : "Why this node failed; otherwise what the preview warned about this node, which a real run repeats on its result."
           }
         },
         "required" : [ "nodeId", "nodeName", "status" ]

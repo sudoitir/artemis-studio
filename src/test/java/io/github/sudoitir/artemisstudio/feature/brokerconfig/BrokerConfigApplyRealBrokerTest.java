@@ -123,16 +123,16 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
     @AfterEach
     void cleanUp() {
         quietly(() -> divertOps.destroyDivert(client, broker, divert));
-        quietly(() -> queueOps.destroyQueue(client, broker, orders));
+        quietly(() -> queueOps.destroyQueue(client, broker, orders, false));
         quietly(() -> queueOps.deleteAddress(client, broker, orders));
-        quietly(() -> queueOps.destroyQueue(client, broker, auditQueue));
+        quietly(() -> queueOps.destroyQueue(client, broker, auditQueue, false));
         quietly(() -> queueOps.deleteAddress(client, broker, audit));
         quietly(() -> ops.removeAddressSettings(client, broker, match));
         quietly(() -> ops.removeSecuritySettings(client, broker, match));
-        quietly(() -> queueOps.destroyQueue(client, broker, events));
+        quietly(() -> queueOps.destroyQueue(client, broker, events, false));
         quietly(() -> queueOps.deleteAddress(client, broker, events));
         quietly(() -> queueOps.deleteAddress(client, broker, fanout));
-        quietly(() -> queueOps.destroyQueue(client, broker, mixedWork));
+        quietly(() -> queueOps.destroyQueue(client, broker, mixedWork, false));
         quietly(() -> queueOps.deleteAddress(client, broker, mixed));
         auditEvents.deleteAll();
         clusters.deleteById(clusterId);

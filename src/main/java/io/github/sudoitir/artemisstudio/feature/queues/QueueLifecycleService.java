@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQ
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
@@ -15,14 +16,15 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Check;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAction;
-import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeEstimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,7 +53,9 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class QueueLifecycleService {
 
-    private final QueueSnapshots queueSnapshots;
+    private final QueueLocator queueLocator;
+    private final Optional<DeclaredDiverts> declaredDiverts;
+    private final Optional<CaptureTaps> captureTaps;
     private final QueueLifecycleOperations ops;
     private final DivertOperations divertOps;
     private final SseHub sseHub;
@@ -100,20 +104,207 @@ public class QueueLifecycleService {
         });
     }
 
-    public Attempt<LifecycleOutcome> deleteQueue(UUID clusterId, String queueName, boolean dryRun, boolean override) {
+    /**
+     * Delete a queue on every live node (ADR-0084). Each node is checked first, in the
+     * preview and again for real: a queue with consumers is refused unless the operator asked
+     * to disconnect them, and the diverts that forward only into this queue are named. For
+     * real, those diverts go first and the queue after, so a divert that cannot be removed
+     * leaves its queue in place rather than a divert forwarding into nothing.
+     */
+    public Attempt<LifecycleOutcome> deleteQueue(
+            UUID clusterId, String queueName, boolean dryRun, boolean override, boolean disconnectConsumers) {
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
-        return run(
-                clusterId,
-                LifecycleKind.DELETE_QUEUE,
-                queueName,
-                Map.of(),
-                dryRun,
-                override,
-                (client, broker) -> {
-                    ops.destroyQueue(client, broker, queueName);
-                    return NodeStatus.APPLIED;
-                },
-                client -> ops.messageCount(client, queueMbean(client, queue)));
+        Set<String> declared = declaredDiverts.map(d -> d.names(clusterId)).orElse(Set.of());
+        LifecycleKind kind = LifecycleKind.DELETE_QUEUE;
+        return new Attempt.Ok<>(commands.run(Command.builder()
+                .clusterId(clusterId)
+                .permission(kind.permission())
+                .auditAction(kind.auditName())
+                .targetType(kind.targetType())
+                .targetName(queueName)
+                .params(Map.of("disconnectConsumers", disconnectConsumers))
+                .dryRun(dryRun)
+                .override(override)
+                .preflight((client, broker) -> deletePreflight(
+                        deletePlan(clusterId, client, broker, queue), queue, disconnectConsumers, declared))
+                .action((client, broker) -> deleteWithDiverts(
+                        client, broker, deletePlan(clusterId, client, broker, queue), disconnectConsumers))
+                .estimate(new Estimate(
+                        "message count", false, client -> ops.messageCount(client, queueMbean(client, queue))))
+                .signal(() -> sseHub.publish(clusterId, "queues"))
+                .build()));
+    }
+
+    /**
+     * One node's view of a queue delete.
+     *
+     * @param dependents diverts that forward into the queue's address when the delete leaves that
+     *     address with no binding — removed with it (D1)
+     * @param keptIncoming diverts into the address that stay, because a divert from the address
+     *     keeps it bound and routing (ADR-0085)
+     * @param kept diverts whose source is the queue's address — they still route (D4)
+     * @param tapsGone capture taps their subscription removes once the queue is gone (D5)
+     * @param tapsKept capture taps their subscription keeps for another queue on the address (D5)
+     */
+    private record DeletePlan(
+            ResolvedQueue queue,
+            QueueLifecycleOperations.DeleteState state,
+            List<DivertRow> dependents,
+            List<DivertRow> keptIncoming,
+            List<DivertRow> kept,
+            List<DivertRow> tapsGone,
+            List<DivertRow> tapsKept) {}
+
+    private DeletePlan deletePlan(UUID clusterId, JolokiaBrokerClient client, String broker, ResolvedQueue queue) {
+        var state = ops.deleteState(client, broker, queue.address(), queue.queueName(), queue.routingType());
+        if (!state.present()) {
+            return new DeletePlan(queue, state, List.of(), List.of(), List.of(), List.of(), List.of());
+        }
+        String address = queue.address();
+        List<DivertRow> incoming = new ArrayList<>();
+        List<DivertRow> kept = new ArrayList<>();
+        List<DivertRow> tapsGone = new ArrayList<>();
+        List<DivertRow> tapsKept = new ArrayList<>();
+        for (DivertRow d : divertOps.listDiverts(client, null, null)) {
+            boolean capture = d.uniqueName() != null && d.uniqueName().startsWith(DivertOperations.CAPTURE_PREFIX);
+            if (capture) {
+                if (address.equals(d.address())) {
+                    boolean stays = captureTaps
+                            .map(t -> t.coversWithout(clusterId, d.uniqueName(), address, queue.queueName()))
+                            .orElse(false);
+                    (stays ? tapsKept : tapsGone).add(d);
+                }
+            } else if (address.equals(d.forwardingAddress())) {
+                incoming.add(d);
+            } else if (address.equals(d.address())) {
+                kept.add(d);
+            }
+        }
+        // Only an address left with no binding at all breaks or re-creates through an incoming
+        // divert. A divert from it keeps it bound and routing, so the incoming one still feeds it.
+        boolean lastQueue = state.addressQueues().equals(List.of(queue.queueName()));
+        boolean orphaned = lastQueue && kept.isEmpty();
+        return new DeletePlan(
+                queue,
+                state,
+                orphaned ? incoming : List.of(),
+                lastQueue && !orphaned ? incoming : List.of(),
+                kept,
+                tapsGone,
+                tapsKept);
+    }
+
+    private static Check deletePreflight(
+            DeletePlan plan, ResolvedQueue queue, boolean disconnectConsumers, Set<String> declared) {
+        if (!plan.state().present()) {
+            // Nothing here to delete; the node reports it as already gone.
+            return Check.OK;
+        }
+        long consumers = plan.state().consumerCount();
+        String counted = consumers + (consumers == 1 ? " consumer" : " consumers");
+        if (consumers > 0 && !disconnectConsumers) {
+            return Check.refuse("Queue '" + queue.queueName() + "' has " + counted + " attached on this node, and the"
+                    + " broker will not delete it while they are. Stop the consumers, or tick \"Disconnect this"
+                    + " queue's consumers\" (disconnectConsumers=true over the API or MCP) to close them.");
+        }
+        List<String> notes = new ArrayList<>();
+        if (consumers > 0) {
+            notes.add(counted + " will be disconnected. A client that reconnects can create the queue again if"
+                    + " auto-create is on for '" + queue.address() + "'.");
+        }
+        if (!plan.dependents().isEmpty()) {
+            notes.add("Removed with the queue, because they forward into '" + queue.address()
+                    + "' and the delete leaves it with nothing bound: " + describe(plan.dependents())
+                    + ". If one is in this node's"
+                    + " broker.xml, the broker creates it again at its next restart, and the queue can come back"
+                    + " with it.");
+            List<String> redeclared = plan.dependents().stream()
+                    .map(DivertRow::uniqueName)
+                    .filter(declared::contains)
+                    .toList();
+            if (!redeclared.isEmpty()) {
+                notes.add(quoted(redeclared) + " in this cluster's declared configuration: the next apply, or the"
+                        + " next broker.xml rendered from it, brings it back. Remove it from the declaration.");
+            }
+        }
+        if (!plan.keptIncoming().isEmpty()) {
+            notes.add("Diverts into '" + queue.address() + "' are kept, although this is its last queue, because"
+                    + " the diverts from it keep it bound and still route what they forward: "
+                    + quoted(plan.keptIncoming().stream()
+                            .map(DivertRow::uniqueName)
+                            .toList()) + ".");
+        }
+        if (!plan.kept().isEmpty()) {
+            notes.add("Diverts from '" + queue.address() + "' are kept, because they still route what producers"
+                    + " send to it: "
+                    + quoted(plan.kept().stream().map(DivertRow::uniqueName).toList()) + ".");
+        }
+        if (!plan.tapsGone().isEmpty()) {
+            notes.add("Capture taps on '" + queue.address() + "', each removed by its capture subscription once"
+                    + " the scrape no longer shows the queue: "
+                    + quoted(plan.tapsGone().stream().map(DivertRow::uniqueName).toList()) + ".");
+        }
+        if (!plan.tapsKept().isEmpty()) {
+            notes.add("Capture taps on '" + queue.address() + "' are kept, because their subscription still"
+                    + " captures another queue there: "
+                    + quoted(plan.tapsKept().stream().map(DivertRow::uniqueName).toList()) + ".");
+        }
+        return notes.isEmpty() ? Check.OK : Check.warn(String.join(" ", notes));
+    }
+
+    /** The dependent diverts first, then the queue (D3). Nothing is rolled back. */
+    private NodeStatus deleteWithDiverts(
+            JolokiaBrokerClient client, String broker, DeletePlan plan, boolean disconnectConsumers) {
+        List<DivertRow> removed = new ArrayList<>();
+        for (DivertRow d : plan.dependents()) {
+            try {
+                divertOps.destroyDivert(client, broker, d.uniqueName());
+            } catch (ManagementRefusal e) {
+                if (e.kind() != ManagementRefusal.Kind.ALREADY) {
+                    throw new ManagementRefusal(e.kind(), divertFailed(d, e, removed));
+                }
+            } catch (BrokerConnectionException e) {
+                throw new BrokerConnectionException(e.kind(), divertFailed(d, e, removed));
+            }
+            removed.add(d);
+        }
+        String gone = removed.isEmpty() ? "" : " Diverts already removed from this node: " + describe(removed) + ".";
+        try {
+            ops.destroyQueue(client, broker, plan.queue().queueName(), disconnectConsumers);
+        } catch (ManagementRefusal e) {
+            throw e.kind() == ManagementRefusal.Kind.ALREADY
+                    ? e
+                    : new ManagementRefusal(e.kind(), e.getMessage() + gone);
+        } catch (BrokerConnectionException e) {
+            throw new BrokerConnectionException(e.kind(), e.getMessage() + gone);
+        }
+        return NodeStatus.APPLIED;
+    }
+
+    private static String divertFailed(DivertRow d, RuntimeException cause, List<DivertRow> removed) {
+        return "Divert '" + d.uniqueName() + "' could not be removed (" + cause.getMessage()
+                + "), so the queue was not deleted on this node."
+                + (removed.isEmpty() ? "" : " Diverts already removed from this node: " + describe(removed) + ".");
+    }
+
+    /** Everything needed to recreate each divert exactly, as the audit row keeps it (D3). */
+    private static String describe(List<DivertRow> diverts) {
+        return diverts.stream()
+                .map(d -> "'" + d.uniqueName() + "' (" + d.address() + " → " + d.forwardingAddress()
+                        + ", routing name " + d.routingName()
+                        + ", routing type " + d.routingType()
+                        + (d.exclusive() ? ", exclusive" : "")
+                        + (d.filter() == null || d.filter().isBlank() ? "" : ", filter " + d.filter())
+                        + (d.transformerClassName() == null
+                                        || d.transformerClassName().isBlank()
+                                ? ""
+                                : ", transformer " + d.transformerClassName())
+                        + ")")
+                .collect(java.util.stream.Collectors.joining("; "));
+    }
+
+    private static String quoted(List<String> names) {
+        return names.stream().map(n -> "'" + n + "'").collect(java.util.stream.Collectors.joining(", "));
     }
 
     public Attempt<LifecycleOutcome> setPaused(UUID clusterId, String queueName, boolean paused, boolean dryRun) {
@@ -289,18 +480,6 @@ public class QueueLifecycleService {
             boolean dryRun,
             boolean override,
             NodeAction action) {
-        return run(clusterId, kind, targetName, params, dryRun, override, action, null);
-    }
-
-    private Attempt<LifecycleOutcome> run(
-            UUID clusterId,
-            LifecycleKind kind,
-            String targetName,
-            Map<String, ?> params,
-            boolean dryRun,
-            boolean override,
-            NodeAction action,
-            NodeEstimate estimate) {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
@@ -311,7 +490,6 @@ public class QueueLifecycleService {
                 .dryRun(dryRun)
                 .override(override)
                 .action(action)
-                .estimate(estimate == null ? null : new Estimate("message count", false, estimate))
                 .signal(() -> sseHub.publish(clusterId, "queues"))
                 .build()));
     }
@@ -322,16 +500,14 @@ public class QueueLifecycleService {
     record ResolvedQueue(String queueName, String address, String routingType) {}
 
     /**
-     * The address and routing type for a queue name, from the cached snapshot —
-     * never from the client, exactly as the message path does it. A queue Studio has
-     * not scraped yet cannot be addressed, which is honest: it does not know where
-     * the queue lives.
+     * The address and routing type for a queue name — never from the client, exactly as the
+     * message path does it. The scraped snapshot answers first, and a queue the scrape has not
+     * reached yet is looked up on the live nodes. One no node has is not found.
      */
     ResolvedQueue resolveQueue(UUID clusterId, String queueName) {
-        return queueSnapshots.forCluster(clusterId).stream()
-                .filter(s -> s.queueName().equals(queueName))
+        return queueLocator.locate(clusterId, queueName).stream()
                 .findFirst()
-                .map(s -> new ResolvedQueue(queueName, s.address(), s.routingType()))
+                .map(l -> new ResolvedQueue(queueName, l.address(), l.routingType()))
                 .orElseThrow(() -> new NotFoundException("queue", queueName));
     }
 
