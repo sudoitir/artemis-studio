@@ -40,6 +40,7 @@ import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -409,7 +410,11 @@ public class MessageService {
 
         Map<UUID, ClusterNode> byId = brokerNodes.nodes(clusterId).stream()
                 .collect(Collectors.toMap(ClusterNode::getId, Function.identity()));
+        // Every live node of a cluster holds its own copy of the queue, so "the live node" is
+        // not one node. Unasked, open the copy holding the most messages: the first live node
+        // listed can hold none of them, and the view then reads as an empty queue.
         List<ClusterNode> candidates = snapshots.stream()
+                .sorted(Comparator.comparingLong(QueueSnapshot::messageCount).reversed())
                 .map(s -> byId.get(s.nodeId()))
                 .filter(n -> n != null && n.getJolokiaUrl() != null)
                 .toList();
