@@ -177,7 +177,7 @@ public class BrokerConfigController {
     @PostMapping("/apply")
     public ApplyOutcomeView apply(
             @PathVariable UUID clusterId,
-            @RequestParam(defaultValue = "true") boolean dryRun,
+            @RequestParam(defaultValue = "false") boolean dryRun,
             @RequestParam(defaultValue = "false") boolean override,
             @RequestBody(required = false) ApplyRequest request) {
         ApplyRequest body = request == null ? new ApplyRequest(null, null, null, null, null, null) : request;
