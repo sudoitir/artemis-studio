@@ -6,11 +6,14 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeEntity;
+import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,16 +29,16 @@ class MessageIndexCoverageTest {
 
     private final SqlQueryParser parser = new SqlQueryParser();
     private MessageIndexSubscriptionRepository subscriptions;
+    private MessageCaptureNodeRepository captureNodes;
     private MessageIndexCoverage coverage;
 
     @BeforeEach
     void setUp() {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
+        captureNodes = mock(MessageCaptureNodeRepository.class);
         coverage = new MessageIndexCoverage(
                 subscriptions,
-                mock(
-                        io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository
-                                .class),
+                captureNodes,
                 mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots.class));
     }
 
@@ -124,26 +127,61 @@ class MessageIndexCoverageTest {
         disabled.setEnabled(false);
         when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(disabled));
 
-        assertThat(coverage.isCaptureCovered(CLUSTER, "ORDER.IN")).isFalse();
+        assertThat(coverage.isCaptured(CLUSTER, List.of(target("ORDER.IN")))).isFalse();
         assertThat(coverage.check(CLUSTER, ast("SELECT * FROM index.\"ORDER.IN\""), List.of(target("ORDER.IN"))))
                 .isNotEmpty();
     }
 
     /**
-     * A sampled index holds what a poll happened to see, and nothing before the first poll.
-     * Measured: a queue holding 3 messages answered the plain query with 0 rows from a SAMPLE
-     * subscription created a moment earlier. Only capture covers a queue for the plain query
-     * (ADR-0086).
+     * Capture never backfills: it copies what is routed from {@code captureFrom} on. Measured
+     * on the dev stack, a queue held 3 messages, a CAPTURE subscription was created, and the
+     * plain query answered 0 rows from the index with nothing said. A query with no time window
+     * asks for everything, so it is told where the index begins.
      */
     @Test
-    void onlyACaptureSubscriptionCoversAQueueForTheUnqualifiedQuery() {
+    void aQueryWithNoWindowIsToldTheIndexHoldsNothingBeforeCaptureBegan() {
+        Instant began = Instant.now().minus(Duration.ofMinutes(5));
+        MessageIndexSubscriptionEntity captured = subscription("ORDER.IN", began, 7);
+        captured.setMode(CaptureMode.CAPTURE);
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(captured));
+
+        List<Notice> notices = coverage.check(CLUSTER, ast("SELECT * FROM \"ORDER.IN\""), List.of(target("ORDER.IN")));
+
+        assertThat(notices).anySatisfy(notice -> {
+            assertThat(notice.kind()).isEqualTo(Notice.Kind.INDEX_COVERAGE_GAP);
+            assertThat(notice.detail()).contains(began.toString()).contains("already on the queue");
+        });
+    }
+
+    /**
+     * A CAPTURE subscription is not capture until its tap is active on the node: one that is
+     * pending or refused copies nothing, so it does not cover the queue there.
+     */
+    @Test
+    void aCaptureSubscriptionCoversATargetOnlyWhereItsTapIsActive() {
         MessageIndexSubscriptionEntity sampled = subscription("ORDER.IN", Instant.now(), 7);
         sampled.setMode(CaptureMode.SAMPLE);
         MessageIndexSubscriptionEntity captured = subscription("PAY.IN", Instant.now(), 7);
         captured.setMode(CaptureMode.CAPTURE);
         when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(sampled, captured));
+        Target pay = target("PAY.IN");
 
-        assertThat(coverage.isCaptureCovered(CLUSTER, "ORDER.IN")).isFalse();
-        assertThat(coverage.isCaptureCovered(CLUSTER, "PAY.IN")).isTrue();
+        when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), pay.nodeId()))
+                .thenReturn(Optional.of(node(captured, pay, CaptureState.PENDING)));
+        assertThat(coverage.isCaptured(CLUSTER, List.of(pay))).isFalse();
+
+        when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), pay.nodeId()))
+                .thenReturn(Optional.of(node(captured, pay, CaptureState.ACTIVE)));
+        assertThat(coverage.isCaptured(CLUSTER, List.of(pay))).isTrue();
+        assertThat(coverage.isCaptured(CLUSTER, List.of(target("ORDER.IN")))).isFalse();
+    }
+
+    private static MessageCaptureNodeEntity node(
+            MessageIndexSubscriptionEntity subscription, Target target, CaptureState state) {
+        MessageCaptureNodeEntity node = new MessageCaptureNodeEntity();
+        node.setSubscriptionId(subscription.getId());
+        node.setNodeId(target.nodeId());
+        node.setCaptureState(state);
+        return node;
     }
 }

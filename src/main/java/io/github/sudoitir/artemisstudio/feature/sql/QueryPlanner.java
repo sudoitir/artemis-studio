@@ -254,11 +254,9 @@ public class QueryPlanner {
         if (ast.source() != Source.DEFAULT) {
             return ast.source();
         }
-        // Only capture makes the index the answer to the plain query; a sampled index is read
-        // when the operator names it (ADR-0086).
-        boolean everyTargetCaptured = !targets.isEmpty()
-                && targets.stream().allMatch(t -> coverage.isCaptureCovered(clusterId, t.queueName()));
-        return everyTargetCaptured ? Source.INDEX : Source.BROKER;
+        // Only capture active on every target's node makes the index the answer to the plain
+        // query; a sampled index is read when the operator names it (ADR-0086).
+        return coverage.isCaptured(clusterId, targets) ? Source.INDEX : Source.BROKER;
     }
 
     /**

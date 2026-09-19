@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -58,7 +59,7 @@ class QueryPlannerTest {
         coverage = mock(MessageIndexCoverage.class);
         locator = mock(QueueLocator.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
-        when(coverage.isCaptureCovered(any(), any())).thenReturn(false);
+        when(coverage.isCaptured(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
         planner = newPlanner(defaults());
     }
@@ -225,16 +226,19 @@ class QueryPlannerTest {
 
     // ---- source ---------------------------------------------------------
 
+    /**
+     * The plain query reads the index only when every target is captured on the node it sits
+     * on (ADR-0086). A CAPTURE subscription whose tap is not active on a node is not capture.
+     */
     @Test
-    void anUnqualifiedQueryPrefersTheIndexOnlyWhenEveryTargetIsIndexed() {
+    void anUnqualifiedQueryPrefersTheIndexOnlyWhenEveryTargetIsCapturedOnItsNode() {
         BrokerNodeEntity a = node("broker-1", "node-a");
         given(List.of(a), List.of(snapshot(a, "ORDER.IN", 10), snapshot(a, "ORDER.OUT", 10)));
 
-        when(coverage.isCaptureCovered(CLUSTER, "ORDER.IN")).thenReturn(true);
-        when(coverage.isCaptureCovered(CLUSTER, "ORDER.OUT")).thenReturn(false);
+        when(coverage.isCaptured(eq(CLUSTER), any())).thenReturn(false);
         assertThat(plan("SELECT * FROM \"ORDER.*\"").resolvedSource()).isEqualTo(Source.BROKER);
 
-        when(coverage.isCaptureCovered(CLUSTER, "ORDER.OUT")).thenReturn(true);
+        when(coverage.isCaptured(eq(CLUSTER), any())).thenReturn(true);
         assertThat(plan("SELECT * FROM \"ORDER.*\"").resolvedSource()).isEqualTo(Source.INDEX);
     }
 
@@ -242,7 +246,7 @@ class QueryPlannerTest {
     void theQualifierOverridesTheDefault() {
         BrokerNodeEntity a = node("broker-1", "node-a");
         given(List.of(a), List.of(snapshot(a, "ORDER.IN", 10)));
-        when(coverage.isCaptureCovered(any(), any())).thenReturn(true);
+        when(coverage.isCaptured(any(), any())).thenReturn(true);
 
         assertThat(plan("SELECT * FROM broker.\"ORDER.IN\"").resolvedSource()).isEqualTo(Source.BROKER);
     }

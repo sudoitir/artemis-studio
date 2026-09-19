@@ -66,7 +66,7 @@ class BrokerQueryExecutorTest {
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
-        when(coverage.isCaptureCovered(any(), any())).thenReturn(false);
+        when(coverage.isCaptured(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
         node = node("broker-1", "node-a");
     }
