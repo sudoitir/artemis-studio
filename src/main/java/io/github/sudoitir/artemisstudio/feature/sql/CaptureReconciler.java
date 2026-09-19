@@ -196,12 +196,14 @@ public class CaptureReconciler {
 
         Map<UUID, List<Desired>> desiredByNode = desired(clusterId, capturing, serving);
 
+        boolean nothingLeft = true;
         for (ClusterNode node : serving) {
             List<Desired> wanted = desiredByNode.getOrDefault(node.getId(), List.of());
             log.debug("Capture pass on {}: {} tap(s) wanted", node.getName(), wanted.size());
             try {
-                reconcileNode(clusterId, node, wanted);
+                nothingLeft &= reconcileNode(clusterId, node, wanted);
             } catch (RuntimeException e) {
+                nothingLeft = false;
                 // Unreachable is transient and is retried, so it is not FAILED. It is
                 // also not nothing: a node Studio cannot reach is a node it is not
                 // capturing, and leaving the last known state standing would report
@@ -216,6 +218,12 @@ public class CaptureReconciler {
                             false);
                 }
             }
+        }
+        if (nothingLeft) {
+            // Nothing wanted and nothing left on any serving node: stop visiting this cluster
+            // until something asks for a tap again. Decided here, not per node, so a node whose
+            // orphan survived keeps its cluster visited whichever node the pass reached last.
+            installedOn.remove(clusterId);
         }
         stopDrainsOnNodesNoLongerServing(clusterId, serving);
         loss.measure(clusterId);
@@ -274,7 +282,8 @@ public class CaptureReconciler {
 
     // ---- one node --------------------------------------------------------
 
-    private void reconcileNode(UUID clusterId, ClusterNode node, List<Desired> wanted) {
+    /** Whether this node has nothing wanted and nothing of this instance's left on it. */
+    private boolean reconcileNode(UUID clusterId, ClusterNode node, List<Desired> wanted) {
         JolokiaBrokerClient client = client(clusterId, node);
         Set<String> actual = new LinkedHashSet<>(tap.installedNames(client, instance.id()));
         log.debug("Capture pass on {}: {} tap(s) already installed", node.getName(), actual.size());
@@ -302,16 +311,9 @@ public class CaptureReconciler {
             install(clusterId, node, d);
         }
 
-        for (String orphan : actual) {
-            if (!wantedNames.contains(orphan)) {
-                removeOrphan(clusterId, node, client, orphan);
-            }
-        }
-        if (wanted.isEmpty() && actual.isEmpty()) {
-            // Nothing wanted and nothing left: stop visiting this cluster until
-            // something asks for a tap again.
-            installedOn.remove(clusterId);
-        }
+        // What was removed is no longer installed, so the checks below read what is left: an
+        // orphan removed here must not keep its cluster visited, one that failed must.
+        actual.removeIf(orphan -> !wantedNames.contains(orphan) && removeOrphan(clusterId, node, client, orphan));
 
         // A drain for a tap this node no longer has is stopped whatever the reason it
         // went away — including a broker that was rebuilt underneath us.
@@ -320,6 +322,7 @@ public class CaptureReconciler {
                 consumers.stop(node.getId(), draining);
             }
         }
+        return wanted.isEmpty() && actual.isEmpty();
     }
 
     private void install(UUID clusterId, ClusterNode node, Desired desired) {
@@ -409,7 +412,8 @@ public class CaptureReconciler {
                 desired.subscription().getMaxRate()));
     }
 
-    private void removeOrphan(UUID clusterId, ClusterNode node, JolokiaBrokerClient client, String name) {
+    /** Whether the tap is gone from the node. A failure is audited and retried on the next pass. */
+    private boolean removeOrphan(UUID clusterId, ClusterNode node, JolokiaBrokerClient client, String name) {
         AuditEvent event = audit.begin(
                 Actor.system(), "REMOVE_CAPTURE", "CAPTURE", name, clusterId, node.getId(), Map.of(), false);
         try {
@@ -423,8 +427,10 @@ public class CaptureReconciler {
                 }
             }
             audit.succeed(event, 1);
+            return true;
         } catch (RuntimeException e) {
             audit.fail(event, reason(e));
+            return false;
         }
     }
 

@@ -168,6 +168,35 @@ class MessageIndexServicePreviewTest {
     }
 
     @Test
+    void turningCaptureOffSweepsItsTapsOnceTheChangeCommits() {
+        io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity entity =
+                new io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity();
+        UUID id = UUID.randomUUID();
+        entity.setId(id);
+        entity.setClusterId(CLUSTER);
+        entity.setQueuePattern("ORDER.IN");
+        entity.setMode(CaptureMode.CAPTURE);
+        entity.setEnabled(true);
+        entity.setRetentionDays(7);
+        when(subscriptions.findById(id)).thenReturn(java.util.Optional.of(entity));
+        when(subscriptions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(addresses.of(any(), any())).thenReturn(Set.of());
+        when(audit.begin(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(mock(io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent.class));
+
+        service("studio")
+                .update(
+                        CLUSTER,
+                        id,
+                        new MessageIndexService.Spec(null, null, null, false, null, null, null, null, null, null));
+
+        // The divert keeps copying every message into its capture queue until it is removed, and
+        // with the drain stopped nothing empties that queue. No transaction is active in this test,
+        // so the after-commit sweep runs straight away.
+        org.mockito.Mockito.verify(reconciler).reconcileNow(CLUSTER);
+    }
+
+    @Test
     void studiosOwnCaptureAddressesCannotBeCaptured() {
         assertThatThrownBy(() -> service("studio").preview(CLUSTER, spec("artemis-studio.capture.#", null)))
                 .isInstanceOf(IllegalArgumentException.class)
