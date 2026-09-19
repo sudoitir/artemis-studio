@@ -53,6 +53,7 @@ _Others_
 * `i.g.s.a.p.g.ContentSealer` (in Data governance)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.p.s.QueueLocator` (in Scraping)
 * `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
 * `i.g.s.a.p.b.JolokiaMessageTransport` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
