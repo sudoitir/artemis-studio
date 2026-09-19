@@ -124,8 +124,26 @@ class MessageIndexCoverageTest {
         disabled.setEnabled(false);
         when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(disabled));
 
-        assertThat(coverage.isIndexed(CLUSTER, "ORDER.IN")).isFalse();
+        assertThat(coverage.isCaptureCovered(CLUSTER, "ORDER.IN")).isFalse();
         assertThat(coverage.check(CLUSTER, ast("SELECT * FROM index.\"ORDER.IN\""), List.of(target("ORDER.IN"))))
                 .isNotEmpty();
+    }
+
+    /**
+     * A sampled index holds what a poll happened to see, and nothing before the first poll.
+     * Measured: a queue holding 3 messages answered the plain query with 0 rows from a SAMPLE
+     * subscription created a moment earlier. Only capture covers a queue for the plain query
+     * (ADR-0086).
+     */
+    @Test
+    void onlyACaptureSubscriptionCoversAQueueForTheUnqualifiedQuery() {
+        MessageIndexSubscriptionEntity sampled = subscription("ORDER.IN", Instant.now(), 7);
+        sampled.setMode(CaptureMode.SAMPLE);
+        MessageIndexSubscriptionEntity captured = subscription("PAY.IN", Instant.now(), 7);
+        captured.setMode(CaptureMode.CAPTURE);
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(sampled, captured));
+
+        assertThat(coverage.isCaptureCovered(CLUSTER, "ORDER.IN")).isFalse();
+        assertThat(coverage.isCaptureCovered(CLUSTER, "PAY.IN")).isTrue();
     }
 }

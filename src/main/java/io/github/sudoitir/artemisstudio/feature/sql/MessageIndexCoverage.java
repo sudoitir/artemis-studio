@@ -37,10 +37,16 @@ public class MessageIndexCoverage {
     private final MessageCaptureNodeRepository captureNodes;
     private final QueueSnapshots snapshots;
 
+    /**
+     * Whether an enabled CAPTURE subscription covers the queue, which is what lets a query with
+     * no source qualifier read the index (ADR-0086). A SAMPLE subscription does not: it holds
+     * what a poll happened to see, and nothing before the first poll.
+     */
     @Transactional(readOnly = true)
-    public boolean isIndexed(UUID clusterId, String queueName) {
+    public boolean isCaptureCovered(UUID clusterId, String queueName) {
         return subscriptions.findByClusterId(clusterId).stream()
                 .filter(MessageIndexSubscriptionEntity::isEnabled)
+                .filter(s -> s.getMode() == CaptureMode.CAPTURE)
                 .anyMatch(s -> QueueNamePattern.matches(s.getQueuePattern(), queueName));
     }
 

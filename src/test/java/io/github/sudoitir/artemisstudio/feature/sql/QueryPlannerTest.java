@@ -58,7 +58,7 @@ class QueryPlannerTest {
         coverage = mock(MessageIndexCoverage.class);
         locator = mock(QueueLocator.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
-        when(coverage.isIndexed(any(), any())).thenReturn(false);
+        when(coverage.isCaptureCovered(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
         planner = newPlanner(defaults());
     }
@@ -230,11 +230,11 @@ class QueryPlannerTest {
         BrokerNodeEntity a = node("broker-1", "node-a");
         given(List.of(a), List.of(snapshot(a, "ORDER.IN", 10), snapshot(a, "ORDER.OUT", 10)));
 
-        when(coverage.isIndexed(CLUSTER, "ORDER.IN")).thenReturn(true);
-        when(coverage.isIndexed(CLUSTER, "ORDER.OUT")).thenReturn(false);
+        when(coverage.isCaptureCovered(CLUSTER, "ORDER.IN")).thenReturn(true);
+        when(coverage.isCaptureCovered(CLUSTER, "ORDER.OUT")).thenReturn(false);
         assertThat(plan("SELECT * FROM \"ORDER.*\"").resolvedSource()).isEqualTo(Source.BROKER);
 
-        when(coverage.isIndexed(CLUSTER, "ORDER.OUT")).thenReturn(true);
+        when(coverage.isCaptureCovered(CLUSTER, "ORDER.OUT")).thenReturn(true);
         assertThat(plan("SELECT * FROM \"ORDER.*\"").resolvedSource()).isEqualTo(Source.INDEX);
     }
 
@@ -242,7 +242,7 @@ class QueryPlannerTest {
     void theQualifierOverridesTheDefault() {
         BrokerNodeEntity a = node("broker-1", "node-a");
         given(List.of(a), List.of(snapshot(a, "ORDER.IN", 10)));
-        when(coverage.isIndexed(any(), any())).thenReturn(true);
+        when(coverage.isCaptureCovered(any(), any())).thenReturn(true);
 
         assertThat(plan("SELECT * FROM broker.\"ORDER.IN\"").resolvedSource()).isEqualTo(Source.BROKER);
     }
