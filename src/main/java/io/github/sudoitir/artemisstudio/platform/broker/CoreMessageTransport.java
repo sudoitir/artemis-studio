@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.CorePool.PooledSession;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsePage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageOperations.QueueDepth;
 import jakarta.jms.BytesMessage;
 import jakarta.jms.DeliveryMode;
 import jakarta.jms.JMSException;
@@ -35,8 +36,10 @@ import org.springframework.stereotype.Component;
  *   <li>A {@code QueueBrowser} has no server-side offset, so a page past a bounded
  *       depth ({@link MessageBrowser#BROKER_PAGE_CAP}) is served over Jolokia
  *       instead, and {@link BrowseResult#servedBy()} says so (non-negotiable #1).
- *   <li>A page shorter than the broker's count says it should be is read again over
+ *   <li>A page shorter than the broker says a browser can see is read again over
  *       Jolokia: on a paging queue the browser's enumeration ends part-way through.
+ *       Delivered-unacked and scheduled messages are counted by the broker but never
+ *       browsed, so they do not make a page short.
  *   <li>By-id / by-filter mutations carry no payload and stay on Jolokia
  *       ({@link MessageOperations}) — no Core method here (ADR-0029, D9).
  * </ul>
@@ -119,22 +122,27 @@ public class CoreMessageTransport implements MessageTransport {
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
         Count count = count(target, filter);
-        if (count.total() != null && rows.size() < Math.min(size, count.total() - skip)) {
+        if (count.browsable() != null && rows.size() < Math.min(size, count.browsable() - skip)) {
             // The JMS browser stops at the first message not already on the client
             // (receiveImmediate), which on a paging queue is part-way through. A page shorter
-            // than the broker's own count says it should be is read again over management.
+            // than the broker says a browser can see is read again over management.
             log.debug(
                     "Core browse of {} came up short ({} of {}), reading over Jolokia",
                     target.queueName(),
                     rows.size(),
-                    count.total() - skip);
+                    count.browsable() - skip);
             return new BrowseResult(
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
         return new BrowseResult(new BrowsePage(List.copyOf(rows), count.total(), count.unavailable()), Channel.CORE);
     }
 
-    private record Count(Long total, String unavailable) {}
+    /**
+     * {@code total} is the broker's count; {@code browsable} is the part of it a browser can
+     * see — the count less messages delivered and not yet acked, and scheduled ones, neither of
+     * which a {@link QueueBrowser} returns. A page is short only against {@code browsable}.
+     */
+    private record Count(Long total, Long browsable, String unavailable) {}
 
     /**
      * The broker's own count, over management: the queue's message count, or its count of
@@ -143,18 +151,20 @@ public class CoreMessageTransport implements MessageTransport {
      */
     private Count count(TransportTarget target, String filter) {
         if (target.jolokiaUrl() == null) {
-            return new Count(null, "This node has no management URL, so its message count cannot be read.");
+            return new Count(null, null, "This node has no management URL, so its message count cannot be read.");
         }
         try {
             JolokiaBrokerClient client = connections.forCluster(target.clusterId(), target.jolokiaUrl());
             String mbean = BrokerMBeans.queue(
                     client.resolveBrokerObjectName(), target.address(), target.queueName(), target.routingType());
-            long total = (filter == null || filter.isBlank())
-                    ? messageOps.messageCount(client, mbean)
-                    : messageOps.countMessages(client, mbean, filter);
-            return new Count(total, null);
+            if (filter == null || filter.isBlank()) {
+                QueueDepth depth = messageOps.depth(client, mbean);
+                return new Count(depth.messageCount(), depth.browsable(), null);
+            }
+            long matching = messageOps.countMessages(client, mbean, filter);
+            return new Count(matching, matching, null);
         } catch (RuntimeException e) {
-            return new Count(null, "The broker did not return this queue's message count: " + e.getMessage());
+            return new Count(null, null, "The broker did not return this queue's message count: " + e.getMessage());
         }
     }
 

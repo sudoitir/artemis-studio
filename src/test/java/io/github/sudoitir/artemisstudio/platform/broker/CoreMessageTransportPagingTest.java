@@ -93,6 +93,56 @@ class CoreMessageTransportPagingTest extends ArtemisIntegrationTest {
                 clusterId, UUID.randomUUID(), queueName, queueName, "ANYCAST", jolokiaUrl(), coreUrl());
     }
 
+    /**
+     * The broker's MessageCount includes messages delivered to a consumer and not yet acked, and
+     * scheduled ones; a browser sees neither. Measured against MessageCount alone, a consumed
+     * queue's page read as short every time and was read a second time over Jolokia.
+     */
+    @Test
+    void aPageMissingOnlyInFlightAndScheduledMessagesIsServedOverCore() throws Exception {
+        String consumed = queueName + ".consumed";
+        var factory = new ActiveMQConnectionFactory(
+                coreUrl() + "?useTopologyForLoadBalancing=false&consumerWindowSize=0", BROKER_USER, BROKER_PASSWORD);
+        try (Connection conn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
+            Session session = conn.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+            jakarta.jms.Queue queue = session.createQueue(consumed);
+            var producer = session.createProducer(queue);
+            for (int i = 0; i < 10; i++) {
+                producer.send(session.createTextMessage("m" + i));
+            }
+            jakarta.jms.Message later = session.createTextMessage("scheduled");
+            later.setLongProperty("_AMQ_SCHED_DELIVERY", System.currentTimeMillis() + 3_600_000);
+            producer.send(later);
+            conn.start();
+            var consumer = session.createConsumer(queue);
+            for (int i = 0; i < 3; i++) {
+                assertThat(consumer.receive(5_000)).isNotNull();
+            }
+
+            BrowseResult result = transport.browse(
+                    new TransportTarget(
+                            clusterId, UUID.randomUUID(), consumed, consumed, "ANYCAST", jolokiaUrl(), coreUrl()),
+                    1,
+                    50,
+                    null);
+
+            assertThat(result.servedBy()).isEqualTo(MessageTransport.Channel.CORE);
+            assertThat(result.page().messages()).hasSize(7);
+            assertThat(result.page().total()).isEqualTo(11);
+
+            BrowseResult filtered = transport.browse(
+                    new TransportTarget(
+                            clusterId, UUID.randomUUID(), consumed, consumed, "ANYCAST", jolokiaUrl(), coreUrl()),
+                    1,
+                    50,
+                    "JMSPriority >= 0");
+            assertThat(filtered.servedBy()).isEqualTo(MessageTransport.Channel.CORE);
+            assertThat(filtered.page().messages()).hasSize(7);
+        } finally {
+            factory.close();
+        }
+    }
+
     @Test
     void everyPageOfAPagingQueueHoldsWhatTheBrokerCounts() {
         String address = BrokerMBeans.address(client.resolveBrokerObjectName(), queueName);
