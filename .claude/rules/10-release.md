@@ -19,7 +19,13 @@ See [ADR-0042](../../docs/adr/0042-calver-releases-on-docker-hub.md) for why.
   sequence is expected and fine; a republished tag is not.
 - Do not tag manually and do not add a version-bump commit.
 
-## Every push to `main` is a release
+## Every source push to `main` is a release
+
+A push to `main` releases when it changes what the image is built from
+(`src/`, `web/`, `pom.xml`, the Maven wrapper, `Dockerfile`, `docs/dockerhub.md`,
+`ci.yml`). A docs- or site-only push runs no CI job and releases nothing; its
+commits appear in the next release's changelog. The path lists live in the
+`changes` job of `ci.yml` ([ADR-0088](../../docs/adr/0088-path-filtered-ci-and-releases.md)).
 
 The `release` job in `.github/workflows/ci.yml` does all of it, with no manual step:
 
