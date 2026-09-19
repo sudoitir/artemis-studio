@@ -11,7 +11,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.Cloc
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Clock;
 import java.time.Instant;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class QueryPlanner {
 
     private final QueueSnapshots snapshots;
+    private final QueueLocator locator;
     private final ClusterDirectory nodes;
     private final PredicateSplitter splitter;
     private final SelectorRenderer selectors;
@@ -53,17 +55,19 @@ public class QueryPlanner {
     @org.springframework.beans.factory.annotation.Autowired
     public QueryPlanner(
             QueueSnapshots snapshots,
+            QueueLocator locator,
             ClusterDirectory nodes,
             PredicateSplitter splitter,
             SelectorRenderer selectors,
             ClockOffsetService clocks,
             SqlProperties properties,
             MessageIndexCoverage coverage) {
-        this(snapshots, nodes, splitter, selectors, clocks, properties, coverage, Clock.systemUTC());
+        this(snapshots, locator, nodes, splitter, selectors, clocks, properties, coverage, Clock.systemUTC());
     }
 
     QueryPlanner(
             QueueSnapshots snapshots,
+            QueueLocator locator,
             ClusterDirectory nodes,
             PredicateSplitter splitter,
             SelectorRenderer selectors,
@@ -72,6 +76,7 @@ public class QueryPlanner {
             MessageIndexCoverage coverage,
             Clock clock) {
         this.snapshots = snapshots;
+        this.locator = locator;
         this.nodes = nodes;
         this.splitter = splitter;
         this.selectors = selectors;
@@ -154,9 +159,15 @@ public class QueryPlanner {
         Map<UUID, ClusterNode> nodesById = new LinkedHashMap<>();
         nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
 
-        List<QueueSnapshot> matched = snapshots.forCluster(clusterId).stream()
+        List<QueueLocation> matched = snapshots.forCluster(clusterId).stream()
                 .filter(s -> QueueNamePattern.matches(ast.queuePattern(), s.queueName()))
+                .map(s -> new QueueLocation(s.nodeId(), s.queueName(), s.address(), s.routingType(), s.messageCount()))
                 .toList();
+        if (matched.isEmpty() && !QueueNamePattern.isPattern(ast.queuePattern())) {
+            // A queue named outright that the scrape has not reached yet — created a moment
+            // ago — is looked up live, rather than reported as not existing.
+            matched = locator.locate(clusterId, ast.queuePattern());
+        }
 
         if (matched.isEmpty()) {
             // An unmatched pattern is not an empty result. The difference between
@@ -172,12 +183,12 @@ public class QueryPlanner {
         // paired cluster returns every matching message twice.
         Set<String> seen = new HashSet<>();
         List<Target> targets = new ArrayList<>();
-        for (QueueSnapshot snapshot : matched) {
-            ClusterNode node = nodesById.get(snapshot.nodeId());
+        for (QueueLocation location : matched) {
+            ClusterNode node = nodesById.get(location.nodeId());
             if (node == null) {
                 continue;
             }
-            if (!seen.add(logicalKey(node) + SEPARATOR + snapshot.queueName())) {
+            if (!seen.add(logicalKey(node) + SEPARATOR + location.queueName())) {
                 continue;
             }
             Optional<ClockOffset> offset = clocks.offsetFor(node.getId());
@@ -186,10 +197,10 @@ public class QueryPlanner {
             targets.add(new Target(
                     node.getId(),
                     node.getName(),
-                    snapshot.queueName(),
-                    snapshot.address(),
-                    snapshot.routingType(),
-                    snapshot.messageCount(),
+                    location.queueName(),
+                    location.address(),
+                    location.routingType(),
+                    location.messageCount(),
                     brokerNow,
                     offset.isPresent()));
         }

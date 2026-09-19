@@ -478,9 +478,14 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aQueueTheScrapeHasNotReachedIsFoundOnTheLiveNode() {
-        when(client.search(org.mockito.ArgumentMatchers.contains("queue=\"" + QUEUE + "\"")))
-                .thenReturn(List.of("org.apache.activemq.artemis:broker=\"b\",component=addresses,address=\"" + ADDRESS
-                        + "\",subcomponent=queues,routing-type=\"anycast\",queue=\"" + QUEUE + "\""));
+        String mbean = "org.apache.activemq.artemis:broker=\"b\",component=addresses,address=\"" + ADDRESS
+                + "\",subcomponent=queues,routing-type=\"anycast\",queue=\"" + QUEUE + "\"";
+        tools.jackson.databind.node.ObjectNode value = new tools.jackson.databind.json.JsonMapper().createObjectNode();
+        value.putObject(mbean).put("MessageCount", 0);
+        when(client.single(org.mockito.ArgumentMatchers.argThat(
+                        r -> r != null && "read".equals(r.type()) && r.mbean().contains("queue=\"" + QUEUE + "\""))))
+                .thenReturn(new io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse(
+                        200, value, null, null, null));
         onTheNode(0, QUEUE);
 
         NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
@@ -490,6 +495,10 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aQueueNoNodeHasIsNotFound() {
+        // What a broker answers a pattern read that matches nothing.
+        when(client.single(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse(
+                        404, null, "No MBean with pattern found", "javax.management.InstanceNotFoundException", null));
         assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, true, false, false))
                 .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.core.NotFoundException.class);
     }

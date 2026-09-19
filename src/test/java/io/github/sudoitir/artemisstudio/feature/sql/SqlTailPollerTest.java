@@ -236,7 +236,15 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
         return new SqlTailPoller(
                 new BrokerQueryExecutor(
                         nodes, residuals, planner, properties, BrokerQueryExecutorTest.clearGovernance()),
@@ -254,7 +262,15 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
         return planner.plan(CLUSTER, parser.parse(sql));
     }
 

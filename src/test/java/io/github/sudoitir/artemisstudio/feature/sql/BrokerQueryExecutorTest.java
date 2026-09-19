@@ -87,7 +87,15 @@ class BrokerQueryExecutorTest {
 
     private QueryPlanner planner(SqlProperties properties) {
         return new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private QueryResult run(String sql, MessageTransport transport, SqlProperties properties) {

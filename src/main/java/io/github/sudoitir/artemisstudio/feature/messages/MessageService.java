@@ -38,8 +38,8 @@ import io.github.sudoitir.artemisstudio.platform.governance.GovernContext;
 import io.github.sudoitir.artemisstudio.platform.governance.GovernanceViews;
 import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
-import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -57,7 +57,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * Message browse and the destructive message operations for one queue on one
  * node (ADR-0021, ADR-0022). {@code address} / {@code routingType} come from the
- * cached {@code queue_snapshot} row, never the client. Every broker request waits for
+ * cached {@code queue_snapshot} row, or a live read for a queue the scrape has not reached,
+ * never the client. Every broker request waits for
  * the node's rate ceiling in the transport itself (non-negotiable #1, ADR-0076); every mutation writes
  * an {@code audit_event} in its own transaction, before the broker call, updated
  * with the outcome (non-negotiable #3); a dry run is a broker-side estimate,
@@ -71,7 +72,7 @@ public class MessageService {
     /** {@code managementBrowsePageSize} default — the broker will not return more per page. */
     static final int BROKER_PAGE_CAP = 200;
 
-    private final QueueSnapshots queueSnapshots;
+    private final QueueLocator queueLocator;
     private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final MessageOperations messageOps;
@@ -400,22 +401,20 @@ public class MessageService {
     }
 
     ResolvedQueue resolve(UUID clusterId, String queueName, UUID nodeId) {
-        List<QueueSnapshot> snapshots = queueSnapshots.forCluster(clusterId).stream()
-                .filter(s -> s.queueName().equals(queueName))
-                .toList();
-        if (snapshots.isEmpty()) {
+        List<QueueLocation> locations = queueLocator.locate(clusterId, queueName);
+        if (locations.isEmpty()) {
             throw new NotFoundException("queue", queueName);
         }
-        QueueSnapshot any = snapshots.get(0);
+        QueueLocation any = locations.get(0);
 
         Map<UUID, ClusterNode> byId = brokerNodes.nodes(clusterId).stream()
                 .collect(Collectors.toMap(ClusterNode::getId, Function.identity()));
         // Every live node of a cluster holds its own copy of the queue, so "the live node" is
         // not one node. Unasked, open the copy holding the most messages: the first live node
         // listed can hold none of them, and the view then reads as an empty queue.
-        List<ClusterNode> candidates = snapshots.stream()
-                .sorted(Comparator.comparingLong(QueueSnapshot::messageCount).reversed())
-                .map(s -> byId.get(s.nodeId()))
+        List<ClusterNode> candidates = locations.stream()
+                .sorted(Comparator.comparingLong(QueueLocation::messageCount).reversed())
+                .map(l -> byId.get(l.nodeId()))
                 .filter(n -> n != null && n.getJolokiaUrl() != null)
                 .toList();
         if (candidates.isEmpty()) {

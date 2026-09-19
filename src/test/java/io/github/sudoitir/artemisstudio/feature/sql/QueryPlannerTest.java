@@ -13,6 +13,8 @@ import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.Cloc
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
@@ -45,6 +47,7 @@ class QueryPlannerTest {
     private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
+    private QueueLocator locator;
     private QueryPlanner planner;
 
     @BeforeEach
@@ -53,6 +56,7 @@ class QueryPlannerTest {
         nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
+        locator = mock(QueueLocator.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
         when(coverage.isIndexed(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
@@ -62,7 +66,15 @@ class QueryPlannerTest {
     private QueryPlanner newPlanner(SqlProperties sql) {
         SqlProperties properties = sql;
         return new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                locator,
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private SqlProperties defaults() {
@@ -163,6 +175,27 @@ class QueryPlannerTest {
 
         assertThat(plan.targets()).isEmpty();
         assertThat(plan.notices()).extracting(Notice::kind).contains(Notice.Kind.NO_QUEUE_MATCHED);
+    }
+
+    /**
+     * A queue created a moment ago is on the broker before the scrape reaches it. Named
+     * outright, it is looked up live, rather than reported as a queue that does not exist.
+     */
+    @Test
+    void aNamedQueueTheScrapeHasNotReachedIsLookedUpLive() {
+        BrokerNodeEntity a = node("broker-1", "node-a");
+        given(List.of(a), List.of(snapshot(a, "ORDER.IN", 10)));
+        when(locator.locate(CLUSTER, "FRESH"))
+                .thenReturn(List.of(new QueueLocation(a.getId(), "FRESH", "FRESH", "ANYCAST", 3)));
+
+        QueryPlan plan = plan("SELECT * FROM \"FRESH\"");
+
+        assertThat(plan.targets()).singleElement().satisfies(t -> {
+            assertThat(t.queueName()).isEqualTo("FRESH");
+            assertThat(t.nodeId()).isEqualTo(a.getId());
+            assertThat(t.messageCount()).isEqualTo(3);
+        });
+        assertThat(plan.notices()).extracting(Notice::kind).doesNotContain(Notice.Kind.NO_QUEUE_MATCHED);
     }
 
     @Test
