@@ -812,3 +812,26 @@ Run against one live node with a declaration adopted from the broker itself:
   "unsupported" rather than refused as a validation error (ADR-0067 D10); a 3.8 MB
   import was accepted; and the connection check reports capability gaps while
   offering nothing that would close them.
+
+## 17. Queue delete — consumers and diverts
+
+Measured 2026-09-19 against a single `apache/activemq-artemis:2.44.0` container
+(default `broker.xml`, `max-disk-usage` raised to 100 so the test host's full disk did
+not block producers), driven over Jolokia and a raw STOMP client. The container was
+removed afterwards. The four questions ADR-0084 depends on.
+
+| # | Question | Verdict |
+|---|---|---|
+| Q1 | What does `destroyQueue(String,boolean,boolean)` do while a consumer is attached? | With `removeConsumers=false` → `500 ActiveMQIllegalStateException: AMQ229025: Cannot delete queue DST on binding DST - it has consumers = …LocalQueueBinding`, and the queue stays. With `removeConsumers=true` → `200`, and the queue is destroyed with the subscriber still attached. |
+| Q2 | What happens to an address whose last queue is destroyed while a divert uses it as its *source*? | The address stays. `listBindingsForAddress` shows only the `DivertBinding`: the divert stays bound and keeps the address alive. An auto-created address with its only queue destroyed by management was still present 35 s later, whether or not the divert was then removed. So destroying a queue does not remove its address. |
+| Q3 | A divert forwards into an address that has no queue, or none at all, and auto-create is on (the default `#`). What happens? | The send to the divert's source succeeds. The forwarded copy **re-creates the address and a queue of the same name** (`autoCreated=true`, bound queue `DST`). So a deleted queue comes back as soon as a divert forwards into its address. |
+| Q4 | The same with `autoCreateAddresses=false, autoCreateQueues=false` for the forwarding address, and the address deleted? | **Every send to the divert's source address fails.** The STOMP client got `ERROR AMQ339011 Error sending message … address=SRC`, and `getAddressInfo("DST")` still answers `AMQ229203: Address Does Not Exist`. Producers of an unrelated address break. |
+
+### Consequences carried into the design
+
+- A divert that forwards into a queue's address, when that queue is the address's last
+  queue on the node, is removed with the queue, before it (ADR-0084 D1, D2). Q3 and Q4
+  are what leaving it in place does.
+- A divert whose source is the queue's address is kept (Q2): it still routes.
+- `AMQ229025` is its own refusal kind, and the preflight reads `ConsumerCount` so the
+  preview says it before the real run does (Q1).
