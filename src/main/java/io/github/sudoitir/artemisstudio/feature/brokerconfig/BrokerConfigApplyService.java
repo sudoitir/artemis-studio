@@ -649,9 +649,19 @@ public class BrokerConfigApplyService {
             case ADDRESS -> {
                 @SuppressWarnings("unchecked")
                 List<String> types = (List<String>) s.after().get("routingTypes");
-                ops.createAddress(client, broker, s.key(), new HashSet<>(types));
+                if (s.op() == Op.REPLACE) {
+                    ops.updateAddress(client, broker, s.key(), new HashSet<>(types));
+                } else {
+                    ops.createAddress(client, broker, s.key(), new HashSet<>(types));
+                }
             }
-            case QUEUE -> ops.createQueue(client, broker, s.after());
+            case QUEUE -> {
+                if (s.op() == Op.REPLACE) {
+                    ops.updateQueue(client, broker, s.after());
+                } else {
+                    ops.createQueue(client, broker, s.after());
+                }
+            }
             case ADDRESS_SETTING -> {
                 if (s.op() == Op.REMOVE) {
                     ops.removeAddressSettings(client, broker, s.key());

@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
@@ -47,6 +48,9 @@ import tools.jackson.databind.ObjectMapper;
  * <p>The real run posts without {@code dryRun}, the way the screen's Apply did before the
  * query helper spelled out {@code dryRun=false}. The endpoint used to default that to a
  * preview, so the operator's Apply wrote nothing and reported nothing.
+ *
+ * <p>An existing queue or address that differs from the declaration converges through
+ * the apply (ADR-0082) rather than staying drift the apply cannot close.
  */
 @ExtendWith(AdminAuthenticationExtension.class)
 class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
@@ -87,6 +91,10 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
     private final String auditQueue = "C1.REAL." + run + ".AUDIT.KEEP";
     private final String match = "C1.REAL." + run + ".#";
     private final String divert = "c1-real-" + run;
+    private final String events = "C3.REAL." + run + ".EVENTS";
+    private final String fanout = "C3.REAL." + run + ".FANOUT";
+    private final String mixed = "C3.REAL." + run + ".MIXED";
+    private final String mixedWork = "C3.REAL." + run + ".MIXED.WORK";
 
     private MockMvc mvc;
     private UUID clusterId;
@@ -121,6 +129,11 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
         quietly(() -> queueOps.deleteAddress(client, broker, audit));
         quietly(() -> ops.removeAddressSettings(client, broker, match));
         quietly(() -> ops.removeSecuritySettings(client, broker, match));
+        quietly(() -> queueOps.destroyQueue(client, broker, events));
+        quietly(() -> queueOps.deleteAddress(client, broker, events));
+        quietly(() -> queueOps.deleteAddress(client, broker, fanout));
+        quietly(() -> queueOps.destroyQueue(client, broker, mixedWork));
+        quietly(() -> queueOps.deleteAddress(client, broker, mixed));
         auditEvents.deleteAll();
         clusters.deleteById(clusterId);
     }
@@ -163,6 +176,131 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
                         .valueStream()
                         .flatMap(n -> n.path("steps").valueStream()))
                 .allMatch(s -> "ALREADY".equals(s.path("status").asString()));
+    }
+
+    @Test
+    void anApplyConvergesAnExistingQueueAndAddressThatDifferFromTheDeclaration() throws Exception {
+        // Live: events is ANYCAST only, its queue is exclusive with no consumer limit;
+        // fanout accepts both routing types and has no queue.
+        queueOps.createAddress(client, broker, events, "ANYCAST");
+        queueOps.createQueue(
+                client,
+                broker,
+                Map.of(
+                        "name",
+                        events,
+                        "address",
+                        events,
+                        "routing-type",
+                        "ANYCAST",
+                        "durable",
+                        true,
+                        "exclusive",
+                        true));
+        queueOps.createAddress(client, broker, fanout, "ANYCAST,MULTICAST");
+        configs.save(
+                clusterId,
+                new BrokerConfigDocument(
+                        BrokerConfigDocument.CURRENT_VERSION,
+                        List.of(
+                                new AddressDecl(
+                                        events,
+                                        Set.of("ANYCAST", "MULTICAST"),
+                                        List.of(new QueueDecl(
+                                                events, "ANYCAST", "region = 'eu'", true, 5, null, null, null, null))),
+                                new AddressDecl(fanout, Set.of("MULTICAST"), List.of())),
+                        List.of(),
+                        List.of(),
+                        List.of()),
+                null,
+                "c3",
+                BrokerConfigService.Source.EDIT);
+
+        JsonNode preview = apply("?dryRun=true", "{}");
+        assertThat(preview.path("plan").path("findings").valueStream()).isEmpty();
+        assertThat(preview.path("plan").path("stepCount").asInt()).isEqualTo(3);
+        assertThat(preview.path("plan").path("hazards").valueStream())
+                .allMatch(h -> "LOW".equals(h.path("hazardClass").asString()))
+                .extracting(h -> h.path("kind").asString())
+                .containsOnly("ROUTING_TYPE_CHANGE");
+
+        JsonNode applied = apply(
+                "",
+                mapper.writeValueAsString(Map.of(
+                        "expectedPlanHash",
+                        preview.path("plan").path("planHash").asString())));
+        assertThat(applied.path("outcome").asString())
+                .describedAs(applied.toString())
+                .isEqualTo("APPLIED");
+
+        assertThat(routingTypes(events)).containsExactlyInAnyOrder("ANYCAST", "MULTICAST");
+        assertThat(routingTypes(fanout)).containsExactly("MULTICAST");
+        JsonNode queue = client.single(JolokiaRequest.read(
+                        BrokerMBeans.queue(broker, events, events, "ANYCAST"), "MaxConsumers", "Filter", "Exclusive"))
+                .value();
+        assertThat(queue.path("MaxConsumers").asInt()).isEqualTo(5);
+        assertThat(queue.path("Filter").asString()).isEqualTo("region = 'eu'");
+        // Not declared, so the read-merge update kept it (ADR-0082 D1).
+        assertThat(queue.path("Exclusive").asBoolean()).isTrue();
+
+        JsonNode again = apply("", "{}");
+        assertThat(again.path("plan").path("stepCount").asInt()).isZero();
+        assertThat(again.path("nodes")
+                        .valueStream()
+                        .flatMap(n -> n.path("steps").valueStream()))
+                .allMatch(s -> "ALREADY".equals(s.path("status").asString()));
+    }
+
+    @Test
+    void aRoutingTypeAQueueIsBoundToIsKeptAndReportedWhileTheRestOfTheApplyProceeds() throws Exception {
+        queueOps.createAddress(client, broker, mixed, "ANYCAST,MULTICAST");
+        queueOps.createQueue(
+                client,
+                broker,
+                Map.of("name", mixedWork, "address", mixed, "routing-type", "ANYCAST", "durable", true));
+        configs.save(
+                clusterId,
+                new BrokerConfigDocument(
+                        BrokerConfigDocument.CURRENT_VERSION,
+                        List.of(
+                                new AddressDecl(mixed, Set.of("MULTICAST"), List.of()),
+                                new AddressDecl(fanout, Set.of("MULTICAST"), List.of())),
+                        List.of(),
+                        List.of(),
+                        List.of()),
+                null,
+                "c3",
+                BrokerConfigService.Source.EDIT);
+
+        // The broker refuses to drop ANYCAST while mixedWork is bound (AMQ229209): a finding
+        // that names the queue, not a step that would halt the node before fanout is created.
+        JsonNode preview = apply("?dryRun=true", "{}");
+        assertThat(preview.path("plan").path("hazards").valueStream()).isEmpty();
+        assertThat(preview.path("plan").path("stepCount").asInt()).isEqualTo(1);
+        assertThat(preview.path("plan").path("findings").valueStream())
+                .singleElement()
+                .satisfies(f -> {
+                    assertThat(f.path("kind").asString()).isEqualTo("DIVERGENT_ADDRESS");
+                    assertThat(f.path("detail").asString()).contains(mixedWork).contains("ANYCAST");
+                });
+
+        JsonNode applied = apply(
+                "",
+                mapper.writeValueAsString(Map.of(
+                        "expectedPlanHash",
+                        preview.path("plan").path("planHash").asString())));
+
+        assertThat(applied.path("outcome").asString())
+                .describedAs(applied.toString())
+                .isEqualTo("APPLIED");
+        assertThat(routingTypes(mixed)).containsExactlyInAnyOrder("ANYCAST", "MULTICAST");
+        assertThat(routingTypes(fanout)).containsExactly("MULTICAST");
+    }
+
+    private Set<String> routingTypes(String address) {
+        JsonNode value = client.single(JolokiaRequest.read(BrokerMBeans.address(broker, address), "RoutingTypes"))
+                .attribute("RoutingTypes");
+        return Set.copyOf(value.valueStream().map(JsonNode::asString).toList());
     }
 
     private BrokerConfigDocument document() {

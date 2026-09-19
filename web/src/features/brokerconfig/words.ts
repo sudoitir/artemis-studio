@@ -82,9 +82,9 @@ export function findingKindWords(kind: string): string {
     case 'UNDECLARED':
       return 'Undeclared';
     case 'DIVERGENT_QUEUE':
-      return 'Queue differs';
+      return 'Queue differs in a field apply cannot change';
     case 'DIVERGENT_ADDRESS':
-      return 'Address differs';
+      return 'Address keeps a routing type a bound queue uses';
     case 'NOT_EVALUATED':
       return 'Not evaluated';
     case 'UNVERIFIABLE':

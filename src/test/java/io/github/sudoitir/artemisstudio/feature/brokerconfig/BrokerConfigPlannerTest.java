@@ -241,25 +241,201 @@ class BrokerConfigPlannerTest {
                 .containsExactly("ADDRESS:orders.in", "QUEUE:orders.in");
     }
 
-    @Test
-    void anExistingQueueThatDiffersIsAFindingNotAStep() {
-        ObservedNodeConfig n = node(N1, "broker-1", Map.of(), Map.of(), Map.of());
-        BrokerConfigDocument d = new BrokerConfigDocument(
+    private static BrokerConfigDocument ordersQueue(QueueDecl queue) {
+        return new BrokerConfigDocument(
                 1,
-                List.of(new AddressDecl(
-                        "orders.in",
-                        Set.of("ANYCAST"),
-                        List.of(new QueueDecl("orders.in", "ANYCAST", "x = 1", true, null, null, null, null, null)))),
+                List.of(new AddressDecl("orders.in", Set.of("ANYCAST"), List.of(queue))),
                 List.of(),
                 List.of(),
                 List.of());
+    }
 
-        Plan plan = BrokerConfigPlanner.plan(d, List.of(n), Set.of(), PlanOptions.defaults());
+    private static BrokerConfigDocument address(String name, Set<String> routingTypes) {
+        return new BrokerConfigDocument(
+                1, List.of(new AddressDecl(name, routingTypes, List.of())), List.of(), List.of(), List.of());
+    }
+
+    /** A node holding exactly these addresses and queues, with the dev {@code #} entry. */
+    private static ObservedNodeConfig holding(
+            Map<String, Set<String>> addresses, Map<String, Map<String, Object>> queues) {
+        return new ObservedNodeConfig(
+                N1, "broker-1", true, addresses, queues, Map.of("#", base()), Map.of(), Map.of(), Map.of(), null);
+    }
+
+    @Test
+    void anExistingQueueThatDiffersIsAReplaceStepThatApplyConverges() {
+        // The live queue carries keys the declaration does not set; the step compares
+        // only declared keys, so before lists no key the step does not change (ADR-0082 D1).
+        Map<String, Object> live = new HashMap<>(
+                Map.of("name", "orders.in", "address", "orders.in", "routing-type", "ANYCAST", "durable", true));
+        live.put("exclusive", true);
+        live.put("ring-size", -1L);
+        live.put("max-consumers", -1);
+        ObservedNodeConfig n = holding(Map.of("orders.in", Set.of("ANYCAST")), Map.of("orders.in", live));
+
+        Plan plan = BrokerConfigPlanner.plan(
+                ordersQueue(new QueueDecl("orders.in", "ANYCAST", "x = 1", true, 4, null, null, null, null)),
+                List.of(n),
+                Set.of(),
+                PlanOptions.defaults());
+
+        assertThat(plan.findings()).isEmpty();
+        assertThat(plan.hazards()).isEmpty();
+        assertThat(pending(plan, N1)).singleElement().satisfies(s -> {
+            assertThat(s.section()).isEqualTo(Section.QUEUE);
+            assertThat(s.op()).isEqualTo(Op.REPLACE);
+            assertThat(s.key()).isEqualTo("orders.in");
+            assertThat(s.after()).containsEntry("filter-string", "x = 1").containsEntry("max-consumers", 4);
+            assertThat(s.after()).doesNotContainKey("auto-create-address");
+            assertThat(s.after().keySet()).containsAll(s.before().keySet());
+            assertThat(s.before()).containsEntry("max-consumers", -1).doesNotContainKey("exclusive");
+            assertThat(s.description()).contains("filter-string").contains("max-consumers");
+        });
+    }
+
+    @Test
+    void aQueueKeyTheDeclarationDoesNotSetIsNeitherDriftNorChanged() {
+        Map<String, Object> live = new HashMap<>(
+                Map.of("name", "orders.in", "address", "orders.in", "routing-type", "ANYCAST", "durable", true));
+        live.put("max-consumers", 3);
+        live.put("filter-string", "region = 'eu'");
+        ObservedNodeConfig n = holding(Map.of("orders.in", Set.of("ANYCAST")), Map.of("orders.in", live));
+
+        Plan plan = BrokerConfigPlanner.plan(
+                ordersQueue(new QueueDecl("orders.in", "ANYCAST", null, true, null, null, null, null, null)),
+                List.of(n),
+                Set.of(),
+                PlanOptions.defaults());
+
+        assertThat(plan.stepCount()).isZero();
+        assertThat(plan.findings()).isEmpty();
+    }
+
+    @Test
+    void aQueueThatDiffersInAFieldTheBrokerCannotChangeStaysAFindingWithNoStep() {
+        ObservedNodeConfig n = node(N1, "broker-1", Map.of(), Map.of(), Map.of());
+
+        // durable differs (immutable) and so does the filter (mutable): no partial update.
+        Plan plan = BrokerConfigPlanner.plan(
+                ordersQueue(new QueueDecl("orders.in", "ANYCAST", "x = 1", false, null, null, null, null, null)),
+                List.of(n),
+                Set.of(),
+                PlanOptions.defaults());
 
         assertThat(plan.stepCount()).isZero();
         assertThat(plan.findings()).singleElement().satisfies(f -> {
             assertThat(f.kind()).isEqualTo(FindingKind.DIVERGENT_QUEUE);
-            assertThat(f.detail()).contains("filter-string");
+            assertThat(f.detail()).contains("durable").contains("delete");
+        });
+    }
+
+    @Test
+    void addingARoutingTypeIsAReplaceStepWithALowHazard() {
+        ObservedNodeConfig n = holding(Map.of("events", Set.of("ANYCAST")), Map.of());
+
+        Plan plan = BrokerConfigPlanner.plan(
+                address("events", Set.of("ANYCAST", "MULTICAST")), List.of(n), Set.of(), PlanOptions.defaults());
+
+        assertThat(plan.findings()).isEmpty();
+        assertThat(pending(plan, N1)).singleElement().satisfies(s -> {
+            assertThat(s.section()).isEqualTo(Section.ADDRESS);
+            assertThat(s.op()).isEqualTo(Op.REPLACE);
+            assertThat(s.before()).containsEntry("routingTypes", List.of("ANYCAST"));
+            assertThat(s.after()).containsEntry("routingTypes", List.of("ANYCAST", "MULTICAST"));
+        });
+        assertThat(plan.hazards()).singleElement().satisfies(h -> {
+            assertThat(h.kind()).isEqualTo(HazardKind.ROUTING_TYPE_CHANGE);
+            assertThat(h.hazardClass()).isEqualTo(HazardClass.LOW);
+            assertThat(h.message()).contains("MULTICAST");
+        });
+    }
+
+    @Test
+    void aRoutingTypeWithQueuesBoundIsKeptAndReportedNotAStepTheBrokerRefuses() {
+        ObservedNodeConfig n = holding(
+                Map.of("events", Set.of("ANYCAST", "MULTICAST")),
+                Map.of(
+                        "events.work",
+                        Map.of("name", "events.work", "address", "events", "routing-type", "ANYCAST"),
+                        "events.audit",
+                        Map.of("name", "events.audit", "address", "events", "routing-type", "MULTICAST")));
+
+        // The broker refuses to drop ANYCAST while events.work is bound (AMQ229209), so a
+        // step would only halt the run on this node before any other change.
+        Plan plan = BrokerConfigPlanner.plan(
+                address("events", Set.of("MULTICAST")), List.of(n), Set.of(), PlanOptions.defaults());
+
+        assertThat(pending(plan, N1)).isEmpty();
+        assertThat(plan.hazards()).isEmpty();
+        assertThat(plan.findings()).singleElement().satisfies(f -> {
+            assertThat(f.kind()).isEqualTo(FindingKind.DIVERGENT_ADDRESS);
+            assertThat(f.section()).isEqualTo(Section.ADDRESS);
+            assertThat(f.detail())
+                    .contains("ANYCAST")
+                    .contains("events.work")
+                    .doesNotContain("events.audit")
+                    .contains("delete");
+        });
+    }
+
+    @Test
+    void aBoundRoutingTypeIsKeptWhileTheRestOfTheAddressConverges() {
+        ObservedNodeConfig n = holding(
+                Map.of("events", Set.of("ANYCAST")),
+                Map.of("events.work", Map.of("name", "events.work", "address", "events", "routing-type", "ANYCAST")));
+
+        Plan plan = BrokerConfigPlanner.plan(
+                address("events", Set.of("MULTICAST")), List.of(n), Set.of(), PlanOptions.defaults());
+
+        assertThat(pending(plan, N1)).singleElement().satisfies(s -> {
+            assertThat(s.op()).isEqualTo(Op.REPLACE);
+            assertThat(s.after()).containsEntry("routingTypes", List.of("ANYCAST", "MULTICAST"));
+        });
+        assertThat(plan.hazards())
+                .singleElement()
+                .satisfies(h -> assertThat(h.hazardClass()).isEqualTo(HazardClass.LOW));
+        assertThat(plan.findings())
+                .singleElement()
+                .satisfies(f -> assertThat(f.kind()).isEqualTo(FindingKind.DIVERGENT_ADDRESS));
+    }
+
+    @Test
+    void removingARoutingTypeNoQueueIsBoundToIsLow() {
+        ObservedNodeConfig n = holding(
+                Map.of("events", Set.of("ANYCAST", "MULTICAST")),
+                Map.of(
+                        "events.audit",
+                        Map.of("name", "events.audit", "address", "events", "routing-type", "MULTICAST")));
+
+        Plan plan = BrokerConfigPlanner.plan(
+                address("events", Set.of("MULTICAST")), List.of(n), Set.of(), PlanOptions.defaults());
+
+        assertThat(pending(plan, N1)).hasSize(1);
+        assertThat(plan.hazards())
+                .singleElement()
+                .satisfies(h -> assertThat(h.hazardClass()).isEqualTo(HazardClass.LOW));
+    }
+
+    @Test
+    void driftReportsADivergentQueueAsDivergenceTheApplyCloses() {
+        Map<String, Object> live = new HashMap<>(
+                Map.of("name", "orders.in", "address", "orders.in", "routing-type", "ANYCAST", "durable", true));
+        live.put("exclusive", true);
+        ObservedNodeConfig n = holding(Map.of("orders.in", Set.of("ANYCAST")), Map.of("orders.in", live));
+        Plan plan = BrokerConfigPlanner.plan(
+                ordersQueue(new QueueDecl("orders.in", "ANYCAST", null, true, 1, null, null, null, null)),
+                List.of(n),
+                Set.of(),
+                PlanOptions.drift(false, List.of()));
+
+        BrokerConfigDriftService.NodeReport report = BrokerConfigDriftService.report(n, plan, 1, null);
+
+        assertThat(report.findings()).singleElement().satisfies(f -> {
+            assertThat(f.kind()).isEqualTo(FindingKind.DIVERGENT);
+            assertThat(f.section()).isEqualTo(Section.QUEUE);
+            assertThat(f.declared()).containsEntry("max-consumers", 1).doesNotContainKey("auto-create-address");
+            // An undeclared live key is not drift (ADR-0082 D1).
+            assertThat(f.observed()).doesNotContainKey("exclusive");
         });
     }
 

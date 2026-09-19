@@ -199,6 +199,17 @@ public class QueueLifecycleOperations {
     }
 
     /**
+     * Replace an existing address's routing types with exactly these. The broker refuses
+     * to drop a routing type while a queue of that type is bound ({@code AMQ229209},
+     * broker-management-notes §15 M8), so this never unbinds a queue.
+     */
+    public void updateAddress(JolokiaBrokerClient client, String brokerMbean, String address, String routingTypes) {
+        JolokiaResponse res = client.single(JolokiaRequest.exec(
+                brokerMbean, "updateAddress(java.lang.String,java.lang.String)", address, routingTypes));
+        require(res, "updateAddress");
+    }
+
+    /**
      * Delete an address, force-free (D8). The broker itself refuses with
      * {@code AMQ229205} while queues are bound, which surfaces as
      * {@link ManagementRefusal.Kind#BOUND_QUEUES}; the caller names the queues,

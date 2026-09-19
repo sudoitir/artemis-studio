@@ -63,6 +63,9 @@ still holds.
    type bound on the node is a **High** hazard: those queues stop receiving the
    producers' traffic, or the broker refuses the change. Either way the hazard is named,
    and a High one must be acknowledged before any write (ADR-0067 D7).
+   *Amended by [ADR-0083](0083-apply-keeps-a-routing-type-a-bound-queue-uses.md): the
+   broker refuses that removal, so a routing type with queues of that type bound is
+   kept and reported as a `DIVERGENT_ADDRESS` finding, not planned as a step.*
 3. **The replacement steps follow ADR-0067 D3 and D4 unchanged.** They are diff-driven
    (a matching item is `ALREADY` and issues no write), ordered addresses → queues, run on
    the canary first, verified by a re-read, and halt the run on the first failure.

@@ -116,12 +116,14 @@ public record Plan(
         AUTO_DELETE_ENABLED,
         REMOVE_OWNED,
         REMOVE_UNDECLARED,
-        REDISTRIBUTION_CHANGE
+        REDISTRIBUTION_CHANGE,
+        ROUTING_TYPE_CHANGE
     }
 
     /**
-     * Something the plan noticed and will not act on: a queue that exists with a
-     * different configuration, an undeclared resource, a node that could not be read.
+     * Something the plan noticed and will not act on: a queue that differs in a field
+     * the broker cannot change in place, a routing type a bound queue keeps on an address,
+     * an undeclared resource, a node that could not be read.
      */
     public record Finding(FindingKind kind, UUID nodeId, String nodeName, Section section, String key, String detail) {}
 

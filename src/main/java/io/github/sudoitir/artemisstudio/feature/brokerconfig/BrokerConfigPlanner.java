@@ -14,6 +14,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.NodePlan;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Op;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Section;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Step;
+import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -29,7 +30,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Turns a declaration and one observed read per node into the ordered steps an apply
@@ -257,26 +260,96 @@ public final class BrokerConfigPlanner {
                             after,
                             false,
                             "Create address " + a.name() + " (" + String.join(", ", a.routingTypes()) + ")"));
-                } else if (observed.containsAll(a.routingTypes())) {
-                    steps.add(new Step(
-                            id(Section.ADDRESS, a.name(), Op.ADD),
-                            Op.ADD,
+                    continue;
+                }
+                Map<String, Object> before = Map.of("routingTypes", List.copyOf(new TreeSet<>(observed)));
+                // The declared set is authoritative (ADR-0082 D2): a superset is divergent too. A
+                // removed type with queues of that type bound stays, because the broker refuses to
+                // drop it (broker-management-notes §15 M8) and a refused step would halt the node.
+                Map<String, List<String>> bound = boundQueuesOfRemovedTypes(a, observed);
+                bound.forEach((type, queues) -> findings.add(new Finding(
+                        FindingKind.DIVERGENT_ADDRESS,
+                        node.nodeId(),
+                        node.nodeName(),
+                        Section.ADDRESS,
+                        a.name(),
+                        "Accepts " + type + ", which the declaration does not list, and " + String.join(", ", queues)
+                                + (queues.size() == 1 ? " is" : " are") + " bound to it as " + type
+                                + ". The broker refuses to remove a routing type while a queue of that type is"
+                                + " bound, so an apply keeps " + type + ". Declare " + type
+                                + ", or delete those queues with their own delete action and apply again.")));
+                Set<String> target = new TreeSet<>(a.routingTypes());
+                target.addAll(bound.keySet());
+                if (observed.equals(target)) {
+                    if (bound.isEmpty()) {
+                        steps.add(new Step(
+                                id(Section.ADDRESS, a.name(), Op.ADD),
+                                Op.ADD,
+                                Section.ADDRESS,
+                                a.name(),
+                                before,
+                                after,
+                                true,
+                                "Address " + a.name() + " exists"));
+                    }
+                    continue;
+                }
+                steps.add(new Step(
+                        id(Section.ADDRESS, a.name(), Op.REPLACE),
+                        Op.REPLACE,
+                        Section.ADDRESS,
+                        a.name(),
+                        before,
+                        Map.of("routingTypes", List.copyOf(target)),
+                        false,
+                        "Change address " + a.name() + " routing types from "
+                                + String.join(", ", new TreeSet<>(observed)) + " to " + String.join(", ", target)));
+                routingTypeHazards(a.name(), observed, target);
+            }
+        }
+
+        /** Each routing type the declaration drops that still has queues of that type bound on this node. */
+        private Map<String, List<String>> boundQueuesOfRemovedTypes(AddressDecl a, Set<String> observed) {
+            Map<String, List<String>> bound = new TreeMap<>();
+            for (String removed : observed) {
+                if (a.routingTypes().contains(removed)) {
+                    continue;
+                }
+                List<String> queues = node.queues().values().stream()
+                        .filter(q -> a.name().equals(q.get("address"))
+                                && removed.equalsIgnoreCase(Objects.toString(q.get("routing-type"), "")))
+                        .map(q -> Objects.toString(q.get("name"), ""))
+                        .sorted()
+                        .toList();
+                if (!queues.isEmpty()) {
+                    bound.put(removed, queues);
+                }
+            }
+            return bound;
+        }
+
+        private void routingTypeHazards(String address, Set<String> observed, Set<String> target) {
+            for (String added : target) {
+                if (!observed.contains(added)) {
+                    hazard(
+                            HazardKind.ROUTING_TYPE_CHANGE,
+                            HazardClass.LOW,
                             Section.ADDRESS,
-                            a.name(),
-                            Map.of("routingTypes", List.copyOf(observed)),
-                            after,
-                            true,
-                            "Address " + a.name() + " exists"));
-                } else {
-                    findings.add(new Finding(
-                            FindingKind.DIVERGENT_ADDRESS,
-                            node.nodeId(),
-                            node.nodeName(),
+                            address,
+                            added,
+                            "Address " + address + " starts accepting " + added + " sends.");
+                }
+            }
+            for (String removed : new TreeSet<>(observed)) {
+                if (!target.contains(removed)) {
+                    hazard(
+                            HazardKind.ROUTING_TYPE_CHANGE,
+                            HazardClass.LOW,
                             Section.ADDRESS,
-                            a.name(),
-                            "Exists with routing types " + String.join(", ", observed) + "; declared "
-                                    + String.join(", ", a.routingTypes())
-                                    + ". An apply does not change an existing address's routing types."));
+                            address,
+                            removed,
+                            "Address " + address + " stops accepting " + removed + " sends; no " + removed
+                                    + " queue is bound to it on " + node.nodeName() + ".");
                 }
             }
         }
@@ -307,7 +380,21 @@ public final class BrokerConfigPlanner {
                             differing.add(e.getKey());
                         }
                     }
-                    if (differing.isEmpty()) {
+                    List<String> immutable = differing.stream()
+                            .filter(QueueLifecycleOperations.IMMUTABLE_ON_UPDATE::contains)
+                            .toList();
+                    if (!immutable.isEmpty()) {
+                        findings.add(new Finding(
+                                FindingKind.DIVERGENT_QUEUE,
+                                node.nodeId(),
+                                node.nodeName(),
+                                Section.QUEUE,
+                                q.name(),
+                                "Exists with a different " + String.join(", ", immutable)
+                                        + ", which the broker cannot change on a live queue. Changing it means"
+                                        + " deleting the queue with its own delete action and applying again;"
+                                        + " until then an apply leaves this queue as it is."));
+                    } else if (differing.isEmpty()) {
                         steps.add(new Step(
                                 id(Section.QUEUE, q.name(), Op.ADD),
                                 Op.ADD,
@@ -318,15 +405,27 @@ public final class BrokerConfigPlanner {
                                 true,
                                 "Queue " + q.name() + " exists as declared"));
                     } else {
-                        findings.add(new Finding(
-                                FindingKind.DIVERGENT_QUEUE,
-                                node.nodeId(),
-                                node.nodeName(),
+                        // Only declared keys are compared, shown and sent; the rest keep their live
+                        // values through the read-merge update (ADR-0082 D1), so neither side of
+                        // the step lists them.
+                        Map<String, Object> after = new LinkedHashMap<>(wanted);
+                        after.remove("auto-create-address");
+                        Map<String, Object> before = new LinkedHashMap<>();
+                        after.keySet().stream()
+                                .filter(existing::containsKey)
+                                .forEach(k -> before.put(k, existing.get(k)));
+                        steps.add(new Step(
+                                id(Section.QUEUE, q.name(), Op.REPLACE),
+                                Op.REPLACE,
                                 Section.QUEUE,
                                 q.name(),
-                                "Exists with a different " + String.join(", ", differing)
-                                        + ". An apply never reconfigures an existing queue; use the queue's own edit"
-                                        + " action, which shows the whole configuration it would replace."));
+                                before,
+                                after,
+                                false,
+                                "Update queue " + q.name() + ": "
+                                        + differing.stream()
+                                                .map(k -> k + " " + orUnset(existing.get(k)) + " → " + wanted.get(k))
+                                                .collect(Collectors.joining(", "))));
                     }
                 }
             }
@@ -847,6 +946,10 @@ public final class BrokerConfigPlanner {
                 .orElse(jsonName);
     }
 
+    private static String orUnset(Object value) {
+        return value == null ? "unset" : value.toString();
+    }
+
     private static String orDefault(Object value) {
         return value == null ? "the broker's default" : value.toString();
     }
@@ -891,7 +994,7 @@ public final class BrokerConfigPlanner {
         for (PermissionType t : PermissionType.values()) {
             Set<String> r = roles.get(t);
             if (r != null && !r.isEmpty()) {
-                out.put(t.xmlName(), String.join(",", new java.util.TreeSet<>(r)));
+                out.put(t.xmlName(), String.join(",", new TreeSet<>(r)));
             }
         }
         return out;
