@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerNodeMapper;
@@ -18,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
  * {@code SUSPECTED} verdict (ADR-0012).
  */
 @Component
+@Order(10)
 @RequiredArgsConstructor
 public class StateCondition implements AlertCondition {
 
@@ -43,15 +44,20 @@ public class StateCondition implements AlertCondition {
     private final List<AlertSignalSource> signals;
 
     @Override
-    public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
+    public boolean supports(AlertRuleSpec rule) {
+        return !rule.thresholdRule();
+    }
+
+    @Override
+    public Evaluation evaluate(UUID clusterId, AlertRuleSpec rule) {
         List<ClusterNode> rows = nodes.nodes(clusterId);
-        return switch (rule.getStateCondition()) {
+        return switch (rule.stateCondition()) {
             case "SPLIT_BRAIN" -> splitBrain(clusterId, rows);
             case "NODE_DOWN" -> nodeDown(rows);
             case "REPLICATION_BEHIND" -> replicationBehind(rows);
             case "CLUSTER_DEGRADED" -> clusterDegraded(clusterId, rows);
             case "CLOCK_SKEW" -> clockSkew(clusterId, rows);
-            default -> signal(rule.getStateCondition(), clusterId);
+            default -> signal(rule.stateCondition(), clusterId);
         };
     }
 

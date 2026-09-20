@@ -1300,6 +1300,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/consumer-health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["consumerHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/connections": {
         parameters: {
             query?: never;
@@ -3614,6 +3630,73 @@ export interface components {
         };
         PagedViewConsumerView: {
             data: components["schemas"]["ConsumerView"][];
+            /** Format: int64 */
+            count: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        ConsumerHealthView: {
+            address: string;
+            queueName: string;
+            /** @description One of INSUFFICIENT_DATA, PAUSED, NO_CONSUMERS, BROKER_SLOW, STALLED, STARVED, FALLING_BEHIND, DRAINING, HEALTHY. */
+            verdict: string;
+            /**
+             * Format: int32
+             * @description 0-4; higher needs attention sooner.
+             */
+            severity: number;
+            /** @description The likely cause and the next action, in words. */
+            cause: string;
+            /** @description BROKER when the broker judged it, else DERIVED. */
+            source: string;
+            brokerConsumerName?: string | null;
+            /** Format: int64 */
+            depth: number;
+            /** Format: int64 */
+            consumers: number;
+            /** Format: int64 */
+            delivering: number;
+            /** Format: int64 */
+            scheduled: number;
+            paused: boolean;
+            /**
+             * Format: double
+             * @description Change in depth per second; positive is growing.
+             */
+            depthSlopePerSecond?: number | null;
+            /** Format: double */
+            addRate?: number | null;
+            /** Format: double */
+            ackRate?: number | null;
+            /** Format: double */
+            netRate?: number | null;
+            /** Format: double */
+            ackRatePerConsumer?: number | null;
+            /**
+             * Format: int64
+             * @description Seconds until the backlog clears; only set while DRAINING.
+             */
+            drainEtaSeconds?: number | null;
+            /**
+             * Format: date-time
+             * @description The newest sample the rates rest on.
+             */
+            asOf?: string | null;
+            /**
+             * Format: int64
+             * @description Seconds the rates were measured over.
+             */
+            sampleSpanSeconds?: number | null;
+            stale: boolean;
+            /** Format: int32 */
+            nodesPresent: number;
+            /** Format: int32 */
+            nodesTotal: number;
+        };
+        PagedViewConsumerHealthView: {
+            data: components["schemas"]["ConsumerHealthView"][];
             /** Format: int64 */
             count: number;
             /** Format: int32 */
@@ -6514,6 +6597,34 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewConsumerView"];
+                };
+            };
+        };
+    };
+    consumerHealth: {
+        parameters: {
+            query?: {
+                q?: string;
+                queue?: string;
+                sort?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewConsumerHealthView"];
                 };
             };
         };

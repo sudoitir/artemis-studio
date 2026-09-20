@@ -3,13 +3,30 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.feature.triage`
 |Spring components
-|* `i.g.s.a.f.t.TriageFeature`
+|_Controllers_
+
+* `i.g.s.a.f.t.web.TriageController`
+
+_Services_
+
+* `i.g.s.a.f.t.ConsumerHealthService`
+
+_Configuration properties_
+
+* `i.g.s.a.f.t.ConsumerHealthProperties`
+
+_Others_
+
+* `i.g.s.a.f.t.HealthVerdictCondition`
+* `i.g.s.a.f.t.TriageFeature`
 |Bean references
-|* `i.g.s.a.p.m.McpProperties` (in MCP server)
-* `i.g.s.a.p.c.ClusterService` (in Clusters)
-* `i.g.s.a.f.r.CrossNodeAggregator` (in Resources)
-* `i.g.s.a.f.m.MetricQueryService` (in Metrics)
+|* `i.g.s.a.f.r.CrossNodeAggregator` (in Resources)
+* `i.g.s.a.p.s.MetricSamples` (in Scraping)
 * `i.g.s.a.f.e.BrokerEventService` (in Broker events)
+* `i.g.s.a.p.s.ScrapeProperties` (in Scraping)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.m.McpProperties` (in MCP server)
+* `i.g.s.a.p.c.ClusterService` (in Clusters)
 * `i.g.s.a.k.a.AuditQueryService` (in Audit log)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)

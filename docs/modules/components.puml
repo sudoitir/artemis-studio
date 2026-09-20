@@ -217,9 +217,9 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioAppli
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Metrics, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Resources, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Scraping, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Triage, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)

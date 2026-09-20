@@ -123,18 +123,42 @@ public final class McpViews {
     public record MetricSeries(
             UUID clusterId, String metric, String subject, String window, List<MetricPoint> points) {}
 
-    /** {@code diagnose} with a queue — one queue, end to end, replacing four screens. */
+    /**
+     * {@code diagnose} with a queue — one queue, end to end, replacing four screens.
+     *
+     * <p>The verdict and every number under it come from the shared consumer-health
+     * evaluation (ADR-0089), so this agrees with the console by construction rather
+     * than by coincidence.
+     *
+     * <p>Every rate is boxed and {@code null} means "not computable from the samples
+     * available" — a distinct fact from zero, and one a model must not flatten into
+     * "no throughput".
+     */
     public record QueueDiagnosis(
             UUID clusterId,
             String queue,
             String address,
+            String verdict,
+            int severity,
+            String cause,
+            String source,
+            String brokerConsumerName,
             long messageCount,
             long consumerCount,
-            long messagesAdded,
-            long messagesAcknowledged,
+            long deliveringCount,
+            long scheduledCount,
             boolean paused,
-            String depthTrend,
-            String slowConsumerVerdict,
+            Double depthSlopePerSecond,
+            Double addRate,
+            Double ackRate,
+            Double netRate,
+            Double ackRatePerConsumer,
+            Long drainEtaSeconds,
+            Instant asOf,
+            Long sampleSpanSeconds,
+            boolean stale,
+            int nodesPresent,
+            int nodesTotal,
             String dlq,
             List<String> findings,
             List<ActivityRow> recentEvents) {}

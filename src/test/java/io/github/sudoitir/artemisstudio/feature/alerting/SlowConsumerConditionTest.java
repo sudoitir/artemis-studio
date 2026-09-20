@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertCondition.Evaluation;
-import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
@@ -101,16 +100,8 @@ class SlowConsumerConditionTest extends PostgresIntegrationTest {
                 """, p);
     }
 
-    private static AlertRuleEntity rule(double threshold, String scope) {
-        return AlertRuleEntity.threshold(
-                UUID.randomUUID(),
-                "Slow consumers",
-                SlowConsumerCondition.METRIC,
-                "LT",
-                threshold,
-                0,
-                "WARNING",
-                scope);
+    private static AlertRuleSpec rule(double threshold, String scope) {
+        return new AlertRuleSpec(UUID.randomUUID(), true, SlowConsumerCondition.METRIC, "LT", threshold, scope, null);
     }
 
     @Test
@@ -212,9 +203,9 @@ class SlowConsumerConditionTest extends PostgresIntegrationTest {
     @Test
     void anotherMetricIsNotThisConditionsBusiness() {
         givenCluster();
-        AlertRuleEntity r = rule(1.0, null);
-        r.setMetric("messageCount");
+        AlertRuleSpec r = new AlertRuleSpec(UUID.randomUUID(), true, "messageCount", "LT", 1.0, null, null);
 
+        assertThat(condition.supports(r)).isFalse();
         assertThat(condition.evaluate(clusterId, r)).isEqualTo(Evaluation.EMPTY);
     }
 }

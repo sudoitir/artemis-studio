@@ -3795,6 +3795,70 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/consumer-health" : {
+      "get" : {
+        "tags" : [ "triage-controller" ],
+        "operationId" : "consumerHealth",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "q",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "queue",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "sort",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewConsumerHealthView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/connections" : {
       "get" : {
         "tags" : [ "cluster-resource-controller" ],
@@ -9381,6 +9445,128 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/ConsumerView"
+            }
+          },
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "ConsumerHealthView" : {
+        "type" : "object",
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "verdict" : {
+            "type" : "string",
+            "description" : "One of INSUFFICIENT_DATA, PAUSED, NO_CONSUMERS, BROKER_SLOW, STALLED, STARVED, FALLING_BEHIND, DRAINING, HEALTHY."
+          },
+          "severity" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "0-4; higher needs attention sooner."
+          },
+          "cause" : {
+            "type" : "string",
+            "description" : "The likely cause and the next action, in words."
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "BROKER when the broker judged it, else DERIVED."
+          },
+          "brokerConsumerName" : {
+            "type" : [ "string", "null" ]
+          },
+          "depth" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "consumers" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "delivering" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scheduled" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "paused" : {
+            "type" : "boolean"
+          },
+          "depthSlopePerSecond" : {
+            "type" : [ "number", "null" ],
+            "format" : "double",
+            "description" : "Change in depth per second; positive is growing."
+          },
+          "addRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "ackRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "netRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "ackRatePerConsumer" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "drainEtaSeconds" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Seconds until the backlog clears; only set while DRAINING."
+          },
+          "asOf" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "The newest sample the rates rest on."
+          },
+          "sampleSpanSeconds" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Seconds the rates were measured over."
+          },
+          "stale" : {
+            "type" : "boolean"
+          },
+          "nodesPresent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodesTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "address", "cause", "consumers", "delivering", "depth", "nodesPresent", "nodesTotal", "paused", "queueName", "scheduled", "severity", "source", "stale", "verdict" ]
+      },
+      "PagedViewConsumerHealthView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConsumerHealthView"
             }
           },
           "count" : {

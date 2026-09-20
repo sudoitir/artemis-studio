@@ -44,10 +44,14 @@ public class AlertEvaluator {
     private final AlertFiringRepository firings;
     private final AlertDeliveryRepository deliveries;
     private final AlertRuleChannelRepository ruleChannels;
-    private final GaugeCondition gaugeCondition;
-    private final RateCondition rateCondition;
-    private final SlowConsumerCondition slowConsumerCondition;
-    private final StateCondition stateCondition;
+    /**
+     * Every rule kind's predicate, in {@code @Order} sequence — derived metrics ahead of
+     * the raw gauge and rate conditions, which match on broader sets. Injected as a list
+     * rather than named one by one so a module that may depend on alerting can contribute
+     * a kind without this class knowing its type (ADR-0089).
+     */
+    private final List<AlertCondition> conditions;
+
     private final SseHub hub;
     private final ObjectMapper mapper;
 
@@ -56,11 +60,12 @@ public class AlertEvaluator {
         List<AlertRuleEntity> enabled = rules.findByClusterIdAndKindAndEnabledTrue(clusterId, kind);
         boolean anyTransition = false;
         for (AlertRuleEntity rule : enabled) {
-            AlertCondition condition = conditionFor(rule);
+            AlertRuleSpec spec = specOf(rule);
+            AlertCondition condition = conditionFor(spec);
             if (condition == null) {
                 continue;
             }
-            Evaluation evaluation = condition.evaluate(clusterId, rule);
+            Evaluation evaluation = condition.evaluate(clusterId, spec);
             List<Transition> transitions = process(rule, evaluation);
             if (!transitions.isEmpty()) {
                 anyTransition = true;
@@ -72,22 +77,26 @@ public class AlertEvaluator {
         }
     }
 
-    private AlertCondition conditionFor(AlertRuleEntity rule) {
-        if (!rule.isThreshold()) {
-            return stateCondition;
+    private AlertCondition conditionFor(AlertRuleSpec rule) {
+        for (AlertCondition condition : conditions) {
+            if (condition.supports(rule)) {
+                return condition;
+            }
         }
-        // Ahead of the gauge and rate checks: a derived metric, not a raw one.
-        if (SlowConsumerCondition.supports(rule.getMetric())) {
-            return slowConsumerCondition;
-        }
-        if (GaugeCondition.supports(rule.getMetric())) {
-            return gaugeCondition;
-        }
-        if (RateCondition.supports(rule.getMetric())) {
-            return rateCondition;
-        }
-        log.warn("Alert rule {} has an unrecognised metric '{}'; skipping", rule.getId(), rule.getMetric());
+        log.warn("Alert rule {} has an unrecognised metric '{}'; skipping", rule.id(), rule.metric());
         return null;
+    }
+
+    /** The exported projection a condition evaluates, so none of them sees the entity. */
+    static AlertRuleSpec specOf(AlertRuleEntity rule) {
+        return new AlertRuleSpec(
+                rule.getId(),
+                rule.isThreshold(),
+                rule.getMetric(),
+                rule.getComparator(),
+                rule.getThreshold(),
+                rule.getScope(),
+                rule.getStateCondition());
     }
 
     private List<Transition> process(AlertRuleEntity rule, Evaluation evaluation) {

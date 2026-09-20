@@ -6,14 +6,14 @@ export function severityTone(severity: string): { word: string; color: string } 
 }
 
 export const GAUGE_METRICS = ['messageCount', 'consumerCount', 'deliveringCount', 'scheduledCount'] as const;
-export const RATE_METRICS = ['messagesAdded', 'messagesAcked'] as const;
+export const RATE_METRICS = ['messagesAdded', 'messagesAcked', 'messagesExpired'] as const;
 
 /**
  * Derived metrics are computed from more than one reading (ADR-0044). Their
  * subject universe is narrower than a raw metric's, so they carry their own
  * explanation in the rule form rather than looking like another gauge.
  */
-export const DERIVED_METRICS = ['ackRatePerConsumer'] as const;
+export const DERIVED_METRICS = ['ackRatePerConsumer', 'consumerHealth'] as const;
 
 export function metricKind(metric: string): 'gauge' | 'rate' | 'derived' {
   if ((DERIVED_METRICS as readonly string[]).includes(metric)) return 'derived';
@@ -22,7 +22,24 @@ export function metricKind(metric: string): 'gauge' | 'rate' | 'derived' {
 
 const METRIC_LABELS: Record<string, string> = {
   ackRatePerConsumer: 'ackRatePerConsumer — slow consumers',
+  consumerHealth: 'consumerHealth — consumer health verdict',
 };
+
+/**
+ * `consumerHealth` compares a severity rank, not a measurement (ADR-0089). The rank
+ * is an internal encoding, so the form offers these words and stores the number —
+ * an operator never types or reads a bare rank.
+ */
+export const HEALTH_SEVERITIES = [
+  { value: 2, label: 'Falling behind or worse' },
+  { value: 3, label: 'Starved or worse' },
+  { value: 4, label: 'Stalled, no consumers, or broker-reported slow' },
+] as const;
+
+/** True where the rule's threshold is a verdict severity rather than a measured value. */
+export function isVerdictMetric(metric: string): boolean {
+  return metric === 'consumerHealth';
+}
 
 export function metricLabel(metric: string): string {
   return METRIC_LABELS[metric] ?? metric;
@@ -35,6 +52,8 @@ export function metricLabel(metric: string): string {
  * cannot name the individual consumer, only the queue on a node.
  */
 export const METRIC_NOTES: Record<string, string> = {
+  consumerHealth:
+    'Fires on the same verdict the Consumer health screen shows, so an alert and the screen can never disagree. A queue whose verdict cannot be computed yet — too few samples — is excluded entirely, so it neither fires nor resolves a firing that is still true. A paused queue ranks below every threshold offered here and never pages.',
   ackRatePerConsumer:
     'Only queues with consumers attached, a non-zero backlog, and not paused are evaluated — an idle or paused queue is not a slow consumer. Studio resolves this to a queue on a node; naming the individual consumer needs the broker\'s own slow-consumer detection.',
 };

@@ -200,7 +200,7 @@ from the commit messages ([`changelog/`](changelog/)).
 | [ ] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
 | [ ] | **A · Observability export:** OpenTelemetry metrics                                                                                                                                              |
 | [ ] | **A · Message lineage:** track messages across queues, diverts, bridges, DLQs, and captured payloads                                                                                             |
-| [ ] | **A · Consumer health:** depth trends, consumption velocity, and slow-consumer root-cause context                                                                                                |
+| [x] | **A · Consumer health:** depth trends, consumption velocity, and slow-consumer root-cause context                                                                                                |
 | [ ] | **B · CLI:** automation for clusters, queues, SQL queries, message operations, and API tokens                                                                                                    |
 | [ ] | **B · Saved views:** shareable views with role visibility and cluster-scoped defaults                                                                                                            |
 | [ ] | **B · Routing builder:** visual builder for diverts, bridges, and transformers                                                                                                                   |

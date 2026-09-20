@@ -4,12 +4,10 @@ import io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertService;
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews;
-import io.github.sudoitir.artemisstudio.feature.metrics.MetricQueryService;
-import io.github.sudoitir.artemisstudio.feature.resources.CrossNodeAggregator;
-import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews;
+import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealth;
+import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealthService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews;
-import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -19,7 +17,6 @@ import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpProperties;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpViews;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +32,9 @@ import org.springframework.stereotype.Component;
  * clusters, resources, metrics, events, alerts and the audit trail. *
  * <p>Reads only: nothing here needs the dry-run/confirm contract, which is the review
  * boundary ADR-0045 draws between read and mutating tool classes. Every method is a thin
- * adapter over the services the REST layer already uses.
+ * adapter over the services the REST layer already uses — including the queue diagnosis,
+ * which reads {@link ConsumerHealthService} rather than deriving a second opinion
+ * (ADR-0089).
  */
 @Component
 @RequiredArgsConstructor
@@ -43,8 +42,7 @@ public class TriageMcpTools {
 
     private final McpProperties props;
     private final ClusterService clusters;
-    private final CrossNodeAggregator queues;
-    private final MetricQueryService metrics;
+    private final ConsumerHealthService consumerHealth;
     private final BrokerEventService brokerEvents;
     private final AuditQueryService auditLog;
     private final ClusterDirectory clusterRepo;
@@ -150,30 +148,27 @@ public class TriageMcpTools {
     }
 
     private McpViews.QueueDiagnosis diagnose(UUID clusterId, String queue) {
-        // The snapshot row is the cheap authoritative read; an exact-name filter still
-        // comes back as a page, so pick the exact match rather than the first row.
-        ResourceViews.QueueView row = queues.queues(clusterId, ResourceQuery.of(queue, 1, 50, null)).data().stream()
-                .filter(q -> queue.equals(q.queueName()))
-                .findFirst()
+        // The shared verdict (ADR-0089) — the same evaluation the console and the alert
+        // condition read. This method used to derive its own trend from two points and its
+        // own slow-consumer guess from a ratio, which is how an agent and a screen came to
+        // describe one queue differently.
+        ConsumerHealth health = consumerHealth
+                .forQueue(clusterId, queue)
                 .orElseThrow(() -> new io.github.sudoitir.artemisstudio.kernel.core.NotFoundException("queue", queue));
 
         List<String> findings = new ArrayList<>();
-        if (row.totalConsumerCount() == 0 && row.totalMessageCount() > 0) {
-            findings.add("No consumers are attached and " + row.totalMessageCount()
-                    + " messages are queued — nothing is draining this queue.");
-        }
-        if (row.nodesPresent() < row.nodesTotal()) {
-            findings.add("The queue exists on " + row.nodesPresent() + " of " + row.nodesTotal()
+        if (health.nodesPresent() < health.nodesTotal()) {
+            findings.add("The queue exists on " + health.nodesPresent() + " of " + health.nodesTotal()
                     + " nodes; the numbers here cover only the nodes reporting it.");
         }
-        if (row.totalScheduledCount() > 0) {
-            findings.add(row.totalScheduledCount() + " messages are scheduled for later delivery "
+        if (health.stale()) {
+            findings.add("At least one node's last sweep is stale, so these numbers are the last seen"
+                    + " rather than current.");
+        }
+        if (health.scheduled() > 0) {
+            findings.add(health.scheduled() + " messages are scheduled for later delivery "
                     + "and are counted in the depth.");
         }
-
-        // messageCount over the last hour answers "is this growing or draining", which
-        // is the question a depth number alone cannot.
-        String trend = trend(clusterId, queue);
 
         // A DLQ relationship is a naming convention, not broker metadata: say what was
         // observed rather than asserting a link the broker never declared.
@@ -182,64 +177,38 @@ public class TriageMcpTools {
                 : null;
 
         List<McpViews.ActivityRow> recent =
-                brokerEvents.page(clusterId, null, null, row.address(), null, null, 1, 10).data().stream()
+                brokerEvents.page(clusterId, null, null, health.address(), null, null, 1, 10).data().stream()
                         .map(TriageMcpTools::toActivity)
                         .toList();
 
         return new McpViews.QueueDiagnosis(
                 clusterId,
                 queue,
-                row.address(),
-                row.totalMessageCount(),
-                row.totalConsumerCount(),
-                row.totalDeliveringCount(),
-                row.totalScheduledCount(),
-                false,
-                trend,
-                slowConsumerVerdict(row),
+                health.address(),
+                health.verdict().name(),
+                health.verdict().severity(),
+                health.cause(),
+                health.source().name(),
+                health.brokerConsumerName(),
+                health.depth(),
+                health.consumers(),
+                health.delivering(),
+                health.scheduled(),
+                health.paused(),
+                health.depthSlopePerSecond(),
+                health.addRate(),
+                health.ackRate(),
+                health.netRate(),
+                health.ackRatePerConsumer(),
+                health.drainEta() == null ? null : health.drainEta().toSeconds(),
+                health.asOf(),
+                health.sampleSpan() == null ? null : health.sampleSpan().toSeconds(),
+                health.stale(),
+                health.nodesPresent(),
+                health.nodesTotal(),
                 dlq,
                 findings,
                 recent);
-    }
-
-    /** Growing, draining or flat over the last hour, from the metric cache — no broker call. */
-    private String trend(UUID clusterId, String queue) {
-        try {
-            Instant to = Instant.now();
-            var response = metrics.query(
-                    clusterId, List.of("messageCount"), "QUEUE", queue, to.minus(Duration.ofHours(1)), to, null);
-            if (response.series().isEmpty() || response.series().get(0).points().size() < 2) {
-                return "unknown (not enough samples yet)";
-            }
-            var points = response.series().get(0).points();
-            double first = points.get(0).value();
-            double last = points.get(points.size() - 1).value();
-            if (last > first * 1.1) {
-                return "growing (" + (long) first + " -> " + (long) last + " over 1h)";
-            }
-            if (last < first * 0.9) {
-                return "draining (" + (long) first + " -> " + (long) last + " over 1h)";
-            }
-            return "flat (~" + (long) last + " over 1h)";
-        } catch (IllegalArgumentException e) {
-            return "unknown";
-        }
-    }
-
-    /**
-     * The broker's own view wins over an inferred one (ADR-0044). Studio has no
-     * per-queue slow-consumer flag in the snapshot, so this reports what can be seen
-     * and does not manufacture a verdict the broker did not give.
-     */
-    private static String slowConsumerVerdict(ResourceViews.QueueView row) {
-        if (row.totalConsumerCount() == 0) {
-            return "not applicable — no consumers attached";
-        }
-        if (row.totalDeliveringCount() > 0 && row.totalMessageCount() > row.totalDeliveringCount() * 10) {
-            return "possible — depth is far above what is in flight; check "
-                    + "slow-consumer-policy on the address and diagnose for the broker's own verdict";
-        }
-        return "none observed";
     }
 
     private enum LogSource {
