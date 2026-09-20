@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.routing;
 
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.support.ModuleIntegrationTest;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
@@ -13,4 +14,8 @@ class RoutingModuleTest extends ModuleIntegrationTest {
     /** Queue lifecycle, a direct dependency, locates queues through the scrape module. */
     @MockitoBean
     QueueLocator queueLocator;
+
+    /** And drops a destroyed queue's snapshot rows through it, so the listing loses it at once. */
+    @MockitoBean
+    QueueSnapshotUpsert queueSnapshots;
 }
