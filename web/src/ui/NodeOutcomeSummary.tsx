@@ -172,10 +172,33 @@ function verdictFor(outcome: LifecycleOutcomeView): { text: string; tone?: 'warn
   if (failed > 0 && failed === targets) {
     return { text: 'Failed on every node', tone: 'danger' };
   }
+  if (!appliedEverywhere(outcome)) {
+    // No node was live, so nothing ran. "Applied to all 0 live nodes" reads as a
+    // success; an operator acting on that believes the command happened.
+    return { text: 'No node was live, so nothing was applied', tone: 'warning' };
+  }
   if (skipped > 0) {
     return { text: `Applied to all ${targets} live nodes · ${skipped} not live`, tone: 'warning' };
   }
   return { text: `Applied to all ${targets} nodes` };
+}
+
+/**
+ * Whether the command actually landed on every node it named — the one question a
+ * caller asks before treating the resource as changed.
+ *
+ * <p>Stated positively on purpose. `partial` is false both when everything worked
+ * and when nothing did (a cluster with no live node settles nowhere), so a caller
+ * that asks "not partial and nothing failed" concludes a delete succeeded against
+ * a cluster it never reached.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- a predicate, not a component
+export function appliedEverywhere(outcome: LifecycleOutcomeView): boolean {
+  return (
+    !outcome.dryRun &&
+    outcome.nodes.length > 0 &&
+    outcome.nodes.every((n) => n.status === 'APPLIED' || n.status === 'ALREADY')
+  );
 }
 
 /**

@@ -379,3 +379,49 @@ describe('a delete that failed everywhere', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe('a delete no node was live for', () => {
+  it('leaves the queue open, because nothing was deleted', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', ({ request }) => {
+        const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          // Nothing settled anywhere, so the server does not call this partial either.
+          partial: false,
+          totalAffected: dryRun ? 12 : 0,
+          nodes: [
+            {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: dryRun ? 'WOULD_APPLY' : 'SKIPPED_NOT_LIVE',
+              affected: dryRun ? 12 : null,
+              error: null,
+            },
+          ],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithProviders(<QueueLifecycleActions clusterId="c1" queue={queue()} onClose={onClose} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Delete queue' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox'), 'orders');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+
+    expect(await within(dialog).findByText('No node was live, so nothing was applied')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

@@ -7,7 +7,7 @@ import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { appliedEverywhere, NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { EditQueueForm } from './EditQueueForm.tsx';
 
 /**
@@ -262,10 +262,9 @@ function DeleteQueueDialog({
               onClick={() => {
                 close();
                 // The queue view behind this dialog is dismissed only when the queue is
-                // really gone. A run where every node failed is not partial, so `partial`
-                // alone would close the view on a queue that is still there.
-                const failed = result.nodes.some((n) => n.status === 'FAILED');
-                if (!result.partial && !failed) onDeleted();
+                // really gone, which is a positive check on every node: a run that failed
+                // everywhere, or reached no live node at all, is not partial either.
+                if (appliedEverywhere(result)) onDeleted();
               }}
             >
               Close
