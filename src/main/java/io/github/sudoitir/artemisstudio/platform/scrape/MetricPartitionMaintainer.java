@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Daily partition lifecycle for {@code metric_sample} (ADR-0006, ADR-0033). Creates
@@ -29,10 +30,13 @@ public class MetricPartitionMaintainer {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final MetricSampleReaper reaper;
+    private final TransactionTemplate transactions;
 
-    public MetricPartitionMaintainer(NamedParameterJdbcTemplate jdbc, MetricSampleReaper reaper) {
+    public MetricPartitionMaintainer(
+            NamedParameterJdbcTemplate jdbc, MetricSampleReaper reaper, TransactionTemplate transactions) {
         this.jdbc = jdbc;
         this.reaper = reaper;
+        this.transactions = transactions;
     }
 
     /**
@@ -54,6 +58,16 @@ public class MetricPartitionMaintainer {
      * populated with whatever the default partition already holds for that
      * range, and only then attached (the standard "split the default partition"
      * maneuver; mirrors changeset {@code 012-metric-partitions.sql}'s bootstrap).
+     *
+     * <p>The move and the attach are one transaction holding {@code EXCLUSIVE} on the
+     * default partition, because a scrape insert landing between them puts a row for
+     * the day back into the default and Postgres then refuses the attach outright:
+     * <em>updated partition constraint for default partition would be violated by some
+     * row</em>. A maintenance run that hits that leaves the day with no partition, and
+     * every later run fails the same way — which is what happened. {@code EXCLUSIVE}
+     * conflicts with the {@code ROW EXCLUSIVE} an insert takes, so a scrape waits for
+     * the few milliseconds the move needs; {@code ATTACH} would take its own
+     * {@code ACCESS EXCLUSIVE} on the default partition a moment later regardless.
      */
     private void createAhead() {
         LocalDate today = LocalDate.now();
@@ -72,15 +86,18 @@ public class MetricPartitionMaintainer {
                                 autovacuum_vacuum_insert_threshold = 10000,
                                 autovacuum_analyze_scale_factor = 0.05)
                             """.formatted(name));
-            jdbc.getJdbcTemplate().execute("""
-                            WITH moved AS (
-                                DELETE FROM metric_sample_default WHERE ts >= '%s' AND ts < '%s' RETURNING *
-                            )
-                            INSERT INTO %s SELECT * FROM moved
-                            """.formatted(day, next, name));
-            jdbc.getJdbcTemplate()
-                    .execute("ALTER TABLE metric_sample ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
-                            .formatted(name, day, next));
+            transactions.executeWithoutResult(status -> {
+                jdbc.getJdbcTemplate().execute("LOCK TABLE metric_sample_default IN EXCLUSIVE MODE");
+                jdbc.getJdbcTemplate().execute("""
+                                WITH moved AS (
+                                    DELETE FROM metric_sample_default WHERE ts >= '%s' AND ts < '%s' RETURNING *
+                                )
+                                INSERT INTO %s SELECT * FROM moved
+                                """.formatted(day, next, name));
+                jdbc.getJdbcTemplate()
+                        .execute("ALTER TABLE metric_sample ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
+                                .formatted(name, day, next));
+            });
         }
     }
 
