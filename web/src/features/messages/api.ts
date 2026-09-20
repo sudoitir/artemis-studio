@@ -54,6 +54,11 @@ export function useMessages(
       request<MessagePageView>(
         `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages${messageSearch(params)}`,
       ),
+    // A queue is not a document: messages arrive and are consumed while the
+    // screen is open, and a browse that never refreshes shows an arrangement of
+    // the queue that stopped being true the moment it was drawn. One bounded
+    // page read per interval, pausable with every other poll (ADR-0052).
+    refetchInterval: poll(10_000),
     placeholderData: (prev) => prev,
   });
 }

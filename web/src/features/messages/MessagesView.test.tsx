@@ -72,6 +72,30 @@ function mockCluster(endpoints: ReturnType<typeof endpoint>[]) {
 }
 
 describe('MessagesView', () => {
+  it('keeps the page current on its own, without an operator pressing refresh', async () => {
+    // A queue changes under the operator: a browse that only ever loads once
+    // shows an arrangement of the queue that stopped being true when it drew.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let browses = 0;
+    try {
+      mockCluster([endpoint('n1', 'primary')]);
+      server.use(
+        http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () => {
+          browses += 1;
+          return HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 200, node: 'n1' });
+        }),
+      );
+      const { unmount } = renderWithProviders(<MessagesView />);
+      await vi.waitFor(() => expect(browses).toBe(1));
+
+      await vi.advanceTimersByTimeAsync(11_000);
+      await vi.waitFor(() => expect(browses).toBeGreaterThan(1));
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('hides the node selector when the queue is served by a single endpoint', async () => {
     mockCluster([endpoint('n1', 'primary')]);
     renderWithProviders(<MessagesView />);
