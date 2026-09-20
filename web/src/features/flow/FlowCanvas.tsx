@@ -3,6 +3,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  Panel,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -37,6 +38,63 @@ function ZoomDetail({ onChange }: { onChange: (showText: boolean) => void }) {
 /** The smallest zoom a fresh view opens at: above TEXT_ZOOM, so rates and dots are drawn. */
 const OPEN_ZOOM = 0.7;
 const MARGIN = 24;
+
+const MINIMAP_KEY = 'artemis-studio.flow.minimap';
+
+/**
+ * The overview map, in the product's own colours and foldable away.
+ *
+ * <p>React Flow draws the minimap with its own light palette, which on a dark
+ * canvas is a white rectangle sitting over the graph — the brightest thing on
+ * the screen, for the least important. It is painted from the flow tokens
+ * instead, and on a graph the size of a real estate it is often in the way, so
+ * it folds to its own button. The choice is per viewer and survives a reload;
+ * browser storage can throw, and a minimap that will not fold is a smaller
+ * problem than a canvas that will not render.
+ */
+function FlowMiniMap() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(MINIMAP_KEY) !== 'off';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggle = () => {
+    setOpen((was) => {
+      const next = !was;
+      try {
+        window.localStorage.setItem(MINIMAP_KEY, next ? 'on' : 'off');
+      } catch {
+        /* a preference that cannot be stored is still honoured for this session */
+      }
+      return next;
+    });
+  };
+
+  return (
+    <>
+      <Panel position="bottom-right" className={classes.minimapToggle}>
+        <button type="button" onClick={toggle} aria-expanded={open} className={classes.minimapButton}>
+          {open ? 'Hide overview' : 'Show overview'}
+        </button>
+      </Panel>
+      {open ? (
+        <MiniMap
+          pannable
+          zoomable
+          className={classes.minimap}
+          nodeClassName={classes.minimapNode}
+          maskColor="var(--as-flow-minimap-mask)"
+          maskStrokeColor="var(--as-border)"
+          bgColor="transparent"
+          ariaLabel="Overview of the whole graph"
+        />
+      ) : null}
+    </>
+  );
+}
 
 /**
  * Fit once per layout: a new set of nodes gets a fresh view, a rate-only refresh keeps the operator's.
@@ -184,7 +242,7 @@ export function FlowCanvas({
             >
               <Background gap={24} />
               <Controls showInteractive={false} />
-              <MiniMap pannable zoomable nodeClassName={classes.minimapNode} ariaLabel="Overview of the whole graph" />
+              <FlowMiniMap />
               <ZoomDetail onChange={setShowText} />
               <RefitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
             </ReactFlow>

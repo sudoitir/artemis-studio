@@ -177,6 +177,23 @@ describe('FlowView', () => {
     }
   });
 
+  it('folds the overview map away and remembers the choice', async () => {
+    // The minimap covers the corner of a graph the size of a real estate, and
+    // the operator's choice has to survive the next visit to be worth making.
+    window.localStorage.removeItem('artemis-studio.flow.minimap');
+    serve(graph());
+    const { unmount } = renderWithProviders(<FlowView />);
+
+    expect(await screen.findByRole('img', { name: 'Overview of the whole graph' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Hide overview' }));
+    expect(screen.queryByRole('img', { name: 'Overview of the whole graph' })).not.toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<FlowView />);
+    expect(await screen.findByRole('button', { name: 'Show overview' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Overview of the whole graph' })).not.toBeInTheDocument();
+  });
+
   it('turns a routing layer on through the URL', async () => {
     serve(graph());
     renderWithProviders(<FlowView />);

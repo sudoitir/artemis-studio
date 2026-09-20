@@ -240,6 +240,38 @@
   fill: var(--as-flow-edge);
 }
 
+/*
+ * React Flow paints the minimap from its own light palette, so on a dark canvas
+ * it arrives as a white rectangle — the brightest thing on the screen, for the
+ * least important. These are the product's tokens, in both schemes.
+ */
+.minimap {
+  background: var(--as-surface-raised);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  /* Clear of its own toggle, which sits in the same corner. */
+  margin-block-end: 2.25rem;
+}
+
+.minimapToggle {
+  margin: 0.5rem;
+}
+
+.minimapButton {
+  font: inherit;
+  font-size: 0.6875rem;
+  color: var(--as-text-dimmed);
+  background: var(--as-surface-raised);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  padding: 0.125rem 0.5rem;
+  cursor: pointer;
+}
+
+.minimapButton:hover {
+  color: var(--as-text);
+}
+
 /* ── legend ────────────────────────────────────────────────────────────── */
 
 .legend {
