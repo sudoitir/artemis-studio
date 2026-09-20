@@ -82,6 +82,47 @@ public class MetricSamples {
         return out;
     }
 
+    /**
+     * The per-second slope of a gauge per subject over a window, by least-squares
+     * regression (ADR-0089). Answers "is this climbing, and how fast" where
+     * {@link #latestRateWithTimeBySubject} answers "how fast is it moving through".
+     *
+     * <p>Comparing the first and last sample cannot tell a queue oscillating around a
+     * mean from one climbing steadily; a regression over every sample in the window can.
+     * Postgres' {@code regr_slope} does it in the database, so no rows cross into the
+     * JVM and there is no hand-rolled regression to test.
+     *
+     * <p>Computed per node and summed, like every other read here: the same queue on two
+     * nodes is two independent series, and a cluster-wide regression over both would
+     * interleave them into a meaningless line. A subject with fewer than two samples, or
+     * with every sample at one instant (a zero-variance x, where {@code regr_slope} is
+     * undefined and returns NULL), is omitted rather than reported as flat — "not
+     * measurable" and "not moving" are different facts.
+     *
+     * @return subject name → change in the gauge per second; positive is growing
+     */
+    public Map<String, Double> depthSlopeBySubject(UUID clusterId, String metric, Instant from, Instant to) {
+        String sql = """
+                SELECT subject_name, sum(slope) AS slope
+                  FROM (SELECT subject_name,
+                               regr_slope(value, EXTRACT(EPOCH FROM ts)) AS slope
+                          FROM metric_sample
+                         WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                           AND ts >= :from AND ts < :to
+                         GROUP BY subject_name, node_id
+                        HAVING count(*) >= 2 AND max(ts) > min(ts)) per_node
+                 WHERE slope IS NOT NULL
+                 GROUP BY subject_name
+                """;
+        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
+                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
+        Map<String, Double> out = new java.util.HashMap<>();
+        jdbc.query(sql, p, rs -> {
+            out.put(rs.getString("subject_name"), rs.getDouble("slope"));
+        });
+        return out;
+    }
+
     public List<Bucket> gaugeSeries(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
         String sql = """

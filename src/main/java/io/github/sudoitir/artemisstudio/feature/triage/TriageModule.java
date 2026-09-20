@@ -4,13 +4,14 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import java.util.List;
 
-/** Cross-feature triage over MCP. Module descriptor (ADR-0070). */
+/** Cross-feature triage: consumer health over REST, diagnosis over MCP. Module descriptor (ADR-0070). */
 public final class TriageModule {
 
     public static final FeatureDescriptor DESCRIPTOR = FeatureDescriptor.builder()
             .id("triage")
             .title("Triage")
             .kind(FeatureDescriptor.Kind.FEATURE)
+            .apiPrefix("/api/v1/clusters/{clusterId}/consumer-health")
             .require("resources")
             .require("metrics")
             .require("events")
@@ -21,8 +22,9 @@ public final class TriageModule {
                     List.of(McpToolDef.Param.note(
                             "queue",
                             "Omit for the cluster: HA role per node, who is live, split-brain, replication "
-                                    + "lag, clock skew and firing alerts. Give a queue name for that queue: depth "
-                                    + "and trend, consumers, paused, slow consumers, DLQ and recent events."))))
+                                    + "lag, clock skew and firing alerts. Give a queue name for that queue: its "
+                                    + "consumer-health verdict with the depth, trend, enqueue and acknowledge "
+                                    + "rates behind it, plus DLQ hints and recent events."))))
             .mcpTool(new McpToolDef(
                     "activity_log",
                     McpToolDef.Posture.READ,

@@ -1,0 +1,291 @@
+package io.github.sudoitir.artemisstudio.feature.triage;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealth.Source;
+import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealth.Verdict;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
+import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+/**
+ * The consumer-health verdict ladder (ADR-0089) against real {@code queue_snapshot} and
+ * {@code metric_sample} rows.
+ *
+ * <p>Integration rather than isolated for the same reasons {@code SlowConsumerConditionTest}
+ * is: {@code queue_snapshot} has no setters, the {@code paused} exclusion is only real
+ * against the actual column, and the rate and slope derivations this rests on live in SQL
+ * rather than Java — a mocked repository would test the mock.
+ *
+ * <p>Each rung gets its own case. The ladder's order is a compatibility surface: it
+ * decides what an alert fires on and what an agent reports, so a reordering must fail
+ * here rather than in production.
+ */
+@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+class ConsumerHealthServiceTest extends PostgresIntegrationTest {
+
+    @Autowired
+    ConsumerHealthService service;
+
+    @Autowired
+    ClusterRepository clusters;
+
+    @Autowired
+    BrokerNodeRepository nodes;
+
+    @Autowired
+    NamedParameterJdbcTemplate jdbc;
+
+    private UUID clusterId;
+    private UUID nodeId;
+
+    private void givenCluster() {
+        ClusterEntity cluster = clusters.save(new ClusterEntity("c-" + UUID.randomUUID(), null, null));
+        clusterId = cluster.getId();
+        nodeId = nodes.save(BrokerNodeEntity.fromSeed(clusterId, "n1", "STANDALONE", "node-1"))
+                .getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (clusterId != null) {
+            clusters.deleteById(clusterId);
+            clusterId = null;
+        }
+    }
+
+    // ---- the ladder, rung by rung ----------------------------------------
+
+    @Test
+    void tooFewSamplesIsNeverHealthy() {
+        givenCluster();
+        queue("orders", 2, 5_000, 10, false);
+        // Exactly one sample of each counter: a rate needs two.
+        sample("orders", "messagesAdded", 100, Instant.now().minusSeconds(5));
+        sample("orders", "messagesAcked", 100, Instant.now().minusSeconds(5));
+
+        ConsumerHealth health = verdictFor("orders");
+
+        assertThat(health.verdict()).isEqualTo(Verdict.INSUFFICIENT_DATA);
+        assertThat(health.verdict().known()).isFalse();
+        // The distinction the whole feature exists for: unmeasured is not zero.
+        assertThat(health.ackRate()).isNull();
+    }
+
+    @Test
+    void pausedOutranksEveryConsumerVerdict() {
+        givenCluster();
+        // Also satisfies NO_CONSUMERS and STALLED; paused must win, because the backlog
+        // is expected and the action is "resume", not "go debug a consumer".
+        queue("orders", 0, 5_000, 0, true);
+        counterSamples("orders", 100, 100, 100, 100);
+
+        assertThat(verdictFor("orders").verdict()).isEqualTo(Verdict.PAUSED);
+    }
+
+    @Test
+    void backlogWithNoConsumersIsNoConsumers() {
+        givenCluster();
+        queue("orders", 0, 5_000, 0, false);
+        counterSamples("orders", 100, 200, 100, 100);
+
+        ConsumerHealth health = verdictFor("orders");
+
+        assertThat(health.verdict()).isEqualTo(Verdict.NO_CONSUMERS);
+        assertThat(health.verdict().severity()).isEqualTo(4);
+    }
+
+    @Test
+    void consumersHoldingMessagesAndAckingNoneIsStalled() {
+        givenCluster();
+        // Delivering above zero: the consumers have the messages and are not acking.
+        queue("orders", 3, 5_000, 30, false);
+        counterSamples("orders", 100, 200, 100, 100);
+
+        ConsumerHealth health = verdictFor("orders");
+
+        assertThat(health.verdict()).isEqualTo(Verdict.STALLED);
+        assertThat(health.delivering()).isEqualTo(30);
+        assertThat(health.source()).isEqualTo(Source.DERIVED);
+    }
+
+    @Test
+    void consumersReceivingNothingIsStarvedNotStalled() {
+        givenCluster();
+        // Identical to the stalled case but for delivering — and the operator's next
+        // action is the opposite one, so these must never share a verdict.
+        queue("orders", 3, 5_000, 0, false);
+        counterSamples("orders", 100, 200, 100, 100);
+
+        assertThat(verdictFor("orders").verdict()).isEqualTo(Verdict.STARVED);
+    }
+
+    @Test
+    void ackingSlowerThanArrivingIsFallingBehind() {
+        givenCluster();
+        queue("orders", 3, 5_000, 30, false);
+        // Added climbs by 1000, acked by 100: net positive.
+        counterSamples("orders", 1_000, 2_000, 1_000, 1_100);
+        depthClimbing("orders", 4_000, 5_000);
+
+        ConsumerHealth health = verdictFor("orders");
+
+        assertThat(health.verdict()).isEqualTo(Verdict.FALLING_BEHIND);
+        assertThat(health.netRate()).isGreaterThan(0.0);
+        assertThat(health.ackRatePerConsumer()).isNotNull();
+    }
+
+    @Test
+    void ackingFasterThanArrivingIsDrainingWithAnEta() {
+        givenCluster();
+        queue("orders", 3, 5_000, 30, false);
+        // Acked climbs faster than added: net negative.
+        counterSamples("orders", 1_000, 1_100, 1_000, 2_000);
+
+        ConsumerHealth health = verdictFor("orders");
+
+        assertThat(health.verdict()).isEqualTo(Verdict.DRAINING);
+        assertThat(health.drainEta()).isNotNull();
+        assertThat(health.netRate()).isLessThan(0.0);
+    }
+
+    @Test
+    void keepingUpIsHealthy() {
+        givenCluster();
+        queue("orders", 3, 0, 0, false);
+        counterSamples("orders", 1_000, 1_100, 1_000, 1_100);
+
+        assertThat(verdictFor("orders").verdict()).isEqualTo(Verdict.HEALTHY);
+    }
+
+    @Test
+    void theBrokersOwnVerdictOutranksTheDerivedOne() {
+        givenCluster();
+        // By signal alone this is FALLING_BEHIND: acking, but arriving faster.
+        queue("orders", 3, 5_000, 30, false);
+        counterSamples("orders", 1_000, 2_000, 1_000, 1_100);
+        depthClimbing("orders", 4_000, 5_000);
+        brokerSlowConsumer("orders", "consumer-7");
+
+        ConsumerHealth health = verdictFor("orders");
+
+        // ADR-0044: where the broker has judged, Studio does not offer a second opinion.
+        assertThat(health.verdict()).isEqualTo(Verdict.BROKER_SLOW);
+        assertThat(health.source()).isEqualTo(Source.BROKER);
+        assertThat(health.brokerConsumerName()).isEqualTo("consumer-7");
+    }
+
+    @Test
+    void anOldBrokerNotificationIsHistoryNotTheCurrentState() {
+        givenCluster();
+        queue("orders", 3, 5_000, 30, false);
+        counterSamples("orders", 1_000, 2_000, 1_000, 1_100);
+        depthClimbing("orders", 4_000, 5_000);
+        // Well outside the brokerSlowWindow default of 10 minutes.
+        brokerSlowConsumerAt("orders", "consumer-7", Instant.now().minusSeconds(3_600));
+
+        assertThat(verdictFor("orders").verdict()).isEqualTo(Verdict.FALLING_BEHIND);
+    }
+
+    // ---- ranking ----------------------------------------------------------
+
+    @Test
+    void worstRanksFirstAndUnknownNeverRanksAsHealthy() {
+        givenCluster();
+        queue("healthy", 3, 0, 0, false);
+        counterSamples("healthy", 1_000, 1_100, 1_000, 1_100);
+        queue("broken", 0, 9_000, 0, false);
+        counterSamples("broken", 100, 200, 100, 100);
+        queue("unsampled", 1, 10, 0, false);
+        sample("unsampled", "messagesAcked", 5, Instant.now().minusSeconds(5));
+
+        var page = service.page(
+                clusterId, io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery.of(null, 1, 50, null));
+        var order = page.data().stream().map(ConsumerHealth::queueName).toList();
+
+        assertThat(order).containsExactly("broken", "unsampled", "healthy");
+    }
+
+    // ---- helpers ----------------------------------------------------------
+
+    private ConsumerHealth verdictFor(String queue) {
+        return service.forQueue(clusterId, queue).orElseThrow();
+    }
+
+    private void queue(String name, long consumers, long messages, long delivering, boolean paused) {
+        jdbc.update(
+                """
+                INSERT INTO queue_snapshot
+                  (node_id, queue_name, cluster_id, address, routing_type,
+                   consumer_count, message_count, delivering_count, paused)
+                VALUES (:n, :q, :c, :q, 'ANYCAST', :cc, :mc, :dc, :paused)
+                """,
+                Map.of(
+                        "n", nodeId,
+                        "q", name,
+                        "c", clusterId,
+                        "cc", consumers,
+                        "mc", messages,
+                        "dc", delivering,
+                        "paused", paused));
+    }
+
+    /** Two samples of each counter inside the evaluation window, so both rates resolve. */
+    private void counterSamples(String queue, double addFirst, double addSecond, double ackFirst, double ackSecond) {
+        Instant now = Instant.now();
+        sample(queue, "messagesAdded", addFirst, now.minusSeconds(20));
+        sample(queue, "messagesAdded", addSecond, now.minusSeconds(1));
+        sample(queue, "messagesAcked", ackFirst, now.minusSeconds(20));
+        sample(queue, "messagesAcked", ackSecond, now.minusSeconds(1));
+    }
+
+    /** A rising depth series, so the regression slope is positive. */
+    private void depthClimbing(String queue, double first, double second) {
+        Instant now = Instant.now();
+        sample(queue, "messageCount", first, now.minusSeconds(20));
+        sample(queue, "messageCount", second, now.minusSeconds(1));
+    }
+
+    private void brokerSlowConsumer(String address, String consumer) {
+        brokerSlowConsumerAt(address, consumer, Instant.now().minusSeconds(30));
+    }
+
+    private void brokerSlowConsumerAt(String address, String consumer, Instant at) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("ts", Timestamp.from(at));
+        p.put("address", address);
+        p.put("consumer", consumer);
+        p.put("c", clusterId);
+        p.put("n", nodeId);
+        jdbc.update("""
+                INSERT INTO broker_event (occurred_at, type, address, consumer_name, cluster_id, node_id)
+                VALUES (:ts, 'CONSUMER_SLOW', :address, :consumer, :c, :n)
+                """, p);
+    }
+
+    private void sample(String queue, String metric, double value, Instant at) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("ts", Timestamp.from(at));
+        p.put("value", value);
+        p.put("subject", queue);
+        p.put("metric", metric);
+        p.put("c", clusterId);
+        p.put("n", nodeId);
+        jdbc.update("""
+                INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
+                VALUES (:ts, :value, 'QUEUE', :subject, :metric, :c, :n)
+                """, p);
+    }
+}

@@ -67,6 +67,33 @@ public class BrokerEventService {
                 events.oldestRetained(clusterId));
     }
 
+    /**
+     * Recent events of one type for a cluster, unguarded, for scheduled evaluation.
+     *
+     * <p>A scrape-driven job runs with no authenticated principal, so a permission check
+     * there protects nothing and fails as a 404 about a cluster that plainly exists. The
+     * guard stays on {@link #page}, which is the request path. Used by the consumer-health
+     * verdict to find the broker's own {@code CONSUMER_SLOW} notifications (ADR-0089).
+     *
+     * <p><b>Never call this from a request path.</b>
+     */
+    @Transactional(readOnly = true)
+    public List<BrokerEventView> recentOfType(UUID clusterId, String type, Instant from, Instant to, int limit) {
+        return events
+                .findPage(
+                        clusterId,
+                        blankToNull(type),
+                        null,
+                        null,
+                        from != null ? from : Instant.EPOCH,
+                        to != null ? to : Instant.parse("9999-12-31T23:59:59Z"),
+                        PageRequest.of(0, Math.min(Math.max(limit, 1), 500)))
+                .getContent()
+                .stream()
+                .map(this::toView)
+                .toList();
+    }
+
     /** Bounded replay for a reconnecting SSE client (slice 3). */
     @Transactional(readOnly = true)
     public List<BrokerEventView> since(UUID clusterId, long lastSeq, int cap) {

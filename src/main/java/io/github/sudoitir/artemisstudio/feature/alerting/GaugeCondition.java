@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.util.HashMap;
@@ -10,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.ToLongFunction;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -21,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
  * {@code node:<artemisNodeId>/queue:<name>} on that node's own value.
  */
 @Component
+@Order(30)
 @RequiredArgsConstructor
 public class GaugeCondition implements AlertCondition {
 
@@ -33,17 +34,18 @@ public class GaugeCondition implements AlertCondition {
     private final QueueSnapshots snapshots;
     private final ObjectMapper mapper;
 
-    public static boolean supports(String metric) {
-        return GAUGES.containsKey(metric);
+    @Override
+    public boolean supports(AlertRuleSpec rule) {
+        return rule.thresholdRule() && GAUGES.containsKey(rule.metric());
     }
 
     @Override
-    public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
-        ToLongFunction<QueueSnapshot> value = GAUGES.get(rule.getMetric());
+    public Evaluation evaluate(UUID clusterId, AlertRuleSpec rule) {
+        ToLongFunction<QueueSnapshot> value = GAUGES.get(rule.metric());
         if (value == null) {
             return Evaluation.EMPTY;
         }
-        AlertScope scope = AlertScope.parse(rule.getScope(), mapper);
+        AlertScope scope = AlertScope.parse(rule.scope(), mapper);
 
         boolean nodeScoped = scope.node() != null && !scope.node().isBlank();
         Set<String> universe = new HashSet<>();
@@ -62,7 +64,7 @@ public class GaugeCondition implements AlertCondition {
 
         Map<String, Double> active = new HashMap<>();
         subjectValues.forEach((subject, v) -> {
-            if (Comparators.test(rule.getComparator(), v, rule.getThreshold())) {
+            if (Comparators.test(rule.comparator(), v, rule.threshold())) {
                 active.put(subject, v);
             }
         });

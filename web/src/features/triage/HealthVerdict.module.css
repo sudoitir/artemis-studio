@@ -1,0 +1,31 @@
+/*
+ * The verdict is carried by its word. Colour is redundant emphasis, applied only
+ * where something is wrong, so a healthy cluster renders near-monochrome
+ * (`.claude/rules/20-frontend.md`). Semantic tokens only — no colour literals.
+ */
+.verdict {
+  font-weight: 600;
+  /* Tabular figures are set on the numeric cells, not here; this keeps the word
+     from shifting the row baseline when a tone changes. */
+  white-space: nowrap;
+}
+
+.danger {
+  color: var(--as-danger);
+}
+
+.warning {
+  color: var(--as-warning);
+}
+
+/* Unmeasured is dimmed rather than coloured: it is not a fault, and it must not
+   read as an assurance either. */
+.unmeasured {
+  color: var(--as-text-dimmed);
+  font-weight: 500;
+}
+
+.stale {
+  color: var(--as-text-dimmed);
+  font-weight: 400;
+}

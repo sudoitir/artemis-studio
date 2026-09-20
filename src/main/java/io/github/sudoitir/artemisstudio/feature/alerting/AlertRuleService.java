@@ -39,6 +39,9 @@ public class AlertRuleService {
     private final AlertViewMapper mapper;
     private final ClusterAccessGuard clusterAccess;
 
+    /** Every rule kind's predicate, so validation accepts exactly what evaluation can run. */
+    private final java.util.List<AlertCondition> conditions;
+
     @Transactional(readOnly = true)
     public List<AlertRuleView> list(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
@@ -131,7 +134,13 @@ public class AlertRuleService {
             if (!COMPARATORS.contains(r.comparator())) {
                 throw new IllegalArgumentException("unknown comparator: " + r.comparator());
             }
-            if (!GaugeCondition.supports(r.metric()) && !RateCondition.supports(r.metric())) {
+            // Ask the conditions themselves what they can evaluate, rather than naming two
+            // of them here. The hard-coded pair rejected every derived metric — including
+            // ackRatePerConsumer, which ADR-0044 ships a template for and which therefore
+            // could not be saved through this API at all (ADR-0089).
+            AlertRuleSpec probe =
+                    new AlertRuleSpec(null, true, r.metric(), r.comparator(), r.threshold(), r.scope(), null);
+            if (conditions.stream().noneMatch(c -> c.supports(probe))) {
                 throw new IllegalArgumentException("unknown metric: " + r.metric());
             }
             if (r.stateCondition() != null) {

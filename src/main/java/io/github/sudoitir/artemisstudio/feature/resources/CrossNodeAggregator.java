@@ -41,7 +41,41 @@ public class CrossNodeAggregator {
 
     @Transactional(readOnly = true)
     public PagedView<QueueView> queues(UUID clusterId, ResourceQuery query) {
+        List<QueueView> rows = allQueues(clusterId).stream()
+                .filter(v -> query.matches(v.queueName()) || query.matches(v.address()))
+                .toList();
+        return query.paginate(rows, comparatorFor(query.sortField()));
+    }
+
+    /**
+     * Every queue in the cluster, rolled up across nodes and unpaged, for a caller
+     * acting on behalf of a user.
+     *
+     * <p>Exists because {@link ResourceQuery} caps a page at 500 rows, which is right for
+     * a grid and wrong for a caller that must consider every queue before it can rank
+     * them — a consumer-health verdict that skipped the 501st queue could omit the worst
+     * one in the cluster and still look complete (ADR-0089).
+     */
+    @Transactional(readOnly = true)
+    public List<QueueView> allQueues(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        return rollUp(clusterId);
+    }
+
+    /**
+     * The same roll-up with no access check, for scheduled evaluation.
+     *
+     * <p>A scrape-driven job runs on its own thread with no authenticated principal, so a
+     * permission check there does not protect anything — it simply fails, and
+     * {@link ClusterAccessGuard} fails as a 404, which surfaces as "cluster does not
+     * exist" about a cluster that plainly does. The alert conditions already read
+     * {@code queue_snapshot} unguarded for exactly this reason; this keeps the guard at
+     * the request boundary, where there is a user to check, and off the scheduler path.
+     *
+     * <p><b>Never call this from a request path.</b> {@link #allQueues} is that entry point.
+     */
+    @Transactional(readOnly = true)
+    public List<QueueView> rollUp(UUID clusterId) {
         List<ClusterNode> nodeRows = nodes.nodes(clusterId);
         Map<UUID, String> nodeNames =
                 nodeRows.stream().collect(Collectors.toMap(ClusterNode::getId, ClusterNode::getName));
@@ -57,12 +91,9 @@ public class CrossNodeAggregator {
                         LinkedHashMap::new,
                         Collectors.toList()));
 
-        List<QueueView> rows = byKey.entrySet().stream()
+        return byKey.entrySet().stream()
                 .map(e -> mapper.toView(e.getKey(), e.getValue(), nodeNames, nodesTotal, staleBefore))
-                .filter(v -> query.matches(v.queueName()) || query.matches(v.address()))
                 .toList();
-
-        return query.paginate(rows, comparatorFor(query.sortField()));
     }
 
     private static String logicalKey(ClusterNode n) {

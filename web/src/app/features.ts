@@ -17,6 +17,7 @@ import { rrFeature } from '../features/rr/feature.ts';
 import { securityFeature } from '../features/security/feature.ts';
 import { settingsFeature } from '../features/settings/feature.ts';
 import { sqlFeature } from '../features/sql/feature.ts';
+import { triageFeature } from '../features/triage/feature.ts';
 import type { StudioFeature } from '../kernel/feature.ts';
 
 /**
@@ -29,6 +30,7 @@ export const FEATURES: StudioFeature[] = [
   metricsFeature,
   alertingFeature,
   flowFeature,
+  triageFeature,
   rrFeature,
   queuesFeature,
   messagesFeature,

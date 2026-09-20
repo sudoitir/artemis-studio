@@ -180,9 +180,32 @@ threads, one slow node never blocks its siblings, and it never runs inside a DB
 transaction — each node's result is handed to a short `@Transactional` persist
 step. Queue rows upsert into `queue_snapshot` via a JDBC `INSERT … ON CONFLICT`
 batch (ADR-0016, a scoped exception to ADR-0011); metric points append to the
-partitioned `metric_sample`, and a reaper trims past the retention window. When a
+partitioned `metric_sample`, and a reaper trims past the retention window. Six
+metrics are recorded per queue per sweep — `messageCount`, `consumerCount`,
+`deliveringCount`, `messagesAdded`, `messagesAcked` and `messagesExpired` — all
+read off the `listQueues` row the sweep already fetched, so the set costs no
+additional broker call (ADR-0089). When a
 tier completes, `ScrapeTierCompleted` lets alerting evaluate its rules in the same
 thread, so ordering is what it was before the modules split.
+
+### Consumer health (derived read)
+
+One queue's verdict — why a backlog is not draining — is an ordered ladder
+evaluated in `feature/triage`: `INSUFFICIENT_DATA`, `PAUSED`, `NO_CONSUMERS`,
+`BROKER_SLOW`, `STALLED`, `STARVED`, `FALLING_BEHIND`, `DRAINING`, `HEALTHY`,
+first match wins (ADR-0089). It is derived from `queue_snapshot` and windowed
+`metric_sample` aggregates — a fixed number of queries per request whatever the
+queue count, and no broker call. `deliveringCount` is what separates a stalled
+consumer from a starved one; a `CONSUMER_SLOW` notification outranks any derived
+verdict (ADR-0044).
+
+The same evaluation serves the **Consumer health** screen under *Observe*, the
+queue drawer's panel, `GET /api/v1/clusters/{id}/consumer-health`, the `diagnose`
+MCP tool and the `consumerHealth` alert condition, so the console, an agent and an
+alert cannot disagree about one queue. That condition lives in `feature/triage`
+rather than `feature/alerting`, because triage already depends on alerting;
+`AlertCondition` is discovered as a bean and handed an `AlertRuleSpec`, which is
+what lets a module contribute a rule kind without alerting importing it.
 
 ### Cross-node aggregation (read)
 

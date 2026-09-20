@@ -19,7 +19,13 @@ public final class MetricsModule {
                     List.of(
                             McpToolDef.Param.values(
                                     "metric",
-                                    List.of("messageCount", "consumerCount", "messagesAdded", "messagesAcked"),
+                                    List.of(
+                                            "messageCount",
+                                            "consumerCount",
+                                            "deliveringCount",
+                                            "messagesAdded",
+                                            "messagesAcked",
+                                            "messagesExpired"),
                                     null),
                             McpToolDef.Param.note("queue", "Omit for the whole cluster."),
                             McpToolDef.Param.note("window", "e.g. 15m, 6h, 2d. Units s, m, h, d. Defaults to 1h."))))

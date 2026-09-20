@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
@@ -12,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -43,6 +43,7 @@ import tools.jackson.databind.ObjectMapper;
  * that is the serving node's rate.
  */
 @Component
+@Order(20)
 @RequiredArgsConstructor
 public class SlowConsumerCondition implements AlertCondition {
 
@@ -56,16 +57,17 @@ public class SlowConsumerCondition implements AlertCondition {
     private final ScrapeProperties properties;
     private final ObjectMapper mapper;
 
-    public static boolean supports(String metric) {
-        return METRIC.equals(metric);
+    @Override
+    public boolean supports(AlertRuleSpec rule) {
+        return rule.thresholdRule() && METRIC.equals(rule.metric());
     }
 
     @Override
-    public Evaluation evaluate(UUID clusterId, AlertRuleEntity rule) {
-        if (!supports(rule.getMetric())) {
+    public Evaluation evaluate(UUID clusterId, AlertRuleSpec rule) {
+        if (!supports(rule)) {
             return Evaluation.EMPTY;
         }
-        AlertScope scope = AlertScope.parse(rule.getScope(), mapper);
+        AlertScope scope = AlertScope.parse(rule.scope(), mapper);
         boolean nodeScoped = scope.node() != null && !scope.node().isBlank();
 
         Instant to = Instant.now();
@@ -103,7 +105,7 @@ public class SlowConsumerCondition implements AlertCondition {
             }
             double perConsumer = ackRate / e.getValue();
             universe.add(subject);
-            if (Comparators.test(rule.getComparator(), perConsumer, rule.getThreshold())) {
+            if (Comparators.test(rule.comparator(), perConsumer, rule.threshold())) {
                 active.put(subject, perConsumer);
             }
         }

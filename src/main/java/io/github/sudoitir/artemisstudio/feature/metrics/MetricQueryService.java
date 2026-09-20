@@ -23,8 +23,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class MetricQueryService {
 
-    private static final Set<String> GAUGE_METRICS = Set.of("messageCount", "consumerCount");
-    private static final Set<String> RATE_METRICS = Set.of("messagesAdded", "messagesAcked");
+    private static final Set<String> GAUGE_METRICS = Set.of("messageCount", "consumerCount", "deliveringCount");
+    private static final Set<String> RATE_METRICS = Set.of("messagesAdded", "messagesAcked", "messagesExpired");
 
     /** No bucket finer than the fastest tier that samples metrics (tier B, 15s). */
     private static final Duration MIN_STEP = Duration.ofSeconds(15);

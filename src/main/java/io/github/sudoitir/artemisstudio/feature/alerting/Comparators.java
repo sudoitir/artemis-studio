@@ -1,11 +1,17 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-/** The six comparators {@code alert_rule.comparator}'s CHECK allows. */
-final class Comparators {
+/**
+ * The six comparators {@code alert_rule.comparator}'s CHECK allows.
+ *
+ * <p>Public because an {@link AlertCondition} may live in another module (ADR-0089), and
+ * a condition that hand-rolled its own comparison would drift from what the rule's stored
+ * comparator means everywhere else.
+ */
+public final class Comparators {
 
     private Comparators() {}
 
-    static boolean test(String comparator, double value, double threshold) {
+    public static boolean test(String comparator, double value, double threshold) {
         return switch (comparator) {
             case "GT" -> value > threshold;
             case "GTE" -> value >= threshold;

@@ -12,9 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Appends {@code metric_sample} rows for swept queues (ADR-0006 — Studio owns the
- * timeseries in Postgres). One point per queue per tier-B/C tick for the counters
- * the queue grid and future charts care about. Append-only, JDBC batch — the
- * table is range-partitioned and insert-tuned (changeset 005).
+ * timeseries in Postgres). Six points per queue per tier-B/C tick for the counters
+ * the queue grid, the charts and the consumer-health verdict care about. Append-only,
+ * JDBC batch — the table is range-partitioned and insert-tuned (changeset 005).
+ *
+ * <p>{@code deliveringCount} and {@code messagesExpired} are sampled for ADR-0089:
+ * in-flight depth is what separates a stalled consumer from a starved one, and both
+ * arrive on the {@link QueueRow} the sweep has already fetched, so recording them
+ * costs no additional broker request. {@code metric_sample.metric} is a {@code text}
+ * column, so adding a name needs no migration.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,12 +38,14 @@ public class MetricSampleWriter {
         if (rows.isEmpty()) {
             return;
         }
-        List<SqlParameterSource> params = new ArrayList<>(rows.size() * 4);
+        List<SqlParameterSource> params = new ArrayList<>(rows.size() * 6);
         for (QueueRow r : rows) {
             params.add(sample(r, "messageCount", r.messageCount()));
             params.add(sample(r, "consumerCount", r.consumerCount()));
             params.add(sample(r, "messagesAdded", r.messagesAdded()));
             params.add(sample(r, "messagesAcked", r.messagesAcked()));
+            params.add(sample(r, "deliveringCount", r.deliveringCount()));
+            params.add(sample(r, "messagesExpired", r.messagesExpired()));
         }
         jdbc.batchUpdate(INSERT, params.toArray(SqlParameterSource[]::new));
     }
