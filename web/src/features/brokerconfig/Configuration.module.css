@@ -58,6 +58,12 @@
   overflow-wrap: anywhere;
 }
 
+/* A step's number in the plan: two digits must not wrap into two lines. */
+.stepNumber {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /*
  * The plan's shape, kept on screen while the operator scrolls through the steps
  * it describes. What is being confirmed — how many writes, on how many nodes,

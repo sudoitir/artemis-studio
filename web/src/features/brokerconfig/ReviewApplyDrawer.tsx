@@ -310,15 +310,15 @@ export function ReviewApplyDrawer({
                     </Text>
                   </div>
 
-                  <Text size="sm">
-                    {previewed.plan.stepCount} step{previewed.plan.stepCount === 1 ? '' : 's'} on {targets.length} live
-                    node{targets.length === 1 ? '' : 's'}
-                    {backups.length > 0
-                      ? `; ${backups.map((b) => b.nodeName).join(', ')} ${backups.length === 1 ? 'is a backup and' : 'are backups and'} will inherit through replication`
-                      : ''}
-                    . Canary: {nodeName(canary ?? previewed.plan.canaryNodeId) ?? 'first live node'}. Nothing has been
-                    written.
-                  </Text>
+                  {/* The step count, the nodes and the canary are in the summary
+                      bar above; repeating them here only pushed the plan down. What
+                      the bar cannot say is what happens to a node that is not live. */}
+                  {backups.length > 0 ? (
+                    <Text size="sm">
+                      {backups.map((b) => b.nodeName).join(', ')}{' '}
+                      {backups.length === 1 ? 'is a backup and' : 'are backups and'} will inherit through replication.
+                    </Text>
+                  ) : null}
 
                   {scope?.label ? null : (
                     <Switch

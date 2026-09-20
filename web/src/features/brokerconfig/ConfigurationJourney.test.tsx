@@ -118,6 +118,45 @@ describe('the configuration screen', () => {
     expect(within(drawer).getAllByText('not attempted').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('folds away the steps the brokers already agree with, and says how many', async () => {
+    // A plan is mostly steps that write nothing; the writes are what is reviewed.
+    const withAlready = () => {
+      const p = plan();
+      const already = {
+        ...p.nodes[0].steps[0],
+        stepId: 'ADDRESS:orders.request:ADD',
+        section: 'ADDRESS',
+        key: 'orders.request',
+        op: 'ADD',
+        description: 'Address orders.request exists',
+        status: 'ALREADY' as const,
+      };
+      return {
+        ...p,
+        nodes: p.nodes.map((n) => ({ ...n, steps: [...n.steps, already] })),
+      };
+    };
+    server.use(
+      ...shell(),
+      ...baseHandlers(drifted),
+      http.post('*/api/v1/clusters/c1/config/apply', () => HttpResponse.json(withAlready())),
+    );
+    const user = userEvent.setup();
+    await open();
+
+    await user.click(await screen.findByRole('button', { name: 'Review & apply' }));
+    const drawer = await screen.findByRole('dialog', { name: /Review & apply/ });
+
+    // Hidden, but counted and one activation away — never silently dropped.
+    await within(drawer).findByText(/Would apply/);
+    const show = await within(drawer).findByRole('button', { name: 'Show the 2 already as declared' });
+    expect(within(drawer).queryByText('Address orders.request exists')).not.toBeInTheDocument();
+    await user.click(show);
+    expect(within(drawer).getAllByText('Address orders.request exists').length).toBeGreaterThanOrEqual(1);
+    await user.click(within(drawer).getByRole('button', { name: 'Hide the 2 already as declared' }));
+    expect(within(drawer).queryByText('Address orders.request exists')).not.toBeInTheDocument();
+  });
+
   it('applies one row on its own, naming that item’s steps and nothing else', async () => {
     const seen = vi.fn();
     server.use(...shell(), ...baseHandlers(drifted), applyHandler(() => plan({ dryRun: false, outcome: 'APPLIED' }), seen));

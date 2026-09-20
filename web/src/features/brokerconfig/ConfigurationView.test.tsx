@@ -193,7 +193,7 @@ describe('ConfigurationView', () => {
       key: 'orders.request',
       detail: `Create ${section.toLowerCase()} orders.request`,
       declared: { name: 'orders.request', routingType: 'ANYCAST', durable: true, maxConsumers: -1 },
-      observed: null,
+      observed: {},
     });
     server.use(
       ...baseHandlers(
