@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { Accordion, Button, Group, Stack, Table, Text } from '@mantine/core';
+import { Button, Group, Stack, Table, Text } from '@mantine/core';
 
-import type { ConfigAddressSettingView, ConfigAddressView, ConfigCatalogueView, ConfigDeclarationView, ConfigDivertView, ConfigSecuritySettingView } from './api.ts';
+import type { ConfigCatalogueView, ConfigDeclarationView } from './api.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import type { GateVerdict } from '../../ui/capabilityGate.ts';
 import { AddressEditor } from './AddressEditor.tsx';
@@ -11,46 +10,107 @@ import { SecuritySettingEditor } from './SecuritySettingEditor.tsx';
 import classes from './Configuration.module.css';
 import { KeyValueList } from './KeyValueList.tsx';
 import { addressRows, addressSettingRows, securitySettingRows } from './pretty.ts';
-import { SECTION_LABEL, SECTION_TEACHING, itemDriftWords, type Section } from './words.ts';
+import type { ApplyScope } from './ReviewApplyDrawer.tsx';
+import {
+  SECTION_LABEL,
+  SECTION_TEACHING,
+  findingRows,
+  itemDriftWords,
+  itemFindings,
+  stepIdsFor,
+  type Section,
+} from './words.ts';
 
-type Editing =
-  | { section: 'addresses'; item: ConfigAddressView | null }
-  | { section: 'addressSettings'; item: ConfigAddressSettingView | null }
-  | { section: 'securitySettings'; item: ConfigSecuritySettingView | null }
-  | { section: 'diverts'; item: ConfigDivertView | null }
-  | null;
-
-/** A declared item's drift, in words, never colour alone. */
-function Drift({ declaration, section, itemKey }: { declaration: ConfigDeclarationView; section: Section; itemKey: string }) {
-  const { text, tone } = itemDriftWords(declaration, section, itemKey);
+/**
+ * One declared item's live state, on its own row (ADR-0087 D1): the sentence
+ * first — in sync, missing, or differing, with the nodes named — and underneath
+ * it the keys that actually differ, declared → observed. Colour is redundant
+ * with the words.
+ */
+function LiveState({
+  declaration,
+  section,
+  itemKey,
+  queueKeys,
+  catalogue,
+}: {
+  declaration: ConfigDeclarationView;
+  section: Section;
+  itemKey: string;
+  /** The queues declared on this address: their findings carry their own name, not this row's. */
+  queueKeys?: string[];
+  catalogue?: ConfigCatalogueView;
+}) {
+  const { text, tone } = itemDriftWords(declaration, section, itemKey, queueKeys);
+  const found = itemFindings(declaration, section, itemKey, queueKeys);
   return (
-    <Text size="xs" className={classes.state} data-tone={tone}>
-      {text}
-    </Text>
+    <Stack gap={2}>
+      <Text size="xs" className={classes.state} data-tone={tone}>
+        {text}
+      </Text>
+      {found.map(({ nodeName, label, finding }, i) => {
+        // A missing item differs in every key, and "declared → —" repeated down
+        // the whole entry says nothing the sentence above has not already said.
+        // Only a divergence earns its keys.
+        if (finding.kind === 'MISSING') return null;
+        const differing = findingRows(finding, catalogue).filter((r) => r.differs);
+        if (differing.length === 0) return null;
+        return (
+          <div key={`${nodeName}:${i}`} className={classes.kv} data-diff>
+            {differing.map((r) => (
+              <div key={r.key} className={classes.kvRow} data-differs>
+                <span className={classes.kvKey}>
+                  {label}
+                  {r.key}
+                </span>
+                <span className={classes.kvValue}>
+                  <span className={classes.before}>{r.declared}</span>
+                  {' → '}
+                  {r.observed}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </Stack>
   );
 }
 
 /**
- * The four sections of the declaration, each a table with a drift column in
- * words and an edit action that opens the section's editor in a drawer. Focus
- * returns to the row's button when the drawer closes (Mantine's default).
+ * The four sections of the declaration, each a table of what is declared beside
+ * what the nodes run, with the actions that change either: edit the declaration,
+ * or apply this one item to every node (ADR-0087).
+ *
+ * <p>Nothing is behind a disclosure: the screen's whole job is the comparison,
+ * and an accordion made half of it a click away.
  */
 export function DeclaredTab({
   declaration,
   catalogue,
   canWrite,
+  applyGate,
+  onApply,
   openSection,
-  onSectionChange,
+  openItem,
+  onEdit,
 }: {
   declaration: ConfigDeclarationView;
   catalogue: ConfigCatalogueView | undefined;
   canWrite: boolean;
-  openSection: Section | undefined;
-  onSectionChange: (section: Section | undefined) => void;
+  /** Whether an apply is possible at all, and why not — never a hidden button. */
+  applyGate: GateVerdict;
+  onApply: (scope: ApplyScope) => void;
+  /** Which editor is open, from the URL: the open resource is navigable state. */
+  openSection?: Section;
+  openItem?: string;
+  onEdit: (section?: Section, item?: string) => void;
 }) {
-  const [editing, setEditing] = useState<Editing>(null);
   const doc = declaration.document;
-  const close = () => setEditing(null);
+  const close = () => onEdit(undefined, undefined);
+  /** The declared item the URL names, or null — which is the "new item" editor. */
+  const openItemIn = <T,>(section: Section, list: T[], keyOfItem: (item: T) => string): T | null =>
+    openSection === section && openItem ? (list.find((i) => keyOfItem(i) === openItem) ?? null) : null;
 
   // Disabled with the reason on a focusable wrapper, never a hover-only title.
   const writeGate: GateVerdict = canWrite
@@ -62,7 +122,7 @@ export function DeclaredTab({
       <Button
         variant="default"
         size="xs"
-        onClick={() => setEditing({ section, item: null } as Editing)}
+        onClick={() => onEdit(section, undefined)}
         disabled={!canWrite || (section === 'addressSettings' && !catalogue)}
       >
         {label}
@@ -70,233 +130,234 @@ export function DeclaredTab({
     </CapabilityGate>
   );
 
-  const editButton = (section: Section, item: unknown, name: string) => (
-    <Button
-      variant="subtle"
-      size="compact-xs"
-      onClick={() => setEditing({ section, item } as Editing)}
-      aria-label={`Edit ${name}`}
-    >
-      {canWrite ? 'Edit' : 'View'}
-    </Button>
+  const actions = (section: Section, itemKey: string, name: string, scope: ApplyScope) => (
+    <Group gap={4} justify="flex-end" wrap="nowrap">
+      <Button
+        variant="subtle"
+        size="compact-xs"
+        onClick={() => onEdit(section, itemKey)}
+        aria-label={`${canWrite ? 'Edit' : 'View'} ${name}`}
+      >
+        {canWrite ? 'Edit' : 'View'}
+      </Button>
+      <CapabilityGate verdict={applyGate} what={`applying ${name}`}>
+        <Button
+          variant="subtle"
+          size="compact-xs"
+          onClick={() => onApply(scope)}
+          disabled={applyGate.kind === 'blocked'}
+          aria-label={`Apply ${name}`}
+        >
+          Apply this
+        </Button>
+      </CapabilityGate>
+    </Group>
   );
 
-  const count = (n: number) => (n === 0 ? 'none declared' : `${n} declared`);
+  const heading = (section: Section, n: number) => (
+    <Stack gap={2}>
+      <Group gap="sm" align="baseline">
+        <Text size="sm" fw={600}>
+          {SECTION_LABEL[section]}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {n === 0 ? 'none declared' : `${n} declared`}
+        </Text>
+      </Group>
+      <Text size="xs" c="dimmed">
+        {SECTION_TEACHING[section]}
+      </Text>
+    </Stack>
+  );
 
   return (
     <>
-      <Accordion
-        multiple={false}
-        value={openSection ?? null}
-        onChange={(v) => onSectionChange((v as Section | null) ?? undefined)}
-        variant="separated"
-      >
-        <Accordion.Item value="addresses">
-          <Accordion.Control>
-            <Group justify="space-between" pr="sm">
-              <Text size="sm" fw={600}>
-                {SECTION_LABEL.addresses}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {count(doc.addresses.length)}
-              </Text>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="xs">
-              <Text size="xs" c="dimmed">
-                {SECTION_TEACHING.addresses}
-              </Text>
-              {doc.addresses.length > 0 ? (
-                <Table fz="xs" verticalSpacing={4}>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Address</Table.Th>
-                      <Table.Th>Routing and queues</Table.Th>
-                      <Table.Th>Drift</Table.Th>
-                      <Table.Th />
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {doc.addresses.map((a) => (
-                      <Table.Tr key={a.name}>
-                        <Table.Td>{a.name}</Table.Td>
-                        <Table.Td>
-                          <KeyValueList rows={addressRows(a)} />
-                        </Table.Td>
-                        <Table.Td>
-                          <Drift declaration={declaration} section="addresses" itemKey={a.name} />
-                        </Table.Td>
-                        <Table.Td className={classes.actionCell}>{editButton('addresses', a, `address ${a.name}`)}</Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              ) : null}
-              <div>{addButton('addresses', 'Add address')}</div>
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
+      <Stack gap="lg">
+        <Stack gap="xs">
+          {heading('addresses', doc.addresses.length)}
+          {doc.addresses.length > 0 ? (
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w="18%">Address</Table.Th>
+                  <Table.Th w="36%">Routing and queues</Table.Th>
+                  <Table.Th w="30%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {doc.addresses.map((a) => (
+                  <Table.Tr key={a.name}>
+                    <Table.Td>{a.name}</Table.Td>
+                    <Table.Td>
+                      <KeyValueList rows={addressRows(a)} />
+                    </Table.Td>
+                    <Table.Td>
+                      <LiveState
+                        declaration={declaration}
+                        section="addresses"
+                        itemKey={a.name}
+                        queueKeys={a.queues.map((q) => q.name)}
+                        catalogue={catalogue}
+                      />
+                    </Table.Td>
+                    <Table.Td className={classes.actionCell}>
+                      {actions('addresses', a.name, `address ${a.name}`, {
+                        label: `address ${a.name}`,
+                        // The address and every queue declared on it: applying the
+                        // address without its queues would leave the row half done.
+                        stepIds: stepIdsFor([
+                          { section: 'ADDRESS', key: a.name },
+                          ...a.queues.map((q) => ({ section: 'QUEUE' as const, key: q.name })),
+                        ]),
+                      })}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+            </Table.ScrollContainer>
+          ) : null}
+          <div>{addButton('addresses', 'Add address')}</div>
+        </Stack>
 
-        <Accordion.Item value="addressSettings">
-          <Accordion.Control>
-            <Group justify="space-between" pr="sm">
-              <Text size="sm" fw={600}>
-                {SECTION_LABEL.addressSettings}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {count(doc.addressSettings.length)}
-              </Text>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="xs">
-              <Text size="xs" c="dimmed">
-                {SECTION_TEACHING.addressSettings}
-              </Text>
-              {doc.addressSettings.length > 0 ? (
-                <Table fz="xs" verticalSpacing={4}>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Match</Table.Th>
-                      <Table.Th>Declared keys</Table.Th>
-                      <Table.Th>Drift</Table.Th>
-                      <Table.Th />
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {doc.addressSettings.map((s) => (
-                      <Table.Tr key={s.match}>
-                        <Table.Td>{s.match}</Table.Td>
-                        <Table.Td>
-                          <KeyValueList
-                            rows={addressSettingRows(s, catalogue)}
-                            empty="no keys — applying resets the entry to the parent match"
-                          />
-                        </Table.Td>
-                        <Table.Td>
-                          <Drift declaration={declaration} section="addressSettings" itemKey={s.match} />
-                        </Table.Td>
-                        <Table.Td className={classes.actionCell}>
-                          {editButton('addressSettings', s, `address setting ${s.match}`)}
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              ) : null}
-              <div>{addButton('addressSettings', 'Add address setting')}</div>
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
+        <Stack gap="xs">
+          {heading('addressSettings', doc.addressSettings.length)}
+          {doc.addressSettings.length > 0 ? (
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w="18%">Match</Table.Th>
+                  <Table.Th w="36%">Declared keys</Table.Th>
+                  <Table.Th w="30%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {doc.addressSettings.map((s) => (
+                  <Table.Tr key={s.match}>
+                    <Table.Td>{s.match}</Table.Td>
+                    <Table.Td>
+                      <KeyValueList
+                        rows={addressSettingRows(s, catalogue)}
+                        empty="no keys — applying resets the entry to the parent match"
+                      />
+                    </Table.Td>
+                    <Table.Td>
+                      <LiveState
+                        declaration={declaration}
+                        section="addressSettings"
+                        itemKey={s.match}
+                        catalogue={catalogue}
+                      />
+                    </Table.Td>
+                    <Table.Td className={classes.actionCell}>
+                      {actions('addressSettings', s.match, `address setting ${s.match}`, {
+                        label: `address setting ${s.match}`,
+                        stepIds: stepIdsFor([{ section: 'ADDRESS_SETTING', key: s.match }]),
+                      })}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+            </Table.ScrollContainer>
+          ) : null}
+          <div>{addButton('addressSettings', 'Add address setting')}</div>
+        </Stack>
 
-        <Accordion.Item value="securitySettings">
-          <Accordion.Control>
-            <Group justify="space-between" pr="sm">
-              <Text size="sm" fw={600}>
-                {SECTION_LABEL.securitySettings}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {count(doc.securitySettings.length)}
-              </Text>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="xs">
-              <Text size="xs" c="dimmed">
-                {SECTION_TEACHING.securitySettings}
-              </Text>
-              {doc.securitySettings.length > 0 ? (
-                <Table fz="xs" verticalSpacing={4}>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Match</Table.Th>
-                      <Table.Th>Role: permissions</Table.Th>
-                      <Table.Th>Drift</Table.Th>
-                      <Table.Th />
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {doc.securitySettings.map((s) => {
-                      return (
-                        <Table.Tr key={s.match}>
-                          <Table.Td>{s.match}</Table.Td>
-                          <Table.Td>
-                            <KeyValueList rows={securitySettingRows(s)} empty="no roles" />
-                          </Table.Td>
-                          <Table.Td>
-                            <Drift declaration={declaration} section="securitySettings" itemKey={s.match} />
-                          </Table.Td>
-                          <Table.Td className={classes.actionCell}>
-                            {editButton('securitySettings', s, `security setting ${s.match}`)}
-                          </Table.Td>
-                        </Table.Tr>
-                      );
-                    })}
-                  </Table.Tbody>
-                </Table>
-              ) : null}
-              <div>{addButton('securitySettings', 'Add security setting')}</div>
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
+        <Stack gap="xs">
+          {heading('securitySettings', doc.securitySettings.length)}
+          {doc.securitySettings.length > 0 ? (
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w="18%">Match</Table.Th>
+                  <Table.Th w="36%">Role: permissions</Table.Th>
+                  <Table.Th w="30%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {doc.securitySettings.map((s) => (
+                  <Table.Tr key={s.match}>
+                    <Table.Td>{s.match}</Table.Td>
+                    <Table.Td>
+                      <KeyValueList rows={securitySettingRows(s)} empty="no roles" />
+                    </Table.Td>
+                    <Table.Td>
+                      <LiveState
+                        declaration={declaration}
+                        section="securitySettings"
+                        itemKey={s.match}
+                        catalogue={catalogue}
+                      />
+                    </Table.Td>
+                    <Table.Td className={classes.actionCell}>
+                      {actions('securitySettings', s.match, `security setting ${s.match}`, {
+                        label: `security setting ${s.match}`,
+                        stepIds: stepIdsFor([{ section: 'SECURITY_SETTING', key: s.match }]),
+                      })}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+            </Table.ScrollContainer>
+          ) : null}
+          <div>{addButton('securitySettings', 'Add security setting')}</div>
+        </Stack>
 
-        <Accordion.Item value="diverts">
-          <Accordion.Control>
-            <Group justify="space-between" pr="sm">
-              <Text size="sm" fw={600}>
-                {SECTION_LABEL.diverts}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {count(doc.diverts.length)}
-              </Text>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="xs">
-              <Text size="xs" c="dimmed">
-                {SECTION_TEACHING.diverts}
-              </Text>
-              {doc.diverts.length > 0 ? (
-                <Table fz="xs" verticalSpacing={4}>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Name</Table.Th>
-                      <Table.Th>Routes</Table.Th>
-                      <Table.Th>Effect</Table.Th>
-                      <Table.Th>Drift</Table.Th>
-                      <Table.Th />
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {doc.diverts.map((d) => (
-                      <Table.Tr key={d.name}>
-                        <Table.Td>{d.name}</Table.Td>
-                        <Table.Td aria-label={`from ${d.address} to ${d.forwardingAddress}`}>
-                          {d.address} → {d.forwardingAddress}
-                        </Table.Td>
-                        <Table.Td>{d.exclusive ? 'takes the message' : 'copies the message'}</Table.Td>
-                        <Table.Td>
-                          <Drift declaration={declaration} section="diverts" itemKey={d.name} />
-                        </Table.Td>
-                        <Table.Td className={classes.actionCell}>{editButton('diverts', d, `divert ${d.name}`)}</Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              ) : null}
-              <div>{addButton('diverts', 'Add divert')}</div>
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+        <Stack gap="xs">
+          {heading('diverts', doc.diverts.length)}
+          {doc.diverts.length > 0 ? (
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w="16%">Name</Table.Th>
+                  <Table.Th w="28%">Routes</Table.Th>
+                  <Table.Th w="16%">Effect</Table.Th>
+                  <Table.Th w="24%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {doc.diverts.map((d) => (
+                  <Table.Tr key={d.name}>
+                    <Table.Td>{d.name}</Table.Td>
+                    <Table.Td aria-label={`from ${d.address} to ${d.forwardingAddress}`}>
+                      {d.address} → {d.forwardingAddress}
+                    </Table.Td>
+                    <Table.Td>{d.exclusive ? 'takes the message' : 'copies the message'}</Table.Td>
+                    <Table.Td>
+                      <LiveState declaration={declaration} section="diverts" itemKey={d.name} catalogue={catalogue} />
+                    </Table.Td>
+                    <Table.Td className={classes.actionCell}>
+                      {actions('diverts', d.name, `divert ${d.name}`, {
+                        label: `divert ${d.name}`,
+                        stepIds: stepIdsFor([{ section: 'DIVERT', key: d.name }]),
+                      })}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+            </Table.ScrollContainer>
+          ) : null}
+          <div>{addButton('diverts', 'Add divert')}</div>
+        </Stack>
+      </Stack>
 
       {catalogue ? (
         <AddressSettingEditor
           declaration={declaration}
           catalogue={catalogue}
-          item={editing?.section === 'addressSettings' ? editing.item : null}
-          opened={editing?.section === 'addressSettings'}
+          item={openItemIn('addressSettings', doc.addressSettings, (i) => i.match)}
+          opened={openSection === 'addressSettings'}
           onClose={close}
         />
       ) : null}
@@ -304,21 +365,21 @@ export function DeclaredTab({
         <SecuritySettingEditor
           declaration={declaration}
           catalogue={catalogue}
-          item={editing?.section === 'securitySettings' ? editing.item : null}
-          opened={editing?.section === 'securitySettings'}
+          item={openItemIn('securitySettings', doc.securitySettings, (i) => i.match)}
+          opened={openSection === 'securitySettings'}
           onClose={close}
         />
       ) : null}
       <DivertEditor
         declaration={declaration}
-        item={editing?.section === 'diverts' ? editing.item : null}
-        opened={editing?.section === 'diverts'}
+        item={openItemIn('diverts', doc.diverts, (i) => i.name)}
+        opened={openSection === 'diverts'}
         onClose={close}
       />
       <AddressEditor
         declaration={declaration}
-        item={editing?.section === 'addresses' ? editing.item : null}
-        opened={editing?.section === 'addresses'}
+        item={openItemIn('addresses', doc.addresses, (i) => i.name)}
+        opened={openSection === 'addresses'}
         onClose={close}
       />
     </>

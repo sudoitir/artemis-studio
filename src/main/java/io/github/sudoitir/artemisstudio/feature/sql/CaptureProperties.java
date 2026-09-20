@@ -21,10 +21,14 @@ import org.springframework.util.unit.DataSize;
  *     that {@code ring-size} cannot provide.
  * @param maxRingBytes the most one capture queue may hold, in bytes, before the broker drops its
  *     oldest messages. The byte half of the bound; a subscription's ring size is the count half.
+ * @param flushInterval how often a drain stores and acknowledges a batch it has not filled. It
+ *     bounds how long a captured message takes to become answerable — a live tail's latency — and
+ *     how long a copy stays on the capture queue on a low-rate address.
  */
 @ConfigurationProperties(prefix = "artemis-studio.capture")
 public record CaptureProperties(
         String brokerRole,
         @DefaultValue("30s") Duration reconcileInterval,
         @DefaultValue("24h") Duration expiry,
-        @DefaultValue("64MB") DataSize maxRingBytes) {}
+        @DefaultValue("64MB") DataSize maxRingBytes,
+        @DefaultValue("1s") Duration flushInterval) {}

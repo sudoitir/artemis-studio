@@ -732,6 +732,8 @@ The six questions the design of change `07-broker-configuration` (ADR-0067) depe
 | M5 | Does a wildcard literal resolve its own entry? Are security settings merged? | `getAddressSettingsAsJSON("probe.m1.#")` returned the `probe.m1.#` entry merged over `#`, and `"probe.m1.concrete"` returned the same values — the literal match string is a valid probe. `getRolesAsJSON(match)` returns the role set of the **single most specific** security match; the `amq` role from `#` is not merged in. Re-adding a security match replaces its role set. |
 | M6 | `createQueue(json, ignoreIfExists=true)` on a queue whose config differs? | **200, returns the existing configuration, changes nothing** (a `filter-string` in the request was not applied). So "exists but differs" is detectable from the return value without a second read. |
 | M7 | Do the `view` and `edit` role lists of the 13-String `addSecuritySettings` arm persist? | **Accepted, never reported.** `addSecuritySettings("probe.view.#", "amq" × 12)` → 200, and `getRolesAsJSON("probe.view.#")` read back `view: false, edit: false` for `amq` while the other ten types were `true`. The console's own operation list registers both the 11- and 13-String arms, so the arm is real; whatever it stores for those two types is invisible over management. Consequence: Studio sends them, excludes them from the already/verify/drift comparison (`PermissionType.echoed()`), and says so in the security-setting editor — otherwise every declaration carrying `view` or `edit` would report drift nobody can close. |
+| M8 | Does `updateAddress(String,String)` change routing types in place, and what if a queue is bound? | Measured 2026-09-19 on `apache/activemq-artemis:2.44.0` (ADR-0082). The routing-type list is **replaced** by the one sent: adding `MULTICAST` to an `ANYCAST` address → 200, and dropping `ANYCAST` from an address that has only `MULTICAST` queues bound → 200. Dropping a routing type that has a queue **of that type** bound is refused: `500 IllegalStateException: AMQ229209: Can't remove routing type ANYCAST, queues exists for address: … Please delete queues before removing this routing type.` The address is left unchanged. So the plan keeps a routing type that has a queue of that type bound and reports it as a `DIVERGENT_ADDRESS` finding instead of a step that would fail (ADR-0083), and the queues bound to an address (with their routing type) come from a JMX search of `…,address="X",subcomponent=queues,*`, because the address MBean reports only queue names. |
+| M9 | Which `updateQueue(String)` fields does the broker ignore on a live queue? | Measured 2026-09-19 on 2.44. A document changing `durable` or `address` → **200, silently no change**: the returned configuration still carries the old value. So the plan never sends a change to an `IMMUTABLE_ON_UPDATE` field. It reports it as a `DIVERGENT_QUEUE` finding instead, because the write would report success and change nothing. |
 
 ### Consequences carried into the design
 
@@ -810,3 +812,26 @@ Run against one live node with a declaration adopted from the broker itself:
   "unsupported" rather than refused as a validation error (ADR-0067 D10); a 3.8 MB
   import was accepted; and the connection check reports capability gaps while
   offering nothing that would close them.
+
+## 17. Queue delete — consumers and diverts
+
+Measured 2026-09-19 against a single `apache/activemq-artemis:2.44.0` container
+(default `broker.xml`, `max-disk-usage` raised to 100 so the test host's full disk did
+not block producers), driven over Jolokia and a raw STOMP client. The container was
+removed afterwards. The four questions ADR-0084 depends on.
+
+| # | Question | Verdict |
+|---|---|---|
+| Q1 | What does `destroyQueue(String,boolean,boolean)` do while a consumer is attached? | With `removeConsumers=false` → `500 ActiveMQIllegalStateException: AMQ229025: Cannot delete queue DST on binding DST - it has consumers = …LocalQueueBinding`, and the queue stays. With `removeConsumers=true` → `200`, and the queue is destroyed with the subscriber still attached. |
+| Q2 | What happens to an address whose last queue is destroyed while a divert uses it as its *source*? | The address stays. `listBindingsForAddress` shows only the `DivertBinding`: the divert stays bound and keeps the address alive. An auto-created address with its only queue destroyed by management was still present 35 s later, whether or not the divert was then removed. So destroying a queue does not remove its address. |
+| Q3 | A divert forwards into an address that has no queue, or none at all, and auto-create is on (the default `#`). What happens? | The send to the divert's source succeeds. The forwarded copy **re-creates the address and a queue of the same name** (`autoCreated=true`, bound queue `DST`). So a deleted queue comes back as soon as a divert forwards into its address. |
+| Q4 | The same with `autoCreateAddresses=false, autoCreateQueues=false` for the forwarding address, and the address deleted? | **Every send to the divert's source address fails.** The STOMP client got `ERROR AMQ339011 Error sending message … address=SRC`, and `getAddressInfo("DST")` still answers `AMQ229203: Address Does Not Exist`. Producers of an unrelated address break. |
+
+### Consequences carried into the design
+
+- A divert that forwards into a queue's address, when that queue is the address's last
+  queue on the node, is removed with the queue, before it (ADR-0084 D1, D2). Q3 and Q4
+  are what leaving it in place does.
+- A divert whose source is the queue's address is kept (Q2): it still routes.
+- `AMQ229025` is its own refusal kind, and the preflight reads `ConsumerCount` so the
+  preview says it before the real run does (Q1).

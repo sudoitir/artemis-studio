@@ -27,7 +27,12 @@ public class ManagementRefusal extends RuntimeException {
          */
         ARGUMENT,
         /** An address still has queues bound to it (D8). The refusal names them. */
-        BOUND_QUEUES
+        BOUND_QUEUES,
+        /**
+         * A queue has consumers attached, so the broker will not destroy it without being told
+         * to disconnect them (ADR-0084 D6).
+         */
+        HAS_CONSUMERS
     }
 
     private final Kind kind;
@@ -55,6 +60,8 @@ public class ManagementRefusal extends RuntimeException {
     static final String ADDRESS_HAS_BINDINGS = "AMQ229205";
     /** Routing type cannot be changed on a live queue. */
     static final String ROUTING_TYPE_IMMUTABLE = "AMQ229211";
+    /** A queue with consumers attached, destroyed without {@code removeConsumers} (§17 Q1). */
+    static final String QUEUE_HAS_CONSUMERS = "AMQ229025";
     /** Invalid message filter. */
     static final String INVALID_FILTER = "AMQ229020";
     /** No binding for a divert — destroying one that is already gone (§15 M4). */
@@ -63,6 +70,12 @@ public class ManagementRefusal extends RuntimeException {
     static final String SETTING_PARSE = "Error while parsing MetaData";
     /** An address-setting pair the broker refuses after parsing (§15 M1). */
     static final String PAGE_SIZE_VS_MAX = "pageSize has to be lower than maxSizeBytes";
+    /**
+     * The MBean is not registered: the queue or address named by the object name is no
+     * longer on this node. Raised by the JMX layer rather than as an AMQ code, so it
+     * arrives as a Java class name and has to be matched as one.
+     */
+    static final String MBEAN_ABSENT = "InstanceNotFoundException";
 
     /**
      * Classify a failed Jolokia response, or return {@code null} when the error is
@@ -96,11 +109,24 @@ public class ManagementRefusal extends RuntimeException {
         if (error.contains(QUEUE_ABSENT) || error.contains(ADDRESS_ABSENT)) {
             return new ManagementRefusal(Kind.ALREADY, "Already absent: " + error);
         }
+        if (error.contains(MBEAN_ABSENT)) {
+            return new ManagementRefusal(
+                    Kind.ALREADY,
+                    "The queue or address is no longer on this node — it was destroyed, or it has not been"
+                            + " created here. Refresh the listing: " + error);
+        }
         if (error.contains(QUEUE_EXISTS) || error.contains(ADDRESS_EXISTS)) {
             return new ManagementRefusal(Kind.ALREADY, "Already present: " + error);
         }
         if (error.contains(ADDRESS_HAS_BINDINGS)) {
             return new ManagementRefusal(Kind.BOUND_QUEUES, error);
+        }
+        if (error.contains(QUEUE_HAS_CONSUMERS)) {
+            return new ManagementRefusal(
+                    Kind.HAS_CONSUMERS,
+                    "The queue has consumers attached, and the broker will not delete it while they are."
+                            + " Stop the consumers, or tick \"Disconnect this queue's consumers\""
+                            + " (disconnectConsumers=true over the API or MCP) to close them.");
         }
         if (error.contains(ROUTING_TYPE_IMMUTABLE)) {
             return new ManagementRefusal(

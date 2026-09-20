@@ -15,10 +15,14 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -113,6 +117,26 @@ public class BrokerConfigOperations {
 
     public void createQueue(JolokiaBrokerClient client, String brokerMbean, Map<String, Object> config) {
         queueOps.createQueue(client, brokerMbean, config);
+    }
+
+    public void updateAddress(
+            JolokiaBrokerClient client, String brokerMbean, String address, Set<String> routingTypes) {
+        queueOps.updateAddress(client, brokerMbean, address, String.join(",", new TreeSet<>(routingTypes)));
+    }
+
+    /**
+     * Update a live queue to the declared keys through the queue module's read-merge
+     * update, so a key the declaration does not set keeps its live value (ADR-0082 D1).
+     */
+    public void updateQueue(JolokiaBrokerClient client, String brokerMbean, Map<String, Object> declared) {
+        Map<String, Object> patch = new LinkedHashMap<>(declared);
+        patch.remove("auto-create-address");
+        String queueMbean = BrokerMBeans.queue(
+                brokerMbean,
+                declared.get("address").toString(),
+                declared.get("name").toString(),
+                declared.get("routing-type").toString());
+        queueOps.updateQueue(client, brokerMbean, queueMbean, patch);
     }
 
     // ---- the observed read ------------------------------------------------
@@ -233,6 +257,15 @@ public class BrokerConfigOperations {
                 }
             }
         }
+        // The queues bound to each declared address, with their routing types, from the
+        // MBean names alone: a routing type the plan would drop is High only when a queue of
+        // that type is bound (ADR-0082 D2), and most of those queues are not declared.
+        List<String> declaredPresent = scope.addresses().keySet().stream()
+                .filter(addressNames::contains)
+                .toList();
+        for (String a : declaredPresent) {
+            second.add(JolokiaRequest.search(BrokerMBeans.address(broker, a) + ",subcomponent=queues,*"));
+        }
         List<JolokiaResponse> r2 = second.isEmpty() ? List.of() : client.batch(second);
         if (!second.isEmpty()) {
             requireCount(r2, second);
@@ -260,7 +293,6 @@ public class BrokerConfigOperations {
         Map<String, Set<String>> addresses = new LinkedHashMap<>();
         addressNames.forEach(a -> addresses.put(a, Set.of()));
         Map<String, AddressUsage> usage = new LinkedHashMap<>();
-        Map<String, String> boundQueues = new LinkedHashMap<>();
         for (String a : addressesToRead) {
             JolokiaResponse res = r2.get(j++);
             if (!res.ok() || res.value() == null) {
@@ -281,13 +313,17 @@ public class BrokerConfigOperations {
                 queues.put(q[1], queueOps.toQueueConfig(res.value()));
             }
         }
-        // Queues that exist but were not declared are known by name; their address is
-        // known only when their address MBean was among the ones read above (declared,
-        // a divert endpoint, or under a declared match). Anything else is listed by
-        // name alone rather than fetched one by one.
+        for (int k = 0; k < declaredPresent.size(); k++) {
+            JolokiaResponse res = r2.get(j++);
+            if (res.ok() && res.value() != null && res.value().isArray()) {
+                res.value()
+                        .forEach(n ->
+                                boundQueue(n.asString()).ifPresent(q -> queues.putIfAbsent((String) q.get("name"), q)));
+            }
+        }
+        // Any other queue is known by name alone rather than fetched one by one.
         for (String name : queueNames) {
-            String address = boundQueues.get(name);
-            queues.putIfAbsent(name, address == null ? Map.of("name", name) : Map.of("name", name, "address", address));
+            queues.putIfAbsent(name, Map.of("name", name));
         }
 
         return new ObservedNodeConfig(
@@ -393,6 +429,25 @@ public class BrokerConfigOperations {
             return Map.of();
         }
         return mapper.convertValue(json, new tools.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    }
+
+    /** Name, address and routing type of a queue, from its MBean name. */
+    private static Optional<Map<String, Object>> boundQueue(String mbean) {
+        try {
+            ObjectName name = new ObjectName(mbean);
+            String queue = name.getKeyProperty("queue");
+            String address = name.getKeyProperty("address");
+            String routingType = name.getKeyProperty("routing-type");
+            if (queue == null || address == null || routingType == null) {
+                return Optional.empty();
+            }
+            return Optional.of(Map.of(
+                    "name", ObjectName.unquote(queue),
+                    "address", ObjectName.unquote(address),
+                    "routing-type", ObjectName.unquote(routingType).toUpperCase(Locale.ROOT)));
+        } catch (MalformedObjectNameException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     /** Declared addresses first, then addresses covered by a declared match, capped. */

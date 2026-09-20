@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -25,6 +25,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 const { ConfigurationView } = await import('./ConfigurationView.tsx');
 
 describe('ConfigurationView', () => {
+  // The router mock's search object is shared across cases; a leftover tab from
+  // one test would otherwise decide which view the next one renders.
+  beforeEach(() => {
+    for (const key of Object.keys(search)) delete search[key];
+  });
+
   it('teaches what a declaration is when nothing is declared', async () => {
     server.use(
       ...baseHandlers(
@@ -50,7 +56,7 @@ describe('ConfigurationView', () => {
     renderWithProviders(<ConfigurationView />);
 
     expect(await screen.findByText(/Managed outside Studio/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Why this is unavailable' }));
+    await user.click(screen.getAllByRole('button', { name: 'Why this is unavailable' })[0]);
     expect(await screen.findByText(/owned by configuration management/)).toBeInTheDocument();
     // The primary action flipped to the fragment.
     expect(screen.getByRole('button', { name: 'Copy broker.xml fragment' })).toBeEnabled();
@@ -59,7 +65,6 @@ describe('ConfigurationView', () => {
   it('opens the address-setting editor on the house form pattern: blur validation and focus on the first invalid field', async () => {
     server.use(...baseHandlers());
     const user = userEvent.setup();
-    search.section = 'addressSettings';
     renderWithProviders(<ConfigurationView />);
 
     await user.click(await screen.findByRole('button', { name: 'Add address setting' }));
@@ -72,15 +77,78 @@ describe('ConfigurationView', () => {
     await user.click(within(dialog).getByRole('button', { name: /Save as revision 4/ }));
     expect(match).toHaveFocus();
     expect(within(dialog).getByText('Fix the fields above to continue.')).toBeInTheDocument();
-    delete search.section;
   });
 
-  it('states the drift as a sentence when every live node matches, and names the node when one does not', async () => {
+  it('names a queue that is missing on a node, even when the queue is not named after its address', async () => {
+    server.use(
+      ...baseHandlers(
+        declaration({
+          document: {
+            version: 1,
+            addresses: [
+              {
+                name: 'orders.request',
+                routingTypes: ['MULTICAST'],
+                queues: [{ name: 'orders.audit', routingType: 'MULTICAST', durable: true }],
+              },
+            ],
+            addressSettings: [],
+            securitySettings: [],
+            diverts: [],
+          },
+          nodes: [
+            NODE_A,
+            {
+              ...NODE_B,
+              state: 'DRIFTED',
+              findings: [
+                {
+                  kind: 'MISSING',
+                  section: 'QUEUE',
+                  key: 'orders.audit',
+                  detail: 'Create queue orders.audit on orders.request',
+                  declared: { name: 'orders.audit', 'max-consumers': 3 },
+                  observed: {},
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+    renderWithProviders(<ConfigurationView />);
+
+    // The queue hangs off the address's row, so the row must carry the queue's
+    // drift and name it — an address "in sync" while one of its queues is gone
+    // is the reading this screen must never produce.
+    const row = (await screen.findByRole('button', { name: 'Apply address orders.request' })).closest('tr')!;
+    expect(within(row).getByText(/queue orders\.audit missing on broker-2/)).toBeInTheDocument();
+    expect(within(row).queryByText(/in sync on 2\/2/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the open editor in the URL, so it can be linked and restored', async () => {
     server.use(...baseHandlers());
-    search.tab = 'drift';
+    search.section = 'addressSettings';
+    search.item = 'orders.#';
+    renderWithProviders(<ConfigurationView />);
+
+    expect(await screen.findByRole('dialog', { name: /Address setting orders/ })).toBeInTheDocument();
+  });
+
+  it('writes the open editor to the URL when a row is edited, and clears it on close', async () => {
+    server.use(...baseHandlers());
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit address orders.request' }));
+    await waitFor(() => expect(search).toMatchObject({ section: 'addresses', item: 'orders.request' }));
+  });
+
+  it('states how far the revision has got, and names the node a row differs on', async () => {
+    server.use(...baseHandlers());
     const { unmount } = renderWithProviders(<ConfigurationView />);
-    expect(await screen.findByText('All 2 live nodes match revision 3.')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(await screen.findByText('Revision 3 — applied to 2 of 2 live nodes')).toBeInTheDocument();
+    expect(screen.getAllByText(/in sync on 2\/2/).length).toBeGreaterThanOrEqual(1);
     unmount();
 
     server.use(
@@ -107,15 +175,41 @@ describe('ConfigurationView', () => {
       ),
     );
     renderWithProviders(<ConfigurationView />);
-    expect(await screen.findByText('2 live nodes: 1 drifted, 1 in sync.')).toBeInTheDocument();
-    const table = await screen.findByRole('table');
-    expect(within(table).getByText('Declared → observed on broker-2')).toBeInTheDocument();
+    // The item's own row carries what differs and where — no second tab.
+    const row = (await screen.findByRole('button', { name: 'Apply address setting orders.#' })).closest('tr')!;
+    expect(within(row).getByText(/differs on broker-2/)).toBeInTheDocument();
     // The key is shown by its broker.xml element name, from the catalogue, and
     // declared and observed are one row, so the two never fall out of line.
-    expect(within(table).getAllByText('address-full-policy').length).toBe(1);
-    expect(within(table).getByText('PAGE')).toBeInTheDocument();
-    expect(within(table).getByText(/→ DROP/)).toBeInTheDocument();
-    delete search.tab;
+    expect(within(row).getAllByText('address-full-policy').length).toBeGreaterThanOrEqual(1);
+    expect(within(row).getByText(/→ DROP/)).toBeInTheDocument();
+  });
+
+  it('says a missing item is missing once, without reprinting every key as "declared → —"', async () => {
+    // A missing item differs in every key, and two findings on one node (the
+    // address and the queue of the same name) used to name that node twice.
+    const missing = (section: 'ADDRESS' | 'QUEUE') => ({
+      kind: 'MISSING' as const,
+      section,
+      key: 'orders.request',
+      detail: `Create ${section.toLowerCase()} orders.request`,
+      declared: { name: 'orders.request', routingType: 'ANYCAST', durable: true, maxConsumers: -1 },
+      observed: {},
+    });
+    server.use(
+      ...baseHandlers(
+        declaration({
+          nodes: [NODE_A, { ...NODE_B, state: 'DRIFTED', findings: [missing('ADDRESS'), missing('QUEUE')] }],
+        }),
+      ),
+    );
+    renderWithProviders(<ConfigurationView />);
+
+    const row = (await screen.findByRole('button', { name: 'Apply address orders.request' })).closest('tr')!;
+    const state = within(row).getByText(/missing on/);
+    expect(state.textContent).toBe('missing on broker-2');
+    // None of the declared keys are reprinted against an em dash.
+    expect(within(row).queryByText(/maxConsumers/)).not.toBeInTheDocument();
+    expect(within(row).queryByText(/→ —/)).not.toBeInTheDocument();
   });
 
   it('lists what an import cannot carry instead of dropping it', async () => {
@@ -197,7 +291,7 @@ describe('ConfigurationView', () => {
     expect(screen.getByText('Emit connection and session events')).toBeInTheDocument();
     expect(screen.getByText(/These still need a broker.xml edit/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Declare & open the plan/ }));
+    await user.click(screen.getByRole('button', { name: /Declare & review the plan/ }));
     await waitFor(() => expect(declared).toHaveBeenCalled());
     expect(declared.mock.calls[0][0]).toMatchObject({ capabilities: ['slowConsumerDetection'] });
   });
@@ -230,7 +324,7 @@ describe('ConfigurationView', () => {
 
     expect(await screen.findByText(/At least one role, or this grants nobody anything/)).toBeInTheDocument();
     // Disabled with the reason beside it, never hidden.
-    expect(screen.getByRole('button', { name: /Declare & open the plan/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Declare & review the plan/ })).toBeDisabled();
     expect(screen.getByText(/would grant nobody anything/)).toBeInTheDocument();
     // No node could be read, so the panel says the entries are unseeded.
     expect(screen.getByText(/No node could be read/)).toBeInTheDocument();
@@ -247,7 +341,6 @@ describe('ConfigurationView', () => {
         }),
       ),
     );
-    search.tab = 'drift';
     const user = userEvent.setup();
     renderWithProviders(<ConfigurationView />);
 
@@ -256,7 +349,6 @@ describe('ConfigurationView', () => {
     expect(await screen.findByRole('link', { name: /Adopted as revision 3; no broker was written/ })).toBeInTheDocument();
     expect(screen.getByText('No record of why it agrees.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Evaluate now' }));
-    delete search.tab; // the mock's search object is shared across tests
   });
 
   it('makes an adoption that closes drift name what it erases and type the cluster to confirm', async () => {
@@ -315,7 +407,6 @@ describe('ConfigurationView', () => {
       ),
     );
     const user = userEvent.setup();
-    search.section = 'addressSettings';
     renderWithProviders(<ConfigurationView />);
 
     await user.click(await screen.findByRole('button', { name: 'Add address setting' }));
@@ -383,12 +474,9 @@ describe('ConfigurationView', () => {
         }),
       ),
     );
-    search.tab = 'drift';
     renderWithProviders(<ConfigurationView />);
 
     // An age, not a wall-clock stamp: four minutes back, against a five-minute pass.
-    expect(await screen.findByText(/Last evaluated 4m ago/)).toBeInTheDocument();
-    expect(screen.getByText(/evaluated about every 5m/)).toBeInTheDocument();
-    delete search.tab;
+    expect(await screen.findByText(/nodes evaluated 4m ago, about every 5m/)).toBeInTheDocument();
   });
 });

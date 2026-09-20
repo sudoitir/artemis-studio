@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -113,6 +114,8 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
         when(connections.forCluster(eq(clusterId), anyString())).thenReturn(client);
         when(ops.messageCount(any(), anyString())).thenReturn(9L);
+        when(ops.deleteState(any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new QueueLifecycleOperations.DeleteState(true, 0L, List.of(QUEUE)));
     }
 
     @AfterEach
@@ -142,7 +145,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
                 .isFalse();
         assertThat(outcome.path("dryRun").asBoolean()).isTrue();
         assertThat(outcome.path("totalAffected").asLong()).isEqualTo(9L);
-        verify(ops, never()).destroyQueue(any(), anyString(), anyString());
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
     }
 
     @Test
@@ -167,7 +170,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(response.path("error").path("code").asInt()).isEqualTo(-32602);
         assertThat(response.path("error").path("message").asString()).contains(QUEUE);
-        verify(ops, never()).destroyQueue(any(), anyString(), anyString());
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
     }
 
     @Test
@@ -187,7 +190,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
                         || response.path("error").isObject())
                 .describedAs("%s", response)
                 .isTrue();
-        verify(ops, never()).destroyQueue(any(), anyString(), anyString());
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
     }
 
     @Test
@@ -210,5 +213,45 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
         assertThat(nodesOut).describedAs("%s", response).hasSize(2);
         assertThat(nodesOut.valueStream().map(n -> n.path("status").asString()).toList())
                 .contains("SKIPPED_NOT_LIVE");
+    }
+
+    @Test
+    void aQueueWithConsumersIsDeletedOnlyWithDisconnectConsumers() throws Exception {
+        when(ops.deleteState(any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new QueueLifecycleOperations.DeleteState(true, 1L, List.of(QUEUE)));
+        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE));
+
+        JsonNode refused = McpFixture.callTool(
+                mvc,
+                key,
+                "queue_lifecycle",
+                Map.of("clusterId", clusterId.toString(), "kind", "delete_queue", "name", QUEUE));
+        assertThat(refused.path("result")
+                        .path("structuredContent")
+                        .path("nodes")
+                        .get(0)
+                        .path("error")
+                        .asString())
+                .describedAs("%s", refused)
+                .contains("disconnectConsumers");
+
+        McpFixture.callTool(
+                mvc,
+                key,
+                "queue_lifecycle",
+                Map.of(
+                        "clusterId",
+                        clusterId.toString(),
+                        "kind",
+                        "delete_queue",
+                        "name",
+                        QUEUE,
+                        "dryRun",
+                        false,
+                        "confirm",
+                        QUEUE,
+                        "disconnectConsumers",
+                        true));
+        verify(ops).destroyQueue(any(), anyString(), eq(QUEUE), eq(true));
     }
 }

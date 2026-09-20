@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
@@ -149,15 +150,55 @@ public class QueueLifecycleOperations {
     }
 
     /**
-     * Destroy a queue. {@code removeConsumers} is false and
-     * {@code forceAutoDeleteAddress} is false — destroying a queue must not take
-     * its address with it, for the same reason address delete is force-free (D8).
-     * A queue that is already gone raises {@link ManagementRefusal.Kind#ALREADY}.
+     * Destroy a queue. {@code forceAutoDeleteAddress} is false — destroying a queue must not
+     * take its address with it, for the same reason address delete is force-free (D8).
+     * {@code removeConsumers} closes attached consumers, and is only ever the operator's
+     * explicit choice (ADR-0084 D6); without it a queue with consumers raises
+     * {@link ManagementRefusal.Kind#HAS_CONSUMERS}. A queue that is already gone raises
+     * {@link ManagementRefusal.Kind#ALREADY}.
      */
-    public void destroyQueue(JolokiaBrokerClient client, String brokerMbean, String queueName) {
+    public void destroyQueue(
+            JolokiaBrokerClient client, String brokerMbean, String queueName, boolean removeConsumers) {
         JolokiaResponse res = client.single(JolokiaRequest.exec(
-                brokerMbean, "destroyQueue(java.lang.String,boolean,boolean)", queueName, false, false));
+                brokerMbean, "destroyQueue(java.lang.String,boolean,boolean)", queueName, removeConsumers, false));
         require(res, "destroyQueue");
+    }
+
+    /**
+     * What a queue delete checks on one node, read in one POST (ADR-0084).
+     *
+     * @param present whether the queue is on this node at all
+     * @param consumerCount the queue's attached consumers; zero when it is absent
+     * @param addressQueues every queue bound to the queue's address on this node
+     */
+    public record DeleteState(boolean present, long consumerCount, List<String> addressQueues) {}
+
+    public DeleteState deleteState(
+            JolokiaBrokerClient client, String brokerMbean, String address, String queueName, String routingType) {
+        List<JolokiaResponse> res = client.batch(List.of(
+                JolokiaRequest.read(BrokerMBeans.address(brokerMbean, address), "QueueNames"),
+                JolokiaRequest.read(
+                        BrokerMBeans.queue(brokerMbean, address, queueName, routingType), "ConsumerCount")));
+        // An address that is not there is a fact: the queue is gone. Any other failed read is
+        // not, and throwing makes the node "could not be checked" rather than assumed fine.
+        if (absent(res.get(0))) {
+            return new DeleteState(false, 0L, List.of());
+        }
+        require(res.get(0), "QueueNames");
+        JsonNode names = res.get(0).attribute("QueueNames");
+        List<String> addressQueues = names == null || !names.isArray()
+                ? List.of()
+                : names.valueStream().map(JsonNode::asString).toList();
+        if (!addressQueues.contains(queueName)) {
+            return new DeleteState(false, 0L, addressQueues);
+        }
+        require(res.get(1), "ConsumerCount");
+        JsonNode consumers = res.get(1).attribute("ConsumerCount");
+        return new DeleteState(true, consumers == null ? 0L : consumers.asLong(), addressQueues);
+    }
+
+    private static boolean absent(JolokiaResponse res) {
+        return !res.ok() && res.errorType() != null && res.errorType().contains("InstanceNotFoundException");
     }
 
     /** {@code MessageCount} on the queue MBean — the delete estimate the bulk cap is checked against (D6). */
@@ -196,6 +237,17 @@ public class QueueLifecycleOperations {
         JolokiaResponse res = client.single(JolokiaRequest.exec(
                 brokerMbean, "createAddress(java.lang.String,java.lang.String)", address, routingTypes));
         require(res, "createAddress");
+    }
+
+    /**
+     * Replace an existing address's routing types with exactly these. The broker refuses
+     * to drop a routing type while a queue of that type is bound ({@code AMQ229209},
+     * broker-management-notes §15 M8), so this never unbinds a queue.
+     */
+    public void updateAddress(JolokiaBrokerClient client, String brokerMbean, String address, String routingTypes) {
+        JolokiaResponse res = client.single(JolokiaRequest.exec(
+                brokerMbean, "updateAddress(java.lang.String,java.lang.String)", address, routingTypes));
+        require(res, "updateAddress");
     }
 
     /**

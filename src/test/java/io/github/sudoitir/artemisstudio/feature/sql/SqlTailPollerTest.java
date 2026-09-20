@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -56,6 +57,7 @@ class SqlTailPollerTest {
     private ClusterDirectory nodes;
     private ClockOffsetService clocks;
     private MessageIndexCoverage coverage;
+    private IndexQueryExecutor indexExecutor;
     private BrokerNodeEntity node;
     private final AtomicLong messagesAdded = new AtomicLong(100);
 
@@ -65,8 +67,9 @@ class SqlTailPollerTest {
         nodes = mock(ClusterDirectory.class);
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
+        indexExecutor = mock(IndexQueryExecutor.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
-        when(coverage.isIndexed(any(), any())).thenReturn(false);
+        when(coverage.isCaptured(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
         node = node();
         when(nodes.nodes(CLUSTER)).thenReturn(List.of(node));
@@ -108,6 +111,108 @@ class SqlTailPollerTest {
         await(() -> listener.statuses.size() == 2);
         assertThat(listener.rows).hasSize(3);
         assertThat(listener.statuses.getLast().shown()).isEqualTo(3);
+    }
+
+    /**
+     * The plan resolved onto the index because capture covers the queue. Re-reading the queue
+     * would miss exactly the messages capture exists to keep: the ones already consumed.
+     */
+    @Test
+    void aTailOverACapturedQueueReadsTheIndexAndNotTheBroker() {
+        when(coverage.isCaptured(any(), any())).thenReturn(true);
+        when(indexExecutor.execute(any(), any(), any(), any()))
+                .thenReturn(new QueryResult(List.of(), List.of(), List.of(), List.of()));
+        RecordingTransport transport = new RecordingTransport(3);
+        CollectingListener listener = new CollectingListener();
+        SqlTailPoller poller = poller();
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\"");
+        assertThat(plan.resolvedSource()).isEqualTo(QueryAst.Source.INDEX);
+        poller.start(CLUSTER, plan, transport, listener);
+
+        poller.tick();
+        await(() -> !listener.statuses.isEmpty());
+
+        assertThat(transport.filters).as("no broker read").isEmpty();
+        org.mockito.Mockito.verify(indexExecutor).execute(eq(CLUSTER), eq(plan), any(), any(Instant.class));
+    }
+
+    /**
+     * The window the next poll asks for follows what the query returned, not what survived
+     * dedup. An index holding a full page of rows inside the overlap window — already delivered,
+     * or older than where the tail started — otherwise fills every page with them forever, and a
+     * row written after them is never reached: the tail goes quiet at the rate the page fills,
+     * which is the failure capture exists to prevent.
+     */
+    @Test
+    void anIndexTailReachesWhatWasWrittenBehindAFullPageOfRowsItWillNotDeliver() {
+        when(coverage.isCaptured(any(), any())).thenReturn(true);
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\"");
+        int limit = plan.effectiveLimit();
+        Instant base = Instant.now().minusSeconds(5);
+
+        List<Row> index = new ArrayList<>();
+        // A whole page of rows this tail will not deliver: they predate its mark.
+        for (int i = 0; i < limit; i++) {
+            index.add(indexRow(i, NOW.minusSeconds(60), base.plusMillis(i)));
+        }
+        Row awaited = indexRow(9_999, NOW.plusSeconds(1), base.plusMillis(limit));
+        index.add(awaited);
+        when(indexExecutor.execute(any(), any(), any(), any(Instant.class)))
+                .thenAnswer(call -> indexPage(index, call.getArgument(2), call.getArgument(3), limit));
+
+        CollectingListener listener = new CollectingListener();
+        SqlTailPoller poller = poller();
+        poller.start(CLUSTER, plan, new RecordingTransport(0), listener);
+
+        poller.tick();
+        await(() -> listener.statuses.size() == 1);
+        poller.tick();
+        await(() -> listener.statuses.size() == 2);
+
+        assertThat(listener.rows).extracting(Row::messageId).containsExactly(awaited.messageId());
+    }
+
+    /** The index as a tail sees it: at or after {@code since}, oldest first, cut at the limit. */
+    private static QueryResult indexPage(List<Row> index, BrokerQueryExecutor.Sink sink, Instant since, int limit) {
+        List<Row> matched = index.stream()
+                .filter(row -> !row.observedAt().isBefore(since))
+                .sorted(java.util.Comparator.comparing(Row::observedAt))
+                .toList();
+        List<QueryResult.Bound> bounds = List.of();
+        if (matched.size() > limit) {
+            matched = matched.subList(0, limit);
+            bounds = List.of(new QueryResult.Bound(QueryResult.Bound.Kind.ROW_LIMIT, limit));
+        }
+        matched.forEach(sink::row);
+        return new QueryResult(matched, List.of(), bounds, List.of());
+    }
+
+    private Row indexRow(long messageId, Instant timestamp, Instant observedAt) {
+        return new Row(
+                node.getId(),
+                node.getName(),
+                "ORDER.IN",
+                "ORDER.IN",
+                messageId,
+                3,
+                true,
+                4,
+                timestamp.toEpochMilli(),
+                0,
+                100,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "body-" + messageId,
+                false,
+                Map.of(),
+                QueryAst.Source.INDEX,
+                observedAt,
+                observedAt,
+                "CAPTURED",
+                null);
     }
 
     @Test
@@ -236,10 +341,19 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
         return new SqlTailPoller(
                 new BrokerQueryExecutor(
                         nodes, residuals, planner, properties, BrokerQueryExecutorTest.clearGovernance()),
+                indexExecutor,
                 snapshots);
     }
 
@@ -254,7 +368,15 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
         return planner.plan(CLUSTER, parser.parse(sql));
     }
 

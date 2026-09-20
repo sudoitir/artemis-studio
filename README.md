@@ -181,11 +181,11 @@ Java 25 · Spring Boot 4.1 · PostgreSQL with Liquibase · React 19 + Vite + Man
 TanStack Router/Query/Table · React Flow · Jolokia over HTTP first, the Artemis Core
 client second · SSE · one container image.
 [Architecture](https://sudoitir.github.io/artemis-studio/reference/architecture) ·
-[all 81 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
+[all 88 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
 
 ## Releases
 
-Every push to `main` publishes a release, versioned with CalVer `YYYY.MM.PATCH` and
+Every push to `main` that changes the application publishes a release, versioned with CalVer `YYYY.MM.PATCH` and
 tagged three ways on Docker Hub: `2026.09.3` (immutable), `2026.09` (that month) and
 `dev` (the latest). There is no `:latest` until the first stable release. Each
 release attaches the runnable jar with its `.sha256`, and its notes are generated
@@ -195,7 +195,7 @@ from the commit messages ([`changelog/`](changelog/)).
 
 |     |                                                                                                                                                                                                  |
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [ ] | **A · Improve CI/CD:** Optimize CI/CD so source changes trigger image publishing, site changes trigger site deployment, and relevant checks run only when needed.                                |
+| [x] | **A · Improve CI/CD:** Optimize CI/CD so source changes trigger image publishing, site changes trigger site deployment, and relevant checks run only when needed.                                |
 | [ ] | **A · Cross-broker message transfer:** move messages between queues on different brokers, forced redistribution of specific messages, and arbitrary queue-to-queue transfers across remote nodes |
 | [ ] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
 | [ ] | **A · Observability export:** OpenTelemetry metrics                                                                                                                                              |

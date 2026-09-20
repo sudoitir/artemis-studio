@@ -124,7 +124,7 @@ public class CaptureTap {
         String broker = client.resolveBrokerObjectName();
         String queue = CaptureNames.queueOf(name);
         tolerateAlready(() -> divertOps.destroyDivert(client, broker, name));
-        tolerateAlready(() -> queueOps.destroyQueue(client, broker, queue));
+        tolerateAlready(() -> queueOps.destroyQueue(client, broker, queue, false));
         tolerateAlready(() -> queueOps.deleteAddress(client, broker, queue));
         if (installedNames(client, instanceId).isEmpty()) {
             // Only this instance's settings: another Studio's capture queues keep their DROP

@@ -39,6 +39,12 @@ public final class BrokerMBeans {
                 + ",queue=" + quote(queue);
     }
 
+    /** Every MBean of the queue with this name, whatever its address and routing type. */
+    public static String queuePattern(String brokerObjectName, String queue) {
+        return brokerObjectName + ",component=addresses,address=*,subcomponent=queues,routing-type=*,queue="
+                + quote(queue);
+    }
+
     /** All divert MBeans under a broker. A divert is a sub-component of its source address. */
     public static String divertsPattern(String brokerObjectName) {
         return brokerObjectName + ",component=addresses,address=*,subcomponent=diverts,divert=*";

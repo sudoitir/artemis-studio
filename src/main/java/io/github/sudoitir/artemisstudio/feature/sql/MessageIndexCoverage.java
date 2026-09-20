@@ -37,15 +37,9 @@ public class MessageIndexCoverage {
     private final MessageCaptureNodeRepository captureNodes;
     private final QueueSnapshots snapshots;
 
-    @Transactional(readOnly = true)
-    public boolean isIndexed(UUID clusterId, String queueName) {
-        return subscriptions.findByClusterId(clusterId).stream()
-                .filter(MessageIndexSubscriptionEntity::isEnabled)
-                .anyMatch(s -> QueueNamePattern.matches(s.getQueuePattern(), queueName));
-    }
-
     /**
-     * Whether every target is being captured on the node it sits on. Per node and
+     * Whether every target is being captured on the node it sits on, which is what lets a query
+     * with no source qualifier read the index (ADR-0086). Per node and
      * per target, because that is the granularity capture actually has: one node
      * refusing the tap makes the whole result partly sampled, and averaging over
      * nodes would let the console make a claim that is false for one of them.
@@ -89,25 +83,33 @@ public class MessageIndexCoverage {
                             + (uncovered.size() == 1 ? "it." : "them.")));
         }
 
-        reach(ast.where()).ifPresent(window -> {
+        if (!enabled.isEmpty()) {
             Instant earliestCapture = enabled.stream()
                     .map(MessageIndexSubscriptionEntity::getCaptureFrom)
                     .min(Instant::compareTo)
-                    .orElse(Instant.now());
+                    .orElseThrow();
             Instant retentionFloor = enabled.stream()
                     .map(s -> Instant.now().minus(Duration.ofDays(s.getRetentionDays())))
                     .min(Instant::compareTo)
-                    .orElse(Instant.now());
+                    .orElseThrow();
             Instant floor = earliestCapture.isAfter(retentionFloor) ? earliestCapture : retentionFloor;
-            Instant asked = Instant.now().minus(window);
-            if (asked.isBefore(floor)) {
+            var window = reach(ast.where());
+            if (window.isEmpty()) {
+                // Capture never backfills: a message already on the queue when it began is not
+                // in the index, and a query with no window asks for it too.
+                notices.add(new Notice(
+                        Notice.Kind.INDEX_COVERAGE_GAP,
+                        "The index holds nothing routed before " + floor
+                                + ": a message already on the queue then is not in this result."
+                                + " Query broker.\"...\" for what is on the queue now."));
+            } else if (Instant.now().minus(window.get()).isBefore(floor)) {
                 notices.add(
                         new Notice(
                                 Notice.Kind.INDEX_COVERAGE_GAP,
                                 "The index has no coverage before " + floor
                                         + " — the window asked for reaches further back than capture began or retention keeps."));
             }
-        });
+        }
         notices.addAll(captureNotices(clusterId, enabled, targets));
         return List.copyOf(notices);
     }

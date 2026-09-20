@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -196,5 +196,291 @@ describe('the destructive flow is keyboard-complete', () => {
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('names the consumers and dependent diverts, and disconnects only when asked, by keyboard alone', async () => {
+    const urls: string[] = [];
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', ({ request }) => {
+        const url = new URL(request.url);
+        urls.push(url.search);
+        const dryRun = url.searchParams.get('dryRun') === 'true';
+        const disconnect = url.searchParams.get('disconnectConsumers') === 'true';
+        const note =
+          "2 consumers will be disconnected. Removed with the queue, because they forward into 'orders.addr'" +
+          " and this is its last queue: 'feed' (incoming → orders.addr, routing name feed, routing type STRIP).";
+        const node = !disconnect
+          ? {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: 'FAILED',
+              affected: null,
+              error: "Queue 'orders' has 2 consumers attached on this node. Delete with disconnectConsumers.",
+            }
+          : {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: dryRun ? 'WOULD_APPLY' : 'APPLIED',
+              affected: 12,
+              error: note,
+            };
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          partial: false,
+          totalAffected: node.affected ?? 0,
+          nodes: [node],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <QueueLifecycleActions
+        clusterId="c1"
+        queue={queue({ totalConsumerCount: 2 })}
+        onClose={() => {}}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Delete queue' });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    trigger.focus();
+    await user.keyboard('{Enter}');
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement));
+    // Without the flag, the preview says why the node would refuse.
+    expect(await within(dialog).findByText(/has 2 consumers attached/)).toBeInTheDocument();
+    // The headline agrees with the row: a refused node is not one the delete would apply to.
+    expect(within(dialog).getByText('Would apply to 0 of 1 nodes, 1 refused')).toBeInTheDocument();
+
+    const disconnect = within(dialog).getByRole('checkbox', { name: /Disconnect this queue's consumers/ });
+    disconnect.focus();
+    await user.keyboard(' ');
+    expect(disconnect).toBeChecked();
+
+    // The preview is taken again with the flag, and names the divert that goes with the queue.
+    expect(await within(dialog).findByText(/'feed' \(incoming → orders\.addr/)).toBeInTheDocument();
+    expect(urls.at(-1)).toContain('disconnectConsumers=true');
+    expect(urls.at(-1)).toContain('dryRun=true');
+
+    within(dialog).getByRole('textbox').focus();
+    await user.keyboard('orders');
+    await user.tab();
+    expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+
+    expect(await within(dialog).findByText('applied')).toBeInTheDocument();
+    expect(urls.at(-1)).toContain('dryRun=false');
+    expect(urls.at(-1)).toContain('disconnectConsumers=true');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('keeps the consumer choice locked while the delete is in flight, so its result is never lost', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', async ({ request }) => {
+        const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+        if (!dryRun) await gate;
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          partial: false,
+          totalAffected: 12,
+          nodes: [
+            {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: dryRun ? 'WOULD_APPLY' : 'APPLIED',
+              affected: 12,
+              error: null,
+            },
+          ],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled(),
+    );
+    await user.click(screen.getByRole('button', { name: 'Delete queue' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
+
+    await user.type(within(dialog).getByRole('textbox'), 'orders');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+
+    const disconnect = within(dialog).getByRole('checkbox', { name: /Disconnect this queue's consumers/ });
+    await waitFor(() => expect(disconnect).toBeDisabled());
+    await user.click(disconnect);
+
+    release();
+    expect(await within(dialog).findByText('applied')).toBeInTheDocument();
+    expect(within(dialog).getByText('destroyed 12 messages')).toBeInTheDocument();
+  });
+});
+
+describe('a delete that failed everywhere', () => {
+  it('leaves the queue open instead of closing it as though the queue were gone', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', ({ request }) => {
+        const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          // Every node failed, so the run is not partial — and the queue is still there.
+          partial: false,
+          totalAffected: dryRun ? 12 : 0,
+          nodes: [
+            {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: dryRun ? 'WOULD_APPLY' : 'FAILED',
+              affected: dryRun ? 12 : null,
+              error: dryRun ? null : 'The broker did not answer in time.',
+            },
+          ],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithProviders(<QueueLifecycleActions clusterId="c1" queue={queue()} onClose={onClose} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Delete queue' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox'), 'orders');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+
+    expect(await within(dialog).findByText('Failed on every node')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('a delete no node was live for', () => {
+  it('leaves the queue open, because nothing was deleted', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', ({ request }) => {
+        const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          // Nothing settled anywhere, so the server does not call this partial either.
+          partial: false,
+          totalAffected: dryRun ? 12 : 0,
+          nodes: [
+            {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: dryRun ? 'WOULD_APPLY' : 'SKIPPED_NOT_LIVE',
+              affected: dryRun ? 12 : null,
+              error: null,
+            },
+          ],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithProviders(<QueueLifecycleActions clusterId="c1" queue={queue()} onClose={onClose} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Delete queue' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox'), 'orders');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+
+    expect(await within(dialog).findByText('No node was live, so nothing was applied')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('the edit form', () => {
+  /** What the broker reports for the queue, and what a PATCH is sent as. */
+  function editHandlers(values: Record<string, unknown>, onPatch?: (body: unknown) => void) {
+    let current = { ...values };
+    return [
+      clusterHandler(AVAILABLE),
+      meHandler(),
+      http.get('*/api/v1/clusters/c1/queues/orders/configuration', () =>
+        HttpResponse.json({
+          queueName: 'orders',
+          address: 'orders.addr',
+          routingType: 'ANYCAST',
+          nodes: [{ nodeId: 'n1', nodeName: 'node-a', values: current, unavailableReason: null }],
+        }),
+      ),
+      http.patch('*/api/v1/clusters/c1/queues/orders', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        onPatch?.(body);
+        if (body.maxConsumers !== undefined) current = { ...current, 'max-consumers': body.maxConsumers };
+        return HttpResponse.json({
+          dryRun: false,
+          cap: 1000,
+          overCap: false,
+          partial: false,
+          totalAffected: 1,
+          nodes: [{ nodeId: 'n1', nodeName: 'node-a', status: 'APPLIED', affected: null, error: null }],
+        });
+      }),
+    ];
+  }
+
+  it('opens on what the queue runs, sends only what changed, and shows the applied value again', async () => {
+    const patched = vi.fn();
+    server.use(...editHandlers({ 'max-consumers': -1, 'ring-size': -1, 'filter-string': null }, patched));
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: /Edit orders/ });
+    // Seeded from the broker, not blank: the operator edits what is there.
+    const consumers = await within(dialog).findByRole('textbox', { name: /Max consumers/ });
+    await waitFor(() => expect(consumers).toHaveValue('-1'));
+    // Nothing changed yet, so there is nothing to apply.
+    expect(within(dialog).getByRole('button', { name: 'Apply' })).toBeDisabled();
+
+    await user.clear(consumers);
+    await user.type(consumers, '4');
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }));
+
+    // The outcome is stated per node, and the form now shows what was written.
+    expect(await within(dialog).findByText(/Applied to all 1 node/)).toBeInTheDocument();
+    await waitFor(() => expect(consumers).toHaveValue('4'));
+    // Only the field the operator changed is sent; the rest is left to the merge.
+    expect(patched).toHaveBeenCalledTimes(1);
+    expect(patched.mock.calls[0][0]).toMatchObject({ maxConsumers: 4 });
+    expect((patched.mock.calls[0][0] as Record<string, unknown>).ringSize).toBeUndefined();
   });
 });

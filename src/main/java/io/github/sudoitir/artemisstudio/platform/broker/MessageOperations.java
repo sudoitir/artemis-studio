@@ -57,6 +57,24 @@ public class MessageOperations {
         return count == null ? 0L : count.asLong();
     }
 
+    /** A queue's depth and the part of it in flight: one read of three attributes. */
+    public record QueueDepth(long messageCount, long deliveringCount, long scheduledCount) {
+        /** What a browser can see: neither delivered-unacked nor scheduled messages. */
+        public long browsable() {
+            return Math.max(0, messageCount - deliveringCount - scheduledCount);
+        }
+    }
+
+    public QueueDepth depth(JolokiaBrokerClient client, String queueMbean) {
+        JolokiaResponse res =
+                client.single(JolokiaRequest.read(queueMbean, "MessageCount", "DeliveringCount", "ScheduledCount"));
+        requireOk(res, "MessageCount");
+        return new QueueDepth(
+                res.value().path("MessageCount").asLong(),
+                res.value().path("DeliveringCount").asLong(),
+                res.value().path("ScheduledCount").asLong());
+    }
+
     // ---- by explicit ids (one exec per id; the broker has no id-batch op) ----
 
     /** Ids sent to the broker in one batch request, and so charged one permit (ADR-0076). */

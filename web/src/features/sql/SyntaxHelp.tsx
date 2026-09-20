@@ -68,8 +68,9 @@ export function SyntaxHelp({
             current truth. <Code>FROM index.&quot;Q&quot;</Code> reads the
             historical index, which still holds messages that have since been
             consumed, and only covers queues with a subscription.{" "}
-            <Code>FROM &quot;Q&quot;</Code> lets the planner choose, and the
-            plan says which it picked.
+            <Code>FROM &quot;Q&quot;</Code> reads the index when every queue it
+            names is captured, and the live brokers otherwise — a queue that is
+            only sampled is read live. The plan says which it picked.
           </Text>
         </Stack>
 

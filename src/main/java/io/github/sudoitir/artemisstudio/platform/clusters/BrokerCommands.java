@@ -38,7 +38,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *       (non-negotiable #4);
  *   <li>the audit row, written before any broker call (non-negotiable #3);
  *   <li>a per-node estimate, so the bulk cap sees the whole blast radius (ADR-0022);
- *   <li>a dry run returns {@code WOULD_APPLY} per node and writes nothing;
+ *   <li>a dry run returns {@code WOULD_APPLY} per node and writes nothing, with each node's
+ *       preflight warning, which the real run carries onto that node's result as well;
  *   <li>over the cap without an override, the refusal is audited and thrown;
  *   <li>the fan-out, one rate-limited call per live node, where a node's failure never
  *       aborts the others and nothing is rolled back (D3);
@@ -253,7 +254,10 @@ public class BrokerCommands {
             JolokiaBrokerClient client = clientFor(clusterId, t.node());
             NodeStatus status = c.action().apply(client, client.resolveBrokerObjectName());
             capabilities.recordWriteSucceeded(clusterId);
-            return new NodeOutcome(nodeId, nodeName, status, status == NodeStatus.APPLIED ? estimated : null, null);
+            // The preflight's warning stays on the result, so what the preview stated beside
+            // this node is still stated once it has happened — in the audit row too.
+            return new NodeOutcome(
+                    nodeId, nodeName, status, status == NodeStatus.APPLIED ? estimated : null, check.warning());
         } catch (ManagementRefusal e) {
             if (e.kind() == ManagementRefusal.Kind.ALREADY) {
                 // Already in the requested state. The broker answered, so this is still

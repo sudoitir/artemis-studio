@@ -177,10 +177,10 @@ public class BrokerConfigController {
     @PostMapping("/apply")
     public ApplyOutcomeView apply(
             @PathVariable UUID clusterId,
-            @RequestParam(defaultValue = "true") boolean dryRun,
+            @RequestParam(defaultValue = "false") boolean dryRun,
             @RequestParam(defaultValue = "false") boolean override,
             @RequestBody(required = false) ApplyRequest request) {
-        ApplyRequest body = request == null ? new ApplyRequest(null, null, null, null, null, null) : request;
+        ApplyRequest body = request == null ? new ApplyRequest(null, null, null, null, null, null, null) : request;
         BrokerConfigApplyRequest command = new BrokerConfigApplyRequest(
                 body.revision(),
                 body.nodeIds(),
@@ -188,7 +188,8 @@ public class BrokerConfigController {
                 Boolean.TRUE.equals(body.removeUndeclared()),
                 body.acknowledgedHazards(),
                 body.expectedPlanHash(),
-                override);
+                override,
+                body.stepIds());
         return ApplyOutcomeView.of(dryRun ? apply.plan(clusterId, command) : apply.apply(clusterId, command));
     }
 

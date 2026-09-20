@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -35,22 +36,31 @@ public class CaptureAddresses {
      * are bound to it: a divert copies at address routing (D3).
      */
     public Set<String> of(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
+        Set<String> addresses = new LinkedHashSet<>();
+        for (QueryPlan.Target target : targets(clusterId, subscription)) {
+            addresses.add(addressOf(target));
+        }
+        return addresses;
+    }
+
+    /** The queues the pattern matches, Studio's own capture objects left out; empty when it does not resolve. */
+    public List<QueryPlan.Target> targets(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
         QueryPlan plan;
         try {
             plan = planner.plan(
                     clusterId, parser.parse("SELECT * FROM broker.\"" + subscription.getQueuePattern() + '"'));
         } catch (RuntimeException e) {
             log.debug("Capture pattern '{}' could not be resolved: {}", subscription.getQueuePattern(), e.getMessage());
-            return Set.of();
+            return List.of();
         }
-        Set<String> addresses = new LinkedHashSet<>();
-        for (QueryPlan.Target target : plan.targets()) {
-            String address = target.address() == null ? target.queueName() : target.address();
-            if (!isCaptureObject(address)) {
-                addresses.add(address);
-            }
-        }
-        return addresses;
+        return plan.targets().stream()
+                .filter(t -> !isCaptureObject(addressOf(t)))
+                .toList();
+    }
+
+    /** The address a target's messages are routed to, and so captured under. */
+    public static String addressOf(QueryPlan.Target target) {
+        return target.address() == null ? target.queueName() : target.address();
     }
 
     /** Whether a name belongs to Studio's own capture objects, which no capture may cover. */

@@ -44,7 +44,7 @@ pasted into a ticket still says where it read from.
 |---|---|
 | `FROM broker."Q"` | The live brokers. Current truth. |
 | `FROM index."Q"` | The historical index — still holds messages that have since been consumed, and only covers queues you subscribed. |
-| `FROM "Q"` | The planner chooses, and the plan says which it picked. |
+| `FROM "Q"` | The index when every queue it names is captured on its node, the live brokers otherwise — a queue that is only sampled is read live. Capture does not backfill, so a message already on the queue when capture began is not in the index; the result says where the index begins. The plan says which it picked. |
 
 ## What a predicate costs — before you run it
 

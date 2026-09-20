@@ -83,7 +83,7 @@ graph and queue grid only update on the 5-second poll.
 
 | Tag | What it is |
 |---|---|
-| `:dev` | the newest build; moves with every push to `main` |
+| `:dev` | the newest build; moves with every release |
 | `:YYYY.MM` | the newest build of that calendar month; moves within it |
 | `:YYYY.MM.N` | one exact release; **immutable**, never republished |
 

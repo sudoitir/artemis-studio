@@ -84,6 +84,8 @@ export const lifecycleBase = (clusterId: string) => `/clusters/${clusterId}`;
  * A lifecycle command names the cluster, not a node, and comes back as a
  * per-node outcome. `dryRun` previews without touching any broker; `override`
  * clears the bulk cap on a destroy, which is the only kind the cap applies to.
+ * A defined `dryRun` is always sent, `false` included: a real run must never be
+ * left to the server's default.
  */
 export interface LifecycleVars {
   dryRun?: boolean;
@@ -92,7 +94,7 @@ export interface LifecycleVars {
 
 export function lifecycleQuery(dryRun?: boolean, override?: boolean): string {
   const params = new URLSearchParams();
-  if (dryRun) params.set("dryRun", "true");
+  if (dryRun !== undefined) params.set("dryRun", String(dryRun));
   if (override) params.set("override", "true");
   const q = params.toString();
   return q ? `?${q}` : "";

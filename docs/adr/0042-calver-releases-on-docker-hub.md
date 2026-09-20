@@ -1,7 +1,8 @@
 # ADR-0042: CalVer releases published to Docker Hub on every push to main
 
 - **Status**: accepted; the changelog mechanics below are superseded by
-  [ADR-0051](0051-changelog-generated-from-commits.md)
+  [ADR-0051](0051-changelog-generated-from-commits.md), and the release trigger
+  (every push) by [ADR-0084](0088-path-filtered-ci-and-releases.md)
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 

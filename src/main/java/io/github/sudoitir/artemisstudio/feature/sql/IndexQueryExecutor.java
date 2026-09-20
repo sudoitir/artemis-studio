@@ -52,6 +52,21 @@ public class IndexQueryExecutor {
 
     @Transactional(readOnly = true)
     public QueryResult execute(UUID clusterId, QueryPlan plan, BrokerQueryExecutor.Sink sink) {
+        return execute(clusterId, plan, sink, null);
+    }
+
+    /**
+     * As above, but only what the index recorded at or after {@code since}, oldest first — a live
+     * tail's next page. The bound is {@code observed_at} and not the message's own timestamp: it is
+     * when this Studio wrote the row, so it advances even for a producer whose clock does not, and
+     * it is the column the query is already ordered and partitioned by.
+     *
+     * <p>Inclusive, and the caller re-reads a short way behind its mark: {@code observed_at} is
+     * stamped when a drain reads a message and the row lands when its batch commits, so two drains
+     * can commit slightly out of order. Whatever that repeats, the tail's own mark filters out.
+     */
+    @Transactional(readOnly = true)
+    public QueryResult execute(UUID clusterId, QueryPlan plan, BrokerQueryExecutor.Sink sink, Instant since) {
         List<Object> binds = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
@@ -78,7 +93,17 @@ public class IndexQueryExecutor {
             binds.addAll(where.binds());
         }
 
-        Sql order = orderBy(plan.ast().orderBy(), matchTerms(plan.ast().where()));
+        if (since != null) {
+            sql.append(" AND observed_at >= ?");
+            binds.add(Timestamp.from(since));
+        }
+
+        // A tail is chronological whatever the query asked to be ordered by: it is a feed of what
+        // arrived next, and the newest-first page the same query answers statically would send the
+        // same rows again on every poll.
+        Sql order = since != null
+                ? new Sql(" ORDER BY observed_at ASC", List.of())
+                : orderBy(plan.ast().orderBy(), matchTerms(plan.ast().where()));
         sql.append(order.text());
         binds.addAll(order.binds());
         sql.append(" LIMIT ?");

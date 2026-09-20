@@ -226,6 +226,58 @@ describe("SqlConsoleView", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders every row a multi-node broker result streams, attributed to its node", async () => {
+    const twoNodes = plan({
+      targets: [target("n1", "primary"), target("n2", "secondary")],
+    });
+    mockCluster();
+    mockPlan(twoNodes);
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await run(user);
+
+    const row = (nodeId: string, nodeName: string, messageId: number, body: string) => ({
+      nodeId,
+      nodeName,
+      queueName: "ORDER.IN",
+      address: "ORDER.IN",
+      messageId,
+      messageType: 3,
+      durable: true,
+      priority: 4,
+      timestamp: 1757000000000 + messageId,
+      expiration: 0,
+      size: body.length,
+      body,
+      bodyTruncated: false,
+      properties: {},
+      source: "BROKER",
+      observedAt: null,
+      lastSeenAt: null,
+    });
+    emit("row", row("n1", "primary", 11, "order 4471"));
+    emit("row", row("n1", "primary", 12, "order 4472"));
+    emit("row", row("n2", "secondary", 21, "order 5501"));
+    emit("done", {
+      nodes: [
+        answered({ examined: 2, matched: 2 }),
+        answered({ nodeId: "n2", nodeName: "secondary", examined: 1, matched: 1 }),
+      ],
+      boundsReached: [],
+      notices: [],
+      partial: false,
+      plan: twoNodes,
+    });
+
+    await vi.waitFor(() => expect(screen.getAllByText(/order 4471|order 4472|order 5501/)).toHaveLength(3));
+    const dataRows = screen
+      .getAllByRole("row")
+      .filter((r) => /order \d{4}/.test(r.textContent ?? ""));
+    expect(dataRows).toHaveLength(3);
+    expect(within(dataRows.find((r) => r.textContent?.includes("order 5501"))!).getByText("secondary")).toBeInTheDocument();
+    expect(dataRows.filter((r) => r.textContent?.includes("primary"))).toHaveLength(2);
+  });
+
   it("distinguishes no-queue-matched from an empty queue", async () => {
     mockCluster();
     mockPlan(plan({ targets: [] }));

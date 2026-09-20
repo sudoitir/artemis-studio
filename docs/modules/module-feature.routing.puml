@@ -39,7 +39,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApp
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")

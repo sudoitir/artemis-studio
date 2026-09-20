@@ -39,7 +39,7 @@ for them and nothing pretends otherwise.
 The mode is set per cluster in the declaration header, and both actions are
 always visible:
 
-- **Managed by Studio.** *Preview & apply* writes the declaration to every live
+- **Managed by Studio.** *Review & apply* writes the declaration to every live
   node over the management API. The change is durable across restarts, and the
   next drift evaluation shows the nodes in sync.
 - **Managed outside Studio.** *Copy broker.xml fragment* renders the declaration
@@ -136,10 +136,26 @@ offered: a recommendation Studio cannot observe as done would never go away.
 Registering a cluster previews the same panel on a passing connection check, and
 takes you to it once the cluster exists.
 
-## Preview and apply
+## One screen
 
-The apply flow is Plan → Confirm → Result, and it is built so it cannot take a
-whole cluster down at once.
+Configuration is a single screen: every declared item on its own row, with what
+it should be, what each live node actually runs — *in sync on 2/2*, *differs on
+broker-2*, *missing on broker-1* — and the keys that differ, `declared →
+observed`, underneath. A status bar across the top states where the declaration
+has got to (*Revision 4 — applied to 0 of 2 live nodes*), when the nodes were
+last evaluated and on what cadence, and carries the two actions that change
+those numbers: *Evaluate now* and *Review & apply*.
+
+That status bar is what a save answers to. Saving an edit writes a revision and
+nothing else; the screen the editor returns to says so, with the review one click
+away. A **Nodes** panel below the rows holds what no row can carry: each node's
+state, why an agreeing node agrees, resources the declaration does not mention,
+and a node that could not be read.
+
+## Review and apply
+
+The apply flow is Plan → Confirm → Result in a drawer over the rows it changes,
+and it is built so it cannot take a whole cluster down at once.
 
 **Plan.** A dry run reads every targeted node — at most two batched requests per
 node, never one per item — and computes, per node, the ordered steps whose
@@ -158,6 +174,12 @@ which one goes first, and what is still unacknowledged. Per-node sections
 collapse on a large cluster; the canary and any node that failed are always
 open. Chips filter the view by section or key — the counts and the step numbers
 stay the plan's own.
+
+**One item at a time.** A row's *Apply this* opens the same drawer narrowed to
+that item — the address with its queues, one address setting, one security
+setting, one divert — on every targeted node. Everything else the cluster has
+pending stays pending, and the plan hash the confirmation covers is the hash of
+the narrowed plan, so what you confirm is exactly what runs (ADR-0087).
 
 ![A plan on one node: the sticky summary bar, a High hazard with its acknowledgement, and the step read as a diff — the two keys that move above the keys the write also carries](/img/config-plan.png)
 
@@ -229,16 +251,17 @@ Every live node is evaluated against the current revision on a schedule
 demand. One batched, rate-limited read per node; nothing is ever changed by an
 evaluation.
 
-The Drift tab leads with the resolved state as a sentence — *All 3 live nodes
-match revision 7* — followed by how long ago that was measured and the cadence
-it is measured on: *Last evaluated 2m ago · evaluated about every 5m*. An age on
-its own cannot tell a fresh pass from a stopped scheduler, so the two are always
-together; the absolute instant is on the label, reachable by keyboard, and each
-node carries its own state chip and its own age. The tab updates itself as
-evaluations and applies complete, without a reload.
+The status bar leads with the resolved state as a sentence — *Revision 7 —
+applied to 3 of 3 live nodes* — followed by how long ago that was measured and
+the cadence it is measured on: *nodes evaluated 2m ago, about every 5m*. An age
+on its own cannot tell a fresh pass from a stopped scheduler, so the two are
+always together, and the absolute instant is on the label, reachable by keyboard.
+Each node carries its own state and its own age in the Nodes panel. The screen
+updates itself as evaluations and applies complete, without a reload.
 
-When something differs, the tab groups the findings by kind
-with the declared value beside the observed one and the node named on every row:
+What differs is on the item's own row, declared beside observed; what belongs to
+a node rather than to an item — an undeclared resource, an unreadable node — is
+in the Nodes panel. The findings an evaluation can produce:
 
 | Finding | Meaning |
 |---|---|
@@ -253,10 +276,8 @@ Backups are not evaluated: they show no runtime settings until they become
 active, and they receive address settings, security settings and diverts through
 replication. A promoted backup is evaluated as soon as it is live.
 
-![The Drift tab: one live node drifted, last evaluated 19s ago against a five-minute cadence, with the finding's declared and observed values on one row per key](/img/config-drift.png)
-
-**Config diff** compares two nodes with each other; drift compares every node
-with the declaration. The two link to each other.
+**Config diff** compares two nodes with each other; this screen compares every
+node with the declaration. The two link to each other.
 
 ## Permissions
 

@@ -54,13 +54,14 @@ class CaptureReconcilerTest {
     private ClusterDirectory nodes;
     private AuditService audit;
     private BrokerNodeEntity nodeEntity;
+    private BrokerConnections connections;
 
     @BeforeEach
     void setUp() {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
         captureNodes = mock(MessageCaptureNodeRepository.class);
         nodes = mock(ClusterDirectory.class);
-        BrokerConnections connections = mock(BrokerConnections.class);
+        connections = mock(BrokerConnections.class);
         ClusterLock lock = mock(ClusterLock.class);
         tap = mock(CaptureTap.class);
         consumers = mock(CaptureConsumer.class);
@@ -140,6 +141,94 @@ class CaptureReconcilerTest {
 
         verify(tap).remove(any(), eq(INSTANCE), eq(WANTED));
         verify(consumers).stop(NODE, WANTED);
+    }
+
+    @Test
+    void aClusterWhoseLastTapWasRemovedIsNotVisitedAgain() {
+        when(nodeEntity.getClusterId()).thenReturn(CLUSTER);
+        when(nodes.allNodes()).thenReturn(List.of(nodeEntity));
+        when(subscriptions.findByEnabledTrue()).thenReturn(List.of());
+        when(tap.installedNames(any(), eq(INSTANCE)))
+                .thenReturn(List.of(WANTED))
+                .thenReturn(List.of());
+
+        // The startup sweep removes the last orphan; the pass after it has nothing to visit.
+        reconciler.sweepOnStartup();
+        reconciler.reconcile();
+
+        verify(tap).remove(any(), eq(INSTANCE), eq(WANTED));
+        verify(tap, times(1)).installedNames(any(), eq(INSTANCE));
+    }
+
+    @Test
+    void anOrphanThatCouldNotBeRemovedKeepsItsClusterVisited() {
+        when(nodeEntity.getClusterId()).thenReturn(CLUSTER);
+        when(nodes.allNodes()).thenReturn(List.of(nodeEntity));
+        when(subscriptions.findByEnabledTrue()).thenReturn(List.of());
+        when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of(WANTED));
+        doAnswer(invocation -> {
+                    throw new IllegalStateException("broker did not answer");
+                })
+                .doNothing()
+                .when(tap)
+                .remove(any(), eq(INSTANCE), eq(WANTED));
+
+        reconciler.sweepOnStartup();
+        reconciler.reconcile();
+
+        verify(tap, times(2)).remove(any(), eq(INSTANCE), eq(WANTED));
+    }
+
+    @Test
+    void anOrphanThatCouldNotBeRemovedKeepsItsClusterVisitedWhenAnotherNodeIsClean() {
+        JolokiaBrokerClient failing = twoNodesWhereOnlyTheFirstHasAnOrphan();
+        doAnswer(invocation -> {
+                    throw new IllegalStateException("broker did not answer");
+                })
+                .doNothing()
+                .when(tap)
+                .remove(eq(failing), eq(INSTANCE), eq(WANTED));
+
+        // The clean second node must not drop the cluster the first still has an orphan on.
+        reconciler.sweepOnStartup();
+        reconciler.reconcile();
+
+        verify(tap, times(2)).remove(eq(failing), eq(INSTANCE), eq(WANTED));
+    }
+
+    @Test
+    void aNodeThatDidNotAnswerKeepsItsClusterVisitedWhenAnotherNodeIsClean() {
+        JolokiaBrokerClient unanswering = twoNodesWhereOnlyTheFirstHasAnOrphan();
+        when(tap.installedNames(unanswering, INSTANCE))
+                .thenThrow(new IllegalStateException("broker did not answer"))
+                .thenReturn(List.of(WANTED));
+
+        reconciler.sweepOnStartup();
+        reconciler.reconcile();
+
+        verify(tap).remove(eq(unanswering), eq(INSTANCE), eq(WANTED));
+    }
+
+    /** The first node's client, which reports {@link #WANTED} as an orphan; the second reports nothing. */
+    private JolokiaBrokerClient twoNodesWhereOnlyTheFirstHasAnOrphan() {
+        BrokerNodeEntity second = mock(BrokerNodeEntity.class);
+        when(second.getId()).thenReturn(UUID.randomUUID());
+        when(second.getName()).thenReturn("second");
+        when(second.getJolokiaUrl()).thenReturn("http://second:8161/console/jolokia");
+        when(second.getCoreUrl()).thenReturn("tcp://second:61616");
+        when(second.getActive()).thenReturn(true);
+        when(second.getClusterId()).thenReturn(CLUSTER);
+        when(nodeEntity.getClusterId()).thenReturn(CLUSTER);
+        when(nodes.nodes(CLUSTER)).thenReturn(List.of(nodeEntity, second));
+        when(nodes.allNodes()).thenReturn(List.of(nodeEntity, second));
+        when(subscriptions.findByEnabledTrue()).thenReturn(List.of());
+        JolokiaBrokerClient first = mock(JolokiaBrokerClient.class);
+        JolokiaBrokerClient clean = mock(JolokiaBrokerClient.class);
+        when(connections.forCluster(CLUSTER, nodeEntity.getJolokiaUrl())).thenReturn(first);
+        when(connections.forCluster(CLUSTER, second.getJolokiaUrl())).thenReturn(clean);
+        when(tap.installedNames(first, INSTANCE)).thenReturn(List.of(WANTED));
+        when(tap.installedNames(clean, INSTANCE)).thenReturn(List.of());
+        return first;
     }
 
     @Test

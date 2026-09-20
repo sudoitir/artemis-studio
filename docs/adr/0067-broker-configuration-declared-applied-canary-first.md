@@ -1,6 +1,6 @@
 # ADR-0067: Broker configuration is declared in Studio and applied canary-first over the management API
 
-- **Status**: accepted
+- **Status**: accepted; extended by [ADR-0082](0082-apply-updates-divergent-queues-and-addresses.md) (apply updates divergent queues and addresses)
 - **Date**: 2026-09-11
 - **Deciders**: Artemis Studio maintainers
 

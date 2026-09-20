@@ -7,6 +7,11 @@ import { OutcomeSummary, type OutcomeRow } from '../../ui/NodeOutcomeSummary.tsx
 import classes from './Configuration.module.css';
 import { stepStatusWords, wireSectionLabel } from './words.ts';
 
+/** A step the broker already agrees with: no write, in a preview or in a result. */
+function isAlready(step: { status: string }): boolean {
+  return step.status === 'ALREADY';
+}
+
 /** The one line stating the shape of the result, before any row (frontend rule: four outcomes). */
 function verdictFor(o: ConfigApplyOutcomeView): { text: string; tone?: 'warning' | 'danger' } {
   const targets = o.nodes.filter((n) => n.live);
@@ -44,7 +49,16 @@ function nodeRow(node: ConfigNodeApplyView): OutcomeRow {
     return { key: node.nodeId, name: node.nodeName, status: 'skipped — not live', tone: 'warning', detail: node.unavailableReason };
   }
   const name = node.canary ? `${node.nodeName} (canary)` : node.nodeName;
-  if (would > 0) return { key: node.nodeId, name, status: `${would} step${would === 1 ? '' : 's'} would apply`, count: String(node.steps.length), detail: node.note };
+  // No count column: the status already carries the number that matters, and a
+  // second one beside it — the plan's whole step count, most of which writes
+  // nothing — read as a contradiction of it.
+  if (would > 0)
+    return {
+      key: node.nodeId,
+      name,
+      status: `${would} step${would === 1 ? '' : 's'} would apply${already ? `, ${already} already as declared` : ''}`,
+      detail: node.note,
+    };
   if (failed > 0) {
     return {
       key: node.nodeId,
@@ -84,6 +98,12 @@ export function ApplyResult({
   // run: the summary above the chips always counts every step.
   const [sections, setSections] = useState<string[]>([]);
   const [keys, setKeys] = useState<string[]>(focus ? [focus] : []);
+  // A step whose observed state already matches writes nothing (ADR-0067 D3).
+  // Most of a plan is usually these, and reading past them to find the writes is
+  // the work this screen exists to save — so they fold away, counted, behind a
+  // control that says how many they are.
+  const [showAlready, setShowAlready] = useState(false);
+  const alreadyCount = outcome.nodes.reduce((n, node) => n + node.steps.filter(isAlready).length, 0);
   const allSections = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.section)))];
   const allKeys = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.key)))].sort();
   const filtering = sections.length > 0 || keys.length > 0;
@@ -100,13 +120,15 @@ export function ApplyResult({
         n.steps.some((s) => s.status === 'FAILED' || s.verified === 'MISMATCH'),
     )
     .map((n) => n.nodeId);
-  const shows = (step: { section: string; key: string }) =>
-    (sections.length === 0 || sections.includes(step.section)) && (keys.length === 0 || keys.includes(step.key));
+  const shows = (step: { section: string; key: string; status: string }) =>
+    (showAlready || !isAlready(step)) &&
+    (sections.length === 0 || sections.includes(step.section)) &&
+    (keys.length === 0 || keys.includes(step.key));
 
   return (
     <Stack gap="md">
       <OutcomeSummary verdict={verdict.text} verdictTone={verdict.tone} rows={outcome.nodes.map(nodeRow)} />
-      {allKeys.length > 1 ? (
+      {allKeys.length > 1 || alreadyCount > 0 ? (
         <Group gap="xs" align="center" wrap="wrap">
           <Text size="xs" c="dimmed">
             Show
@@ -118,13 +140,13 @@ export function ApplyResult({
               </Chip>
             ))}
           </Chip.Group>
-          <Chip.Group multiple value={keys} onChange={setKeys}>
-            {allKeys.map((key) => (
-              <Chip key={key} value={key} size="xs">
-                {key}
-              </Chip>
-            ))}
-          </Chip.Group>
+          {alreadyCount > 0 ? (
+            <Anchor component="button" type="button" size="xs" onClick={() => setShowAlready((s) => !s)}>
+              {showAlready
+                ? `Hide the ${alreadyCount} already as declared`
+                : `Show the ${alreadyCount} already as declared`}
+            </Anchor>
+          ) : null}
           {filtering ? (
             <Anchor
               component="button"
@@ -135,7 +157,7 @@ export function ApplyResult({
                 setKeys([]);
               }}
             >
-              Show all {outcome.plan.stepCount} steps
+              Clear the filter
             </Anchor>
           ) : null}
         </Group>
@@ -151,7 +173,10 @@ export function ApplyResult({
         .filter((node) => node.steps.filter(shows).length === 0)
         .map((node) => (
           <Text key={node.nodeId} size="xs" c="dimmed">
-            {node.nodeName}: none of its {node.steps.length} step{node.steps.length === 1 ? '' : 's'} match the filter.
+            {node.nodeName}:{' '}
+            {node.steps.every(isAlready)
+              ? `all ${node.steps.length} step${node.steps.length === 1 ? ' is' : 's are'} already as declared.`
+              : `none of its ${node.steps.length} step${node.steps.length === 1 ? '' : 's'} match the filter.`}
           </Text>
         ))}
       <Accordion multiple defaultValue={openByDefault} variant="contained" chevronPosition="left">
@@ -168,19 +193,19 @@ export function ApplyResult({
                   {node.canary ? ' — canary' : ''}
                 </Text>{' '}
                 <Text size="xs" c="dimmed" component="span">
-                  {filtering
-                    ? `${shown.length} of ${node.steps.length} steps shown`
-                    : `${node.steps.length} step${node.steps.length === 1 ? '' : 's'}`}
+                  {shown.length === node.steps.length
+                    ? `${node.steps.length} step${node.steps.length === 1 ? '' : 's'}`
+                    : `${shown.length} of ${node.steps.length} steps shown`}
                 </Text>
               </Accordion.Control>
               <Accordion.Panel>
-              <Table fz="xs" verticalSpacing={4} withTableBorder>
+              <Table fz="xs" verticalSpacing={4} withTableBorder layout="fixed">
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th style={{ width: 32 }}>#</Table.Th>
-                    <Table.Th>Step</Table.Th>
-                    <Table.Th>Change</Table.Th>
-                    <Table.Th style={{ width: 200 }}>Status</Table.Th>
+                    <Table.Th w={32}>#</Table.Th>
+                    <Table.Th w="34%">Step</Table.Th>
+                    <Table.Th w="40%">Change</Table.Th>
+                    <Table.Th w="20%">Status</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -192,7 +217,7 @@ export function ApplyResult({
                     const words = stepStatusWords(step);
                     return (
                       <Table.Tr key={step.stepId}>
-                        <Table.Td className={classes.compare}>{i + 1}</Table.Td>
+                        <Table.Td className={classes.stepNumber}>{i + 1}</Table.Td>
                         <Table.Td>
                           <Text size="xs">{step.description}</Text>
                           <Text size="xs" c="dimmed">
@@ -255,6 +280,21 @@ function one(value: unknown): string {
 function Diff({ before, after }: { before: Record<string, unknown>; after: Record<string, unknown> }) {
   const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
   if (keys.length === 0) return <>—</>;
+  // Nothing is there yet, so every key would read `— → value`. The step's own
+  // description already says it creates the thing; what is worth reading is what
+  // it will be created as.
+  if (Object.keys(before).length === 0) {
+    return (
+      <div className={classes.kv}>
+        {keys.map((key) => (
+          <div key={key} className={classes.kvRow}>
+            <span className={classes.kvKey}>{key}</span>
+            <span className={classes.kvValue}>{one(after[key])}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
   const rows = keys.map((key) => ({
     key,
     before: one(before[key]),

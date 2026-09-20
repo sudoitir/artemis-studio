@@ -60,6 +60,28 @@ class MetricPartitionMaintainerTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void attachesADayWhoseRowsAreAlreadyInTheDefaultPartition() {
+        // Rows for a day always land in the default partition until that day has one of
+        // its own, so every real run has rows to move. A run that cannot attach leaves
+        // the day unpartitioned and every later run fails the same way — the state a
+        // long-running instance was found in: "updated partition constraint for default
+        // partition would be violated by some row".
+        LocalDate day = LocalDate.now().plusDays(2);
+        String name = "metric_sample_" + day.format(SUFFIX);
+        jdbc.getJdbcTemplate().execute("DROP TABLE IF EXISTS %s".formatted(name));
+        jdbc.update("""
+                INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
+                VALUES (:ts, 2.0, 'QUEUE', 'Q', 'messageCount', :c, :n)
+                """, Map.of("ts", java.sql.Timestamp.valueOf(day.atTime(9, 0)), "c", clusterId, "n", nodeId));
+
+        maintainer.maintainNow();
+
+        assertThat(partitionNames()).contains(name);
+        Integer moved = jdbc.getJdbcTemplate().queryForObject("SELECT count(*) FROM %s".formatted(name), Integer.class);
+        assertThat(moved).isEqualTo(1);
+    }
+
+    @Test
     void dropsAnExpiredPartitionWithoutBlockingAConcurrentInsert() throws InterruptedException {
         LocalDate old = LocalDate.now().minusDays(30);
         String name = "metric_sample_" + old.format(SUFFIX);

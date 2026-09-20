@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Alert, Button, Checkbox, Group, Modal, Stack, Text } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
 import { useDeleteQueue, useSetQueuePaused, type LifecycleOutcomeView, type QueueView } from './api.ts';
@@ -7,7 +7,7 @@ import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { appliedEverywhere, NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { EditQueueForm } from './EditQueueForm.tsx';
 
 /**
@@ -47,7 +47,16 @@ export function QueueLifecycleActions({
   );
   const deleteGate = gateFor(can('queue:delete', clusterId), 'Destroy queues and addresses', write, pending);
 
-  const paused = queue.perNode.some((n) => n.paused);
+  // What the queue runs, from the scrape snapshot the listing is built from — and,
+  // until that catches up, what this screen just had the broker do. A pause applied
+  // on every node but not yet swept showed a button still offering to pause, which
+  // reads as an action that did nothing.
+  const observedPaused = queue.perNode.some((n) => n.paused);
+  const appliedPaused = pauseOutcome?.nodes.every((n) => n.status === 'APPLIED')
+    ? setPaused.variables?.paused
+    : undefined;
+  const paused = appliedPaused ?? observedPaused;
+  const awaitingSweep = appliedPaused !== undefined && appliedPaused !== observedPaused;
 
   return (
     <Stack gap="xs">
@@ -103,6 +112,12 @@ export function QueueLifecycleActions({
       ) : null}
 
       <div aria-live="polite">
+        {awaitingSweep ? (
+          <Text size="xs" c="dimmed">
+            {paused ? 'Paused' : 'Resumed'} on every live node. The listing says so once the next sweep
+            reads it back.
+          </Text>
+        ) : null}
         {setPaused.isError ? (
           <Alert color="red" variant="light" title={setPaused.error.title} role="alert">
             {setPaused.error.message}
@@ -131,8 +146,11 @@ export function QueueLifecycleActions({
 
 /**
  * The destructive flow. Opens on a preview, so the typed confirmation is armed
- * only once the operator has been shown the blast radius: which nodes, and how
- * many messages will be destroyed on each.
+ * only once the operator has been shown the blast radius: which nodes, how many
+ * messages will be destroyed on each, and which diverts go with the queue.
+ *
+ * <p>Disconnecting consumers is the operator's explicit choice (ADR-0084). Changing
+ * it takes the preview again, so what is confirmed is always what was previewed.
  */
 function DeleteQueueDialog({
   clusterId,
@@ -151,15 +169,14 @@ function DeleteQueueDialog({
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
   const [previewFailed, setPreviewFailed] = useState<string | null>(null);
+  const [disconnectConsumers, setDisconnectConsumers] = useState(false);
 
-  // The preview runs when the dialog opens, not on a second click: the operator
-  // asked to delete, and the estimate is what they need in order to decide.
-  const onOpen = () => {
+  const takePreview = (disconnect: boolean) => {
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
     remove.mutate(
-      { dryRun: true },
+      { dryRun: true, disconnectConsumers: disconnect },
       {
         onSuccess: setPreview,
         onError: (e) => setPreviewFailed(e.message),
@@ -167,13 +184,20 @@ function DeleteQueueDialog({
     );
   };
 
+  // The preview runs when the dialog opens, not on a second click: the operator
+  // asked to delete, and the estimate is what they need in order to decide.
+  const onOpen = () => takePreview(disconnectConsumers);
+
   const close = () => {
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
+    setDisconnectConsumers(false);
     remove.reset();
     onClose();
   };
+
+  const consumers = queue.totalConsumerCount;
 
   const overCap = preview?.overCap ?? false;
 
@@ -190,6 +214,27 @@ function DeleteQueueDialog({
           This destroys the queue on every live node of the cluster, along with every message it
           holds. Nothing here can be undone, and a queue recreated afterwards is a new, empty one.
         </Text>
+        <Text size="sm">
+          A divert that forwards into this queue&apos;s address is removed with it when the delete
+          leaves nothing bound there — otherwise the divert would bring the queue back, or break its
+          producers. Each node below names the diverts it removes and the ones it keeps.
+        </Text>
+
+        <Checkbox
+          label="Disconnect this queue's consumers"
+          description={`${consumers.toLocaleString()} ${
+            consumers === 1 ? 'consumer was' : 'consumers were'
+          } attached at the last scrape. Without this, a node where the queue has consumers refuses the delete. A client that reconnects can create the queue again if auto-create is on.`}
+          checked={disconnectConsumers}
+          // Locked while any call is in flight: a new preview on the same mutation would drop
+          // the real delete's result, and the operator would never see what it did.
+          disabled={result !== null || remove.isPending}
+          onChange={(e) => {
+            const next = e.currentTarget.checked;
+            setDisconnectConsumers(next);
+            takePreview(next);
+          }}
+        />
 
         <div aria-live="polite">
           {remove.isPending && !preview ? (
@@ -231,7 +276,10 @@ function DeleteQueueDialog({
               size="xs"
               onClick={() => {
                 close();
-                if (!result.partial) onDeleted();
+                // The queue view behind this dialog is dismissed only when the queue is
+                // really gone, which is a positive check on every node: a run that failed
+                // everywhere, or reached no live node at all, is not partial either.
+                if (appliedEverywhere(result)) onDeleted();
               }}
             >
               Close
@@ -245,7 +293,7 @@ function DeleteQueueDialog({
             disabled={remove.isPending}
             onConfirm={() =>
               remove.mutate(
-                { override: overCap },
+                { dryRun: false, override: overCap, disconnectConsumers },
                 { onSuccess: setResult },
               )
             }

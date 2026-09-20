@@ -66,7 +66,7 @@ class BrokerQueryExecutorTest {
         clocks = mock(ClockOffsetService.class);
         coverage = mock(MessageIndexCoverage.class);
         when(clocks.offsetFor(any())).thenReturn(Optional.of(new ClockOffset(0, 5, 10, 3, NOW)));
-        when(coverage.isIndexed(any(), any())).thenReturn(false);
+        when(coverage.isCaptured(any(), any())).thenReturn(false);
         when(coverage.check(any(), any(), any())).thenReturn(List.of());
         node = node("broker-1", "node-a");
     }
@@ -87,7 +87,15 @@ class BrokerQueryExecutorTest {
 
     private QueryPlanner planner(SqlProperties properties) {
         return new QueryPlanner(
-                snapshots, nodes, splitter, renderer, clocks, properties, coverage, Clock.fixed(NOW, ZoneOffset.UTC));
+                snapshots,
+                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                nodes,
+                splitter,
+                renderer,
+                clocks,
+                properties,
+                coverage,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private QueryResult run(String sql, MessageTransport transport, SqlProperties properties) {

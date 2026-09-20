@@ -49,7 +49,11 @@ class MessageIndexServicePreviewTest {
 
     private MessageIndexService service(String brokerRole) {
         CaptureProperties properties = new CaptureProperties(
-                brokerRole, Duration.ofSeconds(30), Duration.ofHours(24), DataSize.ofMegabytes(64));
+                brokerRole,
+                Duration.ofSeconds(30),
+                Duration.ofHours(24),
+                DataSize.ofMegabytes(64),
+                Duration.ofSeconds(1));
         StudioInstance instance = mock(StudioInstance.class);
         when(instance.id()).thenReturn("abc12345");
         return new MessageIndexService(
@@ -138,8 +142,12 @@ class MessageIndexServicePreviewTest {
         when(jdbc.queryForObject(
                         any(String.class), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class)))
                 .thenReturn(new MessageIndexService.Footprint(3, 30, null));
-        CaptureProperties properties =
-                new CaptureProperties("studio", Duration.ofSeconds(30), Duration.ofHours(24), DataSize.ofMegabytes(64));
+        CaptureProperties properties = new CaptureProperties(
+                "studio",
+                Duration.ofSeconds(30),
+                Duration.ofHours(24),
+                DataSize.ofMegabytes(64),
+                Duration.ofSeconds(1));
         MessageIndexService service = new MessageIndexService(
                 subscriptions,
                 mock(QueueSnapshots.class),
@@ -165,6 +173,35 @@ class MessageIndexServicePreviewTest {
                 .update(org.mockito.ArgumentMatchers.startsWith("DELETE FROM message_index"), any(Object[].class));
         // No transaction is active in this test, so the after-commit sweep runs straight away.
         order.verify(reconciler).reconcileNow(CLUSTER);
+    }
+
+    @Test
+    void turningCaptureOffSweepsItsTapsOnceTheChangeCommits() {
+        io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity entity =
+                new io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity();
+        UUID id = UUID.randomUUID();
+        entity.setId(id);
+        entity.setClusterId(CLUSTER);
+        entity.setQueuePattern("ORDER.IN");
+        entity.setMode(CaptureMode.CAPTURE);
+        entity.setEnabled(true);
+        entity.setRetentionDays(7);
+        when(subscriptions.findById(id)).thenReturn(java.util.Optional.of(entity));
+        when(subscriptions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(addresses.of(any(), any())).thenReturn(Set.of());
+        when(audit.begin(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(mock(io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent.class));
+
+        service("studio")
+                .update(
+                        CLUSTER,
+                        id,
+                        new MessageIndexService.Spec(null, null, null, false, null, null, null, null, null, null));
+
+        // The divert keeps copying every message into its capture queue until it is removed, and
+        // with the drain stopped nothing empties that queue. No transaction is active in this test,
+        // so the after-commit sweep runs straight away.
+        org.mockito.Mockito.verify(reconciler).reconcileNow(CLUSTER);
     }
 
     @Test

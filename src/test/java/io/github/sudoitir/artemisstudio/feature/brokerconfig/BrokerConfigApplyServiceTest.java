@@ -192,11 +192,58 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 false,
                 preview.plan().highHazardIds(),
                 preview.plan().planHash(),
-                false);
+                false,
+                Set.of());
     }
 
     private static NodeApply node(BrokerConfigApplyOutcome o, UUID id) {
         return o.nodes().stream().filter(n -> n.nodeId().equals(id)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void anApplyScopedToOneItemWritesThatItemOnEveryNodeAndLeavesTheRestAlone() {
+        // The screen's per-row "Apply this" (ADR-0087 D2): one declared item, every
+        // live node, and the confirmation covers exactly what runs.
+        BrokerConfigDocument doc = new BrokerConfigDocument(
+                1,
+                List.of(),
+                List.of(
+                        new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 10_485_760L)),
+                        new AddressSettingDecl("payments.#", Map.of("maxDeliveryAttempts", 7))),
+                List.of(),
+                List.of());
+        config.save(clusterId, doc, null, "test", Source.EDIT);
+        Set<String> onlyPayments = Set.of("ADDRESS_SETTING:payments.#:ADD", "ADDRESS_SETTING:payments.#:REPLACE");
+
+        BrokerConfigApplyOutcome whole = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
+        assertThat(whole.plan().stepCount()).isEqualTo(4);
+
+        BrokerConfigApplyOutcome preview = apply.plan(
+                clusterId,
+                new BrokerConfigApplyRequest(null, Set.of(), null, false, List.of(), null, false, onlyPayments));
+        assertThat(preview.plan().stepCount()).isEqualTo(2);
+        assertThat(preview.plan().planHash()).isNotEqualTo(whole.plan().planHash());
+
+        BrokerConfigApplyOutcome outcome = apply.apply(
+                clusterId,
+                new BrokerConfigApplyRequest(
+                        null,
+                        Set.of(),
+                        null,
+                        false,
+                        preview.plan().highHazardIds(),
+                        preview.plan().planHash(),
+                        false,
+                        onlyPayments));
+
+        assertThat(outcome.outcome()).isEqualTo(Outcome.APPLIED);
+        assertThat(broker.get(firstId)).containsKey("payments.#").doesNotContainKey(MATCH);
+        assertThat(broker.get(secondId)).containsKey("payments.#").doesNotContainKey(MATCH);
+        // The item that was not in scope is still pending, and says so.
+        assertThat(apply.plan(clusterId, BrokerConfigApplyRequest.everything())
+                        .plan()
+                        .stepCount())
+                .isEqualTo(2);
     }
 
     // ---- canary, verify, continue ------------------------------------------
@@ -336,7 +383,8 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                                 false,
                                 List.of(),
                                 preview.plan().planHash(),
-                                false)))
+                                false,
+                                Set.of())))
                 .isInstanceOf(HazardNotAcknowledgedException.class)
                 .hasMessageContaining(high.get(0));
         verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
@@ -351,7 +399,8 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
 
         assertThatThrownBy(() -> apply.apply(
                         clusterId,
-                        new BrokerConfigApplyRequest(null, Set.of(), null, false, List.of(), "not-the-hash", false)))
+                        new BrokerConfigApplyRequest(
+                                null, Set.of(), null, false, List.of(), "not-the-hash", false, Set.of())))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("plan");
         verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());

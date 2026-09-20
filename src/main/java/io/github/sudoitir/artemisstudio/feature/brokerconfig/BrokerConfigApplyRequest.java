@@ -16,6 +16,8 @@ import java.util.UUID;
  * @param acknowledgedHazards the High hazard identifiers the operator acknowledged
  * @param expectedPlanHash the plan the operator previewed; a real run refuses when it changed
  * @param override lift the step cap for this run
+ * @param stepIds the plan step identifiers to run, {@code SECTION:key:OP}; empty means the whole
+ *     plan (ADR-0087 D2)
  */
 public record BrokerConfigApplyRequest(
         Integer revision,
@@ -24,14 +26,16 @@ public record BrokerConfigApplyRequest(
         boolean removeUndeclared,
         List<String> acknowledgedHazards,
         String expectedPlanHash,
-        boolean override) {
+        boolean override,
+        Set<String> stepIds) {
 
     public BrokerConfigApplyRequest {
         nodeIds = nodeIds == null ? Set.of() : Set.copyOf(nodeIds);
         acknowledgedHazards = acknowledgedHazards == null ? List.of() : List.copyOf(acknowledgedHazards);
+        stepIds = stepIds == null ? Set.of() : Set.copyOf(stepIds);
     }
 
     public static BrokerConfigApplyRequest everything() {
-        return new BrokerConfigApplyRequest(null, Set.of(), null, false, List.of(), null, false);
+        return new BrokerConfigApplyRequest(null, Set.of(), null, false, List.of(), null, false, Set.of());
     }
 }

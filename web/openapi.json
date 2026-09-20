@@ -2157,7 +2157,7 @@
           "required" : false,
           "schema" : {
             "type" : "boolean",
-            "default" : true
+            "default" : false
           }
         }, {
           "name" : "override",
@@ -2644,6 +2644,14 @@
           }
         }, {
           "name" : "override",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        }, {
+          "name" : "disconnectConsumers",
           "in" : "query",
           "required" : false,
           "schema" : {
@@ -3354,6 +3362,40 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/MessageDetailView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/configuration" : {
+      "get" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "configuration",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/QueueConfiguration"
                 }
               }
             }
@@ -6352,7 +6394,7 @@
           },
           "error" : {
             "type" : [ "string", "null" ],
-            "description" : "Why this node failed."
+            "description" : "Why this node failed; otherwise what the preview warned about this node, which a real run repeats on its result."
           }
         },
         "required" : [ "nodeId", "nodeName", "status" ]
@@ -6725,6 +6767,14 @@
           "expectedPlanHash" : {
             "type" : [ "string", "null" ],
             "description" : "The planHash that was previewed; a real run refuses when it changed"
+          },
+          "stepIds" : {
+            "type" : [ "array", "null" ],
+            "description" : "Plan step identifiers (SECTION:key:OP) to run; empty or absent runs the whole plan. The plan hash is computed over the narrowed plan, so a preview and its run must name the same steps",
+            "items" : {
+              "type" : "string"
+            },
+            "uniqueItems" : true
           }
         }
       },
@@ -8488,6 +8538,45 @@
           }
         },
         "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "redactions", "size", "stringProperties", "timestamp", "transport", "type", "withheld" ]
+      },
+      "NodeConfiguration" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "unavailableReason" : {
+            "type" : "string"
+          }
+        }
+      },
+      "QueueConfiguration" : {
+        "type" : "object",
+        "properties" : {
+          "queueName" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "routingType" : {
+            "type" : "string"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeConfiguration"
+            }
+          }
+        }
       },
       "PagedViewProducerView" : {
         "type" : "object",

@@ -51,6 +51,9 @@ public class QueueSnapshotUpsert {
 
     private static final String REAP_STALE = "DELETE FROM queue_snapshot WHERE node_id = :nodeId AND ts < :sweepStart";
 
+    private static final String FORGET_QUEUE =
+            "DELETE FROM queue_snapshot WHERE cluster_id = :clusterId AND queue_name = :queueName";
+
     private final NamedParameterJdbcTemplate jdbc;
 
     /** Upsert a batch of rows in one round trip. */
@@ -72,6 +75,20 @@ public class QueueSnapshotUpsert {
     @Transactional
     public int reapStale(UUID nodeId, Instant sweepStart) {
         return jdbc.update(REAP_STALE, Map.of("nodeId", nodeId, "sweepStart", Timestamp.from(sweepStart)));
+    }
+
+    /**
+     * Drop a queue's rows across the cluster, for a queue Studio has just destroyed.
+     *
+     * <p>The snapshot is a cache of what the brokers run, and a sweep reaps what is
+     * gone — but a destroyed queue stays listed until that sweep comes round, so the
+     * delete reads as though it did nothing, and acting on the row that is left fails
+     * against an MBean that no longer exists. A command that destroyed the queue knows
+     * it is gone; this is that knowledge, applied to the cache.
+     */
+    @Transactional
+    public int forget(UUID clusterId, String queueName) {
+        return jdbc.update(FORGET_QUEUE, Map.of("clusterId", clusterId, "queueName", queueName));
     }
 
     private static SqlParameterSource params(QueueRow r) {

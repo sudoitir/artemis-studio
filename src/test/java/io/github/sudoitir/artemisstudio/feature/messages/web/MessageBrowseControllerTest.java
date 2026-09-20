@@ -165,6 +165,70 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.brokerErrorKind").value("UNAUTHORIZED"));
     }
 
+    /**
+     * Two live nodes, each with its own copy of the queue: the messages are on the second.
+     * With no node asked for, the browse opens the node that holds them — not whichever
+     * live node the snapshot happens to list first, which showed an empty queue.
+     */
+    @Test
+    void withNoNodeAskedForTheBrowseOpensTheLiveNodeHoldingTheMessages() throws Exception {
+        String urlB = "http://b:8161/console/jolokia";
+        BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
+        a.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        nodes.save(a);
+        BrokerNodeEntity b = BrokerNodeEntity.fromSeed(
+                clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
+        b.attachManagementUrl(urlB);
+        b.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        UUID nodeBId = nodes.save(b).getId();
+        upsert.upsertBatch(List.of(
+                new QueueRow(clusterId, nodeAId, "SPLIT", "SPLIT", "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false),
+                new QueueRow(clusterId, nodeBId, "SPLIT", "SPLIT", "ANYCAST", true, 4, 0, 0, 0, 0, 0, 0, false)));
+
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(urlB))
+                .andRespond(withSuccess(fixture("search-broker.json"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(urlB)).andRespond(withSuccess(batch("browse.json", 4), MediaType.APPLICATION_JSON));
+        when(connections.forCluster(eq(clusterId), eq(urlB)))
+                .thenReturn(new JolokiaBrokerClient(builder.build(), urlB, mapper));
+
+        mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "SPLIT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.node").value(nodeBId.toString()))
+                .andExpect(jsonPath("$.count").value(4))
+                .andExpect(jsonPath("$.data.length()").value(4));
+    }
+
+    /**
+     * A queue created a moment ago is on the broker before the scrape has reached it. It
+     * is found with one live read on the node, not answered with "does not exist".
+     */
+    @Test
+    void aQueueTheScrapeHasNotReachedIsFoundOnTheLiveNodeAndBrowsed() throws Exception {
+        BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
+        a.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        nodes.save(a);
+        String located = "{\"status\":200,\"value\":{"
+                + "\"org.apache.activemq.artemis:address=\\\"FRESH.ADDR\\\",broker=\\\"primary\\\",component=addresses,"
+                + "queue=\\\"FRESH\\\",routing-type=\\\"anycast\\\",subcomponent=queues\":{\"MessageCount\":4}}}";
+
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL_A))
+                .andRespond(withSuccess(fixture("search-broker.json"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(URL_A)).andRespond(withSuccess(located, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(URL_A)).andRespond(withSuccess(batch("browse.json", 4), MediaType.APPLICATION_JSON));
+        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+                .thenReturn(new JolokiaBrokerClient(builder.build(), URL_A, mapper));
+
+        mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "FRESH"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.node").value(nodeAId.toString()))
+                .andExpect(jsonPath("$.data.length()").value(4));
+        server.verify();
+    }
+
     @Test
     void anUnknownQueueIsA404() throws Exception {
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "NOPE"))

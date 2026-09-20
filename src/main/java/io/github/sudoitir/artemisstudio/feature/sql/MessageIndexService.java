@@ -281,6 +281,13 @@ public class MessageIndexService {
             if (modeBefore == CaptureMode.CAPTURE && (!stillCapturing || !enabledBefore)) {
                 consumers.stopSubscription(id);
             }
+            if (modeBefore == CaptureMode.CAPTURE && !stillCapturing) {
+                // With the drain stopped, the divert would keep copying into a capture queue
+                // nothing empties until the next scheduled pass. Remove it now, the way a
+                // deletion does, once this change has committed. A pass already holding the
+                // cluster's lock skips this sweep, and the pass after it removes the divert.
+                afterCommit(() -> reconciler.reconcileNow(clusterId));
+            }
             if (stillCapturing && !after.equals(before)) {
                 // The tap on the broker still carries the old filter and bounds, and a divert is
                 // never changed in place: re-create it once this change has committed.
@@ -422,8 +429,10 @@ public class MessageIndexService {
      * to every live node, and this method runs inside the transaction that wrote the
      * subscription — holding a database connection open across broker HTTP is the
      * shape of an outage, not of a fast response. The reconciler runs on its own
-     * schedule and is idempotent, so the tap is installed, or removed, on the next
-     * pass; the screen says exactly that rather than implying it already happened.
+     * schedule and is idempotent, so the tap is installed on the next pass; the screen
+     * says exactly that rather than implying it already happened. Removal usually does not
+     * wait for it: turning capture off or deleting it sweeps once the change has committed,
+     * unless a pass holds the cluster's lock at that moment, and then the next pass removes it.
      */
     private void converge(MessageIndexSubscriptionEntity entity) {
         if (entity.getMode() != CaptureMode.CAPTURE) {

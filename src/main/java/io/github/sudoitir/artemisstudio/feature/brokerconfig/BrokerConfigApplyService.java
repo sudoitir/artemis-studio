@@ -218,7 +218,8 @@ public class BrokerConfigApplyService {
         List<ObservedNodeConfig> observed = reads.observe(clusterId, scope);
         PlanOptions options = new PlanOptions(
                 request.nodeIds(), request.canaryNodeId(), request.removeUndeclared(), false, List.of());
-        Plan plan = BrokerConfigPlanner.plan(revision.document(), observed, owned, options);
+        Plan plan = BrokerConfigPlanner.restrict(
+                BrokerConfigPlanner.plan(revision.document(), observed, owned, options), request.stepIds());
         if (!plan.valid()) {
             throw new BrokerConfigInvalidException(plan.violations());
         }
@@ -649,9 +650,19 @@ public class BrokerConfigApplyService {
             case ADDRESS -> {
                 @SuppressWarnings("unchecked")
                 List<String> types = (List<String>) s.after().get("routingTypes");
-                ops.createAddress(client, broker, s.key(), new HashSet<>(types));
+                if (s.op() == Op.REPLACE) {
+                    ops.updateAddress(client, broker, s.key(), new HashSet<>(types));
+                } else {
+                    ops.createAddress(client, broker, s.key(), new HashSet<>(types));
+                }
             }
-            case QUEUE -> ops.createQueue(client, broker, s.after());
+            case QUEUE -> {
+                if (s.op() == Op.REPLACE) {
+                    ops.updateQueue(client, broker, s.after());
+                } else {
+                    ops.createQueue(client, broker, s.after());
+                }
+            }
             case ADDRESS_SETTING -> {
                 if (s.op() == Op.REMOVE) {
                     ops.removeAddressSettings(client, broker, s.key());
@@ -818,6 +829,7 @@ public class BrokerConfigApplyService {
         m.put("removeUndeclared", request.removeUndeclared());
         m.put("acknowledgedHazards", request.acknowledgedHazards());
         m.put("override", request.override());
+        m.put("stepIds", request.stepIds());
         m.put("hazards", p.plan.hazards().stream().map(Hazard::id).toList());
         return m;
     }
