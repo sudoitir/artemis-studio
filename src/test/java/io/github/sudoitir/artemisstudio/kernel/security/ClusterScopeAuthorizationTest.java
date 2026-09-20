@@ -87,6 +87,9 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
     private static final Set<String> NO_CONTROL_POSSIBLE = Set.of(
             "/api/v1/clusters/{clusterId}/queues/{queueName}/messages",
             "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}",
+            // Queue-addressed, and the fixture has no queue: the locator finds none on
+            // any node and the read is a 404 for absence, with or without a grant.
+            "/api/v1/clusters/{clusterId}/queues/{queueName}/configuration",
             "/api/v1/clusters/{clusterId}/rr/flows/{flowId}",
             // A declaration revision and an apply record the fixture does not create.
             "/api/v1/clusters/{clusterId}/config/revisions/{number}",
