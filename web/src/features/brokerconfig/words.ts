@@ -133,7 +133,10 @@ export function itemDriftWords(
       if (!about(f, wire, key, queueKeys) || f.kind === 'UNDECLARED') continue;
       const into = f.kind === 'MISSING' ? missing : differs;
       const label = labelFor(f, key);
-      into.set(label, [...(into.get(label) ?? []), node.nodeName]);
+      // A node can carry two findings under one label — the address and the queue
+      // of the same name — and naming it twice reads as two nodes.
+      const named = into.get(label) ?? [];
+      if (!named.includes(node.nodeName)) into.set(label, [...named, node.nodeName]);
     }
   }
   if (missing.size === 0 && differs.size === 0) {

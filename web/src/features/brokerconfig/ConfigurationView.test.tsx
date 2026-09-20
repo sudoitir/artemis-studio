@@ -184,6 +184,34 @@ describe('ConfigurationView', () => {
     expect(within(row).getByText(/→ DROP/)).toBeInTheDocument();
   });
 
+  it('says a missing item is missing once, without reprinting every key as "declared → —"', async () => {
+    // A missing item differs in every key, and two findings on one node (the
+    // address and the queue of the same name) used to name that node twice.
+    const missing = (section: 'ADDRESS' | 'QUEUE') => ({
+      kind: 'MISSING' as const,
+      section,
+      key: 'orders.request',
+      detail: `Create ${section.toLowerCase()} orders.request`,
+      declared: { name: 'orders.request', routingType: 'ANYCAST', durable: true, maxConsumers: -1 },
+      observed: null,
+    });
+    server.use(
+      ...baseHandlers(
+        declaration({
+          nodes: [NODE_A, { ...NODE_B, state: 'DRIFTED', findings: [missing('ADDRESS'), missing('QUEUE')] }],
+        }),
+      ),
+    );
+    renderWithProviders(<ConfigurationView />);
+
+    const row = (await screen.findByRole('button', { name: 'Apply address orders.request' })).closest('tr')!;
+    const state = within(row).getByText(/missing on/);
+    expect(state.textContent).toBe('missing on broker-2');
+    // None of the declared keys are reprinted against an em dash.
+    expect(within(row).queryByText(/maxConsumers/)).not.toBeInTheDocument();
+    expect(within(row).queryByText(/→ —/)).not.toBeInTheDocument();
+  });
+
   it('lists what an import cannot carry instead of dropping it', async () => {
     server.use(
       ...baseHandlers(),

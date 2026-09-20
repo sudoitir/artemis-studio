@@ -49,6 +49,10 @@ function LiveState({
         {text}
       </Text>
       {found.map(({ nodeName, label, finding }, i) => {
+        // A missing item differs in every key, and "declared → —" repeated down
+        // the whole entry says nothing the sentence above has not already said.
+        // Only a divergence earns its keys.
+        if (finding.kind === 'MISSING') return null;
         const differing = findingRows(finding, catalogue).filter((r) => r.differs);
         if (differing.length === 0) return null;
         return (
@@ -172,13 +176,14 @@ export function DeclaredTab({
         <Stack gap="xs">
           {heading('addresses', doc.addresses.length)}
           {doc.addresses.length > 0 ? (
-            <Table fz="xs" verticalSpacing={4}>
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Address</Table.Th>
-                  <Table.Th>Routing and queues</Table.Th>
-                  <Table.Th>On the live nodes</Table.Th>
-                  <Table.Th />
+                  <Table.Th w="18%">Address</Table.Th>
+                  <Table.Th w="36%">Routing and queues</Table.Th>
+                  <Table.Th w="30%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -212,6 +217,7 @@ export function DeclaredTab({
                 ))}
               </Table.Tbody>
             </Table>
+            </Table.ScrollContainer>
           ) : null}
           <div>{addButton('addresses', 'Add address')}</div>
         </Stack>
@@ -219,13 +225,14 @@ export function DeclaredTab({
         <Stack gap="xs">
           {heading('addressSettings', doc.addressSettings.length)}
           {doc.addressSettings.length > 0 ? (
-            <Table fz="xs" verticalSpacing={4}>
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Match</Table.Th>
-                  <Table.Th>Declared keys</Table.Th>
-                  <Table.Th>On the live nodes</Table.Th>
-                  <Table.Th />
+                  <Table.Th w="18%">Match</Table.Th>
+                  <Table.Th w="36%">Declared keys</Table.Th>
+                  <Table.Th w="30%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -256,6 +263,7 @@ export function DeclaredTab({
                 ))}
               </Table.Tbody>
             </Table>
+            </Table.ScrollContainer>
           ) : null}
           <div>{addButton('addressSettings', 'Add address setting')}</div>
         </Stack>
@@ -263,13 +271,14 @@ export function DeclaredTab({
         <Stack gap="xs">
           {heading('securitySettings', doc.securitySettings.length)}
           {doc.securitySettings.length > 0 ? (
-            <Table fz="xs" verticalSpacing={4}>
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Match</Table.Th>
-                  <Table.Th>Role: permissions</Table.Th>
-                  <Table.Th>On the live nodes</Table.Th>
-                  <Table.Th />
+                  <Table.Th w="18%">Match</Table.Th>
+                  <Table.Th w="36%">Role: permissions</Table.Th>
+                  <Table.Th w="30%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -297,6 +306,7 @@ export function DeclaredTab({
                 ))}
               </Table.Tbody>
             </Table>
+            </Table.ScrollContainer>
           ) : null}
           <div>{addButton('securitySettings', 'Add security setting')}</div>
         </Stack>
@@ -304,14 +314,15 @@ export function DeclaredTab({
         <Stack gap="xs">
           {heading('diverts', doc.diverts.length)}
           {doc.diverts.length > 0 ? (
-            <Table fz="xs" verticalSpacing={4}>
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Routes</Table.Th>
-                  <Table.Th>Effect</Table.Th>
-                  <Table.Th>On the live nodes</Table.Th>
-                  <Table.Th />
+                  <Table.Th w="16%">Name</Table.Th>
+                  <Table.Th w="28%">Routes</Table.Th>
+                  <Table.Th w="16%">Effect</Table.Th>
+                  <Table.Th w="24%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -335,6 +346,7 @@ export function DeclaredTab({
                 ))}
               </Table.Tbody>
             </Table>
+            </Table.ScrollContainer>
           ) : null}
           <div>{addButton('diverts', 'Add divert')}</div>
         </Stack>
