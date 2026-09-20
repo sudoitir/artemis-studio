@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -331,5 +331,51 @@ describe('the destructive flow is keyboard-complete', () => {
     release();
     expect(await within(dialog).findByText('applied')).toBeInTheDocument();
     expect(within(dialog).getByText('destroyed 12 messages')).toBeInTheDocument();
+  });
+});
+
+describe('a delete that failed everywhere', () => {
+  it('leaves the queue open instead of closing it as though the queue were gone', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', ({ request }) => {
+        const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          // Every node failed, so the run is not partial — and the queue is still there.
+          partial: false,
+          totalAffected: dryRun ? 12 : 0,
+          nodes: [
+            {
+              nodeId: 'n1',
+              nodeName: 'node-a',
+              status: dryRun ? 'WOULD_APPLY' : 'FAILED',
+              affected: dryRun ? 12 : null,
+              error: dryRun ? null : 'The broker did not answer in time.',
+            },
+          ],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithProviders(<QueueLifecycleActions clusterId="c1" queue={queue()} onClose={onClose} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Delete queue' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox'), 'orders');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+
+    expect(await within(dialog).findByText('Failed on every node')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

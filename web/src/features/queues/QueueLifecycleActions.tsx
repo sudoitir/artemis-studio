@@ -261,7 +261,11 @@ function DeleteQueueDialog({
               size="xs"
               onClick={() => {
                 close();
-                if (!result.partial) onDeleted();
+                // The queue view behind this dialog is dismissed only when the queue is
+                // really gone. A run where every node failed is not partial, so `partial`
+                // alone would close the view on a queue that is still there.
+                const failed = result.nodes.some((n) => n.status === 'FAILED');
+                if (!result.partial && !failed) onDeleted();
               }}
             >
               Close
