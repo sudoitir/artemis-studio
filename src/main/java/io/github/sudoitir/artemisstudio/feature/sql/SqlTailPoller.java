@@ -27,15 +27,21 @@ import org.springframework.stereotype.Component;
  * configured interval, from a per-target high-water mark on {@code (timestamp,
  * messageId)}, and whatever is new and still matches is emitted.
  *
- * <p>It is a <strong>sample, not a capture</strong>. Between two polls a message can
- * arrive and be consumed, and nothing here will ever see it. That is inherent to
- * polling and is the price of not mutating {@code broker.xml} and not consuming the
- * operator's messages. The consequence is stated permanently in the UI rather than
- * buried.
+ * <p>A tail that reads the queues is a <strong>sample, not a capture</strong>. Between two
+ * polls a message can arrive and be consumed, and nothing here will ever see it. That is
+ * inherent to polling and is the price of not mutating {@code broker.xml} and not consuming the
+ * operator's messages. The consequence is stated permanently in the UI rather than buried — in
+ * the sampled wording only, because a tail resolved onto the index makes the stronger claim and
+ * gets different words (ADR-0062 D10).
  *
  * <p>The mark is pushed into the JMS selector, so a poll costs the broker a filtered
  * page rather than a full re-read of the queue. Every read still takes the node's
  * management-call permit, and the plan's bounds still apply per poll.
+ *
+ * <p>A plan that resolved onto the index is tailed from the index, not from the queues. It
+ * resolved there because capture covers every queue it reads, and the copy the capture took is
+ * the only place a message consumed the instant it arrived still exists — re-reading the queue
+ * would show the operator nothing and call it quiet (ADR-0062 D2).
  *
  * <p>A tail's plan is fixed for its lifetime: the targets were resolved against the
  * caller's cluster scope when the tail started, and re-planning on a scheduler thread
@@ -48,6 +54,7 @@ import org.springframework.stereotype.Component;
 public class SqlTailPoller {
 
     private final BrokerQueryExecutor executor;
+    private final IndexQueryExecutor indexExecutor;
     private final QueueSnapshots snapshots;
 
     /** Live tails. A tail is removed when its client goes away. */
@@ -132,6 +139,15 @@ public class SqlTailPoller {
     // ponytail: a constant, not a setting. Make it one if an operator ever needs to tune it.
     static final int BACKLOG_PAGES_PER_TICK = 5;
 
+    /**
+     * How far behind its mark an index tail re-reads. A row's {@code observed_at} is stamped when
+     * its drain read it and the row appears when that drain's batch commits, so one node's row can
+     * land after a later one from another. Re-reading this far back covers that; the mark filters
+     * the repeats out.
+     */
+    // ponytail: a constant, not a setting. Make it one if a deployment ever commits further apart.
+    private static final Duration INDEX_TAIL_OVERLAP = Duration.ofSeconds(30);
+
     /** A running tail. Held by the caller so it can stop it. */
     public final class Tail {
         private final UUID clusterId;
@@ -164,6 +180,14 @@ public class SqlTailPoller {
         private final int maxPagesPerTarget;
 
         private volatile boolean backlogInProgress;
+
+        /**
+         * For an index tail: where the next poll's window starts. It follows what the query
+         * returned, not what survived dedup — a page made entirely of rows this tail will not
+         * deliver still moves the cursor past them, or the same page is re-read forever and the
+         * tail goes quiet as soon as the index holds a page's worth inside the overlap.
+         */
+        private volatile Instant indexSince = Instant.now().minus(INDEX_TAIL_OVERLAP);
 
         private Tail(
                 UUID clusterId,
@@ -329,14 +353,20 @@ public class SqlTailPoller {
         if (tail.cancelled()) {
             return;
         }
-        QueryResult result = executor.execute(
-                tail.clusterId,
-                tail.plan,
-                tail.transport,
-                new TailSink(tail),
-                tail::selectorFor,
-                tail.maxPagesPerTarget);
+        boolean fromIndex = tail.plan.resolvedSource() == QueryAst.Source.INDEX;
+        QueryResult result = fromIndex
+                ? indexExecutor.execute(tail.clusterId, tail.plan, new TailSink(tail), tail.indexSince)
+                : executor.execute(
+                        tail.clusterId,
+                        tail.plan,
+                        tail.transport,
+                        new TailSink(tail),
+                        tail::selectorFor,
+                        tail.maxPagesPerTarget);
         tail.pollCount.incrementAndGet();
+        if (fromIndex) {
+            advanceIndexWindow(tail, result);
+        }
         if (tail.maxPagesPerTarget != Integer.MAX_VALUE) {
             // A target that filled every page it was allowed has more behind it.
             long full = (long) tail.maxPagesPerTarget * BrokerQueryExecutor.PAGE_SIZE;
@@ -350,6 +380,32 @@ public class SqlTailPoller {
                 Instant.now(),
                 tail.everyMessageMatches,
                 tail.backlogInProgress));
+    }
+
+    /**
+     * Move an index tail's window to the end of the page it just read.
+     *
+     * <p>Normally it stays {@link #INDEX_TAIL_OVERLAP} behind the newest row, because a row whose
+     * drain committed late can still land behind it; the tail's own mark filters the repeats.
+     * A page the row limit cut short gets no overlap: everything behind its last row was in this
+     * page, and re-reading it would fill the next page with the same rows and never reach what
+     * came after — a tail that stalls silently, which is worse than one late row.
+     */
+    private void advanceIndexWindow(Tail tail, QueryResult result) {
+        Instant newest = result.rows().stream()
+                .map(Row::observedAt)
+                .filter(java.util.Objects::nonNull)
+                .max(java.util.Comparator.naturalOrder())
+                .orElse(null);
+        if (newest == null) {
+            return;
+        }
+        boolean cutShort =
+                result.boundsReached().stream().anyMatch(bound -> bound.kind() == QueryResult.Bound.Kind.ROW_LIMIT);
+        Instant next = cutShort ? newest : newest.minus(INDEX_TAIL_OVERLAP);
+        if (next.isAfter(tail.indexSince)) {
+            tail.indexSince = next;
+        }
     }
 
     /**

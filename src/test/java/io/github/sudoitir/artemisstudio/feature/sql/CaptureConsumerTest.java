@@ -128,6 +128,57 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         assertThat(batchAddresses).allSatisfy(addresses -> assertThat(addresses).hasSize(1));
     }
 
+    /**
+     * A tap on an address that carries a handful of messages an hour would otherwise never reach
+     * the acknowledge batch: its copies sat unstored in the drain and unacknowledged on the capture
+     * queue, so the index answered nothing about them and the queue grew towards its ring bound.
+     */
+    @Test
+    void aBatchTooSmallToAcknowledgeIsStoredAtTheNextFlush() throws Exception {
+        doAnswer(invocation -> {
+                    stored.addAll(List.copyOf(invocation.getArgument(0)));
+                    return null;
+                })
+                .when(writer)
+                .capturedBatch(anyList());
+        String queue = "capture.partial." + UUID.randomUUID();
+        send(queue, 3);
+
+        consumer.start(spec(queue, "ORDER.IN"));
+        Thread.sleep(2_000);
+        assertThat(stored).as("three messages are far short of a full batch").isEmpty();
+
+        consumer.flushAll();
+
+        awaitTrue(() -> stored.size() == 3, Duration.ofSeconds(30));
+    }
+
+    /**
+     * A stopped context can be started again, and the reconciler then installs the drains afresh.
+     * A shutdown that left the flush path unusable meant partial batches were never committed
+     * again: the index would go quiet and the capture queues grow to their ring bound, silently.
+     */
+    @Test
+    void aPartialBatchIsStillFlushedAfterAShutdownAndRestart() throws Exception {
+        doAnswer(invocation -> {
+                    stored.addAll(List.copyOf(invocation.getArgument(0)));
+                    return null;
+                })
+                .when(writer)
+                .capturedBatch(anyList());
+        consumer.closeAll();
+
+        String queue = "capture.restart." + UUID.randomUUID();
+        send(queue, 3);
+        consumer.start(spec(queue, "ORDER.IN"));
+        Thread.sleep(2_000);
+        assertThat(stored).as("three messages are far short of a full batch").isEmpty();
+
+        consumer.flushAll();
+
+        awaitTrue(() -> stored.size() == 3, Duration.ofSeconds(30));
+    }
+
     @Test
     void aDrainWhoseConnectionFailedIsNoLongerReportedAsDraining() throws Exception {
         String queue = "capture.dead." + UUID.randomUUID();

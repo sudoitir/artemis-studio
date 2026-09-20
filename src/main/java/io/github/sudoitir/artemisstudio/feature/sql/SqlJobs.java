@@ -56,6 +56,17 @@ class SqlJobs {
     }
 
     /**
+     * A drain holds what it has read until it can acknowledge a full batch, which on a low-rate
+     * address never comes. This commits the partial batches, so a captured message is answerable —
+     * and off the capture queue — within one interval rather than after another forty-nine arrive.
+     * It touches no broker: the store is Postgres and the acknowledge is on a session already open.
+     */
+    @Bean
+    ScheduledJob captureFlushJob(CaptureConsumer consumer, CaptureProperties properties) {
+        return ScheduledJob.fixedDelay("capture-flush", "sql", properties::flushInterval, consumer::flushAll);
+    }
+
+    /**
      * One partition-maintenance hour for both partitioned tables — the setting is
      * "when Studio may take brief exclusive locks on its own tables", and there is no
      * reason for the index to want a different answer than the metrics.

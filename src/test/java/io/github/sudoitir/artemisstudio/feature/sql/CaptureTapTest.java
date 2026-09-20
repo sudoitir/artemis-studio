@@ -174,7 +174,8 @@ class CaptureTapTest {
                         null,
                         Duration.ofSeconds(30),
                         Duration.ofHours(24),
-                        org.springframework.util.unit.DataSize.ofMegabytes(64)),
+                        org.springframework.util.unit.DataSize.ofMegabytes(64),
+                        Duration.ofSeconds(1)),
                 new ObjectMapper());
 
         assertThatThrownBy(() -> unconfigured.install(client, "abc12345", spec))
@@ -204,7 +205,8 @@ class CaptureTapTest {
                 "studio",
                 Duration.ofSeconds(30),
                 Duration.ofHours(24),
-                org.springframework.util.unit.DataSize.ofMegabytes(64));
+                org.springframework.util.unit.DataSize.ofMegabytes(64),
+                Duration.ofSeconds(1));
     }
 
     private static DivertRow divert(String name, String address, String forwarding, boolean exclusive) {

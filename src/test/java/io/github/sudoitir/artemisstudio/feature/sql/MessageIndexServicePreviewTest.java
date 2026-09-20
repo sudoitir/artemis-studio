@@ -49,7 +49,11 @@ class MessageIndexServicePreviewTest {
 
     private MessageIndexService service(String brokerRole) {
         CaptureProperties properties = new CaptureProperties(
-                brokerRole, Duration.ofSeconds(30), Duration.ofHours(24), DataSize.ofMegabytes(64));
+                brokerRole,
+                Duration.ofSeconds(30),
+                Duration.ofHours(24),
+                DataSize.ofMegabytes(64),
+                Duration.ofSeconds(1));
         StudioInstance instance = mock(StudioInstance.class);
         when(instance.id()).thenReturn("abc12345");
         return new MessageIndexService(
@@ -138,8 +142,12 @@ class MessageIndexServicePreviewTest {
         when(jdbc.queryForObject(
                         any(String.class), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class)))
                 .thenReturn(new MessageIndexService.Footprint(3, 30, null));
-        CaptureProperties properties =
-                new CaptureProperties("studio", Duration.ofSeconds(30), Duration.ofHours(24), DataSize.ofMegabytes(64));
+        CaptureProperties properties = new CaptureProperties(
+                "studio",
+                Duration.ofSeconds(30),
+                Duration.ofHours(24),
+                DataSize.ofMegabytes(64),
+                Duration.ofSeconds(1));
         MessageIndexService service = new MessageIndexService(
                 subscriptions,
                 mock(QueueSnapshots.class),

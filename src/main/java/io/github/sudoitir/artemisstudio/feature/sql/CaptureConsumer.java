@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -229,6 +230,31 @@ public class CaptureConsumer {
         running.clear();
     }
 
+    /**
+     * Store and acknowledge what each drain is holding below a full acknowledge batch.
+     *
+     * <p>Without it a drain only commits at {@link #ACK_BATCH}, which on an address that
+     * carries a handful of messages an hour is never: the copies sit unstored in the drain
+     * and unacknowledged on the capture queue, so the index answers nothing about them and
+     * the queue grows towards its ring bound while its drain looks healthy.
+     *
+     * <p>A drain already flushing is skipped rather than queued behind: a store that is
+     * failing must not accumulate one waiting flush per tick.
+     *
+     * <p>One virtual thread per flush, and not a pooled executor: a drain whose store failed
+     * waits out its backoff inside {@code commit}, and the job thread — shared with the SSE
+     * heartbeat and the scrape tiers — is not somewhere that may be waited on. A thread has
+     * nothing to shut down, so a stopped context that is started again still flushes; an
+     * executor closed at shutdown would have rejected every flush from then on, in silence.
+     */
+    public void flushAll() {
+        for (Drain drain : running.values()) {
+            if (drain.flushing.compareAndSet(false, true)) {
+                Thread.ofVirtual().name("capture-flush").start(drain::flushPending);
+            }
+        }
+    }
+
     /** Exponential, capped, with jitter — so many drains failing together do not retry together. */
     static long backoffMillis(int failures) {
         long base = Math.min(RETRY_MAX.toMillis(), RETRY_INITIAL.toMillis() * (1L << Math.min(failures - 1, 20)));
@@ -250,6 +276,9 @@ public class CaptureConsumer {
 
         /** Rows received since the last acknowledge, and the message an acknowledge would settle them with. */
         private final List<MessageIndexWriter.Captured> batch = new ArrayList<>(ACK_BATCH);
+
+        /** Set while a flush of this drain is queued or running, so ticks do not pile up behind it. */
+        private final AtomicBoolean flushing = new AtomicBoolean();
 
         private int delivered;
         private Message lastDelivered;
@@ -317,6 +346,23 @@ public class CaptureConsumer {
                     stringProperty(message, ORIG_ADDRESS),
                     longProperty(message, ORIG_MESSAGE_ID),
                     Instant.now());
+        }
+
+        /**
+         * Commit a batch that is not yet full. Runs off the delivery thread, so it may wait out a
+         * failed store exactly as a delivery would, and takes the same monitor: a flush and a
+         * delivery never store the same rows twice.
+         */
+        void flushPending() {
+            try {
+                synchronized (this) {
+                    if (!closed && lastDelivered != null) {
+                        commit();
+                    }
+                }
+            } finally {
+                flushing.set(false);
+            }
         }
 
         /** Store, then acknowledge. Returns false when the store failed and the session was recovered. */
