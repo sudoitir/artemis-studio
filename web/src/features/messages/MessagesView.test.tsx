@@ -180,3 +180,32 @@ describe('MessagesView', () => {
   });
 });
 
+
+describe('the purge estimate', () => {
+  it('states an estimate that could not be taken, and still lets the purge be armed', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    server.use(
+      http.delete('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () =>
+        HttpResponse.json(
+          { title: 'The broker did not answer', detail: 'The node timed out after 5s.' },
+          { status: 504 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Purge queue' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // An absent number reads as zero — the failure is stated instead.
+    expect(await within(dialog).findByText(/The node timed out after 5s\./)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Estimating current depth/)).not.toBeInTheDocument();
+
+    // And the confirmation is not left disabled with no reason given.
+    await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
+    await vi.waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Purge queue' })).toBeEnabled(),
+    );
+  });
+});

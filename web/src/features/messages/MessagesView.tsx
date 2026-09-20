@@ -92,6 +92,7 @@ export function MessagesView() {
   const page = search.page ?? 1;
   const purge = usePurgeQueue(clusterId, queueName);
   const [purgeCount, setPurgeCount] = useState<number | null>(null);
+  const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
 
   // Selection is ephemeral (D10) — reset on any navigation of node / filter / page.
   useEffect(() => setSelected(new Set()), [search.node, search.filter, page]);
@@ -173,12 +174,13 @@ export function MessagesView() {
             color="red"
             onClick={() => {
               setPurgeCount(null);
+              setPurgeFailed(null);
               setPurgeOpen(true);
               purge.mutate(
                 { node: search.node, dryRun: true },
                 {
                   onSuccess: (r) => setPurgeCount('affectedCount' in r ? r.affectedCount : null),
-                  onError: (e) => notifications.show({ color: 'red', message: e.message }),
+                  onError: (e) => setPurgeFailed(e.message),
                 },
               );
             }}
@@ -316,16 +318,25 @@ export function MessagesView() {
 
       <Modal opened={purgeOpen} onClose={() => setPurgeOpen(false)} title={`Purge ${queueName}?`}>
         <Stack gap="sm">
-          <Text size="sm">
-            {purgeCount === null
-              ? 'Estimating current depth…'
-              : `This will remove approximately ${purgeCount} message${purgeCount === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`}
-          </Text>
+          {/* An unavailable estimate is stated, never omitted: an absent number reads
+              as zero, and a confirmation disabled with no reason reads as a bug. */}
+          {purgeFailed ? (
+            <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
+              {purgeFailed} The purge can still proceed, but Studio cannot tell you how many
+              messages it would destroy. This cannot be undone.
+            </Alert>
+          ) : (
+            <Text size="sm">
+              {purgeCount === null
+                ? 'Estimating current depth…'
+                : `This will remove approximately ${purgeCount} message${purgeCount === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`}
+            </Text>
+          )}
           <ConfirmByTyping
             token={queueName}
             confirmLabel="Purge queue"
             loading={purge.isPending}
-            disabled={purgeCount === null}
+            disabled={purgeCount === null && purgeFailed === null}
             onConfirm={() =>
               purge.mutate(
                 { node: search.node, override: true },
