@@ -88,7 +88,7 @@ const columns: GridColumn<QueueView>[] = [
  */
 export function QueuesView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const search = useSearch({ strict: false }) as { q?: string; sort?: string; page?: number };
+  const search = useSearch({ strict: false }) as { q?: string; sort?: string; page?: number; queue?: string };
   const navigate = useNavigate();
 
   const [filter, setFilter] = useState(search.q ?? '');
@@ -110,7 +110,13 @@ export function QueuesView() {
     size: PAGE_SIZE,
   });
 
-  const [selected, setSelected] = useState<QueueView | null>(null);
+  // The open queue is an address, not a copy: held as a name and looked up in the
+  // rows each render, so a pause, an edit or a delete that refetches the listing is
+  // reflected in the panel instead of leaving it showing the queue as it was when
+  // it was opened (non-negotiable #9).
+  const selected = (query.data?.data ?? []).find((q) => q.queueName === search.queue) ?? null;
+  const setSelected = (queue: QueueView | null) =>
+    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, queue: queue?.queueName }) });
   const [createOpen, setCreateOpen] = useState(false);
   const { can } = useCan();
   const mayCreate = can('queue:create', clusterId);

@@ -74,6 +74,9 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     QueueSnapshotUpsert upsert;
 
     @Autowired
+    io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots snapshots;
+
+    @Autowired
     AuditEventRepository auditEvents;
 
     @MockitoBean
@@ -232,6 +235,34 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
         assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
         verify(ops).destroyQueue(any(), anyString(), eq(QUEUE), eq(false));
+    }
+
+    @Test
+    void aDeletedQueueLeavesTheListingAtOnce() {
+        // The snapshot is a cache of what the brokers run. Left until the next sweep, the
+        // deleted queue stays on screen — the delete reads as though it did nothing, and
+        // every action on the row that is left fails against an MBean that is gone.
+        seedQueue();
+        onTheNode(0, QUEUE);
+
+        LifecycleOutcome outcome = ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        assertThat(snapshots.forCluster(clusterId))
+                .extracting(s -> s.queueName())
+                .doesNotContain(QUEUE);
+    }
+
+    @Test
+    void aPreviewLeavesTheListingAlone() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+
+        ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false));
+
+        assertThat(snapshots.forCluster(clusterId))
+                .extracting(s -> s.queueName())
+                .contains(QUEUE);
     }
 
     // ---- partial failure (D3, D4) -----------------------------------------

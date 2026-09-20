@@ -47,7 +47,16 @@ export function QueueLifecycleActions({
   );
   const deleteGate = gateFor(can('queue:delete', clusterId), 'Destroy queues and addresses', write, pending);
 
-  const paused = queue.perNode.some((n) => n.paused);
+  // What the queue runs, from the scrape snapshot the listing is built from — and,
+  // until that catches up, what this screen just had the broker do. A pause applied
+  // on every node but not yet swept showed a button still offering to pause, which
+  // reads as an action that did nothing.
+  const observedPaused = queue.perNode.some((n) => n.paused);
+  const appliedPaused = pauseOutcome?.nodes.every((n) => n.status === 'APPLIED')
+    ? setPaused.variables?.paused
+    : undefined;
+  const paused = appliedPaused ?? observedPaused;
+  const awaitingSweep = appliedPaused !== undefined && appliedPaused !== observedPaused;
 
   return (
     <Stack gap="xs">
@@ -103,6 +112,12 @@ export function QueueLifecycleActions({
       ) : null}
 
       <div aria-live="polite">
+        {awaitingSweep ? (
+          <Text size="xs" c="dimmed">
+            {paused ? 'Paused' : 'Resumed'} on every live node. The listing says so once the next sweep
+            reads it back.
+          </Text>
+        ) : null}
         {setPaused.isError ? (
           <Alert color="red" variant="light" title={setPaused.error.title} role="alert">
             {setPaused.error.message}

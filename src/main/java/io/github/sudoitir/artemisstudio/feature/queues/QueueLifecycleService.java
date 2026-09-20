@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAct
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,6 +55,7 @@ import tools.jackson.databind.ObjectMapper;
 public class QueueLifecycleService {
 
     private final QueueLocator queueLocator;
+    private final QueueSnapshotUpsert snapshotWriter;
     private final Optional<DeclaredDiverts> declaredDiverts;
     private final Optional<CaptureTaps> captureTaps;
     private final QueueLifecycleOperations ops;
@@ -131,7 +133,14 @@ public class QueueLifecycleService {
                         client, broker, deletePlan(clusterId, client, broker, queue), disconnectConsumers))
                 .estimate(new Estimate(
                         "message count", false, client -> ops.messageCount(client, queueMbean(client, queue))))
-                .signal(() -> sseHub.publish(clusterId, "queues"))
+                .signal(() -> {
+                    // The queue is gone from the brokers; the snapshot is a cache of
+                    // what they run. Left alone it keeps the row until the next sweep,
+                    // so the delete reads as though it did nothing and the row that is
+                    // left fails every action against a destroyed MBean.
+                    snapshotWriter.forget(clusterId, queueName);
+                    sseHub.publish(clusterId, "queues");
+                })
                 .build()));
     }
 

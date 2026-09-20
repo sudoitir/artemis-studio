@@ -70,6 +70,12 @@ public class ManagementRefusal extends RuntimeException {
     static final String SETTING_PARSE = "Error while parsing MetaData";
     /** An address-setting pair the broker refuses after parsing (§15 M1). */
     static final String PAGE_SIZE_VS_MAX = "pageSize has to be lower than maxSizeBytes";
+    /**
+     * The MBean is not registered: the queue or address named by the object name is no
+     * longer on this node. Raised by the JMX layer rather than as an AMQ code, so it
+     * arrives as a Java class name and has to be matched as one.
+     */
+    static final String MBEAN_ABSENT = "InstanceNotFoundException";
 
     /**
      * Classify a failed Jolokia response, or return {@code null} when the error is
@@ -102,6 +108,12 @@ public class ManagementRefusal extends RuntimeException {
         }
         if (error.contains(QUEUE_ABSENT) || error.contains(ADDRESS_ABSENT)) {
             return new ManagementRefusal(Kind.ALREADY, "Already absent: " + error);
+        }
+        if (error.contains(MBEAN_ABSENT)) {
+            return new ManagementRefusal(
+                    Kind.ALREADY,
+                    "The queue or address is no longer on this node — it was destroyed, or it has not been"
+                            + " created here. Refresh the listing: " + error);
         }
         if (error.contains(QUEUE_EXISTS) || error.contains(ADDRESS_EXISTS)) {
             return new ManagementRefusal(Kind.ALREADY, "Already present: " + error);
