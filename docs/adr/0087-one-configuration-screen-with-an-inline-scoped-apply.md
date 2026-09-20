@@ -97,6 +97,9 @@ parameters record the step identifiers it was given.
 - Two removals are permanent: the apply route and the drift tab. A bookmark to
   `/configuration/apply` 404s. Per the project's no-compatibility rule, no
   redirect is added.
+- The open editor stays navigable state: `?section=&item=` names the drawer a row
+  opens, so a half-made edit can be linked and restored. The `tab=drift` value is
+  the only search state the redesign removes.
 - The row's state-in-words is computed in the browser from the stored per-node
   findings, as the Drift tab's was. It is only as fresh as the last evaluation,
   so the status bar keeps the evaluation's age and the "Evaluate now" action.

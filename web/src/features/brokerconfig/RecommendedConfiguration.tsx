@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Alert, Badge, Button, Checkbox, Code, Group, Stack, TagsInput, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
-import { useNavigate } from '@tanstack/react-router';
 
 import { useDeclareRecommended, type ConfigRecommendationView, type ConfigRecommendationsView } from './api.ts';
 
@@ -21,11 +20,14 @@ import { useDeclareRecommended, type ConfigRecommendationView, type ConfigRecomm
 export function RecommendedConfiguration({
   clusterId,
   recommendations,
+  onDeclared,
   disabledReason,
 }: {
   /** Absent before the cluster is registered: the panel then previews and cannot declare. */
   clusterId?: string;
   recommendations: ConfigRecommendationsView;
+  /** Open the review drawer on the revision this just saved; absent during registration. */
+  onDeclared?: () => void;
   /** Why declaring is unavailable right now, stated rather than hidden. */
   disabledReason?: string;
 }) {
@@ -41,7 +43,6 @@ export function RecommendedConfiguration({
     ),
   );
 
-  const navigate = useNavigate();
   const declare = useDeclareRecommended(clusterId ?? '');
 
   const selected = appliable.filter((r) => taken.includes(r.capability));
@@ -150,17 +151,16 @@ export function RecommendedConfiguration({
                   declare.mutate(
                     { capabilities: taken, roles },
                     {
-                      onSuccess: () =>
-                        navigate({ to: `/clusters/${clusterId}/configuration/apply` }),
+                      onSuccess: () => onDeclared?.(),
                     },
                   )
                 }
               >
-                Declare &amp; open the plan
+                Declare &amp; review the plan
               </Button>
               <Text size="xs" c="dimmed">
                 {blocked ??
-                  'Saves a revision. Nothing reaches a broker until you confirm the plan on the next screen.'}
+                  'Saves a revision. Nothing reaches a broker until you confirm the plan.'}
               </Text>
             </Group>
           ) : (

@@ -94,11 +94,31 @@ export function findingKindWords(kind: string): string {
   }
 }
 
+/**
+ * Whether a finding is about this row's item.
+ *
+ * <p>A queue's finding carries the queue's name, not its address's, so an address
+ * row matches its own key and, additionally, the names of the queues declared on
+ * it. Comparing keys alone made every queue's drift invisible on the one row that
+ * could carry it.
+ */
+function about(f: ConfigDriftFindingView, wire: WireSection[], key: string, queueKeys: string[]): boolean {
+  if (!wire.includes(f.section as WireSection)) return false;
+  if (f.key === key) return true;
+  return f.section === 'QUEUE' && !!f.key && queueKeys.includes(f.key);
+}
+
+/** How a finding names itself on the row: the row's own item is unnamed, a queue is named. */
+function labelFor(f: ConfigDriftFindingView, key: string): string {
+  return f.section === 'QUEUE' && f.key !== key ? `queue ${f.key} ` : '';
+}
+
 /** What one declared item's drift looks like across the nodes, in one phrase for a table cell. */
 export function itemDriftWords(
   declaration: ConfigDeclarationView,
   section: Section,
   key: string,
+  queueKeys: string[] = [],
 ): { text: string; tone?: 'warning' } {
   const wire = WIRE_SECTIONS[section];
   const live = declaration.nodes.filter((n) => n.live);
@@ -106,23 +126,73 @@ export function itemDriftWords(
   if (live.length === 0) return { text: 'no live node' };
   if (evaluated.length === 0) return { text: 'not evaluated' };
 
-  const missing: string[] = [];
-  const differs: string[] = [];
+  const missing = new Map<string, string[]>();
+  const differs = new Map<string, string[]>();
   for (const node of evaluated) {
     for (const f of node.findings) {
-      if (!wire.includes(f.section as WireSection) || f.key !== key) continue;
-      if (f.kind === 'MISSING') missing.push(node.nodeName);
-      else if (f.kind !== 'UNDECLARED') differs.push(node.nodeName);
+      if (!about(f, wire, key, queueKeys) || f.kind === 'UNDECLARED') continue;
+      const into = f.kind === 'MISSING' ? missing : differs;
+      const label = labelFor(f, key);
+      into.set(label, [...(into.get(label) ?? []), node.nodeName]);
     }
   }
-  if (missing.length === 0 && differs.length === 0) {
+  if (missing.size === 0 && differs.size === 0) {
     const suffix = evaluated.length < live.length ? ` (${live.length - evaluated.length} not evaluated)` : '';
     return { text: `in sync on ${evaluated.length}/${live.length}${suffix}` };
   }
   const parts: string[] = [];
-  if (missing.length > 0) parts.push(`missing on ${missing.join(', ')}`);
-  if (differs.length > 0) parts.push(`differs on ${differs.join(', ')}`);
+  const emit = (from: Map<string, string[]>, word: string) =>
+    [...from.keys()].sort().forEach((label) => parts.push(`${label}${word} on ${from.get(label)!.join(', ')}`));
+  emit(missing, 'missing');
+  emit(differs, 'differs');
   return { text: parts.join('; '), tone: 'warning' };
+}
+
+/**
+ * The plan steps that belong to one declared item, as identifiers (ADR-0087 D2).
+ *
+ * A step's identifier is `SECTION:key:OP`, so naming all three ops scopes an apply
+ * to that item on every node without the screen having to know which op the plan
+ * chose. An identifier that matches nothing is ignored by the planner.
+ */
+export function stepIdsFor(items: { section: WireSection; key: string }[]): string[] {
+  return items.flatMap((i) => ['ADD', 'REPLACE', 'REMOVE'].map((op) => `${i.section}:${i.key}:${op}`));
+}
+
+/** Every live node's finding about one declared item, newest evaluation as stored. */
+export function itemFindings(
+  declaration: ConfigDeclarationView,
+  section: Section,
+  key: string,
+  queueKeys: string[] = [],
+): { nodeName: string; label: string; finding: ConfigDriftFindingView }[] {
+  const wire = WIRE_SECTIONS[section];
+  return declaration.nodes
+    .filter((n) => n.live)
+    .flatMap((n) =>
+      n.findings
+        .filter((f) => about(f, wire, key, queueKeys) && f.kind !== 'UNDECLARED')
+        .map((finding) => ({ nodeName: n.nodeName, label: labelFor(finding, key), finding })),
+    );
+}
+
+/**
+ * How far the declaration has got, as the status bar states it. "Applied to" counts
+ * a live node that was evaluated in sync at this revision: a node that agrees with
+ * an older revision has not had this one, and a saved-but-unapplied revision must
+ * read as zero rather than as agreement.
+ */
+export function appliedWords(declaration: ConfigDeclarationView): { text: string; tone?: 'warning' } {
+  const live = declaration.nodes.filter((n) => n.live);
+  if (!declaration.declared) return { text: 'Nothing is declared for this cluster yet' };
+  if (live.length === 0) {
+    return { text: `Revision ${declaration.revision} — no node is live, so nothing could be applied or compared`, tone: 'warning' };
+  }
+  const applied = live.filter((n) => n.state === 'IN_SYNC' && n.verifiedRevision === declaration.revision).length;
+  return {
+    text: `Revision ${declaration.revision} — applied to ${applied} of ${live.length} live node${live.length === 1 ? '' : 's'}`,
+    tone: applied === live.length ? undefined : 'warning',
+  };
 }
 
 export function hazardClassWords(hazardClass: ConfigHazardView['hazardClass']): string {

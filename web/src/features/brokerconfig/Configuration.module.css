@@ -141,3 +141,11 @@
 .kv[data-diff] .kvRow[data-differs] .kvValue {
   font-weight: 600;
 }
+
+/* A node's name, state and evidence on one line, wrapping rather than clipping. */
+.nodeLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}

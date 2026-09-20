@@ -4,27 +4,25 @@ import { createRoute } from '@tanstack/react-router';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { configTopic } from './applyProgress.ts';
-import { ApplyView } from './ApplyView.tsx';
 import { ConfigDiffView } from './ConfigDiffView.tsx';
 import { ConfigurationView } from './ConfigurationView.tsx';
 import { RegistrationRecommendations } from './RegistrationRecommendations.tsx';
 
-/** The declaration's navigable state: which tab is open, and which editor (ADR-0067). */
+/** The declaration's navigable state: which tab is open, and which editor (ADR-0067, ADR-0087). */
 export interface ConfigurationSearch {
-  tab?: 'declared' | 'drift' | 'history' | 'recommended';
+  tab?: 'declared' | 'history' | 'recommended';
   section?: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts';
   item?: string;
 }
 
+const SECTIONS = ['addresses', 'addressSettings', 'securitySettings', 'diverts'];
+
 function validateConfigurationSearch(raw: Record<string, unknown>): ConfigurationSearch {
   const out: ConfigurationSearch = {};
-  if (typeof raw.tab === 'string' && ['declared', 'drift', 'history', 'recommended'].includes(raw.tab)) {
+  if (typeof raw.tab === 'string' && ['declared', 'history', 'recommended'].includes(raw.tab)) {
     out.tab = raw.tab as ConfigurationSearch['tab'];
   }
-  if (
-    typeof raw.section === 'string' &&
-    ['addresses', 'addressSettings', 'securitySettings', 'diverts'].includes(raw.section)
-  ) {
+  if (typeof raw.section === 'string' && SECTIONS.includes(raw.section)) {
     out.section = raw.section as ConfigurationSearch['section'];
   }
   if (typeof raw.item === 'string' && raw.item) out.item = raw.item;
@@ -44,18 +42,11 @@ const configurationRoute = createRoute({
   validateSearch: validateConfigurationSearch,
 });
 
-/** The apply flow is its own address: a plan being confirmed is something worth a link. */
-const configurationApplyRoute = createRoute({
-  getParentRoute: () => clusterRoute,
-  path: 'configuration/apply',
-  component: featureView('brokerconfig', ApplyView),
-});
-
-/** Declared broker configuration: drift, apply with its plan, history, and comparing two nodes. */
+/** Declared broker configuration: one desired-vs-live screen with its apply, history, and comparing two nodes. */
 export const brokerconfigFeature = defineFeature({
   contract: CONTRACT,
   id: 'brokerconfig',
-  routes: { cluster: [configDiffRoute, configurationRoute, configurationApplyRoute] },
+  routes: { cluster: [configDiffRoute, configurationRoute] },
   nav: [
     {
       group: 'configuration',
