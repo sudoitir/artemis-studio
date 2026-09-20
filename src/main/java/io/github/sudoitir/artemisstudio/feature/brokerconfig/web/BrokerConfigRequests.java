@@ -75,7 +75,14 @@ public final class BrokerConfigRequests {
             @Schema(
                     nullable = true,
                     description = "The planHash that was previewed; a real run refuses when it changed")
-            String expectedPlanHash) {}
+            String expectedPlanHash,
+
+            @Schema(
+                    nullable = true,
+                    description = "Plan step identifiers (SECTION:key:OP) to run; empty or absent runs the"
+                            + " whole plan. The plan hash is computed over the narrowed plan, so a preview"
+                            + " and its run must name the same steps")
+            Set<String> stepIds) {}
 
     @Schema(
             description = "Declare the capability probe's recommendations as a new revision."

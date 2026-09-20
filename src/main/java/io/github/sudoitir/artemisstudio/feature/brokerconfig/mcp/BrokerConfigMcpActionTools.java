@@ -180,8 +180,8 @@ public class BrokerConfigMcpActionTools {
                         .map(String::trim)
                         .filter(a -> !a.isEmpty())
                         .toList();
-        BrokerConfigApplyRequest request =
-                new BrokerConfigApplyRequest(null, nodes, null, removeUndeclared, acks, expectedPlanHash, override);
+        BrokerConfigApplyRequest request = new BrokerConfigApplyRequest(
+                null, nodes, null, removeUndeclared, acks, expectedPlanHash, override, java.util.Set.of());
         if (!dry) {
             McpArgs.confirm(brokerConfig.get(clusterId).clusterName(), confirm);
         }

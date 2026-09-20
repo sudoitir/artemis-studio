@@ -218,7 +218,8 @@ public class BrokerConfigApplyService {
         List<ObservedNodeConfig> observed = reads.observe(clusterId, scope);
         PlanOptions options = new PlanOptions(
                 request.nodeIds(), request.canaryNodeId(), request.removeUndeclared(), false, List.of());
-        Plan plan = BrokerConfigPlanner.plan(revision.document(), observed, owned, options);
+        Plan plan = BrokerConfigPlanner.restrict(
+                BrokerConfigPlanner.plan(revision.document(), observed, owned, options), request.stepIds());
         if (!plan.valid()) {
             throw new BrokerConfigInvalidException(plan.violations());
         }
@@ -828,6 +829,7 @@ public class BrokerConfigApplyService {
         m.put("removeUndeclared", request.removeUndeclared());
         m.put("acknowledgedHazards", request.acknowledgedHazards());
         m.put("override", request.override());
+        m.put("stepIds", request.stepIds());
         m.put("hazards", p.plan.hazards().stream().map(Hazard::id).toList());
         return m;
     }

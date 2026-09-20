@@ -112,6 +112,45 @@ public final class BrokerConfigPlanner {
         return new Plan(nodes, hazards, findings, List.of(), hash(nodes), stepCount, canary);
     }
 
+    /**
+     * The same plan, narrowed to the steps an operator asked for by identifier
+     * (ADR-0087 D2).
+     *
+     * <p>A step identifier is {@code SECTION:key:OP}, so it names one declared item on
+     * every node at once — which is what a row's "Apply this" means. Identifiers that
+     * match nothing are ignored; an empty set is the whole plan.
+     *
+     * <p>Hazards of items that are no longer in the run go with them: a hazard is a
+     * consequence of a step, and asking an operator to acknowledge one for a step that
+     * will not run trains them to acknowledge without reading. Findings stay — they are
+     * what the plan noticed and is not acting on either way — and so does the canary,
+     * because the node order is unchanged. The hash is recomputed over what is left, so
+     * the confirmation covers exactly the run.
+     */
+    public static Plan restrict(Plan plan, Set<String> stepIds) {
+        if (stepIds.isEmpty()) {
+            return plan;
+        }
+        List<NodePlan> nodes = plan.nodes().stream()
+                .map(n -> new NodePlan(
+                        n.nodeId(),
+                        n.nodeName(),
+                        n.live(),
+                        n.unavailableReason(),
+                        n.steps().stream().filter(s -> stepIds.contains(s.id())).toList()))
+                .toList();
+        Set<String> items = nodes.stream()
+                .flatMap(n -> n.steps().stream())
+                .map(s -> s.section() + ":" + s.key())
+                .collect(java.util.stream.Collectors.toSet());
+        List<Hazard> hazards = plan.hazards().stream()
+                .filter(h -> items.contains(h.section() + ":" + h.key()))
+                .toList();
+        int stepCount = (int) nodes.stream().mapToLong(NodePlan::pendingSteps).sum();
+        return new Plan(
+                nodes, hazards, plan.findings(), plan.violations(), hash(nodes), stepCount, plan.canaryNodeId());
+    }
+
     // ---- referential checks that need the observed cluster ------------------
 
     private static void referential(BrokerConfigDocument doc, List<ObservedNodeConfig> nodes, List<Violation> out) {

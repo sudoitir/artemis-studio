@@ -507,4 +507,63 @@ class BrokerConfigPlannerTest {
 
         assertThat(pending(plan, id)).isEmpty();
     }
+
+    @Test
+    void restrictingAPlanToOneItemKeepsOnlyItsStepsAndItsOwnHazards() {
+        // The screen's per-row "Apply this": one item, every node, and a hash over
+        // exactly the steps that will run, so the confirmation matches the run.
+        ObservedNodeConfig n =
+                node(N1, "broker-1", Map.of(), Map.of(), Map.of("orders.in", new AddressUsage(50_000_000L, 1200L)));
+        Plan full = BrokerConfigPlanner.plan(
+                doc(
+                        new AddressSettingDecl("orders.#", Map.of("addressFullMessagePolicy", "drop")),
+                        new AddressSettingDecl("payments.#", Map.of("maxDeliveryAttempts", 7))),
+                List.of(n),
+                Set.of(),
+                PlanOptions.defaults());
+        assertThat(full.stepCount()).isEqualTo(2);
+
+        Plan one = BrokerConfigPlanner.restrict(
+                full, Set.of("ADDRESS_SETTING:payments.#:ADD", "ADDRESS_SETTING:payments.#:REPLACE"));
+
+        assertThat(pending(one, N1)).extracting(Step::key).containsExactly("payments.#");
+        assertThat(one.stepCount()).isEqualTo(1);
+        assertThat(one.planHash()).isNotEqualTo(full.planHash());
+        // The message-loss hazard belongs to the step that is no longer in the run:
+        // asking for it to be acknowledged would confirm something that will not happen.
+        assertThat(full.hazards()).extracting(Plan.Hazard::kind).contains(HazardKind.MESSAGE_LOSS_POLICY);
+        assertThat(one.hazards()).isEmpty();
+        assertThat(BrokerConfigPlanner.restrict(full, Set.of("ADDRESS_SETTING:orders.#:ADD"))
+                        .hazards())
+                .extracting(Plan.Hazard::key)
+                .containsOnly("orders.#");
+        assertThat(one.canaryNodeId()).isEqualTo(full.canaryNodeId());
+    }
+
+    @Test
+    void anEmptyRestrictionIsTheWholePlan() {
+        ObservedNodeConfig n = node(N1, "broker-1", Map.of(), Map.of(), Map.of());
+        Plan full = BrokerConfigPlanner.plan(
+                doc(new AddressSettingDecl("orders.#", Map.of("maxDeliveryAttempts", 7))),
+                List.of(n),
+                Set.of(),
+                PlanOptions.defaults());
+
+        assertThat(BrokerConfigPlanner.restrict(full, Set.of())).isEqualTo(full);
+    }
+
+    @Test
+    void aRestrictionThatMatchesNothingIsAPlanWithNoSteps() {
+        ObservedNodeConfig n = node(N1, "broker-1", Map.of(), Map.of(), Map.of());
+        Plan full = BrokerConfigPlanner.plan(
+                doc(new AddressSettingDecl("orders.#", Map.of("maxDeliveryAttempts", 7))),
+                List.of(n),
+                Set.of(),
+                PlanOptions.defaults());
+
+        Plan none = BrokerConfigPlanner.restrict(full, Set.of("ADDRESS_SETTING:nothing.#:ADD"));
+
+        assertThat(none.stepCount()).isZero();
+        assertThat(pending(none, N1)).isEmpty();
+    }
 }

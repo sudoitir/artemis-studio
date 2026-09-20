@@ -2563,6 +2563,8 @@ export interface components {
             acknowledgedHazards?: string[] | null;
             /** @description The planHash that was previewed; a real run refuses when it changed */
             expectedPlanHash?: string | null;
+            /** @description Plan step identifiers (SECTION:key:OP) to run; empty or absent runs the whole plan. The plan hash is computed over the narrowed plan, so a preview and its run must name the same steps */
+            stepIds?: string[] | null;
         };
         /** @description The outcome of an apply, dry or real; the same shape for preview and result */
         ConfigApplyOutcomeView: {
