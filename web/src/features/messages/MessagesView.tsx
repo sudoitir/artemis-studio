@@ -19,7 +19,12 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 
 import { useCluster } from '../clusters/index.ts';
-import { useMessages, usePurgeQueue, type MessageSummaryView } from './api.ts';
+import {
+  useMessages,
+  usePurgeQueue,
+  type DryRunView,
+  type MessageSummaryView,
+} from './api.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { CapabilityLedger } from '../clusters/index.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
@@ -91,8 +96,11 @@ export function MessagesView() {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const page = search.page ?? 1;
   const purge = usePurgeQueue(clusterId, queueName);
-  const [purgeCount, setPurgeCount] = useState<number | null>(null);
+  // The whole preview, not just its count: the cap and whether the estimate is over
+  // it decide both what the dialog says and whether the purge may override it.
+  const [purgePreview, setPurgePreview] = useState<DryRunView | null>(null);
   const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
+  const purgeOverCap = purgePreview?.overCap ?? false;
 
   // Selection is ephemeral (D10) — reset on any navigation of node / filter / page.
   useEffect(() => setSelected(new Set()), [search.node, search.filter, page]);
@@ -173,13 +181,13 @@ export function MessagesView() {
             variant="light"
             color="red"
             onClick={() => {
-              setPurgeCount(null);
+              setPurgePreview(null);
               setPurgeFailed(null);
               setPurgeOpen(true);
               purge.mutate(
                 { node: search.node, dryRun: true },
                 {
-                  onSuccess: (r) => setPurgeCount('affectedCount' in r ? r.affectedCount : null),
+                  onSuccess: (r) => setPurgePreview('cap' in r ? r : null),
                   onError: (e) => setPurgeFailed(e.message),
                 },
               );
@@ -323,23 +331,33 @@ export function MessagesView() {
           {purgeFailed ? (
             <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
               {purgeFailed} The purge can still proceed, but Studio cannot tell you how many
-              messages it would destroy. This cannot be undone.
+              messages it would destroy. This cannot be undone. The broker's bulk safety cap
+              still applies: if the depth turns out to be over it, the purge is refused.
             </Alert>
           ) : (
             <Text size="sm">
-              {purgeCount === null
+              {purgePreview === null
                 ? 'Estimating current depth…'
-                : `This will remove approximately ${purgeCount} message${purgeCount === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`}
+                : `This will remove approximately ${purgePreview.affectedCount} message${purgePreview.affectedCount === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`}
             </Text>
           )}
+          {/* The cap is overridden only where the operator was told the number it
+              is being overridden for — never on an unknown depth. */}
+          {purgeOverCap && purgePreview ? (
+            <Alert color="yellow" variant="light" title="Over the safety cap">
+              This would remove {purgePreview.affectedCount.toLocaleString()} messages, over the cap
+              of {purgePreview.cap.toLocaleString()}. Confirming will override the cap for this
+              operation, and the override is recorded in the audit log.
+            </Alert>
+          ) : null}
           <ConfirmByTyping
             token={queueName}
-            confirmLabel="Purge queue"
+            confirmLabel={purgeOverCap ? 'Purge anyway, over the cap' : 'Purge queue'}
             loading={purge.isPending}
-            disabled={purgeCount === null && purgeFailed === null}
+            disabled={purgePreview === null && purgeFailed === null}
             onConfirm={() =>
               purge.mutate(
-                { node: search.node, override: true },
+                { node: search.node, override: purgeOverCap },
                 {
                   onSuccess: (r) => {
                     notifications.show({

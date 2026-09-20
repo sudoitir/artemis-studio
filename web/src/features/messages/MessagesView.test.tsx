@@ -209,3 +209,63 @@ describe('the purge estimate', () => {
     );
   });
 });
+
+describe('the purge and the bulk safety cap', () => {
+  it('does not override the cap when the depth is unknown', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    const urls: string[] = [];
+    server.use(
+      http.delete('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', ({ request }) => {
+        const url = new URL(request.url);
+        urls.push(url.search);
+        if (url.searchParams.get('dryRun') === 'true') {
+          return HttpResponse.json(
+            { title: 'The broker did not answer', detail: 'The node timed out after 5s.' },
+            { status: 504 },
+          );
+        }
+        return HttpResponse.json({ affectedCount: 4, dryRun: false, node: 'n1' });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Purge queue' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/The node timed out after 5s\./)).toBeInTheDocument();
+
+    await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
+    await user.click(within(dialog).getByRole('button', { name: 'Purge queue' }));
+
+    await vi.waitFor(() => expect(urls).toHaveLength(2));
+    // The server's cap is the only guard left when Studio cannot state a blast radius.
+    expect(urls.at(-1)).not.toContain('override=true');
+  });
+
+  it('states the cap it is about to override, and overrides it only then', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    const urls: string[] = [];
+    server.use(
+      http.delete('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', ({ request }) => {
+        const url = new URL(request.url);
+        urls.push(url.search);
+        if (url.searchParams.get('dryRun') === 'true') {
+          return HttpResponse.json({ affectedCount: 5000, cap: 1000, overCap: true, node: 'n1' });
+        }
+        return HttpResponse.json({ affectedCount: 5000, dryRun: false, node: 'n1' });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Purge queue' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/over the cap of 1,000/)).toBeInTheDocument();
+
+    await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
+    await user.click(within(dialog).getByRole('button', { name: 'Purge anyway, over the cap' }));
+
+    await vi.waitFor(() => expect(urls).toHaveLength(2));
+    expect(urls.at(-1)).toContain('override=true');
+  });
+});
