@@ -425,3 +425,62 @@ describe('a delete no node was live for', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe('the edit form', () => {
+  /** What the broker reports for the queue, and what a PATCH is sent as. */
+  function editHandlers(values: Record<string, unknown>, onPatch?: (body: unknown) => void) {
+    let current = { ...values };
+    return [
+      clusterHandler(AVAILABLE),
+      meHandler(),
+      http.get('*/api/v1/clusters/c1/queues/orders/configuration', () =>
+        HttpResponse.json({
+          queueName: 'orders',
+          address: 'orders.addr',
+          routingType: 'ANYCAST',
+          nodes: [{ nodeId: 'n1', nodeName: 'node-a', values: current, unavailableReason: null }],
+        }),
+      ),
+      http.patch('*/api/v1/clusters/c1/queues/orders', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        onPatch?.(body);
+        if (body.maxConsumers !== undefined) current = { ...current, 'max-consumers': body.maxConsumers };
+        return HttpResponse.json({
+          dryRun: false,
+          cap: 1000,
+          overCap: false,
+          partial: false,
+          totalAffected: 1,
+          nodes: [{ nodeId: 'n1', nodeName: 'node-a', status: 'APPLIED', affected: null, error: null }],
+        });
+      }),
+    ];
+  }
+
+  it('opens on what the queue runs, sends only what changed, and shows the applied value again', async () => {
+    const patched = vi.fn();
+    server.use(...editHandlers({ 'max-consumers': -1, 'ring-size': -1, 'filter-string': null }, patched));
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: /Edit orders/ });
+    // Seeded from the broker, not blank: the operator edits what is there.
+    const consumers = await within(dialog).findByRole('textbox', { name: /Max consumers/ });
+    await waitFor(() => expect(consumers).toHaveValue('-1'));
+    // Nothing changed yet, so there is nothing to apply.
+    expect(within(dialog).getByRole('button', { name: 'Apply' })).toBeDisabled();
+
+    await user.clear(consumers);
+    await user.type(consumers, '4');
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }));
+
+    // The outcome is stated per node, and the form now shows what was written.
+    expect(await within(dialog).findByText(/Applied to all 1 node/)).toBeInTheDocument();
+    await waitFor(() => expect(consumers).toHaveValue('4'));
+    // Only the field the operator changed is sent; the rest is left to the merge.
+    expect(patched).toHaveBeenCalledTimes(1);
+    expect(patched.mock.calls[0][0]).toMatchObject({ maxConsumers: 4 });
+    expect((patched.mock.calls[0][0] as Record<string, unknown>).ringSize).toBeUndefined();
+  });
+});

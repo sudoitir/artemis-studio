@@ -1156,6 +1156,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["configuration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/producers": {
         parameters: {
             query?: never;
@@ -3283,6 +3299,21 @@ export interface components {
             };
             redactions: components["schemas"]["RedactionView"][];
             withheld: components["schemas"]["WithheldView"][];
+        };
+        NodeConfiguration: {
+            /** Format: uuid */
+            nodeId?: string;
+            nodeName?: string;
+            values?: {
+                [key: string]: unknown;
+            };
+            unavailableReason?: string;
+        };
+        QueueConfiguration: {
+            queueName?: string;
+            address?: string;
+            routingType?: string;
+            nodes?: components["schemas"]["NodeConfiguration"][];
         };
         PagedViewProducerView: {
             data: components["schemas"]["ProducerView"][];
@@ -6257,6 +6288,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MessageDetailView"];
+                };
+            };
+        };
+    };
+    configuration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                queueName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QueueConfiguration"];
                 };
             };
         };

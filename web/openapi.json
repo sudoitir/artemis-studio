@@ -3369,6 +3369,40 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/queues/{queueName}/configuration" : {
+      "get" : {
+        "tags" : [ "queue-lifecycle-controller" ],
+        "operationId" : "configuration",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "queueName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/QueueConfiguration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/producers" : {
       "get" : {
         "tags" : [ "cluster-resource-controller" ],
@@ -8504,6 +8538,45 @@
           }
         },
         "required" : [ "bodyEncoding", "bodyTruncated", "booleanProperties", "doubleProperties", "durable", "expiration", "intProperties", "longProperties", "messageId", "node", "priority", "redactions", "size", "stringProperties", "timestamp", "transport", "type", "withheld" ]
+      },
+      "NodeConfiguration" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "unavailableReason" : {
+            "type" : "string"
+          }
+        }
+      },
+      "QueueConfiguration" : {
+        "type" : "object",
+        "properties" : {
+          "queueName" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "routingType" : {
+            "type" : "string"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeConfiguration"
+            }
+          }
+        }
       },
       "PagedViewProducerView" : {
         "type" : "object",

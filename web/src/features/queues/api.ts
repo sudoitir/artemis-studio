@@ -10,12 +10,14 @@ export type CapabilityView = Schemas["CapabilityView"];
 export type CreateAddressRequest = Schemas["CreateAddressRequest"];
 export type CreateQueueRequest = Schemas["CreateQueueRequest"];
 export type LifecycleOutcomeView = Schemas["LifecycleOutcomeView"];
+export type QueueConfiguration = Schemas["QueueConfiguration"];
 export type QueueView = Schemas["QueueView"];
 export type UpdateQueueRequest = Schemas["UpdateQueueRequest"];
 
 export const keys = {
   resource: (id: string, kind: string, params: ResourceParams = {}) => clusterKey(id, kind, params),
   topic: (id: string, topic: string) => clusterKey(id, topic),
+  configuration: (id: string, queueName: string) => clusterKey(id, "queues", queueName, "configuration"),
 };
 
 export function useQueues(
@@ -40,6 +42,26 @@ export function useQueues(
 }
 
 /**
+ * What the queue is configured as on each node that has it. The broker's update
+ * replaces the whole configuration, so the edit form reads this first: a form of
+ * blank inputs cannot say what the queue runs, nor whether an update took.
+ */
+export function useQueueConfiguration(
+  clusterId: string,
+  queueName: string,
+  enabled = true,
+): UseQueryResult<QueueConfiguration, ApiError> {
+  return useQuery({
+    queryKey: keys.configuration(clusterId, queueName),
+    queryFn: () =>
+      request<QueueConfiguration>(
+        `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/configuration`,
+      ),
+    enabled: enabled && clusterId !== "" && queueName !== "",
+  });
+}
+
+/**
  * Invalidate on a real run only. A preview mutated nothing, so refetching after
  * one would cost a broker round trip to learn what we already know.
  */
@@ -54,6 +76,9 @@ function useLifecycleMutation<V extends LifecycleVars>(
       if (result.dryRun) return;
       qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
       qc.invalidateQueries({ queryKey: keys.resource(clusterId, "addresses") });
+      // The queue's own configuration is what the edit form shows; leaving it
+      // cached is how an applied change reads as though it never happened. The
+      // topic key above already covers it — `clusters/<id>/queues` is its prefix.
     },
   });
 }
