@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.routing;
 
+import io.github.sudoitir.artemisstudio.feature.queues.BridgeOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.BridgeRow;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
@@ -63,6 +64,7 @@ public class RoutingService {
     private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final DivertOperations divertOps;
+    private final BridgeOperations bridgeOps;
     private final ClusterAccessGuard clusterAccess;
     private final AuditService audit;
 
@@ -102,7 +104,7 @@ public class RoutingService {
         List<ClusterNode> serving = servingManageableNodes(clusterId);
         int nodesTotal = serving.size();
 
-        List<BridgeRow> rows = fanOut(clusterId, serving, divertOps::listBridges);
+        List<BridgeRow> rows = fanOut(clusterId, serving, bridgeOps::listBridges);
 
         Map<String, List<BridgeRow>> merged = new LinkedHashMap<>();
         for (BridgeRow row : rows) {

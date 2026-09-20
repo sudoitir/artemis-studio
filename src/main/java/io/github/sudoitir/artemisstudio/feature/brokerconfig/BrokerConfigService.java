@@ -20,9 +20,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectors;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
@@ -55,6 +57,7 @@ public class BrokerConfigService {
 
     static final String AUDIT_EDIT = "EDIT_BROKER_CONFIG";
     static final String AUDIT_CONFIGURE = "CONFIGURE_BROKER_CONFIG";
+    static final String AUDIT_CREDENTIAL = "SET_BRIDGE_CREDENTIAL";
 
     public enum Source {
         EDIT,
@@ -69,6 +72,8 @@ public class BrokerConfigService {
     private final BrokerConfigRevisionRepository revisions;
     private final BrokerConfigNodeStateRepository nodeStates;
     private final ClusterDirectory clusters;
+    private final BrokerConnectors brokerConnectors;
+    private final ClusterSecrets secrets;
     private final QueueSnapshots queueSnapshots;
     private final BrokerConfigReads reads;
     private final BrokerConfigOperations ops;
@@ -354,6 +359,86 @@ public class BrokerConfigService {
         return get(clusterId);
     }
 
+    // ---- bridge credentials and connector names ---------------------------
+
+    /**
+     * One node's connector names, for the bridge editor to offer (ADR-0091). A node
+     * that cannot be read answers "unknown", never an empty list — an absent name list
+     * reads as "this broker has no connectors", which is a different claim.
+     */
+    public record NodeConnectors(UUID nodeId, String nodeName, List<String> names, boolean known, String reason) {}
+
+    /** The connector names of every serving node. One extra batched read per node, on this screen only. */
+    @Transactional(readOnly = true)
+    public List<NodeConnectors> connectors(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        List<NodeConnectors> out = new ArrayList<>();
+        for (ClusterNode node : reads.targets(clusterId)) {
+            if (!Boolean.TRUE.equals(node.getActive())) {
+                out.add(new NodeConnectors(
+                        node.getId(),
+                        node.getName(),
+                        List.of(),
+                        false,
+                        "Not live. A backup reports its connectors once it becomes active."));
+                continue;
+            }
+            BrokerConnectors.Connectors c;
+            try {
+                c = brokerConnectors.read(reads.client(clusterId, node));
+            } catch (RuntimeException e) {
+                c = BrokerConnectors.Connectors.unknown("Could not reach this node: " + e.getMessage());
+            }
+            out.add(new NodeConnectors(node.getId(), node.getName(), c.names(), c.known(), c.unknownReason()));
+        }
+        return out;
+    }
+
+    /**
+     * The credential references this cluster holds, with their usernames. A password
+     * is never returned by this or any other read (ADR-0092). A read, gated like every
+     * other read here — {@code CONFIG_WRITE} is for the mutations below.
+     */
+    @Transactional(readOnly = true)
+    public List<ClusterSecrets.Credential> bridgeCredentials(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        return secrets.list(clusterId);
+    }
+
+    /** Store or replace a bridge credential. The audit row names the reference and the user, never the secret. */
+    @Transactional
+    public void setBridgeCredential(UUID clusterId, String ref, String username, String password) {
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
+        AuditEvent event = audit.begin(
+                actorResolver.resolve(),
+                AUDIT_CREDENTIAL,
+                "cluster",
+                clusterName(clusterId),
+                clusterId,
+                null,
+                Map.of("credentialRef", ref, "username", username == null ? "" : username),
+                false);
+        secrets.store(clusterId, ref, username, password);
+        audit.succeed(event, 1);
+    }
+
+    /** Forget a bridge credential. A bridge that still references it will refuse to apply, by name. */
+    @Transactional
+    public void forgetBridgeCredential(UUID clusterId, String ref) {
+        clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
+        AuditEvent event = audit.begin(
+                actorResolver.resolve(),
+                AUDIT_CREDENTIAL,
+                "cluster",
+                clusterName(clusterId),
+                clusterId,
+                null,
+                Map.of("credentialRef", ref, "forgotten", true),
+                false);
+        secrets.forget(clusterId, ref);
+        audit.succeed(event, 1);
+    }
+
     // ---- XML -------------------------------------------------------------
 
     /** Parse pasted XML for preview. Pure: nothing is saved. */
@@ -517,7 +602,11 @@ public class BrokerConfigService {
                 addressDecls,
                 settingDecls,
                 securityDecls,
-                new ArrayList<>(diverts.values()));
+                new ArrayList<>(diverts.values()),
+                // Adoption does not adopt bridges: what a node runs is only the thirteen
+                // fields BridgeControl reports, and declaring the other ten as unset would
+                // silently drop them on the next apply (ADR-0090 D4a).
+                List.of());
         List<ClosedFinding> closes = openFindings(clusterId);
         if (!closes.isEmpty()) {
             notes.add(closes.size() + " open drift finding(s) will be closed by adopting this document, and no"

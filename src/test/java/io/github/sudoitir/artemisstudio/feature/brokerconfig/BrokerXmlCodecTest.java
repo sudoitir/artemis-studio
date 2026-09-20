@@ -148,7 +148,8 @@ class BrokerXmlCodecTest {
                 List.of(),
                 List.of(),
                 List.of(new BrokerConfigDocument.DivertDecl(
-                        "d", "a", "b", "name = \"x\" AND size < 5", true, null, null, Map.of())));
+                        "d", "a", "b", "name = \"x\" AND size < 5", true, null, null, Map.of())),
+                List.of());
         String xml = BrokerXmlCodec.write(doc);
         assertThat(xml).contains("string=\"name = &quot;x&quot; AND size &lt; 5\"");
         assertThat(BrokerXmlCodec.parse(xml).document().diverts().getFirst().filter())

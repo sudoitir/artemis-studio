@@ -3,13 +3,14 @@ package io.github.sudoitir.artemisstudio.feature.queues;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** The two judgements a divert creation rests on, before and after the broker call. */
 class DivertOperationsTest {
 
     private static DivertRow divert(String name, String from, String to) {
-        return new DivertRow(null, null, name, name, from, to, null, "STRIP", null, false, false);
+        return new DivertRow(null, null, name, name, from, to, null, "STRIP", null, Map.of(), false, false);
     }
 
     @Test

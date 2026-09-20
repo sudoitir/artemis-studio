@@ -122,8 +122,8 @@ public class BrokerConfigRecommendationService {
      * an unseeded set, which the view reports rather than hiding.
      */
     private ObservedNodeConfig seed(UUID clusterId) {
-        ReadScope scope =
-                new ReadScope(Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of());
+        ReadScope scope = new ReadScope(
+                Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of(), List.of());
         for (ClusterNode node : reads.targets(clusterId)) {
             ObservedNodeConfig observed = reads.observe(clusterId, node, scope);
             if (observed.readable()) {

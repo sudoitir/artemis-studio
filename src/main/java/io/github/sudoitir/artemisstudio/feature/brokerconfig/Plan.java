@@ -89,7 +89,8 @@ public record Plan(
         QUEUE,
         ADDRESS_SETTING,
         SECURITY_SETTING,
-        DIVERT
+        DIVERT,
+        BRIDGE
     }
 
     /** A consequence the operator is told about, in words, with a stable identifier (D7). */
@@ -112,6 +113,14 @@ public record Plan(
         BROAD_MATCH,
         EXCLUSIVE_DIVERT,
         DIVERT_REPLACE,
+        /** A bridge is changed: a removal and a creation, with nothing forwarded in between. High. */
+        BRIDGE_REPLACE,
+        /** A bridge is removed: traffic to another broker stops, with no signal on this cluster. High. */
+        BRIDGE_REMOVE,
+        /** A bridge is created: this cluster's traffic starts reaching another broker. Medium. */
+        BRIDGE_CREATE,
+        /** A transformer class Studio cannot verify is loadable on any node until the apply runs. Medium. */
+        UNVERIFIABLE_TRANSFORMER,
         DLQ_EXPIRY_CHANGE,
         AUTO_DELETE_ENABLED,
         REMOVE_OWNED,
@@ -134,6 +143,12 @@ public record Plan(
         DIVERGENT_QUEUE,
         DIVERGENT_ADDRESS,
         NOT_EVALUATED,
-        UNREACHABLE
+        UNREACHABLE,
+        /**
+         * A declared bridge whose configuration matches but which is not connected to
+         * its target. Observed runtime state, reported as a fault and deliberately not
+         * counted as configuration drift.
+         */
+        NOT_CONNECTED
     }
 }

@@ -210,7 +210,8 @@ class CaptureTapTest {
     }
 
     private static DivertRow divert(String name, String address, String forwarding, boolean exclusive) {
-        return new DivertRow(null, null, name, name, address, forwarding, null, "ANYCAST", null, exclusive, false);
+        return new DivertRow(
+                null, null, name, name, address, forwarding, null, "ANYCAST", null, Map.of(), exclusive, false);
     }
 
     private static JolokiaResponse ok() {

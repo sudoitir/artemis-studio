@@ -24,6 +24,7 @@ import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,7 +99,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
     }
 
     private static DivertRow divert(UUID nodeId, String nodeName, String name, String from, String to) {
-        return new DivertRow(nodeId, nodeName, name, name, from, to, null, "STRIP", null, false, false);
+        return new DivertRow(nodeId, nodeName, name, name, from, to, null, "STRIP", null, Map.of(), false, false);
     }
 
     private PagedView<DivertView> diverts() {

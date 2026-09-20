@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigVie
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationCheckContributor;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -42,7 +43,12 @@ class BrokerConfigRegistrationCheck implements RegistrationCheckContributor {
                     new UUID(0, 0),
                     "the checked node",
                     new BrokerConfigOperations.ReadScope(
-                            Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of()));
+                            Set.of("#"),
+                            Set.of("#", "activemq.notifications"),
+                            Set.of(),
+                            Map.of(),
+                            Set.of(),
+                            List.of()));
         } catch (RuntimeException e) {
             return null;
         }

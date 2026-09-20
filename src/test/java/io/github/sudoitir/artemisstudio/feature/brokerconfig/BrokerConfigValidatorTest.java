@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 class BrokerConfigValidatorTest {
 
     private static BrokerConfigDocument withSettings(AddressSettingDecl... settings) {
-        return new BrokerConfigDocument(1, List.of(), List.of(settings), List.of(), List.of());
+        return new BrokerConfigDocument(1, List.of(), List.of(settings), List.of(), List.of(), List.of());
     }
 
     @Test
@@ -73,6 +73,7 @@ class BrokerConfigValidatorTest {
                                 List.of(new QueueDecl("q", "ANYCAST", null, true, null, null, null, null, null)))),
                 List.of(),
                 List.of(),
+                List.of(),
                 List.of());
         List<Violation> v = BrokerConfigValidator.validate(doc);
         assertThat(v)
@@ -87,7 +88,8 @@ class BrokerConfigValidatorTest {
                 List.of(),
                 List.of(),
                 List.of(new SecuritySettingDecl("x.#", Map.of(PermissionType.SEND, Set.of("a,b")))),
-                List.of(new DivertDecl("d", "same", "same", null, false, "SIDEWAYS", null, Map.of())));
+                List.of(new DivertDecl("d", "same", "same", null, false, "SIDEWAYS", null, Map.of())),
+                List.of());
         List<Violation> v = BrokerConfigValidator.validate(doc);
         assertThat(v)
                 .extracting(Violation::path)
@@ -107,6 +109,7 @@ class BrokerConfigValidatorTest {
                 List.of(),
                 List.of(new AddressSettingDecl("#", Map.of("managementMessageAttributeSizeLimit", -1))),
                 List.of(),
+                List.of(),
                 List.of());
         assertThat(BrokerConfigValidator.validate(doc)).isEmpty();
 
@@ -114,6 +117,7 @@ class BrokerConfigValidatorTest {
                 1,
                 List.of(),
                 List.of(new AddressSettingDecl("#", Map.of("managementMessageAttributeSizeLimit", -2))),
+                List.of(),
                 List.of(),
                 List.of());
         assertThat(BrokerConfigValidator.validate(worse)).hasSize(1);

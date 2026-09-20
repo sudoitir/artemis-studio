@@ -46,3 +46,4 @@ logs/
 
 # Claude Code local overrides (per-machine)
 .claude/settings.local.json
+.ui-review/

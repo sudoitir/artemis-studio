@@ -13,7 +13,8 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "shots": "node --experimental-strip-types scripts/shots.ts",
-    "demo": "node --experimental-strip-types scripts/demo.ts"
+    "demo": "node --experimental-strip-types scripts/demo.ts",
+    "ui-review": "node --experimental-strip-types scripts/ui-review.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

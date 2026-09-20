@@ -212,7 +212,8 @@ public final class BrokerConfigRecommendations {
                 security.entrySet().stream()
                         .map(e -> new SecuritySettingDecl(e.getKey(), e.getValue()))
                         .toList(),
-                base.diverts());
+                base.diverts(),
+                base.bridges());
     }
 
     private static Recommendation addressSetting(

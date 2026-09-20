@@ -7,16 +7,17 @@ import { prettyKey, prettyValue } from './pretty.ts';
  * (frontend rule: presentation).
  */
 
-export type Section = 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts';
+export type Section = 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts' | 'bridges';
 
 /** The document section a plan step, a drift finding or a hazard names. */
-export type WireSection = 'ADDRESS' | 'QUEUE' | 'ADDRESS_SETTING' | 'SECURITY_SETTING' | 'DIVERT';
+export type WireSection = 'ADDRESS' | 'QUEUE' | 'ADDRESS_SETTING' | 'SECURITY_SETTING' | 'DIVERT' | 'BRIDGE';
 
 export const SECTION_LABEL: Record<Section, string> = {
   addresses: 'Addresses and queues',
   addressSettings: 'Address settings',
   securitySettings: 'Security settings',
   diverts: 'Diverts',
+  bridges: 'Bridges',
 };
 
 export const SECTION_TEACHING: Record<Section, string> = {
@@ -28,6 +29,8 @@ export const SECTION_TEACHING: Record<Section, string> = {
     'Which roles may send, consume, create and manage on the addresses a match covers.',
   diverts:
     'A divert copies — or, when exclusive, takes — the messages arriving at one address and routes them to another.',
+  bridges:
+    'A bridge forwards a queue to an address on another broker. The broker cannot change one in place, so a changed bridge is applied as a removal and a creation, with nothing forwarded in between.',
 };
 
 /** The wire spelling of each document section, for matching findings and hazards to rows. */
@@ -36,6 +39,7 @@ export const WIRE_SECTIONS: Record<Section, WireSection[]> = {
   addressSettings: ['ADDRESS_SETTING'],
   securitySettings: ['SECURITY_SETTING'],
   diverts: ['DIVERT'],
+  bridges: ['BRIDGE'],
 };
 
 export function wireSectionLabel(section: string | null | undefined): string {
@@ -50,6 +54,8 @@ export function wireSectionLabel(section: string | null | undefined): string {
       return 'security setting';
     case 'DIVERT':
       return 'divert';
+    case 'BRIDGE':
+      return 'bridge';
     default:
       return section ? section.toLowerCase().replace(/_/g, ' ') : '';
   }
@@ -89,6 +95,8 @@ export function findingKindWords(kind: string): string {
       return 'Not evaluated';
     case 'UNVERIFIABLE':
       return 'Cannot be verified';
+    case 'NOT_CONNECTED':
+      return 'Not forwarding — a fault, not drift';
     default:
       return kind.replace(/_/g, ' ').toLowerCase();
   }
@@ -128,10 +136,13 @@ export function itemDriftWords(
 
   const missing = new Map<string, string[]>();
   const differs = new Map<string, string[]>();
+  // Reported, never counted as drift: a matching bridge that is not forwarding is a
+  // fault on the broker, and nothing an apply could write would close it (ADR-0091).
+  const faulted = new Map<string, string[]>();
   for (const node of evaluated) {
     for (const f of node.findings) {
       if (!about(f, wire, key, queueKeys) || f.kind === 'UNDECLARED') continue;
-      const into = f.kind === 'MISSING' ? missing : differs;
+      const into = f.kind === 'MISSING' ? missing : f.kind === 'NOT_CONNECTED' ? faulted : differs;
       const label = labelFor(f, key);
       // A node can carry two findings under one label — the address and the queue
       // of the same name — and naming it twice reads as two nodes.
@@ -139,15 +150,18 @@ export function itemDriftWords(
       if (!named.includes(node.nodeName)) into.set(label, [...named, node.nodeName]);
     }
   }
-  if (missing.size === 0 && differs.size === 0) {
-    const suffix = evaluated.length < live.length ? ` (${live.length - evaluated.length} not evaluated)` : '';
-    return { text: `in sync on ${evaluated.length}/${live.length}${suffix}` };
-  }
   const parts: string[] = [];
   const emit = (from: Map<string, string[]>, word: string) =>
     [...from.keys()].sort().forEach((label) => parts.push(`${label}${word} on ${from.get(label)!.join(', ')}`));
+  if (missing.size === 0 && differs.size === 0) {
+    const suffix = evaluated.length < live.length ? ` (${live.length - evaluated.length} not evaluated)` : '';
+    emit(faulted, 'as declared but not forwarding');
+    const sync = `in sync on ${evaluated.length}/${live.length}${suffix}`;
+    return parts.length === 0 ? { text: sync } : { text: `${sync}; ${parts.join('; ')}`, tone: 'warning' };
+  }
   emit(missing, 'missing');
   emit(differs, 'differs');
+  emit(faulted, 'as declared but not forwarding');
   return { text: parts.join('; '), tone: 'warning' };
 }
 

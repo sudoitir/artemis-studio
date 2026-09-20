@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config/bridge-credentials/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setBridgeCredential"];
+        post?: never;
+        delete: operations["forgetBridgeCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/alerts/rules/{ruleId}": {
         parameters: {
             query?: never;
@@ -1412,6 +1428,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/config/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["connectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/config/catalogue": {
         parameters: {
             query?: never;
@@ -1420,6 +1452,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["catalogue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/config/bridge-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["bridgeCredentials"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1830,6 +1878,45 @@ export interface components {
             routingTypes: ("ANYCAST" | "MULTICAST")[];
             queues: components["schemas"]["ConfigQueueView"][];
         };
+        /** @description One bridge; a null field is not declared and keeps the broker's default. The credential is a reference into Studio's vault and never a value */
+        ConfigBridgeView: {
+            name: string;
+            queueName: string;
+            forwardingAddress: string;
+            filter?: string | null;
+            transformer?: components["schemas"]["ConfigTransformerView"];
+            staticConnectors: string[];
+            discoveryGroupName?: string | null;
+            ha?: boolean | null;
+            useDuplicateDetection?: boolean | null;
+            /** Format: int64 */
+            retryInterval?: number | null;
+            /** Format: double */
+            retryIntervalMultiplier?: number | null;
+            /** Format: int64 */
+            maxRetryInterval?: number | null;
+            /** Format: int32 */
+            initialConnectAttempts?: number | null;
+            /** Format: int32 */
+            reconnectAttempts?: number | null;
+            /** Format: int32 */
+            confirmationWindowSize?: number | null;
+            /** Format: int32 */
+            producerWindowSize?: number | null;
+            /** Format: int32 */
+            minLargeMessageSize?: number | null;
+            /** Format: int64 */
+            checkPeriod?: number | null;
+            /** Format: int64 */
+            connectionTtl?: number | null;
+            /** @enum {string|null} */
+            routingType?: "STRIP" | "PASS" | "ANYCAST" | "MULTICAST" | "OFFSET" | null;
+            /** Format: int32 */
+            concurrency?: number | null;
+            clientId?: string | null;
+            /** @description Names a credential held in Studio's vault; never a password */
+            credentialRef?: string | null;
+        };
         /** @description One divert */
         ConfigDivertView: {
             name: string;
@@ -1844,7 +1931,7 @@ export interface components {
                 [key: string]: string;
             };
         };
-        /** @description A cluster's declared configuration: the four sections the management API can apply */
+        /** @description A cluster's declared configuration: the sections the management API can apply */
         ConfigDocumentView: {
             /** Format: int32 */
             version: number;
@@ -1852,6 +1939,7 @@ export interface components {
             addressSettings: components["schemas"]["ConfigAddressSettingView"][];
             securitySettings: components["schemas"]["ConfigSecuritySettingView"][];
             diverts: components["schemas"]["ConfigDivertView"][];
+            bridges: components["schemas"]["ConfigBridgeView"][];
         };
         /** @description A queue as the create action accepts it; a null field is not declared */
         ConfigQueueView: {
@@ -1873,6 +1961,13 @@ export interface components {
             match: string;
             permissions: {
                 [key: string]: string[];
+            };
+        };
+        /** @description A transformer: the class the broker loads and its properties */
+        ConfigTransformerView: {
+            className: string;
+            properties: {
+                [key: string]: string;
             };
         };
         /** @description Save a new revision. expectedRevision is the revision that was edited; a stale one is refused */
@@ -1959,6 +2054,12 @@ export interface components {
              * @description The apply id or revision number the basis points at
              */
             basisRef?: number | null;
+        };
+        /** @description Store or replace a bridge credential. The password is sealed in Studio's vault and is never returned by any read, diff, audit row, tool response or export */
+        BridgeCredentialRequest: {
+            /** @description The user the bridge authenticates as */
+            username?: string | null;
+            password: string;
         };
         AlertRuleRequest: {
             name: string;
@@ -3764,6 +3865,15 @@ export interface components {
             seededFrom?: string | null;
             recommendations: components["schemas"]["ConfigRecommendationView"][];
         };
+        /** @description One node's connector names, for a bridge to reference. known=false means Studio could not read them, not that there are none */
+        ConfigNodeConnectorsView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            names: string[];
+            known: boolean;
+            reason?: string | null;
+        };
         /** @description One address-setting key: its two names, type, allowed values and hazard class */
         ConfigAddressSettingKeyView: {
             jsonName: string;
@@ -3780,6 +3890,11 @@ export interface components {
         ConfigCatalogueView: {
             addressSettingKeys: components["schemas"]["ConfigAddressSettingKeyView"][];
             permissionTypes: string[];
+        };
+        /** @description A credential a bridge can reference. The password is never returned */
+        ConfigBridgeCredentialView: {
+            ref: string;
+            username?: string | null;
         };
         /** @description One past apply */
         ConfigApplyHistoryView: {
@@ -4373,6 +4488,52 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
                 };
+            };
+        };
+    };
+    setBridgeCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BridgeCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forgetBridgeCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6766,6 +6927,28 @@ export interface operations {
             };
         };
     };
+    connectors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigNodeConnectorsView"][];
+                };
+            };
+        };
+    };
     catalogue: {
         parameters: {
             query?: never;
@@ -6784,6 +6967,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigCatalogueView"];
+                };
+            };
+        };
+    };
+    bridgeCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigBridgeCredentialView"][];
                 };
             };
         };

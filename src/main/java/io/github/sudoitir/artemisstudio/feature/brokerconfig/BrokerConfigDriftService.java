@@ -330,11 +330,21 @@ public class BrokerConfigDriftService {
                 deduped.add(f);
             }
         }
-        State state = deduped.isEmpty() ? State.IN_SYNC : State.DRIFTED;
+        // A bridge that matches the declaration and is not connected is a fault, not
+        // drift (ADR-0091): its configuration is exactly what was declared, so nothing
+        // an apply could write would fix it. It is reported, and it is not counted.
+        long faults = deduped.stream()
+                .filter(f -> f.kind() == FindingKind.NOT_CONNECTED)
+                .count();
+        State state = deduped.size() == faults ? State.IN_SYNC : State.DRIFTED;
         Basis basis = state == State.IN_SYNC ? basisIfInSync : null;
+        String faultNote = faults == 0
+                ? ""
+                : " " + faults + (faults == 1 ? " declared bridge is" : " declared bridges are")
+                        + " not forwarding; that is a fault on the broker, not a difference from the declaration.";
         String detail = state == State.IN_SYNC
-                ? "Matches revision " + revision + ". " + why(basis, revision)
-                : deduped.size() + " findings.";
+                ? "Matches revision " + revision + ". " + why(basis, revision) + faultNote
+                : (deduped.size() - faults) + " findings." + faultNote;
         Long basisRef = basis == Basis.ADOPTED ? (long) revision : null;
         return new NodeReport(node.nodeId(), node.nodeName(), true, state, detail, deduped, basis, basisRef);
     }

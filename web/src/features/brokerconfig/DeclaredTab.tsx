@@ -7,9 +7,10 @@ import { AddressEditor } from './AddressEditor.tsx';
 import { AddressSettingEditor } from './AddressSettingEditor.tsx';
 import { DivertEditor } from './DivertEditor.tsx';
 import { SecuritySettingEditor } from './SecuritySettingEditor.tsx';
+import { BridgeEditor } from './routing/BridgeEditor.tsx';
 import classes from './Configuration.module.css';
 import { KeyValueList } from './KeyValueList.tsx';
-import { addressRows, addressSettingRows, securitySettingRows } from './pretty.ts';
+import { addressRows, addressSettingRows, bridgeRows, securitySettingRows } from './pretty.ts';
 import type { ApplyScope } from './ReviewApplyDrawer.tsx';
 import {
   SECTION_LABEL,
@@ -78,7 +79,7 @@ function LiveState({
 }
 
 /**
- * The four sections of the declaration, each a table of what is declared beside
+ * The five sections of the declaration, each a table of what is declared beside
  * what the nodes run, with the actions that change either: edit the declaration,
  * or apply this one item to every node (ADR-0087).
  *
@@ -350,6 +351,48 @@ export function DeclaredTab({
           ) : null}
           <div>{addButton('diverts', 'Add divert')}</div>
         </Stack>
+
+        <Stack gap="xs">
+          {heading('bridges', doc.bridges.length)}
+          {doc.bridges.length > 0 ? (
+            <Table.ScrollContainer minWidth={760} type="native">
+            <Table fz="xs" verticalSpacing={4} layout="fixed">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w="16%">Name</Table.Th>
+                  <Table.Th w="28%">Routes</Table.Th>
+                  <Table.Th w="20%">Declared</Table.Th>
+                  <Table.Th w="24%">On the live nodes</Table.Th>
+                  <Table.Th w={150} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {doc.bridges.map((b) => (
+                  <Table.Tr key={b.name}>
+                    <Table.Td>{b.name}</Table.Td>
+                    <Table.Td aria-label={`from queue ${b.queueName} to address ${b.forwardingAddress}`}>
+                      {b.queueName} → {b.forwardingAddress}
+                    </Table.Td>
+                    <Table.Td>
+                      <KeyValueList rows={bridgeRows(b)} />
+                    </Table.Td>
+                    <Table.Td>
+                      <LiveState declaration={declaration} section="bridges" itemKey={b.name} catalogue={catalogue} />
+                    </Table.Td>
+                    <Table.Td className={classes.actionCell}>
+                      {actions('bridges', b.name, `bridge ${b.name}`, {
+                        label: `bridge ${b.name}`,
+                        stepIds: stepIdsFor([{ section: 'BRIDGE', key: b.name }]),
+                      })}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+            </Table.ScrollContainer>
+          ) : null}
+          <div>{addButton('bridges', 'Add bridge')}</div>
+        </Stack>
       </Stack>
 
       {catalogue ? (
@@ -374,6 +417,12 @@ export function DeclaredTab({
         declaration={declaration}
         item={openItemIn('diverts', doc.diverts, (i) => i.name)}
         opened={openSection === 'diverts'}
+        onClose={close}
+      />
+      <BridgeEditor
+        declaration={declaration}
+        item={openItemIn('bridges', doc.bridges, (i) => i.name)}
+        opened={openSection === 'bridges'}
         onClose={close}
       />
       <AddressEditor

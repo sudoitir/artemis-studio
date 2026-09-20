@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService.Source;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigDeclarationEntity.ApplyMode;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.ApplyRequest;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.BridgeCredentialRequest;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.ConfigureRequest;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.DeclareRecommendedRequest;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigRequests.SaveDeclarationRequest;
@@ -15,11 +16,13 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigVie
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.ApplyDetailView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.ApplyHistoryView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.ApplyOutcomeView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.BridgeCredentialView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.CatalogueView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.DeclarationView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.DriftReportView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.ImportResultView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.NodeApplyView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.NodeConnectorsView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.PlanView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.RecommendationsView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.RevisionView;
@@ -32,6 +35,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -191,6 +195,43 @@ public class BrokerConfigController {
                 override,
                 body.stepIds());
         return ApplyOutcomeView.of(dryRun ? apply.plan(clusterId, command) : apply.apply(clusterId, command));
+    }
+
+    // ---- bridges: connector names and credentials -------------------------
+
+    /**
+     * The connector names each serving node declares, so a bridge can reference one
+     * that exists. One extra batched read per node, on this screen only — a name the
+     * broker does not know is accepted and silently ignored, which is exactly the
+     * failure this read prevents.
+     */
+    @GetMapping("/connectors")
+    public List<NodeConnectorsView> connectors(@PathVariable UUID clusterId) {
+        return config.connectors(clusterId).stream().map(NodeConnectorsView::of).toList();
+    }
+
+    /** The credentials a bridge can reference, with their usernames and never a password (ADR-0092). */
+    @GetMapping("/bridge-credentials")
+    public List<BridgeCredentialView> bridgeCredentials(@PathVariable UUID clusterId) {
+        return config.bridgeCredentials(clusterId).stream()
+                .map(BridgeCredentialView::of)
+                .toList();
+    }
+
+    /** Store or replace one. The declaration carries only {@code ref}; the secret goes into the vault. */
+    @PutMapping("/bridge-credentials/{ref}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setBridgeCredential(
+            @PathVariable UUID clusterId,
+            @PathVariable String ref,
+            @Valid @RequestBody BridgeCredentialRequest request) {
+        config.setBridgeCredential(clusterId, ref, request.username(), request.password());
+    }
+
+    @DeleteMapping("/bridge-credentials/{ref}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgetBridgeCredential(@PathVariable UUID clusterId, @PathVariable String ref) {
+        config.forgetBridgeCredential(clusterId, ref);
     }
 
     @GetMapping("/applies")

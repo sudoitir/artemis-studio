@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -21,6 +24,28 @@ public class BrokerListOps {
         JsonNode data = env == null ? null : env.get("data");
         long count = env == null ? 0L : env.path("count").asLong(data != null && data.isArray() ? data.size() : 0);
         return new ListPage(data, count);
+    }
+
+    /**
+     * One batched POST reading every named MBean in full. A single MBean that has
+     * disappeared between a search and this read contributes nothing rather than
+     * failing the page — routing changes under us, and a half-listed view is more
+     * useful than an error.
+     */
+    public static <T> List<T> readAll(
+            JolokiaBrokerClient client, List<String> objectNames, Function<JsonNode, T> parse) {
+        if (objectNames.isEmpty()) {
+            return List.of();
+        }
+        List<JolokiaResponse> responses =
+                client.batch(objectNames.stream().map(JolokiaRequest::readAll).toList());
+        List<T> rows = new ArrayList<>();
+        for (JolokiaResponse response : responses) {
+            if (response.ok() && response.value() != null && response.value().isObject()) {
+                rows.add(parse.apply(response.value()));
+            }
+        }
+        return List.copyOf(rows);
     }
 
     public static long num(JsonNode row, String field) {

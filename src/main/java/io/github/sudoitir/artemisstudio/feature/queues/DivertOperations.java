@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
@@ -21,7 +22,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Divert and bridge management over Jolokia, on the pattern of
+ * Divert management over Jolokia, on the pattern of
  * {@code QueueLifecycleOperations}: one {@code exec} per mutation, refusals the
  * broker explained surfacing as {@link ManagementRefusal}, everything else as a
  * connection failure.
@@ -60,44 +61,8 @@ public class DivertOperations {
     /** Every divert deployed on this node. An empty list is a real answer, not a failure. */
     public List<DivertRow> listDiverts(JolokiaBrokerClient client, UUID nodeId, String nodeName) {
         String broker = client.resolveBrokerObjectName();
-        List<String> objectNames = client.search(BrokerMBeans.divertsPattern(broker));
-        return readAll(client, objectNames, (attrs) -> DivertRow.parse(attrs, nodeId, nodeName));
-    }
-
-    /** Every bridge deployed on this node, with its started and connected state. */
-    public List<BridgeRow> listBridges(JolokiaBrokerClient client, UUID nodeId, String nodeName) {
-        String broker = client.resolveBrokerObjectName();
-        List<String> objectNames = client.search(BrokerMBeans.bridgesPattern(broker));
-        return readAll(client, objectNames, (attrs) -> BridgeRow.parse(attrs, nodeId, nodeName));
-    }
-
-    /**
-     * One batched POST reading every named MBean in full. A single MBean that has
-     * disappeared between the search and the read contributes nothing rather than
-     * failing the page — routing changes under us, and a half-listed view is more
-     * useful than an error.
-     */
-    private <T> List<T> readAll(
-            JolokiaBrokerClient client,
-            List<String> objectNames,
-            java.util.function.Function<tools.jackson.databind.JsonNode, T> parse) {
-        if (objectNames.isEmpty()) {
-            return List.of();
-        }
-        List<JolokiaRequest> requests =
-                objectNames.stream().map(JolokiaRequest::readAll).toList();
-        List<JolokiaResponse> responses = client.batch(requests);
-        List<T> rows = new ArrayList<>();
-        for (JolokiaResponse response : responses) {
-            if (!response.ok()) {
-                continue;
-            }
-            tools.jackson.databind.JsonNode value = response.value();
-            if (value != null && value.isObject()) {
-                rows.add(parse.apply(value));
-            }
-        }
-        return List.copyOf(rows);
+        return BrokerListOps.readAll(
+                client, client.search(BrokerMBeans.divertsPattern(broker)), a -> DivertRow.parse(a, nodeId, nodeName));
     }
 
     /** One divert by name on this node, or empty when it is not deployed there. */

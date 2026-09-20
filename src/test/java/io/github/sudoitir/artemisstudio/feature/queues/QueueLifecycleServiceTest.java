@@ -313,7 +313,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     }
 
     private static DivertRow divert(String name, String from, String to) {
-        return new DivertRow(null, null, name, name, from, to, null, "STRIP", null, false, false);
+        return new DivertRow(null, null, name, name, from, to, null, "STRIP", null, Map.of(), false, false);
     }
 
     private NodeOutcome live(LifecycleOutcome outcome) {

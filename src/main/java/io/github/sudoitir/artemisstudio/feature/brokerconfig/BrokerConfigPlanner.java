@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressSettingDecl;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.BridgeDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.DivertDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.QueueDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.SecuritySettingDecl;
@@ -44,9 +45,10 @@ import java.util.stream.Collectors;
  * the steps; it does not re-derive them.
  *
  * <p>Order within a node is dependency order — addresses, queues, address settings,
- * security settings, diverts — and removals come last in reverse, so a divert never
- * points at an address that does not yet exist and a setting is never removed from
- * under a resource that still needs it.
+ * security settings, diverts, bridges — and removals come last in reverse, so a divert
+ * never points at an address that does not yet exist, a bridge never reads from a queue
+ * that does not yet exist, and a setting is never removed from under a resource that
+ * still needs it.
  */
 public final class BrokerConfigPlanner {
 
@@ -102,6 +104,7 @@ public final class BrokerConfigPlanner {
             ctx.addressSettings();
             ctx.securitySettings();
             ctx.diverts();
+            ctx.bridges();
             ctx.removals();
             ctx.undeclared();
             nodes.add(new NodePlan(node.nodeId(), node.nodeName(), true, null, steps));
@@ -766,7 +769,140 @@ public final class BrokerConfigPlanner {
             }
         }
 
+        /**
+         * Bridges last in (ADR-0091): a bridge reads from a queue and forwards to an
+         * address, both of which earlier steps may create. There is no
+         * {@code updateBridge}, so a change is a removal and a creation with a gap in
+         * which nothing is forwarded — named as a High hazard rather than made safe.
+         */
+        void bridges() {
+            for (BridgeDecl b : doc.bridges()) {
+                ObservedNodeConfig.ObservedBridge observed = node.bridges().get(b.name());
+                Map<String, Object> after = bridgeMap(b);
+                if (observed == null) {
+                    steps.add(new Step(
+                            id(Section.BRIDGE, b.name(), Op.ADD),
+                            Op.ADD,
+                            Section.BRIDGE,
+                            b.name(),
+                            Map.of(),
+                            after,
+                            false,
+                            "Create bridge " + b.name() + " from " + b.queueName() + " to " + b.forwardingAddress()
+                                    + " on " + target(b)));
+                    hazard(
+                            HazardKind.BRIDGE_CREATE,
+                            HazardClass.MEDIUM,
+                            Section.BRIDGE,
+                            b.name(),
+                            null,
+                            "Bridge " + b.name() + " starts forwarding " + b.queueName()
+                                    + "'s messages off this cluster, to " + b.forwardingAddress() + " on " + target(b)
+                                    + ".");
+                    transformerHazard(Section.BRIDGE, b.name(), b.transformer());
+                } else if (b.sameAs(observed.config()) && observed.instances() == b.effectiveConcurrency()) {
+                    steps.add(new Step(
+                            id(Section.BRIDGE, b.name(), Op.ADD),
+                            Op.ADD,
+                            Section.BRIDGE,
+                            b.name(),
+                            bridgeMap(observed.config()),
+                            after,
+                            true,
+                            "Bridge " + b.name() + " exists as declared"));
+                    // Running state, not configuration: a bridge that matches and is not
+                    // connected is a fault to report, never drift to reconcile.
+                    if (!observed.connected()) {
+                        findings.add(new Finding(
+                                FindingKind.NOT_CONNECTED,
+                                node.nodeId(),
+                                node.nodeName(),
+                                Section.BRIDGE,
+                                b.name(),
+                                "Matches the declaration but is "
+                                        + (observed.started() ? "not connected to" : "not started, so nothing reaches")
+                                        + " " + b.forwardingAddress()
+                                        + ". Nothing is being forwarded and messages are accumulating on "
+                                        + b.queueName() + "."));
+                    }
+                } else {
+                    steps.add(new Step(
+                            id(Section.BRIDGE, b.name(), Op.REMOVE),
+                            Op.REMOVE,
+                            Section.BRIDGE,
+                            b.name(),
+                            bridgeMap(observed.config()),
+                            Map.of(),
+                            false,
+                            "Remove bridge " + b.name() + " (it differs from the declaration in "
+                                    + String.join(", ", bridgeDifferences(b, observed)) + ")"));
+                    steps.add(new Step(
+                            id(Section.BRIDGE, b.name(), Op.ADD),
+                            Op.ADD,
+                            Section.BRIDGE,
+                            b.name(),
+                            Map.of(),
+                            after,
+                            false,
+                            "Recreate bridge " + b.name() + " as declared"));
+                    hazard(
+                            HazardKind.BRIDGE_REPLACE,
+                            HazardClass.HIGH,
+                            Section.BRIDGE,
+                            b.name(),
+                            null,
+                            "Bridge " + b.name() + " differs in " + String.join(", ", bridgeDifferences(b, observed))
+                                    + ". The broker cannot change a bridge in place, so this is a removal and a"
+                                    + " creation: between the two nothing is forwarded to " + b.forwardingAddress()
+                                    + " and " + b.queueName() + " accumulates.");
+                    transformerHazard(Section.BRIDGE, b.name(), b.transformer());
+                }
+            }
+        }
+
+        /**
+         * The fields that differ, including the concurrency — which {@code BridgeControl}
+         * does not report, but which the <em>names</em> of the deployed MBeans do: a
+         * concurrency of N deploys N of them. That is evidence, not an inference.
+         */
+        private static List<String> bridgeDifferences(BridgeDecl b, ObservedNodeConfig.ObservedBridge observed) {
+            List<String> differing = new ArrayList<>(b.differencesFrom(observed.config()));
+            if (observed.instances() != b.effectiveConcurrency()) {
+                differing.add("concurrency (" + observed.instances() + " deployed, " + b.effectiveConcurrency()
+                        + " declared)");
+            }
+            return differing;
+        }
+
+        private static String target(BridgeDecl b) {
+            return b.discoveryGroupName() != null
+                    ? "discovery group " + b.discoveryGroupName()
+                    : String.join(", ", b.staticConnectors());
+        }
+
+        /**
+         * ADR-0090 D6: no management operation reports what a broker has loaded, so the
+         * class cannot be verified before the apply runs. The field is never gated on
+         * this — the hazard says so, and the read-back names the class if a node
+         * declines to deploy.
+         */
+        private void transformerHazard(Section section, String key, BrokerConfigDocument.TransformerDecl t) {
+            if (t == null) {
+                return;
+            }
+            hazard(
+                    HazardKind.UNVERIFIABLE_TRANSFORMER,
+                    HazardClass.MEDIUM,
+                    section,
+                    key,
+                    t.className(),
+                    "Studio cannot check that " + t.className() + " is on " + node.nodeName()
+                            + "'s classpath until the apply runs. If the class cannot be loaded the node answers"
+                            + " success and deploys nothing; the read-back reports that and names the class.");
+        }
+
         private void divertHazards(DivertDecl d) {
+            transformerHazard(Section.DIVERT, d.name(), d.transformer());
             if (!d.exclusive()) {
                 return;
             }
@@ -791,8 +927,51 @@ public final class BrokerConfigPlanner {
             Set<String> declaredDiverts = new HashSet<>();
             doc.diverts().forEach(d -> declaredDiverts.add(d.name()));
             Set<String> ownedDiverts = new HashSet<>();
+            Set<String> declaredBridges = new HashSet<>();
+            doc.bridges().forEach(b -> declaredBridges.add(b.name()));
+            Set<String> ownedBridges = new HashSet<>();
 
-            // Reverse dependency order: diverts, then security settings, then address settings.
+            // Reverse dependency order: bridges, then diverts, then security settings,
+            // then address settings. A bridge reads from a queue and forwards to an
+            // address, so it is last in and first out.
+            for (OwnedItem item : owned.stream()
+                    .filter(o -> o.section() == Section.BRIDGE)
+                    .sorted(Comparator.comparing(OwnedItem::key))
+                    .toList()) {
+                ownedBridges.add(item.key());
+                ObservedNodeConfig.ObservedBridge observed = node.bridges().get(item.key());
+                if (declaredBridges.contains(item.key()) || observed == null) {
+                    continue;
+                }
+                steps.add(new Step(
+                        id(Section.BRIDGE, item.key(), Op.REMOVE),
+                        Op.REMOVE,
+                        Section.BRIDGE,
+                        item.key(),
+                        bridgeMap(observed.config()),
+                        Map.of(),
+                        false,
+                        "Remove bridge " + item.key() + " (Studio applied it; it is no longer declared)"));
+                bridgeRemovalHazard(item.key(), observed);
+            }
+            if (options.removeUndeclared()) {
+                for (Map.Entry<String, ObservedNodeConfig.ObservedBridge> e :
+                        new TreeMap<>(node.bridges()).entrySet()) {
+                    if (declaredBridges.contains(e.getKey()) || ownedBridges.contains(e.getKey())) {
+                        continue;
+                    }
+                    steps.add(new Step(
+                            id(Section.BRIDGE, e.getKey(), Op.REMOVE),
+                            Op.REMOVE,
+                            Section.BRIDGE,
+                            e.getKey(),
+                            bridgeMap(e.getValue().config()),
+                            Map.of(),
+                            false,
+                            "Remove bridge " + e.getKey() + " (not declared; Studio did not create it)"));
+                    bridgeRemovalHazard(e.getKey(), e.getValue());
+                }
+            }
             for (OwnedItem item : owned.stream()
                     .filter(o -> o.section() == Section.DIVERT)
                     .sorted(Comparator.comparing(OwnedItem::key))
@@ -900,6 +1079,20 @@ public final class BrokerConfigPlanner {
             }
         }
 
+        /** Removing a bridge is its own hazard: traffic to another broker stops and nothing here says so. */
+        private void bridgeRemovalHazard(String name, ObservedNodeConfig.ObservedBridge observed) {
+            hazard(
+                    HazardKind.BRIDGE_REMOVE,
+                    HazardClass.HIGH,
+                    Section.BRIDGE,
+                    name,
+                    null,
+                    "Bridge " + name + " is removed: " + observed.config().queueName()
+                            + " stops being forwarded to " + observed.config().forwardingAddress()
+                            + " on the other broker, which will simply stop receiving. Nothing on this cluster"
+                            + " reports that it has, and " + observed.config().queueName() + " accumulates.");
+        }
+
         void undeclared() {
             if (!options.reportUndeclared()) {
                 return;
@@ -953,6 +1146,29 @@ public final class BrokerConfigPlanner {
                             node.nodeName(),
                             Section.DIVERT,
                             divert,
+                            "Exists and is not declared."));
+                }
+            }
+            Set<String> declaredBridges = new HashSet<>();
+            doc.bridges().forEach(b -> declaredBridges.add(b.name()));
+            Set<String> removingBridges = new HashSet<>();
+            steps.stream()
+                    .filter(s -> s.section() == Section.BRIDGE && s.op() == Op.REMOVE)
+                    .forEach(s -> removingBridges.add(s.key()));
+            for (String bridge : new TreeMap<>(node.bridges()).keySet()) {
+                // A concurrent bridge's workers are instances of one declared name, not
+                // undeclared bridges of their own.
+                String declared = bridge.replaceFirst("-\\d+$", "");
+                if (!declaredBridges.contains(bridge)
+                        && !declaredBridges.contains(declared)
+                        && !excluded(bridge)
+                        && !removingBridges.contains(bridge)) {
+                    findings.add(new Finding(
+                            FindingKind.UNDECLARED,
+                            node.nodeId(),
+                            node.nodeName(),
+                            Section.BRIDGE,
+                            bridge,
                             "Exists and is not declared."));
                 }
             }
@@ -1053,13 +1269,68 @@ public final class BrokerConfigPlanner {
         if (d.routingType() != null) {
             m.put("routing-type", d.routingType());
         }
-        if (d.transformerClassName() != null) {
-            m.put("transformer-class-name", d.transformerClassName());
-            if (!d.transformerProperties().isEmpty()) {
-                m.put("transformer-properties", d.transformerProperties());
-            }
-        }
+        transformer(m, d.transformer());
         return m;
+    }
+
+    /**
+     * A {@code BridgeConfiguration} document with the hyphenated keys
+     * {@code createBridge(String)} expects (ADR-0091). Anything unset is omitted so the
+     * broker's own default stands; an unknown key would be accepted and silently
+     * ignored, so the names here are the measured ones.
+     *
+     * <p>The credential is deliberately absent: it is resolved from the vault at the
+     * moment of the broker call, so it reaches neither the plan, the plan hash, the
+     * stored apply nor the audit parameters (ADR-0092).
+     */
+    public static Map<String, Object> bridgeMap(BridgeDecl b) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", b.name());
+        m.put("queue-name", b.queueName());
+        m.put("forwarding-address", b.forwardingAddress());
+        putIf(m, "filter-string", b.filter());
+        if (!b.staticConnectors().isEmpty()) {
+            m.put("static-connectors", b.staticConnectors());
+        }
+        putIf(m, "discovery-group-name", b.discoveryGroupName());
+        putIf(m, "ha", b.ha());
+        putIf(m, "use-duplicate-detection", b.useDuplicateDetection());
+        putIf(m, "retry-interval", b.retryInterval());
+        putIf(m, "retry-interval-multiplier", b.retryIntervalMultiplier());
+        putIf(m, "max-retry-interval", b.maxRetryInterval());
+        putIf(m, "initial-connect-attempts", b.initialConnectAttempts());
+        putIf(m, "reconnect-attempts", b.reconnectAttempts());
+        putIf(m, "confirmation-window-size", b.confirmationWindowSize());
+        putIf(m, "producer-window-size", b.producerWindowSize());
+        putIf(m, "min-large-message-size", b.minLargeMessageSize());
+        putIf(m, "check-period", b.checkPeriod());
+        putIf(m, "connection-ttl", b.connectionTtl());
+        putIf(m, "routing-type", b.routingType());
+        putIf(m, "concurrency", b.concurrency());
+        putIf(m, "client-id", b.clientId());
+        transformer(m, b.transformer());
+        return m;
+    }
+
+    /**
+     * The transformer is a <em>nested</em> object on both diverts and bridges. Three
+     * flatter shapes were measured and every one deployed with the transformer silently
+     * dropped, returning 200 (ADR-0091).
+     */
+    private static void transformer(Map<String, Object> m, BrokerConfigDocument.TransformerDecl t) {
+        if (t == null) {
+            return;
+        }
+        Map<String, Object> nested = new LinkedHashMap<>();
+        nested.put("class-name", t.className());
+        nested.put("properties", t.properties());
+        m.put("transformer-configuration", nested);
+    }
+
+    private static void putIf(Map<String, Object> m, String key, Object value) {
+        if (value != null) {
+            m.put(key, value);
+        }
     }
 
     /** A {@code QueueConfiguration} document, on the shape {@code QueueLifecycleService} sends. */

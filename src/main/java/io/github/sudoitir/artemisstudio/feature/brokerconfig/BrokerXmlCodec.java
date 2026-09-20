@@ -2,9 +2,11 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressSettingDecl;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.BridgeDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.DivertDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.QueueDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.SecuritySettingDecl;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.TransformerDecl;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -30,7 +32,7 @@ import javax.xml.stream.XMLStreamWriter;
  * {@code broker.xml} in and out (ADR-0067 D1). XML is an interchange format for the
  * declaration, never its editor: {@link #parse} turns a pasted file or fragment into a
  * document and lists — by path — every element it did not take, and {@link #write}
- * renders a document as the four sections an operator pastes inside {@code <core>}.
+ * renders a document as the sections an operator pastes inside {@code <core>}.
  *
  * <p>JDK StAX only; no dependency. Namespaces are ignored (local names decide), so a
  * full {@code <configuration xmlns="…"><core>} file, a bare {@code <core>}, and a
@@ -48,7 +50,8 @@ public final class BrokerXmlCodec {
     static final int MAX_IMPORT_CHARS = 256 * 1024;
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{[^}]*}");
-    private static final Set<String> SECTIONS = Set.of("addresses", "address-settings", "security-settings", "diverts");
+    private static final Set<String> SECTIONS =
+            Set.of("addresses", "address-settings", "security-settings", "diverts", "bridges");
     private static final Set<String> QUEUE_CHILDREN = Set.of(
             "filter", "durable", "max-consumers", "purge-on-no-consumers", "exclusive", "non-destructive", "ring-size");
 
@@ -120,13 +123,19 @@ public final class BrokerXmlCodec {
         final List<AddressSettingDecl> addressSettings = new ArrayList<>();
         final List<SecuritySettingDecl> securitySettings = new ArrayList<>();
         final List<DivertDecl> diverts = new ArrayList<>();
+        final List<BridgeDecl> bridges = new ArrayList<>();
         final List<Unsupported> unsupported = new ArrayList<>();
         final List<Violation> errors = new ArrayList<>();
         private XMLStreamReader r;
 
         BrokerConfigDocument document() {
             return new BrokerConfigDocument(
-                    BrokerConfigDocument.CURRENT_VERSION, addresses, addressSettings, securitySettings, diverts);
+                    BrokerConfigDocument.CURRENT_VERSION,
+                    addresses,
+                    addressSettings,
+                    securitySettings,
+                    diverts,
+                    bridges);
         }
 
         void run(String xml) throws XMLStreamException {
@@ -157,11 +166,13 @@ public final class BrokerXmlCodec {
                     case "address-settings" -> addressSettings(here);
                     case "security-settings" -> securitySettings(here);
                     case "diverts" -> diverts(here);
+                    case "bridges" -> bridges(here);
                     // Bare items, as a pasted fragment or a capability snippet writes them.
                     case "address" -> address(here);
                     case "address-setting" -> addressSetting(here);
                     case "security-setting" -> securitySetting(here);
                     case "divert" -> divert(here);
+                    case "bridge" -> bridge(here);
                     default -> {
                         unsupported.add(new Unsupported(
                                 here,
@@ -424,20 +435,9 @@ public final class BrokerXmlCodec {
                         skip();
                     }
                     case "transformer" -> {
-                        while (nextStartOrEnd()) {
-                            switch (local()) {
-                                case "class-name" -> transformerClass = text().trim();
-                                case "property" -> {
-                                    transformerProps.put(attr("key"), attr("value"));
-                                    skip();
-                                }
-                                default -> {
-                                    unsupported.add(new Unsupported(
-                                            cp + "/" + local(), "Only <class-name> and <property> are expected here."));
-                                    skip();
-                                }
-                            }
-                        }
+                        TransformerDecl t = transformer(cp);
+                        transformerClass = t == null ? null : t.className();
+                        transformerProps.putAll(t == null ? Map.of() : t.properties());
                     }
                     default -> {
                         unsupported.add(new Unsupported(cp, "Not a divert element Studio knows; not carried."));
@@ -447,6 +447,206 @@ public final class BrokerXmlCodec {
             }
             diverts.add(new DivertDecl(
                     name, address, forwarding, filter, exclusive, routingType, transformerClass, transformerProps));
+        }
+
+        /** One {@code <transformer>}, with the reader on its start element; shared by diverts and bridges. */
+        private TransformerDecl transformer(String cp) throws XMLStreamException {
+            String className = null;
+            Map<String, String> properties = new LinkedHashMap<>();
+            while (nextStartOrEnd()) {
+                switch (local()) {
+                    case "class-name" -> className = text().trim();
+                    case "property" -> {
+                        properties.put(attr("key"), attr("value"));
+                        skip();
+                    }
+                    default -> {
+                        unsupported.add(new Unsupported(
+                                cp + "/" + local(), "Only <class-name> and <property> are expected here."));
+                        skip();
+                    }
+                }
+            }
+            return TransformerDecl.of(className, properties);
+        }
+
+        // ---- <bridges> -------------------------------------------------------
+
+        private void bridges(String path) throws XMLStreamException {
+            while (nextStartOrEnd()) {
+                String here = path + "/" + local();
+                if (!local().equals("bridge")) {
+                    unsupported.add(new Unsupported(here, "Only <bridge> is expected here."));
+                    skip();
+                    continue;
+                }
+                bridge(here);
+            }
+        }
+
+        /** One {@code <bridge>}, with the reader on its start element; consumed through its end. */
+        private void bridge(String here) throws XMLStreamException {
+            String name = attr("name");
+            String bp = here + "[name=" + name + "]";
+            BridgeFields f = new BridgeFields();
+            while (nextStartOrEnd()) {
+                String child = local();
+                String cp = bp + "/" + child;
+                switch (child) {
+                    case "queue-name" -> f.queueName = placeholderChecked(text(), cp);
+                    case "forwarding-address" -> f.forwardingAddress = placeholderChecked(text(), cp);
+                    case "filter" -> {
+                        f.filter = placeholderChecked(attr("string"), cp + "@string");
+                        skip();
+                    }
+                    case "transformer" -> f.transformer = transformer(cp);
+                    case "static-connectors" -> {
+                        while (nextStartOrEnd()) {
+                            if (local().equals("connector-ref")) {
+                                f.staticConnectors.add(placeholderChecked(text(), cp + "/connector-ref"));
+                            } else {
+                                unsupported.add(
+                                        new Unsupported(cp + "/" + local(), "Only <connector-ref> is expected here."));
+                                skip();
+                            }
+                        }
+                    }
+                    case "discovery-group-ref" -> {
+                        f.discoveryGroupName = placeholderChecked(attr("discovery-group-name"), cp + "@name");
+                        skip();
+                    }
+                    case "discovery-group-name" -> f.discoveryGroupName = placeholderChecked(text(), cp);
+                    case "ha" -> f.ha = bool(cp);
+                    case "use-duplicate-detection" -> f.useDuplicateDetection = bool(cp);
+                    case "retry-interval" -> f.retryInterval = whole(cp);
+                    case "retry-interval-multiplier" -> f.retryIntervalMultiplier = decimal(cp);
+                    case "max-retry-interval" -> f.maxRetryInterval = whole(cp);
+                    case "initial-connect-attempts" -> f.initialConnectAttempts = count(cp);
+                    case "reconnect-attempts" -> f.reconnectAttempts = count(cp);
+                    case "confirmation-window-size" -> f.confirmationWindowSize = count(cp);
+                    case "producer-window-size" -> f.producerWindowSize = count(cp);
+                    case "min-large-message-size" -> f.minLargeMessageSize = count(cp);
+                    case "check-period" -> f.checkPeriod = whole(cp);
+                    case "connection-ttl" -> f.connectionTtl = whole(cp);
+                    case "routing-type" -> f.routingType = text().trim();
+                    case "concurrency" -> f.concurrency = count(cp);
+                    case "client-id" -> f.clientId = placeholderChecked(text(), cp);
+                    case "user", "password" -> {
+                        // ADR-0092: the credential lives in Studio's vault, not in the
+                        // declaration. Named rather than dropped, so an import says where
+                        // the value it saw went.
+                        unsupported.add(new Unsupported(
+                                cp,
+                                "Not carried: a bridge's credential is held in Studio's vault and referenced by name,"
+                                        + " never stored in the declaration. Set it on the bridge after importing."));
+                        skip();
+                    }
+                    default -> {
+                        unsupported.add(new Unsupported(cp, "Not a bridge element Studio knows; not carried."));
+                        skip();
+                    }
+                }
+            }
+            placeholder(name, bp + "@name");
+            bridges.add(new BridgeDecl(
+                    name,
+                    f.queueName,
+                    f.forwardingAddress,
+                    f.filter,
+                    f.transformer,
+                    f.staticConnectors,
+                    f.discoveryGroupName,
+                    f.ha,
+                    f.useDuplicateDetection,
+                    f.retryInterval,
+                    f.retryIntervalMultiplier,
+                    f.maxRetryInterval,
+                    f.initialConnectAttempts,
+                    f.reconnectAttempts,
+                    f.confirmationWindowSize,
+                    f.producerWindowSize,
+                    f.minLargeMessageSize,
+                    f.checkPeriod,
+                    f.connectionTtl,
+                    f.routingType,
+                    f.concurrency,
+                    f.clientId,
+                    null));
+        }
+
+        /** A bridge is twenty-three fields; collecting them as locals would not fit one method. */
+        private static final class BridgeFields {
+            String queueName;
+            String forwardingAddress;
+            String filter;
+            TransformerDecl transformer;
+            final List<String> staticConnectors = new ArrayList<>();
+            String discoveryGroupName;
+            Boolean ha;
+            Boolean useDuplicateDetection;
+            Long retryInterval;
+            Double retryIntervalMultiplier;
+            Long maxRetryInterval;
+            Integer initialConnectAttempts;
+            Integer reconnectAttempts;
+            Integer confirmationWindowSize;
+            Integer producerWindowSize;
+            Integer minLargeMessageSize;
+            Long checkPeriod;
+            Long connectionTtl;
+            String routingType;
+            Integer concurrency;
+            String clientId;
+        }
+
+        private Boolean bool(String cp) throws XMLStreamException {
+            String text = text().trim();
+            if (placeholder(text, cp)) {
+                return null;
+            }
+            if (!text.equalsIgnoreCase("true") && !text.equalsIgnoreCase("false")) {
+                errors.add(new Violation(cp, "'" + text + "' is not true or false."));
+                return null;
+            }
+            return Boolean.parseBoolean(text);
+        }
+
+        private Long whole(String cp) throws XMLStreamException {
+            String text = text().trim();
+            if (placeholder(text, cp)) {
+                return null;
+            }
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException e) {
+                errors.add(new Violation(cp, "'" + text + "' is not a number."));
+                return null;
+            }
+        }
+
+        private Integer count(String cp) throws XMLStreamException {
+            Long value = whole(cp);
+            if (value == null) {
+                return null;
+            }
+            if (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE) {
+                errors.add(new Violation(cp, value + " is outside the broker's 32-bit range."));
+                return null;
+            }
+            return value.intValue();
+        }
+
+        private Double decimal(String cp) throws XMLStreamException {
+            String text = text().trim();
+            if (placeholder(text, cp)) {
+                return null;
+            }
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException e) {
+                errors.add(new Violation(cp, "'" + text + "' is not a number."));
+                return null;
+            }
         }
 
         // ---- reader helpers ------------------------------------------------
@@ -537,7 +737,7 @@ public final class BrokerXmlCodec {
 
     // ---- write -------------------------------------------------------------
 
-    /** The four sections as an escaped fragment to paste inside {@code <core>}. */
+    /** The declared sections as an escaped fragment to paste inside {@code <core>}. */
     public static String write(BrokerConfigDocument doc) {
         StringWriter out = new StringWriter();
         try {
@@ -555,6 +755,9 @@ public final class BrokerXmlCodec {
             }
             if (!doc.diverts().isEmpty()) {
                 x.diverts(doc.diverts());
+            }
+            if (!doc.bridges().isEmpty()) {
+                x.bridges(doc.bridges());
             }
             w.flush();
             w.close();
@@ -677,21 +880,89 @@ public final class BrokerXmlCodec {
                 if (d.routingType() != null) {
                     leaf("routing-type", d.routingType());
                 }
-                if (d.transformerClassName() != null) {
-                    open("transformer");
-                    leaf("class-name", d.transformerClassName());
-                    for (Map.Entry<String, String> e : d.transformerProperties().entrySet()) {
-                        indent();
-                        w.writeEmptyElement("property");
-                        w.writeAttribute("key", e.getKey());
-                        w.writeAttribute("value", e.getValue());
-                        newline();
-                    }
-                    close("transformer");
-                }
+                transformer(d.transformer());
                 close("divert");
             }
             close("diverts");
+        }
+
+        void bridges(List<BridgeDecl> bridges) throws XMLStreamException {
+            open("bridges");
+            for (BridgeDecl b : bridges) {
+                open("bridge", "name", b.name());
+                leaf("queue-name", b.queueName());
+                leaf("forwarding-address", b.forwardingAddress());
+                if (b.filter() != null) {
+                    indent();
+                    w.writeEmptyElement("filter");
+                    w.writeAttribute("string", b.filter());
+                    newline();
+                }
+                transformer(b.transformer());
+                leafIf("ha", b.ha());
+                leafIf("use-duplicate-detection", b.useDuplicateDetection());
+                leafIf("retry-interval", b.retryInterval());
+                leafIf("retry-interval-multiplier", b.retryIntervalMultiplier());
+                leafIf("max-retry-interval", b.maxRetryInterval());
+                leafIf("initial-connect-attempts", b.initialConnectAttempts());
+                leafIf("reconnect-attempts", b.reconnectAttempts());
+                leafIf("confirmation-window-size", b.confirmationWindowSize());
+                leafIf("producer-window-size", b.producerWindowSize());
+                leafIf("min-large-message-size", b.minLargeMessageSize());
+                leafIf("check-period", b.checkPeriod());
+                leafIf("connection-ttl", b.connectionTtl());
+                leafIf("routing-type", b.routingType());
+                leafIf("concurrency", b.concurrency());
+                leafIf("client-id", b.clientId());
+                credential(b.credentialRef());
+                if (!b.staticConnectors().isEmpty()) {
+                    open("static-connectors");
+                    for (String c : b.staticConnectors()) {
+                        leaf("connector-ref", c);
+                    }
+                    close("static-connectors");
+                } else if (b.discoveryGroupName() != null) {
+                    indent();
+                    w.writeEmptyElement("discovery-group-ref");
+                    w.writeAttribute("discovery-group-name", b.discoveryGroupName());
+                    newline();
+                }
+                close("bridge");
+            }
+            close("bridges");
+        }
+
+        /**
+         * ADR-0092: an exported fragment is a file people paste into repositories, so
+         * it names the credential to supply and never carries one. The secret is in
+         * Studio's vault and no export path can reach it.
+         */
+        private void credential(String credentialRef) throws XMLStreamException {
+            if (credentialRef == null) {
+                return;
+            }
+            indent();
+            w.writeComment(" Credential '" + credentialRef
+                    + "' is held in Artemis Studio's vault and is not exported. Supply it here. ");
+            newline();
+            leaf("user", "${" + credentialRef + ".user}");
+            leaf("password", "${" + credentialRef + ".password}");
+        }
+
+        private void transformer(BrokerConfigDocument.TransformerDecl t) throws XMLStreamException {
+            if (t == null) {
+                return;
+            }
+            open("transformer");
+            leaf("class-name", t.className());
+            for (Map.Entry<String, String> e : t.properties().entrySet()) {
+                indent();
+                w.writeEmptyElement("property");
+                w.writeAttribute("key", e.getKey());
+                w.writeAttribute("value", e.getValue());
+                newline();
+            }
+            close("transformer");
         }
 
         private void open(String name) throws XMLStreamException {

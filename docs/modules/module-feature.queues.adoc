@@ -9,6 +9,7 @@
 
 _Others_
 
+* `i.g.s.a.f.q.BridgeOperations`
 * `i.g.s.a.f.q.DivertOperations`
 * `i.g.s.a.f.q.QueueConfigurationReader`
 * `i.g.s.a.f.q.QueueLifecycleOperations`

@@ -17,6 +17,7 @@ _Others_
 
 * `i.g.s.a.p.b.BrokerClientFactory`
 * `i.g.s.a.p.b.BrokerConnections`
+* `i.g.s.a.p.b.BrokerConnectors`
 * `i.g.s.a.p.b.BrokerListOps`
 * `i.g.s.a.p.b.BrokerSessions`
 * `i.g.s.a.p.b.BrokerSettings`

@@ -146,6 +146,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                     Map.of(),
                     Map.of(),
                     Map.of(),
+                    Map.of(),
                     null);
         });
         doAnswer(inv -> {
@@ -180,7 +181,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
 
     private void declare(String match, Map<String, Object> values) {
         BrokerConfigDocument doc = new BrokerConfigDocument(
-                1, List.of(), List.of(new AddressSettingDecl(match, values)), List.of(), List.of());
+                1, List.of(), List.of(new AddressSettingDecl(match, values)), List.of(), List.of(), List.of());
         config.save(clusterId, doc, null, "test", Source.EDIT);
     }
 
@@ -210,6 +211,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 List.of(
                         new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 10_485_760L)),
                         new AddressSettingDecl("payments.#", Map.of("maxDeliveryAttempts", 7))),
+                List.of(),
                 List.of(),
                 List.of());
         config.save(clusterId, doc, null, "test", Source.EDIT);
@@ -525,6 +527,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 List.of(),
                 List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 10_485_760L))),
                 List.of(),
+                List.of(),
                 List.of());
         config.save(clusterId, doc, null, "adopted", Source.ADOPT);
 
@@ -560,7 +563,12 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         drift.evaluate(clusterId);
 
         BrokerConfigDocument asRunning = new BrokerConfigDocument(
-                1, List.of(), List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 1L))), List.of(), List.of());
+                1,
+                List.of(),
+                List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 1L))),
+                List.of(),
+                List.of(),
+                List.of());
 
         assertThatThrownBy(() -> config.save(clusterId, asRunning, null, "adopt", Source.ADOPT, null))
                 .isInstanceOf(ConflictException.class)
@@ -587,6 +595,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 List.of(),
                 List.of(new AddressSettingDecl(MATCH, Map.of("maxSizeBytes", 20_971_520L))),
                 List.of(),
+                List.of(),
                 List.of());
         assertThat(config.save(clusterId, edited, null, "edit", Source.EDIT).revision())
                 .isEqualTo(2);
@@ -608,6 +617,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                     Map.of(),
                     Map.of(),
                     broker.getOrDefault(nodeId, Map.of()),
+                    Map.of(),
                     Map.of(),
                     Map.of(),
                     Map.of(),
