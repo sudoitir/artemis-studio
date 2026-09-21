@@ -11,12 +11,12 @@
 
 ## 3. Broker primitives (`platform/broker`)
 
-- [ ] 3.1 `MessageOperations`: add the chunked `moveMessages(flushLimit, filter, queue, rejectDuplicates, count)`, `copyMessage` by id, and `countMessages` for a frozen filter. Add `FrozenFilter.compose(filter, t0)`, which handles null, blank and parenthesised filters, and give it unit tests.
-- [ ] 3.2 Staging lifecycle over Jolokia: create a durable anycast queue from JSON (auto-delete off), add and remove exact-match address settings from JSON (`max-delivery-attempts=-1`, `redistribution-delay=-1`, no DLA), and destroy the queue and its address. Operations are idempotent, so they are safe to repeat on resume. List `studio.transfer.*` queues per node.
-- [ ] 3.3 Acceptance facts: one batched Jolokia read per node (queue, address, address settings JSON, server disk, ID cache, consumers, persistent size), charged to the limiter. Each fact that did not answer comes back as null, so it can be reported as unknown.
-- [ ] 3.4 `CoreRelay`: Core-API sessions from `CoreConnectionFactory.build(...).getServerLocator()` in a dedicated relay pool, separate from operator and capture sessions. Provide the source (manual-ack) receive from a queue, the source browse-only receive with a filter, the target transacted send to an FQQN, and commit/rollback. Closing is bounded.
-- [ ] 3.5 `OutboundMessages.from(source, provenance)` (pure): body buffer and type verbatim; durable, priority, expiration, timestamp and userID; properties minus the drop set; the dup id; the provenance properties. Large messages go through a 0600 temp file, after a free-disk check. The temp directory is swept on startup.
-- [ ] 3.6 Unit tests for `OutboundMessages`, one per body type (Text/Bytes/Map/Stream/Object), plus the drop set, the provenance and a large message.
+- [x] 3.1 `MessageOperations`: add the chunked `moveMessages(flushLimit, filter, queue, rejectDuplicates, count)`, `copyMessage` by id, and `countMessages` for a frozen filter. Add `FrozenFilter.compose(filter, t0)`, which handles null, blank and parenthesised filters, and give it unit tests.
+- [x] 3.2 Staging lifecycle over Jolokia: create a durable anycast queue from JSON (auto-delete off), add and remove exact-match address settings from JSON (`max-delivery-attempts=-1`, `redistribution-delay=-1`, no DLA), and destroy the queue and its address. Operations are idempotent, so they are safe to repeat on resume. List `studio.transfer.*` queues per node.
+- [x] 3.3 Acceptance facts: one batched Jolokia read per node (queue, address, address settings JSON, server disk, ID cache, consumers, persistent size), charged to the limiter. Each fact that did not answer comes back as null, so it can be reported as unknown.
+- [x] 3.4 `CoreRelay`: Core-API sessions from `CoreConnectionFactory.build(...).getServerLocator()` in a dedicated relay pool, separate from operator and capture sessions. Provide the source (manual-ack) receive from a queue, the source browse-only receive with a filter, the target transacted send to an FQQN, and commit/rollback. Closing is bounded.
+- [x] 3.5 `OutboundMessages.from(source, provenance)` (pure): body buffer and type verbatim; durable, priority, expiration, timestamp and userID; properties minus the drop set; the dup id; the provenance properties. Large messages go through a 0600 temp file, after a free-disk check. The temp directory is swept on startup.
+- [x] 3.6 Unit tests for `OutboundMessages`, one per body type (Text/Bytes/Map/Stream/Object), plus the drop set, the provenance and a large message.
 
 ## 4. Transfer module backend (`feature/transfer`)
 

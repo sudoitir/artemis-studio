@@ -3,5 +3,8 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.jobs`
 |Spring components
-|* `i.g.s.a.k.j.JobStatuses`
+|* `i.g.s.a.k.j.BackgroundRuns`
+* `i.g.s.a.k.j.JobStatuses`
+|Bean references
+|* `i.g.s.a.k.s.OperatorHandoff` (in Security)
 |===

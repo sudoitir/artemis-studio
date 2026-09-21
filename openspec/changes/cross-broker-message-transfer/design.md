@@ -72,6 +72,13 @@ Each batch goes through these steps:
 4. commit the target;
 5. commit the source.
 
+**A repeated id refuses the whole target transaction** (verified against the broker while
+building the relay). When any send in a transaction carries a duplicate id the target has
+already seen, the broker rejects the commit with `ActiveMQDuplicateIdException` and
+delivers none of the batch, including messages it had not seen. So after that refusal the
+runner rolls the target back and resends the same batch one message per transaction: a
+refusal then means only that message already arrived, and the source acknowledges it.
+
 **Why this over the alternatives.**
 - **A direct consumer on the source queue.** It would compete with live consumers, could
   not select ids, and would leave messages in Studio's hands during a crash.

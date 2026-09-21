@@ -7,6 +7,10 @@
 
 * `i.g.s.a.p.b.ClockOffsetService`
 
+_Event listeners_
+
+* `i.g.s.a.p.b.CoreRelay`
+
 _Configuration properties_
 
 * `i.g.s.a.p.b.BrokerProperties`
@@ -15,6 +19,7 @@ _Configuration properties_
 
 _Others_
 
+* `i.g.s.a.p.b.AcceptanceProbe`
 * `i.g.s.a.p.b.BrokerClientFactory`
 * `i.g.s.a.p.b.BrokerConnections`
 * `i.g.s.a.p.b.BrokerConnectors`
@@ -35,4 +40,7 @@ _Others_
 * `i.g.s.a.p.b.NodeCallHealth`
 * `i.g.s.a.p.b.NodeCallLimiter`
 * `i.g.s.a.p.b.NotificationMapper`
+* `i.g.s.a.p.b.StagingQueues`
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

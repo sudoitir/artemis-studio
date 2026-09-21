@@ -40,7 +40,10 @@ public class MessageOperations {
         return v == null || v.isNull() ? null : v.asText();
     }
 
-    /** {@code countMessages(filter)} on the queue MBean — the by-filter dry-run estimate. */
+    /**
+     * {@code countMessages(filter)} on the queue MBean — the by-filter dry-run estimate, and with a
+     * {@link FrozenFilter} the size of a frozen selection.
+     */
     public long countMessages(JolokiaBrokerClient client, String queueMbean, String filter) {
         JolokiaResponse res = client.single(
                 JolokiaRequest.exec(queueMbean, "countMessages(java.lang.String)", filter == null ? "" : filter));
@@ -124,6 +127,38 @@ public class MessageOperations {
 
     public long expireByFilter(JolokiaBrokerClient client, String queueMbean, String filter) {
         return filterExec(client, queueMbean, "expireMessages(java.lang.String)", filter);
+    }
+
+    /**
+     * {@code moveMessages(flushLimit, filter, otherQueue, rejectDuplicates, messageCount)}: moves at
+     * most {@code messageCount} matching messages, so one call stays short however deep the queue is.
+     * Returns how many the broker moved; fewer than {@code messageCount} means none are left to match.
+     */
+    public long moveMessages(
+            JolokiaBrokerClient client,
+            String queueMbean,
+            int flushLimit,
+            String filter,
+            String targetQueue,
+            boolean rejectDuplicates,
+            int messageCount) {
+        return filterExec(
+                client,
+                queueMbean,
+                "moveMessages(int,java.lang.String,java.lang.String,boolean,int)",
+                flushLimit,
+                filter == null ? "" : filter,
+                targetQueue,
+                rejectDuplicates,
+                messageCount);
+    }
+
+    /** {@code copyMessage(id, otherQueue)}: false when the broker found no message with this id. */
+    public boolean copyMessage(JolokiaBrokerClient client, String queueMbean, long messageId, String targetQueue) {
+        JolokiaResponse res = client.single(
+                JolokiaRequest.exec(queueMbean, "copyMessage(long,java.lang.String)", messageId, targetQueue));
+        requireOk(res, "copyMessage");
+        return res.value() != null && res.value().asBoolean();
     }
 
     /** Retry every message on the queue — Artemis has no by-filter retry. Returns the count retried. */
