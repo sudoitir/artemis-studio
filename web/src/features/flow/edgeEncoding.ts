@@ -1,44 +1,53 @@
 /**
- * How a rate becomes a line and moving dots (ADR-0080, flow-visualization spec: motion encodes
- * rate and is never the only carrier). Pure, so the mapping is tested without a canvas.
+ * How a rate becomes a line and moving dots (ADR-0095, superseding ADR-0080's encoding clause).
+ * One normalised value drives width, dot speed and dot count, so the channels never disagree.
+ * Pure, so the mapping is tested without a canvas.
  */
 
-/** Width tiers. Colour never carries the tier; the rate label always does. */
-export type WidthTier = 'unknown' | 'idle' | 'light' | 'busy';
+/** Messages per second at and above which an edge is drawn at full weight and speed. */
+export const RATE_CAP = 1000;
 
-/** Messages per second at and above which an edge is drawn as busy. */
-export const BUSY_RATE = 50;
+/** Thinnest and thickest line, in px. Idle and unknown sit at the floor and differ by dash. */
+export const MIN_WIDTH = 2;
+export const MAX_WIDTH = 10;
 
 /** The most dots the whole canvas animates at once, however large the graph. */
 export const DOT_BUDGET = 400;
 
-export function widthTier(rate: number | null | undefined): WidthTier {
-  if (rate === null || rate === undefined) return 'unknown';
-  if (rate <= 0) return 'idle';
-  return rate >= BUSY_RATE ? 'busy' : 'light';
+/**
+ * Throughput on a square-root scale in `[0, 1]`: 0 for no or unknown rate, 1 at {@link RATE_CAP}.
+ * Square root, not linear, so a 5 msg/s edge is still visibly heavier than a 1 msg/s one.
+ */
+export function rateScale(rate: number | null | undefined): number {
+  if (rate === null || rate === undefined || !(rate > 0)) return 0;
+  return Math.sqrt(Math.min(rate, RATE_CAP) / RATE_CAP);
 }
 
-export const STROKE_WIDTH: Record<WidthTier, number> = { unknown: 1.25, idle: 1, light: 1.75, busy: 3 };
+export function widthPx(rate: number | null | undefined): number {
+  return MIN_WIDTH + (MAX_WIDTH - MIN_WIDTH) * rateScale(rate);
+}
 
 /**
- * One of five speed buckets on a log scale, or 0 for no motion. Buckets, not a continuous speed,
- * so a refresh whose rate stays inside its bucket leaves a running animation untouched.
- *
- * `(0, 1)` → 1, `[1, 10)` → 2, `[10, 100)` → 3, `[100, 1000)` → 4, `≥ 1000` → 5.
+ * Seconds for one dot to cross its edge: 6 s at a trickle, 1.8 s at the cap, so the busiest edge
+ * never strobes. Rounded to 0.1 s so a refresh that barely moves the rate keeps the memoised dots
+ * and their running animation.
  */
-export function speedBucket(rate: number | null | undefined): number {
-  if (rate === null || rate === undefined || !(rate > 0)) return 0;
-  return Math.min(5, Math.max(1, Math.floor(Math.log10(rate)) + 2));
+export function crossingSeconds(rate: number | null | undefined): number {
+  return Math.round((6 - 4.2 * rateScale(rate)) * 10) / 10;
 }
 
-/** Seconds for one dot to cross its edge. Faster with rate, capped so the busiest edge never strobes. */
-export function crossingSeconds(bucket: number): number {
-  return [0, 6, 4.5, 3.2, 2.4, 1.8][bucket] ?? 0;
+/** Dots an edge would like, before the budget: one at a trickle, four at the cap. */
+export function wantedDots(rate: number | null | undefined): number {
+  return rate != null && rate > 0 ? 1 + Math.round(3 * rateScale(rate)) : 0;
 }
 
-/** Dots an edge would like, before the budget: denser as it gets busier. */
-export function wantedDots(bucket: number): number {
-  return [0, 1, 1, 2, 3, 4][bucket] ?? 0;
+/** What a line's dash pattern says. Weight carries the rate; the dash carries this. */
+export type LineState = 'unknown' | 'idle' | 'stale' | 'flowing';
+
+export function lineState(rate: number | null | undefined, stale: boolean | undefined): LineState {
+  if (stale) return 'stale';
+  if (rate === null || rate === undefined) return 'unknown';
+  return rate > 0 ? 'flowing' : 'idle';
 }
 
 /**
@@ -53,7 +62,7 @@ export function allocateDots(
   let left = budget;
   const ranked = [...edges].sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1) || a.id.localeCompare(b.id));
   for (const edge of ranked) {
-    const want = edge.animatable ? wantedDots(speedBucket(edge.rate)) : 0;
+    const want = edge.animatable ? wantedDots(edge.rate) : 0;
     const given = Math.min(want, left);
     out.set(edge.id, given);
     left -= given;
