@@ -50,7 +50,7 @@ surface; the Bridges tab's empty state then does not point at it.
 
 **D5 — A divert's target queue is declared inline.** The divert editor's "To address" is a
 combobox of the declared addresses whose last option, when the typed address is not declared, is
-"Create queue '<address>'…". It opens a section inside the drawer — queue name, routing type,
+`Create queue '<address>'…`. It opens a section inside the drawer — queue name, routing type,
 durability — that saves the address and its queue to the declaration as their own revision
 ("Added queue X") and leaves the divert open against the new revision. The queue is *declared*,
 not created on a broker: it shows on the canvas at once as declared and not yet applied, and it
