@@ -57,10 +57,13 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const token = csrfToken();
     if (token) headers["X-XSRF-TOKEN"] = token;
   }
+  // The caller's headers add to these, never replace them: replacing dropped the CSRF token.
+  const merged = new Headers(headers);
+  new Headers(init?.headers).forEach((value, key) => merged.set(key, value));
   const res = await fetch(`${BASE}${path}`, {
     credentials: "same-origin",
-    headers: { ...headers, ...init?.headers },
     ...init,
+    headers: merged,
   });
   if (res.status === 401 && !window.location.pathname.startsWith("/login")) {
     // The session expired or was never established — bounce to the login screen.
