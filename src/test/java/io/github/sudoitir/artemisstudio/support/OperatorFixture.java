@@ -33,13 +33,48 @@ public final class OperatorFixture {
             RolePermissionRepository rolePermissions,
             UserRoleRepository userRoles,
             GrantLoader grants) {
+        return signIn(
+                users,
+                roles,
+                rolePermissions,
+                userRoles,
+                grants,
+                Grant.ScopeType.GLOBAL,
+                ScopeIds.GLOBAL,
+                Permissions.WILDCARD);
+    }
+
+    /** As {@link #signIn}, holding only {@code permissions}, granted on one cluster. */
+    public static UUID signInOnCluster(
+            AppUserRepository users,
+            RoleRepository roles,
+            RolePermissionRepository rolePermissions,
+            UserRoleRepository userRoles,
+            GrantLoader grants,
+            UUID clusterId,
+            String... permissions) {
+        return signIn(
+                users, roles, rolePermissions, userRoles, grants, Grant.ScopeType.CLUSTER, clusterId, permissions);
+    }
+
+    private static UUID signIn(
+            AppUserRepository users,
+            RoleRepository roles,
+            RolePermissionRepository rolePermissions,
+            UserRoleRepository userRoles,
+            GrantLoader grants,
+            Grant.ScopeType scope,
+            UUID scopeId,
+            String... permissions) {
         String username = "operator-" + UUID.randomUUID();
         AppUserEntity user = AppUserEntity.local(username, username + "@example.test", "{noop}unused");
         user.setMustChangePassword(false);
         users.save(user);
         RoleEntity role = roles.save(new RoleEntity("role-" + UUID.randomUUID(), false));
-        rolePermissions.save(new RolePermissionEntity(role.getId(), Permissions.WILDCARD));
-        userRoles.save(new UserRoleEntity(user.getId(), role.getId(), Grant.ScopeType.GLOBAL.name(), ScopeIds.GLOBAL));
+        for (String permission : permissions) {
+            rolePermissions.save(new RolePermissionEntity(role.getId(), permission));
+        }
+        userRoles.save(new UserRoleEntity(user.getId(), role.getId(), scope.name(), scopeId));
         StudioPrincipal principal = new StudioPrincipal(user.getId(), username, grants.loadFor(user.getId()), false);
         SecurityContextHolder.getContext()
                 .setAuthentication(

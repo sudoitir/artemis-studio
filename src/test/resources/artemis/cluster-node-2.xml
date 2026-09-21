@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<!--
+  TEST ONLY: node 2 of a two-live-node symmetric cluster (no HA), for the transfer
+  suite's forced redistribution (cross-broker-message-transfer 5.10). The peer is
+  cluster-node-1.xml; the two differ only in name and connectors. Each container
+  reaches the other by its Testcontainers network alias.
+
+  max-disk-usage is -1: the disk check is not under test here, and a nearly full
+  developer disk would otherwise make every transfer wait for capacity.
+  redistribution-delay is 0 so the preview's "may redistribute" warning is exercised.
+-->
+<configuration xmlns="urn:activemq"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+  <core xmlns="urn:activemq:core">
+    <name>cluster-node-2</name>
+    <persistence-enabled>true</persistence-enabled>
+    <journal-type>NIO</journal-type>
+    <paging-directory>data/paging</paging-directory>
+    <bindings-directory>data/bindings</bindings-directory>
+    <journal-directory>data/journal</journal-directory>
+    <large-messages-directory>data/large-messages</large-messages-directory>
+    <max-disk-usage>-1</max-disk-usage>
+
+    <connectors>
+      <connector name="self">tcp://node-2:61616</connector>
+      <connector name="peer">tcp://node-1:61616</connector>
+    </connectors>
+    <acceptors>
+      <acceptor name="artemis">tcp://0.0.0.0:61616?protocols=CORE,AMQP</acceptor>
+    </acceptors>
+
+    <cluster-user>cluster-admin</cluster-user>
+    <cluster-password>password-admin</cluster-password>
+    <cluster-connections>
+      <cluster-connection name="transfer-test">
+        <connector-ref>self</connector-ref>
+        <message-load-balancing>ON_DEMAND</message-load-balancing>
+        <max-hops>1</max-hops>
+        <static-connectors>
+          <connector-ref>peer</connector-ref>
+        </static-connectors>
+      </cluster-connection>
+    </cluster-connections>
+
+    <security-settings>
+      <security-setting match="#">
+        <permission type="createNonDurableQueue" roles="amq"/>
+        <permission type="deleteNonDurableQueue" roles="amq"/>
+        <permission type="createDurableQueue" roles="amq"/>
+        <permission type="deleteDurableQueue" roles="amq"/>
+        <permission type="createAddress" roles="amq"/>
+        <permission type="deleteAddress" roles="amq"/>
+        <permission type="consume" roles="amq"/>
+        <permission type="browse" roles="amq"/>
+        <permission type="send" roles="amq"/>
+        <permission type="manage" roles="amq"/>
+      </security-setting>
+    </security-settings>
+
+    <address-settings>
+      <address-setting match="#">
+        <dead-letter-address>DLQ</dead-letter-address>
+        <expiry-address>ExpiryQueue</expiry-address>
+        <redistribution-delay>0</redistribution-delay>
+        <address-full-policy>PAGE</address-full-policy>
+        <auto-create-queues>true</auto-create-queues>
+        <auto-create-addresses>true</auto-create-addresses>
+        <auto-delete-queues>false</auto-delete-queues>
+        <auto-delete-addresses>false</auto-delete-addresses>
+      </address-setting>
+    </address-settings>
+
+    <addresses>
+      <address name="DLQ"><anycast><queue name="DLQ"/></anycast></address>
+      <address name="ExpiryQueue"><anycast><queue name="ExpiryQueue"/></anycast></address>
+    </addresses>
+  </core>
+</configuration>

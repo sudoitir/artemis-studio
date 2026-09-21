@@ -53,23 +53,23 @@
 
 ## 5. Integration tests (Testcontainers: Postgres + two Artemis brokers + a two-live-node cluster)
 
-- [ ] 5.1 Test support:
+- [x] 5.1 Test support:
   - A second Artemis container, registered as a second cluster, using the `deploy/compose/artemis/secondary` config or a test copy.
   - A two-live-node symmetric cluster fixture, using a new test `broker.xml` pair.
   - Helpers that produce and consume messages over Core.
-- [ ] 5.2 Move by ids, by filter and by all: exact counts on both sides, and the staging queue is gone afterwards.
-- [ ] 5.3 Copy by filter: the source is unchanged and the target holds exactly N; resume after an injected fault still gives exactly N.
-- [ ] 5.4 Fidelity: every body type, a 5 MiB large message byte-equal, properties, priority, expiration, group and correlation id; provenance present and bookkeeping absent.
-- [ ] 5.5 Crash injection between the target commit and the source commit, then resume: the target holds exactly N.
-- [ ] 5.6 Target paused mid-run: FAILED with the remainder in staging. After unpause, resume completes. In a second scenario, return to source restores the exact source depth.
-- [ ] 5.7 Acceptance refusals and warnings:
+- [x] 5.2 Move by ids, by filter and by all: exact counts on both sides, and the staging queue is gone afterwards.
+- [x] 5.3 Copy by filter: the source is unchanged and the target holds exactly N; resume after an injected fault still gives exactly N.
+- [x] 5.4 Fidelity: every body type, a 5 MiB large message byte-equal, properties, priority, expiration, group and correlation id; provenance present and bookkeeping absent. Expiration is kept by a copy; a move clears it, as the broker's own move does (design D3).
+- [x] 5.5 Crash injection between the target commit and the source commit, then resume: the target holds exactly N.
+- [x] 5.6 Target paused mid-run: FAILED with the remainder in staging. After unpause, resume completes. In a second scenario, return to source restores the exact source depth.
+- [x] 5.7 Acceptance refusals and warnings:
   - Refused: DROP, a filtered target, a backup target, a missing queue with auto-create off, a same queue on the same node.
   - FAIL with a small max-size gives `WAITING_FOR_CAPACITY`; after a drain the run resumes; after the timeout it is STOPPED.
-- [ ] 5.8 Large queue (100k messages): completes, the staging depth bound is never exceeded, and the limiter is respected.
-- [ ] 5.9 Frozen selection with a producer still running: the run ends and only messages up to `t0` move.
-- [ ] 5.10 Forced redistribution: messages chosen by id from node 1 land on node 2's local queue.
-- [ ] 5.11 Restart simulation gives INTERRUPTED, and a resume completes it. An orphaned staging queue is listed and can be returned.
-- [ ] 5.12 Permissions:
+- [x] 5.8 Large queue (100k messages): completes, the staging depth bound is never exceeded, and the limiter is respected.
+- [x] 5.9 Frozen selection with a producer still running: the run ends and only messages up to `t0` move.
+- [x] 5.10 Forced redistribution: messages chosen by id from node 1 land on node 2's local queue.
+- [x] 5.11 Restart simulation gives INTERRUPTED, and a resume completes it. An orphaned staging queue is listed and can be returned.
+- [x] 5.12 Permissions:
   - A missing target grant returns 404.
   - A grant revoked mid-run stops the run with a cause.
   - A preview creates no queue.
