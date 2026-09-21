@@ -6,8 +6,8 @@
 
 ## 2. Background run control (ADR-0093 extraction)
 
-- [ ] 2.1 Add `kernel/jobs/BackgroundRuns` with `start(runId, Operator, Runnable)` on a virtual thread under `OperatorHandoff.runAs`, plus `requestStop`, `stopRequested` and `isActive`. It deregisters in `finally`.
-- [ ] 2.2 `feature/bulk/BulkRunner` delegates to `BackgroundRuns`. Behaviour is unchanged, and the bulk test suite stays green.
+- [x] 2.1 Add `kernel/jobs/BackgroundRuns` with `start(runId, Operator, Runnable)` on a virtual thread under `OperatorHandoff.runAs`, plus `requestStop`, `stopRequested` and `isActive`. It deregisters in `finally`.
+- [x] 2.2 `feature/bulk/BulkRunner` delegates to `BackgroundRuns`. Behaviour is unchanged, and the bulk test suite stays green.
 
 ## 3. Broker primitives (`platform/broker`)
 
