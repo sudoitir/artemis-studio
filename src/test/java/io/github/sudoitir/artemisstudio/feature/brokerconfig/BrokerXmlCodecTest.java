@@ -206,4 +206,59 @@ class BrokerXmlCodecTest {
         assertThat(result.errors()).isEmpty();
         assertThat(result.document().addresses().getFirst().routingTypes()).isEqualTo(Set.of("MULTICAST"));
     }
+
+    /**
+     * A file as it comes off a disk: a byte-order mark, a licence comment before the XML
+     * declaration, or a DOCTYPE. None of that is configuration, and none of it may make
+     * the file unreadable. The DOCTYPE is dropped, never resolved.
+     */
+    @Test
+    void aFilesPrologDoesNotStopTheImport() {
+        String setting =
+                "<address-setting match=\"x\"><max-delivery-attempts>2</max-delivery-attempts></address-setting>";
+        for (String xml : List.of(
+                "\uFEFF<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + setting,
+                "<!-- licence -->\n<?xml version=\"1.0\"?>\n" + setting,
+                "<?xml version=\"1.0\"?>\n<!DOCTYPE configuration>\n<core><address-settings>" + setting
+                        + "</address-settings></core>",
+                "<!DOCTYPE core [ <!ENTITY x SYSTEM \"file:///etc/passwd\"> ]><core><address-settings>" + setting
+                        + "</address-settings></core>")) {
+            ParseResult result = BrokerXmlCodec.parse(xml);
+            assertThat(result.errors()).as(xml).isEmpty();
+            assertThat(result.document().addressSettings()).as(xml).hasSize(1);
+        }
+    }
+
+    /**
+     * An element that belongs inside another is named with the wrapper it needs, not
+     * reported as something the management API cannot set — which would be false.
+     */
+    @Test
+    void aMisplacedElementIsToldWhatToWrapItIn() {
+        ParseResult result = BrokerXmlCodec.parse("""
+                <queue name="q1"/>
+                <anycast><queue name="q2"/></anycast>
+                <max-delivery-attempts>3</max-delivery-attempts>
+                <permission type="send" roles="amq"/>
+                """);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.unsupported())
+                .extracting(BrokerXmlCodec.Unsupported::path, BrokerXmlCodec.Unsupported::reason)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                "queue",
+                                "A queue belongs inside an address and its routing type: wrap it in"
+                                        + " <address name=\"…\"><anycast>…</anycast></address>."),
+                        org.assertj.core.groups.Tuple.tuple(
+                                "anycast",
+                                "A routing type belongs inside an address: wrap it in <address name=\"…\">…</address>."),
+                        org.assertj.core.groups.Tuple.tuple(
+                                "max-delivery-attempts",
+                                "An address-setting key: wrap it in <address-setting match=\"…\">…</address-setting>."),
+                        org.assertj.core.groups.Tuple.tuple(
+                                "permission",
+                                "A permission belongs inside a security setting: wrap it in"
+                                        + " <security-setting match=\"…\">…</security-setting>."));
+    }
 }
