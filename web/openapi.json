@@ -1120,6 +1120,230 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/stop" : {
+      "post" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "stop",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/return" : {
+      "post" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "returnToSource",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/resume" : {
+      "post" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "resume",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/execute" : {
+      "post" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "execute",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TransferExecuteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/preview" : {
+      "post" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "preview",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TransferPreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/orphans/return" : {
+      "post" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "returnOrphan",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OrphanReturnRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrphanReturnView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/sql/verify" : {
       "post" : {
         "tags" : [ "sql-controller" ],
@@ -2283,7 +2507,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs/{runId}/stop" : {
       "post" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "stop",
+        "operationId" : "stop_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2318,7 +2542,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs/{runId}/execute" : {
       "post" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "execute",
+        "operationId" : "execute_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2363,7 +2587,7 @@
     "/api/v1/clusters/{clusterId}/bulk/preview" : {
       "post" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "preview",
+        "operationId" : "preview_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -3212,6 +3436,101 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/runs" : {
+      "get" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "history",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TransferRunView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}" : {
+      "get" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/transfers/orphans" : {
+      "get" : {
+        "tags" : [ "transfer-controller" ],
+        "operationId" : "orphans",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrphanView"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -4460,7 +4779,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs" : {
       "get" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "history",
+        "operationId" : "history_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -4490,7 +4809,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs/{runId}" : {
       "get" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "get_2",
+        "operationId" : "get_3",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -4649,7 +4968,7 @@
     "/api/v1/clusters/{clusterId}/alerts/history" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
-        "operationId" : "history_1",
+        "operationId" : "history_2",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -6384,6 +6703,308 @@
           }
         },
         "required" : [ "clusterId", "level", "liveEndpointNames", "notes", "replicationBehind", "splitBrain" ]
+      },
+      "Finding" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "REFUSE", "WARN", "UNKNOWN" ]
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "words" : {
+            "type" : "string"
+          },
+          "snippet" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "code", "kind", "words" ]
+      },
+      "TransferEnd" : {
+        "type" : "object",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "queue" : {
+            "type" : "string"
+          },
+          "address" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "address", "clusterId", "nodeId", "nodeName", "queue" ]
+      },
+      "TransferRunView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "MOVE", "COPY" ]
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "PREVIEWED", "RUNNING", "WAITING_FOR_CAPACITY", "RETURNING", "SUCCEEDED", "PARTIAL", "STOPPED", "INTERRUPTED", "FAILED", "RETURNED" ]
+          },
+          "source" : {
+            "$ref" : "#/components/schemas/TransferEnd"
+          },
+          "target" : {
+            "$ref" : "#/components/schemas/TransferEnd"
+          },
+          "sameNode" : {
+            "type" : "boolean"
+          },
+          "selection" : {
+            "$ref" : "#/components/schemas/TransferSelection"
+          },
+          "t0" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "planHash" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "startedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "estimate" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "estimateBytes" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "staged" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "held" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "delivered" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "notTransferred" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "expired" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "returned" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "messagesPerSecond" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "stagingQueue" : {
+            "type" : [ "string", "null" ]
+          },
+          "findings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Finding"
+            }
+          },
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "cap" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "overCap" : {
+            "type" : "boolean"
+          },
+          "overrideCap" : {
+            "type" : "boolean"
+          },
+          "resumable" : {
+            "type" : "boolean"
+          },
+          "returnable" : {
+            "type" : "boolean"
+          },
+          "auditEventId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "targetAuditEventId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "errorSnippet" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "bytes", "cap", "createdAt", "delivered", "expired", "expiresAt", "findings", "held", "id", "mode", "notTransferred", "notes", "overCap", "overrideCap", "planHash", "resumable", "returnable", "returned", "sameNode", "selection", "source", "staged", "state", "t0", "target", "username" ]
+      },
+      "TransferSelection" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "IDS", "FILTER", "ALL" ]
+          },
+          "ids" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "filter" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "kind" ]
+      },
+      "TransferExecuteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "planHash" : {
+            "type" : "string"
+          },
+          "override" : {
+            "type" : "boolean"
+          },
+          "acknowledged" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "confirmQueue" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "override", "planHash" ]
+      },
+      "TransferPreviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "MOVE", "COPY" ]
+          },
+          "sourceQueue" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "sourceNodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "selection" : {
+            "$ref" : "#/components/schemas/TransferSelection"
+          },
+          "targetClusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetNodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetQueue" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "targetAddress" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "mode", "selection", "sourceNodeId", "sourceQueue", "targetClusterId", "targetNodeId", "targetQueue" ]
+      },
+      "OrphanReturnRequest" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "stagingQueue" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "targetQueue" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "nodeId", "stagingQueue", "targetQueue" ]
+      },
+      "OrphanReturnView" : {
+        "type" : "object",
+        "properties" : {
+          "stagingQueue" : {
+            "type" : "string"
+          },
+          "returned" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "remaining" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "removed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "remaining", "removed", "returned", "stagingQueue" ]
       },
       "VerifyRequest" : {
         "type" : "object",
@@ -8263,6 +8884,26 @@
           }
         },
         "required" : [ "health", "id", "name", "nodeCount", "updatedAt" ]
+      },
+      "OrphanView" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "stagingQueue" : {
+            "type" : "string"
+          },
+          "depth" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          }
+        },
+        "required" : [ "nodeId", "nodeName", "stagingQueue" ]
       },
       "BoundView" : {
         "type" : "object",

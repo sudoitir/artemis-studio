@@ -20,36 +20,36 @@
 
 ## 4. Transfer module backend (`feature/transfer`)
 
-- [ ] 4.1 Module skeleton: `package-info` (`allowedDependencies`), `TransferModule` descriptor (topic `transfer`, settings), `TransferFeature`, registration in `app/StudioFeatures`, and a `@ApplicationModuleTest`. `ModularityTest` and `BoundaryRulesTest` stay green.
-- [ ] 4.2 Liquibase `db/changelog/feature/transfer/changes/0001-transfer-run.sql`: `transfer_run` (row-padding order, CHECK on state and mode, partial unique index on the active source queue, fillfactor and autovacuum) and `transfer_copied` (PK `(run_id, message_id)`), both with rollback. Add the include in the master changelog. Add entities, repositories (CAS `transition`) and a MapStruct mapper.
-- [ ] 4.3 Settings `transfer.batch-size`, `messages-per-second`, `max-concurrent-runs`, `capacity-threshold-percent` and `capacity-wait`, with defaults per design D8.
-- [ ] 4.4 `TargetAcceptance.evaluate(facts, selection)`, a pure function returning refuse/warn/unknown findings with words and snippets. It gets a table-driven unit test covering every spec row plus the unknowns.
-- [ ] 4.5 `TransferService.preview`:
+- [x] 4.1 Module skeleton: `package-info` (`allowedDependencies`), `TransferModule` descriptor (topic `transfer`, settings), `TransferFeature`, registration in `app/StudioFeatures`, and a `@ApplicationModuleTest`. `ModularityTest` and `BoundaryRulesTest` stay green.
+- [x] 4.2 Liquibase `db/changelog/feature/transfer/changes/0001-transfer-run.sql`: `transfer_run` (row-padding order, CHECK on state and mode, partial unique index on the active source queue, fillfactor and autovacuum) and `transfer_copied` (PK `(run_id, message_id)`), both with rollback. Add the include in the master changelog. Add entities, repositories (CAS `transition`) and a MapStruct mapper.
+- [x] 4.3 Settings `transfer.batch-size`, `messages-per-second`, `max-concurrent-runs`, `capacity-threshold-percent` and `capacity-wait`, with defaults per design D8.
+- [x] 4.4 `TargetAcceptance.evaluate(facts, selection)`, a pure function returning refuse/warn/unknown findings with words and snippets. It gets a table-driven unit test covering every spec row plus the unknowns.
+- [x] 4.5 `TransferService.preview`:
   - Resolve the source and target, check both clusters' permissions (404 for the target), capabilities and liveness.
   - Freeze `t0`, estimate the count and bytes, run acceptance, apply the cap, compute the plan hash, and save the run as PREVIEWED.
   - No broker state change.
-- [ ] 4.6 `TransferService.execute`:
+- [x] 4.6 `TransferService.execute`:
   - Check the plan hash, expiry, cap/override and acknowledgements.
   - Enforce the concurrency limit, claim the run (409 on the unique index), audit on the source and the child audit on the target, then start `BackgroundRuns`.
-- [ ] 4.7 `TransferRunner`:
+- [x] 4.7 `TransferRunner`:
   - **Move:** create the staging queue and settings, bounded-refill staging, run relay batches (permission re-check, acceptance/capacity re-check leading to `WAITING_FOR_CAPACITY` with backoff and wait timeout, pacing, a limiter permit on both nodes), commit the target and then the source, publish SSE progress to both clusters, then finish and clean up.
   - **Same-node move:** chunked `moveMessages` straight to the target.
   - **Copy:** browse relay plus a ledger insert in the same step; ledger cleanup at the end.
   - Classify not-transferred messages (in delivery, scheduled, expired) so the run can end as PARTIAL.
   - Node resolution per batch from the `artemisNodeId`.
   - A fault seam (`TransferFaults` bean, a no-op in production) sits between the target commit and the source commit.
-- [ ] 4.8 Stop, resume and return:
+- [x] 4.8 Stop, resume and return:
   - **Stop:** finish the batch in flight, then STOPPED.
   - **Resume:** from STOPPED, INTERRUPTED or FAILED.
   - **Return:** chunked `moveMessages` from staging back to the source, then clean up, then RETURNED.
   - Each is audited separately, and a run holding messages can never be deleted.
-- [ ] 4.9 `TransferRecovery` on `ApplicationReadyEvent`: RUNNING and WAITING runs become INTERRUPTED, and the audit is updated. Sweep large-message temp files. Orphan detection lists `studio.transfer.*` queues that have no run.
-- [ ] 4.10 Web layer `TransferController` under `/api/v1/clusters/{clusterId}/transfers`:
+- [x] 4.9 `TransferRecovery` on `ApplicationReadyEvent`: RUNNING and WAITING runs become INTERRUPTED, and the audit is updated. Sweep large-message temp files. Orphan detection lists `studio.transfer.*` queues that have no run.
+- [x] 4.10 Web layer `TransferController` under `/api/v1/clusters/{clusterId}/transfers`:
   - `POST /preview`, `POST /runs/{id}/execute|stop|resume|return`;
   - `GET /runs` (the cluster as source or target), `GET /runs/{id}`, `GET /orphans`, `POST /orphans/return`;
   - problem advice with stable slugs, views and OpenAPI.
   - Regenerate `web/src/kernel/api/schema.d.ts`.
-- [ ] 4.11 Housekeeping cron for expired previews.
+- [x] 4.11 Housekeeping cron for expired previews.
 
 ## 5. Integration tests (Testcontainers: Postgres + two Artemis brokers + a two-live-node cluster)
 

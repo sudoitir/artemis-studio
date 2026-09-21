@@ -1,0 +1,40 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.transfer`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.t.TransferService`
+
+_Configuration properties_
+
+* `i.g.s.a.f.t.TransferProperties`
+
+_Others_
+
+* `i.g.s.a.f.t.TransferFaults`
+* `i.g.s.a.f.t.TransferFeature`
+* `i.g.s.a.f.t.TransferRunMapper` (via `i.g.s.a.f.t.TransferRunMapperImpl`)
+* `i.g.s.a.f.t.TransferSettings`
+|Bean references
+|* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.p.b.CoreRelay` (in Broker connectivity)
+* `i.g.s.a.p.b.MessageOperations` (in Broker connectivity)
+* `i.g.s.a.p.b.StagingQueues` (in Broker connectivity)
+* `i.g.s.a.p.b.AcceptanceProbe` (in Broker connectivity)
+* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.a.k.s.OperatorHandoff` (in Security)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.j.BackgroundRuns` (in Scheduled jobs)
+* `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
+* `i.g.s.a.p.c.CapabilityLedger` (in Clusters)
+* `i.g.s.a.p.s.QueueLocator` (in Scraping)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|===

@@ -33,6 +33,7 @@ export const FEATURE_IDS = [
   'flow',
   'triage',
   'bulk',
+  'transfer',
   'apitokens',
   'identity-local',
   'identity-oidc',

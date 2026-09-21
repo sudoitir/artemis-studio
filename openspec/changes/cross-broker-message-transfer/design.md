@@ -106,6 +106,9 @@ The copy runs as follows:
 - A resume re-browses and skips ledger ids. A crash between the target commit and the
   ledger insert is absorbed by the duplicate id.
 - The ledger rows are deleted when the run ends.
+- A copy by ids browses the whole source queue without a filter and keeps only the listed
+  ids, because the broker offers no filter on the message id. It ends once every id is in
+  the ledger or the browse is exhausted.
 
 **Alternative considered:** a cursor on the last message id. It was rejected because
 browse order is not id order after redelivery or a move, and consumers remove messages
@@ -191,6 +194,21 @@ where state is RUNNING or WAITING_FOR_CAPACITY. `transfer_copied` has the primar
 - `STOPPED`, `INTERRUPTED` and `FAILED` are resumable.
 - From a resumable state a run goes to `RUNNING` by resume, or to `RETURNED` by return
   (via `RETURNING`).
+
+Beyond the columns above, a run also keeps:
+- the Studio node ids and node names of both sides, for the audit rows and the views;
+- the target queue's routing type, for the per-batch acceptance read;
+- `id_cursor`, how many ids of an id selection have been taken from the source, so a
+  resume does not take them again;
+- `returned`, the count a return put back on the source;
+- `error_snippet`, the `broker.xml` that would have avoided `last_error`, for example the
+  `studio.transfer.#` security setting when staging cannot be created.
+
+The relay's batch loop (receive, build, send, commit, acknowledge, and the one-by-one
+fallback after a duplicate refusal) is `platform.broker.RelayLink`. The Core client types
+must stay inside `platform.broker` (`BoundaryRulesTest`), so the feature drives the relay
+through `RelayLink.relay(max, hooks)`. The feature supplies the selection predicate, the
+ledger lookup, and the step between the two commits.
 
 A run that still has messages in staging is never deleted. Previews expire after 10
 minutes, and the existing preview-housekeeping cron deletes them.
