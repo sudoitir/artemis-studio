@@ -73,6 +73,16 @@
   color: var(--as-text-dimmed);
 }
 
+/* The select column holds a block-level checkbox, which `line-height` does not
+   centre: flex does, in the header and in every body row alike. After
+   `.headCell` so its padding wins. */
+.selectCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
 .cell[data-numeric] {
   text-align: end;
 }

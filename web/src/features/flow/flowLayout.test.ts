@@ -14,6 +14,8 @@ const edge = (source: string, target: string, kind: string, rate?: number) => ({
   rateSource: kind === 'ROUTE' ? 'QUEUE_METRIC' : 'SAMPLER',
   stale: false,
   faults: [],
+  bypassed: false,
+  studio: false,
 });
 
 function graph(rate = 10): FlowGraphView {
@@ -35,6 +37,8 @@ function graph(rate = 10): FlowGraphView {
       edge('queue:ORDERS', 'consumer:billing', 'CONSUME', rate),
       edge('queue:AUDIT', 'consumer:auditor', 'CONSUME'),
     ],
+    measuring: false,
+    sampleIntervalSeconds: 15,
   } as FlowGraphView;
 }
 

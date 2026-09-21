@@ -214,7 +214,7 @@ export function VirtualTable<T>({
           {selectable ? (
             <div
               role="columnheader"
-              className={`${styles.cell} ${styles.headCell}`}
+              className={`${styles.cell} ${styles.headCell} ${styles.selectCell}`}
             >
               <Checkbox
                 size="xs"
@@ -286,7 +286,7 @@ export function VirtualTable<T>({
                 {selectable ? (
                   <div
                     role="gridcell"
-                    className={styles.cell}
+                    className={`${styles.cell} ${styles.selectCell}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Checkbox

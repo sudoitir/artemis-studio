@@ -5,7 +5,8 @@ import { http, HttpResponse } from 'msw';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import type { BulkItemView, BulkRunDetailView, BulkRunView } from './api.ts';
+import type { QueueSelection } from '../../kernel/slots.ts';
+import type { BulkItemView, BulkOperation, BulkRunDetailView, BulkRunView } from './api.ts';
 
 const AVAILABLE = { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null };
 
@@ -131,15 +132,29 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 const { BulkActionBar } = await import('./BulkActionBar.tsx');
 const { BulkRunView } = await import('./BulkRunView.tsx');
 
-function Bar({ count = 3 }: { count?: number }) {
-  return (
-    <BulkActionBar
-      clusterId="c1"
-      selection={{ kind: 'names', names: ['orders.a', 'orders.b', 'orders.c'] }}
-      count={count}
-      clear={() => {}}
-    />
-  );
+const THREE: QueueSelection = { kind: 'names', names: ['orders.a', 'orders.b', 'orders.c'] };
+
+function Bar({ selection = THREE, count = 3 }: { selection?: QueueSelection; count?: number }) {
+  return <BulkActionBar clusterId="c1" selection={selection} count={count} clear={() => {}} />;
+}
+
+/** A preview handler that records each request body, the payload the server must accept (ADR-0096). */
+function capturePreview() {
+  const bodies: unknown[] = [];
+  const handler = http.post('*/api/v1/clusters/c1/bulk/preview', async ({ request }) => {
+    bodies.push(await request.json());
+    return HttpResponse.json(deletePreview(), { status: 201 });
+  });
+  return { bodies, handler };
+}
+
+const problem = (status: number, type: string, title: string, detail: string) =>
+  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${type}`, title, status, detail }, { status });
+
+async function openPreview(user: ReturnType<typeof userEvent.setup>, label = 'Delete…') {
+  await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled());
+  await user.click(screen.getByRole('button', { name: label }));
+  return screen.findByRole('dialog');
 }
 
 describe('BulkActionBar', () => {
@@ -154,9 +169,140 @@ describe('BulkActionBar', () => {
     await user.click(screen.getByRole('button', { name: 'Why deleting these queues is unavailable' }));
     expect(await screen.findByText(/Destroy queues and addresses/)).toBeInTheDocument();
   });
+
+  it('offers every action disabled while nothing is selected', async () => {
+    server.use(meHandler(), clusterHandler());
+    const { rerender } = renderWithProviders(<Bar />);
+    // Grants and capabilities have landed and allow every action, so what follows is the selection's doing.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete…' })).toBeEnabled());
+
+    rerender(<Bar selection={{ kind: 'names', names: [] }} count={0} />);
+    for (const label of ['Pause', 'Resume', 'Purge…', 'Delete…']) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled();
+    }
+  });
 });
 
 describe('BulkPreviewDialog', () => {
+  const LABEL: Record<BulkOperation, string> = { PAUSE: 'Pause', RESUME: 'Resume', PURGE: 'Purge…', DELETE: 'Delete…' };
+
+  it.each(['PAUSE', 'RESUME', 'PURGE', 'DELETE'] as const)(
+    'previews %s with every field the server requires',
+    async (operation) => {
+      const preview = capturePreview();
+      server.use(meHandler(), clusterHandler(), preview.handler);
+      const user = userEvent.setup();
+      renderWithProviders(<Bar />);
+
+      await openPreview(user, LABEL[operation]);
+
+      await waitFor(() => expect(preview.bodies).toHaveLength(1));
+      expect(preview.bodies[0]).toEqual({
+        operation,
+        names: ['orders.a', 'orders.b', 'orders.c'],
+        q: null,
+        disconnectConsumers: false,
+      });
+    },
+  );
+
+  it('previews "all matching" as the filter, not as names', async () => {
+    const preview = capturePreview();
+    server.use(meHandler(), clusterHandler(), preview.handler);
+    const user = userEvent.setup();
+    renderWithProviders(<Bar selection={{ kind: 'filter', q: 'orders', total: 140 }} count={140} />);
+
+    await openPreview(user, 'Pause');
+
+    await waitFor(() => expect(preview.bodies).toHaveLength(1));
+    expect(preview.bodies[0]).toEqual({ operation: 'PAUSE', names: null, q: 'orders', disconnectConsumers: false });
+  });
+
+  it('previews a partial selection as exactly the names picked', async () => {
+    const preview = capturePreview();
+    server.use(meHandler(), clusterHandler(), preview.handler);
+    const user = userEvent.setup();
+    renderWithProviders(<Bar selection={{ kind: 'names', names: ['orders.b'] }} count={1} />);
+
+    await openPreview(user, 'Purge…');
+
+    await waitFor(() => expect(preview.bodies).toHaveLength(1));
+    expect(preview.bodies[0]).toEqual({ operation: 'PURGE', names: ['orders.b'], q: null, disconnectConsumers: false });
+  });
+
+  it('states a rejected preview (400) and offers to preview again', async () => {
+    let calls = 0;
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/bulk/preview', () => {
+        calls += 1;
+        return problem(400, 'validation', 'Invalid request', 'One or more fields are invalid.');
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    const dialog = await openPreview(user);
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('Invalid request');
+    expect(alert).toHaveTextContent('One or more fields are invalid.');
+
+    await user.click(within(alert).getByRole('button', { name: 'Preview again' }));
+    await waitFor(() => expect(calls).toBe(2));
+  });
+
+  it('states why a preview was refused (422) and what to change', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/bulk/preview', () =>
+        problem(
+          422,
+          'bulk-queue-cap-exceeded',
+          'Bulk run refused',
+          '140 queues matched; a bulk run is capped at 100 queues (safety.bulk-queue-cap). Narrow the selection.',
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    const dialog = await openPreview(user);
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('Bulk run refused');
+    expect(alert).toHaveTextContent('Narrow the selection.');
+    expect(within(alert).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
+  });
+
+  it('says nothing ran when the plan changed (409), and offers a fresh preview', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/bulk/preview', () =>
+        HttpResponse.json({ ...deletePreview(), run: run({ operation: 'PAUSE' }) }, { status: 201 }),
+      ),
+      http.post('*/api/v1/clusters/c1/bulk/runs/r1/execute', () =>
+        problem(
+          409,
+          'bulk-plan-mismatch',
+          'Conflict',
+          'This is not the plan that was previewed. Preview again and confirm what it shows.',
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    const dialog = await openPreview(user, 'Pause');
+    await user.click(await within(dialog).findByRole('button', { name: 'Pause 2 queues' }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('This is not the plan that was previewed.');
+    expect(alert).toHaveTextContent('Nothing was run.');
+    expect(within(alert).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
+  });
+
   it('states the blast radius, says what is unknown, and lists the refused queue', async () => {
     server.use(
       meHandler(),

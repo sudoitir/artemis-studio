@@ -1817,7 +1817,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         SetDisabledRequest: {
-            disabled?: boolean;
+            disabled: boolean;
         };
         GrantSummary: {
             roleName: string;
@@ -1915,9 +1915,9 @@ export interface components {
             /** Format: int32 */
             deadlineMs?: number;
             /** Format: int32 */
-            samplePerMin?: number;
-            capturePayload?: boolean;
-            enabled?: boolean;
+            samplePerMin: number;
+            capturePayload: boolean;
+            enabled: boolean;
         };
         ExpectationView: {
             /** Format: uuid */
@@ -2150,10 +2150,10 @@ export interface components {
             threshold?: number;
             stateCondition?: string;
             /** Format: int32 */
-            forSeconds?: number;
+            forSeconds: number;
             severity: string;
             scope?: string;
-            enabled?: boolean;
+            enabled: boolean;
             channelIds?: string[];
         };
         AlertRuleView: {
@@ -2184,7 +2184,7 @@ export interface components {
             kind: string;
             config?: string;
             secret?: string;
-            enabled?: boolean;
+            enabled: boolean;
         };
         NotificationChannelView: {
             /** Format: uuid */
@@ -2353,9 +2353,9 @@ export interface components {
             nodeId?: string;
             queueName?: string;
             /** Format: int64 */
-            messageId?: number;
+            messageId: number;
             /** Format: int64 */
-            timestamp?: number;
+            timestamp: number;
         };
         /** @description Whether an indexed row is still on the broker. */
         VerifyView: {
@@ -2392,7 +2392,7 @@ export interface components {
             /** @description The JMS selector the broker will evaluate, if any. */
             selector?: string;
             /** @description Whether any predicate forces messages to be read and examined. */
-            requiresScan?: boolean;
+            requiresScan: boolean;
             /** @description The predicates the broker evaluates. These cost nothing. */
             pushedDown?: string[];
             /** @description The predicates Studio evaluates. These cost a scan. */
@@ -2401,14 +2401,14 @@ export interface components {
              * Format: int64
              * @description How many messages the query is expected to examine.
              */
-            estimatedMessagesExamined?: number;
+            estimatedMessagesExamined: number;
             /**
              * Format: int32
              * @description The row limit that will actually apply, after the server cap.
              */
-            effectiveLimit?: number;
+            effectiveLimit: number;
             /** @description True when every target of this query is captured on the node it is read from, which is what lets the console claim the result is everything the address routed rather than everything a poll happened to see. */
-            captured?: boolean;
+            captured: boolean;
             /** @description Everything true about this plan the operator has to be told. */
             notices?: components["schemas"]["NoticeView"][];
         };
@@ -2419,7 +2419,7 @@ export interface components {
             queueName?: string;
             address?: string;
             /** Format: int64 */
-            messageCount?: number;
+            messageCount: number;
         };
         /** @description A request to start capturing a queue's messages into the index. */
         IndexSubscriptionRequest: {
@@ -2469,7 +2469,7 @@ export interface components {
             /** @description When this node started being captured. Null when it never has been. */
             capturedFrom?: string;
             /** Format: int64 */
-            droppedEstimate?: number;
+            droppedEstimate: number;
         };
         /** @description One index subscription and what it currently holds. */
         IndexSubscriptionView: {
@@ -2477,40 +2477,40 @@ export interface components {
             id?: string;
             queuePattern?: string;
             /** Format: int32 */
-            retentionDays?: number;
+            retentionDays: number;
             /** Format: int64 */
-            intervalMs?: number;
+            intervalMs: number;
             captureFrom?: string;
             createdAt?: string;
             createdBy?: string;
-            enabled?: boolean;
+            enabled: boolean;
             /**
              * Format: int64
              * @description How many messages this subscription is currently holding.
              */
-            messagesHeld?: number;
+            messagesHeld: number;
             /**
              * Format: int64
              * @description Approximate bytes of message payload held.
              */
-            bytesHeld?: number;
+            bytesHeld: number;
             /** @description The oldest observation still held, or null when nothing is held. */
             oldestObservedAt?: string;
             /** @description Why this subscription is recording nothing, or null when it is running. An empty index and a subscription whose pattern matches no queue look identical from a query, so the reason is stated here. */
             notCapturing?: string;
             /** @description True while a sampled subscription is still indexing the messages that were already on its queues when it started. That walk is spread over several polls to bound broker load, and until it finishes the index is not up to date. */
-            backlogInProgress?: boolean;
+            backlogInProgress: boolean;
             /** @description SAMPLE or CAPTURE. A sampled subscription records what a poll saw; a captured one records what the address routed. */
             mode?: string;
             /** Format: int64 */
-            ringSize?: number;
+            ringSize: number;
             filterString?: string;
             /** Format: int64 */
-            maxBytes?: number;
+            maxBytes: number;
             /** Format: int32 */
-            maxRate?: number;
+            maxRate: number;
             /** Format: int32 */
-            bodyCapBytes?: number;
+            bodyCapBytes: number;
             /** @description Capture state per node. Empty for a sampled subscription. A node missing from this list is one capture has not reached, which is not the same as one that is capturing nothing. */
             nodes?: components["schemas"]["CaptureNodeView"][];
         };
@@ -2524,12 +2524,12 @@ export interface components {
              * Format: int64
              * @description Messages each capture queue holds before the broker drops the oldest.
              */
-            ringMessages?: number;
+            ringMessages: number;
             /**
              * Format: int64
              * @description Bytes each capture queue holds before the broker drops the oldest.
              */
-            ringBytes?: number;
+            ringBytes: number;
             /** @description The broker objects created on every listed node. */
             brokerObjects?: string[];
             /** @description The equivalent permanent broker.xml for a configuration-managed estate. */
@@ -2544,8 +2544,8 @@ export interface components {
             /** Format: int32 */
             deadlineMs?: number;
             /** Format: int32 */
-            samplePerMin?: number;
-            capturePayload?: boolean;
+            samplePerMin: number;
+            capturePayload: boolean;
         };
         CreateQueueRequest: {
             /** @description The address this queue binds to. */
@@ -2625,7 +2625,7 @@ export interface components {
         SendMessageRequest: {
             /** Format: int32 */
             type: number;
-            durable?: boolean;
+            durable: boolean;
             body?: string;
             bodyBase64?: boolean;
             headers?: {
@@ -2944,8 +2944,8 @@ export interface components {
         };
         BulkExecuteRequest: {
             planHash: string;
-            override?: boolean;
-            continueOnFailure?: boolean;
+            override: boolean;
+            continueOnFailure: boolean;
         };
         BulkPreviewRequest: {
             /** @enum {string} */
@@ -2953,7 +2953,7 @@ export interface components {
             names?: string[] | null;
             q?: string | null;
             /** @description Delete only: close attached consumers instead of refusing the queue. */
-            disconnectConsumers?: boolean;
+            disconnectConsumers: boolean;
         };
         BulkItemView: {
             /** Format: int32 */
@@ -3151,14 +3151,14 @@ export interface components {
         BoundView: {
             kind?: string;
             /** Format: int64 */
-            value?: number;
+            value: number;
         };
         ProblemDetail: {
             /** Format: uri */
             type?: string;
             title?: string;
             /** Format: int32 */
-            status?: number;
+            status: number;
             detail?: string;
             /** Format: uri */
             instance?: string;
@@ -3182,7 +3182,7 @@ export interface components {
             boundsReached?: components["schemas"]["BoundView"][];
             notices?: components["schemas"]["NoticeView"][];
             /** @description True when a bound was hit or a node did not answer. */
-            partial?: boolean;
+            partial: boolean;
             plan?: components["schemas"]["PlanView"];
         };
         /** @description A message, and where it came from. */
@@ -3196,18 +3196,18 @@ export interface components {
             queueName?: string;
             address?: string;
             /** Format: int64 */
-            messageId?: number;
+            messageId: number;
             /** Format: int32 */
-            messageType?: number;
-            durable?: boolean;
+            messageType: number;
+            durable: boolean;
             /** Format: int32 */
-            priority?: number;
+            priority: number;
             /** Format: int64 */
-            timestamp?: number;
+            timestamp: number;
             /** Format: int64 */
-            expiration?: number;
+            expiration: number;
             /** Format: int64 */
-            size?: number;
+            size: number;
             jmsType?: string;
             correlationId?: string;
             groupId?: string;
@@ -3215,7 +3215,7 @@ export interface components {
             replyTo?: string;
             body?: string;
             /** @description The management channel cut this body, so a body predicate may be a false negative. */
-            bodyTruncated?: boolean;
+            bodyTruncated: boolean;
             properties?: {
                 [key: string]: unknown;
             };
@@ -3267,17 +3267,17 @@ export interface components {
              * Format: int64
              * @description Messages enqueued on the tailed queues since the tail started.
              */
-            enqueued?: number;
+            enqueued: number;
             /**
              * Format: int64
              * @description Rows this tail has delivered.
              */
-            shown?: number;
+            shown: number;
             /** Format: int64 */
-            polls?: number;
+            polls: number;
             lastPollAt?: string;
             /** @description True when the query has no predicate, so enqueued minus shown is exactly the number that passed through unobserved. When false the difference also holds messages that simply did not match. */
-            everyMessageMatches?: boolean;
+            everyMessageMatches: boolean;
         };
         WithheldView: {
             location: string;
@@ -3287,9 +3287,9 @@ export interface components {
         ResourceQuery: {
             q?: string;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            size?: number;
+            size: number;
             sort?: string;
         };
         PagedViewSessionView: {
@@ -3693,14 +3693,14 @@ export interface components {
             /** Format: date-time */
             sampledAt?: string;
             /** Format: int32 */
-            producersSeen?: number;
+            producersSeen: number;
             /** Format: int32 */
-            producersTotal?: number;
+            producersTotal: number;
             /** Format: int32 */
-            consumersSeen?: number;
+            consumersSeen: number;
             /** Format: int32 */
-            consumersTotal?: number;
-            truncated?: boolean;
+            consumersTotal: number;
+            truncated: boolean;
             brokerXmlSnippet?: string;
         };
         FlowEdgeView: {
@@ -3717,7 +3717,7 @@ export interface components {
             asOf?: string;
             /** Format: int64 */
             averagedOverSeconds?: number;
-            stale?: boolean;
+            stale: boolean;
             /** @enum {string} */
             delivery?: "COPY" | "SHARED";
             /** Format: int32 */
@@ -3725,20 +3725,20 @@ export interface components {
             exclusive?: boolean;
             filter?: string;
             transformer?: string;
-            bypassed?: boolean;
+            bypassed: boolean;
             /** Format: int32 */
             presentOn?: number;
             /** Format: int32 */
             presentOf?: number;
-            studio?: boolean;
+            studio: boolean;
             faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
         };
         FlowFocusView: {
             kind?: string;
             name?: string;
             /** Format: int32 */
-            hops?: number;
-            matched?: boolean;
+            hops: number;
+            matched: boolean;
         };
         FlowGraphView: {
             nodes?: components["schemas"]["FlowNodeView"][];
@@ -3748,9 +3748,9 @@ export interface components {
             focus?: components["schemas"]["FlowFocusView"];
             /** Format: date-time */
             sampledAt?: string;
-            measuring?: boolean;
+            measuring: boolean;
             /** Format: int64 */
-            sampleIntervalSeconds?: number;
+            sampleIntervalSeconds: number;
             layers?: string[];
             assumptions?: string[];
             brokerNodes?: components["schemas"]["FlowBrokerNodeView"][];
@@ -3761,11 +3761,11 @@ export interface components {
             /** Format: double */
             outRate?: number;
             /** Format: int64 */
-            backlog?: number;
+            backlog: number;
             /** Format: int32 */
-            clients?: number;
+            clients: number;
             /** Format: int32 */
-            faults?: number;
+            faults: number;
         };
         FlowNodeView: {
             id?: string;
@@ -3789,12 +3789,12 @@ export interface components {
         };
         FlowTotals: {
             /** Format: int32 */
-            paths?: number;
+            paths: number;
             /** Format: int32 */
-            shown?: number;
+            shown: number;
             /** Format: int32 */
-            limit?: number;
-            clamped?: boolean;
+            limit: number;
+            clamped: boolean;
         };
         BrokerEventPageView: {
             data: components["schemas"]["BrokerEventView"][];
@@ -4285,7 +4285,7 @@ export interface components {
         /** @description How many captured messages the deletion destroyed. */
         DeletedView: {
             /** Format: int64 */
-            messagesDestroyed?: number;
+            messagesDestroyed: number;
         };
     };
     responses: never;

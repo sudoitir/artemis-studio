@@ -209,36 +209,39 @@ export function QueuesView() {
         </Group>
       </Group>
 
-      {count > 0 ? (
-        <Group
-          gap="sm"
-          justify="space-between"
-          role="region"
-          aria-label="Selected queues"
-          style={{ position: 'sticky', insetBlockStart: 0, zIndex: 2, background: 'var(--as-surface)' }}
-        >
-          <Group gap="xs">
-            <Text size="sm" fw={600}>
-              {allMatching
+      {/* Always mounted, so the first tick does not push the grid down under the cursor. */}
+      <Group
+        gap="sm"
+        justify="space-between"
+        role="region"
+        aria-label="Selected queues"
+        style={{ position: 'sticky', insetBlockStart: 0, zIndex: 2, background: 'var(--as-surface)' }}
+      >
+        <Group gap="xs">
+          <Text size="sm" fw={count > 0 ? 600 : undefined}>
+            {count === 0
+              ? 'No queues selected. Select queues in the grid to act on them together.'
+              : allMatching
                 ? `All ${total.toLocaleString()} queues${matching} are selected.`
                 : `${count.toLocaleString()} ${count === 1 ? 'queue' : 'queues'} selected`}
-            </Text>
-            {!allMatching && pageAllPicked && total > rows.length ? (
-              <Button size="xs" variant="subtle" onClick={() => setAllMatching(true)}>
-                {`Select all ${total.toLocaleString()} queues${matching}`}
-              </Button>
-            ) : null}
+          </Text>
+          {!allMatching && pageAllPicked && total > rows.length ? (
+            <Button size="xs" variant="subtle" onClick={() => setAllMatching(true)}>
+              {`Select all ${total.toLocaleString()} queues${matching}`}
+            </Button>
+          ) : null}
+          {count > 0 ? (
             <Button size="xs" variant="subtle" onClick={clearSelection}>
               Clear selection
             </Button>
-          </Group>
-          <Group gap="xs">
-            {selectionSlot.map(({ id, Component }) => (
-              <Component key={id} clusterId={clusterId} selection={selection} count={count} clear={clearSelection} />
-            ))}
-          </Group>
+          ) : null}
         </Group>
-      ) : null}
+        <Group gap="xs">
+          {selectionSlot.map(({ id, Component }) => (
+            <Component key={id} clusterId={clusterId} selection={selection} count={count} clear={clearSelection} />
+          ))}
+        </Group>
+      </Group>
 
       {query.isPending && rows.length === 0 ? (
         <Stack gap={4}>

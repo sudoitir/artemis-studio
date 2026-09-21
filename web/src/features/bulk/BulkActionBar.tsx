@@ -5,7 +5,7 @@ import { useCluster } from '../clusters/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import type { SlotProps } from '../../kernel/slots.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
-import { gateFor } from '../../ui/capabilityGate.ts';
+import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
 import type { BulkOperation } from './api.ts';
 import { BulkPreviewDialog } from './BulkPreviewDialog.tsx';
 import { OPERATIONS } from './words.ts';
@@ -16,7 +16,7 @@ const ORDER: BulkOperation[] = ['PAUSE', 'RESUME', 'PURGE', 'DELETE'];
  * The bulk actions over the queues screen's selection (`queues.selection`). Each is gated on the
  * permission of the single-queue command it applies, and opens its preview; nothing acts from here.
  */
-export function BulkActionBar({ clusterId, selection, clear }: SlotProps['queues.selection']) {
+export function BulkActionBar({ clusterId, selection, count, clear }: SlotProps['queues.selection']) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const write = cluster.data?.capabilities.managementWrite;
@@ -29,7 +29,12 @@ export function BulkActionBar({ clusterId, selection, clear }: SlotProps['queues
     <>
       {ORDER.map((each) => {
         const op = OPERATIONS[each];
-        const gate = gateFor(can(op.permission, clusterId), op.permissionLabel, write, loading || cluster.isPending);
+        const permitted = gateFor(can(op.permission, clusterId), op.permissionLabel, write, loading || cluster.isPending);
+        // An empty selection is one more reason the control cannot act, explained the same way.
+        const gate: GateVerdict =
+          permitted.kind === 'allowed' && count === 0
+            ? { kind: 'blocked', reason: 'No queues are selected. Select queues in the grid, or select all matching the filter.' }
+            : permitted;
         return (
           <CapabilityGate key={each} verdict={gate} what={`${op.gerund} these queues`}>
             <Button

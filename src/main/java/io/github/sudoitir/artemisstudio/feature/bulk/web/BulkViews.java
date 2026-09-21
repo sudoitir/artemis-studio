@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.bulk.BulkOperation;
 import io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +22,7 @@ public final class BulkViews {
      * queue whose name or address contains {@code q} (every queue when {@code q} is blank).
      */
     public record BulkPreviewRequest(
-            @Schema(requiredMode = REQUIRED) BulkOperation operation,
+            @Schema(requiredMode = REQUIRED) @NotNull BulkOperation operation,
             @Schema(nullable = true) List<String> names,
             @Schema(nullable = true) String q,
 
@@ -30,7 +31,7 @@ public final class BulkViews {
 
     /** @param planHash the preview's {@code planHash}, echoed to prove this is the plan being confirmed */
     public record BulkExecuteRequest(
-            @Schema(requiredMode = REQUIRED) String planHash, boolean override, boolean continueOnFailure) {}
+            @Schema(requiredMode = REQUIRED) @NotNull String planHash, boolean override, boolean continueOnFailure) {}
 
     /** How the operator chose the queues: the names, or the filter. */
     public record BulkSelection(

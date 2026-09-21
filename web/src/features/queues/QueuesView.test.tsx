@@ -61,6 +61,6 @@ describe('QueuesView selection', () => {
     expect(screen.getByText('All 140 queues matching "orders" are selected.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Clear selection' }));
-    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    expect(screen.getByText(/No queues selected/)).toBeInTheDocument();
   });
 });
