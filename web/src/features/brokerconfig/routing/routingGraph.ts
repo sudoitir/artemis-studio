@@ -58,6 +58,22 @@ export const KIND_WORDS: Record<RoutingKind, string> = {
   target: 'Target on another broker',
 };
 
+/**
+ * What a drag from one element to another composes, or null where the pair composes nothing.
+ * The canvas proposes exactly two things: a divert between two addresses, and a bridge from a
+ * queue to a target on another broker. Everything else is a drag that goes nowhere, so the
+ * canvas neither offers it as a start nor accepts it as an end.
+ */
+export function composes(from: RoutingKind, to: RoutingKind): 'divert' | 'bridge' | null {
+  if (from === 'address' && to === 'address') return 'divert';
+  if (from === 'queue' && to === 'target') return 'bridge';
+  return null;
+}
+
+/** Kinds a drag can start from, and kinds it can end on — derived from {@link composes}. */
+export const STARTS: ReadonlySet<RoutingKind> = new Set(['address', 'queue']);
+export const ENDS: ReadonlySet<RoutingKind> = new Set(['address', 'target']);
+
 export interface RoutingNodeView {
   /** `kind:key` — stable, so it survives a refresh and can live in the URL. */
   id: string;

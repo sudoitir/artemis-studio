@@ -81,6 +81,9 @@
 
 .wrapper {
   position: relative;
+  /* A drag on the canvas pans it or draws a line; it never selects the page's text. */
+  user-select: none;
+  -webkit-user-select: none;
   /*
    * Sized from where the canvas actually starts, not from a guess at how much chrome is above
    * it. The cluster header, the health banner and the bound notice are all conditional, so a
@@ -220,6 +223,35 @@
 
 .handle:not([data-usable]) {
   pointer-events: none;
+}
+
+/*
+ * The dot is small on purpose; the target is not. Fitted to a dense frame a 9px handle is a few
+ * screen pixels, so it carries an invisible margin that makes it catchable at any zoom.
+ */
+.handle::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+}
+
+/* An end is only offered while a drag that could land on it is in flight, so it is always shown then. */
+.handle[data-end][data-usable] {
+  opacity: 1;
+}
+
+/*
+ * While a line is being drawn, every element says whether it would take it: the ones it could end
+ * on are outlined, the rest recede. Shape and emphasis, not colour, carry the difference.
+ */
+.node[data-drop='yes'] {
+  border-style: dashed;
+  border-color: var(--as-text);
+}
+
+.node[data-drop='no'] {
+  opacity: 0.45;
 }
 
 /* ── lines ─────────────────────────────────────────────────────────────── */

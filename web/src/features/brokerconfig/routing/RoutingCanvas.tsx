@@ -6,6 +6,7 @@ import {
   ReactFlowProvider,
   useReactFlow,
   type Connection,
+  type Edge,
 } from '@xyflow/react';
 import { ActionIcon, Alert, Button, Loader, Text, Tooltip } from '@mantine/core';
 import { IconFocusCentered, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
@@ -13,8 +14,17 @@ import type { ElkNode } from 'elkjs/lib/elk-api';
 
 import { runLayout as runElkLayout } from '../../../ui/graph/elk.ts';
 import { RoutingCanvasContext, type RoutingCanvasState } from './canvasContext.ts';
-import type { RoutingGraph } from './routingGraph.ts';
-import { layoutSignature, positionsFrom, toElkGraph, toReactFlow, type Positions } from './routingLayout.ts';
+import { composes, type RoutingGraph } from './routingGraph.ts';
+import {
+  layoutSignature,
+  neighbour,
+  positionsFrom,
+  readingOrder,
+  toElkGraph,
+  toReactFlow,
+  type Direction,
+  type Positions,
+} from './routingLayout.ts';
 import { RoutingEdge } from './RoutingEdge.tsx';
 import { AddressNode, BridgeNode, DivertNode, QueueNode, TargetNode } from './RoutingNodes.tsx';
 import classes from './RoutingCanvas.module.css';
@@ -28,6 +38,16 @@ const DENSE = 60;
 /** Generous gutters, and never larger than life: a small graph is not blown up to fill the frame. */
 const FIT = { padding: 0.16, maxZoom: 1 };
 const ZOOM = { duration: 140 };
+
+/** The zoom a keyboard-focused element is brought to: life size, where its words can be read. */
+const READABLE = 1;
+
+const DIRECTION: Record<string, Direction> = {
+  ArrowRight: 'right',
+  ArrowLeft: 'left',
+  ArrowDown: 'down',
+  ArrowUp: 'up',
+};
 
 /**
  * The toolbar over the canvas: the keyboard's way in, the view controls, and whatever the
@@ -129,6 +149,45 @@ function FitOnLayout({ signature }: { signature: string | null }) {
 }
 
 /**
+ * Brings the element the keyboard moved to into view at a readable size. Without it, entering a
+ * dense graph fitted to the frame focuses a card too small to read, and an arrow key can move the
+ * focus somewhere off the frame entirely. It jumps rather than glides: nothing on this canvas
+ * animates (ADR-0090 D5).
+ */
+function FollowFocus({
+  follow,
+  frame,
+}: {
+  follow: React.MutableRefObject<((id: string) => void) | null>;
+  frame: React.RefObject<HTMLDivElement | null>;
+}) {
+  const flow = useReactFlow();
+  useEffect(() => {
+    follow.current = (id) => {
+      const node = flow.getNode(id);
+      const box = frame.current;
+      if (!node || !box) return;
+      const { x, y, zoom } = flow.getViewport();
+      const width = node.width ?? 0;
+      const height = node.height ?? 0;
+      const left = node.position.x * zoom + x;
+      const top = node.position.y * zoom + y;
+      const inView =
+        left >= 0 && top >= 0 && left + width * zoom <= box.clientWidth && top + height * zoom <= box.clientHeight;
+      if (inView && zoom >= READABLE) return;
+      void flow.setCenter(node.position.x + width / 2, node.position.y + height / 2, {
+        zoom: Math.max(zoom, READABLE),
+        duration: 0,
+      });
+    };
+    return () => {
+      follow.current = null;
+    };
+  }, [flow, follow, frame]);
+  return null;
+}
+
+/**
  * The routing canvas (ADR-0090): the declaration and what the nodes report, drawn
  * as one graph, laid out by the shared ELK runner in a worker.
  *
@@ -187,14 +246,8 @@ export function RoutingCanvas({
     [graph, layout.positions, selectedId],
   );
 
-  /** Reading order: left to right, then down — the order the layout put them in. */
-  const order = useMemo(
-    () =>
-      [...model.nodes]
-        .sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y)
-        .map((n) => n.id),
-    [model.nodes],
-  );
+  /** Reading order: left to right, then down. Entry lands on its first element. */
+  const order = useMemo(() => readingOrder(model.nodes), [model.nodes]);
 
   // The tab stop must always be on an element that is still drawn, or Tab falls
   // through the canvas entirely after a bound or a filter changes what it holds.
@@ -202,9 +255,22 @@ export function RoutingCanvas({
     setFocusedId((was) => (was && order.includes(was) ? was : (order[0] ?? null)));
   }, [order]);
 
+  // An element brought into view may not be drawn yet on a dense canvas, which draws only what is
+  // visible; its focus waits here until it registers.
+  const pendingFocus = useRef<string | null>(null);
+  const follow = useRef<((id: string) => void) | null>(null);
+
   const register = useCallback((id: string, el: HTMLElement | null) => {
-    if (el) elements.current.set(id, el);
-    else elements.current.delete(id);
+    if (!el) {
+      elements.current.delete(id);
+      return;
+    }
+    elements.current.set(id, el);
+    if (pendingFocus.current === id) {
+      pendingFocus.current = null;
+      // The canvas owns the view; the browser scrolling its clipped frame would shift the drawing.
+      el.focus({ preventScroll: true });
+    }
   }, []);
 
   const context = useMemo<RoutingCanvasState>(
@@ -212,10 +278,21 @@ export function RoutingCanvas({
     [focusedId, canWrite, register, onSelect],
   );
 
-  const moveTo = (id: string | undefined) => {
+  const moveTo = (id: string | null | undefined) => {
     if (!id) return;
     setFocusedId(id);
-    elements.current.get(id)?.focus();
+    follow.current?.(id);
+    const el = elements.current.get(id);
+    if (el) el.focus({ preventScroll: true });
+    else pendingFocus.current = id;
+  };
+
+  /** Entering lands on an element and opens it in the inspector, so entering visibly does something. */
+  const enter = () => {
+    const id = focusedId ?? order[0];
+    if (!id) return;
+    moveTo(id);
+    onSelect(id);
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -225,25 +302,27 @@ export function RoutingCanvas({
       entry.current?.focus();
       return;
     }
-    const step = ['ArrowRight', 'ArrowDown'].includes(event.key)
-      ? 1
-      : ['ArrowLeft', 'ArrowUp'].includes(event.key)
-        ? -1
-        : 0;
-    if (step === 0) return;
+    const direction = DIRECTION[event.key];
+    if (!direction) return;
     event.preventDefault();
-    const at = focusedId ? order.indexOf(focusedId) : -1;
-    moveTo(order[(at + step + order.length) % order.length]);
+    moveTo(focusedId ? neighbour(model.nodes, focusedId, direction) : order[0]);
+  };
+
+  /** The two ends of a drag, when they compose something; the one rule for both validation and composing. */
+  const ends = (connection: Connection | Edge) => {
+    const from = graph.nodes.find((n) => n.id === connection.source);
+    const to = graph.nodes.find((n) => n.id === connection.target);
+    if (!from || !to || from.id === to.id) return null;
+    const what = composes(from.kind, to.kind);
+    return what ? { what, from, to } : null;
   };
 
   const connect = (connection: Connection) => {
-    const from = graph.nodes.find((n) => n.id === connection.source);
-    const to = graph.nodes.find((n) => n.id === connection.target);
-    if (!from || !to || from.id === to.id) return;
-    if (from.kind === 'address' && to.kind === 'address') {
-      onCompose({ kind: 'divert', address: from.name, forwardingAddress: to.name });
-    } else if (from.kind === 'queue' && to.kind === 'target') {
-      onCompose({ kind: 'bridge', queueName: from.name, forwardingAddress: to.name });
+    const pair = ends(connection);
+    if (pair?.what === 'divert') {
+      onCompose({ kind: 'divert', address: pair.from.name, forwardingAddress: pair.to.name });
+    } else if (pair?.what === 'bridge') {
+      onCompose({ kind: 'bridge', queueName: pair.from.name, forwardingAddress: pair.to.name });
     }
   };
 
@@ -261,7 +340,7 @@ export function RoutingCanvas({
         <div className={classes.frame}>
           <CanvasToolbar
             ref={entry}
-            onEnter={() => moveTo(focusedId ?? order[0])}
+            onEnter={enter}
             canEnter={order.length > 0}
             leading={leading}
             actions={actions}
@@ -293,6 +372,9 @@ export function RoutingCanvas({
                 elementsSelectable={false}
                 onlyRenderVisibleElements={model.nodes.length > DENSE}
                 onConnect={connect}
+                isValidConnection={(connection) => ends(connection) !== null}
+                // A line lands on the nearest end that would take it, not only on a pixel-exact drop.
+                connectionRadius={48}
                 // React Flow gives a node `pointer-events: none` unless it is
                 // selectable, draggable or has a click handler, and this canvas
                 // owns its own selection and tab stop rather than React Flow's —
@@ -303,6 +385,7 @@ export function RoutingCanvas({
               >
                 <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} patternClassName={classes.dots} />
                 <FitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
+                <FollowFocus follow={follow} frame={wrapper} />
               </ReactFlow>
             </RoutingCanvasContext.Provider>
           </div>

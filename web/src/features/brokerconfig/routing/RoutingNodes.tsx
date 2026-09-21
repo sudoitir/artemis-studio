@@ -1,5 +1,5 @@
 import { memo, useContext, useEffect, useRef } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, useConnection, type NodeProps } from '@xyflow/react';
 import {
   IconArrowFork,
   IconBuildingBridge2,
@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react';
 
 import { RoutingCanvasContext } from './canvasContext.ts';
-import { KIND_WORDS, nodeSentence, STATE_SHORT, type RoutingKind } from './routingGraph.ts';
+import { composes, ENDS, KIND_WORDS, nodeSentence, STARTS, STATE_SHORT, type RoutingKind } from './routingGraph.ts';
 import type { RoutingNodeData } from './routingLayout.ts';
 import classes from './RoutingCanvas.module.css';
 
@@ -38,7 +38,9 @@ const KIND_SHORT: Record<RoutingKind, string> = { ...KIND_WORDS, target: 'Other 
  * reachable from the keyboard on their own (ADR-0090 D10). The canvas owns the single tab stop
  * and moves it with the arrow keys; this element only reports where it is and when it was
  * focused directly. Connection handles show on hover or focus, and only while the operator may
- * write — a handle that cannot be used is a promise the canvas does not keep.
+ * write and only where a drag could compose something ({@link composes}) — a handle that cannot be
+ * used is a promise the canvas does not keep. While a drag is in flight every element says whether
+ * it would accept it: the ones it could end on stand out, the rest recede.
  */
 function RoutingNode({
   id,
@@ -57,6 +59,14 @@ function RoutingNode({
   // Not what was declared, or declared and not doing it.
   const attention = view.state === 'DECLARED_ONLY' || view.state === 'OBSERVED_ONLY' || view.fault !== null;
   const Glyph = GLYPH[view.kind];
+  const canStart = canWrite && STARTS.has(view.kind);
+  const canEnd = canWrite && ENDS.has(view.kind);
+  // Where an in-flight drag would land here: 'yes', 'no', or nothing when no drag is in flight.
+  const drop = useConnection((c) => {
+    if (!c.inProgress) return undefined;
+    const from = (c.fromNode.data as RoutingNodeData).view.kind;
+    return c.fromNode.id !== id && composes(from, view.kind) !== null ? 'yes' : 'no';
+  });
 
   useEffect(() => {
     register(id, ref.current);
@@ -67,7 +77,15 @@ function RoutingNode({
     <>
       {/* Lines attach to handles, so they are always there; they are shown only where they can be used. */}
       {inbound ? (
-        <Handle type="target" position={Position.Left} className={classes.handle} data-usable={canWrite || undefined} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={classes.handle}
+          isConnectableStart={false}
+          isConnectableEnd={canEnd}
+          data-end
+          data-usable={(canEnd && drop === 'yes') || undefined}
+        />
       ) : null}
       <button
         ref={ref}
@@ -76,6 +94,7 @@ function RoutingNode({
         data-kind={view.kind}
         data-attention={attention || undefined}
         data-selected={data.selected || undefined}
+        data-drop={drop}
         tabIndex={focusedId === id ? 0 : -1}
         aria-label={nodeSentence(view)}
         onFocus={() => focus(id)}
@@ -93,7 +112,14 @@ function RoutingNode({
         </span>
       </button>
       {outbound ? (
-        <Handle type="source" position={Position.Right} className={classes.handle} data-usable={canWrite || undefined} />
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={classes.handle}
+          isConnectableStart={canStart}
+          isConnectableEnd={false}
+          data-usable={(canStart && drop === undefined) || undefined}
+        />
       ) : null}
     </>
   );
