@@ -52,6 +52,21 @@ public class MessageOperations {
         return res.value() == null ? 0L : res.value().asLong();
     }
 
+    /**
+     * The ids of every message on the queue, in queue order, from one {@code listMessages("")}. For a
+     * queue known to be small, such as a transfer's staging queue: it lists the whole queue at once.
+     */
+    public List<Long> listIds(JolokiaBrokerClient client, String queueMbean) {
+        JolokiaResponse res = client.single(JolokiaRequest.exec(queueMbean, "listMessages(java.lang.String)", ""));
+        requireOk(res, "listMessages");
+        List<Long> ids = new java.util.ArrayList<>();
+        JsonNode listed = client.parsed(res);
+        if (listed != null) {
+            listed.forEach(m -> ids.add(m.path("messageID").asLong()));
+        }
+        return ids;
+    }
+
     /** Current {@code MessageCount} of the queue — the purge / retry-all dry-run estimate. */
     public long messageCount(JolokiaBrokerClient client, String queueMbean) {
         JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, "MessageCount"));

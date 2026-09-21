@@ -135,8 +135,8 @@ public class TransferService {
         Instant t0 = Instant.now();
 
         JolokiaBrokerClient sourceClient = nodes.client(source);
-        Long count = estimate(sourceClient, from, selection, t0);
         Facts sourceFacts = probe.read(sourceClient, from.address(), from.queueName(), from.routingType());
+        Long count = estimate(sourceClient, from, selection, t0, sourceFacts);
         Long bytes = projectedBytes(count, sourceFacts);
 
         boolean targetLive = TransferNodes.live(target);
@@ -159,6 +159,16 @@ public class TransferService {
                 targetAddress,
                 request.targetQueue()));
         findings.addAll(capabilityFindings(mode, clusterId, source, target, sameNode));
+        if (count == null && sourceFacts.messageCount() != null) {
+            findings.add(new Finding(
+                    FindingKind.UNKNOWN,
+                    "selection-size",
+                    ("Queue %s holds %d messages, more than the %d the broker looks at to count a filter"
+                                    + " (management-browse-page-size), so how many match is not known until the run"
+                                    + " counts them. Running it needs the safety-cap override.")
+                            .formatted(from.queueName(), sourceFacts.messageCount(), browsePageSize(sourceFacts)),
+                    null));
+        }
 
         Instant now = Instant.now();
         TransferRunEntity run = runs.save(TransferRunEntity.builder()
@@ -230,18 +240,37 @@ public class TransferService {
                         .findFirst());
     }
 
-    /** The selection's size: exact for ids, the broker's count of the frozen filter otherwise; null when the source did not say. */
-    private Long estimate(JolokiaBrokerClient client, QueueLocation from, TransferSelection selection, Instant t0) {
-        if (selection.kind() == SelectionKind.IDS) {
-            return (long) selection.ids().size();
-        }
-        try {
-            String mbean = BrokerMBeans.queue(
-                    client.resolveBrokerObjectName(), from.address(), from.queueName(), from.routingType());
-            return messages.countMessages(client, mbean, FrozenFilter.compose(selection.filter(), t0));
-        } catch (BrokerConnectionException e) {
-            return null;
-        }
+    /**
+     * The selection's size, or null when it is not known. Exact for ids, and for the whole queue its
+     * depth. A filter's count is the broker's {@code countMessages}, which looks at no more than the
+     * address's {@code management-browse-page-size} messages: on a deeper queue it would under-count,
+     * so the size is then unknown.
+     */
+    private Long estimate(
+            JolokiaBrokerClient client, QueueLocation from, TransferSelection selection, Instant t0, Facts source) {
+        return switch (selection.kind()) {
+            case IDS -> (long) selection.ids().size();
+            case ALL -> source.messageCount();
+            case FILTER -> {
+                if (source.messageCount() == null || source.messageCount() > browsePageSize(source)) {
+                    yield null;
+                }
+                try {
+                    String mbean = BrokerMBeans.queue(
+                            client.resolveBrokerObjectName(), from.address(), from.queueName(), from.routingType());
+                    yield messages.countMessages(client, mbean, FrozenFilter.compose(selection.filter(), t0));
+                } catch (BrokerConnectionException e) {
+                    yield null;
+                }
+            }
+        };
+    }
+
+    /** How many messages the broker looks at to count a filter; Artemis defaults it to 200. */
+    static int browsePageSize(Facts source) {
+        return source.addressSettings() == null
+                ? 200
+                : source.addressSettings().path("managementBrowsePageSize").asInt(200);
     }
 
     /** The count times the source queue's mean persistent message size; null when either is unknown. */
@@ -402,7 +431,14 @@ public class TransferService {
                     "Type the source queue's name, %s, to confirm the move.".formatted(run.getSourceQueue()));
         }
         long cap = settings.intValue(BrokerSettings.BULK_CAP);
-        if (run.getEstimate() != null && run.getEstimate() > cap && !request.override()) {
+        if (!request.override() && run.getEstimate() == null) {
+            throw new TransferRefusedException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "transfer-size-unknown",
+                    "How many messages this transfer selects is not known, so it cannot be held to the safety cap"
+                            + " of %d. Confirm the override to run it.".formatted(cap));
+        }
+        if (!request.override() && run.getEstimate() > cap) {
             throw new BulkCapExceededException(run.getEstimate(), cap);
         }
 
@@ -758,6 +794,10 @@ public class TransferService {
         }
         List<String> notes = new ArrayList<>();
         notes.add("Messages published over AMQP, MQTT, STOMP or OpenWire arrive in their Core form.");
+        if (run.getMode() == TransferMode.MOVE) {
+            notes.add("A move clears each message's expiration, as the broker's own move does, so moved messages"
+                    + " never expire on the target. A copy keeps it.");
+        }
         if (selection.kind() != SelectionKind.IDS) {
             notes.add("Only messages timestamped at or before %s are selected, so messages produced during the run"
                             .formatted(run.getT0())
@@ -786,7 +826,7 @@ public class TransferService {
                         rate,
                         staged ? StagingQueues.queueName(run.getId()) : null,
                         cap,
-                        run.getEstimate() != null && run.getEstimate() > cap,
+                        run.getEstimate() == null || run.getEstimate() > cap,
                         run.getState().resumable(),
                         run.getState().resumable() && staged));
     }

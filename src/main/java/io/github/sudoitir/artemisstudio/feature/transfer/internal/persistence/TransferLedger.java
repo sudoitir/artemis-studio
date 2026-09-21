@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -9,8 +10,16 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code transfer_copied}: the source ids a copy has delivered (transfer design D2), so a resumed copy
- * skips them. One statement per batch, whatever its size.
+ * {@code transfer_copied}: per run, the source ids that may be on the target already. One statement
+ * per batch, whatever its size.
+ *
+ * <ul>
+ *   <li>A copy records the ids it has delivered (transfer design D2), so a resumed copy skips them.
+ *   <li>A move records a batch's staging ids before the target commit and removes them once staging
+ *       has let them go (design D1). What is left is a batch whose commit Studio did not see
+ *       finish, so a return to source must not put those messages back unasked. It is at most a
+ *       batch or two.
+ * </ul>
  */
 @Component
 @RequiredArgsConstructor
@@ -38,6 +47,23 @@ public class TransferLedger {
                 .params(runId, messageIds.toArray(Long[]::new))
                 .query(Long.class)
                 .list());
+    }
+
+    /** Every id recorded for this run. For a move's in-doubt ids, which are at most a batch or two. */
+    public Set<Long> all(UUID runId) {
+        return new HashSet<>(jdbc.sql("SELECT message_id FROM transfer_copied WHERE run_id = ?")
+                .param(runId)
+                .query(Long.class)
+                .list());
+    }
+
+    public void remove(UUID runId, Collection<Long> messageIds) {
+        if (messageIds.isEmpty()) {
+            return;
+        }
+        jdbc.sql("DELETE FROM transfer_copied WHERE run_id = ? AND message_id = ANY(?::bigint[])")
+                .params(runId, messageIds.toArray(Long[]::new))
+                .update();
     }
 
     public long count(UUID runId) {

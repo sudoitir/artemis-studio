@@ -160,7 +160,7 @@ A check that could not be made SHALL be shown as unknown and SHALL NOT count as 
 
 ### Requirement: Messages arrive faithfully and carry their provenance
 
-A transferred message SHALL keep its body byte-for-byte for every body type, including large messages, and SHALL keep its durability, priority, expiration, timestamp, message id, group, correlation id, reply-to, last-value key and application properties. The broker's routing bookkeeping from the source SHALL NOT be carried. Each transferred message SHALL carry provenance naming:
+A transferred message SHALL keep its body byte-for-byte for every body type, including large messages, and SHALL keep its durability, priority, timestamp, message id, group, correlation id, reply-to, last-value key and application properties. A copied message SHALL keep its expiration. A moved message SHALL arrive without an expiration, as the broker's own move leaves it, and the preview of a move SHALL say so. The broker's routing bookkeeping from the source SHALL NOT be carried. Each transferred message SHALL carry provenance naming:
 
 - the run;
 - the source cluster, node and queue;

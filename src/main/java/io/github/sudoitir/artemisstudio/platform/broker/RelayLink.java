@@ -18,7 +18,8 @@ import org.apache.activemq.artemis.api.core.client.ClientMessage;
  * D2), one batch at a time. It owns a transacted session on each node, so the Core client types
  * stay in this module and a feature drives the relay only through {@link #relay}.
  *
- * <p>A batch is received, rebuilt ({@link OutboundMessages}), sent to the target queue's FQQN and
+ * <p>A batch is received, each message rebuilt ({@link OutboundMessages}) as it arrives, sent to the
+ * target queue's FQQN and
  * committed on the target; only then is it acknowledged on the source. A <em>staged</em> link
  * receives destructively from a staging queue; a <em>browse</em> link reads the source queue and
  * leaves it as it is, and the caller keeps its own record of what it copied.
@@ -47,6 +48,12 @@ public final class RelayLink implements AutoCloseable {
         default Set<Long> alreadyRelayed(List<Long> sourceIds) {
             return Set.of();
         }
+
+        /**
+         * These source messages are about to be committed on the target. Once the commit is sent,
+         * Studio may not learn whether it succeeded, so a caller that must know records them here.
+         */
+        default void beforeTargetCommit(List<Long> sourceIds) {}
 
         /**
          * The target has committed these source messages and the source has not yet acknowledged
@@ -106,19 +113,20 @@ public final class RelayLink implements AutoCloseable {
      * @throws IOException when a large message cannot be spooled, for want of disk
      */
     public Batch relay(int max, Hooks hooks) throws IOException {
-        List<ClientMessage> received = receive(max, hooks);
-        if (received.isEmpty()) {
-            return new Batch(Outcome.EMPTY, 0, 0, 0, List.of());
-        }
-        List<Long> ids = received.stream().map(ClientMessage::getMessageID).toList();
-        Set<Long> skip = hooks.alreadyRelayed(ids);
-        List<ClientMessage> fresh = new ArrayList<>();
+        List<Received> received = receive(max, hooks);
         try {
-            for (ClientMessage m : received) {
-                if (skip.contains(m.getMessageID())) {
-                    acknowledge(m);
+            if (received.isEmpty()) {
+                return new Batch(Outcome.EMPTY, 0, 0, 0, List.of());
+            }
+            List<Long> ids =
+                    received.stream().map(r -> r.message().getMessageID()).toList();
+            Set<Long> skip = hooks.alreadyRelayed(ids);
+            List<Received> fresh = new ArrayList<>();
+            for (Received r : received) {
+                if (skip.contains(r.message().getMessageID())) {
+                    acknowledge(r.message());
                 } else {
-                    fresh.add(m);
+                    fresh.add(r);
                 }
             }
             if (fresh.isEmpty()) {
@@ -129,20 +137,22 @@ public final class RelayLink implements AutoCloseable {
         } catch (ActiveMQException e) {
             rollbackQuietly();
             throw failed(e);
+        } finally {
+            received.forEach(r -> r.outbound().close());
         }
     }
 
     /** The whole batch in one target transaction. */
-    private Batch together(List<ClientMessage> messages, Hooks hooks) throws ActiveMQException, IOException {
-        List<Outbound> outbound = new ArrayList<>();
+    private Batch together(List<Received> messages, Hooks hooks) throws ActiveMQException {
         long bytes = 0;
         try {
-            for (ClientMessage m : messages) {
-                Outbound o = OutboundMessages.from(m, route.provenance());
-                outbound.add(o);
-                bytes += OutboundMessages.size(m);
-                target.send(route.targetAddress(), route.targetQueue(), o.message());
+            for (Received r : messages) {
+                bytes += OutboundMessages.size(r.message());
+                target.send(
+                        route.targetAddress(), route.targetQueue(), r.outbound().message());
             }
+            hooks.beforeTargetCommit(
+                    messages.stream().map(r -> r.message().getMessageID()).toList());
             target.commit();
         } catch (ActiveMQException e) {
             rollbackQuietly();
@@ -155,28 +165,29 @@ public final class RelayLink implements AutoCloseable {
                 return new Batch(Outcome.ADDRESS_FULL, 0, 0, 0, List.of());
             }
             throw e;
-        } finally {
-            outbound.forEach(Outbound::close);
         }
-        List<Long> ids = messages.stream().map(ClientMessage::getMessageID).toList();
+        List<Long> ids = messages.stream().map(r -> r.message().getMessageID()).toList();
         hooks.afterTargetCommit(ids);
-        for (ClientMessage m : messages) {
-            acknowledge(m);
+        for (Received r : messages) {
+            acknowledge(r.message());
         }
         commitSource();
         return new Batch(Outcome.RELAYED, messages.size(), 0, bytes, ids);
     }
 
     /** Each message in its own target transaction, after a duplicate refusal. */
-    private Batch oneByOne(List<ClientMessage> messages, Hooks hooks) throws ActiveMQException, IOException {
+    private Batch oneByOne(List<Received> messages, Hooks hooks) throws ActiveMQException {
         int delivered = 0;
         int duplicates = 0;
         long bytes = 0;
         boolean full = false;
         List<ClientMessage> arrived = new ArrayList<>();
-        for (ClientMessage m : messages) {
-            try (Outbound o = OutboundMessages.from(m, route.provenance())) {
-                target.send(route.targetAddress(), route.targetQueue(), o.message());
+        for (Received r : messages) {
+            ClientMessage m = r.message();
+            try {
+                target.send(
+                        route.targetAddress(), route.targetQueue(), r.outbound().message());
+                hooks.beforeTargetCommit(List.of(m.getMessageID()));
                 target.commit();
                 delivered++;
                 bytes += OutboundMessages.size(m);
@@ -210,8 +221,15 @@ public final class RelayLink implements AutoCloseable {
                 full && ids.isEmpty() ? Outcome.ADDRESS_FULL : Outcome.RELAYED, delivered, duplicates, bytes, ids);
     }
 
-    private List<ClientMessage> receive(int max, Hooks hooks) {
-        List<ClientMessage> out = new ArrayList<>();
+    /** A received message and what will be sent for it. */
+    private record Received(ClientMessage message, Outbound outbound) {}
+
+    /**
+     * Receive up to {@code max} selected messages, building each one's outbound as it arrives: a large
+     * message's body streams in behind it and is cut off by the next receive, so it is spooled first.
+     */
+    private List<Received> receive(int max, Hooks hooks) throws IOException {
+        List<Received> out = new ArrayList<>();
         try {
             if (consumer == null) {
                 reopen();
@@ -224,12 +242,17 @@ public final class RelayLink implements AutoCloseable {
                 if (!hooks.selected(m.getMessageID())) {
                     continue;
                 }
-                out.add(m);
+                out.add(new Received(m, OutboundMessages.from(m, route.provenance())));
             }
             return out;
         } catch (ActiveMQException e) {
+            out.forEach(r -> r.outbound().close());
             rollbackQuietly();
             throw failed(e);
+        } catch (IOException | RuntimeException e) {
+            out.forEach(r -> r.outbound().close());
+            rollbackQuietly();
+            throw e;
         }
     }
 

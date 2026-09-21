@@ -31,6 +31,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,12 +202,7 @@ class TransferRunner {
         }
         RelayLink.Route route = new RelayLink.Route(
                 stagingQueue, true, null, s.run.getTargetAddress(), s.run.getTargetQueue(), provenance(s, true));
-        RelayLink.Hooks hooks = new RelayLink.Hooks() {
-            @Override
-            public void afterTargetCommit(List<Long> sourceIds) {
-                faults.afterTargetCommit(s.id());
-            }
-        };
+        InDoubt inDoubt = new InDoubt(s.id());
         boolean exhausted = false;
         int empties = 0;
         Link link = new Link();
@@ -218,14 +214,17 @@ class TransferRunner {
                 }
                 int batch = settings.intValue(TransferSettings.BATCH_SIZE);
                 JolokiaBrokerClient source = nodes.client(s.source);
-                long depth = messages.messageCount(source, s.stagingMbean(source));
+                // The larger of what the broker counts in staging and what the run has put there and not
+                // yet delivered: the bound holds even when either is off for a moment.
+                long depth = Math.max(messages.messageCount(source, s.stagingMbean(source)), held(s.run));
                 if (!exhausted && depth < 2L * batch) {
                     exhausted = refill(s, source, (int) (2L * batch - depth), stagingQueue);
                 }
                 long started = System.nanoTime();
-                RelayLink.Batch b = link.to(s, route).relay(batch, hooks);
+                RelayLink.Batch b = link.to(s, route).relay(batch, inDoubt);
                 switch (b.outcome()) {
                     case ADDRESS_FULL -> {
+                        inDoubt.refused();
                         End w = waitForCapacity(s, "The target refused a batch because its address is full.");
                         if (w != null) {
                             return w;
@@ -245,6 +244,7 @@ class TransferRunner {
                     }
                     case RELAYED -> {
                         empties = 0;
+                        ledger.remove(s.id(), b.sourceIds());
                         delivered(s, b);
                         pace(started, b.delivered() + b.duplicates());
                     }
@@ -252,6 +252,41 @@ class TransferRunner {
             }
         } finally {
             link.close();
+        }
+    }
+
+    /**
+     * A staged move's record of the batch whose target commit Studio did not see finish (transfer
+     * design D1). Each batch's staging ids are recorded before the target commit and removed once
+     * staging lets them go; a batch the target refused for room is removed again, since a refused
+     * transaction delivered none of it. What stays recorded may be on the target already, so a
+     * return to source settles it with the target instead of putting it back.
+     */
+    private final class InDoubt implements RelayLink.Hooks {
+        private final UUID runId;
+        /** The last attempt's ids that were not in doubt before it. */
+        private Set<Long> attempted = Set.of();
+
+        InDoubt(UUID runId) {
+            this.runId = runId;
+        }
+
+        @Override
+        public void beforeTargetCommit(List<Long> sourceIds) {
+            Set<Long> fresh = new HashSet<>(sourceIds);
+            fresh.removeAll(ledger.known(runId, sourceIds));
+            ledger.record(runId, sourceIds);
+            attempted = fresh;
+        }
+
+        @Override
+        public void afterTargetCommit(List<Long> sourceIds) {
+            faults.afterTargetCommit(runId);
+        }
+
+        void refused() {
+            ledger.remove(runId, attempted);
+            attempted = Set.of();
         }
     }
 
@@ -296,6 +331,7 @@ class TransferRunner {
             return End.stopped("Staging queue %s received messages again after it emptied; resume to relay them."
                     .formatted(stagingQueue));
         }
+        ledger.forget(s.id());
         return completed(s);
     }
 
@@ -409,7 +445,12 @@ class TransferRunner {
         long copied = ledger.count(s.id());
         if (ids != null) {
             s.run.notTransferred(ids.size() - copied);
+        } else if (s.run.getEstimate() != null) {
+            // The selection's size at t0: what is not copied is in delivery, scheduled or gone.
+            s.run.notTransferred(Math.max(0, s.run.getEstimate() - copied));
         } else {
+            // ponytail: countMessages looks at no more than management-browse-page-size messages, so on
+            // a deep queue this under-counts; only reached when the preview could not size the selection.
             JolokiaBrokerClient source = nodes.client(s.source);
             long matching = messages.countMessages(source, s.sourceMbean(source), s.frozenFilter());
             s.run.notTransferred(Math.max(0, matching - copied));
@@ -420,12 +461,36 @@ class TransferRunner {
 
     // ---- return to source ----------------------------------------------------------
 
-    private End giveBack(Segment s) {
+    /**
+     * Put what staging holds back on the source queue. A batch whose delivery Studio did not see
+     * finish is settled with the target first, by relaying it again: the target refuses what it
+     * already has, as a duplicate, and takes the rest. What cannot be settled, because the target
+     * does not answer, is kept in staging rather than risk a message on both brokers.
+     */
+    private End giveBack(Segment s) throws IOException {
         String stagingQueue = StagingQueues.queueName(s.id());
         ClusterNode node =
                 nodes.serving(s.run.getSourceClusterId(), s.run.getSourceArtemisNodeId(), s.run.getSourceNodeName());
         JolokiaBrokerClient source = nodes.client(node);
         String mbean = s.stagingMbean(source);
+        Set<Long> unsettled = settle(s, node, ledger.all(s.id()));
+        if (!unsettled.isEmpty()) {
+            List<Long> safe = messages.listIds(source, mbean).stream()
+                    .filter(id -> !unsettled.contains(id))
+                    .toList();
+            BulkResult result = messages.moveByIds(source, mbean, safe, s.run.getSourceQueue());
+            s.run.returned(result.affected());
+            save(s);
+            publish(s);
+            return new End(
+                    TransferState.FAILED,
+                    ("%d messages in staging queue %s may already be on the target: Studio stopped seeing their"
+                                    + " delivery before it finished, and the target did not answer to settle it. They"
+                                    + " were kept rather than risk a message on both brokers; resume the run, or"
+                                    + " return again once the target answers.")
+                            .formatted(unsettled.size(), stagingQueue),
+                    null);
+        }
         int batch = settings.intValue(TransferSettings.BATCH_SIZE);
         long moved;
         do {
@@ -442,7 +507,57 @@ class TransferRunner {
                             + " again later.",
                     null);
         }
+        ledger.forget(s.id());
         return End.of(TransferState.RETURNED);
+    }
+
+    /**
+     * Relay the in-doubt staged messages to the target once more, so each ends on exactly one
+     * broker. Returns the ids still unsettled: all of them when the target cannot be reached.
+     */
+    private Set<Long> settle(Segment s, ClusterNode source, Set<Long> inDoubt) throws IOException {
+        if (inDoubt.isEmpty()) {
+            return inDoubt;
+        }
+        Set<Long> left = new HashSet<>(inDoubt);
+        RelayLink.Route route = new RelayLink.Route(
+                StagingQueues.queueName(s.id()),
+                true,
+                null,
+                s.run.getTargetAddress(),
+                s.run.getTargetQueue(),
+                provenance(s, true));
+        RelayLink.Hooks only = new RelayLink.Hooks() {
+            @Override
+            public boolean selected(long sourceId) {
+                return left.contains(sourceId);
+            }
+        };
+        try {
+            ClusterNode target = nodes.serving(
+                    s.run.getTargetClusterId(), s.run.getTargetArtemisNodeId(), s.run.getTargetNodeName());
+            try (RelayLink link = relay.link(nodes.core(source), nodes.core(target), route)) {
+                // A duplicate refusal costs one pass before the messages go one by one; two per message is ample.
+                for (int pass = 0; pass <= 2 * inDoubt.size() && !left.isEmpty(); pass++) {
+                    RelayLink.Batch b = link.relay(left.size(), only);
+                    if (b.outcome() != RelayLink.Outcome.RELAYED) {
+                        break;
+                    }
+                    b.sourceIds().forEach(left::remove);
+                    delivered(s, b);
+                }
+            }
+        } catch (BrokerConnectionException e) {
+            log.info(
+                    "Transfer {}: the target could not settle {} in-doubt messages: {}",
+                    s.id(),
+                    left.size(),
+                    e.getMessage());
+        }
+        Set<Long> settled = new HashSet<>(inDoubt);
+        settled.removeAll(left);
+        ledger.remove(s.id(), settled);
+        return left;
     }
 
     // ---- per batch ------------------------------------------------------------------
@@ -615,11 +730,16 @@ class TransferRunner {
         runs.save(s.run);
     }
 
-    private void publish(Segment s) {
-        TransferRunEntity run = s.run;
-        long held = run.getMode() == TransferMode.MOVE && !run.isSameNode()
+    /** Messages a cross-node move has taken into staging and not yet delivered, expired or returned. */
+    private static long held(TransferRunEntity run) {
+        return run.getMode() == TransferMode.MOVE && !run.isSameNode()
                 ? Math.max(0, run.getStaged() - run.getDelivered() - run.getExpired() - run.getReturned())
                 : 0;
+    }
+
+    private void publish(Segment s) {
+        TransferRunEntity run = s.run;
+        long held = held(run);
         TransferProgress progress = new TransferProgress(
                 run.getId(),
                 run.getState(),

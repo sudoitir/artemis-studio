@@ -59,7 +59,17 @@ The selection reaches staging broker-side, atomically per call:
   `moveMessages(flushLimit, filter', staging, false, chunk)`.
 
 `filter'` is `(<filter>) AND AMQTimestamp <= <t0>`. The run refills staging only while its
-depth is below 2 × `batchSize`.
+depth is below 2 × `batchSize`. The depth it compares is the larger of the broker's
+`MessageCount` and its own count of what it staged and has not delivered: the broker sums
+its pending, delivering and scheduled counts without a lock, so for an instant it can be one
+off either way.
+
+**Sizing the selection** (found by the end-to-end suite). `countMessages(filter)` looks at no
+more than the address's `management-browse-page-size` messages (200 by default), so on a
+deeper queue it under-counts. The whole queue is therefore sized by its depth, and a filter
+by `countMessages` only when the queue is no deeper than that page size. Otherwise the
+estimate is unknown, the preview says so (`selection-size`), and the run needs the safety-cap
+override.
 
 The relay uses the **Core API** (`ServerLocator` from the existing factory):
 - a source session with manual acks, receiving from staging;
@@ -78,6 +88,17 @@ already seen, the broker rejects the commit with `ActiveMQDuplicateIdException` 
 delivers none of the batch, including messages it had not seen. So after that refusal the
 runner rolls the target back and resends the same batch one message per transaction: a
 refusal then means only that message already arrived, and the source acknowledges it.
+
+**A batch whose commit Studio did not see finish** (found by the end-to-end suite). When the
+target stops answering during its commit, or Studio stops right after it, the batch may be on
+the target and still in staging. A resume is safe: the duplicate id settles it. A return to
+source is not, because it would put those messages back beside their copies on the target.
+So before each target commit the runner records the batch's staging ids in the run's ledger
+(`transfer_copied`), and removes them once staging has let them go, or once the target refused
+the whole batch for want of room. A return first relays whatever the ledger still names to the
+target once more, where the duplicate id makes it land exactly once, and only then moves the
+rest of staging back. When the target does not answer, those messages, at most a batch, stay
+in staging and the return ends failed and says why.
 
 **Why this over the alternatives.**
 - **A direct consumer on the source queue.** It would compete with live consumers, could
@@ -145,6 +166,22 @@ directory is swept on startup.
 
 **Why a temp file.** A pipe between the source and target streams would tie two
 sessions' flow control together inside one transaction.
+
+**Spooled on receipt** (found by the end-to-end suite). A large message's body streams in
+behind its header, and the Core consumer cuts that stream off at the next `receive`. The
+relay therefore builds each outbound message, spooling a large body, the moment it is
+received, before receiving the next one. Building the batch's outbounds only after the
+whole batch was received truncated a 5 MiB body to its first 20 KiB.
+
+**A move clears expiration** (verified against the 2.44 broker while testing). Every
+broker-side move or copy goes through `QueueImpl.makeCopy`, which calls
+`setExpiration(0)` on the copy. A move takes its messages off the source with the broker's
+own move, into staging or, on one node, straight to the target, so a moved message
+arrives with no expiration: it never expires on the target. A copy browses the source
+and keeps expiration. Staging through a Core consumer instead would keep it, but that
+consumer would compete with the queue's own consumers, own message groups and be shut
+out of exclusive queues. So Studio keeps the broker's move semantics and the preview of
+a move says so.
 
 ### D4 · Target acceptance is a pure verdict over one batched read
 

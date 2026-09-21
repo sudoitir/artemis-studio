@@ -102,6 +102,7 @@ public final class TransferViews {
      * @param messagesPerSecond delivered over the time since the run started, while it runs
      * @param stagingQueue a cross-node move's staging queue on the source broker
      * @param cap the {@code safety.bulk-cap} in force now; {@code overCap} when the estimate exceeds it
+     *     or is unknown, and the run then needs the override
      */
     public record TransferRunView(
             @Schema(requiredMode = REQUIRED) UUID id,
