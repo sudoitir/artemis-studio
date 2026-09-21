@@ -1,0 +1,135 @@
+/*
+ * The routing canvas. Shape carries kind and words carry state, so removing
+ * colour removes nothing (frontend rule: presentation). Colour appears only on
+ * an element that is not doing what it was declared to do.
+ */
+
+.wrapper {
+  position: relative;
+  /*
+   * Sized from where the canvas actually starts, not from a guess at how much
+   * chrome is above it. The cluster header, the health banner, the revision strip
+   * and the tabs are all conditional, so a fixed subtraction is right on one
+   * screen and puts the graph below the fold on the next. `--as-routing-top` is
+   * measured on mount and on resize; the fallback only applies for the first paint.
+   */
+  block-size: clamp(420px, calc(100dvh - var(--as-routing-top, 300px) - 24px), 900px);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-graph-node-bg);
+  overflow: hidden;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* ── elements ──────────────────────────────────────────────────────────── */
+
+.node {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  padding-block: 6px;
+  padding-inline: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--as-border);
+  background: var(--as-flow-node-bg);
+  color: var(--as-text);
+  cursor: pointer;
+  text-align: start;
+}
+
+/* Kind is told apart by shape, never by colour. */
+.node[data-kind='address'] {
+  border-radius: var(--mantine-radius-sm);
+}
+
+.node[data-kind='queue'] {
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+
+.node[data-kind='divert'] {
+  border-radius: var(--mantine-radius-xs);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 10px 50%);
+  padding-inline: 20px 26px;
+}
+
+.node[data-kind='bridge'] {
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 50%, 0 50%);
+  padding-inline: 20px;
+}
+
+.node[data-kind='target'] {
+  border-radius: var(--mantine-radius-sm);
+  border-style: dashed;
+}
+
+/* Not what was declared, or declared and not doing it: the one place colour appears. */
+.node[data-attention] {
+  border-color: var(--as-warning);
+}
+
+.node[data-selected] {
+  border-width: 2px;
+  border-color: var(--as-text);
+}
+
+.node:focus-visible {
+  outline: 2px solid var(--as-text);
+  outline-offset: 3px;
+}
+
+.name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind,
+.state {
+  font-size: 0.6875rem;
+  color: var(--as-text-dimmed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state[data-attention] {
+  color: var(--as-warning);
+}
+
+.handle {
+  inline-size: 7px;
+  block-size: 7px;
+  background: var(--as-flow-edge);
+  border: none;
+}
+
+/* ── lines ─────────────────────────────────────────────────────────────── */
+
+.edge {
+  stroke: var(--as-flow-edge);
+  stroke-width: 1.4;
+  fill: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  color: var(--as-text-dimmed);
+  font-size: 0.6875rem;
+  margin-block-start: 0.375rem;
+}

@@ -79,11 +79,12 @@ safe message operations, and SQL over your messages — all from a single instan
 - **Request-reply tracing** — requests matched to their replies across addresses
   and nodes, with latency and timeout statistics against the expectations you declare.
 - **[Broker configuration](https://sudoitir.github.io/artemis-studio/guide/broker-configuration)**
-  — declare the address settings, security settings, diverts and queues a cluster
-  should run. Apply them canary-first, with every hazard stated before anything is
-  written, or export them as a `broker.xml` fragment, and see where each node has
-  drifted. On a first run Studio offers the cluster's current state as revision 1;
-  nothing is adopted without your say.
+  — declare the address settings, security settings, diverts, bridges and queues a
+  cluster should run, and compose the routing between them on a canvas. Apply them
+  canary-first, with every hazard stated before anything is written, or export them as
+  a `broker.xml` fragment, and see where each node has drifted. On a first run Studio
+  offers the cluster's current state as revision 1; nothing is adopted without your
+  say, and a bridge is never adopted because the broker reports only part of one.
 - **[Data governance](https://sudoitir.github.io/artemis-studio/guide/data-governance)**
   — sensitive headers and properties are masked, PII is classified automatically,
   and redaction follows the viewer's role.
@@ -203,7 +204,7 @@ from the commit messages ([`changelog/`](changelog/)).
 | [x] | **A · Consumer health:** depth trends, consumption velocity, and slow-consumer root-cause context                                                                                                |
 | [ ] | **B · CLI:** automation for clusters, queues, SQL queries, message operations, and API tokens                                                                                                    |
 | [ ] | **B · Saved views:** shareable views with role visibility and cluster-scoped defaults                                                                                                            |
-| [ ] | **B · Routing builder:** visual builder for diverts, bridges, and transformers                                                                                                                   |
+| [x] | **B · Routing builder:** visual builder for diverts, bridges, and transformers                                                                                                                   |
 | [ ] | **B · Bulk operations:** multi-queue operations with dry-run, capped execution, typed confirmation, and audit                                                                                    |
 | [ ] | **B · Operator UX:** row context menus, navigation enhancements, and flow-split monitoring views                                                                                                 |
 | [ ] | **B · Performance hardening:** SQL pushdown, SSE backpressure, virtualized grids, batched broker calls, and retention tuning                                                                     |

@@ -43,19 +43,21 @@ public final class BrokerConfigViews {
 
     @Schema(
             name = "ConfigDocumentView",
-            description = "A cluster's declared configuration: the four sections the management API can apply")
+            description = "A cluster's declared configuration: the sections the management API can apply")
     public record DocumentView(
             @Schema(requiredMode = REQUIRED) int version,
             @Schema(requiredMode = REQUIRED) List<AddressView> addresses,
             @Schema(requiredMode = REQUIRED) List<AddressSettingView> addressSettings,
             @Schema(requiredMode = REQUIRED) List<SecuritySettingView> securitySettings,
-            @Schema(requiredMode = REQUIRED) List<DivertView> diverts) {
+            @Schema(requiredMode = REQUIRED) List<DivertView> diverts,
+            @Schema(requiredMode = REQUIRED) List<BridgeView> bridges) {
 
         public DocumentView {
             addresses = addresses == null ? List.of() : addresses;
             addressSettings = addressSettings == null ? List.of() : addressSettings;
             securitySettings = securitySettings == null ? List.of() : securitySettings;
             diverts = diverts == null ? List.of() : diverts;
+            bridges = bridges == null ? List.of() : bridges;
         }
 
         public static DocumentView of(BrokerConfigDocument d) {
@@ -64,7 +66,8 @@ public final class BrokerConfigViews {
                     d.addresses().stream().map(AddressView::of).toList(),
                     d.addressSettings().stream().map(AddressSettingView::of).toList(),
                     d.securitySettings().stream().map(SecuritySettingView::of).toList(),
-                    d.diverts().stream().map(DivertView::of).toList());
+                    d.diverts().stream().map(DivertView::of).toList(),
+                    d.bridges().stream().map(BridgeView::of).toList());
         }
 
         public BrokerConfigDocument toDocument() {
@@ -73,7 +76,8 @@ public final class BrokerConfigViews {
                     addresses.stream().map(AddressView::toDecl).toList(),
                     addressSettings.stream().map(AddressSettingView::toDecl).toList(),
                     securitySettings.stream().map(SecuritySettingView::toDecl).toList(),
-                    diverts.stream().map(DivertView::toDecl).toList());
+                    diverts.stream().map(DivertView::toDecl).toList(),
+                    bridges.stream().map(BridgeView::toDecl).toList());
         }
     }
 
@@ -229,6 +233,139 @@ public final class BrokerConfigViews {
                     routingType,
                     transformerClassName,
                     transformerProperties);
+        }
+    }
+
+    @Schema(
+            name = "ConfigTransformerView",
+            description = "A transformer: the class the broker loads and its properties")
+    public record TransformerView(
+            @Schema(requiredMode = REQUIRED) String className,
+            @Schema(requiredMode = REQUIRED) Map<String, String> properties) {
+        static TransformerView of(BrokerConfigDocument.TransformerDecl t) {
+            return t == null ? null : new TransformerView(t.className(), t.properties());
+        }
+
+        static BrokerConfigDocument.TransformerDecl toDecl(TransformerView v) {
+            return v == null ? null : BrokerConfigDocument.TransformerDecl.of(v.className(), v.properties());
+        }
+    }
+
+    @Schema(
+            name = "ConfigBridgeView",
+            description = "One bridge; a null field is not declared and keeps the broker's default."
+                    + " The credential is a reference into Studio's vault and never a value")
+    public record BridgeView(
+            @Schema(requiredMode = REQUIRED) String name,
+            @Schema(requiredMode = REQUIRED) String queueName,
+            @Schema(requiredMode = REQUIRED) String forwardingAddress,
+            @Schema(nullable = true) String filter,
+            @Schema(nullable = true) TransformerView transformer,
+            @Schema(requiredMode = REQUIRED) List<String> staticConnectors,
+            @Schema(nullable = true) String discoveryGroupName,
+            @Schema(nullable = true) Boolean ha,
+            @Schema(nullable = true) Boolean useDuplicateDetection,
+            @Schema(nullable = true) Long retryInterval,
+            @Schema(nullable = true) Double retryIntervalMultiplier,
+            @Schema(nullable = true) Long maxRetryInterval,
+            @Schema(nullable = true) Integer initialConnectAttempts,
+            @Schema(nullable = true) Integer reconnectAttempts,
+            @Schema(nullable = true) Integer confirmationWindowSize,
+            @Schema(nullable = true) Integer producerWindowSize,
+            @Schema(nullable = true) Integer minLargeMessageSize,
+            @Schema(nullable = true) Long checkPeriod,
+            @Schema(nullable = true) Long connectionTtl,
+
+            @Schema(
+                    nullable = true,
+                    allowableValues = {"STRIP", "PASS", "ANYCAST", "MULTICAST", "OFFSET"})
+            String routingType,
+
+            @Schema(nullable = true) Integer concurrency,
+            @Schema(nullable = true) String clientId,
+
+            @Schema(nullable = true, description = "Names a credential held in Studio's vault; never a password")
+            String credentialRef) {
+
+        static BridgeView of(BrokerConfigDocument.BridgeDecl b) {
+            return new BridgeView(
+                    b.name(),
+                    b.queueName(),
+                    b.forwardingAddress(),
+                    b.filter(),
+                    TransformerView.of(b.transformer()),
+                    b.staticConnectors(),
+                    b.discoveryGroupName(),
+                    b.ha(),
+                    b.useDuplicateDetection(),
+                    b.retryInterval(),
+                    b.retryIntervalMultiplier(),
+                    b.maxRetryInterval(),
+                    b.initialConnectAttempts(),
+                    b.reconnectAttempts(),
+                    b.confirmationWindowSize(),
+                    b.producerWindowSize(),
+                    b.minLargeMessageSize(),
+                    b.checkPeriod(),
+                    b.connectionTtl(),
+                    b.routingType(),
+                    b.concurrency(),
+                    b.clientId(),
+                    b.credentialRef());
+        }
+
+        BrokerConfigDocument.BridgeDecl toDecl() {
+            return new BrokerConfigDocument.BridgeDecl(
+                    name,
+                    queueName,
+                    forwardingAddress,
+                    filter,
+                    TransformerView.toDecl(transformer),
+                    staticConnectors,
+                    discoveryGroupName,
+                    ha,
+                    useDuplicateDetection,
+                    retryInterval,
+                    retryIntervalMultiplier,
+                    maxRetryInterval,
+                    initialConnectAttempts,
+                    reconnectAttempts,
+                    confirmationWindowSize,
+                    producerWindowSize,
+                    minLargeMessageSize,
+                    checkPeriod,
+                    connectionTtl,
+                    routingType,
+                    concurrency,
+                    clientId,
+                    credentialRef);
+        }
+    }
+
+    @Schema(
+            name = "ConfigNodeConnectorsView",
+            description = "One node's connector names, for a bridge to reference."
+                    + " known=false means Studio could not read them, not that there are none")
+    public record NodeConnectorsView(
+            @Schema(requiredMode = REQUIRED) UUID nodeId,
+            @Schema(requiredMode = REQUIRED) String nodeName,
+            @Schema(requiredMode = REQUIRED) List<String> names,
+            @Schema(requiredMode = REQUIRED) boolean known,
+            @Schema(nullable = true) String reason) {
+        public static NodeConnectorsView of(BrokerConfigService.NodeConnectors c) {
+            return new NodeConnectorsView(c.nodeId(), c.nodeName(), c.names(), c.known(), c.reason());
+        }
+    }
+
+    @Schema(
+            name = "ConfigBridgeCredentialView",
+            description = "A credential a bridge can reference. The password is never returned")
+    public record BridgeCredentialView(
+            @Schema(requiredMode = REQUIRED) String ref,
+            @Schema(nullable = true) String username) {
+        public static BridgeCredentialView of(
+                io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets.Credential c) {
+            return new BridgeCredentialView(c.ref(), c.username());
         }
     }
 

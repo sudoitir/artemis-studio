@@ -2,9 +2,11 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressSettingDecl;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.BridgeDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.DivertDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.QueueDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.SecuritySettingDecl;
+import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
@@ -29,6 +32,10 @@ public final class BrokerConfigValidator {
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{[^}]*}");
     private static final Set<String> ROUTING_TYPES = Set.of("ANYCAST", "MULTICAST");
     private static final Set<String> DIVERT_ROUTING_TYPES = Set.of("STRIP", "PASS", "ANYCAST", "MULTICAST");
+    /** {@code ComponentConfigurationRoutingType} as a bridge accepts it; the broker's default is {@code PASS}. */
+    private static final Set<String> BRIDGE_ROUTING_TYPES = Set.of("STRIP", "PASS", "ANYCAST", "MULTICAST", "OFFSET");
+    /** A name that survives being put in a JMX object name; the same rule a queue's name is held to. */
+    private static final Pattern BRIDGE_NAME = Pattern.compile(LifecycleRequests.MANAGEMENT_NAME);
     /** Keys whose numeric value has {@code -1} as "unlimited"; anything lower is a typo. */
     private static final Set<AddressSettingKey> AT_LEAST_MINUS_ONE = Set.of(
             AddressSettingKey.MAX_SIZE_BYTES,
@@ -62,6 +69,7 @@ public final class BrokerConfigValidator {
         addressSettings(doc, out);
         securitySettings(doc, out);
         diverts(doc, out);
+        bridges(doc, out);
         return List.copyOf(out);
     }
 
@@ -276,6 +284,115 @@ public final class BrokerConfigValidator {
             }
             placeholder(d.filter(), p + ".filter", out);
             placeholder(d.forwardingAddress(), p + ".forwardingAddress", out);
+        }
+    }
+
+    // ---- bridges ---------------------------------------------------------
+
+    /**
+     * A bridge's structural rules (ADR-0091). The broker accepts a document with an
+     * unknown key, answers 200 and deploys nothing, so everything that can be decided
+     * here is decided here rather than discovered as a silent no-op on a node.
+     */
+    private static void bridges(BrokerConfigDocument doc, List<Violation> out) {
+        Set<String> names = new HashSet<>();
+        for (int i = 0; i < doc.bridges().size(); i++) {
+            BridgeDecl b = doc.bridges().get(i);
+            String p = "bridges[" + i + "]";
+            if (blank(b.name())) {
+                out.add(new Violation(p + ".name", "A bridge needs a name."));
+            } else if (!names.add(b.name())) {
+                out.add(new Violation(p + ".name", "Bridge '" + b.name() + "' is declared twice."));
+            } else if (!BRIDGE_NAME.matcher(b.name()).matches()) {
+                out.add(new Violation(
+                        p + ".name",
+                        "A bridge's name cannot contain whitespace or any of , = : * ? \" \\ — the broker puts it in"
+                                + " an object name."));
+            }
+            if (blank(b.queueName())) {
+                out.add(new Violation(p + ".queueName", "A bridge needs the queue it reads from."));
+            }
+            if (blank(b.forwardingAddress())) {
+                out.add(new Violation(p + ".forwardingAddress", "A bridge needs the address it forwards to."));
+            }
+            boolean hasConnectors = !b.staticConnectors().isEmpty();
+            boolean hasDiscovery = !blank(b.discoveryGroupName());
+            if (hasConnectors && hasDiscovery) {
+                out.add(new Violation(
+                        p + ".staticConnectors",
+                        "A bridge uses either static connectors or a discovery group, never both; the broker accepts"
+                                + " only one. Remove one of them."));
+            } else if (!hasConnectors && !hasDiscovery) {
+                out.add(new Violation(
+                        p + ".staticConnectors",
+                        "A bridge needs somewhere to connect: name at least one static connector, or a discovery"
+                                + " group."));
+            }
+            if (b.routingType() != null && !BRIDGE_ROUTING_TYPES.contains(b.routingType())) {
+                out.add(new Violation(
+                        p + ".routingType",
+                        "A bridge's routing type is one of " + String.join(", ", new TreeSet<>(BRIDGE_ROUTING_TYPES))
+                                + "."));
+            }
+            atLeast(b.retryInterval(), 1, p + ".retryInterval", "retry-interval is at least 1 millisecond.", out);
+            atLeast(
+                    b.maxRetryInterval(),
+                    1,
+                    p + ".maxRetryInterval",
+                    "max-retry-interval is at least 1 millisecond.",
+                    out);
+            atLeast(b.checkPeriod(), 1, p + ".checkPeriod", "check-period is at least 1 millisecond.", out);
+            atLeast(b.connectionTtl(), -1, p + ".connectionTtl", "connection-ttl is -1 for never, or a duration.", out);
+            atLeast(
+                    b.confirmationWindowSize(),
+                    -1,
+                    p + ".confirmationWindowSize",
+                    "confirmation-window-size is -1 to disable, or a size in bytes.",
+                    out);
+            atLeast(
+                    b.producerWindowSize(),
+                    -1,
+                    p + ".producerWindowSize",
+                    "producer-window-size is -1 for unlimited, or a size in bytes.",
+                    out);
+            atLeast(
+                    b.minLargeMessageSize(),
+                    1,
+                    p + ".minLargeMessageSize",
+                    "min-large-message-size is at least 1 byte.",
+                    out);
+            atLeast(
+                    b.initialConnectAttempts(),
+                    -1,
+                    p + ".initialConnectAttempts",
+                    "initial-connect-attempts is -1 to retry forever, or a count.",
+                    out);
+            atLeast(
+                    b.reconnectAttempts(),
+                    -1,
+                    p + ".reconnectAttempts",
+                    "reconnect-attempts is -1 to retry forever, or a count.",
+                    out);
+            atLeast(b.concurrency(), 1, p + ".concurrency", "concurrency is at least 1 worker.", out);
+            if (b.retryIntervalMultiplier() != null && b.retryIntervalMultiplier() <= 0) {
+                out.add(new Violation(
+                        p + ".retryIntervalMultiplier", "retry-interval-multiplier must be greater than zero."));
+            }
+            if (b.transformer() != null && blank(b.transformer().className())) {
+                out.add(new Violation(
+                        p + ".transformer.className",
+                        "A transformer needs its class name; properties on their own configure nothing."));
+            }
+            placeholder(b.filter(), p + ".filter", out);
+            placeholder(b.queueName(), p + ".queueName", out);
+            placeholder(b.forwardingAddress(), p + ".forwardingAddress", out);
+            b.staticConnectors().forEach(c -> placeholder(c, p + ".staticConnectors", out));
+        }
+    }
+
+    private static void atLeast(Number value, long floor, String path, String message, List<Violation> out) {
+        if (value != null && value.longValue() < floor) {
+            out.add(new Violation(path, message));
         }
     }
 

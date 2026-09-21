@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BrokerCredentialRepository extends JpaRepository<BrokerCredentialEntity, UUID> {
 
     Optional<BrokerCredentialEntity> findByClusterIdAndKind(UUID clusterId, String kind);
+
+    List<BrokerCredentialEntity> findByClusterId(UUID clusterId);
 }

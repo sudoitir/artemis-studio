@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import tools.jackson.databind.JsonNode;
 
@@ -28,6 +30,7 @@ public record DivertRow(
         String filter,
         String routingType,
         String transformerClassName,
+        Map<String, String> transformerProperties,
         boolean exclusive,
         boolean retroactiveResource) {
 
@@ -43,8 +46,24 @@ public record DivertRow(
                 text(attributes, "Filter"),
                 text(attributes, "RoutingType"),
                 text(attributes, "TransformerClassName"),
+                properties(attributes),
                 flag(attributes, "Exclusive"),
                 flag(attributes, "RetroactiveResource"));
+    }
+
+    /**
+     * The transformer's properties. The broker reports them in full on a divert, the
+     * same as on a bridge (ADR-0091's measurement), so they are carried and compared
+     * rather than assumed to agree.
+     */
+    private static Map<String, String> properties(JsonNode node) {
+        JsonNode v = node == null ? null : node.get("TransformerProperties");
+        if (v == null || !v.isObject()) {
+            return Map.of();
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        v.properties().forEach(e -> out.put(e.getKey(), e.getValue().asString()));
+        return Map.copyOf(out);
     }
 
     private static String text(JsonNode node, String field) {

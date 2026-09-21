@@ -4,6 +4,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.DocumentView;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
@@ -96,4 +97,13 @@ public final class BrokerConfigRequests {
                     description = "Roles for a recommended security setting, keyed by its match."
                             + " Overrides the prefill read from the broker")
             Map<String, Set<String>> roles) {}
+
+    @Schema(
+            description = "Store or replace a bridge credential. The password is sealed in Studio's vault and is"
+                    + " never returned by any read, diff, audit row, tool response or export")
+    public record BridgeCredentialRequest(
+            @Schema(nullable = true, description = "The user the bridge authenticates as")
+            String username,
+
+            @Schema(requiredMode = REQUIRED) @NotBlank String password) {}
 }

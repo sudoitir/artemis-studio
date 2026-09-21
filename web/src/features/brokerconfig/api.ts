@@ -10,6 +10,9 @@ export type ConfigAddressSettingKeyView = Schemas["ConfigAddressSettingKeyView"]
 export type ConfigAddressSettingView = Schemas["ConfigAddressSettingView"];
 export type ConfigAddressView = Schemas["ConfigAddressView"];
 export type ConfigAdoptionView = Schemas["ConfigAdoptionView"];
+export type ConfigBridgeCredentialView = Schemas["ConfigBridgeCredentialView"];
+export type ConfigBridgeView = Schemas["ConfigBridgeView"];
+export type BridgeCredentialRequest = Schemas["BridgeCredentialRequest"];
 export type ConfigApplyDetailView = Schemas["ConfigApplyDetailView"];
 export type ConfigApplyHistoryView = Schemas["ConfigApplyHistoryView"];
 export type ConfigApplyOutcomeView = Schemas["ConfigApplyOutcomeView"];
@@ -25,6 +28,7 @@ export type ConfigEntryView = Schemas["ConfigEntryView"];
 export type ConfigHazardView = Schemas["ConfigHazardView"];
 export type ConfigImportResultView = Schemas["ConfigImportResultView"];
 export type ConfigNodeApplyView = Schemas["ConfigNodeApplyView"];
+export type ConfigNodeConnectorsView = Schemas["ConfigNodeConnectorsView"];
 export type ConfigNodeStateView = Schemas["ConfigNodeStateView"];
 export type ConfigQueueView = Schemas["ConfigQueueView"];
 export type ConfigRecommendationView = Schemas["ConfigRecommendationView"];
@@ -33,6 +37,7 @@ export type ConfigRevisionView = Schemas["ConfigRevisionView"];
 export type ConfigSectionView = Schemas["ConfigSectionView"];
 export type ConfigSecuritySettingView = Schemas["ConfigSecuritySettingView"];
 export type ConfigStepApplyView = Schemas["ConfigStepApplyView"];
+export type ConfigTransformerView = Schemas["ConfigTransformerView"];
 export type ConfigureRequest = Schemas["ConfigureRequest"];
 export type DeclareRecommendedRequest = Schemas["DeclareRecommendedRequest"];
 export type NodeConfigView = Schemas["NodeConfigView"];
@@ -298,5 +303,52 @@ export function useApplyBrokerConfig(clusterId: string) {
       qc.invalidateQueries({ queryKey: keys.resource(clusterId, "addresses") });
       qc.invalidateQueries({ queryKey: keys.resource(clusterId, "diverts") });
     },
+  });
+}
+
+/**
+ * Each node's connector names, for a bridge to reference (ADR-0091). `known:
+ * false` is "Studio could not read them", which is not the same as "there are
+ * none" — the editor says so and keeps the field usable (ADR-0049 D5).
+ *
+ * <p>One batched read per serving node, on demand: it is asked for only when a
+ * bridge editor is open, so the configuration screen costs nothing extra until
+ * then (non-negotiable #1).
+ */
+export function useConfigConnectors(
+  clusterId: string,
+  enabled = true,
+): UseQueryResult<ConfigNodeConnectorsView[], ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "connectors"],
+    queryFn: () => request<ConfigNodeConnectorsView[]>(`${configBase(clusterId)}/connectors`),
+    staleTime: 60_000,
+    enabled,
+  });
+}
+
+/** The bridge credentials this cluster holds: a reference and the user, never a password (ADR-0092). */
+export function useBridgeCredentials(
+  clusterId: string,
+  enabled = true,
+): UseQueryResult<ConfigBridgeCredentialView[], ApiError> {
+  return useQuery({
+    queryKey: [...keys.brokerConfig(clusterId), "bridge-credentials"],
+    queryFn: () => request<ConfigBridgeCredentialView[]>(`${configBase(clusterId)}/bridge-credentials`),
+    enabled,
+  });
+}
+
+/** Seal a bridge credential in the vault under `ref`. The declaration only ever carries the ref. */
+export function useSetBridgeCredential(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, { ref: string; body: BridgeCredentialRequest }>({
+    mutationFn: ({ ref, body }) =>
+      request(`${configBase(clusterId)}/bridge-credentials/${encodeURIComponent(ref)}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: [...keys.brokerConfig(clusterId), "bridge-credentials"] }),
   });
 }

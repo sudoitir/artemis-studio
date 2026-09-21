@@ -418,8 +418,12 @@ typed confirmation of the queue name (ADR-0022). A cap that lived only in the
 browser would not be a cap.
 
 **Broker configuration** (ADR-0067). A cluster's declared address settings,
-security settings, diverts and queues live in the brokerconfig module's tables,
-versioned on every save. Its apply is canary-first: a plan is computed per live node
+security settings, diverts, bridges and queues live in the brokerconfig module's
+tables, versioned on every save. The screen is one desired-vs-live view (ADR-0087)
+whose tabs are Declared, Routing builder and History: the builder (ADR-0090) draws the
+declared and observed routing as an ELK-laid graph and edits the same document the
+Declared tab does, authoring a revision rather than writing to a broker, so both tabs
+open the same editors and neither can drift from the other. Its apply is canary-first: a plan is computed per live node
 from at most two batched reads, hazards are classified before any write and the High
 ones must be acknowledged by id, then the canary node receives every step and is read
 back before the next node is touched. The first failure halts the run, nothing is
@@ -428,6 +432,13 @@ and is refused (`409 plan-changed`) if the cluster moved; a Postgres advisory lo
 refuses a concurrent apply. Studio removes only what it applied, never writes
 `broker.xml` and never calls `reloadConfigurationFile`. Drift is evaluated on a
 schedule and after every apply, and feeds alerting through `AlertSignalSource`.
+
+Bridges are declared items like the rest (ADR-0091), applied by the same engine —
+there is no second write path — with a change planned as a remove and a create because
+the broker has no `updateBridge`. `BridgeControl` reports thirteen of the twenty-three
+fields `createBridge` accepts, so verification and drift claim nothing about the other
+ten, adoption skips bridges entirely, and a bridge's credential lives in the vault with
+only a reference in the declaration (ADR-0092).
 
 **DLQ view.** Dead-letter and expiry addresses are read from the broker's own
 `getAddressSettingsAsJSON` — never guessed from names (ADR-0022, D8). If the settings

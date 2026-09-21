@@ -38,6 +38,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.util.ArrayList;
@@ -89,6 +90,7 @@ public class BrokerConfigApplyService {
     private final ActorResolver actorResolver;
     private final ClusterLock lock;
     private final SplitBrainRegistry splitBrain;
+    private final ClusterSecrets secrets;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
 
@@ -421,7 +423,7 @@ public class BrokerConfigApplyService {
             try {
                 // Every write is a management POST, and the client waits for the node's
                 // ceiling before each one it sends (ADR-0076).
-                StepStatus status = execute(client, broker, p.revision.document(), s);
+                StepStatus status = execute(clusterId, client, broker, p.revision.document(), s);
                 capabilities.recordWriteSucceeded(clusterId);
                 steps.add(stepApply(s, status, Verification.NOT_VERIFIED, null));
                 recordOwnership(clusterId, p.revision.id(), s, status);
@@ -645,7 +647,8 @@ public class BrokerConfigApplyService {
     }
 
     /** The one management write a step stands for. */
-    private StepStatus execute(JolokiaBrokerClient client, String broker, BrokerConfigDocument doc, Step s) {
+    private StepStatus execute(
+            UUID clusterId, JolokiaBrokerClient client, String broker, BrokerConfigDocument doc, Step s) {
         switch (s.section()) {
             case ADDRESS -> {
                 @SuppressWarnings("unchecked")
@@ -694,8 +697,44 @@ public class BrokerConfigApplyService {
                     ops.createDivert(client, broker, s.after());
                 }
             }
+            case BRIDGE -> {
+                if (s.op() == Op.REMOVE) {
+                    // The declared name, which removes every instance a concurrency
+                    // above one deployed (ADR-0091).
+                    ops.destroyBridge(client, broker, s.key());
+                } else {
+                    ops.createBridge(client, broker, withCredential(clusterId, doc, s));
+                }
+            }
         }
         return StepStatus.APPLIED;
+    }
+
+    /**
+     * The bridge document plus its credential, resolved from the vault here and
+     * nowhere earlier (ADR-0092). The plan, its hash, the stored apply row and the
+     * audit parameters all carry the step's {@code after} map, which holds only the
+     * reference — so the password exists on one stack frame and in one HTTP body.
+     */
+    private Map<String, Object> withCredential(UUID clusterId, BrokerConfigDocument doc, Step s) {
+        String ref = doc.bridges().stream()
+                .filter(b -> b.name().equals(s.key()))
+                .map(BrokerConfigDocument.BridgeDecl::credentialRef)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        if (ref == null) {
+            return s.after();
+        }
+        ClusterSecrets.Credential credential = secrets.resolve(clusterId, ref)
+                .orElseThrow(() -> new ManagementRefusal(
+                        ManagementRefusal.Kind.ARGUMENT,
+                        "Bridge " + s.key() + " names the credential '" + ref
+                                + "', which Studio does not hold. Set it on the bridge, or remove the reference."));
+        Map<String, Object> config = new LinkedHashMap<>(s.after());
+        config.put("user", credential.username());
+        config.put("password", credential.password());
+        return config;
     }
 
     private void recordOwnership(UUID clusterId, long revisionId, Step s, StepStatus status) {

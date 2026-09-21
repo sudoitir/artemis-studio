@@ -21,6 +21,7 @@ _Others_
 * `i.g.s.a.p.c.ClusterDirectory`
 * `i.g.s.a.p.c.ClusterEnvironmentIndex`
 * `i.g.s.a.p.c.ClusterLock`
+* `i.g.s.a.p.c.ClusterSecrets`
 * `i.g.s.a.p.c.ClusterViewMapper` (via `i.g.s.a.p.c.ClusterViewMapperImpl`)
 * `i.g.s.a.p.c.HaStateEvaluator`
 * `i.g.s.a.p.c.NodeStateRecorder`

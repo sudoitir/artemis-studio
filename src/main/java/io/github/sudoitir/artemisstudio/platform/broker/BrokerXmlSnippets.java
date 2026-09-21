@@ -91,6 +91,74 @@ public final class BrokerXmlSnippets {
         return out.toString();
     }
 
+    /**
+     * The {@code <bridge>} that would make a broker's configuration carry a bridge
+     * Studio declared, for an operator to paste into {@code broker.xml}.
+     *
+     * <p>{@code credentialRef} names the credential Studio holds in its vault; the
+     * secret itself is never written here or anywhere else that can be copied
+     * (ADR-0092). Exactly one of {@code staticConnectors} and {@code discoveryGroupName}
+     * is written, because the broker accepts only one.
+     */
+    public static String forBridge(
+            String name,
+            String queueName,
+            String forwardingAddress,
+            String filter,
+            java.util.List<String> staticConnectors,
+            String discoveryGroupName,
+            String credentialRef) {
+        // Written through StAX so a name, address or filter carrying <, & or a quote stays well-formed.
+        java.io.StringWriter out = new java.io.StringWriter();
+        try {
+            javax.xml.stream.XMLStreamWriter w =
+                    javax.xml.stream.XMLOutputFactory.newInstance().createXMLStreamWriter(out);
+            w.writeStartElement("bridges");
+            w.writeCharacters("\n  ");
+            w.writeStartElement("bridge");
+            w.writeAttribute("name", name);
+            element(w, "queue-name", queueName);
+            element(w, "forwarding-address", forwardingAddress);
+            if (filter != null && !filter.isBlank()) {
+                w.writeCharacters("\n    ");
+                w.writeEmptyElement("filter");
+                w.writeAttribute("string", filter);
+            }
+            if (credentialRef != null && !credentialRef.isBlank()) {
+                w.writeCharacters("\n    ");
+                w.writeComment(" Credential '" + credentialRef
+                        + "' is held in Artemis Studio's vault and is not exported. Supply it here. ");
+                element(w, "user", "${" + credentialRef + ".user}");
+                element(w, "password", "${" + credentialRef + ".password}");
+            }
+            if (staticConnectors != null && !staticConnectors.isEmpty()) {
+                w.writeCharacters("\n    ");
+                w.writeStartElement("static-connectors");
+                for (String connector : staticConnectors) {
+                    w.writeCharacters("\n      ");
+                    w.writeStartElement("connector-ref");
+                    w.writeCharacters(connector);
+                    w.writeEndElement();
+                }
+                w.writeCharacters("\n    ");
+                w.writeEndElement();
+            } else if (discoveryGroupName != null && !discoveryGroupName.isBlank()) {
+                w.writeCharacters("\n    ");
+                w.writeEmptyElement("discovery-group-ref");
+                w.writeAttribute("discovery-group-name", discoveryGroupName);
+            }
+            w.writeCharacters("\n  ");
+            w.writeEndElement();
+            w.writeCharacters("\n");
+            w.writeEndElement();
+            w.writeCharacters("\n");
+            w.close();
+        } catch (javax.xml.stream.XMLStreamException e) {
+            throw new IllegalStateException("Could not write the bridge's broker.xml", e);
+        }
+        return out.toString();
+    }
+
     private static void element(javax.xml.stream.XMLStreamWriter w, String tag, String text)
             throws javax.xml.stream.XMLStreamException {
         w.writeCharacters("\n    ");

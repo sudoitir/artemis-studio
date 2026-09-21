@@ -4,6 +4,7 @@ import { Button, Collapse, Select, Stack, Switch, Text, TextInput } from '@manti
 import type { ConfigDeclarationView, ConfigDivertView } from './api.ts';
 import { keyTaken, removeItem, upsertDivert } from './document.ts';
 import { EditorDrawer } from './EditorDrawer.tsx';
+import { TransformerFields, type TransformerValue } from './routing/TransformerFields.tsx';
 import { useSaveDocument } from './useSaveDocument.ts';
 
 interface Errors {
@@ -12,19 +13,30 @@ interface Errors {
   forwardingAddress?: string;
 }
 
+/** What a drag on the routing canvas prefills a new divert with. */
+export interface DivertPrefill {
+  address?: string;
+  forwardingAddress?: string;
+}
+
 /**
  * Edit one declared divert. Changing an existing divert on the broker is a
  * delete and a create — there is no update — and the plan says so as a Medium
  * hazard; the editor states it here so it is not a surprise there.
+ *
+ * <p>The transformer is the shared `TransformerFields`, so a divert's properties
+ * are authored rather than read and written back untouched (ADR-0090 D6).
  */
 export function DivertEditor({
   declaration,
   item,
+  prefill,
   opened,
   onClose,
 }: {
   declaration: ConfigDeclarationView;
   item: ConfigDivertView | null;
+  prefill?: DivertPrefill;
   opened: boolean;
   onClose: () => void;
 }) {
@@ -34,7 +46,7 @@ export function DivertEditor({
   const [filter, setFilter] = useState(item?.filter ?? '');
   const [exclusive, setExclusive] = useState(item?.exclusive ?? false);
   const [routingType, setRoutingType] = useState<string>(item?.routingType ?? '');
-  const [transformerClassName, setTransformerClassName] = useState(item?.transformerClassName ?? '');
+  const [transformer, setTransformer] = useState<TransformerValue>({ className: '', properties: {} });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [advanced, setAdvanced] = useState(false);
@@ -45,16 +57,19 @@ export function DivertEditor({
   useEffect(() => {
     if (!opened) return;
     setName(item?.name ?? '');
-    setAddress(item?.address ?? '');
-    setForwardingAddress(item?.forwardingAddress ?? '');
+    setAddress(item?.address ?? prefill?.address ?? '');
+    setForwardingAddress(item?.forwardingAddress ?? prefill?.forwardingAddress ?? '');
     setFilter(item?.filter ?? '');
     setExclusive(item?.exclusive ?? false);
     setRoutingType(item?.routingType ?? '');
-    setTransformerClassName(item?.transformerClassName ?? '');
+    setTransformer({
+      className: item?.transformerClassName ?? '',
+      properties: { ...(item?.transformerProperties ?? {}) },
+    });
     setTouched({});
     setSubmitted(false);
     setAdvanced(false);
-  }, [opened, item]);
+  }, [opened, item, prefill]);
 
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
 
@@ -87,8 +102,8 @@ export function DivertEditor({
       filter: filter.trim() || null,
       exclusive,
       routingType: (routingType || null) as ConfigDivertView['routingType'],
-      transformerClassName: transformerClassName.trim() || null,
-      transformerProperties: item?.transformerProperties ?? {},
+      transformerClassName: transformer.className.trim() || null,
+      transformerProperties: transformer.properties,
     };
     save(upsertDivert(declaration.document, next, item?.name), `${item ? 'Edited' : 'Added'} divert ${next.name}`);
   };
@@ -188,12 +203,7 @@ export function DivertEditor({
               onChange={(v) => setRoutingType(v ?? '')}
               allowDeselect={false}
             />
-            <TextInput
-              label="Transformer class"
-              description="A class on the broker's classpath that transforms each diverted message."
-              value={transformerClassName}
-              onChange={(e) => setTransformerClassName(e.currentTarget.value)}
-            />
+            <TransformerFields value={transformer} onChange={setTransformer} what="diverted" />
           </Stack>
         </Collapse>
       </div>

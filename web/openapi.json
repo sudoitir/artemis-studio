@@ -487,6 +487,68 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config/bridge-credentials/{ref}" : {
+      "put" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "setBridgeCredential",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "ref",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BridgeCredentialRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "forgetBridgeCredential",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "ref",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/alerts/rules/{ruleId}" : {
       "put" : {
         "tags" : [ "alerts-controller" ],
@@ -4047,6 +4109,36 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/config/connectors" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "connectors",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConfigNodeConnectorsView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/config/catalogue" : {
       "get" : {
         "tags" : [ "broker-config-controller" ],
@@ -4067,6 +4159,36 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ConfigCatalogueView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/config/bridge-credentials" : {
+      "get" : {
+        "tags" : [ "broker-config-controller" ],
+        "operationId" : "bridgeCredentials",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConfigBridgeCredentialView"
+                  }
                 }
               }
             }
@@ -5058,6 +5180,99 @@
         },
         "required" : [ "name", "queues", "routingTypes" ]
       },
+      "ConfigBridgeView" : {
+        "type" : "object",
+        "description" : "One bridge; a null field is not declared and keeps the broker's default. The credential is a reference into Studio's vault and never a value",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "forwardingAddress" : {
+            "type" : "string"
+          },
+          "filter" : {
+            "type" : [ "string", "null" ]
+          },
+          "transformer" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/ConfigTransformerView"
+          },
+          "staticConnectors" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "discoveryGroupName" : {
+            "type" : [ "string", "null" ]
+          },
+          "ha" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "useDuplicateDetection" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "retryInterval" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "retryIntervalMultiplier" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "maxRetryInterval" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "initialConnectAttempts" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "reconnectAttempts" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "confirmationWindowSize" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "producerWindowSize" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "minLargeMessageSize" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "checkPeriod" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "connectionTtl" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "routingType" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "STRIP", "PASS", "ANYCAST", "MULTICAST", "OFFSET" ]
+          },
+          "concurrency" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "clientId" : {
+            "type" : [ "string", "null" ]
+          },
+          "credentialRef" : {
+            "type" : [ "string", "null" ],
+            "description" : "Names a credential held in Studio's vault; never a password"
+          }
+        },
+        "required" : [ "forwardingAddress", "name", "queueName", "staticConnectors" ]
+      },
       "ConfigDivertView" : {
         "type" : "object",
         "description" : "One divert",
@@ -5095,7 +5310,7 @@
       },
       "ConfigDocumentView" : {
         "type" : "object",
-        "description" : "A cluster's declared configuration: the four sections the management API can apply",
+        "description" : "A cluster's declared configuration: the sections the management API can apply",
         "properties" : {
           "version" : {
             "type" : "integer",
@@ -5124,9 +5339,15 @@
             "items" : {
               "$ref" : "#/components/schemas/ConfigDivertView"
             }
+          },
+          "bridges" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigBridgeView"
+            }
           }
         },
-        "required" : [ "addressSettings", "addresses", "diverts", "securitySettings", "version" ]
+        "required" : [ "addressSettings", "addresses", "bridges", "diverts", "securitySettings", "version" ]
       },
       "ConfigQueueView" : {
         "type" : "object",
@@ -5183,6 +5404,22 @@
           }
         },
         "required" : [ "match", "permissions" ]
+      },
+      "ConfigTransformerView" : {
+        "type" : "object",
+        "description" : "A transformer: the class the broker loads and its properties",
+        "properties" : {
+          "className" : {
+            "type" : "string"
+          },
+          "properties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "className", "properties" ]
       },
       "SaveDeclarationRequest" : {
         "type" : "object",
@@ -5350,6 +5587,21 @@
           }
         },
         "required" : [ "findings", "live", "nodeId", "nodeName", "state" ]
+      },
+      "BridgeCredentialRequest" : {
+        "type" : "object",
+        "description" : "Store or replace a bridge credential. The password is sealed in Studio's vault and is never returned by any read, diff, audit row, tool response or export",
+        "properties" : {
+          "username" : {
+            "type" : [ "string", "null" ],
+            "description" : "The user the bridge authenticates as"
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password" ]
       },
       "AlertRuleRequest" : {
         "type" : "object",
@@ -9736,6 +9988,32 @@
         },
         "required" : [ "recommendations" ]
       },
+      "ConfigNodeConnectorsView" : {
+        "type" : "object",
+        "description" : "One node's connector names, for a bridge to reference. known=false means Studio could not read them, not that there are none",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "names" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "known" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "known", "names", "nodeId", "nodeName" ]
+      },
       "ConfigAddressSettingKeyView" : {
         "type" : "object",
         "description" : "One address-setting key: its two names, type, allowed values and hazard class",
@@ -9785,6 +10063,19 @@
           }
         },
         "required" : [ "addressSettingKeys", "permissionTypes" ]
+      },
+      "ConfigBridgeCredentialView" : {
+        "type" : "object",
+        "description" : "A credential a bridge can reference. The password is never returned",
+        "properties" : {
+          "ref" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "ref" ]
       },
       "ConfigApplyHistoryView" : {
         "type" : "object",

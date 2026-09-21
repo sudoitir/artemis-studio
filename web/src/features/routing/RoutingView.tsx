@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { Alert, Anchor, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useBridges, useDiverts, type BridgeView, type DivertView } from './api.ts';
@@ -133,7 +133,11 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
   ];
 }
 
-/** Bridges are read-only, permanently — there is no action column here on purpose. */
+/**
+ * What the live view of a bridge reports. Declaring, changing and removing one is
+ * the declaration's job (ADR-0091), reached by the link above the table — this
+ * table reads every serving node and has no write of its own.
+ */
 const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
   { id: 'name', header: 'Name', accessor: (r) => r.name, sortKey: 'name' },
   {
@@ -246,7 +250,14 @@ export function RoutingView() {
           w={280}
           size="xs"
         />
-        {tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : null}
+        <Group gap="xs">
+          {/* By path, not by import: the builder belongs to the configuration feature
+              and reaching it as a route adds no dependency edge between the two. */}
+          <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=routing`} size="xs">
+            Open the routing builder
+          </Anchor>
+          {tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : null}
+        </Group>
       </Group>
 
       {query.isPending && rows.length === 0 ? (
@@ -281,7 +292,7 @@ export function RoutingView() {
             <Text size="sm">
               {search.q
                 ? 'No bridge matches this filter. Clear it to see every bridge on the cluster.'
-                : 'No bridges. A bridge forwards a queue to an address on another broker; Studio shows them and never changes them, because changing one rewires how this cluster reaches other brokers.'}
+                : 'No bridges. A bridge forwards a queue to an address on another broker. Declare one in the routing builder and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'}
             </Text>
           }
         />

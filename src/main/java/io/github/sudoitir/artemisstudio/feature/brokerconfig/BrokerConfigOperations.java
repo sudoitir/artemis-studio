@@ -1,7 +1,12 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.BridgeDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.DivertDecl;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.TransformerDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig.AddressUsage;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.ObservedNodeConfig.ObservedBridge;
+import io.github.sudoitir.artemisstudio.feature.queues.BridgeOperations;
+import io.github.sudoitir.artemisstudio.feature.queues.BridgeRow;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
@@ -21,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import org.springframework.stereotype.Component;
@@ -59,11 +65,17 @@ public class BrokerConfigOperations {
     private final ObjectMapper mapper;
     private final QueueLifecycleOperations queueOps;
     private final DivertOperations divertOps;
+    private final BridgeOperations bridgeOps;
 
-    public BrokerConfigOperations(ObjectMapper mapper, QueueLifecycleOperations queueOps, DivertOperations divertOps) {
+    public BrokerConfigOperations(
+            ObjectMapper mapper,
+            QueueLifecycleOperations queueOps,
+            DivertOperations divertOps,
+            BridgeOperations bridgeOps) {
         this.mapper = mapper;
         this.queueOps = queueOps;
         this.divertOps = divertOps;
+        this.bridgeOps = bridgeOps;
     }
 
     // ---- writes ----------------------------------------------------------
@@ -110,6 +122,19 @@ public class BrokerConfigOperations {
         divertOps.destroyDivert(client, brokerMbean, name);
     }
 
+    /**
+     * Create a bridge and read it back (ADR-0091): the broker answers 200 for a
+     * document it ignores entirely, so the status code proves nothing.
+     */
+    public void createBridge(JolokiaBrokerClient client, String brokerMbean, Map<String, Object> config) {
+        bridgeOps.createVerified(client, brokerMbean, config);
+    }
+
+    /** Destroy a bridge by its declared name, which removes every instance its concurrency deployed. */
+    public void destroyBridge(JolokiaBrokerClient client, String brokerMbean, String name) {
+        bridgeOps.destroyBridge(client, brokerMbean, name);
+    }
+
     public void createAddress(
             JolokiaBrokerClient client, String brokerMbean, String address, Set<String> routingTypes) {
         queueOps.createAddress(client, brokerMbean, address, String.join(",", new TreeSet<>(routingTypes)));
@@ -147,7 +172,8 @@ public class BrokerConfigOperations {
             Set<String> securitySettingMatches,
             Set<String> divertNames,
             Map<String, BrokerConfigDocument.AddressDecl> addresses,
-            Set<String> divertEndpoints) {
+            Set<String> divertEndpoints,
+            List<BridgeDecl> bridges) {
 
         public static ReadScope of(
                 BrokerConfigDocument doc, Set<String> ownedSettingMatches, Set<String> ownedSecurityMatches) {
@@ -168,7 +194,7 @@ public class BrokerConfigOperations {
                     endpoints.add(d.forwardingAddress());
                 }
             }
-            return new ReadScope(settings, security, diverts, addresses, endpoints);
+            return new ReadScope(settings, security, diverts, addresses, endpoints, doc.bridges());
         }
     }
 
@@ -203,6 +229,7 @@ public class BrokerConfigOperations {
             first.add(JolokiaRequest.exec(broker, GET_ROLES, m));
         }
         first.add(JolokiaRequest.search(BrokerMBeans.divertsPattern(broker)));
+        first.add(JolokiaRequest.search(BrokerMBeans.bridgesPattern(broker)));
         List<JolokiaResponse> r1 = client.batch(first);
         requireCount(r1, first);
 
@@ -232,15 +259,15 @@ public class BrokerConfigOperations {
                 securitySettings.put(m, roles(client.parsed(res)));
             }
         }
-        List<String> divertMbeans = new ArrayList<>();
-        JolokiaResponse search = r1.get(i);
-        if (search.ok() && search.value() != null && search.value().isArray()) {
-            search.value().forEach(n -> divertMbeans.add(n.asString()));
-        }
+        List<String> divertMbeans = mbeanNames(r1.get(i++));
+        List<String> bridgeMbeans = mbeanNames(r1.get(i));
 
         // Second POST: the MBeans the first one named.
         List<JolokiaRequest> second = new ArrayList<>();
         for (String mbean : divertMbeans) {
+            second.add(JolokiaRequest.readAll(mbean));
+        }
+        for (String mbean : bridgeMbeans) {
             second.add(JolokiaRequest.readAll(mbean));
         }
         List<String> addressesToRead = addressesToRead(scope, settingMatches, addressNames);
@@ -277,19 +304,17 @@ public class BrokerConfigOperations {
             JolokiaResponse res = r2.get(j);
             if (res.ok() && res.value() != null && res.value().isObject()) {
                 DivertRow row = DivertRow.parse(res.value(), nodeId, nodeName);
-                diverts.put(
-                        row.uniqueName(),
-                        new DivertDecl(
-                                row.uniqueName(),
-                                row.address(),
-                                row.forwardingAddress(),
-                                row.filter(),
-                                row.exclusive(),
-                                row.routingType(),
-                                row.transformerClassName(),
-                                Map.of()));
+                diverts.put(row.uniqueName(), asDecl(row));
             }
         }
+        List<BridgeRow> bridgeRows = new ArrayList<>();
+        for (int k = 0; k < bridgeMbeans.size(); k++, j++) {
+            JolokiaResponse res = r2.get(j);
+            if (res.ok() && res.value() != null && res.value().isObject()) {
+                bridgeRows.add(BridgeRow.parse(res.value(), nodeId, nodeName));
+            }
+        }
+        Map<String, ObservedBridge> bridges = groupBridges(bridgeRows, scope.bridges());
         Map<String, Set<String>> addresses = new LinkedHashMap<>();
         addressNames.forEach(a -> addresses.put(a, Set.of()));
         Map<String, AddressUsage> usage = new LinkedHashMap<>();
@@ -327,7 +352,102 @@ public class BrokerConfigOperations {
         }
 
         return new ObservedNodeConfig(
-                nodeId, nodeName, live, addresses, queues, addressSettings, securitySettings, diverts, usage, null);
+                nodeId,
+                nodeName,
+                live,
+                addresses,
+                queues,
+                addressSettings,
+                securitySettings,
+                diverts,
+                bridges,
+                usage,
+                null);
+    }
+
+    private static List<String> mbeanNames(JolokiaResponse search) {
+        List<String> out = new ArrayList<>();
+        if (search.ok() && search.value() != null && search.value().isArray()) {
+            search.value().forEach(n -> out.add(n.asString()));
+        }
+        return out;
+    }
+
+    /** A deployed divert as the declaration would state it; the broker reports the transformer in full. */
+    private static DivertDecl asDecl(DivertRow row) {
+        return new DivertDecl(
+                row.uniqueName(),
+                row.address(),
+                row.forwardingAddress(),
+                row.filter(),
+                row.exclusive(),
+                row.routingType(),
+                row.transformerClassName(),
+                row.transformerProperties());
+    }
+
+    /**
+     * Deployed bridge MBeans, grouped under the names the declaration uses. A bridge
+     * declared with a concurrency above one deploys as {@code <name>-0 … <name>-(N-1)},
+     * so its workers are instances of one declared item rather than bridges of their
+     * own; anything that matches no declared name is kept under its own MBean name so
+     * an undeclared bridge is still seen.
+     *
+     * <p>Only the thirteen attributes {@code BridgeControl} reports become a
+     * {@link BridgeDecl}. The other ten stay null and are never compared — an absence
+     * of evidence is not evidence of agreement (ADR-0090 D4a).
+     */
+    static Map<String, ObservedBridge> groupBridges(List<BridgeRow> rows, List<BridgeDecl> declared) {
+        Map<String, ObservedBridge> out = new LinkedHashMap<>();
+        Set<String> taken = new LinkedHashSet<>();
+        for (BridgeDecl b : declared) {
+            List<BridgeRow> found = rows.stream()
+                    .filter(r -> r.name() != null && r.name().matches(Pattern.quote(b.name()) + "(-\\d+)?"))
+                    .toList();
+            if (found.isEmpty()) {
+                continue;
+            }
+            found.forEach(r -> taken.add(r.name()));
+            out.put(b.name(), observed(found));
+        }
+        for (BridgeRow r : rows) {
+            if (r.name() != null && !taken.contains(r.name())) {
+                out.put(r.name(), observed(List.of(r)));
+            }
+        }
+        return out;
+    }
+
+    private static ObservedBridge observed(List<BridgeRow> instances) {
+        BridgeRow first = instances.getFirst();
+        return new ObservedBridge(
+                new BridgeDecl(
+                        first.name(),
+                        first.queueName(),
+                        first.forwardingAddress(),
+                        first.filterString(),
+                        TransformerDecl.of(first.transformerClassName(), first.transformerProperties()),
+                        first.staticConnectors(),
+                        first.discoveryGroupName(),
+                        first.highlyAvailable(),
+                        first.useDuplicateDetection(),
+                        first.retryInterval(),
+                        first.retryIntervalMultiplier(),
+                        first.maxRetryInterval(),
+                        null,
+                        first.reconnectAttempts(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null),
+                instances.stream().allMatch(BridgeRow::started),
+                instances.stream().allMatch(BridgeRow::connected),
+                instances.size());
     }
 
     /**
@@ -398,17 +518,7 @@ public class BrokerConfigOperations {
             JolokiaResponse res = r2.get(j++);
             if (res.ok() && res.value() != null && res.value().isObject()) {
                 DivertRow row = DivertRow.parse(res.value(), nodeId, nodeName);
-                diverts.put(
-                        row.uniqueName(),
-                        new DivertDecl(
-                                row.uniqueName(),
-                                row.address(),
-                                row.forwardingAddress(),
-                                row.filter(),
-                                row.exclusive(),
-                                row.routingType(),
-                                row.transformerClassName(),
-                                Map.of()));
+                diverts.put(row.uniqueName(), asDecl(row));
             }
         }
         return new ObservedNodeConfig(
@@ -420,6 +530,7 @@ public class BrokerConfigOperations {
                 addressSettings,
                 securitySettings,
                 diverts,
+                Map.of(),
                 Map.of(),
                 null);
     }

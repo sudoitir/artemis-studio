@@ -22,6 +22,7 @@ import { HistoryTab } from './HistoryTab.tsx';
 import { ModeControl } from './ModeControl.tsx';
 import { NodesPanel } from './NodesPanel.tsx';
 import { RecommendedConfiguration } from './RecommendedConfiguration.tsx';
+import { RoutingTab } from './routing/RoutingTab.tsx';
 import { APPLY_PERMISSION_LABEL, ReviewApplyDrawer, type ApplyScope } from './ReviewApplyDrawer.tsx';
 import { AdoptDrawer, ExportXmlDrawer, ImportXmlDrawer } from './XmlDrawers.tsx';
 import classes from './Configuration.module.css';
@@ -143,8 +144,8 @@ export function ConfigurationView() {
             <Stack gap="xs">
               <Text size="sm">
                 A declaration is the configuration Studio can apply over the management API and measure every live node
-                against: addresses and queues, address settings, security settings and diverts. Nothing is declared for
-                this cluster yet, so there is nothing to compare the nodes with.
+                against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is declared
+                for this cluster yet, so there is nothing to compare the nodes with.
               </Text>
               <Text size="sm">
                 Start with <b>Adopt from cluster</b> to take what the brokers run today, <b>Import XML</b> to paste a
@@ -159,6 +160,7 @@ export function ConfigurationView() {
       <Tabs value={tab} onChange={(next) => setSearch({ tab: (next as ConfigurationSearch['tab']) ?? undefined })}>
         <Tabs.List>
           <Tabs.Tab value="declared">Declared &amp; live</Tabs.Tab>
+          <Tabs.Tab value="routing">Routing builder</Tabs.Tab>
           <Tabs.Tab value="history">History</Tabs.Tab>
           <Tabs.Tab value="recommended">Recommended</Tabs.Tab>
         </Tabs.List>
@@ -179,6 +181,16 @@ export function ConfigurationView() {
         />
       ) : tab === 'history' ? (
         <HistoryTab declaration={d} catalogue={catalogue.data} />
+      ) : tab === 'routing' ? (
+        <RoutingTab
+          declaration={d}
+          writeGate={writeGate}
+          openSection={search.section}
+          openItem={search.item}
+          anchor={search.anchor}
+          selected={search.selected}
+          onSearch={setSearch}
+        />
       ) : (
         <>
           <DeclaredTab

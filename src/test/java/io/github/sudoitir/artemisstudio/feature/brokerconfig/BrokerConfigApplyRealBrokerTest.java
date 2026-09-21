@@ -211,6 +211,7 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
                                 new AddressDecl(fanout, Set.of("MULTICAST"), List.of())),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of()),
                 null,
                 "c3",
@@ -267,6 +268,7 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
                                 new AddressDecl(fanout, Set.of("MULTICAST"), List.of())),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of()),
                 null,
                 "c3",
@@ -319,7 +321,8 @@ class BrokerConfigApplyRealBrokerTest extends PostgresIntegrationTest {
                 List.of(new AddressSettingDecl(match, Map.of("maxDeliveryAttempts", 7))),
                 List.of(new SecuritySettingDecl(
                         match, Map.of(PermissionType.SEND, Set.of("c1-role"), PermissionType.CONSUME, Set.of("amq")))),
-                List.of(new DivertDecl(divert, orders, audit, null, false, null, null, null)));
+                List.of(new DivertDecl(divert, orders, audit, null, false, null, null, null)),
+                List.of());
     }
 
     private JsonNode apply(String query, String body) throws Exception {

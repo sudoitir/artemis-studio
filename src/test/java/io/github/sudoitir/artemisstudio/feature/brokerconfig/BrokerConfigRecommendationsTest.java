@@ -47,6 +47,7 @@ class BrokerConfigRecommendationsTest {
                 security,
                 Map.of(),
                 Map.of(),
+                Map.of(),
                 null);
     }
 

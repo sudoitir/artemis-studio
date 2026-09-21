@@ -37,7 +37,7 @@ describe('ConfigurationView', () => {
         declaration({
           declared: false,
           revision: 0,
-          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [] },
+          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [], bridges: [] },
           nodes: [],
         }),
       ),
@@ -95,6 +95,7 @@ describe('ConfigurationView', () => {
             addressSettings: [],
             securitySettings: [],
             diverts: [],
+            bridges: [],
           },
           nodes: [
             NODE_A,
@@ -217,7 +218,7 @@ describe('ConfigurationView', () => {
       ...baseHandlers(),
       http.post('*/api/v1/clusters/c1/config/import-xml', () =>
         HttpResponse.json({
-          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [] },
+          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [], bridges: [] },
           unsupported: [{ path: 'core/global-max-size', reason: 'a static setting; it cannot be applied over the management API' }],
           errors: [],
         }),
@@ -356,7 +357,7 @@ describe('ConfigurationView', () => {
       ...baseHandlers(),
       http.post('*/api/v1/clusters/c1/config/adopt', () =>
         HttpResponse.json({
-          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [] },
+          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [], bridges: [] },
           notes: ['1 open drift finding(s) will be closed by adopting this document, and no broker will be written'],
           disagreements: [],
           closes: [
@@ -430,7 +431,7 @@ describe('ConfigurationView', () => {
         declaration({
           declared: false,
           revision: 0,
-          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [] },
+          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [], bridges: [] },
         }),
       ),
       http.post('*/api/v1/clusters/c1/config/adopt', () =>

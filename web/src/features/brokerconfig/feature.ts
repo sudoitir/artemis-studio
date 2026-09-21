@@ -8,24 +8,33 @@ import { ConfigDiffView } from './ConfigDiffView.tsx';
 import { ConfigurationView } from './ConfigurationView.tsx';
 import { RegistrationRecommendations } from './RegistrationRecommendations.tsx';
 
-/** The declaration's navigable state: which tab is open, and which editor (ADR-0067, ADR-0087). */
+/**
+ * The declaration's navigable state: which mode is open, which editor, and — on
+ * the routing builder — the address its bounded region is drawn around and the
+ * element that is selected (ADR-0067, ADR-0087, ADR-0090 D9). All of it lives in
+ * the URL so a view can be shared and restored.
+ */
 export interface ConfigurationSearch {
-  tab?: 'declared' | 'history' | 'recommended';
-  section?: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts';
+  tab?: 'declared' | 'routing' | 'history' | 'recommended';
+  section?: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts' | 'bridges';
   item?: string;
+  anchor?: string;
+  selected?: string;
 }
 
-const SECTIONS = ['addresses', 'addressSettings', 'securitySettings', 'diverts'];
+const SECTIONS = ['addresses', 'addressSettings', 'securitySettings', 'diverts', 'bridges'];
 
 function validateConfigurationSearch(raw: Record<string, unknown>): ConfigurationSearch {
   const out: ConfigurationSearch = {};
-  if (typeof raw.tab === 'string' && ['declared', 'history', 'recommended'].includes(raw.tab)) {
+  if (typeof raw.tab === 'string' && ['declared', 'routing', 'history', 'recommended'].includes(raw.tab)) {
     out.tab = raw.tab as ConfigurationSearch['tab'];
   }
   if (typeof raw.section === 'string' && SECTIONS.includes(raw.section)) {
     out.section = raw.section as ConfigurationSearch['section'];
   }
   if (typeof raw.item === 'string' && raw.item) out.item = raw.item;
+  if (typeof raw.anchor === 'string' && raw.anchor) out.anchor = raw.anchor;
+  if (typeof raw.selected === 'string' && raw.selected) out.selected = raw.selected;
   return out;
 }
 

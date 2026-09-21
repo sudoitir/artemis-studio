@@ -63,12 +63,13 @@ class BrokerConfigPlannerTest {
                 all,
                 Map.of("#", Map.of(PermissionType.SEND, Set.of("amq"))),
                 diverts,
+                Map.of(),
                 usage,
                 null);
     }
 
     private static BrokerConfigDocument doc(AddressSettingDecl... settings) {
-        return new BrokerConfigDocument(1, List.of(), List.of(settings), List.of(), List.of());
+        return new BrokerConfigDocument(1, List.of(), List.of(settings), List.of(), List.of(), List.of());
     }
 
     private static List<Step> pending(Plan plan, UUID node) {
@@ -161,6 +162,7 @@ class BrokerConfigPlannerTest {
                         new SecuritySettingDecl("#", Map.of(PermissionType.SEND, Set.of("app-role"))),
                         new SecuritySettingDecl(
                                 "activemq.management.#", Map.of(PermissionType.MANAGE, Set.of("app-role")))),
+                List.of(),
                 List.of());
 
         Plan plan = BrokerConfigPlanner.plan(d, List.of(n), Set.of(), PlanOptions.defaults());
@@ -178,7 +180,8 @@ class BrokerConfigPlannerTest {
         DivertDecl existing = new DivertDecl("audit", "orders.in", "DLQ", null, false, null, null, Map.of());
         ObservedNodeConfig n = node(N1, "broker-1", Map.of(), Map.of("audit", existing), Map.of());
         DivertDecl wanted = new DivertDecl("audit", "orders.in", "DLQ", null, true, null, null, Map.of());
-        BrokerConfigDocument d = new BrokerConfigDocument(1, List.of(), List.of(), List.of(), List.of(wanted));
+        BrokerConfigDocument d =
+                new BrokerConfigDocument(1, List.of(), List.of(), List.of(), List.of(wanted), List.of());
 
         Plan plan = BrokerConfigPlanner.plan(d, List.of(n), Set.of(), PlanOptions.defaults());
 
@@ -200,7 +203,8 @@ class BrokerConfigPlannerTest {
                 List.of(),
                 List.of(),
                 List.of(),
-                List.of(new DivertDecl("d", "orders.in", "nowhere", null, false, null, null, Map.of())));
+                List.of(new DivertDecl("d", "orders.in", "nowhere", null, false, null, null, Map.of())),
+                List.of());
 
         Plan plan = BrokerConfigPlanner.plan(d, List.of(n), Set.of(), PlanOptions.defaults());
 
@@ -247,19 +251,30 @@ class BrokerConfigPlannerTest {
                 List.of(new AddressDecl("orders.in", Set.of("ANYCAST"), List.of(queue))),
                 List.of(),
                 List.of(),
+                List.of(),
                 List.of());
     }
 
     private static BrokerConfigDocument address(String name, Set<String> routingTypes) {
         return new BrokerConfigDocument(
-                1, List.of(new AddressDecl(name, routingTypes, List.of())), List.of(), List.of(), List.of());
+                1, List.of(new AddressDecl(name, routingTypes, List.of())), List.of(), List.of(), List.of(), List.of());
     }
 
     /** A node holding exactly these addresses and queues, with the dev {@code #} entry. */
     private static ObservedNodeConfig holding(
             Map<String, Set<String>> addresses, Map<String, Map<String, Object>> queues) {
         return new ObservedNodeConfig(
-                N1, "broker-1", true, addresses, queues, Map.of("#", base()), Map.of(), Map.of(), Map.of(), null);
+                N1,
+                "broker-1",
+                true,
+                addresses,
+                queues,
+                Map.of("#", base()),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                null);
     }
 
     @Test
@@ -451,7 +466,8 @@ class BrokerConfigPlannerTest {
                         List.of(new QueueDecl("orders.audit", "ANYCAST", null, true, null, null, null, null, null)))),
                 List.of(new AddressSettingDecl("orders.audit", Map.of("maxDeliveryAttempts", 1))),
                 List.of(new SecuritySettingDecl("orders.audit", Map.of(PermissionType.CONSUME, Set.of("audit")))),
-                List.of(new DivertDecl("audit", "orders.in", "orders.audit", null, false, null, null, Map.of())));
+                List.of(new DivertDecl("audit", "orders.in", "orders.audit", null, false, null, null, Map.of())),
+                List.of());
 
         Plan plan = BrokerConfigPlanner.plan(d, List.of(a, b), Set.of(), PlanOptions.defaults());
 
@@ -501,7 +517,7 @@ class BrokerConfigPlannerTest {
         declared.put(PermissionType.VIEW, Set.of("amq"));
         declared.put(PermissionType.EDIT, Set.of("amq"));
         BrokerConfigDocument doc = new BrokerConfigDocument(
-                1, List.of(), List.of(), List.of(new SecuritySettingDecl("#", declared)), List.of());
+                1, List.of(), List.of(), List.of(new SecuritySettingDecl("#", declared)), List.of(), List.of());
 
         Plan plan = BrokerConfigPlanner.plan(doc, List.of(n), Set.of(), PlanOptions.defaults());
 

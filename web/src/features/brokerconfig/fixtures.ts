@@ -29,6 +29,7 @@ export function declaration(over: Partial<ConfigDeclarationView> = {}): ConfigDe
       addressSettings: [{ match: 'orders.#', values: { addressFullMessagePolicy: 'PAGE', maxSizeBytes: 104857600 } }],
       securitySettings: [{ match: 'orders.#', permissions: { send: ['app-role'], consume: ['app-role'] } }],
       diverts: [],
+      bridges: [],
     },
     applyMode: 'STUDIO_MANAGED',
     reportUndeclared: false,

@@ -1,4 +1,11 @@
-import type { ConfigAddressSettingView, ConfigAddressView, ConfigDivertView, ConfigDocumentView, ConfigSecuritySettingView } from './api.ts';
+import type {
+  ConfigAddressSettingView,
+  ConfigAddressView,
+  ConfigBridgeView,
+  ConfigDivertView,
+  ConfigDocumentView,
+  ConfigSecuritySettingView,
+} from './api.ts';
 
 /**
  * Pure edits to a declaration document. The editors change one item; the whole
@@ -12,6 +19,7 @@ export const EMPTY_DOCUMENT: ConfigDocumentView = {
   addressSettings: [],
   securitySettings: [],
   diverts: [],
+  bridges: [],
 };
 
 export function upsertAddressSetting(
@@ -38,6 +46,14 @@ export function upsertDivert(
   return { ...doc, diverts: upsert(doc.diverts, item, (i) => i.name, originalName) };
 }
 
+export function upsertBridge(
+  doc: ConfigDocumentView,
+  item: ConfigBridgeView,
+  originalName?: string,
+): ConfigDocumentView {
+  return { ...doc, bridges: upsert(doc.bridges, item, (i) => i.name, originalName) };
+}
+
 export function upsertAddress(
   doc: ConfigDocumentView,
   item: ConfigAddressView,
@@ -48,7 +64,7 @@ export function upsertAddress(
 
 export function removeItem(
   doc: ConfigDocumentView,
-  section: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts',
+  section: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts' | 'bridges',
   key: string,
 ): ConfigDocumentView {
   switch (section) {
@@ -60,6 +76,8 @@ export function removeItem(
       return { ...doc, securitySettings: doc.securitySettings.filter((i) => i.match !== key) };
     case 'diverts':
       return { ...doc, diverts: doc.diverts.filter((i) => i.name !== key) };
+    case 'bridges':
+      return { ...doc, bridges: doc.bridges.filter((i) => i.name !== key) };
   }
 }
 
@@ -93,5 +111,6 @@ export function mergeDocuments(base: ConfigDocumentView, patch: ConfigDocumentVi
   }
   for (const s of patch.securitySettings) doc = upsertSecuritySetting(doc, s);
   for (const d of patch.diverts) doc = upsertDivert(doc, d);
+  for (const b of patch.bridges) doc = upsertBridge(doc, b);
   return doc;
 }

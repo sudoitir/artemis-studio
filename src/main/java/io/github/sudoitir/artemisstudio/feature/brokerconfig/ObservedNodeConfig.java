@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.BridgeDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.DivertDecl;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +26,7 @@ public record ObservedNodeConfig(
         Map<String, Map<String, Object>> addressSettings,
         Map<String, Map<PermissionType, Set<String>>> securitySettings,
         Map<String, DivertDecl> diverts,
+        Map<String, ObservedBridge> bridges,
         Map<String, AddressUsage> addressUsage,
         String unavailableReason) {
 
@@ -34,19 +36,20 @@ public record ObservedNodeConfig(
         addressSettings = addressSettings == null ? Map.of() : Map.copyOf(addressSettings);
         securitySettings = securitySettings == null ? Map.of() : Map.copyOf(securitySettings);
         diverts = diverts == null ? Map.of() : Map.copyOf(diverts);
+        bridges = bridges == null ? Map.of() : Map.copyOf(bridges);
         addressUsage = addressUsage == null ? Map.of() : Map.copyOf(addressUsage);
     }
 
     /** A node that was not live, and therefore not read. */
     public static ObservedNodeConfig notLive(UUID nodeId, String nodeName) {
         return new ObservedNodeConfig(
-                nodeId, nodeName, false, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), null);
+                nodeId, nodeName, false, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), null);
     }
 
     /** A live node whose read failed, with the classified reason. */
     public static ObservedNodeConfig unreachable(UUID nodeId, String nodeName, String reason) {
         return new ObservedNodeConfig(
-                nodeId, nodeName, true, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), reason);
+                nodeId, nodeName, true, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), reason);
     }
 
     public boolean readable() {
@@ -55,4 +58,15 @@ public record ObservedNodeConfig(
 
     /** What an address currently holds, for the limit-below-usage hazard. */
     public record AddressUsage(long bytes, long messages) {}
+
+    /**
+     * One deployed bridge: the thirteen fields {@code BridgeControl} reports as a
+     * {@link BridgeDecl} — the ten it does not are left null and are never compared
+     * (ADR-0090 D4a) — plus its running state, which is a fault when it is wrong and
+     * not configuration drift (ADR-0091).
+     *
+     * @param instances how many MBeans carry this declared name; above one the broker
+     *     deployed {@code <name>-0 … <name>-(N-1)} for a concurrency above one
+     */
+    public record ObservedBridge(BridgeDecl config, boolean started, boolean connected, int instances) {}
 }

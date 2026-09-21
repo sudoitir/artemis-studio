@@ -1,4 +1,12 @@
-import type { ConfigAddressSettingView, ConfigAddressView, ConfigCatalogueView, ConfigDivertView, ConfigDocumentView, ConfigSecuritySettingView } from './api.ts';
+import type {
+  ConfigAddressSettingView,
+  ConfigAddressView,
+  ConfigBridgeView,
+  ConfigCatalogueView,
+  ConfigDivertView,
+  ConfigDocumentView,
+  ConfigSecuritySettingView,
+} from './api.ts';
 
 /**
  * Readable renderings of declared values. A declaration is JSON on the wire —
@@ -104,6 +112,55 @@ export function divertRows(item: ConfigDivertView): Row[] {
   if (item.filter) rows.push({ key: 'filter', value: item.filter });
   if (item.routingType) rows.push({ key: 'routing-type', value: item.routingType });
   if (item.transformerClassName) rows.push({ key: 'transformer', value: item.transformerClassName });
+  for (const [k, v] of Object.entries(item.transformerProperties ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+    rows.push({ key: `transformer ${k}`, value: v });
+  }
+  return rows;
+}
+
+/**
+ * A declared bridge's rows. The credential is a reference into Studio's vault and
+ * is shown as one; there is no password to show, here or anywhere (ADR-0092).
+ */
+export function bridgeRows(item: ConfigBridgeView): Row[] {
+  const rows: Row[] = [
+    { key: 'from queue', value: item.queueName },
+    { key: 'to address', value: item.forwardingAddress },
+    {
+      key: 'over',
+      value: item.staticConnectors.length
+        ? item.staticConnectors.join(', ')
+        : (item.discoveryGroupName ?? 'not declared'),
+    },
+  ];
+  if (item.filter) rows.push({ key: 'filter', value: item.filter });
+  if (item.transformer?.className) {
+    rows.push({ key: 'transformer', value: item.transformer.className });
+    for (const [k, v] of Object.entries(item.transformer.properties ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+      rows.push({ key: `transformer ${k}`, value: v });
+    }
+  }
+  const optional: [string, unknown][] = [
+    ['routing-type', item.routingType],
+    ['concurrency', item.concurrency],
+    ['ha', item.ha],
+    ['use-duplicate-detection', item.useDuplicateDetection],
+    ['retry-interval', item.retryInterval],
+    ['retry-interval-multiplier', item.retryIntervalMultiplier],
+    ['max-retry-interval', item.maxRetryInterval],
+    ['initial-connect-attempts', item.initialConnectAttempts],
+    ['reconnect-attempts', item.reconnectAttempts],
+    ['confirmation-window-size', item.confirmationWindowSize],
+    ['producer-window-size', item.producerWindowSize],
+    ['min-large-message-size', item.minLargeMessageSize],
+    ['check-period', item.checkPeriod],
+    ['connection-ttl', item.connectionTtl],
+    ['client-id', item.clientId],
+  ];
+  for (const [key, value] of optional) {
+    if (value !== null && value !== undefined) rows.push({ key, value: prettyValue(key, value) });
+  }
+  if (item.credentialRef) rows.push({ key: 'credential', value: `${item.credentialRef} (held in Studio's vault)` });
   return rows;
 }
 
@@ -129,5 +186,6 @@ export function documentItems(doc: ConfigDocumentView, catalogue?: ConfigCatalog
   for (const x of doc.addressSettings) out.set(`address-setting ${x.match}`, addressSettingRows(x, catalogue));
   for (const x of doc.securitySettings) out.set(`security-setting ${x.match}`, securitySettingRows(x));
   for (const x of doc.diverts) out.set(`divert ${x.name}`, divertRows(x));
+  for (const x of doc.bridges) out.set(`bridge ${x.name}`, bridgeRows(x));
   return out;
 }

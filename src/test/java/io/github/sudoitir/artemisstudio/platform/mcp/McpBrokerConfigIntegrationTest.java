@@ -116,6 +116,7 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
                         Map.of(),
                         Map.of(),
                         Map.of(),
+                        Map.of(),
                         null));
         doAnswer(inv -> {
                     UUID nodeId = clientToNode.get(inv.getArgument(0));
