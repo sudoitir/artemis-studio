@@ -13,6 +13,7 @@ _Others_
 * `i.g.s.a.k.s.ClusterAccessGuard`
 * `i.g.s.a.k.s.GrantLoader`
 * `i.g.s.a.k.s.IdentityProvisioner`
+* `i.g.s.a.k.s.OperatorHandoff`
 * `i.g.s.a.k.s.PermissionResolver`
 * `i.g.s.a.k.s.ScopedGrants`
 * `i.g.s.a.k.s.SecretVault`

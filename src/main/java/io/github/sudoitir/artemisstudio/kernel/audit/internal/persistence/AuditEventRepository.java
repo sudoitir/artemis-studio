@@ -52,6 +52,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
               and (:username is null or e.username = :username)
               and (:action is null or e.action = :action)
               and (:outcome is null or e.outcome = :outcome)
+              and (:parentId is null or e.parentId = :parentId)
               and e.ts >= :from
               and e.ts <= :to
             order by e.ts desc
@@ -61,6 +62,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
             @Param("username") String username,
             @Param("action") String action,
             @Param("outcome") String outcome,
+            @Param("parentId") Long parentId,
             @Param("from") Instant from,
             @Param("to") Instant to,
             Pageable pageable);

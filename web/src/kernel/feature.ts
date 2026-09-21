@@ -32,6 +32,7 @@ export const FEATURE_IDS = [
   'brokerconfig',
   'flow',
   'triage',
+  'bulk',
   'apitokens',
   'identity-local',
   'identity-oidc',

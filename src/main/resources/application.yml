@@ -172,6 +172,8 @@ artemis-studio:
     # A dry-run count above this is a 422 unless ?override=true (behind the UI's
     # typed confirmation).
     bulk-cap: 1000
+    # Most queues one bulk run may act on (ADR-0093). No override.
+    bulk-queue-cap: 200
   events:
     # Broker-event history (ADR-0028). coalesce-window-millis is the only
     # compile-time value here — TopicCoalescer reads it once at construction.

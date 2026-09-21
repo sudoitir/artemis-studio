@@ -28,6 +28,7 @@ public class AuditQueryService {
             String username,
             String action,
             String outcome,
+            Long parentId,
             Instant from,
             Instant to,
             int page,
@@ -40,6 +41,7 @@ public class AuditQueryService {
                 blankToNull(username),
                 blankToNull(action),
                 blankToNull(outcome),
+                parentId,
                 from != null ? from : Instant.EPOCH,
                 to != null ? to : Instant.parse("9999-12-31T23:59:59Z"),
                 PageRequest.of(p - 1, s));
@@ -53,6 +55,8 @@ public class AuditQueryService {
 
     private static AuditEventView toView(AuditEventEntity e) {
         return new AuditEventView(
+                e.getId(),
+                e.getParentId(),
                 e.getTs(),
                 e.getUsername(),
                 e.getSourceIp(),

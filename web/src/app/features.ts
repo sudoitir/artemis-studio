@@ -1,6 +1,7 @@
 import { alertingFeature } from '../features/alerting/feature.ts';
 import { apitokensFeature } from '../features/apitokens/feature.ts';
 import { auditFeature } from '../features/audit/feature.ts';
+import { bulkFeature } from '../features/bulk/feature.ts';
 import { brokerconfigFeature } from '../features/brokerconfig/feature.ts';
 import { clustersFeature } from '../features/clusters/feature.ts';
 import { eventsFeature } from '../features/events/feature.ts';
@@ -34,6 +35,7 @@ export const FEATURES: StudioFeature[] = [
   rrFeature,
   queuesFeature,
   messagesFeature,
+  bulkFeature,
   sqlFeature,
   resourcesFeature,
   routingFeature,

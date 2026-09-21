@@ -244,7 +244,7 @@ public class TriageMcpTools {
                                 .map(TriageMcpTools::toActivity)
                                 .toList();
                     case AUDIT ->
-                        auditLog.page(clusterId, null, filter, null, null, null, 1, limit + 1).data().stream()
+                        auditLog.page(clusterId, null, filter, null, null, null, null, 1, limit + 1).data().stream()
                                 .map(TriageMcpTools::toActivity)
                                 .toList();
                 };

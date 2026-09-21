@@ -40,7 +40,10 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Flow sampling caches (ADR-0081, changeset feature-flow 0001).
                     "flow_(demand|client_edge|node_sample|route)",
                     // BRIDGE added to the owned-item kind check (ADR-0091, changeset feature-brokerconfig 0003).
-                    "CREATE TABLE broker_config_owned_item ")
+                    "CREATE TABLE broker_config_owned_item ",
+                    // Bulk runs and the audit parent link (ADR-0093, changesets kernel-audit 0002, feature-bulk 0001).
+                    "ix_audit_event_parent",
+                    "bulk_run")
             .map(Pattern::compile)
             .toList();
 

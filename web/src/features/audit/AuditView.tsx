@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Alert,
   Badge,
+  Button,
   Code,
   Drawer,
   Group,
@@ -107,6 +108,7 @@ export function AuditView() {
     user?: string;
     action?: string;
     outcome?: string;
+    parentId?: number;
     page?: number;
   };
   const navigate = useNavigate();
@@ -132,6 +134,7 @@ export function AuditView() {
     user: search.user,
     action: search.action,
     outcome: search.outcome,
+    parentId: search.parentId,
     page,
     size: PAGE_SIZE,
   });
@@ -196,6 +199,17 @@ export function AuditView() {
         />
       </Group>
 
+      {search.parentId != null ? (
+        <Group gap="xs">
+          <Text size="sm">
+            Showing the events that belong to audit event {search.parentId}, such as each queue of a bulk run.
+          </Text>
+          <Button size="xs" variant="subtle" onClick={() => setParam({ parentId: undefined })}>
+            Show every event
+          </Button>
+        </Group>
+      ) : null}
+
       {query.isError ? (
         <Alert color="red" variant="light" title={query.error.title}>
           {query.error.message}
@@ -253,6 +267,30 @@ export function AuditView() {
               </Text>
             ) : null}
             {selected.params ? <Code block>{selected.params}</Code> : null}
+            {selected.parentId != null ? (
+              <Button
+                size="xs"
+                variant="light"
+                onClick={() => {
+                  setSelected(null);
+                  setParam({ parentId: selected.parentId });
+                }}
+              >
+                Show the operation this belongs to, with all its parts
+              </Button>
+            ) : null}
+            {selected.action.startsWith('bulk.') ? (
+              <Button
+                size="xs"
+                variant="light"
+                onClick={() => {
+                  setSelected(null);
+                  setParam({ parentId: selected.id });
+                }}
+              >
+                Show the event for each queue in this run
+              </Button>
+            ) : null}
             <Text size="xs" c="dimmed">
               request {selected.requestId ?? '—'} · from {selected.sourceIp ?? '—'}
             </Text>

@@ -708,6 +708,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/bulk/runs/{runId}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["stop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/bulk/runs/{runId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/bulk/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/alerts/rules": {
         parameters: {
             query?: never;
@@ -1540,6 +1588,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/bulk/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/bulk/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/bridges": {
         parameters: {
             query?: never;
@@ -1579,7 +1659,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["history"];
+        get: operations["history_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2817,6 +2897,105 @@ export interface components {
             nodeName: string;
             finding: components["schemas"]["ConfigDriftFindingView"];
         };
+        BulkRunView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            clusterId: string;
+            /** @enum {string} */
+            operation: "PAUSE" | "RESUME" | "PURGE" | "DELETE";
+            /** @enum {string} */
+            status: "PREVIEWED" | "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED" | "STOPPED" | "INTERRUPTED";
+            username: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            succeeded: number;
+            /** Format: int32 */
+            failed: number;
+            /** Format: int32 */
+            skipped: number;
+            /** Format: int64 */
+            estimate?: number | null;
+            estimateComplete: boolean;
+            /** Format: int64 */
+            cap: number;
+            overCap: boolean;
+            overrideCap: boolean;
+            continueOnFailure: boolean;
+            disconnectConsumers: boolean;
+            selection: components["schemas"]["BulkSelection"];
+            planHash: string;
+            /** Format: int64 */
+            auditEventId?: number | null;
+            error?: string | null;
+        };
+        BulkSelection: {
+            names?: string[] | null;
+            q?: string | null;
+        };
+        BulkExecuteRequest: {
+            planHash: string;
+            override?: boolean;
+            continueOnFailure?: boolean;
+        };
+        BulkPreviewRequest: {
+            /** @enum {string} */
+            operation: "PAUSE" | "RESUME" | "PURGE" | "DELETE";
+            names?: string[] | null;
+            q?: string | null;
+            /** @description Delete only: close attached consumers instead of refusing the queue. */
+            disconnectConsumers?: boolean;
+        };
+        BulkItemView: {
+            /** Format: int32 */
+            ordinal: number;
+            queueName: string;
+            /** @enum {string} */
+            status: "PENDING" | "REFUSED" | "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED" | "SKIPPED" | "CANCELLED" | "UNKNOWN";
+            error?: string | null;
+            warning?: string | null;
+            /** Format: int64 */
+            affected?: number | null;
+            nodes: components["schemas"]["NodeFigure"][];
+            outcome?: components["schemas"]["NodeOutcome"][] | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        BulkRunDetailView: {
+            run: components["schemas"]["BulkRunView"];
+            items: components["schemas"]["BulkItemView"][];
+        };
+        NodeFigure: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            /** Format: int64 */
+            messageCount?: number | null;
+            /** Format: int64 */
+            consumerCount?: number | null;
+            paused: boolean;
+        };
+        NodeOutcome: {
+            /** Format: uuid */
+            nodeId?: string;
+            nodeName?: string;
+            /** @enum {string} */
+            status?: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "SKIPPED_NOT_LIVE" | "FAILED";
+            /** Format: int64 */
+            affected?: number;
+            error?: string;
+        };
         CreateAddressRequest: {
             /** @description The address name. */
             name: string;
@@ -4011,6 +4190,10 @@ export interface components {
             pageSize: number;
         };
         AuditEventView: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            parentId?: number | null;
             /** Format: date-time */
             ts: string;
             username?: string | null;
@@ -5718,6 +5901,82 @@ export interface operations {
             };
         };
     };
+    stop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkRunView"];
+                };
+            };
+        };
+    };
+    execute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkExecuteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkRunView"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkRunDetailView"];
+                };
+            };
+        };
+    };
     rules_1: {
         parameters: {
             query?: never;
@@ -7087,6 +7346,51 @@ export interface operations {
             };
         };
     };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkRunView"][];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkRunDetailView"];
+                };
+            };
+        };
+    };
     bridges: {
         parameters: {
             query: {
@@ -7117,6 +7421,7 @@ export interface operations {
                 user?: string;
                 action?: string;
                 outcome?: string;
+                parentId?: number;
                 from?: string;
                 to?: string;
                 page?: number;
@@ -7141,7 +7446,7 @@ export interface operations {
             };
         };
     };
-    history: {
+    history_1: {
         parameters: {
             query?: {
                 page?: number;

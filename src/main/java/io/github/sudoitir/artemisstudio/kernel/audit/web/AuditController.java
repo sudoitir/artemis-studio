@@ -30,10 +30,11 @@ public class AuditController {
             @RequestParam(required = false) String user,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String outcome,
+            @RequestParam(required = false) Long parentId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return audit.page(clusterId, user, action, outcome, from, to, page, size);
+        return audit.page(clusterId, user, action, outcome, parentId, from, to, page, size);
     }
 }

@@ -5,12 +5,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +38,9 @@ class AuditControllerTest extends PostgresIntegrationTest {
 
     @Autowired
     AuditEventRepository audit;
+
+    @Autowired
+    AuditService auditService;
 
     private UUID clusterId;
 
@@ -90,6 +98,25 @@ class AuditControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{c}/audit", clusterId).param("outcome", "SUCCESS"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(3));
+    }
+
+    @Test
+    void aChildNamesItsParentAndTheParentFilterListsTheChildren() throws Exception {
+        AuditEvent parent =
+                auditService.begin(Actor.system(), "bulk.pause", "QUEUE", "3 queues", clusterId, null, Map.of(), false);
+        ScopedValue.where(AuditScope.PARENT, parent.getId())
+                .run(() -> auditService.begin(
+                        Actor.system(), "PAUSE_QUEUE", "QUEUE", "orders", clusterId, null, Map.of(), false));
+
+        mvc.perform(get("/api/v1/clusters/{c}/audit", clusterId)
+                        .param("parentId", parent.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.data[0].action").value("PAUSE_QUEUE"))
+                .andExpect(jsonPath("$.data[0].parentId").value(parent.getId()));
+        mvc.perform(get("/api/v1/clusters/{c}/audit", clusterId).param("action", "bulk.pause"))
+                .andExpect(jsonPath("$.data[0].id").value(parent.getId()))
+                .andExpect(jsonPath("$.data[0].parentId").doesNotExist());
     }
 
     @Test
