@@ -1,8 +1,8 @@
 ## 1. Per-cluster Core TLS (ADR-0098)
 
-- [ ] 1.1 `platform/broker/StudioSslContextFactory` implements Artemis `SSLContextFactory`. It is registered in `META-INF/services/org.apache.activemq.artemis.spi.core.remoting.ssl.SSLContextFactory` with a priority above the default. It resolves the `sslContext` transport parameter to a Spring SSL bundle, cached per name. For anything else it defers to the default. A static holder is set by a Spring component.
-- [ ] 1.2 `CoreConnectionFactory` emits `sslEnabled=true;sslContext=<bundle>` and stops calling `SSLContext.setDefault`. Remove the `ponytail:` comment.
-- [ ] 1.3 Test: two brokers with distinct test CAs (generated PEM bundles) are connected at the same time. An undefined bundle fails only its own cluster, with the bundle named.
+- [x] 1.1 `platform/broker/StudioSslContextFactory` implements Artemis `SSLContextFactory`. It is registered in `META-INF/services/org.apache.activemq.artemis.spi.core.remoting.ssl.SSLContextFactory` with a priority above the default. It resolves the `sslContext` transport parameter to a Spring SSL bundle, cached per name. For anything else it defers to the default. A static holder is set by a Spring component.
+- [x] 1.2 `CoreConnectionFactory` emits `sslEnabled=true;sslContext=<bundle>` and stops calling `SSLContext.setDefault`. Remove the `ponytail:` comment.
+- [x] 1.3 Test: two brokers with distinct test CAs (generated PEM bundles) are connected at the same time. An undefined bundle fails only its own cluster, with the bundle named.
 
 ## 2. Background run control (ADR-0093 extraction)
 

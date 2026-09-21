@@ -26,7 +26,7 @@ import org.testcontainers.utility.MountableFile;
  */
 public abstract class ArtemisIntegrationTest {
 
-    private static final String IMAGE = "apache/activemq-artemis:2.44.0";
+    public static final String IMAGE = "apache/activemq-artemis:2.44.0";
     public static final String BROKER_USER = "artemis";
     public static final String BROKER_PASSWORD = "artemis";
 
