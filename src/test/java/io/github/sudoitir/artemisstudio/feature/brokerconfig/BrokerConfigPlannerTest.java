@@ -175,6 +175,29 @@ class BrokerConfigPlannerTest {
                 .hasSize(2);
     }
 
+    /**
+     * Before the nested transformer shape, every transformed divert Studio applied was
+     * deployed without its transformer. That divert must read as drift, so one apply
+     * re-deploys it instead of an operator having to find it.
+     */
+    @Test
+    void aDivertDeployedWithoutItsDeclaredTransformerIsReplaced() {
+        DivertDecl deployed = new DivertDecl("audit", "orders.in", "DLQ", null, false, null, null, Map.of());
+        ObservedNodeConfig n = node(N1, "broker-1", Map.of(), Map.of("audit", deployed), Map.of());
+        DivertDecl wanted =
+                new DivertDecl("audit", "orders.in", "DLQ", null, false, null, "com.example.T", Map.of("k", "v"));
+        BrokerConfigDocument d =
+                new BrokerConfigDocument(1, List.of(), List.of(), List.of(), List.of(wanted), List.of());
+
+        Plan plan = BrokerConfigPlanner.plan(d, List.of(n), Set.of(), PlanOptions.defaults());
+
+        assertThat(pending(plan, N1)).extracting(Step::op).containsExactly(Op.REMOVE, Op.ADD);
+        assertThat(pending(plan, N1).getLast().after())
+                .containsEntry(
+                        "transformer-configuration",
+                        Map.of("class-name", "com.example.T", "properties", Map.of("k", "v")));
+    }
+
     @Test
     void aDivertThatDiffersIsARemoveAndAnAddInThatOrder() {
         DivertDecl existing = new DivertDecl("audit", "orders.in", "DLQ", null, false, null, null, Map.of());

@@ -114,8 +114,12 @@ public class BrokerConfigOperations {
                 "removeSecuritySettings");
     }
 
+    /**
+     * Create a divert and read it back: the broker answers 200 for a transformer shape it
+     * ignores, which once deployed every transformed divert without its transformer.
+     */
     public void createDivert(JolokiaBrokerClient client, String brokerMbean, Map<String, Object> config) {
-        divertOps.createDivert(client, brokerMbean, config);
+        divertOps.createVerified(client, brokerMbean, config);
     }
 
     public void destroyDivert(JolokiaBrokerClient client, String brokerMbean, String name) {

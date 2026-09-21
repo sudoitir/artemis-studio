@@ -148,6 +148,8 @@ public class DivertOperations {
         if (config.containsKey("routing-type")) {
             compare(differing, "routing-type", row.routingType(), config.get("routing-type"));
         }
+        BridgeOperations.transformerDifferences(
+                differing, config, row.transformerClassName(), row.transformerProperties());
         return differing;
     }
 

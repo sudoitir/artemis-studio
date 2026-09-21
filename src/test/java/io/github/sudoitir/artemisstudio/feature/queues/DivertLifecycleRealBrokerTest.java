@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,6 +32,7 @@ import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import io.github.sudoitir.artemisstudio.support.McpFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -158,6 +160,44 @@ class DivertLifecycleRealBrokerTest extends PostgresIntegrationTest {
         NodeOutcome different = create(name, a, c, false);
         assertThat(different.status()).isEqualTo(NodeStatus.FAILED);
         assertThat(different.error()).contains("forwarding-address");
+    }
+
+    /**
+     * The nested {@code transformer-configuration} deploys on a divert, and the read-back
+     * holds the broker to it: the flat {@code transformer-class-name} Studio once sent was
+     * accepted with a 200 and deployed the divert without its transformer.
+     */
+    @Test
+    void aTransformerDeploysNestedAndAFlatOneIsCaughtByTheReadBack() {
+        String a = address("TA");
+        String b = address("TB");
+        String nested = "nested-" + run;
+        String flat = "flat-" + run;
+        created.add(nested);
+        created.add(flat);
+        String transformer = "org.apache.activemq.artemis.core.server.transformer.AddHeadersTransformer";
+
+        Map<String, Object> config =
+                new LinkedHashMap<>(DivertOperations.divertConfig(nested, null, a, b, false, null, null));
+        config.put("transformer-configuration", Map.of("class-name", transformer, "properties", Map.of("k", "v")));
+        assertThat(divertOps.createVerified(client, broker, config)).isEqualTo(NodeStatus.APPLIED);
+        DivertRow row = divertOps.find(client, nested).orElseThrow();
+        assertThat(row.transformerClassName()).isEqualTo(transformer);
+        assertThat(row.transformerProperties()).containsEntry("k", "v");
+
+        Map<String, Object> flatConfig =
+                new LinkedHashMap<>(DivertOperations.divertConfig(flat, null, a, b, false, null, null));
+        flatConfig.put("transformer-class-name", transformer);
+        // What the broker deploys for the flat key is a divert with no transformer, so
+        // asking for the nested one afterwards reads back as different, naming it.
+        divertOps.createDivert(client, broker, flatConfig);
+        assertThat(divertOps.find(client, flat).orElseThrow().transformerClassName())
+                .isNull();
+        Map<String, Object> wanted =
+                new LinkedHashMap<>(DivertOperations.divertConfig(flat, null, a, b, false, null, null));
+        wanted.put("transformer-configuration", Map.of("class-name", transformer, "properties", Map.of()));
+        assertThatThrownBy(() -> divertOps.createVerified(client, broker, wanted))
+                .hasMessageContaining("transformer class-name");
     }
 
     @Test

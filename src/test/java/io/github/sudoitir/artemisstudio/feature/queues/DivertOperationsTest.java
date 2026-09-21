@@ -39,4 +39,28 @@ class DivertOperationsTest {
                         deployed, DivertOperations.divertConfig("d", null, "A", "ELSEWHERE", true, "x = 1", null)))
                 .containsExactly("forwarding-address", "filter-string", "exclusive");
     }
+
+    /**
+     * The broker answers 200 for a transformer shape it ignores, so a divert deployed
+     * without its transformer must read back as different, never as already in place.
+     */
+    @Test
+    void aMissingOrDifferentTransformerIsADifference() {
+        Map<String, Object> withTransformer =
+                new java.util.LinkedHashMap<>(DivertOperations.divertConfig("d", null, "A", "B", false, null, null));
+        withTransformer.put(
+                "transformer-configuration", Map.of("class-name", "com.example.T", "properties", Map.of("k", "v")));
+        DivertRow bare = divert("d", "A", "B");
+        DivertRow transformed = new DivertRow(
+                null, null, "d", "d", "A", "B", null, "STRIP", "com.example.T", Map.of("k", "v"), false, false);
+        DivertRow otherProps = new DivertRow(
+                null, null, "d", "d", "A", "B", null, "STRIP", "com.example.T", Map.of("k", "x"), false, false);
+
+        assertThat(DivertOperations.differences(bare, withTransformer)).containsExactly("transformer class-name");
+        assertThat(DivertOperations.differences(transformed, withTransformer)).isEmpty();
+        assertThat(DivertOperations.differences(otherProps, withTransformer)).containsExactly("transformer properties");
+        assertThat(DivertOperations.differences(
+                        transformed, DivertOperations.divertConfig("d", null, "A", "B", false, null, null)))
+                .containsExactly("transformer class-name");
+    }
 }
