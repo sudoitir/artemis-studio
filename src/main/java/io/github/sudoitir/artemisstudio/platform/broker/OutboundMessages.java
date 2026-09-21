@@ -141,6 +141,11 @@ public final class OutboundMessages {
         }
     }
 
+    /** The body bytes a relayed message carries: the whole stream of a large one. */
+    static long size(ClientMessage source) {
+        return source.isLargeMessage() ? largeSize(source) : source.getBodySize();
+    }
+
     private static long largeSize(ClientMessage source) {
         Long size = source.getLongProperty(Message.HDR_LARGE_BODY_SIZE);
         return size != null ? size : source.getBodySize();

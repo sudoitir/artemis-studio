@@ -70,6 +70,35 @@ public class CoreRelay {
         return new Session(session);
     }
 
+    /** A node's Core endpoint, with the cluster's connection settings. */
+    public record Endpoint(UUID clusterId, String coreUrl, CoreConnectionSettings settings) {}
+
+    /**
+     * A relay between two nodes along {@code route}: a transacted session on each. Close it when the
+     * run ends or either node fails; the broker rolls back whatever it had not committed.
+     *
+     * @throws BrokerConnectionException when either node cannot be reached
+     */
+    public RelayLink link(Endpoint source, Endpoint target, RelayLink.Route route) {
+        Session from = null;
+        try {
+            from = open(source.clusterId(), source.coreUrl(), source.settings());
+            Session to = open(target.clusterId(), target.coreUrl(), target.settings());
+            return new RelayLink(from, to, route);
+        } catch (ActiveMQException e) {
+            if (from != null) {
+                from.close();
+            }
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.UNREACHABLE, "Could not open a relay session: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            if (from != null) {
+                from.close();
+            }
+            throw e;
+        }
+    }
+
     private Connection connect(UUID clusterId, String coreUrl, CoreConnectionSettings settings, String key) {
         ServerLocator locator = connectionFactory.build(settings, coreUrl).getServerLocator();
         try {
@@ -139,9 +168,13 @@ public class CoreRelay {
                     SimpleString.of(queue), filter == null ? null : SimpleString.of(filter), true);
         }
 
-        /** Acknowledge a received message within the transaction; it leaves the queue on {@link #commit()}. */
+        /**
+         * Acknowledge this one received message within the transaction; it leaves the queue on
+         * {@link #commit()}. Individual, because a Core acknowledgement is otherwise cumulative: it
+         * would also acknowledge every message received before it.
+         */
         public void acknowledge(ClientMessage message) throws ActiveMQException {
-            message.acknowledge();
+            message.individualAcknowledge();
         }
 
         /** Send to exactly {@code queue} on {@code address} (its FQQN), within the transaction. */
