@@ -64,4 +64,28 @@ class OpenApiSnapshotTest extends PostgresIntegrationTest {
                         + "review the schema.d.ts diff, and commit both")
                 .isEqualTo(existing);
     }
+
+    /** ADR-0096: Jackson 3 rejects a request missing a primitive, so the contract must require it. */
+    @Test
+    void primitiveRequestFieldsAreRequired() throws Exception {
+        MockMvc mvc = webAppContextSetup(webContext).build();
+
+        JsonNode schemas = mapper.readTree(mvc.perform(get("/v3/api-docs").accept("application/json"))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(StandardCharsets.UTF_8))
+                .path("components")
+                .path("schemas");
+
+        assertThat(schemas.path("BulkPreviewRequest")
+                        .path("required")
+                        .valueStream()
+                        .map(JsonNode::asString))
+                .contains("operation", "disconnectConsumers");
+        assertThat(schemas.path("BulkExecuteRequest")
+                        .path("required")
+                        .valueStream()
+                        .map(JsonNode::asString))
+                .contains("planHash", "override", "continueOnFailure");
+    }
 }

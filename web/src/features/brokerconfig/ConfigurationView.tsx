@@ -9,12 +9,10 @@ import {
   useEvaluateBrokerConfigDrift,
   type ConfigDeclarationView,
 } from './api.ts';
-import { useCluster } from '../clusters/index.ts';
 import { absoluteLabel, elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
-import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
-import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
+import type { GateVerdict } from '../../ui/capabilityGate.ts';
 import type { ConfigurationSearch } from './feature.ts';
 import { AdoptionSuggestion } from './AdoptionSuggestion.tsx';
 import { DeclaredTab } from './DeclaredTab.tsx';
@@ -22,15 +20,13 @@ import { HistoryTab } from './HistoryTab.tsx';
 import { ModeControl } from './ModeControl.tsx';
 import { NodesPanel } from './NodesPanel.tsx';
 import { RecommendedConfiguration } from './RecommendedConfiguration.tsx';
-import { RoutingTab } from './routing/RoutingTab.tsx';
-import { APPLY_PERMISSION_LABEL, ReviewApplyDrawer, type ApplyScope } from './ReviewApplyDrawer.tsx';
+import { useDeclarationGates } from './gates.ts';
+import { ReviewApplyDrawer, type ApplyScope } from './ReviewApplyDrawer.tsx';
 import { AdoptDrawer, ExportXmlDrawer, ImportXmlDrawer } from './XmlDrawers.tsx';
 import classes from './Configuration.module.css';
 import { appliedWords, CONFIG_MANAGED_REASON } from './words.ts';
 
 type Drawer = 'adopt' | 'import' | 'export' | null;
-
-export const WRITE_PERMISSION_LABEL = 'Edit declared configuration';
 
 /**
  * A cluster's declared configuration on one screen (ADR-0087 D1): what it should
@@ -52,9 +48,8 @@ export function ConfigurationView() {
 
   const declaration = useBrokerConfig(clusterId);
   const catalogue = useBrokerConfigCatalogue(clusterId);
-  const cluster = useCluster(clusterId);
   const recommendations = useBrokerConfigRecommendations(clusterId, tab === 'recommended');
-  const { can, loading } = useCan();
+  const { canWrite, writeGate, applyGate } = useDeclarationGates(clusterId, declaration.data);
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [scope, setScope] = useState<ApplyScope | null>(null);
 
@@ -79,23 +74,6 @@ export function ConfigurationView() {
   }
 
   const d = declaration.data;
-  const canWrite = loading || can('config:write', clusterId);
-  const writeGate = gateFor(can('config:write', clusterId), WRITE_PERMISSION_LABEL, undefined, loading);
-  const applyPermission = gateFor(
-    can('config:apply', clusterId),
-    APPLY_PERMISSION_LABEL,
-    cluster.data?.capabilities.managementWrite,
-    loading || cluster.isPending,
-  );
-  const applyGate: GateVerdict =
-    d.applyMode === 'CONFIG_MANAGED'
-      ? { kind: 'blocked', reason: CONFIG_MANAGED_REASON }
-      : !d.declared
-        ? {
-            kind: 'blocked',
-            reason: 'Nothing is declared yet. Adopt from the cluster, import broker.xml or add an entry first.',
-          }
-        : applyPermission;
   const studioManaged = d.applyMode === 'STUDIO_MANAGED';
 
   const writeButton = (label: string, onClick: () => void) => (
@@ -160,7 +138,6 @@ export function ConfigurationView() {
       <Tabs value={tab} onChange={(next) => setSearch({ tab: (next as ConfigurationSearch['tab']) ?? undefined })}>
         <Tabs.List>
           <Tabs.Tab value="declared">Declared &amp; live</Tabs.Tab>
-          <Tabs.Tab value="routing">Routing builder</Tabs.Tab>
           <Tabs.Tab value="history">History</Tabs.Tab>
           <Tabs.Tab value="recommended">Recommended</Tabs.Tab>
         </Tabs.List>
@@ -181,16 +158,6 @@ export function ConfigurationView() {
         />
       ) : tab === 'history' ? (
         <HistoryTab declaration={d} catalogue={catalogue.data} />
-      ) : tab === 'routing' ? (
-        <RoutingTab
-          declaration={d}
-          writeGate={writeGate}
-          openSection={search.section}
-          openItem={search.item}
-          anchor={search.anchor}
-          selected={search.selected}
-          onSearch={setSearch}
-        />
       ) : (
         <>
           <DeclaredTab

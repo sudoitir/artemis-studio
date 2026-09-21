@@ -126,7 +126,7 @@ messaging, resources, configuration, activity), palette groups, stream topic
 handlers, and slot contributions. Slots are kernel-owned places another feature's
 component appears: `shell.header`, `shell.navbar`, `home.empty`, `cluster.header`,
 `cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`,
-`topology.node.marks`, `settings.sections`, `admin.tabs`, `account.sections`.
+`topology.node.marks`, `settings.sections`, `routing.tabs`, `admin.tabs`, `account.sections`.
 
 The shell reads the manifest and drops a disabled feature's navigation, slots and
 topics; every feature's routes stay registered so a deep link reaches the page that
@@ -420,10 +420,11 @@ browser would not be a cap.
 **Broker configuration** (ADR-0067). A cluster's declared address settings,
 security settings, diverts, bridges and queues live in the brokerconfig module's
 tables, versioned on every save. The screen is one desired-vs-live view (ADR-0087)
-whose tabs are Declared, Routing builder and History: the builder (ADR-0090) draws the
-declared and observed routing as an ELK-laid graph and edits the same document the
-Declared tab does, authoring a revision rather than writing to a broker, so both tabs
-open the same editors and neither can drift from the other. Its apply is canary-first: a plan is computed per live node
+whose tabs are Declared, History and Recommended. The routing builder (ADR-0090) is the
+Routing screen's Builder tab, contributed by brokerconfig through the `routing.tabs` slot
+(ADR-0094): it draws the declared and observed routing as an ELK-laid graph and edits the
+same document the Declared tab does, authoring a revision rather than writing to a broker,
+so both open the same editors and neither can drift from the other. Its apply is canary-first: a plan is computed per live node
 from at most two batched reads, hazards are classified before any write and the High
 ones must be acknowledged by id, then the canary node receives every step and is read
 back before the next node is touched. The first failure halts the run, nothing is

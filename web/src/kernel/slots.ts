@@ -25,7 +25,8 @@ export interface SlotProps {
   'queue.detail.panels': { clusterId: string; queueName: string; onClose: () => void };
   /**
    * Beside the queues screen's selection: what can be done to the selected queues. `count` is how
-   * many are selected; `clear` empties the selection.
+   * many are selected, and may be zero: an action then stays visible and disabled. `clear` empties
+   * the selection.
    */
   'queues.selection': { clusterId: string; selection: QueueSelection; count: number; clear: () => void };
   /** At the foot of a cluster's metrics view. */
@@ -34,6 +35,8 @@ export interface SlotProps {
   'topology.node.marks': { clusterId: string; nodeIds: string[] };
   /** A section of a cluster's Settings page, under the contribution's title. */
   'settings.sections': { clusterId: string };
+  /** A tab of a cluster's Routing page, after Diverts and Bridges, labelled with the contribution's title; its id is the tab's `?tab=`. */
+  'routing.tabs': { clusterId: string };
   /** A tab of the Administration page, labelled with the contribution's title; its id is the tab's `?tab=`. */
   'admin.tabs': object;
   /** A section of the signed-in user's Account page, under the contribution's title. */

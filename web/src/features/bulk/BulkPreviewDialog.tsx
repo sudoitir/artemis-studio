@@ -87,6 +87,8 @@ export function BulkPreviewDialog({
       operation,
       names: selection.kind === 'names' ? selection.names : null,
       q: selection.kind === 'filter' ? selection.q : null,
+      // A bulk delete refuses a queue with consumers; closing them is not offered in bulk yet.
+      disconnectConsumers: false,
     });
   };
 

@@ -1,32 +1,63 @@
 import { describe, expect, it } from 'vitest';
 
-import { allocateDots, crossingSeconds, speedBucket, wantedDots, widthTier } from './edgeEncoding.ts';
+import {
+  allocateDots,
+  crossingSeconds,
+  lineState,
+  MAX_WIDTH,
+  MIN_WIDTH,
+  rateScale,
+  wantedDots,
+  widthPx,
+} from './edgeEncoding.ts';
 
 describe('edge encoding', () => {
-  it('separates unknown from idle, and idle from moving', () => {
-    expect(widthTier(undefined)).toBe('unknown');
-    expect(widthTier(0)).toBe('idle');
-    expect(widthTier(3)).toBe('light');
-    expect(widthTier(500)).toBe('busy');
-    expect(speedBucket(undefined)).toBe(0);
-    expect(speedBucket(0)).toBe(0);
+  it('puts idle and unknown at the width floor, told apart by dash only', () => {
+    expect(widthPx(undefined)).toBe(MIN_WIDTH);
+    expect(widthPx(null)).toBe(MIN_WIDTH);
+    expect(widthPx(0)).toBe(MIN_WIDTH);
+    expect(lineState(undefined, false)).toBe('unknown');
+    expect(lineState(0, false)).toBe('idle');
+    expect(lineState(3, false)).toBe('flowing');
+    expect(lineState(3, true)).toBe('stale');
+    expect(wantedDots(0)).toBe(0);
+    expect(wantedDots(undefined)).toBe(0);
   });
 
-  it('buckets rates by decade, so a small change keeps the same animation', () => {
-    expect(speedBucket(0.4)).toBe(1);
-    expect(speedBucket(4)).toBe(2);
-    expect(speedBucket(42)).toBe(3);
-    expect(speedBucket(48)).toBe(3);
-    expect(speedBucket(420)).toBe(4);
-    expect(speedBucket(42_000)).toBe(5);
+  it('hits the endpoints: 2px and 6 s at a trickle, 10px and 1.8 s at the cap', () => {
+    expect(widthPx(1e-9)).toBeCloseTo(2, 3);
+    expect(crossingSeconds(1e-9)).toBe(6);
+    expect(widthPx(1000)).toBe(MAX_WIDTH);
+    expect(crossingSeconds(1000)).toBe(1.8);
+    expect(wantedDots(1e-9)).toBe(1);
+    expect(wantedDots(1000)).toBe(4);
   });
 
-  it('moves faster and denser with rate, and never faster than the cap', () => {
-    for (let b = 2; b <= 5; b++) {
-      expect(crossingSeconds(b)).toBeLessThan(crossingSeconds(b - 1));
-      expect(wantedDots(b)).toBeGreaterThanOrEqual(wantedDots(b - 1));
+  it('clamps at 1000 msg/s', () => {
+    for (const rate of [1000, 5000, 1e9]) {
+      expect(widthPx(rate)).toBe(MAX_WIDTH);
+      expect(crossingSeconds(rate)).toBe(1.8);
+      expect(wantedDots(rate)).toBe(4);
     }
-    expect(crossingSeconds(5)).toBeGreaterThanOrEqual(1.5);
+  });
+
+  it('grows heavier, faster and denser with rate, never the other way', () => {
+    const rates = [0.1, 0.5, 1, 5, 10, 50, 100, 500, 999, 1000];
+    for (let i = 1; i < rates.length; i++) {
+      expect(widthPx(rates[i])).toBeGreaterThan(widthPx(rates[i - 1]));
+      expect(crossingSeconds(rates[i])).toBeLessThanOrEqual(crossingSeconds(rates[i - 1]));
+      expect(wantedDots(rates[i])).toBeGreaterThanOrEqual(wantedDots(rates[i - 1]));
+    }
+  });
+
+  it('drives width and speed from the same square-root value', () => {
+    for (const rate of [0.3, 7, 42, 250, 800]) {
+      const s = Math.sqrt(rate / 1000);
+      expect(rateScale(rate)).toBeCloseTo(s, 12);
+      expect(widthPx(rate)).toBeCloseTo(2 + 8 * s, 12);
+      expect(crossingSeconds(rate)).toBeCloseTo(6 - 4.2 * s, 1);
+      expect(wantedDots(rate)).toBe(1 + Math.round(3 * s));
+    }
   });
 
   it('serves the busiest edges first and stops at the budget', () => {

@@ -4,6 +4,7 @@ import { Button, Collapse, Select, Stack, Switch, Text, TextInput } from '@manti
 import type { ConfigDeclarationView, ConfigDivertView } from './api.ts';
 import { keyTaken, removeItem, upsertDivert } from './document.ts';
 import { EditorDrawer } from './EditorDrawer.tsx';
+import { ForwardingAddressField } from './ForwardingAddressField.tsx';
 import { TransformerFields, type TransformerValue } from './routing/TransformerFields.tsx';
 import { useSaveDocument } from './useSaveDocument.ts';
 
@@ -50,6 +51,7 @@ export function DivertEditor({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [advanced, setAdvanced] = useState(false);
+  const [creatingQueue, setCreatingQueue] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const addressRef = useRef<HTMLInputElement>(null);
   const forwardRef = useRef<HTMLInputElement>(null);
@@ -69,6 +71,7 @@ export function DivertEditor({
     setTouched({});
     setSubmitted(false);
     setAdvanced(false);
+    setCreatingQueue(false);
   }, [opened, item, prefill]);
 
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
@@ -118,6 +121,7 @@ export function DivertEditor({
         onClose();
       }}
       title={item ? `Divert ${item.name}` : 'New divert'}
+      closeOnEscape={!creatingQueue}
       error={error}
       submitting={isPending}
       submitLabel={`Save as revision ${declaration.revision + 1}`}
@@ -150,15 +154,14 @@ export function DivertEditor({
         error={errorFor('address')}
         required
       />
-      <TextInput
-        ref={forwardRef}
-        label="To address"
-        description="Must exist — declared here, or already on every live node with a queue — or the diverted messages are dropped."
+      <ForwardingAddressField
+        declaration={declaration}
+        inputRef={forwardRef}
         value={forwardingAddress}
-        onChange={(e) => setForwardingAddress(e.currentTarget.value)}
+        onChange={setForwardingAddress}
         onBlur={() => setTouched((t) => ({ ...t, forwardingAddress: true }))}
         error={errorFor('forwardingAddress')}
-        required
+        onCreatingChange={setCreatingQueue}
       />
       <Switch
         label="Exclusive"

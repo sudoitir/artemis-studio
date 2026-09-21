@@ -154,23 +154,24 @@
 
 .edge {
   stroke: var(--as-flow-edge);
-  transition: opacity 160ms ease;
+  /* Set per edge from its rate (ADR-0095): one weight scale, no colour step for "busy". */
+  stroke-width: var(--edge-width);
+  /* Rates refresh every 15 s; the new weight glides in instead of jumping. */
+  transition:
+    opacity 160ms ease,
+    stroke-width 400ms ease;
 }
 
-.edge[data-tier='busy'] {
-  stroke: var(--as-flow-edge-busy);
-}
-
-.edge[data-tier='idle'] {
+.edge[data-line='idle'] {
   stroke-dasharray: 4 4;
 }
 
-.edge[data-tier='unknown'] {
+.edge[data-line='unknown'] {
   stroke-dasharray: 1 5;
   stroke-linecap: round;
 }
 
-.edge[data-stale] {
+.edge[data-line='stale'] {
   stroke-dasharray: 6 3;
 }
 
@@ -185,13 +186,11 @@
 
 .edge[data-kind='WILDCARD'] {
   stroke-dasharray: 1 3;
-  stroke-width: 1px;
 }
 
 .edge[data-kind='DEAD_LETTER'],
 .edge[data-kind='EXPIRY'] {
   stroke-dasharray: 8 3 1 3;
-  stroke-width: 1px;
 }
 
 .edge[data-kind='CLUSTER_HOP'] {
@@ -200,8 +199,11 @@
 
 .edgeInner {
   stroke: var(--as-graph-node-bg);
-  stroke-width: 1.25px;
+  stroke-width: calc(var(--edge-width) * 0.35);
   pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    stroke-width 400ms ease;
 }
 
 .edgeInner[data-dimmed],
@@ -211,6 +213,10 @@
 
 .dot {
   fill: var(--as-flow-dot);
+  /* A surface ring, so the dot reads on a 10px line: dot on edge is only 1.5:1 in the dark
+     scheme, dot on the ring 9.4:1 (dark) and 21:1 (light). */
+  stroke: var(--as-surface);
+  stroke-width: 1px;
 }
 
 .edgeLabel {
@@ -312,20 +318,19 @@
 .legendLine {
   inline-size: 22px;
   block-size: 0;
-  border-block-start: 1.75px solid var(--as-flow-edge);
+  border-block-start: 2px solid var(--as-flow-edge);
 }
 
-.legendLine[data-tier='busy'] {
-  border-block-start-width: 3px;
-  border-block-start-color: var(--as-flow-edge-busy);
+/* Reference weights, drawn with the canvas's own widthPx (FlowLegend.tsx). */
+.legendLine[data-line='flowing'] {
+  border-block-start-width: var(--edge-width);
 }
 
-.legendLine[data-tier='idle'] {
+.legendLine[data-line='idle'] {
   border-block-start-style: dashed;
-  border-block-start-width: 1px;
 }
 
-.legendLine[data-tier='unknown'] {
+.legendLine[data-line='unknown'] {
   border-block-start-style: dotted;
 }
 
@@ -346,7 +351,7 @@
 
 .legendLine[data-kind='DEAD_LETTER'] {
   border-block-start-style: dashed;
-  border-block-start-width: 1px;
+  border-block-start-width: 2px;
 }
 
 .legendShape[data-shape='hex'] {
@@ -360,7 +365,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .node,
-  .edge {
+  .edge,
+  .edgeInner {
     transition: none;
   }
 }

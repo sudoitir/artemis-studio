@@ -1,6 +1,7 @@
 # ADR-0080: Flow graph uses ELK layered layout and budgeted SVG motion
 
-- **Status**: accepted
+- **Status**: accepted; the rate-to-motion encoding (five speed buckets, width tiers) is superseded by
+  [ADR-0095](0095-flow-edges-encode-rate-as-one-continuous-scale.md)
 - **Date**: 2026-09-14
 - **Deciders**: maintainers
 

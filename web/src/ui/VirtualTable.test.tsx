@@ -132,4 +132,87 @@ describe('VirtualTable', () => {
     await user.click(screen.getByText('DLQ'));
     expect(onRowClick).toHaveBeenCalledWith({ name: 'DLQ', depth: 431 });
   });
+
+  describe('selection', () => {
+    function Selectable({ onToggleRow = () => {}, onToggleAll = () => {} }: {
+      onToggleRow?: (key: string) => void;
+      onToggleAll?: (keys: string[], allSelected: boolean) => void;
+    }) {
+      const [selected, setSelected] = useState<Set<string>>(new Set());
+      return (
+        <VirtualTable
+          columns={columns}
+          data={rows}
+          rowKey={(r) => r.name}
+          selectable
+          selected={selected}
+          onToggleRow={(key) => {
+            onToggleRow(key);
+            const next = new Set(selected);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            setSelected(next);
+          }}
+          onToggleAll={(keys, allSelected) => {
+            onToggleAll(keys, allSelected);
+            setSelected(allSelected ? new Set() : new Set(keys));
+          }}
+        />
+      );
+    }
+
+    it('toggles one row without clicking the row itself', async () => {
+      const user = userEvent.setup();
+      const onToggleRow = vi.fn();
+      const onRowClick = vi.fn();
+      renderWithProviders(
+        <VirtualTable
+          columns={columns}
+          data={rows}
+          rowKey={(r) => r.name}
+          selectable
+          selected={new Set()}
+          onToggleRow={onToggleRow}
+          onRowClick={onRowClick}
+        />,
+      );
+      await user.click(screen.getByRole('checkbox', { name: 'Select row SHIPMENTS' }));
+      expect(onToggleRow).toHaveBeenCalledWith('SHIPMENTS');
+      expect(onRowClick).not.toHaveBeenCalled();
+    });
+
+    it('marks the header box indeterminate for a partial page, and checked for a full one', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<Selectable />);
+      const all = () => screen.getByRole('checkbox', { name: /select all on this page/i });
+
+      expect(all()).not.toBeChecked();
+      expect(all()).not.toHaveAttribute('data-indeterminate');
+
+      await user.click(screen.getByRole('checkbox', { name: 'Select row ORDERS' }));
+      expect(all()).not.toBeChecked();
+      expect(all()).toHaveAttribute('data-indeterminate', 'true');
+
+      await user.click(screen.getByRole('checkbox', { name: 'Select row SHIPMENTS' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Select row DLQ' }));
+      expect(all()).toBeChecked();
+      expect(all()).toHaveAccessibleName('Deselect all on this page');
+    });
+
+    it('selects the whole page, then clears it, through the header box', async () => {
+      const user = userEvent.setup();
+      const onToggleAll = vi.fn();
+      renderWithProviders(<Selectable onToggleAll={onToggleAll} />);
+
+      await user.click(screen.getByRole('checkbox', { name: 'Select all on this page' }));
+      expect(onToggleAll).toHaveBeenLastCalledWith(['ORDERS', 'SHIPMENTS', 'DLQ'], false);
+      for (const name of ['ORDERS', 'SHIPMENTS', 'DLQ']) {
+        expect(screen.getByRole('checkbox', { name: `Select row ${name}` })).toBeChecked();
+      }
+
+      await user.click(screen.getByRole('checkbox', { name: 'Deselect all on this page' }));
+      expect(onToggleAll).toHaveBeenLastCalledWith(['ORDERS', 'SHIPMENTS', 'DLQ'], true);
+      expect(screen.getByRole('checkbox', { name: 'Select row ORDERS' })).not.toBeChecked();
+    });
+  });
 });

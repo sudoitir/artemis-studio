@@ -9,6 +9,13 @@ import { prettyKey, prettyValue } from './pretty.ts';
 
 export type Section = 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts' | 'bridges';
 
+const SECTIONS: readonly string[] = ['addresses', 'addressSettings', 'securitySettings', 'diverts', 'bridges'];
+
+/** A section named in a URL, or undefined when it names none. */
+export function asSection(raw: unknown): Section | undefined {
+  return typeof raw === 'string' && SECTIONS.includes(raw) ? (raw as Section) : undefined;
+}
+
 /** The document section a plan step, a drift finding or a hazard names. */
 export type WireSection = 'ADDRESS' | 'QUEUE' | 'ADDRESS_SETTING' | 'SECURITY_SETTING' | 'DIVERT' | 'BRIDGE';
 

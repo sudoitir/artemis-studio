@@ -165,3 +165,17 @@
   align-items: baseline;
   gap: 0.25rem 0.75rem;
 }
+
+/*
+ * An inline form opened from a field — the divert editor's "Create queue" (ADR-0094). Set in
+ * from the field it belongs to, on the raised surface, so it reads as part of that field and not
+ * as a second drawer.
+ */
+.inlineSection {
+  padding-block: 12px;
+  padding-inline: 14px;
+  border: 1px solid var(--as-border);
+  border-inline-start-width: 3px;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface-raised);
+}

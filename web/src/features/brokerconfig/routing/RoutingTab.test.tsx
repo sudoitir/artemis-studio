@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../../test/render.tsx';
@@ -89,6 +89,8 @@ function Harness({ declaration: d, gate = ALLOWED }: { declaration: ConfigDeclar
     <RoutingTab
       declaration={d}
       writeGate={gate}
+      applyGate={ALLOWED}
+      onReview={() => {}}
       openSection={search.section}
       openItem={search.item}
       anchor={search.anchor}
@@ -218,9 +220,28 @@ describe('RoutingTab', () => {
 
     expect(await screen.findByText(/160 elements, more than the 150 this canvas draws at once/)).toBeInTheDocument();
     expect(screen.getByText(/159 elements are not drawn/)).toBeInTheDocument();
-    expect(screen.getByText(/Every one of them is on the Declared & live tab/)).toBeInTheDocument();
+    expect(screen.getByText(/Every one of them is on the Configuration screen's Declared & live tab/)).toBeInTheDocument();
     // The operator chooses what the region is anchored on.
     expect(screen.getByRole('combobox', { name: 'Draw the region around' })).toBeInTheDocument();
+  });
+
+  it('adds a queue from the toolbar, in the address editor, with a queue row to name', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness declaration={routed()} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add queue' }));
+    const drawer = await screen.findByRole('dialog', { name: 'New address' });
+    expect(within(drawer).getByRole('textbox', { name: 'Queue name' })).toHaveValue('');
+    expect(within(drawer).getByRole('checkbox', { name: 'Anycast' })).toBeChecked();
+  });
+
+  it('keeps "Add queue" visible and explains it when the operator may not write', async () => {
+    renderWithProviders(
+      <Harness declaration={routed()} gate={{ kind: 'blocked', reason: 'You do not have the permission.' }} />,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Add queue' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Why adding a queue is unavailable' })).toBeInTheDocument();
   });
 
   it('round-trips a divert transformer and its properties, and states what it cannot verify', async () => {

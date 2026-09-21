@@ -1,29 +1,32 @@
-import { memo, useContext } from 'react';
+import { memo, useContext, type CSSProperties } from 'react';
 import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
 
 import { FlowCanvasContext } from './canvasContext.ts';
-import { crossingSeconds, speedBucket, STROKE_WIDTH, widthTier } from './edgeEncoding.ts';
+import { crossingSeconds, lineState, widthPx } from './edgeEncoding.ts';
 import { edgeText } from './flowFormat.ts';
 import type { FlowEdgeData } from './flowLayout.ts';
 import classes from './FlowCanvas.module.css';
 
 /**
- * Dots travelling the edge. Memoised on primitives only, so a refresh whose rate stays in the same
- * speed bucket re-renders nothing here and the running SMIL animation is never restarted.
+ * Dots travelling the edge. Memoised on primitives only, so a refresh that leaves the rounded
+ * crossing time, count and radius alone re-renders nothing here and the running SMIL animation is
+ * never restarted.
  */
 export const FlowDots = memo(function FlowDots({
   path,
   seconds,
   count,
+  radius = 2.6,
 }: {
   path: string;
   seconds: number;
   count: number;
+  radius?: number;
 }) {
   return (
     <g aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
-        <circle key={i} r={2.6} className={classes.dot}>
+        <circle key={i} r={radius} className={classes.dot}>
           <animateMotion
             dur={`${seconds}s`}
             repeatCount="indefinite"
@@ -50,8 +53,12 @@ export const FlowEdge = memo(function FlowEdge({
   const view = d.view;
   const { showText, motion } = useContext(FlowCanvasContext);
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-  const tier = widthTier(view.rate);
   const fault = (view.faults?.length ?? 0) > 0;
+  const width = widthPx(view.rate);
+  const double = view.kind === 'BRIDGE' || view.kind === 'CLUSTER_HOP';
+  // The double line of a bridge or hop keeps its proportions: the canvas-coloured inner stroke is a
+  // fixed fraction of the outer one (FlowCanvas.module.css), two px wider so the gap stays visible.
+  const lineStyle = { '--edge-width': `${double ? width + 2 : width}px` } as CSSProperties;
 
   return (
     <>
@@ -59,20 +66,24 @@ export const FlowEdge = memo(function FlowEdge({
         d={path}
         fill="none"
         className={classes.edge}
-        data-tier={tier}
+        data-line={lineState(view.rate, view.stale)}
         data-kind={view.kind}
         data-fault={fault || undefined}
-        data-stale={view.stale || undefined}
         data-dimmed={d.dimmed || undefined}
-        style={{ strokeWidth: view.kind === 'BRIDGE' || view.kind === 'CLUSTER_HOP' ? STROKE_WIDTH[tier] + 2 : STROKE_WIDTH[tier] }}
+        style={lineStyle}
       />
-      {view.kind === 'BRIDGE' || view.kind === 'CLUSTER_HOP' ? (
+      {double ? (
         // A second, narrower stroke in the canvas colour turns one line into two: forwarding
         // between brokers reads differently from routing inside one.
-        <path d={path} fill="none" className={classes.edgeInner} data-dimmed={d.dimmed || undefined} />
+        <path d={path} fill="none" className={classes.edgeInner} data-dimmed={d.dimmed || undefined} style={lineStyle} />
       ) : null}
       {showText && motion !== 'off' && d.dots > 0 && !d.dimmed ? (
-        <FlowDots path={path} seconds={crossingSeconds(speedBucket(view.rate))} count={d.dots} />
+        <FlowDots
+          path={path}
+          seconds={crossingSeconds(view.rate)}
+          count={d.dots}
+          radius={Math.round(Math.max(2.6, width * 0.4) * 10) / 10}
+        />
       ) : null}
       {showText ? (
         <EdgeLabelRenderer>

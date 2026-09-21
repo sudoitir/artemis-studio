@@ -4964,7 +4964,8 @@
           "disabled" : {
             "type" : "boolean"
           }
-        }
+        },
+        "required" : [ "disabled" ]
       },
       "GrantSummary" : {
         "type" : "object",
@@ -5258,7 +5259,8 @@
           "enabled" : {
             "type" : "boolean"
           }
-        }
+        },
+        "required" : [ "capturePayload", "enabled", "samplePerMin" ]
       },
       "ExpectationView" : {
         "type" : "object",
@@ -5839,7 +5841,7 @@
             }
           }
         },
-        "required" : [ "kind", "name", "severity" ]
+        "required" : [ "enabled", "forSeconds", "kind", "name", "severity" ]
       },
       "AlertRuleView" : {
         "type" : "object",
@@ -5923,7 +5925,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "kind", "name" ]
+        "required" : [ "enabled", "kind", "name" ]
       },
       "NotificationChannelView" : {
         "type" : "object",
@@ -6402,7 +6404,8 @@
             "type" : "integer",
             "format" : "int64"
           }
-        }
+        },
+        "required" : [ "messageId", "timestamp" ]
       },
       "VerifyView" : {
         "type" : "object",
@@ -6521,7 +6524,8 @@
               "$ref" : "#/components/schemas/NoticeView"
             }
           }
-        }
+        },
+        "required" : [ "captured", "effectiveLimit", "estimatedMessagesExamined", "requiresScan" ]
       },
       "TargetView" : {
         "type" : "object",
@@ -6543,7 +6547,8 @@
             "type" : "integer",
             "format" : "int64"
           }
-        }
+        },
+        "required" : [ "messageCount" ]
       },
       "IndexSubscriptionRequest" : {
         "type" : "object",
@@ -6621,7 +6626,8 @@
             "type" : "integer",
             "format" : "int64"
           }
-        }
+        },
+        "required" : [ "droppedEstimate" ]
       },
       "IndexSubscriptionView" : {
         "type" : "object",
@@ -6706,7 +6712,8 @@
               "$ref" : "#/components/schemas/CaptureNodeView"
             }
           }
-        }
+        },
+        "required" : [ "backlogInProgress", "bodyCapBytes", "bytesHeld", "enabled", "intervalMs", "maxBytes", "maxRate", "messagesHeld", "retentionDays", "ringSize" ]
       },
       "CapturePreviewView" : {
         "type" : "object",
@@ -6751,7 +6758,8 @@
             "type" : [ "string", "null" ],
             "description" : "Why capture would be refused as things stand, or null when it would not."
           }
-        }
+        },
+        "required" : [ "ringBytes", "ringMessages" ]
       },
       "CreateExpectationRequest" : {
         "type" : "object",
@@ -6783,7 +6791,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "requestAddress" ]
+        "required" : [ "capturePayload", "requestAddress", "samplePerMin" ]
       },
       "CreateQueueRequest" : {
         "type" : "object",
@@ -6930,7 +6938,7 @@
             "additionalProperties" : { }
           }
         },
-        "required" : [ "type" ]
+        "required" : [ "durable", "type" ]
       },
       "AffectedView" : {
         "type" : "object",
@@ -7717,7 +7725,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "planHash" ]
+        "required" : [ "continueOnFailure", "override", "planHash" ]
       },
       "BulkPreviewRequest" : {
         "type" : "object",
@@ -7740,7 +7748,7 @@
             "description" : "Delete only: close attached consumers instead of refusing the queue."
           }
         },
-        "required" : [ "operation" ]
+        "required" : [ "disconnectConsumers", "operation" ]
       },
       "BulkItemView" : {
         "type" : "object",
@@ -8267,7 +8275,8 @@
             "type" : "integer",
             "format" : "int64"
           }
-        }
+        },
+        "required" : [ "value" ]
       },
       "ProblemDetail" : {
         "type" : "object",
@@ -8294,7 +8303,8 @@
             "type" : "object",
             "additionalProperties" : { }
           }
-        }
+        },
+        "required" : [ "status" ]
       },
       "RedactionView" : {
         "type" : "object",
@@ -8351,7 +8361,8 @@
           "plan" : {
             "$ref" : "#/components/schemas/PlanView"
           }
-        }
+        },
+        "required" : [ "partial" ]
       },
       "RowView" : {
         "type" : "object",
@@ -8459,7 +8470,8 @@
               "$ref" : "#/components/schemas/WithheldView"
             }
           }
-        }
+        },
+        "required" : [ "bodyTruncated", "durable", "expiration", "messageId", "messageType", "priority", "size", "timestamp" ]
       },
       "SqlNodeOutcomeView" : {
         "type" : "object",
@@ -8542,7 +8554,8 @@
             "type" : "boolean",
             "description" : "True when the query has no predicate, so enqueued minus shown is exactly the number that passed through unobserved. When false the difference also holds messages that simply did not match."
           }
-        }
+        },
+        "required" : [ "enqueued", "everyMessageMatches", "polls", "shown" ]
       },
       "WithheldView" : {
         "type" : "object",
@@ -8576,7 +8589,8 @@
           "sort" : {
             "type" : "string"
           }
-        }
+        },
+        "required" : [ "page", "size" ]
       },
       "PagedViewSessionView" : {
         "type" : "object",
@@ -9580,7 +9594,8 @@
           "brokerXmlSnippet" : {
             "type" : "string"
           }
-        }
+        },
+        "required" : [ "consumersSeen", "consumersTotal", "producersSeen", "producersTotal", "truncated" ]
       },
       "FlowEdgeView" : {
         "type" : "object",
@@ -9655,7 +9670,8 @@
               "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
             }
           }
-        }
+        },
+        "required" : [ "bypassed", "stale", "studio" ]
       },
       "FlowFocusView" : {
         "type" : "object",
@@ -9673,7 +9689,8 @@
           "matched" : {
             "type" : "boolean"
           }
-        }
+        },
+        "required" : [ "hops", "matched" ]
       },
       "FlowGraphView" : {
         "type" : "object",
@@ -9728,7 +9745,8 @@
               "$ref" : "#/components/schemas/FlowBrokerNodeView"
             }
           }
-        }
+        },
+        "required" : [ "measuring", "sampleIntervalSeconds" ]
       },
       "FlowKpis" : {
         "type" : "object",
@@ -9753,7 +9771,8 @@
             "type" : "integer",
             "format" : "int32"
           }
-        }
+        },
+        "required" : [ "backlog", "clients", "faults" ]
       },
       "FlowNodeView" : {
         "type" : "object",
@@ -9841,7 +9860,8 @@
           "clamped" : {
             "type" : "boolean"
           }
-        }
+        },
+        "required" : [ "clamped", "limit", "paths", "shown" ]
       },
       "BrokerEventPageView" : {
         "type" : "object",
@@ -11055,7 +11075,8 @@
             "type" : "integer",
             "format" : "int64"
           }
-        }
+        },
+        "required" : [ "messagesDestroyed" ]
       }
     }
   }

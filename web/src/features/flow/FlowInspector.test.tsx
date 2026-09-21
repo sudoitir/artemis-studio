@@ -37,8 +37,12 @@ const graph = {
       stale: false,
       delivery: 'SHARED',
       faults: [],
+      bypassed: false,
+      studio: false,
     },
   ],
+  measuring: false,
+  sampleIntervalSeconds: 15,
 } as FlowGraphView;
 
 describe('FlowInspector', () => {

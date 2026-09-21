@@ -16,12 +16,15 @@ import type { RoutingEdgeView, RoutingGraph, RoutingKind, RoutingNodeView } from
  * canvas exists to answer.
  */
 
+/** One card size for every kind: kind is carried by the glyph and the word, not by the outline. */
+const CARD = { width: 224, height: 76 };
+
 export const NODE_SIZE: Record<RoutingKind, { width: number; height: number }> = {
-  address: { width: 212, height: 62 },
-  queue: { width: 212, height: 62 },
-  divert: { width: 196, height: 72 },
-  bridge: { width: 208, height: 78 },
-  target: { width: 212, height: 66 },
+  address: CARD,
+  queue: CARD,
+  divert: CARD,
+  bridge: CARD,
+  target: CARD,
 };
 
 export type Positions = Record<string, { x: number; y: number }>;
@@ -33,6 +36,11 @@ export interface RoutingNodeData extends Record<string, unknown> {
 
 export interface RoutingEdgeData extends Record<string, unknown> {
   view: RoutingEdgeView;
+  /**
+   * With an element selected, its own lines are brought forward and the rest recede; with
+   * nothing selected every line is drawn alike.
+   */
+  emphasis?: 'forward' | 'recede';
 }
 
 /**
@@ -54,8 +62,8 @@ export function toElkGraph(graph: RoutingGraph): ElkNode {
       'elk.algorithm': 'layered',
       'elk.direction': 'RIGHT',
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '96',
-      'elk.spacing.nodeNode': '24',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '112',
+      'elk.spacing.nodeNode': '28',
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
     },
     children: [...graph.nodes]
@@ -99,17 +107,29 @@ export function toReactFlow(
   const ids = new Set(placed.map((n) => n.id));
   const edges: Edge[] = graph.edges
     .filter((e) => ids.has(e.source) && ids.has(e.target))
-    .map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      type: 'routing',
-      // A presentation attribute takes a custom property, so the arrowhead follows
-      // the theme with the line rather than being painted a literal colour.
-      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--as-flow-edge)', width: 14, height: 14 },
-      focusable: false,
-      selectable: false,
-      data: { view: e } satisfies RoutingEdgeData,
-    }));
+    .map((e) => {
+      const emphasis: RoutingEdgeData['emphasis'] = !selectedId
+        ? undefined
+        : e.source === selectedId || e.target === selectedId
+          ? 'forward'
+          : 'recede';
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: 'routing',
+        // A presentation attribute takes a custom property, so the arrowhead follows
+        // the theme with the line rather than being painted a literal colour.
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: emphasis === 'forward' ? 'var(--as-text)' : 'var(--as-flow-edge)',
+          width: 16,
+          height: 16,
+        },
+        focusable: false,
+        selectable: false,
+        data: { view: e, emphasis } satisfies RoutingEdgeData,
+      };
+    });
   return { nodes, edges };
 }

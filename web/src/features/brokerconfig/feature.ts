@@ -7,34 +7,28 @@ import { configTopic } from './applyProgress.ts';
 import { ConfigDiffView } from './ConfigDiffView.tsx';
 import { ConfigurationView } from './ConfigurationView.tsx';
 import { RegistrationRecommendations } from './RegistrationRecommendations.tsx';
+import { RoutingBuilderTab } from './routing/RoutingBuilderTab.tsx';
+import { asSection, type Section } from './words.ts';
 
 /**
- * The declaration's navigable state: which mode is open, which editor, and — on
- * the routing builder — the address its bounded region is drawn around and the
- * element that is selected (ADR-0067, ADR-0087, ADR-0090 D9). All of it lives in
- * the URL so a view can be shared and restored.
+ * The declaration's navigable state: which mode is open and which editor (ADR-0067, ADR-0087).
+ * It lives in the URL so a view can be shared and restored. The routing builder keeps its own on
+ * the Routing screen (ADR-0094).
  */
 export interface ConfigurationSearch {
-  tab?: 'declared' | 'routing' | 'history' | 'recommended';
-  section?: 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts' | 'bridges';
+  tab?: 'declared' | 'history' | 'recommended';
+  section?: Section;
   item?: string;
-  anchor?: string;
-  selected?: string;
 }
-
-const SECTIONS = ['addresses', 'addressSettings', 'securitySettings', 'diverts', 'bridges'];
 
 function validateConfigurationSearch(raw: Record<string, unknown>): ConfigurationSearch {
   const out: ConfigurationSearch = {};
-  if (typeof raw.tab === 'string' && ['declared', 'routing', 'history', 'recommended'].includes(raw.tab)) {
+  if (typeof raw.tab === 'string' && ['declared', 'history', 'recommended'].includes(raw.tab)) {
     out.tab = raw.tab as ConfigurationSearch['tab'];
   }
-  if (typeof raw.section === 'string' && SECTIONS.includes(raw.section)) {
-    out.section = raw.section as ConfigurationSearch['section'];
-  }
+  const section = asSection(raw.section);
+  if (section) out.section = section;
   if (typeof raw.item === 'string' && raw.item) out.item = raw.item;
-  if (typeof raw.anchor === 'string' && raw.anchor) out.anchor = raw.anchor;
-  if (typeof raw.selected === 'string' && raw.selected) out.selected = raw.selected;
   return out;
 }
 
@@ -71,6 +65,9 @@ export const brokerconfigFeature = defineFeature({
     'cluster.registration.afterProbe': [
       { id: 'brokerconfig-recommendations', order: 10, Component: RegistrationRecommendations },
     ],
+    // The routing builder edits this module's declaration, and is hosted by the Routing screen
+    // (ADR-0094). Its id is the tab's `?tab=`.
+    'routing.tabs': [{ id: 'builder', order: 10, title: 'Builder', Component: RoutingBuilderTab }],
   },
   streamTopics: { config: configTopic },
 });
