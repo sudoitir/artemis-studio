@@ -78,6 +78,8 @@ export interface RoutingEdgeView {
   target: string;
   /** What the line means, for the edge's accessible name. */
   label: string;
+  /** A word drawn on the line itself — a divert's "copies" or "takes" — when the line carries one. */
+  chip?: string;
 }
 
 export interface RoutingGraph {
@@ -230,7 +232,8 @@ export function buildRoutingGraph(declaration: ConfigDeclarationView): RoutingGr
       id: `divert-out:${d.name}`,
       source: id,
       target: to,
-      label: `divert ${d.name} forwards to address ${d.forwardingAddress}`,
+      label: `divert ${d.name} ${d.exclusive ? 'takes' : 'copies'} messages to address ${d.forwardingAddress}`,
+      chip: d.exclusive ? 'takes' : 'copies',
     });
   }
 

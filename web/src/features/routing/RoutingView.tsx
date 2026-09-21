@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Anchor, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
-import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { Alert, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useBridges, useDiverts, type BridgeView, type DivertView } from './api.ts';
+import type { RoutingSearch } from './feature.ts';
+import { useSlot } from '../../kernel/slots.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { BrokerXmlRemedy, DeleteDivertAction, CreateDivertAction, DRIFT_SENTENCE } from './DivertActions.tsx';
@@ -135,7 +137,7 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
 
 /**
  * What the live view of a bridge reports. Declaring, changing and removing one is
- * the declaration's job (ADR-0091), reached by the link above the table — this
+ * the declaration's job (ADR-0091), reached on the Builder tab — this
  * table reads every serving node and has no write of its own.
  */
 const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
@@ -183,23 +185,61 @@ const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
 ];
 
 /**
- * A cluster's routing: what copies or takes its traffic, and what carries it to
- * another broker.
+ * A cluster's routing: what copies or takes its traffic, what carries it to another broker, and
+ * the tabs other features contribute through `routing.tabs` — the routing builder among them.
  *
- * <p>Both tabs are live reads across every serving node, merged. Which tab is
- * open, the filter and the page all live in the URL, so a routing view can be
- * shared as it was seen.
+ * <p>Diverts and Bridges are live reads across every serving node, merged. Which tab is open,
+ * the filter and the page all live in the URL, so a routing view can be shared as it was seen.
  */
 export function RoutingView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const search = useSearch({ strict: false }) as {
-    q?: string;
-    sort?: string;
-    page?: number;
-    tab?: Tab;
-  };
+  const search = useSearch({ strict: false }) as RoutingSearch;
   const navigate = useNavigate();
-  const tab: Tab = search.tab === 'bridges' ? 'bridges' : 'diverts';
+  const contributed = useSlot('routing.tabs');
+  const slot = contributed.find((c) => c.id === search.tab);
+  const tab: string = slot ? slot.id : search.tab === 'bridges' ? 'bridges' : 'diverts';
+
+  // Switching tab drops whatever the previous tab kept in the URL, so a filter or an open editor
+  // never follows the operator onto a view it does not belong to.
+  const setTab = (next: string | null) =>
+    navigate({
+      to: '.',
+      search: () => ({ tab: next && next !== 'diverts' ? next : undefined }),
+    });
+
+  return (
+    <Stack gap="sm">
+      <Tabs value={tab} onChange={setTab}>
+        <Tabs.List>
+          <Tabs.Tab value="diverts">Diverts</Tabs.Tab>
+          <Tabs.Tab value="bridges">Bridges</Tabs.Tab>
+          {contributed.map(({ id, title }) => (
+            <Tabs.Tab key={id} value={id}>
+              {title}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
+
+      {slot ? (
+        <slot.Component clusterId={clusterId} />
+      ) : (
+        <RoutingListing
+          clusterId={clusterId}
+          tab={tab === 'bridges' ? 'bridges' : 'diverts'}
+          // By tab id, not by import: the builder belongs to brokerconfig, and naming its tab adds
+          // no dependency edge between the two.
+          hasBuilder={contributed.some((c) => c.id === 'builder')}
+        />
+      )}
+    </Stack>
+  );
+}
+
+/** The Diverts or the Bridges tab: one live, filtered, paged listing. */
+function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab: Tab; hasBuilder: boolean }) {
+  const search = useSearch({ strict: false }) as RoutingSearch;
+  const navigate = useNavigate();
 
   const [filter, setFilter] = useState(search.q ?? '');
   const [debounced] = useDebouncedValue(filter, 250);
@@ -233,14 +273,7 @@ export function RoutingView() {
   const total = query.data?.count ?? 0;
 
   return (
-    <Stack gap="sm">
-      <Tabs value={tab} onChange={(next) => setSearch({ tab: next ?? undefined, page: undefined })}>
-        <Tabs.List>
-          <Tabs.Tab value="diverts">Diverts</Tabs.Tab>
-          <Tabs.Tab value="bridges">Bridges</Tabs.Tab>
-        </Tabs.List>
-      </Tabs>
-
+    <>
       <Group justify="space-between">
         <TextInput
           placeholder="Filter by address or name"
@@ -250,14 +283,7 @@ export function RoutingView() {
           w={280}
           size="xs"
         />
-        <Group gap="xs">
-          {/* By path, not by import: the builder belongs to the configuration feature
-              and reaching it as a route adds no dependency edge between the two. */}
-          <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=routing`} size="xs">
-            Open the routing builder
-          </Anchor>
-          {tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : null}
-        </Group>
+        {tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : null}
       </Group>
 
       {query.isPending && rows.length === 0 ? (
@@ -292,7 +318,9 @@ export function RoutingView() {
             <Text size="sm">
               {search.q
                 ? 'No bridge matches this filter. Clear it to see every bridge on the cluster.'
-                : 'No bridges. A bridge forwards a queue to an address on another broker. Declare one in the routing builder and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'}
+                : hasBuilder
+                  ? 'No bridges. A bridge forwards a queue to an address on another broker. Declare one on the Builder tab and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'
+                  : 'No bridges. A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Studio.'}
             </Text>
           }
         />
@@ -305,6 +333,6 @@ export function RoutingView() {
         onChange={(next) => setSearch({ page: next > 1 ? next : undefined })}
         label={tab}
       />
-    </Stack>
+    </>
   );
 }

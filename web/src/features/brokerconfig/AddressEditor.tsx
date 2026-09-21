@@ -24,11 +24,14 @@ interface Errors {
 export function AddressEditor({
   declaration,
   item,
+  prefill,
   opened,
   onClose,
 }: {
   declaration: ConfigDeclarationView;
   item: ConfigAddressView | null;
+  /** What a new address opens with — the routing builder's "Add queue" opens one with a queue to name. */
+  prefill?: Partial<ConfigAddressView>;
   opened: boolean;
   onClose: () => void;
 }) {
@@ -41,12 +44,12 @@ export function AddressEditor({
 
   useEffect(() => {
     if (!opened) return;
-    setName(item?.name ?? '');
-    setRoutingTypes(item?.routingTypes ?? ['ANYCAST']);
-    setQueues(item?.queues ?? []);
+    setName(item?.name ?? prefill?.name ?? '');
+    setRoutingTypes(item?.routingTypes ?? prefill?.routingTypes ?? ['ANYCAST']);
+    setQueues(item?.queues ?? prefill?.queues ?? []);
     setTouched({});
     setSubmitted(false);
-  }, [opened, item]);
+  }, [opened, item, prefill]);
 
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
 

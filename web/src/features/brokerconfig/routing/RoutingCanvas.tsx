@@ -1,11 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, type Connection } from '@xyflow/react';
-import { Alert, Button, Loader, Text } from '@mantine/core';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Background,
+  BackgroundVariant,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  type Connection,
+} from '@xyflow/react';
+import { ActionIcon, Alert, Button, Loader, Text, Tooltip } from '@mantine/core';
+import { IconFocusCentered, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
 import { runLayout as runElkLayout } from '../../../ui/graph/elk.ts';
 import { RoutingCanvasContext, type RoutingCanvasState } from './canvasContext.ts';
-import { KIND_WORDS, type RoutingGraph } from './routingGraph.ts';
+import type { RoutingGraph } from './routingGraph.ts';
 import { layoutSignature, positionsFrom, toElkGraph, toReactFlow, type Positions } from './routingLayout.ts';
 import { RoutingEdge } from './RoutingEdge.tsx';
 import { AddressNode, BridgeNode, DivertNode, QueueNode, TargetNode } from './RoutingNodes.tsx';
@@ -16,6 +24,49 @@ const edgeTypes = { routing: RoutingEdge };
 
 /** Above this many drawn elements React Flow renders only what is on screen (ADR-0056). */
 const DENSE = 60;
+
+/** Generous gutters, and never larger than life: a small graph is not blown up to fill the frame. */
+const FIT = { padding: 0.16, maxZoom: 1 };
+const ZOOM = { duration: 140 };
+
+/**
+ * The toolbar over the canvas: the keyboard's way in, the view controls, and whatever the
+ * builder adds at its end. It sits inside the flow provider so the view controls reach the
+ * viewport; motion on them is skipped when the operator asks for reduced motion.
+ */
+const CanvasToolbar = forwardRef<
+  HTMLButtonElement,
+  { onEnter: () => void; canEnter: boolean; leading?: ReactNode; actions?: ReactNode }
+>(function CanvasToolbar({ onEnter, canEnter, leading, actions }, entry) {
+  const flow = useReactFlow();
+  const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const zoom = reduced ? { duration: 0 } : ZOOM;
+  const view = (label: string, icon: ReactNode, onClick: () => void) => (
+    <Tooltip label={label} withArrow openDelay={300}>
+      <ActionIcon variant="subtle" color="gray" size="md" aria-label={label} onClick={onClick}>
+        {icon}
+      </ActionIcon>
+    </Tooltip>
+  );
+  return (
+    <div className={classes.toolbar} role="toolbar" aria-label="Routing builder">
+      <Button ref={entry} variant="default" size="xs" onClick={onEnter} disabled={!canEnter}>
+        Enter the routing graph
+      </Button>
+      <span className={classes.divider} aria-hidden="true" />
+      <div className={classes.toolbarGroup}>
+        {view('Zoom out', <IconZoomOut size={16} stroke={1.75} />, () => void flow.zoomOut(zoom))}
+        {view('Zoom in', <IconZoomIn size={16} stroke={1.75} />, () => void flow.zoomIn(zoom))}
+        {view('Fit the graph to the view', <IconFocusCentered size={16} stroke={1.75} />, () =>
+          void flow.fitView({ ...FIT, ...zoom }),
+        )}
+      </div>
+      {leading}
+      <span className={classes.toolbarSpacer} />
+      {actions}
+    </div>
+  );
+});
 
 /** What a drag between two elements proposes. Nothing is written until the document is saved. */
 export type Compose =
@@ -64,7 +115,7 @@ function FitOnLayout({ signature }: { signature: string | null }) {
   const flow = useReactFlow();
   useEffect(() => {
     if (!signature) return;
-    const fit = () => void flow.fitView({ padding: 0.14, maxZoom: 1 });
+    const fit = () => void flow.fitView(FIT);
     const frame = requestAnimationFrame(fit);
     const box = document.querySelector(`.${classes.wrapper}`);
     const observer = box ? new ResizeObserver(fit) : null;
@@ -95,12 +146,18 @@ export function RoutingCanvas({
   onSelect,
   onCompose,
   canWrite,
+  leading,
+  actions,
 }: {
   graph: RoutingGraph;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onCompose: (compose: Compose) => void;
   canWrite: boolean;
+  /** Toolbar controls after the view controls — the region picker, when the graph is bounded. */
+  leading?: ReactNode;
+  /** Toolbar controls at its end — the builder's authoring and apply actions. */
+  actions?: ReactNode;
 }) {
   const layout = useRoutingLayout(graph);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -151,8 +208,8 @@ export function RoutingCanvas({
   }, []);
 
   const context = useMemo<RoutingCanvasState>(
-    () => ({ focusedId, register, focus: setFocusedId, select: onSelect }),
-    [focusedId, register, onSelect],
+    () => ({ focusedId, canWrite, register, focus: setFocusedId, select: onSelect }),
+    [focusedId, canWrite, register, onSelect],
   );
 
   const moveTo = (id: string | undefined) => {
@@ -196,68 +253,64 @@ export function RoutingCanvas({
     <div>
       {layout.error ? (
         <Alert color="red" variant="light" title="The graph could not be laid out" mb="xs">
-          {layout.error} Every element it would have drawn is on the Declared &amp; live tab.
+          {layout.error} Every element it would have drawn is on the Configuration screen's Declared &amp; live tab.
         </Alert>
       ) : null}
 
-      <Button
-        ref={entry}
-        variant="default"
-        size="xs"
-        mb="xs"
-        onClick={() => moveTo(focusedId ?? order[0])}
-        disabled={order.length === 0}
-      >
-        Enter the routing graph
-      </Button>
-
-      <div
-        ref={wrapper}
-        className={classes.wrapper}
-        role="group"
-        aria-label={`Routing graph, ${graph.nodes.length} element${graph.nodes.length === 1 ? '' : 's'}`}
-        onKeyDown={onKeyDown}
-      >
-        {!laidOut ? (
-          <div className={classes.overlay} aria-busy="true" aria-label="Laying out the graph">
-            <Loader size="sm" />
+      <ReactFlowProvider>
+        <div className={classes.frame}>
+          <CanvasToolbar
+            ref={entry}
+            onEnter={() => moveTo(focusedId ?? order[0])}
+            canEnter={order.length > 0}
+            leading={leading}
+            actions={actions}
+          />
+          <div
+            ref={wrapper}
+            className={classes.wrapper}
+            role="group"
+            aria-label={`Routing graph, ${graph.nodes.length} element${graph.nodes.length === 1 ? '' : 's'}`}
+            onKeyDown={onKeyDown}
+          >
+            {!laidOut ? (
+              <div className={classes.overlay} aria-busy="true" aria-label="Laying out the graph">
+                <Loader size="sm" />
+              </div>
+            ) : null}
+            <RoutingCanvasContext.Provider value={context}>
+              <ReactFlow
+                nodes={model.nodes}
+                edges={model.edges}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                minZoom={0.2}
+                maxZoom={1.6}
+                nodesDraggable={false}
+                nodesConnectable={canWrite}
+                nodesFocusable={false}
+                edgesFocusable={false}
+                elementsSelectable={false}
+                onlyRenderVisibleElements={model.nodes.length > DENSE}
+                onConnect={connect}
+                // React Flow gives a node `pointer-events: none` unless it is
+                // selectable, draggable or has a click handler, and this canvas
+                // owns its own selection and tab stop rather than React Flow's —
+                // so without this the element inside it could not be clicked at all.
+                onNodeClick={(_, node) => onSelect(node.id)}
+                onPaneClick={() => onSelect(null)}
+                proOptions={{ hideAttribution: true }}
+              >
+                <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} patternClassName={classes.dots} />
+                <FitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
+              </ReactFlow>
+            </RoutingCanvasContext.Provider>
           </div>
-        ) : null}
-        <RoutingCanvasContext.Provider value={context}>
-          <ReactFlowProvider>
-            <ReactFlow
-              nodes={model.nodes}
-              edges={model.edges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              minZoom={0.2}
-              maxZoom={1.6}
-              nodesDraggable={false}
-              nodesConnectable={canWrite}
-              nodesFocusable={false}
-              edgesFocusable={false}
-              elementsSelectable={false}
-              onlyRenderVisibleElements={model.nodes.length > DENSE}
-              onConnect={connect}
-              // React Flow gives a node `pointer-events: none` unless it is
-              // selectable, draggable or has a click handler, and this canvas
-              // owns its own selection and tab stop rather than React Flow's —
-              // so without this the element inside it could not be clicked at all.
-              onNodeClick={(_, node) => onSelect(node.id)}
-              onPaneClick={() => onSelect(null)}
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background gap={24} />
-              <Controls showInteractive={false} />
-              <FitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
-            </ReactFlow>
-          </ReactFlowProvider>
-        </RoutingCanvasContext.Provider>
-      </div>
+        </div>
+      </ReactFlowProvider>
 
       <Text component="p" className={classes.legend}>
         <span>Arrow keys move between elements; Enter opens one; Escape leaves the graph.</span>
-        <span>Shapes: {Object.values(KIND_WORDS).join(' · ')}.</span>
         {canWrite ? <span>Drag address to address to propose a divert, queue to target to propose a bridge.</span> : null}
         <span>Nothing here is written to a broker until a saved revision is applied.</span>
       </Text>

@@ -1,6 +1,6 @@
 # ADR-0090: The routing builder is a canvas over the declaration, not over the broker
 
-- **Status**: accepted
+- **Status**: accepted; D3's host screen (a tab of the Configuration screen) superseded by [ADR-0094](0094-routing-builder-is-hosted-by-the-routing-screen.md)
 - **Date**: 2026-09-20
 - **Deciders**: Artemis Studio maintainers
 

@@ -50,6 +50,15 @@ describe('ConfigurationView', () => {
     expect(screen.getByRole('button', { name: 'Why this is unavailable' })).toBeInTheDocument();
   });
 
+  it('has no routing builder tab: the builder is on the Routing screen (ADR-0094)', async () => {
+    server.use(...baseHandlers());
+    renderWithProviders(<ConfigurationView />);
+
+    const tabs = await screen.findAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(['Declared & live', 'History', 'Recommended']);
+    expect(screen.queryByRole('tab', { name: /routing/i })).toBeNull();
+  });
+
   it('disables apply with the reason when the cluster is managed outside Studio', async () => {
     server.use(...baseHandlers(declaration({ applyMode: 'CONFIG_MANAGED' })));
     const user = userEvent.setup();

@@ -1,23 +1,97 @@
 /*
- * The routing canvas. Shape carries kind and words carry state, so removing
- * colour removes nothing (frontend rule: presentation). Colour appears only on
- * an element that is not doing what it was declared to do.
+ * The routing builder (ADR-0090, ADR-0094): a precise instrument, calm and near-monochrome.
+ * Hierarchy runs canvas → elements → lines. The canvas is sunken, elements are raised cards,
+ * lines are thin and quiet. Glyphs and words carry kind; words carry state; colour appears only
+ * on an element that is not doing what it was declared to do, so removing colour removes
+ * nothing (frontend rule: presentation).
+ *
+ * Motion answers the operator only — hover, focus, selection — on elevation, opacity and border,
+ * never on anything that encodes data (ADR-0090 D5), and none of it survives reduced motion.
  */
+
+.builder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 62em) {
+  .builder {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── frame: toolbar over the sunken canvas ─────────────────────────────── */
+
+.frame {
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  background: var(--as-canvas-sunken);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding-block: 8px;
+  padding-inline: 10px;
+  background: var(--as-surface-raised);
+  border-block-end: 1px solid var(--as-border);
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+.divider {
+  inline-size: 1px;
+  block-size: 20px;
+  background: var(--as-border);
+  margin-inline: 2px;
+}
+
+.inlineField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inlineLabel {
+  font-size: 0.75rem;
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+}
+
+.inlineInput {
+  flex: 1;
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}
 
 .wrapper {
   position: relative;
   /*
-   * Sized from where the canvas actually starts, not from a guess at how much
-   * chrome is above it. The cluster header, the health banner, the revision strip
-   * and the tabs are all conditional, so a fixed subtraction is right on one
-   * screen and puts the graph below the fold on the next. `--as-routing-top` is
-   * measured on mount and on resize; the fallback only applies for the first paint.
+   * Sized from where the canvas actually starts, not from a guess at how much chrome is above
+   * it. The cluster header, the health banner and the bound notice are all conditional, so a
+   * fixed subtraction is right on one screen and puts the graph below the fold on the next.
+   * `--as-routing-top` is measured on mount and on resize; the fallback is the first paint.
    */
-  block-size: clamp(420px, calc(100dvh - var(--as-routing-top, 300px) - 24px), 900px);
-  border: 1px solid var(--as-border);
-  border-radius: var(--mantine-radius-md);
-  background: var(--as-graph-node-bg);
-  overflow: hidden;
+  block-size: clamp(440px, calc(100dvh - var(--as-routing-top, 300px) - 56px), 920px);
+}
+
+.dots {
+  fill: var(--as-canvas-grid);
 }
 
 .overlay {
@@ -35,43 +109,35 @@
   box-sizing: border-box;
   inline-size: 100%;
   block-size: 100%;
-  padding-block: 6px;
+  padding-block: 8px;
   padding-inline: 12px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 3px;
   border: 1px solid var(--as-border);
-  background: var(--as-flow-node-bg);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+  box-shadow: var(--as-elevation-1);
   color: var(--as-text);
+  font: inherit;
   cursor: pointer;
   text-align: start;
+  transition:
+    box-shadow 140ms ease-out,
+    border-color 140ms ease-out,
+    opacity 140ms ease-out;
 }
 
-/* Kind is told apart by shape, never by colour. */
-.node[data-kind='address'] {
-  border-radius: var(--mantine-radius-sm);
+.node:hover {
+  box-shadow: var(--as-elevation-2);
 }
 
-.node[data-kind='queue'] {
-  border-radius: 999px;
-  padding-inline: 18px;
-}
-
-.node[data-kind='divert'] {
-  border-radius: var(--mantine-radius-xs);
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 10px 50%);
-  padding-inline: 20px 26px;
-}
-
-.node[data-kind='bridge'] {
-  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 50%, 0 50%);
-  padding-inline: 20px;
-}
-
+/* The one element this canvas cannot read: its outline says so. */
 .node[data-kind='target'] {
-  border-radius: var(--mantine-radius-sm);
   border-style: dashed;
+  box-shadow: none;
 }
 
 /* Not what was declared, or declared and not doing it: the one place colour appears. */
@@ -80,8 +146,10 @@
 }
 
 .node[data-selected] {
-  border-width: 2px;
   border-color: var(--as-text);
+  box-shadow:
+    0 0 0 1px var(--as-text),
+    var(--as-elevation-2);
 }
 
 .node:focus-visible {
@@ -89,17 +157,38 @@
   outline-offset: 3px;
 }
 
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6875rem;
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+}
+
+.glyph {
+  flex: none;
+}
+
 .name {
+  max-inline-size: 100%;
   font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.kind,
+/* State, in words, as a quiet chip. Its outline is neutral unless something is wrong. */
 .state {
+  max-inline-size: 100%;
+  padding-block: 0;
+  padding-inline: 6px;
+  border: 1px solid var(--as-border);
+  border-radius: 999px;
   font-size: 0.6875rem;
+  line-height: 1.5;
   color: var(--as-text-dimmed);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,21 +197,92 @@
 
 .state[data-attention] {
   color: var(--as-warning);
+  border-color: var(--as-warning);
 }
 
+/*
+ * Connection handles: present always, because lines attach to them; shown only on hover or
+ * focus, and only while the operator may compose.
+ */
 .handle {
-  inline-size: 7px;
-  block-size: 7px;
-  background: var(--as-flow-edge);
-  border: none;
+  inline-size: 9px;
+  block-size: 9px;
+  background: var(--as-surface-raised);
+  border: 1.5px solid var(--as-text-dimmed);
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+
+:global(.react-flow__node):hover .handle[data-usable],
+:global(.react-flow__node):focus-within .handle[data-usable] {
+  opacity: 1;
+}
+
+.handle:not([data-usable]) {
+  pointer-events: none;
 }
 
 /* ── lines ─────────────────────────────────────────────────────────────── */
 
 .edge {
   stroke: var(--as-flow-edge);
-  stroke-width: 1.4;
+  stroke-width: 1.25;
   fill: none;
+  transition:
+    opacity 140ms ease-out,
+    stroke 140ms ease-out;
+}
+
+.edge[data-emphasis='forward'] {
+  stroke: var(--as-text);
+  stroke-width: 1.75;
+}
+
+.edge[data-emphasis='recede'] {
+  opacity: var(--as-canvas-recede);
+}
+
+.edgeChip {
+  position: absolute;
+  padding-block: 0;
+  padding-inline: 6px;
+  border: 1px solid var(--as-border);
+  border-radius: 999px;
+  background: var(--as-surface-raised);
+  color: var(--as-text-dimmed);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+}
+
+.edgeChip[data-emphasis='forward'] {
+  color: var(--as-text);
+  border-color: var(--as-text-dimmed);
+}
+
+.edgeChip[data-emphasis='recede'] {
+  opacity: var(--as-canvas-recede);
+}
+
+/* The line being drawn by a drag: a proposal, not yet anything. */
+.wrapper :global(.react-flow__connection-path) {
+  stroke: var(--as-text-dimmed);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 4;
+  opacity: 0.7;
+}
+
+/* ── inspector ─────────────────────────────────────────────────────────── */
+
+.inspector {
+  position: sticky;
+  inset-block-start: 12px;
+  padding: 14px;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+  box-shadow: var(--as-elevation-1);
 }
 
 .legend {
@@ -131,5 +291,14 @@
   gap: 0.25rem 1rem;
   color: var(--as-text-dimmed);
   font-size: 0.6875rem;
-  margin-block-start: 0.375rem;
+  margin-block-start: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node,
+  .handle,
+  .edge,
+  .edgeChip {
+    transition: none;
+  }
 }

@@ -22,6 +22,7 @@ export function EditorDrawer({
   onSubmit,
   hint,
   secondary,
+  closeOnEscape = true,
   children,
 }: {
   opened: boolean;
@@ -35,10 +36,23 @@ export function EditorDrawer({
   hint?: string;
   /** A second, non-primary action — "Remove from declaration". */
   secondary?: ReactNode;
+  /**
+   * False while a section inside the drawer owns Escape — an inline form that Escape collapses.
+   * Mantine listens for Escape on the window, so the section cannot stop it reaching the drawer.
+   */
+  closeOnEscape?: boolean;
   children: ReactNode;
 }) {
   return (
-    <Drawer opened={opened} onClose={onClose} title={title} position="right" size="lg" padding="md">
+    <Drawer
+      opened={opened}
+      onClose={onClose}
+      title={title}
+      position="right"
+      size="lg"
+      padding="md"
+      closeOnEscape={closeOnEscape}
+    >
       <Stack gap="md">
         {children}
 

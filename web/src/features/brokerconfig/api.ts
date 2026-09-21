@@ -187,8 +187,13 @@ export function useSaveBrokerConfig(clusterId: string) {
         method: "PUT",
         body: JSON.stringify(body),
       }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+    // The saved declaration is the response: it is in the cache at once, so an editor that stays
+    // open after a save — the divert editor after an inline "Create queue" — saves its next
+    // revision against this one rather than racing the refetch into a stale-revision refusal.
+    onSuccess: (saved) => {
+      qc.setQueryData(keys.brokerConfig(clusterId), saved);
+      return qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
+    },
   });
 }
 

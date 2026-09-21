@@ -38,8 +38,8 @@ function rowsFor(declaration: ConfigDeclarationView, node: RoutingNodeView): Row
 /**
  * The selected element: what it is, what it connects, which of the declared and
  * observed states it is in, and the actions that change it. Its editor is the
- * same drawer the Declared &amp; live tab opens, so the two presentations cannot
- * drift apart (ADR-0090).
+ * same drawer the Configuration screen's Declared &amp; live tab opens, so the two
+ * presentations cannot drift apart (ADR-0090).
  */
 export function RoutingInspector({
   declaration,
@@ -62,7 +62,7 @@ export function RoutingInspector({
         </Text>
         <Text size="xs" c="dimmed">
           Choose an element on the canvas, or enter the graph and move with the arrow keys. Everything it shows is also
-          on the Declared &amp; live tab, with the same editors.
+          on the Configuration screen's Declared &amp; live tab, with the same editors.
         </Text>
       </Stack>
     );

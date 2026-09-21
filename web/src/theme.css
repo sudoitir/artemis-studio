@@ -81,7 +81,7 @@
   /* Flow graph (ADR-0080). Healthy flow is monochrome: an edge's width and moving
      dots carry the rate, and colour enters only for a fault. Edges sit on the
      dimmed text step (~5:1 on the body in both schemes, above the 3:1 floor for
-     graphical marks); a busy edge and its dots on the body text step. */
+     graphical marks); dots, and a hovered node's border, on the body text step. */
   --as-flow-node-bg: var(--mantine-color-default);
   --as-flow-edge: var(--as-text-dimmed);
   --as-flow-edge-busy: var(--as-text);
@@ -96,6 +96,20 @@
   /* The minimap's mask over what the viewport is not showing: the canvas, dimmed,
      rather than React Flow's own light grey wash. */
   --as-flow-minimap-mask: rgba(0, 0, 0, 0.55);
+
+  /* Elevation (ADR-0094). Two steps, on Mantine's own shadow scale: resting, and lifted under
+     the pointer or when selected. A raised surface means "this is an element you can act on";
+     the border beside it does the separating, so a shadow is never the only edge. */
+  --as-elevation-1: var(--mantine-shadow-xs);
+  --as-elevation-2: var(--mantine-shadow-sm);
+
+  /* Routing builder canvas (ADR-0094). A sunken surface under raised element cards, with a
+     faint dot grid that is decoration only — no contrast floor applies to it, and nothing is
+     encoded in it. Measured on the node card (dark-6 / white): dimmed text 5.3:1 / 5.2:1. */
+  --as-canvas-sunken: color-mix(in srgb, var(--mantine-color-body) 72%, var(--mantine-color-dark-9));
+  --as-canvas-grid: var(--mantine-color-dark-4);
+  /* Opacity of lines and elements that are not about the selected element — receded, never gone. */
+  --as-canvas-recede: 0.3;
 
   /* Request-reply flow state (Phase 5). */
   --as-rr-in-flight: var(--as-text-dimmed); /* awaiting reply — normal, not a warning */
@@ -151,6 +165,8 @@
   --as-rr-failed: var(--mantine-color-red-7);
   --as-flow-fault: var(--as-danger); /* #c92a2a: 5.46:1 on white */
   --as-flow-minimap-mask: rgba(255, 255, 255, 0.6);
+  --as-canvas-sunken: var(--mantine-color-gray-0);
+  --as-canvas-grid: var(--mantine-color-gray-4);
   --as-chart-2: var(--mantine-color-blue-7);
   --as-grid-row-fresh: rgba(28, 126, 214, 0.1);
   /* Editor tokens are body text, so the AA 4.5:1 floor applies to all three.
