@@ -37,5 +37,6 @@
     <include file="db/changelog/feature/sql/changelog.xml"          relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/brokerconfig/changelog.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/flow/changelog.xml"         relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/bulk/changelog.xml"         relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

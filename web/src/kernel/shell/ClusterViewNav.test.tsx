@@ -63,7 +63,7 @@ describe('ClusterViewNav', () => {
   });
 
   it("leaves out a disabled feature's views, and a group left with none", async () => {
-    mockApi({ disabled: ['sql', 'events', 'audit'] });
+    mockApi({ disabled: ['sql', 'events', 'audit', 'bulk'] });
     renderWithProviders(<ClusterViewNav clusterId="c1" collapsed={false} />);
 
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Activity' })).not.toBeInTheDocument());

@@ -96,6 +96,10 @@ public class AuditEventEntity implements AuditEvent {
     @Column(name = "dry_run", nullable = false, updatable = false)
     private boolean dryRun;
 
+    /** The event this one is a part of, such as a bulk run's (ADR-0093); null for a standalone action. */
+    @Column(name = "parent_id", updatable = false)
+    private Long parentId;
+
     public AuditEventEntity(
             String action,
             String targetType,
@@ -121,6 +125,10 @@ public class AuditEventEntity implements AuditEvent {
         this.nodeId = nodeId;
         this.params = params;
         this.dryRun = dryRun;
+    }
+
+    public void attachParent(Long parentId) {
+        this.parentId = parentId;
     }
 
     @PrePersist

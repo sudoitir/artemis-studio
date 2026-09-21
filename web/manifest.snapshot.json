@@ -20,6 +20,10 @@
     "kind" : "FEATURE",
     "required" : false
   }, {
+    "id" : "bulk",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
     "id" : "clusters",
     "kind" : "PLATFORM",
     "required" : true

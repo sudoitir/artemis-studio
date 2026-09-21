@@ -205,7 +205,7 @@ from the commit messages ([`changelog/`](changelog/)).
 | [ ] | **B · CLI:** automation for clusters, queues, SQL queries, message operations, and API tokens                                                                                                    |
 | [ ] | **B · Saved views:** shareable views with role visibility and cluster-scoped defaults                                                                                                            |
 | [x] | **B · Routing builder:** visual builder for diverts, bridges, and transformers                                                                                                                   |
-| [ ] | **B · Bulk operations:** multi-queue operations with dry-run, capped execution, typed confirmation, and audit                                                                                    |
+| [x] | **B · Bulk operations:** multi-queue operations with dry-run, capped execution, typed confirmation, and audit                                                                                    |
 | [ ] | **B · Operator UX:** row context menus, navigation enhancements, and flow-split monitoring views                                                                                                 |
 | [ ] | **B · Performance hardening:** SQL pushdown, SSE backpressure, virtualized grids, batched broker calls, and retention tuning                                                                     |
 | [ ] | **C · Compliance tooling:** content/PII search and predicate-based message deletion with audit                                                                                                   |

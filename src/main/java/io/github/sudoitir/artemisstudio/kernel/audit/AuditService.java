@@ -22,6 +22,8 @@ import tools.jackson.databind.ObjectMapper;
  * which commit the outcome on their own too. A broker is not a participant in the caller's
  * transaction, so neither half may depend on that transaction committing.
  *
+ * <p>An event begun while {@link AuditScope#PARENT} is bound names that event as its parent.
+ *
  * <p>When the caller's transaction rolls back before an outcome was recorded, the row is failed
  * with that reason, so an action that did not happen never leaves a row that looks in flight.
  */
@@ -52,7 +54,7 @@ public class AuditService {
                 (params == null || params.isEmpty() || filter == null) ? params : filter.filter(params);
         String paramsJson = (written == null || written.isEmpty()) ? null : mapper.writeValueAsString(written);
         Actor a = actor == null ? Actor.system() : actor;
-        AuditEventEntity row = writer.insert(new AuditEventEntity(
+        AuditEventEntity entity = new AuditEventEntity(
                 action,
                 targetType,
                 targetName,
@@ -64,7 +66,9 @@ public class AuditService {
                 clusterId == null ? null : clusters.clusterName(clusterId),
                 nodeId,
                 paramsJson,
-                dryRun));
+                dryRun);
+        entity.attachParent(AuditScope.PARENT.isBound() ? AuditScope.PARENT.get() : null);
+        AuditEventEntity row = writer.insert(entity);
         failIfCallerRollsBack(row.getId());
         return row;
     }
@@ -77,6 +81,11 @@ public class AuditService {
     public java.util.Set<String> ownedTargetNames(
             UUID clusterId, String targetType, String createdAction, String deletedAction) {
         return java.util.Set.copyOf(events.findOwnedTargetNames(clusterId, targetType, createdAction, deletedAction));
+    }
+
+    /** An event by id, to record the outcome of work that outlived the thread which began it (ADR-0093). */
+    public java.util.Optional<AuditEvent> byId(Long id) {
+        return events.findById(id).map(AuditEvent.class::cast);
     }
 
     public void succeed(AuditEvent event, long affectedCount) {

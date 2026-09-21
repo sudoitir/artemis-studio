@@ -10,8 +10,11 @@ import { Pager } from '../../ui/Pager.tsx';
 import { QueueDetailDrawer } from './QueueDetailDrawer.tsx';
 import { CreateQueueForm } from './CreateQueueForm.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
+import { useSlot, type QueueSelection } from '../../kernel/slots.ts';
 
 const PAGE_SIZE = 200;
+
+const rowKey = (r: QueueView) => `${r.address}::${r.queueName}::${r.routingType}`;
 
 const columns: GridColumn<QueueView>[] = [
   { id: 'address', header: 'Address', accessor: (r) => r.address, sortKey: 'address' },
@@ -130,6 +133,21 @@ export function QueuesView() {
     .filter((e) => e.lastError)
     .map((e) => e.name);
 
+  // Selection is local and belongs to the filter it was made under: a new filter is a new set of
+  // queues, and carrying picks across it would act on queues the operator can no longer see.
+  // Picks are keyed by row, holding the queue name the bulk actions need.
+  const [picked, setPicked] = useState<Map<string, string>>(new Map());
+  const [allMatching, setAllMatching] = useState(false);
+  const clearSelection = () => {
+    setPicked(new Map());
+    setAllMatching(false);
+  };
+  useEffect(() => {
+    setPicked(new Map());
+    setAllMatching(false);
+  }, [search.q]);
+  const selectionSlot = useSlot('queues.selection');
+
   const setSort = (sort: string | undefined) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, sort, page: undefined }) });
   const setPage = (next: number) =>
@@ -145,6 +163,31 @@ export function QueuesView() {
 
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
+
+  // "All matching" is a filter, not a list of names: the queues on the other pages were never loaded.
+  // Changing any one row turns it back into names, starting from this page.
+  const pageNames = () => new Map(rows.map((r) => [rowKey(r), r.queueName]));
+  const toggleRow = (key: string) => {
+    const next = allMatching ? pageNames() : new Map(picked);
+    setAllMatching(false);
+    if (next.has(key)) next.delete(key);
+    else next.set(key, rows.find((r) => rowKey(r) === key)?.queueName ?? key);
+    setPicked(next);
+  };
+  const toggleAll = (keys: string[], allSelected: boolean) => {
+    const next = allMatching ? pageNames() : new Map(picked);
+    setAllMatching(false);
+    if (allSelected) keys.forEach((k) => next.delete(k));
+    else rows.forEach((r) => next.set(rowKey(r), r.queueName));
+    setPicked(next);
+  };
+  const selectedKeys: ReadonlySet<string> = allMatching ? new Set(rows.map(rowKey)) : new Set(picked.keys());
+  const count = allMatching ? total : picked.size;
+  const pageAllPicked = rows.length > 0 && rows.every((r) => picked.has(rowKey(r)));
+  const matching = search.q ? ` matching "${search.q}"` : ' on this cluster';
+  const selection: QueueSelection = allMatching
+    ? { kind: 'filter', q: search.q ?? '', total }
+    : { kind: 'names', names: [...picked.values()] };
 
   return (
     <Stack gap="sm">
@@ -166,6 +209,37 @@ export function QueuesView() {
         </Group>
       </Group>
 
+      {count > 0 ? (
+        <Group
+          gap="sm"
+          justify="space-between"
+          role="region"
+          aria-label="Selected queues"
+          style={{ position: 'sticky', insetBlockStart: 0, zIndex: 2, background: 'var(--as-surface)' }}
+        >
+          <Group gap="xs">
+            <Text size="sm" fw={600}>
+              {allMatching
+                ? `All ${total.toLocaleString()} queues${matching} are selected.`
+                : `${count.toLocaleString()} ${count === 1 ? 'queue' : 'queues'} selected`}
+            </Text>
+            {!allMatching && pageAllPicked && total > rows.length ? (
+              <Button size="xs" variant="subtle" onClick={() => setAllMatching(true)}>
+                {`Select all ${total.toLocaleString()} queues${matching}`}
+              </Button>
+            ) : null}
+            <Button size="xs" variant="subtle" onClick={clearSelection}>
+              Clear selection
+            </Button>
+          </Group>
+          <Group gap="xs">
+            {selectionSlot.map(({ id, Component }) => (
+              <Component key={id} clusterId={clusterId} selection={selection} count={count} clear={clearSelection} />
+            ))}
+          </Group>
+        </Group>
+      ) : null}
+
       {query.isPending && rows.length === 0 ? (
         <Stack gap={4}>
           {Array.from({ length: 12 }).map((_, i) => (
@@ -179,7 +253,11 @@ export function QueuesView() {
           sort={search.sort}
           onSortChange={setSort}
           onRowClick={setSelected}
-          rowKey={(r) => `${r.address}::${r.queueName}::${r.routingType}`}
+          rowKey={rowKey}
+          selectable
+          selected={selectedKeys}
+          onToggleRow={toggleRow}
+          onToggleAll={toggleAll}
           emptyLabel={
             search.q ? (
               <Stack gap={4} align="flex-start">

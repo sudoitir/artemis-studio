@@ -12,7 +12,10 @@ public final class AuditViews {
 
     private AuditViews() {}
 
+    /** @param parentId the event this one is a part of, such as a bulk run's (ADR-0093) */
     public record AuditEventView(
+            @Schema(requiredMode = REQUIRED) long id,
+            @Schema(nullable = true) Long parentId,
             @Schema(requiredMode = REQUIRED) Instant ts,
             @Schema(nullable = true) String username,
             @Schema(nullable = true) String sourceIp,

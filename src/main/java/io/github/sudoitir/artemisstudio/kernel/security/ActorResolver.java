@@ -21,7 +21,13 @@ public class ActorResolver {
 
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
 
+    /** The operator a handed-off task acts for, bound by {@link OperatorHandoff#runAs}; there is no request there. */
+    static final ScopedValue<Actor> ON_BEHALF_OF = ScopedValue.newInstance();
+
     public Actor resolve() {
+        if (ON_BEHALF_OF.isBound()) {
+            return ON_BEHALF_OF.get();
+        }
         HttpServletRequest request = currentRequest();
         StudioPrincipal principal = currentPrincipal();
         String username = principal != null ? principal.getUsername() : Actor.ANONYMOUS;

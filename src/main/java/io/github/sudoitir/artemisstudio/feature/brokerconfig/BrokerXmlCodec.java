@@ -100,12 +100,27 @@ public final class BrokerXmlCodec {
         return new ParseResult(p.document(), p.unsupported, p.errors);
     }
 
-    /** A fragment may have several top-level elements; wrap it so the reader sees one document. */
+    /** The XML declaration, wherever the prolog puts it — after a comment, a BOM or whitespace. */
+    private static final Pattern XML_DECLARATION = Pattern.compile("<\\?xml\\s[^?]*\\?>");
+
+    /**
+     * A DOCTYPE, with any internal subset. It is dropped, never resolved: DTDs are off,
+     * and inside the wrapper below a DOCTYPE would make the whole file unreadable.
+     */
+    private static final Pattern DOCTYPE = Pattern.compile("(?s)<!DOCTYPE[^\\[>]*(\\[.*?])?\\s*>");
+
+    /**
+     * A fragment may have several top-level elements; wrap it so the reader sees one
+     * document. The prolog of a file off a disk — BOM, declaration, DOCTYPE — cannot sit
+     * inside that wrapper, so it goes first.
+     */
     private static String wrap(String xml) {
         String body = xml.strip();
-        if (body.startsWith("<?xml")) {
-            body = body.substring(body.indexOf("?>") + 2);
+        if (body.startsWith("\uFEFF")) {
+            body = body.substring(1);
         }
+        body = XML_DECLARATION.matcher(body).replaceFirst("");
+        body = DOCTYPE.matcher(body).replaceFirst("");
         return "<studio-import>" + body + "</studio-import>";
     }
 
@@ -174,15 +189,37 @@ public final class BrokerXmlCodec {
                     case "divert" -> divert(here);
                     case "bridge" -> bridge(here);
                     default -> {
-                        unsupported.add(new Unsupported(
-                                here,
-                                SECTIONS.contains(name)
-                                        ? "Duplicate section."
-                                        : "Not applied: the management API cannot set this at runtime."));
+                        unsupported.add(new Unsupported(here, notTaken(name)));
                         skip();
                     }
                 }
             }
+        }
+
+        /**
+         * Why a top-level element was not taken. One that belongs inside something this
+         * parser does take is told what to wrap it in; only what is truly static is called
+         * out of the management API's reach.
+         */
+        private static String notTaken(String name) {
+            if (SECTIONS.contains(name)) {
+                return "Duplicate section.";
+            }
+            if (name.equals("queue") || name.equals("queues")) {
+                return "A queue belongs inside an address and its routing type: wrap it in"
+                        + " <address name=\"…\"><anycast>…</anycast></address>.";
+            }
+            if (name.equals("anycast") || name.equals("multicast")) {
+                return "A routing type belongs inside an address: wrap it in <address name=\"…\">…</address>.";
+            }
+            if (name.equals("permission")) {
+                return "A permission belongs inside a security setting: wrap it in"
+                        + " <security-setting match=\"…\">…</security-setting>.";
+            }
+            if (AddressSettingKey.byXmlName(name).isPresent()) {
+                return "An address-setting key: wrap it in <address-setting match=\"…\">…</address-setting>.";
+            }
+            return "Not applied: the management API cannot set this at runtime.";
         }
 
         // ---- <addresses> ---------------------------------------------------

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, CopyButton, Drawer, Group, List, Radio, Stack, Text, Textarea } from '@mantine/core';
+import { Alert, Button, CopyButton, Drawer, FileButton, Group, List, Radio, Stack, Text, Textarea } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { useQuery } from '@tanstack/react-query';
 
@@ -72,6 +72,7 @@ export function ImportXmlDrawer({
   const [xml, setXml] = useState('');
   const [combine, setCombine] = useState<'merge' | 'replace'>('merge');
   const [result, setResult] = useState<ConfigImportResultView | null>(null);
+  const [loaded, setLoaded] = useState<string | null>(null);
   const parse = useImportBrokerConfigXml(declaration.clusterId);
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
 
@@ -83,6 +84,7 @@ export function ImportXmlDrawer({
     }
     setXml('');
     setResult(null);
+    setLoaded(null);
     parse.reset();
     reset();
     // The mutation objects are stable; the reset belongs to the open/close edge, not to every render.
@@ -90,6 +92,12 @@ export function ImportXmlDrawer({
   }, [opened, initialXml]);
 
   const preview = () => parse.mutate(xml, { onSuccess: setResult });
+  const load = async (file: File | null) => {
+    if (!file) return;
+    setXml(await file.text());
+    setLoaded(file.name);
+    setResult(null);
+  };
   const canSave = result !== null && result.errors.length === 0;
   const merging = combine === 'merge' && declaration.declared;
   const next = result ? (merging ? mergeDocuments(declaration.document, result.document) : result.document) : null;
@@ -104,12 +112,25 @@ export function ImportXmlDrawer({
             acceptor — is listed under “Not applied” and still needs broker.xml.
           </Alert>
         ) : null}
+        <Group justify="space-between" align="center" gap="xs">
+          <Text size="xs" c="dimmed" aria-live="polite">
+            {loaded ? `Loaded ${loaded}` : 'Paste below, or load a file.'}
+          </Text>
+          <FileButton onChange={load} accept=".xml,application/xml,text/xml" inputProps={{ 'aria-label': 'broker.xml file' }}>
+            {(props) => (
+              <Button {...props} variant="default" size="xs">
+                Load a file…
+              </Button>
+            )}
+          </FileButton>
+        </Group>
         <Textarea
-          label="broker.xml, or a fragment of its <core> section"
-          description="Paste the whole file or only the sections you want. Nothing is saved until you choose to."
+          label="broker.xml, or any part of it"
+          description="The whole file, a <core> section, one section, or single items such as one <address-setting> or <divert>. Nothing is saved until you choose to."
           value={xml}
           onChange={(e) => {
             setXml(e.currentTarget.value);
+            setLoaded(null);
             setResult(null);
           }}
           autosize

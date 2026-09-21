@@ -189,16 +189,26 @@ public class BridgeOperations {
         number(differing, config, "retry-interval-multiplier", row.retryIntervalMultiplier());
         number(differing, config, "max-retry-interval", row.maxRetryInterval());
         number(differing, config, "reconnect-attempts", row.reconnectAttempts());
+        transformerDifferences(differing, config, row.transformerClassName(), row.transformerProperties());
+        return differing;
+    }
+
+    /**
+     * The nested {@code transformer-configuration} against what a deployed bridge or
+     * divert reports. Shared because the broker drops a malformed transformer on both
+     * with the same 200, so both read-backs must name it (ADR-0091).
+     */
+    static void transformerDifferences(
+            List<String> differing, Map<String, Object> config, String className, Map<String, String> properties) {
         if (config.containsKey("transformer-configuration")) {
-            if (!Objects.equals(transformerClass(config), row.transformerClassName())) {
+            if (!Objects.equals(transformerClass(config), className)) {
                 differing.add("transformer class-name");
-            } else if (!transformerProperties(config).equals(row.transformerProperties())) {
+            } else if (!transformerProperties(config).equals(properties)) {
                 differing.add("transformer properties");
             }
-        } else if (row.transformerClassName() != null) {
+        } else if (className != null) {
             differing.add("transformer class-name");
         }
-        return differing;
     }
 
     private static void text(List<String> differing, Map<String, Object> config, String key, String actual) {

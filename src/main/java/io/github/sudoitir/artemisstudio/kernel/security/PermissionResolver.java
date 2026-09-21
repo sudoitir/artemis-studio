@@ -25,7 +25,11 @@ public class PermissionResolver {
 
     /** Cluster-scoped check: global, or the cluster's environment, or the cluster itself. */
     public boolean can(UUID clusterId, String permission) {
-        StudioPrincipal principal = currentPrincipal();
+        return can(currentPrincipal(), clusterId, permission);
+    }
+
+    /** The same check for a given principal rather than the current one. */
+    public boolean can(StudioPrincipal principal, UUID clusterId, String permission) {
         if (principal == null) {
             return false;
         }

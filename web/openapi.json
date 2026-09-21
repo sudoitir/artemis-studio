@@ -2280,6 +2280,123 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/bulk/runs/{runId}/stop" : {
+      "post" : {
+        "tags" : [ "bulk-controller" ],
+        "operationId" : "stop",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BulkRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/bulk/runs/{runId}/execute" : {
+      "post" : {
+        "tags" : [ "bulk-controller" ],
+        "operationId" : "execute",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BulkExecuteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BulkRunView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/bulk/preview" : {
+      "post" : {
+        "tags" : [ "bulk-controller" ],
+        "operationId" : "preview",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BulkPreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BulkRunDetailView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/alerts/rules" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
@@ -4340,6 +4457,71 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/bulk/runs" : {
+      "get" : {
+        "tags" : [ "bulk-controller" ],
+        "operationId" : "history",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/BulkRunView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/bulk/runs/{runId}" : {
+      "get" : {
+        "tags" : [ "bulk-controller" ],
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "runId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BulkRunDetailView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/bridges" : {
       "get" : {
         "tags" : [ "routing-controller" ],
@@ -4408,6 +4590,14 @@
             "type" : "string"
           }
         }, {
+          "name" : "parentId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
           "name" : "from",
           "in" : "query",
           "required" : false,
@@ -4459,7 +4649,7 @@
     "/api/v1/clusters/{clusterId}/alerts/history" : {
       "get" : {
         "tags" : [ "alerts-controller" ],
-        "operationId" : "history",
+        "operationId" : "history_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -7406,6 +7596,260 @@
           }
         },
         "required" : [ "finding", "nodeId", "nodeName" ]
+      },
+      "BulkRunView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "operation" : {
+            "type" : "string",
+            "enum" : [ "PAUSE", "RESUME", "PURGE", "DELETE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PREVIEWED", "RUNNING", "SUCCEEDED", "PARTIAL", "FAILED", "STOPPED", "INTERRUPTED" ]
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "startedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "succeeded" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "failed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "skipped" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "estimate" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "estimateComplete" : {
+            "type" : "boolean"
+          },
+          "cap" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "overCap" : {
+            "type" : "boolean"
+          },
+          "overrideCap" : {
+            "type" : "boolean"
+          },
+          "continueOnFailure" : {
+            "type" : "boolean"
+          },
+          "disconnectConsumers" : {
+            "type" : "boolean"
+          },
+          "selection" : {
+            "$ref" : "#/components/schemas/BulkSelection"
+          },
+          "planHash" : {
+            "type" : "string"
+          },
+          "auditEventId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "cap", "clusterId", "continueOnFailure", "createdAt", "disconnectConsumers", "estimateComplete", "expiresAt", "failed", "id", "operation", "overCap", "overrideCap", "planHash", "selection", "skipped", "status", "succeeded", "total", "username" ]
+      },
+      "BulkSelection" : {
+        "type" : "object",
+        "properties" : {
+          "names" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "q" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "BulkExecuteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "planHash" : {
+            "type" : "string"
+          },
+          "override" : {
+            "type" : "boolean"
+          },
+          "continueOnFailure" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "planHash" ]
+      },
+      "BulkPreviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "operation" : {
+            "type" : "string",
+            "enum" : [ "PAUSE", "RESUME", "PURGE", "DELETE" ]
+          },
+          "names" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "q" : {
+            "type" : [ "string", "null" ]
+          },
+          "disconnectConsumers" : {
+            "type" : "boolean",
+            "description" : "Delete only: close attached consumers instead of refusing the queue."
+          }
+        },
+        "required" : [ "operation" ]
+      },
+      "BulkItemView" : {
+        "type" : "object",
+        "properties" : {
+          "ordinal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "queueName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "REFUSED", "RUNNING", "SUCCEEDED", "PARTIAL", "FAILED", "SKIPPED", "CANCELLED", "UNKNOWN" ]
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          },
+          "warning" : {
+            "type" : [ "string", "null" ]
+          },
+          "affected" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeFigure"
+            }
+          },
+          "outcome" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "$ref" : "#/components/schemas/NodeOutcome"
+            }
+          },
+          "startedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "nodes", "ordinal", "queueName", "status" ]
+      },
+      "BulkRunDetailView" : {
+        "type" : "object",
+        "properties" : {
+          "run" : {
+            "$ref" : "#/components/schemas/BulkRunView"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BulkItemView"
+            }
+          }
+        },
+        "required" : [ "items", "run" ]
+      },
+      "NodeFigure" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "messageCount" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "consumerCount" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "paused" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "nodeId", "nodeName", "paused" ]
+      },
+      "NodeOutcome" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "FAILED" ]
+          },
+          "affected" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "error" : {
+            "type" : "string"
+          }
+        }
       },
       "CreateAddressRequest" : {
         "type" : "object",
@@ -10378,6 +10822,14 @@
       "AuditEventView" : {
         "type" : "object",
         "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "parentId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
           "ts" : {
             "type" : "string",
             "format" : "date-time"
@@ -10424,7 +10876,7 @@
             "format" : "uuid"
           }
         },
-        "required" : [ "action", "dryRun", "outcome", "ts" ]
+        "required" : [ "action", "dryRun", "id", "outcome", "ts" ]
       },
       "AuditPageView" : {
         "type" : "object",

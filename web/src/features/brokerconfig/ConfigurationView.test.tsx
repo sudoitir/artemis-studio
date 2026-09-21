@@ -237,6 +237,33 @@ describe('ConfigurationView', () => {
     expect(within(dialog).getByText(/cannot be applied over the management API/)).toBeInTheDocument();
   });
 
+  it('loads a broker.xml file into the import, and previews exactly what it holds', async () => {
+    let posted = '';
+    server.use(
+      ...baseHandlers(),
+      http.post('*/api/v1/clusters/c1/config/import-xml', async ({ request }) => {
+        posted = await request.text();
+        return HttpResponse.json({
+          document: { version: 1, addresses: [], addressSettings: [{ match: 'x', values: {} }], securitySettings: [], diverts: [], bridges: [] },
+          unsupported: [],
+          errors: [],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Import XML' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Import broker.xml' });
+    const xml = '<address-setting match="x"><max-delivery-attempts>2</max-delivery-attempts></address-setting>';
+    await user.upload(within(dialog).getByLabelText('broker.xml file'), new File([xml], 'broker.xml', { type: 'application/xml' }));
+
+    await waitFor(() => expect(within(dialog).getByRole('textbox')).toHaveValue(xml));
+    expect(within(dialog).getByText('Loaded broker.xml')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Preview import' }));
+    await waitFor(() => expect(posted).toBe(xml));
+  });
+
   it('recommends the settings the probe found, seeded from the node, and declares the chosen ones', async () => {
     const declared = vi.fn();
     server.use(

@@ -10,6 +10,8 @@ function validateAuditSearch(raw: Record<string, unknown>): Record<string, unkno
   for (const k of ['user', 'action', 'outcome', 'from', 'to'] as const) {
     if (typeof raw[k] === 'string' && raw[k]) out[k] = raw[k];
   }
+  const parentId = Number(raw.parentId);
+  if (Number.isInteger(parentId) && parentId > 0) out.parentId = parentId;
   const page = Number(raw.page);
   if (Number.isFinite(page) && page > 1) out.page = Math.floor(page);
   return out;

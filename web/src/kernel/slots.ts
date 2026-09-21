@@ -2,6 +2,9 @@ import type { ComponentType } from 'react';
 
 import { useFeatures } from './features.ts';
 
+/** Queues picked by name, or every queue matching the queues screen's filter (`q`, blank for all). */
+export type QueueSelection = { kind: 'names'; names: string[] } | { kind: 'filter'; q: string; total: number };
+
 /**
  * The kernel-owned slots and what each hands its contributions (ADR-0070). A slot lets a screen
  * show another feature's panel without importing that feature, and without a placeholder when the
@@ -20,6 +23,11 @@ export interface SlotProps {
   'cluster.registration.afterProbe': { contributions: Record<string, unknown> };
   /** In a queue's detail drawer, below its per-node breakdown. `onClose` closes the drawer before navigating. */
   'queue.detail.panels': { clusterId: string; queueName: string; onClose: () => void };
+  /**
+   * Beside the queues screen's selection: what can be done to the selected queues. `count` is how
+   * many are selected; `clear` empties the selection.
+   */
+  'queues.selection': { clusterId: string; selection: QueueSelection; count: number; clear: () => void };
   /** At the foot of a cluster's metrics view. */
   'metrics.panels': { clusterId: string };
   /** Inside a box on the topology graph, after its name. `nodeIds` are the broker endpoints the box stands for. */

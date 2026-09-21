@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { server } from '../../test/setup.ts';
 import { useMe } from '../auth/api.ts';
-import { lifecycleQuery } from './request.ts';
+import { lifecycleQuery, request } from './request.ts';
 
 /**
  * `request<T>()`'s 401 handling (identity-and-sessions spec, task 6.7) — the
@@ -69,5 +69,28 @@ describe('lifecycleQuery()', () => {
 
   it('sends nothing when the caller did not choose', () => {
     expect(lifecycleQuery()).toBe('');
+  });
+});
+
+/**
+ * A caller's own headers add to the defaults, never replace them. Replacing them
+ * dropped the CSRF header, so the XML import (which sets its content type) was
+ * refused with a 403 while every JSON POST worked.
+ */
+describe('request() headers', () => {
+  it('keeps the CSRF header when the caller sets its own content type', async () => {
+    document.cookie = 'XSRF-TOKEN=tok-123';
+    let seen: Headers | undefined;
+    server.use(
+      http.post('*/api/v1/probe', ({ request: req }) => {
+        seen = req.headers;
+        return HttpResponse.json({});
+      }),
+    );
+
+    await request('/probe', { method: 'POST', headers: { 'content-type': 'application/xml' }, body: '<core/>' });
+
+    expect(seen?.get('x-xsrf-token')).toBe('tok-123');
+    expect(seen?.get('content-type')).toBe('application/xml');
   });
 });

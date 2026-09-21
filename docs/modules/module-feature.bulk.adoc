@@ -1,0 +1,25 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.bulk`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.b.BulkService`
+
+_Others_
+
+* `i.g.s.a.f.b.BulkFeature`
+* `i.g.s.a.f.b.BulkRunMapper` (via `i.g.s.a.f.b.BulkRunMapperImpl`)
+|Bean references
+|* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.f.q.QueueLifecycleService` (in Queues)
+* `i.g.s.a.f.m.MessageService` (in Messages)
+* `i.g.s.a.k.s.OperatorHandoff` (in Security)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.f.r.CrossNodeAggregator` (in Resources)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|===

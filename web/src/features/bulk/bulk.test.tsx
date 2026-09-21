@@ -1,0 +1,286 @@
+import { describe, expect, it, vi } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
+
+import { renderWithProviders } from '../../test/render.tsx';
+import { server } from '../../test/setup.ts';
+import type { BulkItemView, BulkRunDetailView, BulkRunView } from './api.ts';
+
+const AVAILABLE = { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null };
+
+function clusterHandler() {
+  return http.get('*/api/v1/clusters/c1', () =>
+    HttpResponse.json({
+      id: 'c1',
+      name: 'c1',
+      description: null,
+      topology: { nodes: [] },
+      capabilities: {
+        managementRead: AVAILABLE,
+        managementWrite: AVAILABLE,
+        notifications: AVAILABLE,
+        messageIo: AVAILABLE,
+        slowConsumerDetection: AVAILABLE,
+      },
+      health: { level: 'OK', reasons: [] },
+      environmentId: null,
+    }),
+  );
+}
+
+function meHandler(permissions: string[] = ['*']) {
+  return http.get('*/api/v1/auth/me', () =>
+    HttpResponse.json({
+      id: 'u1',
+      username: 'admin',
+      mustChangePassword: false,
+      grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
+    }),
+  );
+}
+
+function run(over: Partial<BulkRunView> = {}): BulkRunView {
+  return {
+    id: 'r1',
+    clusterId: 'c1',
+    operation: 'DELETE',
+    status: 'PREVIEWED',
+    username: 'admin',
+    createdAt: '2026-09-21T10:00:00Z',
+    expiresAt: '2026-09-21T10:10:00Z',
+    startedAt: null,
+    finishedAt: null,
+    total: 3,
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+    estimate: 40,
+    estimateComplete: false,
+    cap: 1000,
+    overCap: false,
+    overrideCap: false,
+    continueOnFailure: false,
+    disconnectConsumers: false,
+    selection: { names: ['orders.a', 'orders.b', 'orders.c'], q: null },
+    planHash: 'h1',
+    auditEventId: 7,
+    error: null,
+    ...over,
+  };
+}
+
+const nodeA = { nodeId: 'n1', nodeName: 'node-a', paused: false };
+const nodeB = { nodeId: 'n2', nodeName: 'node-b', paused: false };
+
+function item(over: Partial<BulkItemView> = {}): BulkItemView {
+  return {
+    ordinal: 0,
+    queueName: 'orders.a',
+    status: 'PENDING',
+    error: null,
+    warning: null,
+    affected: 40,
+    nodes: [
+      { ...nodeA, messageCount: 30, consumerCount: 0 },
+      { ...nodeB, messageCount: 10, consumerCount: 0 },
+    ],
+    outcome: null,
+    startedAt: null,
+    finishedAt: null,
+    ...over,
+  };
+}
+
+/** A delete of three queues: one known, one with an unknown figure, one refused. */
+function deletePreview(): BulkRunDetailView {
+  return {
+    run: run(),
+    items: [
+      item(),
+      item({
+        ordinal: 1,
+        queueName: 'orders.b',
+        affected: null,
+        warning: 'node-b has not answered recently, so its message count is unknown',
+        nodes: [{ ...nodeB, messageCount: null, consumerCount: null }],
+      }),
+      item({
+        ordinal: 2,
+        queueName: 'orders.c',
+        status: 'REFUSED',
+        error: 'It has consumers attached',
+        affected: 5,
+        nodes: [{ ...nodeA, messageCount: 5, consumerCount: 2 }],
+      }),
+    ],
+  };
+}
+
+const navigate = vi.fn();
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useParams: () => ({ clusterId: 'c1', runId: 'r1' }),
+  useSearch: () => ({}),
+  useNavigate: () => navigate,
+  Link: ({ children, to, search }: { children: React.ReactNode; to: string; search?: Record<string, string> }) => (
+    <a href={search ? `${to}?${new URLSearchParams(search)}` : to}>{children}</a>
+  ),
+}));
+
+const { BulkActionBar } = await import('./BulkActionBar.tsx');
+const { BulkRunView } = await import('./BulkRunView.tsx');
+
+function Bar({ count = 3 }: { count?: number }) {
+  return (
+    <BulkActionBar
+      clusterId="c1"
+      selection={{ kind: 'names', names: ['orders.a', 'orders.b', 'orders.c'] }}
+      count={count}
+      clear={() => {}}
+    />
+  );
+}
+
+describe('BulkActionBar', () => {
+  it('keeps an action the operator may not take visible, disabled, with a reachable reason', async () => {
+    server.use(meHandler(['queue:pause', 'cluster:read']), clusterHandler());
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete…' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: 'Why deleting these queues is unavailable' }));
+    expect(await screen.findByText(/Destroy queues and addresses/)).toBeInTheDocument();
+  });
+});
+
+describe('BulkPreviewDialog', () => {
+  it('states the blast radius, says what is unknown, and lists the refused queue', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/bulk/preview', () => HttpResponse.json(deletePreview(), { status: 201 })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete…' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Delete…' }));
+    const dialog = await screen.findByRole('dialog');
+
+    expect(await within(dialog).findByText(/Delete 2 queues on 2 nodes/)).toBeInTheDocument();
+    // An incomplete estimate is a floor, and the gap is stated rather than read as zero.
+    expect(within(dialog).getByText(/at least 40 messages/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 queue has a figure Studio does not know/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 queue is refused and will not be touched/)).toBeInTheDocument();
+    expect(within(dialog).getByText('It has consumers attached')).toBeInTheDocument();
+    expect(within(dialog).getAllByText('unknown').length).toBeGreaterThan(0);
+  });
+
+  it('cannot arm a delete until the action and count are typed, then runs it and opens the run', async () => {
+    let executed: unknown = null;
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/bulk/preview', () => HttpResponse.json(deletePreview(), { status: 201 })),
+      http.post('*/api/v1/clusters/c1/bulk/runs/r1/execute', async ({ request }) => {
+        executed = await request.json();
+        return HttpResponse.json(run({ status: 'RUNNING' }), { status: 202 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete…' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Delete…' }));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/Delete 2 queues on 2 nodes/);
+
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 queues' });
+    expect(confirm).toBeDisabled();
+    const field = within(dialog).getByRole('textbox', { name: /delete 2 queues/ });
+    await user.type(field, 'delete 2 queue');
+    expect(within(dialog).getByRole('button', { name: 'Delete 2 queues' })).toBeDisabled();
+    await user.type(field, 's');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete 2 queues' }));
+
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/bulk/r1' }),
+    );
+    expect(executed).toEqual({ planHash: 'h1', override: false, continueOnFailure: false });
+  });
+
+  it('is keyboard-complete: focus enters the dialog, escape dismisses it, focus returns', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/bulk/preview', () => HttpResponse.json(deletePreview(), { status: 201 })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Bar />);
+
+    const trigger = screen.getByRole('button', { name: 'Delete…' });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    trigger.focus();
+    await user.keyboard('{Enter}');
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete…' })).toHaveFocus());
+  });
+});
+
+describe('BulkRunView', () => {
+  it('states and announces a partial outcome with its counts', async () => {
+    server.use(
+      meHandler(),
+      http.get('*/api/v1/clusters/c1/bulk/runs/r1', () =>
+        HttpResponse.json({
+          run: run({ status: 'PARTIAL', total: 10, succeeded: 8, failed: 2, finishedAt: '2026-09-21T10:02:00Z' }),
+          items: [
+            item({ status: 'SUCCEEDED' }),
+            item({ ordinal: 1, queueName: 'orders.b', status: 'FAILED', error: 'node-b refused the delete' }),
+          ],
+        }),
+      ),
+    );
+    renderWithProviders(<BulkRunView />);
+
+    const status = await screen.findByRole('status', { name: 'Run outcome' });
+    await waitFor(() => expect(status).toHaveTextContent(/partial/i));
+    expect(status).toHaveTextContent('8 succeeded');
+    expect(status).toHaveTextContent('2 failed');
+    expect(screen.getByRole('link', { name: /audit/i })).toHaveAttribute('href', '/clusters/c1/audit?parentId=7');
+  });
+
+  it('expands a queue to its per-node detail', async () => {
+    server.use(
+      meHandler(),
+      http.get('*/api/v1/clusters/c1/bulk/runs/r1', () =>
+        HttpResponse.json({
+          run: run({ status: 'FAILED', total: 1, failed: 1 }),
+          items: [
+            item({
+              status: 'FAILED',
+              error: 'node-b refused the delete',
+              outcome: [
+                { nodeId: 'n1', nodeName: 'node-a', status: 'APPLIED', affected: 30 },
+                { nodeId: 'n2', nodeName: 'node-b', status: 'FAILED', error: 'node-b refused the delete' },
+              ],
+            }),
+          ],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<BulkRunView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Show node detail for orders.a' }));
+    expect(await screen.findByText('Applied to some nodes and not others')).toBeInTheDocument();
+  });
+});
