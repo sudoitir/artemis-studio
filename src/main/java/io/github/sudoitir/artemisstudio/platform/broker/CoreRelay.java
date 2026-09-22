@@ -52,7 +52,17 @@ public class CoreRelay {
     private final Map<UUID, Set<String>> keysByCluster = new ConcurrentHashMap<>();
 
     /** A new transacted session on the node's relay connection, opening that connection if needed. */
-    public Session open(UUID clusterId, String coreUrl, CoreConnectionSettings settings) throws ActiveMQException {
+    public Session open(UUID clusterId, String url, CoreConnectionSettings settings) throws ActiveMQException {
+        // Discovery stores a broker-advertised connector as a bare host:port, which the Core client
+        // cannot dial ("Schema <host> not found"). Every relay call arrives here, so it is the one
+        // place that has to say tcp://.
+        String coreUrl = CoreUrl.dialable(url);
+        if (coreUrl == null) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.UNREACHABLE,
+                    "This node has no Core URL, so messages cannot be relayed through it. Add one to the node, or"
+                            + " expose a CORE acceptor on the broker.");
+        }
         String key = clusterId + "|" + coreUrl;
         Connection connection = connections.compute(key, (k, existing) -> {
             if (existing != null && existing.usable()) {

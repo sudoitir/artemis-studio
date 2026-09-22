@@ -149,6 +149,30 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
         assertThat(operations.messageCount(client, mbean)).isEqualTo(2);
     }
 
+    /**
+     * Discovery stores a broker-advertised connector as a bare {@code host:port}. The relay must dial
+     * it anyway: without a scheme the Core client fails with "Schema &lt;host&gt; not found", which is
+     * what a live cross-broker move ran into.
+     */
+    @Test
+    void theRelayDialsANodeWhoseCoreUrlHasNoScheme() throws Exception {
+        String bare = coreUrl().substring("tcp://".length());
+        String queue = "relay.bare." + suffix;
+        createQueue(queue);
+
+        try (CoreRelay.Session session = relay.open(CLUSTER, bare, SETTINGS)) {
+            assertThat(session.browser(queue, null)).isNotNull();
+        }
+    }
+
+    /** A node with no Core URL says so, rather than failing somewhere inside the client. */
+    @Test
+    void aNodeWithoutACoreUrlIsRefusedWithAReason() {
+        assertThatThrownBy(() -> relay.open(CLUSTER, "  ", SETTINGS))
+                .isInstanceOf(BrokerConnectionException.class)
+                .hasMessageContaining("no Core URL");
+    }
+
     @Test
     void theRelayCommitsTargetThenSourceAndARepeatedBatchIsRefusedAsADuplicate() throws Exception {
         String source = "relay.src." + suffix;
