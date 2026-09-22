@@ -133,3 +133,42 @@ export function toReactFlow(
     });
   return { nodes, edges };
 }
+
+export type Direction = 'left' | 'right' | 'up' | 'down';
+
+const centre = (n: Node) => ({ x: n.position.x + (n.width ?? 0) / 2, y: n.position.y + (n.height ?? 0) / 2 });
+
+/**
+ * The element an arrow key moves to from `fromId`: the nearest one whose centre lies in that
+ * direction, with distance off the line weighted double so the element in line wins over a nearer
+ * one off to the side. Null at the edge — the canvas stays put rather than wrapping, so an arrow key
+ * never jumps somewhere the operator cannot see coming.
+ */
+export function neighbour(nodes: Node[], fromId: string, direction: Direction): string | null {
+  const from = nodes.find((n) => n.id === fromId);
+  if (!from) return null;
+  const origin = centre(from);
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const n of nodes) {
+    if (n.id === fromId) continue;
+    const at = centre(n);
+    const dx = at.x - origin.x;
+    const dy = at.y - origin.y;
+    const [along, across] =
+      direction === 'right' ? [dx, dy] : direction === 'left' ? [-dx, dy] : direction === 'down' ? [dy, dx] : [-dy, dx];
+    // Strictly ahead: an element level with this one is not "to its right" by a rounding error.
+    if (along <= 1) continue;
+    const score = along + 2 * Math.abs(across);
+    if (score < bestScore) {
+      bestScore = score;
+      best = n.id;
+    }
+  }
+  return best;
+}
+
+/** Left to right, then down: the order Tab-like entry lands in, by row first. */
+export function readingOrder(nodes: Node[]): string[] {
+  return [...nodes].sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x).map((n) => n.id);
+}

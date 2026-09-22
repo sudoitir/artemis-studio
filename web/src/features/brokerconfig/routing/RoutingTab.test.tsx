@@ -143,13 +143,19 @@ describe('RoutingTab', () => {
     await waitFor(() => expect(document.activeElement).not.toBe(entry));
     const first = document.activeElement as HTMLElement;
     expect(first.getAttribute('aria-label')).toMatch(/\. .+\. .+\./);
+    // Entering opens the element it lands on, so the inspector says where the keyboard is.
+    expect(await screen.findByRole('button', { name: /^Edit / })).toBeInTheDocument();
+    expect(screen.queryByText('Nothing selected')).not.toBeInTheDocument();
 
-    // Arrow keys move the one tab stop between elements.
+    // Arrow keys move the one tab stop by direction, to the element in line — never down a column
+    // for Right, never wrapping. Entry lands top-left, on the queue.
     const focused = () => document.activeElement?.getAttribute('aria-label') ?? '';
-    for (let i = 0; i < 12 && !focused().startsWith('Divert audit-copy'); i++) {
-      await user.keyboard('{ArrowRight}');
-    }
-    expect(document.activeElement).not.toBe(first);
+    expect(focused()).toMatch(/^Queue orders\.request\./);
+    await user.keyboard('{ArrowRight}');
+    expect(focused()).toMatch(/^Bridge to-dr\./);
+    await user.keyboard('{ArrowLeft}');
+    expect(focused()).toMatch(/^Queue orders\.request\./);
+    await user.keyboard('{ArrowDown}');
     expect(focused()).toMatch(
       /^Divert audit-copy\. copies messages from address orders\.request to address orders\.audit\./,
     );
