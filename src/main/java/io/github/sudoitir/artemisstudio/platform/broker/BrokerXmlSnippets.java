@@ -271,4 +271,20 @@ public final class BrokerXmlSnippets {
               <acceptor name="artemis">tcp://0.0.0.0:61616?protocols=CORE,AMQP,STOMP,MQTT,OPENWIRE</acceptor>
             </acceptors>
             """;
+
+    /**
+     * The rights Studio's broker user needs on the staging namespace a cross-broker move parks its
+     * messages in (ADR-0097). Shown when the source broker refuses to create a staging queue.
+     */
+    public static final String STAGING_SECURITY_SETTING = """
+            <security-setting match="studio.transfer.#">
+              <permission type="createAddress"      roles="amq"/>
+              <permission type="deleteAddress"      roles="amq"/>
+              <permission type="createDurableQueue" roles="amq"/>
+              <permission type="deleteDurableQueue" roles="amq"/>
+              <permission type="send"               roles="amq"/>
+              <permission type="consume"            roles="amq"/>
+              <permission type="browse"             roles="amq"/>
+            </security-setting>
+            """;
 }

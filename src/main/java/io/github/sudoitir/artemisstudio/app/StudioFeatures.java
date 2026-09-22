@@ -30,6 +30,8 @@ import io.github.sudoitir.artemisstudio.feature.rr.RrFeature;
 import io.github.sudoitir.artemisstudio.feature.rr.RrModule;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlFeature;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlModule;
+import io.github.sudoitir.artemisstudio.feature.transfer.TransferFeature;
+import io.github.sudoitir.artemisstudio.feature.transfer.TransferModule;
 import io.github.sudoitir.artemisstudio.feature.triage.TriageFeature;
 import io.github.sudoitir.artemisstudio.feature.triage.TriageModule;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditModule;
@@ -68,6 +70,7 @@ import org.springframework.context.annotation.Import;
     FlowFeature.class,
     TriageFeature.class,
     BulkFeature.class,
+    TransferFeature.class,
     ApiTokensFeature.class,
     IdentityLocalFeature.class,
     IdentityOidcFeature.class
@@ -99,6 +102,7 @@ public class StudioFeatures {
                 FlowModule.DESCRIPTOR,
                 TriageModule.DESCRIPTOR,
                 BulkModule.DESCRIPTOR,
+                TransferModule.DESCRIPTOR,
                 ApiTokensModule.DESCRIPTOR,
                 IdentityLocalModule.DESCRIPTOR,
                 IdentityOidcModule.DESCRIPTOR);

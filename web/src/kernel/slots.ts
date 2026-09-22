@@ -5,6 +5,9 @@ import { useFeatures } from './features.ts';
 /** Queues picked by name, or every queue matching the queues screen's filter (`q`, blank for all). */
 export type QueueSelection = { kind: 'names'; names: string[] } | { kind: 'filter'; q: string; total: number };
 
+/** Messages picked by id, every message matching the messages screen's selector, or the whole queue. */
+export type MessageSelection = { kind: 'ids'; ids: number[] } | { kind: 'filter'; filter: string } | { kind: 'all' };
+
 /**
  * The kernel-owned slots and what each hands its contributions (ADR-0070). A slot lets a screen
  * show another feature's panel without importing that feature, and without a placeholder when the
@@ -29,6 +32,19 @@ export interface SlotProps {
    * the selection.
    */
   'queues.selection': { clusterId: string; selection: QueueSelection; count: number; clear: () => void };
+  /**
+   * Beside the messages screen's selection: what can be done to the selected messages elsewhere.
+   * `node` is the Studio node being browsed, absent for the live node; `total` is how many messages
+   * the selection holds, null when the screen does not know. `clear` empties the selection.
+   */
+  'messages.selection': {
+    clusterId: string;
+    queueName: string;
+    node?: string;
+    selection: MessageSelection;
+    total: number | null;
+    clear: () => void;
+  };
   /** At the foot of a cluster's metrics view. */
   'metrics.panels': { clusterId: string };
   /** Inside a box on the topology graph, after its name. `nodeIds` are the broker endpoints the box stands for. */

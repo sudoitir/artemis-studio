@@ -96,6 +96,10 @@
     "kind" : "KERNEL",
     "required" : true
   }, {
+    "id" : "transfer",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
     "id" : "triage",
     "kind" : "FEATURE",
     "required" : false

@@ -13,6 +13,7 @@ const featureEdges = {
   brokerconfig: ['messages'],
   rr: ['queues', 'sql'],
   sql: ['messages', 'queues'],
+  transfer: ['queues'],
 };
 
 export default tseslint.config(

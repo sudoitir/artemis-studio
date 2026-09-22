@@ -372,6 +372,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["stop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["returnToSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/orphans/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["returnOrphan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/sql/verify": {
         parameters: {
             query?: never;
@@ -717,7 +813,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["stop"];
+        post: operations["stop_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -733,7 +829,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["execute"];
+        post: operations["execute_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -749,7 +845,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview"];
+        post: operations["preview_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1087,6 +1183,54 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_5"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/transfers/orphans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["orphans"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1595,7 +1739,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["history"];
+        get: operations["history_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1611,7 +1755,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_2"];
+        get: operations["get_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1659,7 +1803,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["history_1"];
+        get: operations["history_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2346,6 +2490,123 @@ export interface components {
             splitBrain: string;
             replicationBehind: boolean;
             notes: string[];
+        };
+        Finding: {
+            /** @enum {string} */
+            kind: "REFUSE" | "WARN" | "UNKNOWN";
+            code: string;
+            words: string;
+            snippet?: string | null;
+        };
+        TransferEnd: {
+            /** Format: uuid */
+            clusterId: string;
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            queue: string;
+            address: string;
+        };
+        TransferRunView: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            mode: "MOVE" | "COPY";
+            /** @enum {string} */
+            state: "PREVIEWED" | "RUNNING" | "WAITING_FOR_CAPACITY" | "RETURNING" | "SUCCEEDED" | "PARTIAL" | "STOPPED" | "INTERRUPTED" | "FAILED" | "RETURNED";
+            source: components["schemas"]["TransferEnd"];
+            target: components["schemas"]["TransferEnd"];
+            sameNode: boolean;
+            selection: components["schemas"]["TransferSelection"];
+            /** Format: date-time */
+            t0: string;
+            planHash: string;
+            username: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            updatedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            /** Format: int64 */
+            estimate?: number | null;
+            /** Format: int64 */
+            estimateBytes?: number | null;
+            /** Format: int64 */
+            staged: number;
+            /** Format: int64 */
+            held: number;
+            /** Format: int64 */
+            delivered: number;
+            /** Format: int64 */
+            notTransferred: number;
+            /** Format: int64 */
+            expired: number;
+            /** Format: int64 */
+            returned: number;
+            /** Format: int64 */
+            bytes: number;
+            /** Format: double */
+            messagesPerSecond?: number | null;
+            stagingQueue?: string | null;
+            findings: components["schemas"]["Finding"][];
+            notes: string[];
+            /** Format: int64 */
+            cap: number;
+            overCap: boolean;
+            overrideCap: boolean;
+            resumable: boolean;
+            returnable: boolean;
+            /** Format: int64 */
+            auditEventId?: number | null;
+            /** Format: int64 */
+            targetAuditEventId?: number | null;
+            lastError?: string | null;
+            errorSnippet?: string | null;
+        };
+        TransferSelection: {
+            /** @enum {string} */
+            kind: "IDS" | "FILTER" | "ALL";
+            ids?: number[] | null;
+            filter?: string | null;
+        };
+        TransferExecuteRequest: {
+            planHash: string;
+            override: boolean;
+            acknowledged?: string[] | null;
+            confirmQueue?: string | null;
+        };
+        TransferPreviewRequest: {
+            /** @enum {string} */
+            mode: "MOVE" | "COPY";
+            sourceQueue: string;
+            /** Format: uuid */
+            sourceNodeId: string;
+            selection: components["schemas"]["TransferSelection"];
+            /** Format: uuid */
+            targetClusterId: string;
+            /** Format: uuid */
+            targetNodeId: string;
+            targetQueue: string;
+            targetAddress?: string | null;
+        };
+        OrphanReturnRequest: {
+            /** Format: uuid */
+            nodeId: string;
+            stagingQueue: string;
+            targetQueue: string;
+        };
+        OrphanReturnView: {
+            stagingQueue: string;
+            /** Format: int64 */
+            returned: number;
+            /** Format: int64 */
+            remaining: number;
+            removed: boolean;
         };
         /** @description Which indexed row to look for on the live broker. */
         VerifyRequest: {
@@ -3146,6 +3407,14 @@ export interface components {
             updatedAt: string;
             /** Format: uuid */
             environmentId?: string | null;
+        };
+        OrphanView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            stagingQueue: string;
+            /** Format: int64 */
+            depth?: number | null;
         };
         /** @description A limit the query ran into, which is why it stopped. */
         BoundView: {
@@ -5205,6 +5474,154 @@ export interface operations {
             };
         };
     };
+    stop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+        };
+    };
+    returnToSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+        };
+    };
+    resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+        };
+    };
+    execute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferExecuteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+        };
+    };
+    returnOrphan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrphanReturnRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrphanReturnView"];
+                };
+            };
+        };
+    };
     verify: {
         parameters: {
             query?: never;
@@ -5901,7 +6318,7 @@ export interface operations {
             };
         };
     };
-    stop: {
+    stop_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5924,7 +6341,7 @@ export interface operations {
             };
         };
     };
-    execute: {
+    execute_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5951,7 +6368,7 @@ export interface operations {
             };
         };
     };
-    preview: {
+    preview_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -6596,6 +7013,73 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"][];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+        };
+    };
+    orphans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrphanView"][];
+                };
             };
         };
     };
@@ -7346,7 +7830,7 @@ export interface operations {
             };
         };
     };
-    history: {
+    history_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7368,7 +7852,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -7446,7 +7930,7 @@ export interface operations {
             };
         };
     };
-    history_1: {
+    history_2: {
         parameters: {
             query?: {
                 page?: number;

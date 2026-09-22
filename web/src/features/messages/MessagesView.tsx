@@ -33,6 +33,7 @@ import { MessageActions } from './MessageActions.tsx';
 import { SendMessage } from './SendMessage.tsx';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { useSlot, type MessageSelection } from '../../kernel/slots.ts';
 
 const PAGE_SIZE = 200;
 
@@ -101,6 +102,7 @@ export function MessagesView() {
   const [purgePreview, setPurgePreview] = useState<DryRunView | null>(null);
   const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
   const purgeOverCap = purgePreview?.overCap ?? false;
+  const selectionSlot = useSlot('messages.selection');
 
   // Selection is ephemeral (D10) — reset on any navigation of node / filter / page.
   useEffect(() => setSelected(new Set()), [search.node, search.filter, page]);
@@ -236,6 +238,17 @@ export function MessagesView() {
   const total = messages.data?.count;
   const lastPage = total == null ? null : Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Picked rows win; otherwise the selector in force, otherwise the whole queue.
+  const pickedIds = [...selected].map(Number).filter((n) => Number.isFinite(n));
+  const selection: MessageSelection =
+    pickedIds.length > 0
+      ? { kind: 'ids', ids: pickedIds }
+      : search.filter
+        ? { kind: 'filter', filter: search.filter }
+        : { kind: 'all' };
+  // A selector's match count is the preview's to establish; the page's total is the whole queue.
+  const selectionTotal = selection.kind === 'ids' ? pickedIds.length : selection.kind === 'all' ? (total ?? null) : null;
+
   const setNode = (node: string | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, node: node || undefined, page: undefined }) });
 
@@ -266,9 +279,22 @@ export function MessagesView() {
             />
           ) : null}
         </Group>
-        <Text size="xs" c="dimmed">
-          {lastPage == null ? `page ${page} · total unavailable` : `page ${page} of ${lastPage}`}
-        </Text>
+        <Group gap="xs">
+          <Text size="xs" c="dimmed">
+            {lastPage == null ? `page ${page} · total unavailable` : `page ${page} of ${lastPage}`}
+          </Text>
+          {selectionSlot.map(({ id, Component }) => (
+            <Component
+              key={id}
+              clusterId={clusterId}
+              queueName={queueName}
+              node={search.node}
+              selection={selection}
+              total={selectionTotal}
+              clear={() => setSelected(new Set())}
+            />
+          ))}
+        </Group>
       </Group>
 
       <MessageActions

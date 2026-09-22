@@ -1,9 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.activemq.artemis.core.remoting.impl.netty.TransportConstants;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
-import org.springframework.boot.ssl.NoSuchSslBundleException;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +17,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code initialConnectAttempts=1}, {@code reconnectAttempts=0} — Studio
  *       drives its own reconnect ({@link CoreSubscriptionManager}) so a wedged
  *       node never blocks a caller.
+ *   <li>TLS names the cluster's SSL bundle in {@code sslContext}, which
+ *       {@link StudioSslContextFactory} resolves per connection (ADR-0098).
  * </ul>
  */
 @Component
@@ -28,11 +29,10 @@ public class CoreConnectionFactory {
     static final int CONSUMER_WINDOW_BYTES = 64 * 1024;
 
     private final BrokerProperties properties;
-    private final SslBundles sslBundles;
 
     public CoreConnectionFactory(BrokerProperties properties, SslBundles sslBundles) {
         this.properties = properties;
-        this.sslBundles = sslBundles;
+        StudioSslContextFactory.use(sslBundles);
     }
 
     public ActiveMQConnectionFactory build(CoreConnectionSettings settings, String dialableCoreUrl) {
@@ -41,11 +41,9 @@ public class CoreConnectionFactory {
         // never needs (core-transport spec).
         String url = dialableCoreUrl + "?useTopologyForLoadBalancing=false;consumerWindowSize=" + CONSUMER_WINDOW_BYTES;
         if (settings.hasTls()) {
-            // ponytail: one shared default SSLContext for every Core connection. Per-connection
-            // broker trust material would need a custom Artemis SSLContextFactory; add that only
-            // if a deployment actually presents distinct broker CAs.
-            installDefaultSslContext(settings.tlsBundle());
-            url += ";sslEnabled=true;useDefaultSslContext=true";
+            // Resolved now so an undefined bundle fails here, naming it, and only for this cluster.
+            StudioSslContextFactory.contextFor(settings.tlsBundle());
+            url += ";sslEnabled=true;" + TransportConstants.SSL_CONTEXT_PROP_NAME + "=" + settings.tlsBundle();
         }
         ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(url);
         if (settings.hasCredentials()) {
@@ -62,17 +60,5 @@ public class CoreConnectionFactory {
         factory.setClientFailureCheckPeriod(properties.readTimeout().toMillis());
         factory.setConnectionTTL(properties.readTimeout().toMillis() * 3);
         return factory;
-    }
-
-    private void installDefaultSslContext(String bundleName) {
-        try {
-            SSLContext context = sslBundles.getBundle(bundleName).createSslContext();
-            SSLContext.setDefault(context);
-        } catch (NoSuchSslBundleException e) {
-            throw new IllegalStateException(
-                    "TLS is configured for this cluster's Core connection but SSL bundle '" + bundleName
-                            + "' is not defined. Add it under spring.ssl.bundle.",
-                    e);
-        }
     }
 }

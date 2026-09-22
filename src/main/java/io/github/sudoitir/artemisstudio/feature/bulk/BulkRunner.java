@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
@@ -26,19 +27,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Executes a bulk run on a virtual thread of its own (ADR-0093 D4): one queue at a time, in preview
+ * Executes a bulk run as a {@link BackgroundRuns} run (ADR-0093 D4): one queue at a time, in preview
  * order, each through the single-queue command as the operator who executed the run and under the
  * run's audit event. Nothing here re-implements a safety check; the commands carry them.
- *
- * <p>The stop flags are in-process: Studio runs as one instance per deployment (ADR-0093).
  */
 @Slf4j
 @Component
@@ -55,26 +53,19 @@ class BulkRunner {
     private final AuditService audit;
     private final SseHub sse;
     private final ObjectMapper json;
-
-    private final Map<UUID, AtomicBoolean> stopRequested = new ConcurrentHashMap<>();
+    private final BackgroundRuns background;
 
     void start(BulkRunEntity run, AuditEvent event, Operator operator) {
-        stopRequested.put(run.getId(), new AtomicBoolean());
-        Thread.ofVirtual().name("bulk-run-" + run.getId()).start(() -> execute(run, event, operator));
+        background.start(run.getId(), operator, () -> execute(run, event, operator));
     }
 
     /** False when the run is not executing in this process. */
     boolean requestStop(UUID runId) {
-        AtomicBoolean flag = stopRequested.get(runId);
-        if (flag == null) {
-            return false;
-        }
-        flag.set(true);
-        return true;
+        return background.requestStop(runId);
     }
 
     private void execute(BulkRunEntity run, AuditEvent event, Operator operator) {
-        AtomicBoolean stop = stopRequested.get(run.getId());
+        BooleanSupplier stop = () -> background.stopRequested(run.getId());
         List<BulkRunItemEntity> rows = items.findByRunIdOrderByOrdinal(run.getId());
         String error = null;
         try {
@@ -83,9 +74,9 @@ class BulkRunner {
                 if (item.getStatus() != BulkItemStatus.PENDING) {
                     continue;
                 }
-                if (stop.get() || halted) {
+                if (stop.getAsBoolean() || halted) {
                     item.finish(
-                            stop.get() ? BulkItemStatus.CANCELLED : BulkItemStatus.SKIPPED,
+                            stop.getAsBoolean() ? BulkItemStatus.CANCELLED : BulkItemStatus.SKIPPED,
                             null,
                             null,
                             null,
@@ -103,8 +94,7 @@ class BulkRunner {
             log.error("Bulk run {} stopped unexpectedly", run.getId(), e);
             error = "The run stopped unexpectedly: " + e.getMessage();
         } finally {
-            finish(run, rows, event, stop.get(), error);
-            stopRequested.remove(run.getId());
+            finish(run, rows, event, stop.getAsBoolean(), error);
         }
     }
 

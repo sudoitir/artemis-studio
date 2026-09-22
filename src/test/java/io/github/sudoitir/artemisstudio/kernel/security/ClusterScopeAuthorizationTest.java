@@ -95,7 +95,9 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
             "/api/v1/clusters/{clusterId}/config/revisions/{number}",
             "/api/v1/clusters/{clusterId}/config/applies/{id}",
             // A bulk run the fixture does not create.
-            "/api/v1/clusters/{clusterId}/bulk/runs/{runId}");
+            "/api/v1/clusters/{clusterId}/bulk/runs/{runId}",
+            // A transfer run the fixture does not create.
+            "/api/v1/clusters/{clusterId}/transfers/runs/{runId}");
 
     private UUID visible;
     private UUID hidden;

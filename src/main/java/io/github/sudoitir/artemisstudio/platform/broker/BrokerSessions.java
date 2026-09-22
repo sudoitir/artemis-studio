@@ -11,6 +11,7 @@ public class BrokerSessions {
 
     private final CoreSubscriptionManager subscriptions;
     private final CorePool pool;
+    private final CoreRelay relay;
 
     /**
      * Release a removed cluster's Core connections and drop its in-memory subscription state,
@@ -19,5 +20,6 @@ public class BrokerSessions {
     public void release(UUID clusterId) {
         subscriptions.forget(clusterId);
         pool.forget(clusterId);
+        relay.forget(clusterId);
     }
 }

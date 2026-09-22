@@ -17,6 +17,7 @@ _Others_
 * `i.g.s.a.f.m.MessageService` (in Messages)
 * `i.g.s.a.k.s.OperatorHandoff` (in Security)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.k.j.BackgroundRuns` (in Scheduled jobs)
 * `i.g.s.a.f.r.CrossNodeAggregator` (in Resources)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.SettingsService` (in Settings)

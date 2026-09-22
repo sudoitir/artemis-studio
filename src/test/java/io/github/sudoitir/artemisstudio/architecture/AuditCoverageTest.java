@@ -44,6 +44,9 @@ class AuditCoverageTest {
             Map.entry(
                     "feature.bulk.internal.persistence.BulkRunRepository",
                     "run status bookkeeping; BulkService audits the preview and execute calls that use it"),
+            Map.entry(
+                    "feature.transfer.internal.persistence.TransferRunRepository",
+                    "run bookkeeping; TransferService audits the preview, execute, stop, resume and return calls that use it"),
             Map.entry("feature.events.BrokerEventWriter", "persists broker notifications as they arrive"),
             Map.entry("feature.flow.FlowStore", "caches sampled client activity while a flow view is open"),
             Map.entry("feature.events.BrokerEventReaper", "trims broker events past retention"),
