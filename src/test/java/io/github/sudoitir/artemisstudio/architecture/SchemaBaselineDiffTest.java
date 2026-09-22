@@ -43,7 +43,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "CREATE TABLE broker_config_owned_item ",
                     // Bulk runs and the audit parent link (ADR-0093, changesets kernel-audit 0002, feature-bulk 0001).
                     "ix_audit_event_parent",
-                    "bulk_run")
+                    "bulk_run",
+                    // Cross-broker message transfer (ADR-0097, changeset feature-transfer 0001).
+                    "transfer_(run|copied)")
             .map(Pattern::compile)
             .toList();
 
