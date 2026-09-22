@@ -27,12 +27,6 @@ public class ApiExceptionHandler {
         return Problems.of(HttpStatus.NOT_FOUND, "not-found", "Resource not found", e.getMessage());
     }
 
-    @ExceptionHandler(IllegalStateException.class)
-    ProblemDetail onIllegalState(IllegalStateException e) {
-        return Problems.of(
-                HttpStatus.BAD_GATEWAY, "notification-delivery-failed", "Notification delivery failed", e.getMessage());
-    }
-
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail onIllegalArgument(IllegalArgumentException e) {
         return Problems.of(HttpStatus.BAD_REQUEST, "invalid-value", "Invalid value", e.getMessage());
