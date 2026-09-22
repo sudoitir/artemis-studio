@@ -1,8 +1,8 @@
 ## 1. Prerequisites (standalone commits, before the change proper)
 
-- [ ] 1.1 `security(auth)`: `SessionAuthentication.establish` rotates the session id (`request.changeSessionId()` when a session exists). Test: a pre-login session id does not authenticate after login (local and OIDC paths).
-- [ ] 1.2 `fix(core)`: add `NotificationDeliveryException` in `feature/alerting`, thrown by `NotificationChannelService` for a failed test notification and mapped by an alerting advice to 502 `notification-delivery-failed`. Remove the blanket `IllegalStateException` mapping from `ApiExceptionHandler`. Existing tests stay green.
-- [ ] 1.3 `build(deploy)!`: PostgreSQL 18.
+- [x] 1.1 `security(auth)`: `SessionAuthentication.establish` rotates the session id (`request.changeSessionId()` when a session exists). Test: a pre-login session id does not authenticate after login (local and OIDC paths).
+- [x] 1.2 `fix(core)`: add `NotificationDeliveryException` in `feature/alerting`, thrown by `NotificationChannelService` for a failed test notification and mapped by an alerting advice to 502 `notification-delivery-failed`. Remove the blanket `IllegalStateException` mapping from `ApiExceptionHandler`. Existing tests stay green.
+- [x] 1.3 `build(deploy)!`: PostgreSQL 18.
   - Use `postgres:18` in both compose files and move the volume to `/var/lib/postgresql`.
   - Use `postgres:18-alpine` in Testcontainers.
   - Regenerate `reference-schema.sql` with pg_dump 18 and re-check the `DELIBERATE` patterns.
@@ -39,9 +39,9 @@
 
 ## 4. Settings tabs (operator-ui)
 
-- [ ] 4.1 Add an optional `group` field (`personal` | `studio` | `cluster` | `plugins`, kernel-owned and closed) to `settings.sections`, and tag the existing contributions.
-- [ ] 4.2 `SettingsView` becomes grouped vertical `Tabs`, with `?tab=` in the URL, keyboard operation, and focus on the panel heading.
-- [ ] 4.3 vitest: URL restore, keyboard, group order.
+- [x] 4.1 Add an optional `group` field (`personal` | `studio` | `cluster` | `plugins`, kernel-owned and closed) to `settings.sections`, and tag the existing contributions.
+- [x] 4.2 `SettingsView` becomes grouped vertical `Tabs`, with `?tab=` in the URL, keyboard operation, and focus on the panel heading.
+- [x] 4.3 vitest: URL restore, keyboard, group order.
 
 ## 5. Plugin store, descriptor and validator
 

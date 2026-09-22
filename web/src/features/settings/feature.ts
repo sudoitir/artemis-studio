@@ -10,6 +10,9 @@ const settingsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'settings',
   component: featureView('settings', SettingsView),
+  // The open tab is a `settings.sections` contribution's id; the page falls back to the first tab for any other.
+  validateSearch: (raw: Record<string, unknown>): { tab?: string } =>
+    typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {},
 });
 
 /** The Settings page and its first sections: display preferences and operational configuration. */
@@ -22,8 +25,8 @@ export const settingsFeature = defineFeature({
   ],
   slots: {
     'settings.sections': [
-      { id: 'settings-display', order: 10, title: 'Display', Component: DisplaySection },
-      { id: 'settings-operational', order: 20, title: 'Operational configuration', Component: OperationalSection },
+      { id: 'settings-display', order: 10, group: 'personal', title: 'Display', Component: DisplaySection },
+      { id: 'settings-operational', order: 20, group: 'studio', title: 'Operational configuration', Component: OperationalSection },
     ],
   },
 });
