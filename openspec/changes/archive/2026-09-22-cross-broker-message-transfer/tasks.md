@@ -79,18 +79,18 @@
 
 ## 6. Frontend (`web/src/features/transfer`)
 
-- [ ] 6.1 Add the kernel slot `messages.selection` (ids | filter | all, plus the source context) and render it in `features/messages/MessageActions` / `MessagesView`. Export `AddressPicker` from `features/queues/index.ts` and add the eslint boundary edge.
-- [ ] 6.2 `feature.ts`: routes `clusters/$clusterId/transfers` and `.../transfers/$runId`, nav in the messages group, the `transfer` stream topic invalidating queries, and the slot contribution ("Transfer…" and "Redistribute to node…"). Add `api.ts` hooks and register the feature in `app/features.ts` and `FEATURE_IDS`.
-- [ ] 6.3 `TransferDialog`:
+- [x] 6.1 Add the kernel slot `messages.selection` (ids | filter | all, plus the source context) and render it in `features/messages/MessageActions` / `MessagesView`. Export `AddressPicker` from `features/queues/index.ts` and add the eslint boundary edge.
+- [x] 6.2 `feature.ts`: routes `clusters/$clusterId/transfers` and `.../transfers/$runId`, nav in the messages group, the `transfer` stream topic invalidating queries, and the slot contribution ("Transfer…" and "Redistribute to node…"). Add `api.ts` hooks and register the feature in `app/features.ts` and `FEATURE_IDS`.
+- [x] 6.3 `TransferDialog`:
   - **Destination step:** Move/Copy, a cluster Select (disabled with a reason when not permitted), a node Select (backups disabled with a reason), and `AddressPicker`.
   - **Preview step:** the blast-radius sentence, the acceptance checklist in words with snippets, acknowledgement for warnings, the cap override, and `ConfirmByTyping` of the source queue name for a move.
   - Capability gating uses `gateFor` on both clusters, and there is an aria-live preview region.
-- [ ] 6.4 `TransferRunView`:
+- [x] 6.4 `TransferRunView`:
   - A pipeline strip (Selected → Held in staging → Delivered) with tabular figures, a progress bar, rate and ETA, and the state sentence in a `role="status"` region.
   - `OutcomeSummary` rows for the source and target nodes.
   - Stop, Resume, and Return (typed confirm), plus an audit link. All four outcomes are rendered.
-- [ ] 6.5 `TransfersView`: a list of runs where the cluster is the source or the target, with empty and filtered-empty states and an orphaned-staging section with a return action.
-- [ ] 6.6 Tests (Vitest + MSW, queried by role and name):
+- [x] 6.5 `TransfersView`: a list of runs where the cluster is the source or the target, with empty and filtered-empty states and an orphaned-staging section with a return action.
+- [x] 6.6 Tests (Vitest + MSW, queried by role and name):
   - the dialog flow and the disabled-with-reason options;
   - refuse, warn and unknown rendering, and the typed-confirm gate;
   - a keyboard pass (focus enters the dialog, Escape closes it, focus returns);
@@ -99,6 +99,17 @@
 
 ## 7. Verification and docs
 
-- [ ] 7.1 `just fmt`, then `./mvnw verify` (Docker) and the web lint, typecheck and tests all pass.
-- [ ] 7.2 Run the stack with `just dev-up` and do a real cross-cluster move and copy in the app. Record the outcome.
-- [ ] 7.3 Add a site guide page for the transfer and the required `broker.xml` security setting for `studio.transfer.#`. Tick the README roadmap item.
+- [x] 7.1 `just fmt`, then `./mvnw verify` (Docker) and the web lint, typecheck and tests all pass.
+- [x] 7.2 Run the stack with `just dev-up` and do a real cross-cluster move and copy in the app. Record the outcome.
+  - Four-broker demo stack, two registered clusters (`site-a` = artemis-primary/backup, `site-b` = artemis-secondary/backup).
+  - **Move**, 500 messages, `e2e.orders` site-a → site-b: the target's disk was 93% used, so the run went to
+    `WAITING_FOR_CAPACITY` by itself — backpressure working. It then hit a real bug (`Schema artemis-primary not
+    found`: discovery stores a bare `host:port`, which the Core client cannot dial) and failed with **400 messages
+    still held in staging and nothing lost**. `CoreRelay.open` now normalises through `CoreUrl.dialable`, with two
+    regression tests. After the fix, **Resume** completed the run: 500 delivered, source 0, target 500, staging gone,
+    no orphans.
+  - **Copy**, 200 messages, `e2e.copy`: SUCCEEDED, and both brokers read 200 — the source is untouched.
+  - UI checked in Chromium: the list, the run page (pipeline, per-node outcome, audit links), the selection slot's
+    "Transfer…"/"Redistribute to node…", disabled-with-a-reason cluster and node options, the preview with its
+    `broker.xml` snippet, the typed-confirm gate, and Escape returning focus to the trigger.
+- [x] 7.3 Add a site guide page for the transfer and the required `broker.xml` security setting for `studio.transfer.#`. Tick the README roadmap item.
