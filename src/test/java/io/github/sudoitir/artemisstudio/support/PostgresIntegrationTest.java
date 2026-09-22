@@ -37,7 +37,7 @@ public abstract class PostgresIntegrationTest {
      * default 100 connections run out once enough test configurations exist.
      */
     protected static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:17-alpine").withCommand("postgres", "-c", "max_connections=400");
+            new PostgreSQLContainer<>("postgres:18-alpine").withCommand("postgres", "-c", "max_connections=400");
 
     /** Base64 of exactly 32 bytes. */
     private static final String SECRET_KEY = "YXJ0ZW1pcy1zdHVkaW8tdGVzdC1rZXktMzJieXRlcyE=";
