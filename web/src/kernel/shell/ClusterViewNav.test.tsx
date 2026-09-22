@@ -58,6 +58,7 @@ describe('ClusterViewNav', () => {
     expect(within(messaging).getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Queues',
       'DLQ',
+      'Transfers',
       'SQL Console',
     ]);
   });

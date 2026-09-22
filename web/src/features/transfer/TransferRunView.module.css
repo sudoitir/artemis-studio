@@ -1,0 +1,50 @@
+/* The pipeline reads left to right in the writing direction: what was selected, what is parked
+   between the two brokers, what arrived. Figures align on tabular digits so a change between two
+   refreshes is visible without reading every digit. Monochrome unless something is wrong. */
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-inline-size: 9rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface-raised);
+}
+
+.stage dt {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.stage dd {
+  margin: 0;
+  color: var(--as-text);
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage[data-tone='warning'] dd {
+  color: var(--as-warning);
+}
+
+.arrow {
+  align-self: center;
+  color: var(--as-text-dimmed);
+}
+
+.figures {
+  font-variant-numeric: tabular-nums;
+}
+[dir='rtl'] .arrow { transform: scaleX(-1); }
