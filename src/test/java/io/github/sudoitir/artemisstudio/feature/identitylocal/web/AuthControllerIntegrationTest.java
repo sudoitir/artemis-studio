@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.identitylocal.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -72,6 +73,22 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/auth/me").session(session))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("auth-ok")));
+    }
+
+    @Test
+    void loginIssuesANewSessionId() throws Exception {
+        newUser("auth-fixation", "correct-horse-battery");
+        MockHttpSession session = new MockHttpSession();
+        String before = session.getId();
+
+        mvc().perform(post("/api/v1/auth/login")
+                        .session(session)
+                        .with(csrf())
+                        .contentType("application/json")
+                        .content("{\"username\":\"auth-fixation\",\"password\":\"correct-horse-battery\"}"))
+                .andExpect(status().isOk());
+
+        assertThat(session.getId()).isNotEqualTo(before);
     }
 
     @Test

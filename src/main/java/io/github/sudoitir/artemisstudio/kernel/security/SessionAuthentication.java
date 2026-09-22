@@ -25,9 +25,15 @@ public class SessionAuthentication {
     /**
      * Put the principal in the session. The framework's load-only
      * {@code SecurityContextHolderFilter} does not save a programmatically established
-     * context, so it is saved explicitly.
+     * context, so it is saved explicitly. A session that existed before sign-in gets a new id,
+     * so an identifier planted or observed before authentication never becomes authenticated
+     * (session fixation); local login is a controller, so the filter chain's own fixation
+     * strategy never runs for it.
      */
     public void establish(StudioPrincipal principal, HttpServletRequest request, HttpServletResponse response) {
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
         var authentication =
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
         SecurityContext context = SecurityContextHolder.createEmptyContext();
