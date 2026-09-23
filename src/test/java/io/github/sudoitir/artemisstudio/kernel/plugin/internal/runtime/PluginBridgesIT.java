@@ -80,6 +80,9 @@ class PluginBridgesIT extends PostgresIntegrationTest {
     @Autowired
     ApiTokenService tokens;
 
+    @Autowired
+    CoreEventPluginBridge coreEventBridge;
+
     private PluginRuntime activeRuntime;
 
     @AfterEach
@@ -270,6 +273,131 @@ class PluginBridgesIT extends PostgresIntegrationTest {
         assertThat(called.path("result").path("isError").asBoolean(false)).isTrue();
         assertThat(called.path("result").path("content").get(0).path("text").asString())
                 .contains("is updating, retry in 7s");
+    }
+
+    /**
+     * Carry-over from the 6a review: the Instant activation class attaches the new version's
+     * bridges (settings, topic, job, MCP tool, event listener) before the old version's runtime
+     * closes and detaches its own. A late detach of the superseded v1 must not remove any of v2's
+     * registrations — every bridge's owner-guarded {@code detach} (task 6.4/6.5/6.6) is what this
+     * asserts end to end, for all five contribution kinds at once.
+     */
+    @Test
+    void instantUpdateRaceLeavesEveryRegistryHoldingOnlyTheNewVersion() throws Exception {
+        String id = "acme-race-" + Math.abs(new SecureRandom().nextInt());
+        java.nio.file.Path probeFile = java.nio.file.Files.createTempFile("race-probe-", ".log");
+        probeFile.toFile().deleteOnExit();
+
+        Path v1Jar = raceJar(id, "1.0.0", "5", "pong-v1").build();
+        Path v2Jar = raceJar(id, "2.0.0", "9", "pong-v2").build();
+        PluginDescriptor v1Descriptor = descriptorOf(v1Jar);
+        PluginDescriptor v2Descriptor = descriptorOf(v2Jar);
+
+        PluginRuntime v1 = runtimeFactory.activate(v1Descriptor, v1Jar, webContext.getServletContext());
+        registry.set(id, new PluginRuntimeRegistry.Active(v1));
+        activeRuntime = v1;
+
+        // v1 attached: sanity, before the race even starts.
+        administrate();
+        assertThat(settingsService.value(id + ".limit")).isEqualTo("5");
+        assertThat(coreEventBridge.ownerOf(id)).isEqualTo(v1.handle());
+
+        // Instant class: v2 attaches while v1 is still the registry's active runtime.
+        PluginRuntime v2 = runtimeFactory.activate(v2Descriptor, v2Jar, webContext.getServletContext());
+        registry.set(id, new PluginRuntimeRegistry.Active(v2));
+        activeRuntime = v2;
+
+        assertThat(settingsService.value(id + ".limit")).isEqualTo("9");
+        assertThat(coreEventBridge.ownerOf(id)).isEqualTo(v2.handle());
+
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .build();
+        var key = McpFixture.mintKey(
+                users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
+        String toolName = id.replace('-', '_') + "_ping";
+
+        // v1's late detach: the old version's runtime closes only now, after v2 already took over.
+        v1.close();
+
+        // Every registry still holds exactly v2's registrations — none of v1's late detach
+        // touched them, and none of v2's own were removed either.
+        administrate();
+        assertThat(settingsService.effective()).containsKey(id + ".limit");
+        assertThat(settingsService.value(id + ".limit")).isEqualTo("9");
+        assertThat(streamTopics.known()).contains(id);
+        assertThat(jobStatuses.all()).extracting(JobStatus::id).contains(id + "-job");
+        assertThat(coreEventBridge.ownerOf(id)).isEqualTo(v2.handle());
+
+        JsonNode called = McpFixture.callTool(mvc, key, toolName, java.util.Map.of());
+        assertThat(called.path("result").path("content").get(0).path("text").asString())
+                .isEqualTo("pong-v2");
+
+        // The event listener still fires, and only v2's — republishing goes to every remaining
+        // owner in CoreEventPluginBridge.active, which by now holds only v2's handle.
+        String propertyKey = "race-probe-file-" + id;
+        System.setProperty(propertyKey, probeFile.toString());
+        try {
+            webContext.publishEvent(new io.github.sudoitir.artemisstudio.kernel.plugin.support.RaceProbeEvent(
+                    probeFile.toString(), "received"));
+        } finally {
+            System.clearProperty(propertyKey);
+        }
+        String probed = java.nio.file.Files.readString(probeFile);
+        assertThat(probed).contains("received");
+
+        v2.close();
+        registry.remove(id);
+        activeRuntime = null;
+    }
+
+    /** A fixture plugin contributing all five bridge kinds, with a version-tagged setting/tool/listener. */
+    private PluginJarBuilder raceJar(String id, String version, String limit, String pong) {
+        return bridgesJar(id)
+                .descriptorField("version", version)
+                .source("com.acme.bridges.BridgesSettings", """
+                        package com.acme.bridges;
+                        import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
+                        import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
+                        import java.util.List;
+                        import org.springframework.stereotype.Component;
+                        @Component
+                        public class BridgesSettings implements SettingsContribution {
+                            public String featureId() { return "%s"; }
+                            public List<SettingDef> settings() {
+                                return List.of(new SettingDef(
+                                        "%s.limit", "plugins", "Limit", "hint",
+                                        SettingDef.Kind.INT, () -> "%s", null));
+                            }
+                        }
+                        """.formatted(id, id, limit))
+                .source("com.acme.bridges.BridgesMcpTools", """
+                        package com.acme.bridges;
+                        import org.springframework.ai.mcp.annotation.McpTool;
+                        import org.springframework.stereotype.Component;
+                        @Component
+                        public class BridgesMcpTools {
+                            @McpTool(name = "%s_ping", description = "Replies pong.")
+                            public String ping() { return "%s"; }
+                        }
+                        """.formatted(id.replace('-', '_'), pong))
+                .source("com.acme.bridges.BridgesEventListener", """
+                        package com.acme.bridges;
+                        import io.github.sudoitir.artemisstudio.kernel.plugin.support.RaceProbeEvent;
+                        import org.springframework.context.event.EventListener;
+                        import org.springframework.stereotype.Component;
+                        import java.nio.file.Files;
+                        import java.nio.file.Path;
+                        import java.nio.file.StandardOpenOption;
+                        @Component
+                        public class BridgesEventListener {
+                            @EventListener
+                            public void on(RaceProbeEvent event) throws Exception {
+                                Files.writeString(Path.of(event.filePath()), event.text() + "\\n",
+                                        StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            }
+                        }
+                        """);
     }
 
     @Test

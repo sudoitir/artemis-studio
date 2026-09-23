@@ -13,11 +13,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
+import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * {@link PluginStore} against a real Postgres (task 5.6): put/materialize/sha mismatch/GC. Every
@@ -35,6 +37,9 @@ class PluginStoreIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     PluginInstallRepository installs;
 
+    @Autowired
+    JdbcTemplate jdbc;
+
     private String installId;
 
     @AfterEach
@@ -42,6 +47,7 @@ class PluginStoreIntegrationTest extends PostgresIntegrationTest {
         if (installId != null) {
             installs.deleteById(installId);
         }
+        jdbc.update("delete from plugin_upload");
         artifacts.deleteAll();
     }
 
@@ -94,6 +100,27 @@ class PluginStoreIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(removed).isEqualTo(1);
         assertThat(artifacts.existsById(referencedSha)).isTrue();
+    }
+
+    @Test
+    void garbageCollectKeepsArtifactsReferencedByAPendingUpload() {
+        byte[] pending = "awaiting activation".getBytes(StandardCharsets.UTF_8);
+        String pendingSha = store.put(pending);
+
+        jdbc.update(
+                "insert into plugin_upload (uploaded_at, sha256, plugin_id, uploaded_by, descriptor, report)"
+                        + " values (?, ?, ?, ?, ?::jsonb, ?::jsonb)",
+                OffsetDateTime.now(),
+                pendingSha,
+                "acme-plugin",
+                "tester",
+                "{}",
+                "{}");
+
+        int removed = store.garbageCollect();
+
+        assertThat(removed).isZero();
+        assertThat(artifacts.existsById(pendingSha)).isTrue();
     }
 
     @Test

@@ -55,6 +55,11 @@ class CoreEventPluginBridge implements PluginBridge, ApplicationListener<Applica
         active.remove(handle.id(), handle);
     }
 
+    /** Which handle currently receives republished core events for {@code pluginId}, or {@code null}. Test seam. */
+    PluginHandle ownerOf(String pluginId) {
+        return active.get(pluginId);
+    }
+
     @Override
     public void onApplicationEvent(ApplicationEvent event) {
         Object payload = event instanceof PayloadApplicationEvent<?> payloadEvent ? payloadEvent.getPayload() : event;

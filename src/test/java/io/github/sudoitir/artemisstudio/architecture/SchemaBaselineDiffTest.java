@@ -46,21 +46,27 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "bulk_run",
                     // Cross-broker message transfer (ADR-0097, changeset feature-transfer 0001).
                     "transfer_(run|copied)",
-                    // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0004).
-                    "plugin_(artifact|install|installer)",
+                    // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0006).
+                    "plugin_(artifact|install|installer|upload)",
                     "studio_boot")
             .map(Pattern::compile)
             .toList();
 
-    /** Liquibase's own tables, and the daily partitions created at runtime. */
+    /**
+     * Liquibase's own tables, the daily partitions created at runtime, and the schemas plugins own
+     * (ADR-0101) — a test that activates a plugin leaves its {@code plugin_<id>} schema behind, and
+     * a plugin's objects are not part of the core baseline. (A pg_dump schema switch would change
+     * how extensions are dumped, so they are filtered here instead.)
+     */
     private static final Pattern NOISE =
-            Pattern.compile("\\b(databasechangelog|databasechangeloglock)\\b|\\b(metric_sample|message_index)_\\d{8}");
+            Pattern.compile("\\b(databasechangelog|databasechangeloglock)\\b|\\b(metric_sample|message_index)_\\d{8}"
+                    + "|\\bSCHEMA plugin_|\\bplugin_[a-z0-9_]+\\.[a-z_]");
 
     static Set<String> statements(String dump) {
         String text = dump.replaceAll("(?m)^--.*$", "").replaceAll("(?m)^\\\\(restrict|unrestrict) .*$", "");
         Set<String> statements = new TreeSet<>();
         for (String statement : text.split(";\n")) {
-            String s = String.join(" ", statement.trim().split("\\s+")).replace("public.", "");
+            String s = String.join(" ", statement.trim().split("\\s+")).replaceAll("\\bpublic\\.", "");
             boolean dumpSetup = s.startsWith("SET ") || s.startsWith("SELECT pg_catalog.set_config");
             if (s.isEmpty()
                     || dumpSetup

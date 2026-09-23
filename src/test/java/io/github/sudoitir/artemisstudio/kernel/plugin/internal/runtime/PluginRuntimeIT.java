@@ -393,8 +393,6 @@ class PluginRuntimeIT extends PostgresIntegrationTest {
                 DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             try (Statement st = admin.createStatement()) {
                 st.execute("DROP SCHEMA IF EXISTS plugin_bad_fk CASCADE");
-                st.execute("DROP TABLE IF EXISTS public.fk_target");
-                st.execute("CREATE TABLE public.fk_target (id int PRIMARY KEY)");
             }
         }
 
@@ -417,7 +415,7 @@ class PluginRuntimeIT extends PostgresIntegrationTest {
                         --changeset acme:0001
                         CREATE TABLE ref_holder (
                             id int PRIMARY KEY,
-                            target_id int REFERENCES public.fk_target(id)
+                            cluster_id uuid REFERENCES public.cluster(id)
                         );
                         --rollback DROP TABLE ref_holder;
                         """)

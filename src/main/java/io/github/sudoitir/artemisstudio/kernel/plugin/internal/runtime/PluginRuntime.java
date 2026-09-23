@@ -6,7 +6,9 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import jakarta.persistence.EntityManagerFactory;
 import java.net.URLClassLoader;
+import java.time.Duration;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -28,15 +30,27 @@ import org.springframework.web.servlet.DispatcherServlet;
  *
  * <p>"Exclude every in-flight call" is a {@link ReentrantReadWriteLock}, not the poll-sleep drain
  * this design started with: a caller reserves a call with {@link #beginCall()}, which holds the
- * read lock for the call's duration, and {@link #close()} sets {@link #closed} then blocks on the
- * write lock — which cannot be granted until every held read lock has been released — before
- * tearing anything down. That makes "no call is still running against a closing runtime" an actual
- * guarantee rather than a best-effort wait: the poll-sleep version could time out with calls still
- * in flight and proceed to close under them anyway, and a call that reserved itself a moment after
- * the window closed could start running against an already-torn-down context.
+ * read lock for the call's duration, and {@link #close()} sets {@link #closed} then waits, bounded
+ * by {@link #CLOSE_TIMEOUT}, on the write lock — which cannot be granted until every held read
+ * lock has been released — before tearing anything down. That makes "no call is still running
+ * against a closing runtime" an actual guarantee rather than a best-effort wait: a call that
+ * reserved itself a moment after the window closed cannot start running against an already-torn-
+ * down context. The wait is bounded, not indefinite: a call that never returns must not wedge
+ * shutdown or an update forever, so a timeout leaves the runtime running and {@link #stuck()}
+ * instead — see that method.
  */
 @Slf4j
 public final class PluginRuntime implements AutoCloseable {
+
+    /**
+     * How long {@link #close()} waits for in-flight calls to drain before giving up (carry-over
+     * from the 6a review): a call that never returns must not be allowed to wedge shutdown or an
+     * update forever. On timeout the runtime is left running and marked {@link #stuck()}; the host
+     * (task 6.8) detaches it from the gateway and registries and sets the plugin's status to
+     * {@code needs_restart}, because tearing a context/pool/classloader down while a call may still
+     * be executing against them is unsafe.
+     */
+    private static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(10);
 
     private final String id;
     private final PluginDescriptor descriptor;
@@ -50,6 +64,7 @@ public final class PluginRuntime implements AutoCloseable {
     private final PluginHandle handle = new Handle();
     private final String servletContextAttribute;
     private volatile boolean closed;
+    private volatile boolean stuck;
 
     PluginRuntime(
             PluginDescriptor descriptor,
@@ -133,16 +148,51 @@ public final class PluginRuntime implements AutoCloseable {
         }
     }
 
+    /**
+     * Whether {@link #close()} gave up waiting for an in-flight call to drain and left this
+     * runtime running, undetached from anything of its own accord. The host must detach it from
+     * the gateway/registries itself and set the plugin's status to {@code needs_restart} — this
+     * runtime can never be retried, since a call may still be executing against it.
+     */
+    public boolean stuck() {
+        return stuck;
+    }
+
+    /**
+     * {@link AutoCloseable#close()}: waits up to {@link #CLOSE_TIMEOUT} for every in-flight call
+     * to drain, then tears down. On timeout, leaves the runtime running and sets {@link #stuck()}
+     * instead of tearing down under a call that may still be executing — see {@link #stuck()}.
+     */
     @Override
     public void close() {
-        if (closed) {
+        if (closed || stuck) {
             return;
         }
         closed = true;
-        // Blocks until every call that already holds the read lock (i.e. already reserved via
-        // beginCall()) has released it via endCall(); a call that checks `closed` after this point
-        // sees true and never reserves one. Teardown below only starts once that is guaranteed.
-        lock.writeLock().lock();
+        // Blocks up to CLOSE_TIMEOUT for every call that already holds the read lock (i.e.
+        // already reserved via beginCall()) to release it via endCall(); a call that checks
+        // `closed` after this point sees true and never reserves one. Teardown below only starts
+        // once the lock is actually granted.
+        boolean acquired;
+        try {
+            acquired = lock.writeLock().tryLock(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            acquired = false;
+        }
+        if (!acquired) {
+            // An in-flight call did not finish within the timeout: closed stays true (no further
+            // call is admitted via beginCall()), but nothing is torn down while it may still be
+            // running against the context/pool/classloader. The host marks the plugin
+            // needs_restart and detaches this runtime from the gateway/registries on its own.
+            stuck = true;
+            log.warn(
+                    "Plugin '{}' close() timed out after {}s waiting for an in-flight call to finish;"
+                            + " runtime left running and marked stuck. Restart Studio to unload it.",
+                    id,
+                    CLOSE_TIMEOUT.toSeconds());
+            return;
+        }
         try {
             teardown();
         } finally {

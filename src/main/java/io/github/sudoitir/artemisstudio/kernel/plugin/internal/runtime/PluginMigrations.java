@@ -66,8 +66,7 @@ public class PluginMigrations {
             throws Exception {
         try (Connection connection = pluginPool.getConnection()) {
             connection.setAutoCommit(true);
-            long lockKey = advisoryLockKey(pluginId);
-            executeUpdate(connection, "SELECT pg_advisory_lock(" + lockKey + ")");
+            acquireAdvisoryLock(connection, pluginId);
             try {
                 executeUpdate(connection, "CREATE SCHEMA IF NOT EXISTS " + quoteIdent(schema));
                 Database database = openDatabase(connection, schema);
@@ -107,7 +106,7 @@ public class PluginMigrations {
                 List<ChangesetInfo> applied = changesets(jarPath, pluginId);
                 return new MigrationResult(tag, applied);
             } finally {
-                executeUpdate(connection, "SELECT pg_advisory_unlock(" + lockKey + ")");
+                releaseAdvisoryLock(connection, pluginId);
             }
         }
     }
@@ -234,10 +233,18 @@ public class PluginMigrations {
         releaseLocks.execute();
     }
 
-    private long advisoryLockKey(String pluginId) {
-        // Postgres hashtext() and Java's String.hashCode() differ; the key only has to be stable
-        // and unique per plugin id within this JVM's own locking, which String.hashCode() is.
-        return ("plugin:" + pluginId).hashCode();
+    private void acquireAdvisoryLock(Connection connection, String pluginId) throws java.sql.SQLException {
+        try (var ps = connection.prepareStatement("SELECT pg_advisory_lock(hashtext(?))")) {
+            ps.setString(1, "plugin:" + pluginId);
+            ps.execute();
+        }
+    }
+
+    private void releaseAdvisoryLock(Connection connection, String pluginId) throws java.sql.SQLException {
+        try (var ps = connection.prepareStatement("SELECT pg_advisory_unlock(hashtext(?))")) {
+            ps.setString(1, "plugin:" + pluginId);
+            ps.execute();
+        }
     }
 
     private void executeUpdate(Connection connection, String sql) throws java.sql.SQLException {
