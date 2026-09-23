@@ -3,5 +3,12 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.plugin`
 |Spring components
-|* `i.g.s.a.k.p.FeatureRegistry`
+|_Configuration properties_
+
+* `i.g.s.a.k.p.PluginProperties`
+
+_Others_
+
+* `i.g.s.a.k.p.FeatureRegistry`
+* `i.g.s.a.k.p.StudioVersion`
 |===

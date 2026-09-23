@@ -45,7 +45,10 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "ix_audit_event_parent",
                     "bulk_run",
                     // Cross-broker message transfer (ADR-0097, changeset feature-transfer 0001).
-                    "transfer_(run|copied)")
+                    "transfer_(run|copied)",
+                    // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0004).
+                    "plugin_(artifact|install|installer)",
+                    "studio_boot")
             .map(Pattern::compile)
             .toList();
 

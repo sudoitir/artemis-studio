@@ -269,6 +269,15 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <!-- Bakes the running version into META-INF/build-info.properties, read
+                         by StudioVersion (kernel.plugin) for the plugin compatibility range. -->
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Annotation processors, in order (ADR-0014): Lombok, then the

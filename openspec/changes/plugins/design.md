@@ -129,7 +129,7 @@ acme-notes-1.5.0.jar
   - Exceptions go through the child's resolvers first, then the main `handlerExceptionResolver` with `handler=null` (global advices only).
   - springdoc excludes `/api/v1/**/p/**`.
 - **MCP [R2-M1].** The server is STATELESS.
-  - Plugin tools are built with `SyncMcpAnnotationProviders.statelessToolSpecifications(beans)` and registered with `McpStatelessSyncServer.addTool`/`removeTool`. Resources and prompts are handled the same way.
+  - Plugin tools are built with `org.springframework.ai.mcp.annotation.spring.SyncMcpAnnotationProviders.statelessToolSpecifications(beans)` and registered with `McpStatelessSyncServer.addTool`/`removeTool`. Resources and prompts are handled the same way.
   - Each `callHandler` is wrapped with the runtime lookup, the in-flight counter and the TCCL switch.
   - There is no `list_changed`. `McpToolCatalog` reads the registry on every call, so `studio_help` and `studio://tools` are always current, and the static instructions say "installed plugins may add tools; call studio_help".
   - Names use the `<id_snake>_` prefix and stay within the 190-token ceiling.
@@ -396,3 +396,35 @@ Linkage errors against a changed API surface at activation and quarantine the pl
 ## Open Questions
 
 - The exact Spring AI annotation-provider method names, the Liquibase `CommandScope` step names and the Module Federation runtime API are confirmed through ctx7 in the spike. They do not change the approach.
+
+## Spike results (task 3, 2026-09-23)
+
+**Backend: all criteria met** (a throwaway `PluginSpikeTest` against the full application context and Postgres 18):
+- A curated parent exposes `perm` and `AuditService`; a non-exported `ClusterAccessGuard` is not resolvable.
+- `PluginInfrastructure` works: `@PreAuthorize("@perm…")` answers 403, and controllers are CGLIB-proxied.
+- The gateway forwards to a per-plugin `DispatcherServlet`: 40 concurrent requests across a v1→v2 `AtomicReference` swap, with zero failures.
+- Per-plugin Hikari + EMF + `JpaTransactionManager` + Liquibase `CommandScope` (update + tag): the plugin's table exists only in `plugin_<id>`, and core `search_path` is unchanged.
+- `SyncMcpAnnotationProviders.statelessToolSpecifications` and `McpStatelessSyncServer.addTool`/`removeTool` work at runtime; the tool is listed, callable and removable.
+
+Facts the implementation relies on:
+- `SyncMcpAnnotationProviders` lives in `org.springframework.ai.mcp.annotation.spring`.
+- Use `GenericWebApplicationContext` + `AnnotatedBeanDefinitionReader`. `AnnotationConfigWebApplicationContext` rejects `registerSingleton` before `refresh`.
+- Liquibase with a manually built `Database` needs **both** `provideDependency(Database.class, db)` and `addArgumentValue(DbUrlConnectionArgumentsCommandStep.DATABASE_ARG, db)`.
+- A plugin's root configuration **must** `@ComponentScan` its own base package. The validator requires it, because without it a plugin silently registers no beans.
+- Plugins compile with `-parameters` (the template sets it). Jars must contain directory entries, or package scanning finds nothing.
+- Singletons registered manually (the EMF, the pool) get no inferred destroy method. The host closes them explicitly on unload, in this order: drain → context → EMF → pool → loader.
+- A `@Configuration` meant for a child context must be top-level, never nested in a `@SpringBootTest` class, or Boot's test bootstrap adopts it.
+
+**Open item carried into task 6.2.** In the spike, the old classloader was **not** collected after unload, and no live thread referenced it. The likely cause is JVM-wide caches keyed by class (`CachedIntrospectionResults`, `java.beans.Introspector`, `ReflectionUtils`, `AnnotationUtils`, `ResolvableType`, Jackson type caches). The runtime clears the known caches on unload. The task then finds and removes any remaining GC root from a heap dump, and a test asserts the loader is collected. The "restart recommended" signal stays as the backstop.
+
+**Frontend: all criteria met except the size budget.**
+- Runtime `registerRemotes` + `loadRemote` from `@module-federation/runtime` renders a remote route under `clusterRoute`, with its CSS.
+- `base: './'` makes the remote servable from `/plugin-ui/<id>/<sha8>/`.
+- The Vite dev server is fine, and vitest is unaffected.
+
+Resolutions:
+- **A shared module is only registered when host code imports it.** `main.tsx` imports `@artemis-studio/plugin-sdk`, and the loader checks the share scope at startup.
+- **SDK resolution** is an npm `file:src/sdk` dependency (a managed symlink), not a hand-made link.
+- **Bundle size was +7.4 % gzip against a +5 % target.**
+  - The shared set is trimmed: `react-dom/client` is dropped (plugins never create roots), and `@mantine/notifications` is replaced by an SDK `notify()` function.
+  - The size is measured again. If the Module Federation runtime overhead alone still exceeds 5 %, the accepted ceiling is +8 %, recorded with the measured first-load time. The runtime is the fixed cost of loading plugins at all.

@@ -19,7 +19,7 @@
 
 ## 3. Spike (throwaway, not committed)
 
-- [ ] 3.1 Backend spike, which must prove:
+- [x] 3.1 Backend spike, which must prove:
   - a child `GenericWebApplicationContext` under a curated parent, with `PluginInfrastructure` (`@PreAuthorize` enforced, `@Transactional` proxied)
   - a gateway to a per-plugin `DispatcherServlet`
   - `McpStatelessSyncServer.addTool`/`removeTool` with `SyncMcpAnnotationProviders`
@@ -28,7 +28,7 @@
   - the loader parent works under `exec.jar`
 
   Library APIs are confirmed through ctx7.
-- [ ] 3.2 Frontend spike, which must prove:
+- [x] 3.2 Frontend spike, which must prove:
   - an MF host plus an `import:false` remote rendering a route under `clusterRoute` and a slot
   - the remote's CSS is injected
   - the public path works under `/plugin-ui/<id>/<sha8>/`
@@ -45,10 +45,10 @@
 
 ## 5. Plugin store, descriptor and validator
 
-- [ ] 5.1 Liquibase `db/changelog/kernel/plugin/`: `plugin_artifact`, `plugin_install`, `plugin_installer` and `studio_boot`, in padding order, with rollbacks. Include it in the master changelog, after security.
-- [ ] 5.2 `build-info` in `spring-boot-maven-plugin`, plus a `StudioVersion` reader (SNAPSHOT/IDE → unknown).
-- [ ] 5.3 The `plugin.json` model and its JSON Schema, published as a resource. Parse it with limits.
-- [ ] 5.4 `PluginValidator`:
+- [x] 5.1 Liquibase `db/changelog/kernel/plugin/`: `plugin_artifact`, `plugin_install`, `plugin_installer` and `studio_boot`, in padding order, with rollbacks. Include it in the master changelog, after security.
+- [x] 5.2 `build-info` in `spring-boot-maven-plugin`, plus a `StudioVersion` reader (SNAPSHOT/IDE → unknown).
+- [x] 5.3 The `plugin.json` model and its JSON Schema, published as a resource. Parse it with limits.
+- [x] 5.4 `PluginValidator`:
   - `JarFile` opening and limits; entry-name rules and duplicates
   - allowlist; manifest attributes
   - confinement and overlap
@@ -57,8 +57,8 @@
   - Liquibase `validate`, with `runInTransaction:false` rejected
 
   Output is a list of violations, each with its author fix.
-- [ ] 5.5 Validator tests with fixture jars built in-test: one per violation, one valid jar, and a static-initialiser marker proving no code ran.
-- [ ] 5.6 `PluginStore`: content-addressed artifacts (keep current and previous, garbage-collect the rest), materialisation to a 0600 temp file with a sha check, and `plugin_install` state transitions.
+- [x] 5.5 Validator tests with fixture jars built in-test: one per violation, one valid jar, and a static-initialiser marker proving no code ran.
+- [x] 5.6 `PluginStore`: content-addressed artifacts (keep current and previous, garbage-collect the rest), materialisation to a 0600 temp file with a sha check, and `plugin_install` state transitions.
 
 ## 6. Plugin runtime and bridges
 
