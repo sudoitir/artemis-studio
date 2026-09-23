@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import jakarta.persistence.EntityManagerFactory;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +64,8 @@ public final class PluginRuntime implements AutoCloseable {
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final PluginHandle handle = new Handle();
     private final String servletContextAttribute;
+    private final Path jarPath;
+    private final String sha256;
     private volatile boolean closed;
     private volatile boolean stuck;
 
@@ -74,7 +77,9 @@ public final class PluginRuntime implements AutoCloseable {
             HikariDataSource dataSource,
             EntityManagerFactory entityManagerFactory,
             ApplicationContext mainContext,
-            String servletName) {
+            String servletName,
+            Path jarPath,
+            String sha256) {
         this.id = descriptor.id();
         this.descriptor = descriptor;
         this.classLoader = classLoader;
@@ -85,6 +90,8 @@ public final class PluginRuntime implements AutoCloseable {
         this.mainContext = mainContext;
         this.servletContextAttribute =
                 org.springframework.web.servlet.FrameworkServlet.SERVLET_CONTEXT_PREFIX + servletName;
+        this.jarPath = jarPath;
+        this.sha256 = sha256;
     }
 
     public String id() {
@@ -103,8 +110,27 @@ public final class PluginRuntime implements AutoCloseable {
         return classLoader;
     }
 
+    /** The materialized jar this runtime was built from — {@link PluginAssetController} reads its
+     * UI/icon entries directly out of it, so it stays around for as long as this runtime is active. */
+    public Path jarPath() {
+        return jarPath;
+    }
+
+    /** This runtime's own artifact sha256 (task 6.10, design.md §7) — the {@code sha8} a UI asset
+     * URL must match, computed once at activation rather than re-read from the install row, so it
+     * always names the version actually running here, never a row that may have moved on. */
+    public String sha256() {
+        return sha256;
+    }
+
     public PluginHandle handle() {
         return handle;
+    }
+
+    /** This runtime's own connection pool size ({@code maximumPoolSize=3}, design.md §2) — an admin
+     * view and {@code PluginLifecycleIT} read this rather than reach into the Hikari instance. */
+    public int poolMaxSize() {
+        return dataSource.getMaximumPoolSize();
     }
 
     /**

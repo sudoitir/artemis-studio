@@ -6,14 +6,17 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.Plugi
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginArtifactRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginUploadRepository;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,7 @@ public class PluginStore {
 
     private final PluginArtifactRepository artifacts;
     private final PluginInstallRepository installs;
+    private final PluginUploadRepository uploads;
 
     /** Stores {@code content}, keyed by its own sha256. A second upload of the same bytes is a no-op. */
     @Transactional
@@ -65,9 +69,15 @@ public class PluginStore {
         }
         Files.createDirectories(TEMP_DIR);
         Path file = TEMP_DIR.resolve(sha256 + ".jar");
-        Files.deleteIfExists(file);
-        createOwnerOnly(file);
-        Files.write(file, content);
+        // Written beside it and renamed over it: a running runtime's class loader and the asset
+        // controller read this same path, and must never see it missing or half written.
+        Path partial = createOwnerOnlyTemp();
+        try {
+            Files.write(partial, content);
+            Files.move(partial, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(partial);
+        }
         return file;
     }
 
@@ -122,6 +132,24 @@ public class PluginStore {
         return installs.findById(id);
     }
 
+    /**
+     * Mutates the install row for {@code id} within one transaction — the generic escape hatch
+     * {@code PluginHost} (task 6.8) uses for progress/step updates and version bumps that do not
+     * fit one of this store's own named transitions above.
+     */
+    @Transactional
+    public void update(String id, Consumer<PluginInstallEntity> mutation) {
+        PluginInstallEntity entity =
+                installs.findById(id).orElseThrow(() -> new PluginStoreException("No installed plugin " + id));
+        mutation.accept(entity);
+    }
+
+    /** Removes the inert {@code plugin_upload} row for a sha once it has been activated. */
+    @Transactional
+    public void consumeUpload(String sha256) {
+        uploads.deleteById(sha256);
+    }
+
     static String sha256Hex(byte[] content) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
@@ -131,22 +159,25 @@ public class PluginStore {
     }
 
     /**
-     * Creates {@code file} with owner-only permissions already in force, so the jar's bytes are
-     * never briefly readable under the process umask before being locked down.
+     * Creates a temp file in {@link #TEMP_DIR} with owner-only permissions already in force, so
+     * the jar's bytes are never briefly readable under the process umask before being locked down.
      */
-    private static void createOwnerOnly(Path file) throws IOException {
-        if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-            Files.createFile(
-                    file,
+    private static Path createOwnerOnlyTemp() throws IOException {
+        if (TEMP_DIR.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            return Files.createTempFile(
+                    TEMP_DIR,
+                    "partial-",
+                    ".jar",
                     java.nio.file.attribute.PosixFilePermissions.asFileAttribute(
                             java.nio.file.attribute.PosixFilePermissions.fromString("rw-------")));
         } else {
-            Files.createFile(file);
+            Path file = Files.createTempFile(TEMP_DIR, "partial-", ".jar");
             File f = file.toFile();
             f.setReadable(false, false);
             f.setWritable(false, false);
             f.setReadable(true, true);
             f.setWritable(true, true);
+            return file;
         }
     }
 }

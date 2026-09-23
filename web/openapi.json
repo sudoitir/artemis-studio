@@ -8770,9 +8770,25 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "origin" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : [ "string", "null" ]
+          },
+          "vendor" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "type" : [ "string", "null" ]
+          },
+          "ui" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/ManifestPluginUiView"
           }
         },
-        "required" : [ "enabled", "enabledProperty", "id", "kind", "permissions", "title", "topics" ]
+        "required" : [ "enabled", "enabledProperty", "id", "kind", "origin", "permissions", "title", "topics" ]
       },
       "ManifestIdentityProviderView" : {
         "type" : "object",
@@ -8807,12 +8823,27 @@
         },
         "required" : [ "action", "featureId", "label" ]
       },
+      "ManifestPluginUiView" : {
+        "type" : "object",
+        "properties" : {
+          "entry" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "entry" ]
+      },
       "ManifestView" : {
         "type" : "object",
         "properties" : {
           "contract" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "safeMode" : {
+            "type" : "boolean"
           },
           "features" : {
             "type" : "array",
@@ -8833,7 +8864,7 @@
             }
           }
         },
-        "required" : [ "contract", "features", "identityProviders", "permissionCatalogue" ]
+        "required" : [ "contract", "features", "identityProviders", "permissionCatalogue", "safeMode", "version" ]
       },
       "PolicyView" : {
         "type" : "object",

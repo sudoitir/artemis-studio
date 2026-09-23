@@ -18,5 +18,6 @@ _Others_
 * `i.g.s.a.k.p.internal.descriptor.PluginDescriptorParser`
 * `i.g.s.a.k.p.PluginRuntimeStatus` (via `i.g.s.a.k.p.internal.runtime.PluginRuntimeStatusImpl`)
 |Events listened to
-|* `org.springframework.context.ApplicationEvent` 
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `org.springframework.context.ApplicationEvent` 
 |===

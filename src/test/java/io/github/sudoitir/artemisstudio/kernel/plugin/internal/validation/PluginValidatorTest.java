@@ -33,7 +33,7 @@ class PluginValidatorTest {
     private static PluginValidator validator(String studioVersionOverride) {
         ObjectProvider<BuildProperties> noBuildInfo = mock(ObjectProvider.class);
         when(noBuildInfo.getIfAvailable()).thenReturn(null);
-        var studioVersion = new StudioVersion(noBuildInfo, new PluginProperties(studioVersionOverride));
+        var studioVersion = new StudioVersion(noBuildInfo, new PluginProperties(studioVersionOverride, false, null));
         return new PluginValidator(new PluginDescriptorParser(), studioVersion);
     }
 
@@ -346,6 +346,23 @@ class PluginValidatorTest {
                         </databaseChangeLog>
                         """);
         assertThat(has(validate(jar), "changelog-run-in-transaction-false")).isTrue();
+    }
+
+    @Test
+    void changelogThatRunsACommandIsRejected() throws Exception {
+        var jar = validPlugin("acme-notes").changelog("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <databaseChangeLog
+                                xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+                            <changeSet id="1" author="acme">
+                                <executeCommand executable="/bin/sh"><arg value="-c"/><arg value="id"/></executeCommand>
+                            </changeSet>
+                        </databaseChangeLog>
+                        """);
+        assertThat(has(validate(jar), "changelog-change-denied")).isTrue();
     }
 
     /** A minimal, otherwise fully-valid plugin: every violation test starts here and breaks one thing. */

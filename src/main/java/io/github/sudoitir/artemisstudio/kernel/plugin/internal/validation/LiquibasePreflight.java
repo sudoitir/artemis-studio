@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.jar.JarFile;
 import liquibase.Scope;
+import liquibase.change.core.ExecuteShellCommandChange;
+import liquibase.change.custom.CustomChangeWrapper;
 import liquibase.changelog.ChangeLogParameters;
 import liquibase.changelog.ChangeSet;
 import liquibase.changelog.DatabaseChangeLog;
@@ -48,6 +50,23 @@ final class LiquibasePreflight {
                             "Changeset %s:%s sets runInTransaction:false."
                                     .formatted(changeSet.getAuthor(), changeSet.getId()),
                             "Remove runInTransaction:false; every changeset runs inside the activation transaction."));
+                }
+                List<liquibase.change.Change> changes = new ArrayList<>(changeSet.getChanges());
+                if (changeSet.getRollback() != null) {
+                    changes.addAll(changeSet.getRollback().getChanges());
+                }
+                for (liquibase.change.Change change : changes) {
+                    if (change instanceof ExecuteShellCommandChange || change instanceof CustomChangeWrapper) {
+                        violations.add(
+                                new Violation(
+                                        "changelog-change-denied",
+                                        "Changeset %s:%s uses <%s>, which runs code outside the database."
+                                                .formatted(
+                                                        changeSet.getAuthor(),
+                                                        changeSet.getId(),
+                                                        change.getSerializedObjectName()),
+                                        "Express the change in SQL; a plugin's migration may not run a command or a Java class."));
+                    }
                 }
                 boolean reversible = changeSet.hasCustomRollbackChanges()
                         || (changeSet.getRollback() != null

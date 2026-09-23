@@ -43,4 +43,16 @@ public class PluginRuntimeRegistry {
     public void remove(String pluginId) {
         slots.remove(pluginId);
     }
+
+    /** Ids whose slot is currently {@link Active} — the host uses this to enumerate every running
+     * plugin to close at shutdown (design.md §2, task 6.8). */
+    public java.util.Set<String> activeIds() {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        slots.forEach((id, ref) -> {
+            if (ref.get() instanceof Active) {
+                ids.add(id);
+            }
+        });
+        return ids;
+    }
 }

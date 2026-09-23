@@ -18,4 +18,5 @@ _Others_
 * `i.g.s.a.k.s.ScopeHierarchy` (in Security)
 |Events listened to
 |* `i.g.s.a.p.c.EnvironmentRemoved` 
+* `i.g.s.a.k.p.PluginPurged` 
 |===

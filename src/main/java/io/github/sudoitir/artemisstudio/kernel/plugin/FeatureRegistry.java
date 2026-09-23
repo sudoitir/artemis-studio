@@ -229,6 +229,13 @@ public class FeatureRegistry implements PluginBridge {
         return List.copyOf(byId.values());
     }
 
+    /** Every currently active plugin's namespaced {@link FeatureDescriptor} (task 6.9's manifest
+     * reads this for the permission catalogue, which — like this list — reflects active plugins
+     * only: a plugin's entry exists here only between {@link #addPlugin} and {@link #removePlugin}). */
+    public List<FeatureDescriptor> plugins() {
+        return List.copyOf(plugins.values());
+    }
+
     public List<FeatureDescriptor> enabled() {
         return byId.values().stream().filter(d -> enabled.get(d.id())).toList();
     }

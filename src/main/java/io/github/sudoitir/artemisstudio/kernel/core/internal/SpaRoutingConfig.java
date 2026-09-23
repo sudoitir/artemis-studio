@@ -35,6 +35,15 @@ public class SpaRoutingConfig implements WebMvcConfigurer {
         return path.equals("mcp") || path.startsWith("mcp/");
     }
 
+    /**
+     * {@code /plugin-ui/<id>/<sha8>/**} is served by {@code PluginAssetController} (task 6.10);
+     * a missing entry there must 404, the same as a missing {@code api/} endpoint, rather than
+     * being handed the SPA shell.
+     */
+    private static boolean isPluginUi(String path) {
+        return path.equals("plugin-ui") || path.startsWith("plugin-ui/");
+    }
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/**")
@@ -47,7 +56,10 @@ public class SpaRoutingConfig implements WebMvcConfigurer {
                         if (asset.exists() && asset.isReadable()) {
                             return asset;
                         }
-                        if (path.startsWith("api/") || path.startsWith("actuator/") || isMcp(path)) {
+                        if (path.startsWith("api/")
+                                || path.startsWith("actuator/")
+                                || isMcp(path)
+                                || isPluginUi(path)) {
                             return null;
                         }
                         return INDEX.exists() ? INDEX : null;

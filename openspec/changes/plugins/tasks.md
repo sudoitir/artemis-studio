@@ -83,16 +83,16 @@
   - a dedicated connection holding the advisory lock; `ReleaseLocks`; tag; `update`
   - the `public` relation diff (excluding partitions) and the FK-into-`public` check
   - rollback to the tag on a failed fresh activation when every change is reversible
-- [ ] 6.8 `PluginHost` (`SmartLifecycle`):
+- [x] 6.8 `PluginHost` (`SmartLifecycle`):
   - activation classes: Instant (start the new version, swap, drain the old) and Brief maintenance (503, cancel jobs, drain, migrate, start)
   - `needs-restart`; `requires` ordering and cascade disable
   - the connection budget
   - activation after `ApplicationReadyEvent` on virtual threads with a 60 s limit
   - the boot record, crash-loop safe mode and the `SAFE_MODE` switch
   - the shutdown phase and a 5 s close per plugin
-- [ ] 6.9 Manifest: `origin`, `version`, `vendor`, `status`, `ui.entry` and the manifest version.
-- [ ] 6.10 `PluginAssetController`: `/plugin-ui/<id>/<sha8>/**` served by exact entry, with content types, `nosniff` and cache headers. `icon.svg` gets `CSP: sandbox`. SPA no-fallback and an explicit `authenticated()` rule; Vite dev proxy.
-- [ ] 6.11 `PluginRuntimeIT`, with a fixture plugin built in-test (entity, reversible changelog, controller with `@PreAuthorize`, MCP tool, job, setting, topic):
+- [x] 6.9 Manifest: `origin`, `version`, `vendor`, `status`, `ui.entry` and the manifest version.
+- [x] 6.10 `PluginAssetController`: `/plugin-ui/<id>/<sha8>/**` served by exact entry, with content types, `nosniff` and cache headers. `icon.svg` gets `CSP: sandbox`. SPA no-fallback and an explicit `authenticated()` rule; Vite dev proxy.
+- [x] 6.11 `PluginRuntimeIT`, with a fixture plugin built in-test (entity, reversible changelog, controller with `@PreAuthorize`, MCP tool, job, setting, topic):
   - install → Instant update → Brief-maintenance update → code rollback → disable → uninstall → purge
   - asserts the API, `tools/list` and `studio_help`, the schema, the pool count and the audit trail
   - the classloader is collected

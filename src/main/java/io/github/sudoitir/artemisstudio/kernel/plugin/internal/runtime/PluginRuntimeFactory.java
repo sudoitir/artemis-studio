@@ -9,12 +9,17 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
@@ -53,6 +58,17 @@ public class PluginRuntimeFactory {
     /** Builds, migrates and refreshes one plugin version's runtime, ready to be forwarded to. */
     public PluginRuntime activate(PluginDescriptor descriptor, Path jarPath, ServletContext servletContext)
             throws Exception {
+        return activate(descriptor, jarPath, servletContext, step -> {});
+    }
+
+    /**
+     * As {@link #activate(PluginDescriptor, Path, ServletContext)}, reporting {@code migrating}
+     * before the migration and {@code starting} before the context refresh, so a caller's progress
+     * names the step that is actually running.
+     */
+    public PluginRuntime activate(
+            PluginDescriptor descriptor, Path jarPath, ServletContext servletContext, Consumer<String> onStep)
+            throws Exception {
         String pluginId = descriptor.id();
         String schema = "plugin_" + pluginId.replace('-', '_');
         URLClassLoader loader = new URLClassLoader(
@@ -66,7 +82,9 @@ public class PluginRuntimeFactory {
             HikariDataSource dataSource = buildDataSource(pluginId, schema);
             GenericWebApplicationContext ctx = null;
             try {
+                onStep.accept("migrating");
                 migrations.migrate(dataSource, schema, pluginId, descriptor.version(), jarPath);
+                onStep.accept("starting");
 
                 Class<?> pluginConfigClass = Class.forName(descriptor.configuration(), true, loader);
 
@@ -98,8 +116,17 @@ public class PluginRuntimeFactory {
                 DispatcherServlet servlet = new DispatcherServlet(ctx);
                 servlet.init(new PluginServletConfig(servletName, servletContext));
 
-                PluginRuntime runtime =
-                        new PluginRuntime(descriptor, loader, ctx, servlet, dataSource, emf, mainContext, servletName);
+                PluginRuntime runtime = new PluginRuntime(
+                        descriptor,
+                        loader,
+                        ctx,
+                        servlet,
+                        dataSource,
+                        emf,
+                        mainContext,
+                        servletName,
+                        jarPath,
+                        sha256Hex(jarPath));
                 // A bridge that throws on attach fails only this plugin's activation (PluginBridge's
                 // contract) — which requires unwinding every bridge that already succeeded before it,
                 // or that bridge's registration (a permission namespace, an MCP tool, a settings key)
@@ -136,6 +163,20 @@ public class PluginRuntimeFactory {
             }
         } finally {
             Thread.currentThread().setContextClassLoader(previousTccl);
+        }
+    }
+
+    /** This runtime's own artifact sha256, computed once from the already-materialized jar rather
+     * than re-read from {@code plugin_install} — {@link PluginRuntime#sha256()}, task 6.10. */
+    private static String sha256Hex(Path jarPath) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (var in = new DigestInputStream(Files.newInputStream(jarPath), digest)) {
+                in.transferTo(java.io.OutputStream.nullOutputStream());
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not hash plugin jar " + jarPath, e);
         }
     }
 

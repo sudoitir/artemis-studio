@@ -3367,6 +3367,11 @@ export interface components {
             enabledProperty: string;
             permissions: string[];
             topics: string[];
+            origin: string;
+            version?: string | null;
+            vendor?: string | null;
+            status?: string | null;
+            ui?: components["schemas"]["ManifestPluginUiView"];
         };
         ManifestIdentityProviderView: {
             id: string;
@@ -3379,9 +3384,14 @@ export interface components {
             label: string;
             featureId: string;
         };
+        ManifestPluginUiView: {
+            entry: string;
+        };
         ManifestView: {
             /** Format: int32 */
             contract: number;
+            version: string;
+            safeMode: boolean;
             features: components["schemas"]["ManifestFeatureView"][];
             permissionCatalogue: components["schemas"]["ManifestPermissionView"][];
             identityProviders: components["schemas"]["ManifestIdentityProviderView"][];

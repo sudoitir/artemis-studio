@@ -64,6 +64,19 @@ public class PluginMigrations {
     /** Runs the full activation sequence described above. */
     public MigrationResult migrate(DataSource pluginPool, String schema, String pluginId, String version, Path jarPath)
             throws Exception {
+        // Liquibase's FastCheckService caches "is this changelog already fully applied?" keyed by
+        // (URL, schema) — a singleton meant to speed up repeated runs against a database that isn't
+        // changing between them. That assumption breaks down here: a fresh schema's very first
+        // update, with zero pending changesets (every plugin's Instant install/update runs one),
+        // caches "up to date", and a later update against the SAME schema that genuinely does have
+        // new changesets to apply is then wrongly fast-pathed as already-up-to-date and silently
+        // skipped — reproduced in isolation and confirmed against this exact cache. Clearing it
+        // before every migrate() forces a real check every time, which is the only correct behaviour
+        // here: this JVM runs `update` against a great many different, independently-evolving plugin
+        // schemas, never just one repeatedly unchanged database the way the cache assumes.
+        liquibase.Scope.getCurrentScope()
+                .getSingleton(liquibase.changelog.FastCheckService.class)
+                .clearCache();
         try (Connection connection = pluginPool.getConnection()) {
             connection.setAutoCommit(true);
             acquireAdvisoryLock(connection, pluginId);

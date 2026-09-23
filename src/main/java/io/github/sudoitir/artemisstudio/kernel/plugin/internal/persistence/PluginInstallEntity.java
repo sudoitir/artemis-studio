@@ -66,6 +66,12 @@ public class PluginInstallEntity {
     @Column(name = "schema_changed", nullable = false)
     private boolean schemaChanged;
 
+    @Column(name = "step_started_at")
+    private Instant stepStartedAt;
+
+    @Column(name = "progress")
+    private String progress;
+
     public PluginInstallEntity(
             String id, String version, String vendor, String sha256, String installedBy, String descriptor) {
         this.id = id;
@@ -86,12 +92,43 @@ public class PluginInstallEntity {
         if (next == PluginInstallStatus.ACTIVE) {
             this.activatedAt = Instant.now();
             this.failure = null;
+            this.progress = null;
+            this.stepStartedAt = null;
         }
     }
 
     public void fail(String reason) {
         this.status = PluginInstallStatus.FAILED.dbValue();
         this.failure = reason;
+        this.progress = null;
+        this.stepStartedAt = null;
+    }
+
+    /** Boot found this row's Studio compatibility range no longer matches the running version (task 6.8). */
+    public void incompatible(String reason) {
+        this.status = PluginInstallStatus.INCOMPATIBLE.dbValue();
+        this.failure = reason;
+        this.progress = null;
+        this.stepStartedAt = null;
+    }
+
+    /** A runtime needs a whole-Studio restart to come back — a boot start timeout or a stuck close (task 6.8). */
+    public void needsRestart(String reason) {
+        this.status = PluginInstallStatus.NEEDS_RESTART.dbValue();
+        this.failure = reason;
+        this.progress = null;
+        this.stepStartedAt = null;
+    }
+
+    /** Records the activation step currently in flight, for the admin UI to poll (task 6.8). */
+    public void step(String step) {
+        this.progress = step;
+        this.stepStartedAt = Instant.now();
+    }
+
+    /** Records whether a fresh install's own first activation applied any changeset. */
+    public void schemaChanged(boolean changed) {
+        this.schemaChanged = changed;
     }
 
     /** Records a completed update: the current version becomes previous, the new one current. */

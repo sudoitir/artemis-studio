@@ -13,6 +13,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/actuator': 'http://localhost:8080',
+      '/plugin-ui': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
   build: {

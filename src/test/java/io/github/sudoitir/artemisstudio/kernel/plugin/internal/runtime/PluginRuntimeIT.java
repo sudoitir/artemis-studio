@@ -466,6 +466,79 @@ class PluginRuntimeIT extends PostgresIntegrationTest {
         }
     }
 
+    /**
+     * A regression test for a real defect this session found and fixed: Liquibase's {@code
+     * FastCheckService} caches "changelog X against schema Y is already fully applied" keyed by
+     * (URL, schema) as a JVM-wide singleton. A fresh plugin schema's very first {@code migrate()} —
+     * every Instant install or update runs one, even with zero pending changesets — cached "up to
+     * date" for that schema; a later {@code migrate()} against the SAME schema that genuinely had a
+     * new changeset to apply was then wrongly fast-pathed as already current and silently skipped,
+     * with {@code MigrationResult#applied()} misleadingly still listing it (it reflects the
+     * changelog's own declared changesets, not what Liquibase actually ran). {@link
+     * PluginMigrations#migrate} now clears that cache before every run.
+     */
+    @Test
+    void aSecondMigrateOnTheSameIdAppliesANewlyAddedChangeset() throws Exception {
+        String id = "acme-second-migrate";
+        String schema = "plugin_second_migrate";
+        try (Connection admin =
+                DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+            try (Statement st = admin.createStatement()) {
+                st.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+            }
+        }
+        Path emptyJar = new PluginJarBuilder(id)
+                .descriptorField("basePackage", "com.acme.secondmigrate")
+                .descriptorField("configuration", "com.acme.secondmigrate.PluginConfig")
+                .changelog("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <databaseChangeLog
+                                xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+                        </databaseChangeLog>
+                        """)
+                .build();
+        migrations.migrate(testDataSource(), schema, id, "1.0.0", emptyJar);
+
+        Path jarWithTable = new PluginJarBuilder(id)
+                .descriptorField("basePackage", "com.acme.secondmigrate")
+                .descriptorField("configuration", "com.acme.secondmigrate.PluginConfig")
+                .changelog("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <databaseChangeLog
+                                xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+                            <include file="changes/0001.sql" relativeToChangelogFile="true"/>
+                        </databaseChangeLog>
+                        """)
+                .entry("db/changelog/plugin/" + id + "/changes/0001.sql", """
+                        --liquibase formatted sql
+
+                        --changeset acme:0001
+                        CREATE TABLE second_migrate_thing (id uuid NOT NULL PRIMARY KEY);
+                        --rollback DROP TABLE second_migrate_thing;
+                        """)
+                .build();
+        migrations.migrate(testDataSource(), schema, id, "2.0.0", jarWithTable);
+
+        try (Connection core =
+                DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+            try (Statement st = core.createStatement();
+                    ResultSet rs = st.executeQuery("SELECT count(*) FROM pg_tables WHERE schemaname='" + schema
+                            + "' AND tablename='second_migrate_thing'")) {
+                rs.next();
+                assertThat(rs.getInt(1))
+                        .as("the second migrate() call must have actually applied the newly added changeset,"
+                                + " not just reported it")
+                        .isEqualTo(1);
+            }
+        }
+    }
+
     /** A plain pooled datasource pointed at the shared test Postgres, for the migration-only tests. */
     private javax.sql.DataSource testDataSource() {
         com.zaxxer.hikari.HikariConfig config = new com.zaxxer.hikari.HikariConfig();

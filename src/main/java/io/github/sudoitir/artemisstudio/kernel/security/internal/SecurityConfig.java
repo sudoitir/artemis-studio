@@ -76,6 +76,11 @@ public class SecurityConfig {
                                 new AuthorizationDecision(perm.can(SettingsPermissions.SETTINGS_WRITE)))
                         .requestMatchers("/api/**", "/mcp", "/mcp/**")
                         .authenticated()
+                        // A plugin's UI runs with the full rights of whoever is viewing it
+                        // (design.md §7), so its own assets are gated exactly like /api/** rather
+                        // than falling into the SPA shell's public catch-all below.
+                        .requestMatchers("/plugin-ui/**")
+                        .authenticated()
                         // The SPA shell and its static assets (SpaRoutingConfig) must stay
                         // reachable unauthenticated, or the login page itself cannot load.
                         .anyRequest()

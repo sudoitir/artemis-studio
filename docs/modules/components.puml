@@ -53,7 +53,7 @@ System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication",
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
