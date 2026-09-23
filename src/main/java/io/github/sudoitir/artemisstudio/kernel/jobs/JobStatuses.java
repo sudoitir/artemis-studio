@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
  * trigger(job))}.
  */
 @Component
+@PluginApi
 public class JobStatuses {
 
     private final Map<String, JobStatus> byId = new ConcurrentHashMap<>();
@@ -115,6 +117,15 @@ public class JobStatuses {
             }
             return next;
         };
+    }
+
+    /**
+     * Removes a job's status row (design.md, task 6.4) — called on plugin deactivation, after its
+     * {@link org.springframework.scheduling.Trigger} has already been cancelled, so nothing can
+     * re-add it. A job id that was never registered is a no-op.
+     */
+    public void deregister(String jobId) {
+        byId.remove(jobId);
     }
 
     /** Every registered job, ordered by id. */

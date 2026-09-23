@@ -11,7 +11,8 @@ _Others_
 
 * `i.g.s.a.k.s.SseHub`
 * `i.g.s.a.k.s.StreamSettings`
+* `i.g.s.a.k.s.StreamTopicRegistry`
 |Bean references
-|* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+|* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 |===

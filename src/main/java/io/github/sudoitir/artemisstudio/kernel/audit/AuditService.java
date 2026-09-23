@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditRowWriter;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import java.util.Map;
@@ -28,6 +29,7 @@ import tools.jackson.databind.ObjectMapper;
  * with that reason, so an action that did not happen never leaves a row that looks in flight.
  */
 @Service
+@PluginApi
 @RequiredArgsConstructor
 public class AuditService {
 

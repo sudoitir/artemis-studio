@@ -131,18 +131,44 @@ public final class PluginJarBuilder {
 
         try (var out = Files.newOutputStream(jarFile);
                 JarOutputStream jar = new JarOutputStream(out, manifest)) {
-            writeEntry(
+            java.util.Set<String> dirsWritten = new java.util.LinkedHashSet<>();
+            writeEntryWithDirs(
                     jar,
                     "META-INF/artemis-studio/plugin.json",
-                    toJson(descriptor).getBytes(StandardCharsets.UTF_8));
+                    toJson(descriptor).getBytes(StandardCharsets.UTF_8),
+                    dirsWritten);
             for (var e : rawEntries.entrySet()) {
-                writeEntry(jar, e.getKey(), e.getValue());
+                writeEntryWithDirs(jar, e.getKey(), e.getValue(), dirsWritten);
             }
             for (var e : compiled.entrySet()) {
-                writeEntry(jar, e.getKey(), e.getValue());
+                writeEntryWithDirs(jar, e.getKey(), e.getValue(), dirsWritten);
             }
         }
         return jarFile;
+    }
+
+    /**
+     * Writes {@code name}'s parent directory entries first (once each), then the entry itself. A
+     * jar with only file entries has no {@code "com/"}, {@code "com/acme/"}, ... directory
+     * entries, so {@code URLClassLoader.getResources("com/acme/notes")} — what Spring's classpath
+     * component scan and JPA entity scan both call to find a package inside a jar — resolves
+     * against nothing and silently finds no classes, even though {@code Class.forName} on a fully
+     * qualified name still works (that path never lists a directory).
+     */
+    private static void writeEntryWithDirs(
+            JarOutputStream jar, String name, byte[] content, java.util.Set<String> dirsWritten) throws IOException {
+        int slash = name.lastIndexOf('/');
+        if (slash > 0) {
+            String dir = name.substring(0, slash + 1);
+            for (int i = dir.indexOf('/') + 1; i > 0; i = dir.indexOf('/', i) + 1) {
+                String prefix = dir.substring(0, i);
+                if (dirsWritten.add(prefix)) {
+                    jar.putNextEntry(new JarEntry(prefix));
+                    jar.closeEntry();
+                }
+            }
+        }
+        writeEntry(jar, name, content);
     }
 
     private static String defaultConfigurationSource(String fqcn) {
@@ -192,7 +218,8 @@ public final class PluginJarBuilder {
         try (StandardJavaFileManager fileManager =
                 compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8)) {
             fileManager.setLocationFromPaths(StandardLocation.CLASS_OUTPUT, List.of(outputDir));
-            List<String> options = List.of("-classpath", System.getProperty("java.class.path"), "-proc:none");
+            List<String> options =
+                    List.of("-classpath", System.getProperty("java.class.path"), "-proc:none", "-parameters");
             boolean ok = compiler.getTask(null, fileManager, null, options, null, units)
                     .call();
             if (!ok) {

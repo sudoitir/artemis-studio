@@ -3,9 +3,11 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef.Posture;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
@@ -37,15 +39,40 @@ class McpToolCatalog {
     /** The discovery tool's own name, referenced from rejection messages. */
     static final String HELP_TOOL = "studio_help";
 
-    private final List<McpToolDef> entries;
+    private final List<McpToolDef> builtin;
+    private final Map<String, List<McpToolDef>> pluginEntries = new ConcurrentHashMap<>();
+    private volatile List<McpToolDef> entries;
 
     McpToolCatalog(FeatureRegistry features) {
-        this.entries =
+        this.builtin =
                 features.enabled().stream().flatMap(d -> d.mcpTools().stream()).toList();
+        this.entries = builtin;
     }
 
     List<McpToolDef> entries() {
         return entries;
+    }
+
+    /**
+     * Adds a plugin's declared MCP tools to the live catalogue (design.md, task 6.5): reads
+     * happen on every call, so {@code studio_help} and {@code studio://tools} are always current —
+     * there is no {@code list_changed} on the stateless server, so this is the only way a client
+     * that asks again ever finds out.
+     */
+    synchronized void addPlugin(String pluginId, List<McpToolDef> defs) {
+        pluginEntries.put(pluginId, defs);
+        recompute();
+    }
+
+    synchronized void removePlugin(String pluginId) {
+        pluginEntries.remove(pluginId);
+        recompute();
+    }
+
+    private void recompute() {
+        List<McpToolDef> next = new ArrayList<>(builtin);
+        pluginEntries.values().forEach(next::addAll);
+        entries = List.copyOf(next);
     }
 
     List<String> toolNames() {
@@ -103,6 +130,8 @@ class McpToolCatalog {
                 + "cluster ids this key can see), studio://permissions (what it may do), studio://tools, "
                 + "cluster://{id}/topology, cluster://{id}/capabilities, "
                 + "cluster://{id}/nodes/{nodeId}/settings. "
-                + "Start from studio://clusters or " + HELP_TOOL + ".";
+                + "Start from studio://clusters or " + HELP_TOOL + ". "
+                + "Installed plugins may add their own tools, prefixed with the plugin's id; call " + HELP_TOOL
+                + " to see the current index, which always reflects what is installed right now.";
     }
 }

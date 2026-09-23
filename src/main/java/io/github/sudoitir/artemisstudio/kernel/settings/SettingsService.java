@@ -60,8 +60,13 @@ public class SettingsService {
     private final ActorResolver actorResolver;
     private final FeatureRegistry features;
 
-    /** Insertion-ordered: this is also the order the settings screen renders. */
-    private final Map<String, SettingDef> registry = new LinkedHashMap<>();
+    /**
+     * Insertion-ordered: this is also the order the settings screen renders. Immutable at rest,
+     * copy-on-write (design.md, task 6.4): the built-in keys never change after the constructor
+     * runs, and {@link #addPluginSettings} / {@link #removePluginSettings} swap in a whole new map
+     * so a concurrent read never sees a partially-updated registry.
+     */
+    private volatile Map<String, SettingDef> registry = new LinkedHashMap<>();
 
     /**
      * Every stored override, refreshed on boot and after each write. Reads are on the
@@ -102,6 +107,62 @@ public class SettingsService {
                 }
             }
         }
+        registry = java.util.Collections.unmodifiableMap(registry);
+    }
+
+    /**
+     * Activates a plugin's own {@link SettingDef}s (design.md, task 6.4): every key must be
+     * namespaced under {@code <pluginId>.} and must not already be registered, or the whole call
+     * fails without registering any of them. Once registered, each definition with an {@code apply}
+     * is pushed once with its current effective value (the packaged default, since a freshly
+     * installed plugin has no stored override yet) so a pushed-style consumer's cache is warm
+     * before traffic reaches it — and if that first push throws, the registration is rolled back
+     * and the exception rethrown, so this plugin's activation fails alone and the registry is left
+     * exactly as it was.
+     *
+     * <p>A second call for the same {@code pluginId} supersedes the first rather than colliding
+     * with it: the Instant activation class (design.md §5) attaches a new version's bridges before
+     * the old version's detach runs, so both briefly hold the same id. {@code pluginId}'s own
+     * currently-registered keys are dropped from the collision check before the incoming ones are
+     * added, the same way {@link io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry
+     * FeatureRegistry#addPlugin} excludes its own immediately-prior version.
+     */
+    public synchronized void addPluginSettings(String pluginId, List<SettingDef> defs) {
+        Map<String, SettingDef> previous = registry;
+        Map<String, SettingDef> next = new LinkedHashMap<>(previous);
+        next.keySet().removeIf(key -> key.startsWith(pluginId + "."));
+        for (SettingDef def : defs) {
+            if (!def.key().startsWith(pluginId + ".")) {
+                throw new IllegalArgumentException(
+                        "Setting '" + def.key() + "' is not namespaced under '" + pluginId + ".'");
+            }
+            if (next.putIfAbsent(def.key(), def) != null) {
+                throw new IllegalStateException("Setting '" + def.key() + "' is already registered");
+            }
+        }
+        registry = java.util.Collections.unmodifiableMap(next);
+        try {
+            for (SettingDef def : defs) {
+                if (def.apply() != null) {
+                    def.apply().accept(this);
+                }
+            }
+        } catch (RuntimeException e) {
+            registry = previous;
+            throw e;
+        }
+    }
+
+    /**
+     * Deactivates every setting {@code pluginId} registered, dropping its {@code apply} lambdas
+     * with it so they stop pinning the plugin's classloader. The stored override rows, if any, are
+     * left in place — the same "an absent module's stored value is kept" contract the constructor
+     * already gives a disabled built-in module.
+     */
+    public synchronized void removePluginSettings(String pluginId) {
+        Map<String, SettingDef> next = new LinkedHashMap<>(registry);
+        next.keySet().removeIf(key -> key.startsWith(pluginId + "."));
+        registry = java.util.Collections.unmodifiableMap(next);
     }
 
     // ---- typed reads ------------------------------------------------------

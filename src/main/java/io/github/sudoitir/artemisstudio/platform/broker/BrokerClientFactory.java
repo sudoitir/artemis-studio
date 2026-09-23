@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
@@ -39,6 +40,7 @@ import tools.jackson.databind.json.JsonMapper;
  * replaced, when its bundle's material is reloaded, and when the context closes.
  */
 @Component
+@PluginApi
 public class BrokerClientFactory implements DisposableBean {
 
     private static final String PLAIN = "";

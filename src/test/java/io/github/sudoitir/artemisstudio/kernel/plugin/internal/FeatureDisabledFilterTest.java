@@ -24,7 +24,8 @@ class FeatureDisabledFilterTest {
                             .kind(Kind.FEATURE)
                             .apiPrefix("/api/v1/clusters/{clusterId}/sql")
                             .build())),
-                    new MockEnvironment().withProperty("artemis-studio.features.sql.enabled", "false")),
+                    new MockEnvironment().withProperty("artemis-studio.features.sql.enabled", "false"),
+                    event -> {}),
             JsonMapper.builder().build());
 
     @Test

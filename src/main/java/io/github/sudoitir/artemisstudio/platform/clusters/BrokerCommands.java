@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -52,6 +53,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * connection for N nodes × the read timeout.
  */
 @Component
+@PluginApi
 @RequiredArgsConstructor
 public class BrokerCommands {
 

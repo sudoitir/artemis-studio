@@ -133,9 +133,10 @@ class StreamControllerTest extends PostgresIntegrationTest {
     @Test
     void aDisabledFeaturesTopicIsIgnored() {
         var env = new MockEnvironment().withProperty("artemis-studio.features.alerting.enabled", "false");
-        var registry = new FeatureRegistry(new InstalledFeatures(StudioFeatures.descriptors()), env);
+        var registry = new FeatureRegistry(new InstalledFeatures(StudioFeatures.descriptors()), env, event -> {});
+        var topics = new io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry(registry, List.of());
         SseHub localHub = mock(SseHub.class);
-        var controller = new StreamController(localHub, mock(ClusterAccessGuard.class), registry, List.of());
+        var controller = new StreamController(localHub, mock(ClusterAccessGuard.class), topics);
         UUID clusterId = UUID.randomUUID();
 
         controller.stream(clusterId, "alerts,topology", null, new MockHttpServletResponse());

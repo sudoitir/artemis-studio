@@ -56,6 +56,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioAppli
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Queues, ArtemisStudioApplication.ArtemisStudioApplication.Scraping, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scraping, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scraping, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")

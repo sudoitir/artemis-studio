@@ -38,7 +38,8 @@ class ManifestControllerTest {
                                 .kind(Kind.FEATURE)
                                 .permission(new PermissionDef("capture:write", "Turn capture on"))
                                 .build())),
-                env);
+                env,
+                event -> {});
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new ManifestController(
                         registry, new StaticListableBeanFactory().getBeanProvider(IdentityProviderListing.class)))
                 .build();

@@ -96,6 +96,9 @@ spring:
         size: 4
       thread-name-prefix: scrape-
 
+springdoc:
+  paths-to-exclude: /api/v1/p/**,/api/v1/clusters/*/p/**
+
 server:
   port: ${ARTEMIS_STUDIO_PORT:8080}
   forward-headers-strategy: framework

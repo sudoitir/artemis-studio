@@ -62,23 +62,24 @@
 
 ## 6. Plugin runtime and bridges
 
-- [ ] 6.1 `@PluginApi` annotation, and the curated API context: `ClusterAccessGuard`, `ActorResolver`, `AuditService`, `BrokerCommands`, the broker read client, `SseHub`, `perm`, the settings reader, the job facade, `JsonMapper`, `Clock`, and the core-event subscription.
-- [ ] 6.2 `PluginRuntime`: classloader (parent = the host's loader), `GenericWebApplicationContext`, `PluginInfrastructure`, per-plugin Hikari/EMF/`JpaTransactionManager`, and the proxy assertion. Close order: drain, context, pool, loader, then the `WeakReference` check.
-- [ ] 6.3 `PluginGateway`: `/api/v1/p/{id}/**` and `/api/v1/clusters/{clusterId}/p/{id}/**`.
+- [x] 6.1 `@PluginApi` annotation, and the curated API context: `ClusterAccessGuard`, `ActorResolver`, `AuditService`, `BrokerCommands`, the broker read client, `SseHub`, `perm`, the settings reader, the job facade, `JsonMapper`, `Clock`, and the core-event subscription.
+  - Core-event republishing (task 6.6) is not included in this slice — out of scope for this session's part.
+- [x] 6.2 `PluginRuntime`: classloader (parent = the host's loader), `GenericWebApplicationContext`, `PluginInfrastructure`, per-plugin Hikari/EMF/`JpaTransactionManager`, and the proxy assertion. Close order: drain, context, pool, loader, then the `WeakReference` check.
+- [x] 6.3 `PluginGateway`: `/api/v1/p/{id}/**` and `/api/v1/clusters/{clusterId}/p/{id}/**`.
   - Holds an `AtomicReference` per id and forwards to a per-plugin `DispatcherServlet`.
   - Keeps in-flight counters and drains them; answers `404 feature-disabled`, `503 plugin-updating` and `503 plugin-failed`.
   - Sets the thread context classloader (TCCL) for each call.
   - Delegates exceptions to the child's resolvers, then to the global advice.
   - springdoc excludes these paths.
-- [ ] 6.4 Copy-on-write dynamic registries, with built-in behaviour unchanged:
+- [x] 6.4 Copy-on-write dynamic registries, with built-in behaviour unchanged:
   - `FeatureRegistry` (plugin add/remove, namespaces, `PluginsChanged`, manifest version)
   - the `SettingsService` registry
   - `StreamController` topics and replays
   - `McpToolCatalog` (live reads), and the instructions line about plugins
   - job registration through `TaskScheduler` with cancellable futures
-- [ ] 6.5 MCP bridge: `statelessToolSpecifications` from plugin beans, `addTool`/`removeTool` (plus resources and prompts), wrapped handlers, the 190-token ceiling, and the updating error result.
-- [ ] 6.6 Core-event republishing into plugin contexts, with each plugin isolated when it throws.
-- [ ] 6.7 `PluginMigrations`:
+- [x] 6.5 MCP bridge: `statelessToolSpecifications` from plugin beans, `addTool`/`removeTool` (plus resources and prompts), wrapped handlers, the 190-token ceiling, and the updating error result.
+- [x] 6.6 Core-event republishing into plugin contexts, with each plugin isolated when it throws.
+- [x] 6.7 `PluginMigrations`:
   - a dedicated connection holding the advisory lock; `ReleaseLocks`; tag; `update`
   - the `public` relation diff (excluding partitions) and the FK-into-`public` check
   - rollback to the tag on a failed fresh activation when every change is reversible
