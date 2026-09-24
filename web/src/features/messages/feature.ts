@@ -5,6 +5,7 @@ import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { DlqView } from './DlqView.tsx';
 import { MessagesView } from './MessagesView.tsx';
+import { BrowseQueueMessages } from './rowActions.tsx';
 
 /** Message-browse navigable state (ADR-0021). Selection stays ephemeral (D10), not in the URL. */
 export interface MessagesSearch {
@@ -43,4 +44,7 @@ export const messagesFeature = defineFeature({
   nav: [
     { group: 'messaging', order: 20, label: 'DLQ', icon: IconAlertTriangle, path: 'dlq', permission: 'message:read' },
   ],
+  slots: {
+    'queue.actions': [{ id: 'messages.browse', order: 20, section: 'open', Component: BrowseQueueMessages }],
+  },
 });

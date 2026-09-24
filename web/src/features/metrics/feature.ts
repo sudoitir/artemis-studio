@@ -6,6 +6,7 @@ import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { MetricsView } from './MetricsView.tsx';
 import { QueueHistoryPanels } from './QueueHistoryPanels.tsx';
 import { METRIC_RANGES, type MetricRange } from './ranges.ts';
+import { OpenQueueHistory } from './rowActions.tsx';
 
 export interface MetricsSearch {
   range?: MetricRange;
@@ -47,6 +48,7 @@ export const metricsFeature = defineFeature({
     { group: 'observe', order: 20, label: 'Metrics', icon: IconChartLine, path: 'metrics', permission: 'cluster:read' },
   ],
   slots: {
+    'queue.actions': [{ id: 'metrics.history', order: 30, section: 'open', Component: OpenQueueHistory }],
     'queue.detail.panels': [{ id: 'metrics-queue-history', order: 10, Component: QueueHistoryPanels }],
   },
 });

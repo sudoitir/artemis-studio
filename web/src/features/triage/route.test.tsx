@@ -91,6 +91,6 @@ describe('the consumer health address', () => {
 
     // The real router resolves the address to the feature's view.
     expect(await screen.findByText('No consumers')).toBeInTheDocument();
-    expect(await screen.findByRole('textbox', { name: 'Filter by queue or address' })).toBeInTheDocument();
+    expect(await screen.findByRole('textbox', { name: 'Filter queues' })).toBeInTheDocument();
   });
 });

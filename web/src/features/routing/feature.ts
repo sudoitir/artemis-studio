@@ -5,6 +5,7 @@ import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { validateResourceSearch, type ResourceSearch } from '../../kernel/routing/search.ts';
 import { RoutingView } from './RoutingView.tsx';
+import { CopyDivertName, DeleteDivert } from './rowActions.tsx';
 
 /**
  * Routing's navigable state: the listing's filter, sort and page; which tab is open — Diverts,
@@ -46,4 +47,10 @@ export const routingFeature = defineFeature({
   nav: [
     { group: 'resources', order: 60, label: 'Routing', icon: IconRoute, path: 'routing', permission: 'cluster:read' },
   ],
+  slots: {
+    'divert.actions': [
+      { id: 'routing.divert.copy', order: 10, section: 'copy', Component: CopyDivertName },
+      { id: 'routing.divert.delete', order: 10, section: 'destroy', Component: DeleteDivert },
+    ],
+  },
 });

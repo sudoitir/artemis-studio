@@ -10,6 +10,7 @@ import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { BrokerXmlRemedy, DeleteDivertAction, CreateDivertAction, DRIFT_SENTENCE } from './DivertActions.tsx';
 import classes from './RoutingView.module.css';
+import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 
 const PAGE_SIZE = 200;
 
@@ -300,6 +301,17 @@ function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab
           sort={search.sort}
           onSortChange={(sort) => setSearch({ sort, page: undefined })}
           rowKey={(r) => `${r.name}:${r.address}:${r.forwardingAddress}`}
+          rowMenu={{
+            label: (r) => r.name,
+            render: (r, menu) => (
+              <ResourceActions
+                kind="divert"
+                clusterId={clusterId}
+                target={{ name: r.name, snapshot: r }}
+                restoreFocus={menu.restoreFocus}
+              />
+            ),
+          }}
           emptyLabel={
             <Text size="sm">
               {search.q
