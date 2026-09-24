@@ -232,6 +232,57 @@ operator.
 - **Its data is its own.** Its tables live in its own schema, with no foreign keys to Studio's. Give
   every changeset a rollback, or updates that apply it cannot be rolled back.
 
+### Messages and secrets
+
+A plugin can react to messages, send them and keep credentials without a client, thread or store of
+its own. Inject the two beans Studio puts into every plugin's context; each is bound to that plugin
+and acts only on its own data.
+
+**`PluginMessaging`** registers what the plugin wants delivered, and Studio makes it true on every
+serving node, after every restart and failover, and undoes it when the registration is removed or
+the plugin stops running:
+
+```java
+@Component
+class Orders implements PluginMessageHandler {
+
+    Orders(PluginMessaging messaging, ...) { ... }
+
+    void watch(UUID clusterId, UUID operatorId) {
+        messaging.register(new RegistrationSpec(
+                "orders", clusterId, "ORDERS.IN", RegistrationMode.TAP, operatorId));
+    }
+
+    @Override
+    public Disposition onMessage(PluginMessage message) {
+        // message.body(), .headers(), .properties(), .deliveryCount()
+        return Disposition.ACCEPT;
+    }
+}
+```
+
+- **`TAP`** delivers a copy of every message routed to the queue. Existing consumers and producers
+  are untouched. If the plugin falls behind, the oldest copies are dropped, and
+  `registration(key).droppedCopies()` says how many. It needs the acting user to hold
+  `message:read`, and Studio's broker role to be set
+  (`artemis-studio.capture.broker-role`, as for capture).
+- **`CONSUME`** makes the plugin one of the queue's consumers. `ACCEPT` removes the message.
+  `REJECT`, an exception, or the plugin stopping first leaves it for redelivery, within the broker's
+  `max-delivery-attempts`. It needs `message:read` and `queue:purge`.
+- **`send(OutboundMessage)`** sends a body, headers and properties to an address. It needs
+  `message:send`.
+- **Every registration acts for a user**, whose grants are checked when it is made and on every pass
+  after (`artemis-studio.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
+  a permission, the registration is `SUSPENDED` and says why. It resumes when the permission
+  returns.
+- Studio calls the handler on its own threads, one message at a time per registration and node.
+  Keep it bounded: a handler that blocks holds only its own registration's delivery.
+- Queues under Studio's own prefixes and the broker's management addresses are refused.
+
+**`PluginSecrets`** stores named values encrypted with Studio's secret key: `put`, `get`, `delete`
+and `list` (names and dates only). No Studio interface returns a value, and a plugin should keep it
+that way: accept secrets, never echo them. Purging the plugin deletes them.
+
 **Offer updates** by naming an `updateUrl` (https) in `plugin.json` that answers:
 
 ```json
@@ -250,5 +301,6 @@ UI is a Module Federation bundle loaded when Studio starts. The design and its t
 runtime), [ADR-0100](/reference/adr/0100-plugin-uis-are-module-federation-remotes) (the UI),
 [ADR-0101](/reference/adr/0101-each-plugin-owns-a-schema-pool-and-entity-manager) (the data),
 [ADR-0102](/reference/adr/0102-the-plugin-api-is-published-to-central-and-npm) (the API),
-[ADR-0103](/reference/adr/0103-plugin-installer-tier-and-step-up-reauthentication) (who can install)
-and [ADR-0104](/reference/adr/0104-studio-restarts-itself-for-plugins-when-supervised) (restarts).
+[ADR-0103](/reference/adr/0103-plugin-installer-tier-and-step-up-reauthentication) (who can install),
+[ADR-0104](/reference/adr/0104-studio-restarts-itself-for-plugins-when-supervised) (restarts)
+and [ADR-0111](/reference/adr/0111-plugin-scoped-beans-and-plugin-messaging) (messages and secrets).

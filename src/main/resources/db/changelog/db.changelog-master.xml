@@ -41,5 +41,6 @@
     <include file="db/changelog/feature/bulk/changelog.xml"         relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/transfer/changelog.xml"     relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/setupreview/changelog.xml"  relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/plugins/changelog.xml"      relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

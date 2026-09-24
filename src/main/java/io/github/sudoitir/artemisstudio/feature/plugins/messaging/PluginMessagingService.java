@@ -1,0 +1,335 @@
+package io.github.sudoitir.artemisstudio.feature.plugins.messaging;
+
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
+import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationEntity;
+import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationNodeEntity;
+import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationNodeRepository;
+import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationRepository;
+import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.AccessCheck;
+import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.PluginDrains;
+import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.PluginMessagingReconciler;
+import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.Reservations;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginPurged;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginScopedBeans;
+import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * Plugins' message registrations and sends (ADR-0111), behind each plugin's own
+ * {@link PluginMessaging}. Every method takes the plugin id from that bound object, never from the
+ * plugin.
+ */
+@Component
+@RequiredArgsConstructor
+public class PluginMessagingService implements PluginScopedBeans {
+
+    static final String BEAN_NAME = "pluginMessaging";
+
+    private static final Pattern KEY = Pattern.compile("[A-Za-z0-9._:-]{1,200}");
+    private static final int MAX_NAME = 1000;
+
+    private final RegistrationRepository registrations;
+    private final RegistrationNodeRepository nodeStates;
+    private final AccessCheck access;
+    private final PluginMessagingReconciler reconciler;
+    private final PluginDrains drains;
+    private final ClusterDirectory clusters;
+    private final CoreMessageTransport transport;
+    private final AuditService audit;
+    private final ActorResolver actors;
+    private final TransactionTemplate tx;
+    private final Clock clock;
+
+    @Override
+    public Map<String, Object> beansFor(String pluginId) {
+        return Map.of(BEAN_NAME, new PluginMessaging(this, pluginId));
+    }
+
+    MessageRegistration register(String pluginId, RegistrationSpec spec) {
+        validate(spec);
+        List<String> needs = spec.mode() == RegistrationMode.TAP
+                ? List.of(MessagePermissions.MESSAGE_READ)
+                : List.of(MessagePermissions.MESSAGE_READ, MessagePermissions.QUEUE_PURGE);
+        access.denial(spec.actingUserId(), spec.clusterId(), needs).ifPresent(why -> {
+            throw new RegistrationRefusedException(why);
+        });
+        AuditEvent event = audit.begin(
+                actor(pluginId, spec.actingUserId()),
+                "PLUGIN_MESSAGE_REGISTER",
+                "PLUGIN_MESSAGE_REGISTRATION",
+                pluginId + "/" + spec.key(),
+                spec.clusterId(),
+                null,
+                Map.of(
+                        "plugin",
+                        pluginId,
+                        "queue",
+                        spec.queue(),
+                        "mode",
+                        spec.mode().name()),
+                false);
+        UUID replaced = tx.execute(status -> {
+            Optional<RegistrationEntity> existing = registrations.findByPluginIdAndKey(pluginId, spec.key());
+            UUID old = null;
+            if (existing.isPresent()) {
+                RegistrationEntity e = existing.get();
+                boolean sameTarget = e.getClusterId().equals(spec.clusterId())
+                        && e.getQueue().equals(spec.queue())
+                        && e.getMode() == spec.mode();
+                if (sameTarget) {
+                    e.setActingUserId(spec.actingUserId());
+                    e.setUpdatedAt(clock.instant());
+                    registrations.save(e);
+                    return null;
+                }
+                // A different target is a different registration: the old one's broker objects are
+                // removed as orphans, the new one's installed afresh.
+                old = e.getId();
+                registrations.delete(e);
+                registrations.flush();
+            }
+            RegistrationEntity row = new RegistrationEntity();
+            row.setPluginId(pluginId);
+            row.setKey(spec.key());
+            row.setClusterId(spec.clusterId());
+            row.setQueue(spec.queue());
+            row.setMode(spec.mode());
+            row.setActingUserId(spec.actingUserId());
+            row.setCreatedAt(clock.instant());
+            row.setUpdatedAt(clock.instant());
+            registrations.save(row);
+            return old;
+        });
+        audit.succeed(event, 1);
+        if (replaced != null) {
+            drains.stopRegistration(replaced);
+        }
+        reconciler.reconcileNow(spec.clusterId());
+        return registration(pluginId, spec.key()).orElseThrow();
+    }
+
+    boolean unregister(String pluginId, String key) {
+        Optional<RegistrationEntity> row = registrations.findByPluginIdAndKey(pluginId, key);
+        if (row.isEmpty()) {
+            return false;
+        }
+        RegistrationEntity reg = row.get();
+        AuditEvent event = audit.begin(
+                actor(pluginId, reg.getActingUserId()),
+                "PLUGIN_MESSAGE_UNREGISTER",
+                "PLUGIN_MESSAGE_REGISTRATION",
+                pluginId + "/" + key,
+                reg.getClusterId(),
+                null,
+                Map.of(
+                        "plugin",
+                        pluginId,
+                        "queue",
+                        reg.getQueue(),
+                        "mode",
+                        reg.getMode().name()),
+                false);
+        drains.stopRegistration(reg.getId());
+        registrations.delete(reg);
+        audit.succeed(event, 1);
+        reconciler.reconcileNow(reg.getClusterId());
+        return true;
+    }
+
+    Optional<MessageRegistration> registration(String pluginId, String key) {
+        return registrations.findByPluginIdAndKey(pluginId, key).map(this::view);
+    }
+
+    List<MessageRegistration> registrations(String pluginId) {
+        return registrations.findByPluginIdOrderByKey(pluginId).stream()
+                .map(this::view)
+                .toList();
+    }
+
+    void send(String pluginId, OutboundMessage message) {
+        if (message == null || message.clusterId() == null || blank(message.address())) {
+            throw new RegistrationRefusedException("A message needs a cluster and an address.");
+        }
+        if (message.address().length() > MAX_NAME) {
+            throw new RegistrationRefusedException("The address is longer than " + MAX_NAME + " characters.");
+        }
+        String reserved = Reservations.reason(message.address());
+        if (reserved != null) {
+            throw new RegistrationRefusedException(reserved);
+        }
+        access.denial(message.actingUserId(), message.clusterId(), List.of(MessagePermissions.MESSAGE_SEND))
+                .ifPresent(why -> {
+                    throw new RegistrationRefusedException(why);
+                });
+        ClusterNode node = servingWithCore(message.clusterId());
+        Map<String, Object> headers = new LinkedHashMap<>();
+        if (message.headers() != null) {
+            headers.putAll(message.headers());
+        }
+        byte[] body = message.body() == null ? new byte[0] : message.body();
+        AuditEvent event = audit.begin(
+                actor(pluginId, message.actingUserId()),
+                "PLUGIN_MESSAGE_SEND",
+                "ADDRESS",
+                message.address(),
+                message.clusterId(),
+                node.getId(),
+                Map.of("plugin", pluginId, "bytes", body.length),
+                false);
+        try {
+            transport.send(
+                    new MessageTransport.TransportTarget(
+                            message.clusterId(),
+                            node.getId(),
+                            message.address(),
+                            message.address(),
+                            "ANYCAST",
+                            node.getJolokiaUrl(),
+                            node.getCoreUrl()),
+                    new MessageTransport.SendSpec(
+                            0,
+                            message.durable(),
+                            message.text()
+                                    ? new String(body, java.nio.charset.StandardCharsets.UTF_8)
+                                    : Base64.getEncoder().encodeToString(body),
+                            !message.text(),
+                            headers,
+                            message.properties()));
+            audit.succeed(event, 1);
+        } catch (RuntimeException e) {
+            audit.fail(event, e.getMessage());
+            throw e;
+        }
+    }
+
+    /** Purging a plugin deletes its registrations; the next pass removes what they left on the broker. */
+    @EventListener
+    public void onPurged(PluginPurged purged) {
+        for (RegistrationEntity reg : registrations.findByPluginIdOrderByKey(purged.pluginId())) {
+            drains.stopRegistration(reg.getId());
+        }
+        registrations.deleteByPluginId(purged.pluginId());
+    }
+
+    // ---- helpers -----------------------------------------------------------
+
+    private void validate(RegistrationSpec spec) {
+        if (spec == null) {
+            throw new RegistrationRefusedException("A registration needs a spec.");
+        }
+        if (spec.key() == null || !KEY.matcher(spec.key()).matches()) {
+            throw new RegistrationRefusedException(
+                    "A registration key is 1 to 200 letters, digits, '.', '_', ':' or '-'.");
+        }
+        if (spec.mode() == null) {
+            throw new RegistrationRefusedException("A registration needs a mode: TAP or CONSUME.");
+        }
+        if (spec.clusterId() == null || clusters.cluster(spec.clusterId()).isEmpty()) {
+            throw new RegistrationRefusedException("The cluster " + spec.clusterId() + " is not registered.");
+        }
+        if (blank(spec.queue())
+                || spec.queue().length() > MAX_NAME
+                || spec.queue().contains("::")) {
+            throw new RegistrationRefusedException(
+                    "A registration names one queue, by its name alone, in at most " + MAX_NAME + " characters.");
+        }
+        String reserved = Reservations.reason(spec.queue());
+        if (reserved != null) {
+            throw new RegistrationRefusedException(reserved);
+        }
+    }
+
+    private ClusterNode servingWithCore(UUID clusterId) {
+        return reconciler.servingNodes(clusterId).stream()
+                .filter(n -> n.getCoreUrl() != null)
+                .findFirst()
+                .orElseThrow(() -> new RegistrationRefusedException(
+                        "No serving node of cluster " + clusterId + " has a Core URL, and sends go over Core."));
+    }
+
+    /** The operator behind a request, or — outside one — the plugin acting for its user. */
+    private Actor actor(String pluginId, UUID actingUserId) {
+        Actor current = actors.resolve();
+        if (current.userId() != null) {
+            return current;
+        }
+        return new Actor("plugin " + pluginId + " for " + access.nameOf(actingUserId), null, null, actingUserId);
+    }
+
+    private MessageRegistration view(RegistrationEntity reg) {
+        List<MessageRegistration.NodeState> nodes = new ArrayList<>();
+        for (RegistrationNodeEntity row : nodeStates.findByIdRegistrationId(reg.getId())) {
+            String name = clusters.node(row.getNodeId())
+                    .map(ClusterNode::getName)
+                    .orElse(row.getNodeId().toString());
+            nodes.add(new MessageRegistration.NodeState(
+                    row.getNodeId(), name, row.getState(), row.getDetail(), row.getDroppedCopies()));
+        }
+        nodes.sort(Comparator.comparing(MessageRegistration.NodeState::nodeName));
+        RegistrationState overall = overall(nodes);
+        String detail = nodes.stream()
+                .filter(n -> n.state() == overall && n.detail() != null)
+                .map(n -> nodes.size() > 1 ? n.nodeName() + ": " + n.detail() : n.detail())
+                .findFirst()
+                .orElse(null);
+        Long dropped = nodes.stream()
+                .map(MessageRegistration.NodeState::droppedCopies)
+                .filter(java.util.Objects::nonNull)
+                .reduce(Long::sum)
+                .orElse(null);
+        return new MessageRegistration(
+                reg.getKey(),
+                reg.getClusterId(),
+                reg.getQueue(),
+                reg.getMode(),
+                reg.getActingUserId(),
+                overall,
+                detail,
+                dropped,
+                List.copyOf(nodes),
+                reg.getUpdatedAt());
+    }
+
+    /** The state that most needs attention; delivering, or delivered by another instance, is fine. */
+    private static RegistrationState overall(List<MessageRegistration.NodeState> nodes) {
+        if (nodes.isEmpty()) {
+            return RegistrationState.PENDING;
+        }
+        for (RegistrationState worst : List.of(
+                RegistrationState.SUSPENDED,
+                RegistrationState.INACTIVE,
+                RegistrationState.FAILED,
+                RegistrationState.PENDING)) {
+            if (nodes.stream().anyMatch(n -> n.state() == worst)) {
+                return worst;
+            }
+        }
+        return nodes.stream().allMatch(n -> n.state() == RegistrationState.SERVED_ELSEWHERE)
+                ? RegistrationState.SERVED_ELSEWHERE
+                : RegistrationState.ACTIVE;
+    }
+
+    private static boolean blank(String s) {
+        return s == null || s.isBlank();
+    }
+}

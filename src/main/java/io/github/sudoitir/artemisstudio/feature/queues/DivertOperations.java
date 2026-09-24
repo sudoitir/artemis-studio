@@ -50,6 +50,17 @@ public class DivertOperations {
      */
     public static final String CAPTURE_PREFIX = "artemis-studio.capture.";
 
+    /**
+     * The name prefix Studio reserves for the taps it installs for plugins' message registrations
+     * (ADR-0111). Like {@link #CAPTURE_PREFIX}, a divert under it is Studio's by construction.
+     */
+    public static final String PLUGIN_TAP_PREFIX = "artemis-studio.plugin.";
+
+    /** Whether a name is one of the objects Studio installs for itself: a capture or a plugin tap. */
+    public static boolean isStudioTap(String name) {
+        return name != null && (name.startsWith(CAPTURE_PREFIX) || name.startsWith(PLUGIN_TAP_PREFIX));
+    }
+
     private final ObjectMapper mapper;
 
     public DivertOperations(ObjectMapper mapper) {

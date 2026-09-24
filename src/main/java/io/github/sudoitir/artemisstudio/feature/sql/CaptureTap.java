@@ -133,7 +133,8 @@ public class CaptureTap {
             // The shared match earlier versions wrote for every instance goes only once no
             // capture divert from any instance is left on this node.
             boolean anyCaptureLeft = divertOps.listDiverts(client, null, null).stream()
-                    .anyMatch(d -> CaptureAddresses.isCaptureObject(d.uniqueName()));
+                    .anyMatch(
+                            d -> d.uniqueName() != null && d.uniqueName().startsWith(DivertOperations.CAPTURE_PREFIX));
             if (!anyCaptureLeft) {
                 removeSettings(client, broker, CaptureNames.LEGACY_MATCH);
             }

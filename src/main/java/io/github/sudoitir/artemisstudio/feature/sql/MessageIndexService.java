@@ -530,8 +530,9 @@ public class MessageIndexService {
         if (CaptureAddresses.isCaptureObject(trimmed)) {
             // Studio's own capture queues are never captured: doing so taps the taps (ADR-0079).
             throw new IllegalArgumentException("A pattern under "
-                    + io.github.sudoitir.artemisstudio.feature.queues.DivertOperations.CAPTURE_PREFIX
-                    + " names Studio's own capture objects, which cannot be captured.");
+                    + io.github.sudoitir.artemisstudio.feature.queues.DivertOperations.CAPTURE_PREFIX + " or "
+                    + io.github.sudoitir.artemisstudio.feature.queues.DivertOperations.PLUGIN_TAP_PREFIX
+                    + " names Studio's own capture or plugin tap objects, which cannot be captured.");
         }
         return trimmed;
     }

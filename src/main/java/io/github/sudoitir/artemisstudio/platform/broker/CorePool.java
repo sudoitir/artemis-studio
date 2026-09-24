@@ -60,8 +60,20 @@ public class CorePool {
         return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, CAPTURE, CAPTURE_SESSIONS);
     }
 
+    /**
+     * A session for a plugin's message registration, held for as long as the registration runs
+     * (ADR-0111). Plugin drains have their own pool and connection, apart from capture's and the
+     * operator's: they set their own exception listener on it, which on a shared connection would
+     * replace capture's.
+     */
+    public PooledSession borrowForPlugins(UUID clusterId, String coreUrl, CoreConnectionSettings settings)
+            throws JMSException {
+        return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, PLUGINS, CAPTURE_SESSIONS);
+    }
+
     private static final String OPERATOR = "";
     private static final String CAPTURE = "|capture";
+    private static final String PLUGINS = "|plugins";
 
     /** Short-lived browse, send and sampling sessions per node. */
     private static final int OPERATOR_SESSIONS = 8;

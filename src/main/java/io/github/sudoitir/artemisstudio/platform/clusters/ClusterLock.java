@@ -74,7 +74,9 @@ public class ClusterLock {
          */
         FLOW_SAMPLE(NAMESPACE + 3),
         /** Setup review (ADR-0106): one instance reads a cluster's nodes per interval. */
-        SETUP_REVIEW(NAMESPACE + 4);
+        SETUP_REVIEW(NAMESPACE + 4),
+        /** Plugins' message registrations (ADR-0111): one instance converges a cluster's taps and drains. */
+        PLUGIN_MESSAGING(NAMESPACE + 5);
 
         private final int namespace;
 

@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginBridge;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginScopedBeans;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.servlet.ServletConfig;
@@ -106,6 +107,11 @@ public class PluginRuntimeFactory {
                 ctx.getBeanFactory().registerSingleton("pluginDataSource", dataSource);
                 ctx.getBeanFactory().registerSingleton("entityManagerFactory", emf);
                 ctx.getBeanFactory().registerSingleton("transactionManager", new JpaTransactionManager(emf));
+                // Objects bound to this plugin alone (ADR-0111), injectable like any other bean.
+                for (PluginScopedBeans scoped :
+                        mainContext.getBeansOfType(PluginScopedBeans.class).values()) {
+                    scoped.beansFor(pluginId).forEach(ctx.getBeanFactory()::registerSingleton);
+                }
                 new AnnotatedBeanDefinitionReader(ctx)
                         .register(PluginInfrastructure.class, PluginMessageConverterConfig.class, pluginConfigClass);
                 ctx.refresh();

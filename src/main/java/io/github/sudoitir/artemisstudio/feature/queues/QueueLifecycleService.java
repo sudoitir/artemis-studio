@@ -463,6 +463,11 @@ public class QueueLifecycleService {
             throw new IllegalArgumentException("'" + name + "' is in the namespace reserved for message capture ("
                     + DivertOperations.CAPTURE_PREFIX + "). Manage it from its capture subscription instead.");
         }
+        if (name != null && name.startsWith(DivertOperations.PLUGIN_TAP_PREFIX)) {
+            throw new IllegalArgumentException("'" + name + "' is in the namespace reserved for plugins' message taps ("
+                    + DivertOperations.PLUGIN_TAP_PREFIX
+                    + "). It is removed with the plugin registration that owns it.");
+        }
     }
 
     /**
