@@ -120,9 +120,9 @@ export interface ActionHost {
    * Opens `Dialog` with `props`, plus `opened` and `onClose`. On close, focus goes back through
    * `restoreFocus` — unless the dialog navigated away.
    */
-  open<P extends object>(
-    Dialog: ComponentType<P & HostedDialogProps>,
-    props: P,
+  open<P extends HostedDialogProps>(
+    Dialog: ComponentType<P>,
+    props: NoInfer<Omit<P, keyof HostedDialogProps>>,
     options?: { restoreFocus?: () => void },
   ): void;
   /** Explains why an action is unavailable, in full. */

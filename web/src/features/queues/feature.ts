@@ -6,6 +6,9 @@ import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { validateResourceSearch, type ResourceSearch } from '../../kernel/routing/search.ts';
 import { keys } from './api.ts';
 import {
+  AddressOpenQueues,
+  ConsumerOpenQueue,
+  ProducerOpenQueues,
   CopyQueueLink,
   CopyQueueName,
   DeleteQueue,
@@ -54,6 +57,10 @@ export const queuesFeature = defineFeature({
       { id: 'queues.delete', order: 10, section: 'destroy', Component: DeleteQueue },
     ],
     'queue.link': [{ id: 'queues.link', order: 10, Component: QueueLink }],
+    // What a queue means on the rows of the resources that name one.
+    'consumer.actions': [{ id: 'queues.consumer.open', order: 10, section: 'open', Component: ConsumerOpenQueue }],
+    'address.actions': [{ id: 'queues.address.open', order: 10, section: 'open', Component: AddressOpenQueues }],
+    'producer.actions': [{ id: 'queues.producer.open', order: 10, section: 'open', Component: ProducerOpenQueues }],
   },
   streamTopics: {
     queues: ({ clusterId, invalidate }) => invalidate(keys.topic(clusterId, 'queues')),

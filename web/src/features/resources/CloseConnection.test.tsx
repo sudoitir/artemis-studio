@@ -193,3 +193,23 @@ describe('closing a connection from a row', () => {
     await waitFor(() => expect(closes).toHaveBeenCalledTimes(1));
   });
 });
+
+describe('the close outcome outlives its row (ADR-0105)', () => {
+  it('stays on screen after the refreshed listing drops the closed row', async () => {
+    server.use(meHandler(), clusterHandler(), closeHandler(live));
+    const user = userEvent.setup();
+    const { rerender } = renderWithProviders(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(await within(dialog).findByRole('textbox', { name: /type "orders-worker-7" to confirm/i }), 'orders-worker-7');
+    await user.click(within(dialog).getByRole('button', { name: 'Close this connection' }));
+    await within(dialog).findByRole('button', { name: 'Close' });
+
+    // The listing refetches without the connection, so its row — and the action in it — is gone.
+    rerender(<></>);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog')).getAllByText(/applied/i).length).toBeGreaterThan(0);
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+});

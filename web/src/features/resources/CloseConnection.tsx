@@ -2,15 +2,13 @@ import { useState } from 'react';
 import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 
 import { useCloseAddressConsumers, useCloseNodeTarget, type ConnectionCloseKind, type ConnectionCloseView } from './api.ts';
-import { useCluster } from '../clusters/index.ts';
-import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
-import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { elapsedLabel, toServerMs, useServerNow } from '../../kernel/time/time.ts';
-
-const PERMISSION_LABEL = "Close client connections, sessions and an address's consumers";
+import { focusBack } from '../../kernel/actions/focusBack.ts';
+import { useCloseAddressGate, useCloseGate } from './closeGates.ts';
+import { useActionHost } from '../../kernel/actions/hostContext.ts';
 
 /** What "already gone" is called in the outcome rows, instead of the lifecycle wording. */
 const ALREADY_GONE = 'already gone';
@@ -51,25 +49,8 @@ export function CloseConnectionAction({
   rowLabel: string;
   fetchedAt: number | null;
 }) {
-  const { can, loading } = useCan();
-  const cluster = useCluster(clusterId);
-  const [opened, setOpened] = useState(false);
-
-  const permitted = gateFor(
-    can('connection:close', clusterId),
-    PERMISSION_LABEL,
-    cluster.data?.capabilities.managementWrite,
-    loading || cluster.isPending,
-  );
-  // A row the broker gave no identifier for has nothing to aim at. The control
-  // still shows, with the reason — a missing button would read as "Studio cannot
-  // close connections" rather than "this row cannot be addressed".
-  const gate: GateVerdict = targetId
-    ? permitted
-    : {
-        kind: 'blocked',
-        reason: `This broker reported no identifier for this ${NOUN[kind]}, so there is nothing to aim a close at.`,
-      };
+  const gate = useCloseGate(clusterId, kind, targetId);
+  const host = useActionHost();
 
   return (
     <>
@@ -82,22 +63,19 @@ export function CloseConnectionAction({
           // Named, not an icon alone: a row of identical glyphs tells a screen
           // reader nothing about which connection it is about to disconnect.
           aria-label={`Close the ${NOUN[kind]} for ${rowLabel}`}
-          onClick={() => setOpened(true)}
+          // Hosted outside the grid (ADR-0105): a close that succeeds removes this row on the next
+          // refresh, and a dialog mounted in the row would take its outcome with it.
+          onClick={(e) =>
+            host.open(
+              CloseDialog,
+              { clusterId, kind, nodeId, nodeName, targetId, fetchedAt },
+              { restoreFocus: focusBack(e.currentTarget) },
+            )
+          }
         >
           Close
         </Button>
       </CapabilityGate>
-
-      <CloseDialog
-        clusterId={clusterId}
-        kind={kind}
-        nodeId={nodeId}
-        nodeName={nodeName}
-        targetId={targetId}
-        fetchedAt={fetchedAt}
-        opened={opened}
-        onClose={() => setOpened(false)}
-      />
     </>
   );
 }
@@ -107,7 +85,7 @@ export function CloseConnectionAction({
  * armed only once the operator has been shown who is about to be disconnected
  * and what happens to the messages that client is holding.
  */
-function CloseDialog({
+export function CloseDialog({
   clusterId,
   kind,
   nodeId,
@@ -299,16 +277,8 @@ export function CloseAddressConsumersAction({
   clusterId: string;
   address: string;
 }) {
-  const { can, loading } = useCan();
-  const cluster = useCluster(clusterId);
-  const [opened, setOpened] = useState(false);
-
-  const gate = gateFor(
-    can('connection:close', clusterId),
-    PERMISSION_LABEL,
-    cluster.data?.capabilities.managementWrite,
-    loading || cluster.isPending,
-  );
+  const gate = useCloseAddressGate(clusterId);
+  const host = useActionHost();
 
   return (
     <>
@@ -319,18 +289,13 @@ export function CloseAddressConsumersAction({
           color="red"
           disabled={gate.kind === 'blocked'}
           aria-label={`Close every consumer on ${address}`}
-          onClick={() => setOpened(true)}
+          onClick={(e) =>
+            host.open(CloseAddressConsumers, { clusterId, address }, { restoreFocus: focusBack(e.currentTarget) })
+          }
         >
           Close consumers
         </Button>
       </CapabilityGate>
-
-      <CloseAddressConsumers
-        clusterId={clusterId}
-        address={address}
-        opened={opened}
-        onClose={() => setOpened(false)}
-      />
     </>
   );
 }

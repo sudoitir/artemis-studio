@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
+import { useParams } from '@tanstack/react-router';
 
 import { useSlot, type SlotName } from '../slots.ts';
 import type { ActionTargets } from './types.ts';
@@ -20,13 +21,16 @@ export function ResourceLink<K extends LinkKind>({
   children,
 }: {
   kind: K;
-  clusterId: string;
+  /** Defaults to the cluster in the address. */
+  clusterId?: string;
   target: ActionTargets[K];
   children: ReactNode;
 }) {
+  const params = useParams({ strict: false }) as { clusterId?: string };
   const [first] = useSlot(`${kind}.link` as LinkSlot<K>);
-  if (!first) return <>{children}</>;
+  const cluster = clusterId ?? params.clusterId;
+  if (!first || !cluster) return <>{children}</>;
   const Link = first.Component as ComponentType<object>;
-  const props: object = { clusterId, target, children };
+  const props: object = { clusterId: cluster, target, children };
   return <Link {...props} />;
 }

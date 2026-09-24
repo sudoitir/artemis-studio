@@ -13,8 +13,16 @@ import { Link, useNavigate } from '@tanstack/react-router';
 
 import { useCluster } from '../clusters/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
-import type { ActionProps, HostedDialogProps, LinkProps, QueueTarget } from '../../kernel/actions/types.ts';
-import { absoluteHref } from '../../kernel/routing/href.ts';
+import type {
+  ActionProps,
+  AddressTarget,
+  ConsumerTarget,
+  HostedDialogProps,
+  LinkProps,
+  ProducerTarget,
+  QueueTarget,
+} from '../../kernel/actions/types.ts';
+import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { queueHref } from './queueHref.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
@@ -245,4 +253,41 @@ export function QueueLink({ clusterId, target, children }: LinkProps<QueueTarget
       {children}
     </Link>
   );
+}
+
+/** On a consumer's row: the queue it consumes from. */
+export function ConsumerOpenQueue({ clusterId, target }: ActionProps<ConsumerTarget>) {
+  const navigate = useNavigate();
+  const name = target.queueName;
+  return (
+    <ActionMenuItem
+      label={name ? `Open queue ${name}` : 'Open its queue'}
+      icon={<IconListDetails size={16} aria-hidden />}
+      verdict={name ? undefined : { kind: 'blocked', reason: 'The broker reported no queue for this consumer.' }}
+      href={name ? queueHref(clusterId, name) : undefined}
+      onSelect={() => name && navigate({ to: `/clusters/${clusterId}/queues`, search: { queue: name } })}
+    />
+  );
+}
+
+/** The queues bound to an address, from any row that names one. */
+function OpenQueuesOn({ clusterId, address }: { clusterId: string; address: string | null | undefined }) {
+  const navigate = useNavigate();
+  return (
+    <ActionMenuItem
+      label="Open its queues"
+      icon={<IconListDetails size={16} aria-hidden />}
+      verdict={address ? undefined : { kind: 'blocked', reason: 'The broker reported no address for this row.' }}
+      href={address ? clusterHref(clusterId, 'queues', { q: address }) : undefined}
+      onSelect={() => address && navigate({ to: `/clusters/${clusterId}/queues`, search: { q: address } })}
+    />
+  );
+}
+
+export function AddressOpenQueues({ clusterId, target }: ActionProps<AddressTarget>) {
+  return <OpenQueuesOn clusterId={clusterId} address={target.address} />;
+}
+
+export function ProducerOpenQueues({ clusterId, target }: ActionProps<ProducerTarget>) {
+  return <OpenQueuesOn clusterId={clusterId} address={target.address} />;
 }
