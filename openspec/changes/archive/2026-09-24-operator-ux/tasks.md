@@ -61,7 +61,7 @@
 
 - [x] 9.1 `just verify` green
 - [x] 9.2 Docs: architecture slot list, flow guide, keyboard guide
-- [ ] 9.3 Archive the change, sync specs, tick README roadmap; file follow-ups
+- [x] 9.3 Archive the change, sync specs, tick README roadmap; file follow-ups
 
 ## Notes for whoever continues
 
