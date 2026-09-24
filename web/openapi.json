@@ -4540,6 +4540,13 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "name" : "splitBy",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -11599,6 +11606,27 @@
         },
         "required" : [ "active", "available", "clusterId", "matchesAvailable", "matchesCompared", "nodeId", "nodeName", "sections" ]
       },
+      "MetricNodeSeries" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "sampled" : {
+            "type" : "boolean"
+          },
+          "series" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MetricSeries"
+            }
+          }
+        },
+        "required" : [ "nodeId", "nodeName", "sampled", "series" ]
+      },
       "MetricPoint" : {
         "type" : "object",
         "properties" : {
@@ -11659,6 +11687,15 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/MetricSeries"
+            }
+          },
+          "splitBy" : {
+            "type" : [ "string", "null" ]
+          },
+          "byNode" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "$ref" : "#/components/schemas/MetricNodeSeries"
             }
           }
         },

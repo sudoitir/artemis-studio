@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Historical metric reads (metrics spec, ADR-0033). */
+/** Historical metric reads (metrics spec, ADR-0033), optionally split by broker node (ADR-0110). */
 @RestController
 @RequestMapping("/api/v1/clusters/{clusterId}/metrics")
 @RequiredArgsConstructor
@@ -30,10 +30,12 @@ public class MetricsController {
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-            @RequestParam(required = false) String step) {
+            @RequestParam(required = false) String step,
+            @RequestParam(required = false) String splitBy) {
         Instant effectiveTo = to != null ? to : Instant.now();
         Instant effectiveFrom = from != null ? from : effectiveTo.minus(Duration.ofHours(1));
         Duration requestedStep = step != null ? Duration.parse(step) : null;
-        return metricQuery.query(clusterId, metric, subjectType, subject, effectiveFrom, effectiveTo, requestedStep);
+        return metricQuery.query(
+                clusterId, metric, subjectType, subject, effectiveFrom, effectiveTo, requestedStep, splitBy);
     }
 }

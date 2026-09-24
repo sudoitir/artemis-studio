@@ -4568,6 +4568,12 @@ export interface components {
             matchesAvailable: number;
             note?: string | null;
         };
+        MetricNodeSeries: {
+            nodeId: string;
+            nodeName: string;
+            sampled: boolean;
+            series: components["schemas"]["MetricSeries"][];
+        };
         MetricPoint: {
             /** Format: date-time */
             ts: string;
@@ -4590,6 +4596,8 @@ export interface components {
             step: string;
             truncated: boolean;
             series: components["schemas"]["MetricSeries"][];
+            splitBy?: string | null;
+            byNode?: components["schemas"]["MetricNodeSeries"][] | null;
         };
         FlowBrokerNodeView: {
             nodeId?: string;
@@ -8481,6 +8489,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 step?: string;
+                splitBy?: string;
             };
             header?: never;
             path: {

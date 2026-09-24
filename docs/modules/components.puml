@@ -163,6 +163,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Messagetransfer, ArtemisSt
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Messagetransfer, ArtemisStudioApplication.ArtemisStudioApplication.Scraping, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Messagetransfer, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Messagetransfer, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Metrics, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Metrics, ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Metrics, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Metrics, ArtemisStudioApplication.ArtemisStudioApplication.Scraping, "uses", $techn="", $tags="", $link="")

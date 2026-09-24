@@ -1,7 +1,12 @@
 package io.github.sudoitir.artemisstudio.feature.metrics;
 
-import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerSessions;
+import io.github.sudoitir.artemisstudio.platform.broker.CapabilityProbe;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionCheck;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
+import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.support.ModuleIntegrationTest;
@@ -25,7 +30,22 @@ class MetricsModuleTest extends ModuleIntegrationTest {
     @MockitoBean
     BrokerConnections brokerConnections;
 
-    /** The kernel's permission checks walk the scope hierarchy the clusters module implements. */
+    /** The clusters module, a direct dependency since a split names its nodes (ADR-0110), builds broker clients. */
     @MockitoBean
-    ScopeHierarchy scopeHierarchy;
+    BrokerClientFactory clientFactory;
+
+    @MockitoBean
+    BrokerSessions sessions;
+
+    @MockitoBean
+    CapabilityProbe capabilityProbe;
+
+    @MockitoBean
+    CoreSubscriptionCheck coreSubscriptionCheck;
+
+    @MockitoBean
+    CoreSubscriptionManager coreSubscriptions;
+
+    @MockitoBean
+    NodeCallLimiter limiter;
 }
