@@ -14,9 +14,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * Blocks every request from a user flagged {@code mustChangePassword} except the
+ * Blocks every protected request from a user flagged {@code mustChangePassword} except the
  * handful needed to clear that flag (identity-and-sessions spec: "Login is
- * restricted until the password is changed"). Delegates the resulting exception
+ * restricted until the password is changed"). The SPA shell and its static assets stay
+ * reachable, or the browser could not load the change-password page itself. Delegates the resulting exception
  * to {@link HandlerExceptionResolver} so it renders through the same
  * {@code ApiExceptionHandler} a controller-thrown exception would.
  */
@@ -38,10 +39,20 @@ public class MustChangePasswordFilter extends OncePerRequestFilter {
         if (auth != null
                 && auth.getPrincipal() instanceof StudioPrincipal principal
                 && principal.mustChangePassword()
+                && isProtected(request.getRequestURI())
                 && !ALLOWED_PATHS.contains(request.getRequestURI())) {
             exceptionResolver.resolveException(request, response, null, new MustChangePasswordException());
             return;
         }
         chain.doFilter(request, response);
+    }
+
+    /** The paths {@code SecurityConfig} requires authentication for; everything else is the public SPA shell. */
+    private static boolean isProtected(String path) {
+        return path.startsWith("/api/")
+                || path.equals("/mcp")
+                || path.startsWith("/mcp/")
+                || path.startsWith("/plugin-ui/")
+                || path.equals("/actuator/refresh");
     }
 }

@@ -64,6 +64,7 @@ async function fetchManifest(): Promise<{ manifest?: ManifestView; error?: strin
       'The server',
     );
     if (response.status === 401) return {}; // not signed in: the login page needs no plugins
+    if (response.status === 423) return {}; // password change pending: that page needs no plugins either
     if (!response.ok) return { error: `the server answered ${response.status}` };
     return { manifest: (await response.json()) as ManifestView };
   } catch (error) {

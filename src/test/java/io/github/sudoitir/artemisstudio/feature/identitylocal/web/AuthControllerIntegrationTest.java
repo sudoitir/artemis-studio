@@ -14,6 +14,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.App
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -156,6 +157,10 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk());
 
         mvc.perform(get("/api/v1/clusters").session(session)).andExpect(status().isLocked());
+        // The browser must still load the SPA shell, or the change-password page never renders.
+        mvc.perform(get("/change-password").session(session))
+                .andExpect(
+                        result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(HttpStatus.LOCKED.value()));
         mvc.perform(get("/api/v1/auth/me").session(session)).andExpect(status().isOk());
 
         mvc.perform(post("/api/v1/auth/password")
