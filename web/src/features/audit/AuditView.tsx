@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Alert,
   Badge,
@@ -23,6 +23,7 @@ import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 100;
 
@@ -100,6 +101,9 @@ const columns: GridColumn<AuditEventView>[] = [
 
 /** The audit-log screen (non-negotiable #3): every mutating call, filterable, newest first. */
 export function AuditView() {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
   useDisplayZone();
@@ -161,6 +165,8 @@ export function AuditView() {
           />
         ) : (
           <TextInput
+            ref={filterRef}
+            label="Filter by user"
             placeholder="Filter by user"
             value={user}
             onChange={(e) => setUser(e.currentTarget.value)}

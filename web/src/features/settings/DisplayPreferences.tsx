@@ -1,4 +1,6 @@
-import { Select, Stack, Text } from '@mantine/core';
+import { Anchor, Select, Stack, Switch, Text } from '@mantine/core';
+
+import { setShortcutsHelpOpen, useSingleKeyShortcuts } from '../../kernel/keyboard/shortcuts.ts';
 
 import { absoluteLabel, useServerNow } from '../../kernel/time/time.ts';
 import {
@@ -25,6 +27,8 @@ export function DisplayPreferences() {
   // workstation's clock in a chosen zone would answer the wrong question, since
   // the whole point of `app/time.ts` is that the workstation's clock may be wrong.
   const now = useServerNow();
+
+  const [shortcuts, setShortcuts] = useSingleKeyShortcuts();
 
   const resolved = displayZone();
   const groups = zoneOptions();
@@ -77,6 +81,18 @@ export function DisplayPreferences() {
           timestamp names its offset, so a screen can still be lined up against a UTC log.
         </Text>
       )}
+
+      <Switch
+        mt="md"
+        size="sm"
+        checked={shortcuts}
+        onChange={(e) => setShortcuts(e.currentTarget.checked)}
+        label="Single-key shortcuts"
+        description="g then a letter to go to a view, ? for the list of shortcuts, / to focus a filter. Turn them off if you use speech input, or if they get in your way. ⌘K and ⌘B stay on."
+      />
+      <Anchor component="button" type="button" size="xs" onClick={() => setShortcutsHelpOpen(true)} w="fit-content">
+        See every keyboard shortcut
+      </Anchor>
     </Stack>
   );
 }

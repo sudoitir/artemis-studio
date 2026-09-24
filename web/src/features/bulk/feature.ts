@@ -27,7 +27,7 @@ export const bulkFeature = defineFeature({
   id: 'bulk',
   routes: { cluster: [runsRoute, runRoute] },
   nav: [
-    { group: 'activity', order: 15, label: 'Bulk runs', icon: IconStack2, path: 'bulk', permission: 'cluster:read' },
+    { group: 'activity', order: 15, label: 'Bulk runs', icon: IconStack2, path: 'bulk', hotkey: 'b', permission: 'cluster:read' },
   ],
   slots: {
     'queue.actions': [{ id: 'bulk.purge', order: 5, section: 'destroy', Component: PurgeQueue }],

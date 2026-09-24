@@ -54,7 +54,7 @@ export const messagesFeature = defineFeature({
   id: 'messages',
   routes: { cluster: [messagesRoute, dlqRoute] },
   nav: [
-    { group: 'messaging', order: 20, label: 'DLQ', icon: IconAlertTriangle, path: 'dlq', permission: 'message:read' },
+    { group: 'messaging', order: 20, label: 'DLQ', icon: IconAlertTriangle, path: 'dlq', hotkey: 'd', permission: 'message:read' },
   ],
   slots: {
     'queue.actions': [{ id: 'messages.browse', order: 20, section: 'open', Component: BrowseQueueMessages }],

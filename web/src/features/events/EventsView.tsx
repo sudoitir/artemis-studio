@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useRef } from 'react';
 import {
   Alert,
   Badge,
@@ -25,6 +25,7 @@ import { Pager } from '../../ui/Pager.tsx';
 import styles from './EventsView.module.css';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const LIVE_BUFFER_MAX = 500;
 
@@ -101,6 +102,9 @@ const columns: GridColumn<BrokerEventView>[] = [
 
 /** The events screen: this cluster's activemq.notifications history, newest first. */
 export function EventsView() {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
   useDisplayZone();
@@ -219,6 +223,8 @@ export function EventsView() {
           data={TYPES}
         />
         <TextInput
+          ref={filterRef}
+          label="Filter by address"
           placeholder="Filter by address"
           value={address}
           onChange={(e) => setAddress(e.currentTarget.value)}

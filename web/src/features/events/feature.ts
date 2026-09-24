@@ -20,6 +20,6 @@ export const eventsFeature = defineFeature({
   id: 'events',
   routes: { cluster: [eventsRoute] },
   nav: [
-    { group: 'activity', order: 10, label: 'Events', icon: IconBellRinging, path: 'events', permission: 'cluster:read' },
+    { group: 'activity', order: 10, label: 'Events', icon: IconBellRinging, path: 'events', hotkey: 'e', permission: 'cluster:read' },
   ],
 });

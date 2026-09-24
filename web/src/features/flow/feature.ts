@@ -19,7 +19,7 @@ export const flowFeature = defineFeature({
   contract: CONTRACT,
   id: 'flow',
   routes: { cluster: [flowRoute] },
-  nav: [{ group: 'observe', order: 15, label: 'Flow', icon: IconChartSankey, path: 'flow', permission: 'cluster:read' }],
+  nav: [{ group: 'observe', order: 15, label: 'Flow', icon: IconChartSankey, path: 'flow', hotkey: 'f', permission: 'cluster:read' }],
   slots: {
     'queue.actions': [{ id: 'flow.queue', order: 40, section: 'open', Component: QueueInFlow }],
     'address.actions': [{ id: 'flow.address', order: 40, section: 'open', Component: AddressInFlow }],

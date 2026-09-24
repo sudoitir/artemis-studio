@@ -35,6 +35,7 @@ export const triageFeature = defineFeature({
       label: 'Consumer health',
       icon: IconActivityHeartbeat,
       path: 'consumer-health',
+      hotkey: 'h',
       permission: 'cluster:read',
     },
   ],

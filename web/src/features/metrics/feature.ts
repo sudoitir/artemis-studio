@@ -45,7 +45,7 @@ export const metricsFeature = defineFeature({
   id: 'metrics',
   routes: { cluster: [metricsRoute] },
   nav: [
-    { group: 'observe', order: 20, label: 'Metrics', icon: IconChartLine, path: 'metrics', permission: 'cluster:read' },
+    { group: 'observe', order: 20, label: 'Metrics', icon: IconChartLine, path: 'metrics', hotkey: 'm', permission: 'cluster:read' },
   ],
   slots: {
     'queue.actions': [{ id: 'metrics.history', order: 30, section: 'open', Component: OpenQueueHistory }],

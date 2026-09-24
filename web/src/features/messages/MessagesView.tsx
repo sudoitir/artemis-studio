@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Alert,
   Anchor,
@@ -36,6 +36,7 @@ import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useSlot, type MessageSelection } from '../../kernel/slots.ts';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
@@ -80,6 +81,9 @@ const columns: GridColumn<MessageSummaryView>[] = [
  * (non-negotiable #5).
  */
 export function MessagesView() {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
   useDisplayZone();
@@ -266,6 +270,8 @@ export function MessagesView() {
       <Group justify="space-between">
         <Group gap="xs">
           <TextInput
+            ref={filterRef}
+            label="Message selector"
             placeholder="Selector, e.g. region = 'eu'"
             value={filter}
             onChange={(e) => setFilter(e.currentTarget.value)}

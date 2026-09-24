@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Alert, Button, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -15,6 +15,7 @@ import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
@@ -94,6 +95,9 @@ const columns: GridColumn<QueueView>[] = [
  * server-driven through `useQueues`.
  */
 export function QueuesView() {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as { q?: string; sort?: string; page?: number; queue?: string };
   const navigate = useNavigate();
@@ -210,6 +214,7 @@ export function QueuesView() {
     <Stack gap="sm">
       <Group justify="space-between" align="flex-end">
         <TextInput
+          ref={filterRef}
           label="Filter queues"
           placeholder="Queue or address name"
           value={filter}

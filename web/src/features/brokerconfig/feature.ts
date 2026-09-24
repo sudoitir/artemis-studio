@@ -57,6 +57,7 @@ export const brokerconfigFeature = defineFeature({
       label: 'Configuration',
       icon: IconAdjustmentsHorizontal,
       path: 'configuration',
+      hotkey: 'k',
       permission: 'cluster:read',
     },
     { group: 'configuration', order: 20, label: 'Config diff', icon: IconGitCompare, path: 'config-diff', permission: 'cluster:read' },

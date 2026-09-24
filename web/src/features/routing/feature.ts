@@ -45,7 +45,7 @@ export const routingFeature = defineFeature({
   id: 'routing',
   routes: { cluster: [routingRoute] },
   nav: [
-    { group: 'resources', order: 60, label: 'Routing', icon: IconRoute, path: 'routing', permission: 'cluster:read' },
+    { group: 'resources', order: 60, label: 'Routing', icon: IconRoute, path: 'routing', hotkey: 'o', permission: 'cluster:read' },
   ],
   slots: {
     'divert.actions': [

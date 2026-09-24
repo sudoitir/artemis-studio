@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -11,6 +11,7 @@ import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { formatRate, trendPhrase } from './verdict.ts';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
@@ -88,6 +89,9 @@ const columns: GridColumn<HealthRow>[] = [
  * pasted into a channel and reopened exactly as it was.
  */
 export function ConsumerHealthView() {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as {
     q?: string;
@@ -146,6 +150,7 @@ export function ConsumerHealthView() {
     <Stack gap="sm">
       <Group justify="space-between">
         <TextInput
+          ref={filterRef}
           label="Filter queues"
           placeholder="Queue or address name"
           value={filter}

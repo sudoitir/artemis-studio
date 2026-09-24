@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -13,6 +13,7 @@ import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
 import type { ActionKind, ActionTargets } from '../../kernel/actions/types.ts';
 import type { ApiError } from '../../kernel/api/request.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
@@ -305,6 +306,9 @@ const CONFIG: {
 
 /** The remaining five cross-node views, all from one column-spec-driven grid (ADR-0017). */
 export function ResourceView({ kind }: { kind: Kind }) {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as { q?: string; sort?: string; page?: number };
   const navigate = useNavigate();
@@ -364,6 +368,7 @@ export function ResourceView({ kind }: { kind: Kind }) {
     <Stack gap="sm">
       <Group justify="space-between">
         <TextInput
+          ref={filterRef}
           label={`Filter ${kind}`}
           placeholder={config.filter}
           value={filter}

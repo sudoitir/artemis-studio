@@ -33,6 +33,7 @@ export const transferFeature = defineFeature({
       label: 'Transfers',
       icon: IconTransfer,
       path: 'transfers',
+      hotkey: 'x',
       permission: 'message:read',
     },
   ],

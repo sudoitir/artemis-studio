@@ -44,7 +44,7 @@ export const queuesFeature = defineFeature({
   id: 'queues',
   routes: { cluster: [queuesRoute] },
   nav: [
-    { group: 'messaging', order: 10, label: 'Queues', icon: IconListDetails, path: 'queues', permission: 'cluster:read' },
+    { group: 'messaging', order: 10, label: 'Queues', icon: IconListDetails, path: 'queues', hotkey: 'q', permission: 'cluster:read' },
   ],
   palette: QueuePalette,
   slots: {

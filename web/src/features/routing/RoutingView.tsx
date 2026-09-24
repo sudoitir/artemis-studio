@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Alert, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -11,6 +11,7 @@ import { Pager } from '../../ui/Pager.tsx';
 import { BrokerXmlRemedy, DeleteDivertAction, CreateDivertAction, DRIFT_SENTENCE } from './DivertActions.tsx';
 import classes from './RoutingView.module.css';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
@@ -239,6 +240,9 @@ export function RoutingView() {
 
 /** The Diverts or the Bridges tab: one live, filtered, paged listing. */
 function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab: Tab; hasBuilder: boolean }) {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   const search = useSearch({ strict: false }) as RoutingSearch;
   const navigate = useNavigate();
 
@@ -277,8 +281,9 @@ function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab
     <>
       <Group justify="space-between">
         <TextInput
-          placeholder="Filter by address or name"
-          aria-label="Filter by address or name"
+          ref={filterRef}
+          label="Filter by address or name"
+          placeholder="Address or divert/bridge name"
           value={filter}
           onChange={(e) => setFilter(e.currentTarget.value)}
           w={280}

@@ -25,7 +25,7 @@ export const alertingFeature = defineFeature({
   id: 'alerting',
   routes: { cluster: [alertsRoute] },
   nav: [
-    { group: 'observe', order: 30, label: 'Alerts', icon: IconBell, path: 'alerts', permission: 'alert:read', Badge: FiringBadge },
+    { group: 'observe', order: 30, label: 'Alerts', icon: IconBell, path: 'alerts', hotkey: 'l', permission: 'alert:read', Badge: FiringBadge },
   ],
   slots: {
     'shell.header': [{ id: 'alerting-firing-total', order: 10, Component: FiringTotal }],

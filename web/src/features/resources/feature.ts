@@ -29,11 +29,11 @@ import {
 } from './rowActions.tsx';
 
 const KINDS = [
-  { kind: 'addresses', label: 'Addresses', icon: IconAt },
-  { kind: 'consumers', label: 'Consumers', icon: IconUsers },
-  { kind: 'sessions', label: 'Sessions', icon: IconPlugConnected },
-  { kind: 'connections', label: 'Connections', icon: IconNetwork },
-  { kind: 'producers', label: 'Producers', icon: IconSend },
+  { kind: 'addresses', label: 'Addresses', icon: IconAt, hotkey: 'a' },
+  { kind: 'consumers', label: 'Consumers', icon: IconUsers, hotkey: 'c' },
+  { kind: 'sessions', label: 'Sessions', icon: IconPlugConnected, hotkey: 'i' },
+  { kind: 'connections', label: 'Connections', icon: IconNetwork, hotkey: 'n' },
+  { kind: 'producers', label: 'Producers', icon: IconSend, hotkey: 'p' },
 ] as const;
 
 const resourceRoutes = KINDS.map(({ kind }) =>
@@ -50,12 +50,13 @@ export const resourcesFeature = defineFeature({
   contract: CONTRACT,
   id: 'resources',
   routes: { cluster: resourceRoutes },
-  nav: KINDS.map(({ kind, label, icon }, i) => ({
+  nav: KINDS.map(({ kind, label, icon, hotkey }, i) => ({
     group: 'resources' as const,
     order: (i + 1) * 10,
     label,
     icon,
     path: kind,
+    hotkey,
     permission: 'cluster:read',
   })),
   palette: ResourcePalette,
