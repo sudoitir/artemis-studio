@@ -1,8 +1,12 @@
-# Artemis Studio — single image: React SPA baked into the Spring Boot jar.
 # syntax=docker/dockerfile:1
+# Artemis Studio — single image: React SPA baked into the Spring Boot jar.
+#
+# The SPA and the jar are the same bytes on every architecture, so both build stages run on the
+# runner's own platform ($BUILDPLATFORM); only the runtime stage is per-target. Building them
+# under QEMU for arm64 made the release image take ten times longer for no different output.
 
 # ── 1. Build the frontend ────────────────────────────────────────────────────
-FROM node:24-bookworm-slim AS web
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
@@ -11,7 +15,7 @@ RUN npm run build
 
 # ── 2. Build the jar (frontend copied in via the `frontend` profile is skipped;
 #      we pass the already-built dist straight through instead) ───────────────
-FROM maven:3.9-eclipse-temurin-25 AS app
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-25 AS app
 WORKDIR /src
 COPY pom.xml ./
 RUN mvn -q -e -B dependency:go-offline

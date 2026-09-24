@@ -78,6 +78,15 @@ class SqlQueryParserTest {
         }
 
         @Test
+        void parenthesesAroundATermOrALiteralAreUnwrapped() {
+            QueryAst ast = parser.parse("SELECT * FROM \"q\" WHERE (priority) > (4)");
+
+            Predicate.Compare compare = (Predicate.Compare) ast.where();
+            assertThat(compare.term()).isEqualTo(new Term.ColumnTerm(Column.PRIORITY));
+            assertThat(compare.value()).isEqualTo(new Literal.Num(4, true));
+        }
+
+        @Test
         void aLiteralOnTheLeftIsNormalisedNotRejected() {
             QueryAst ast = parser.parse("SELECT * FROM \"q\" WHERE 4 < priority");
 
