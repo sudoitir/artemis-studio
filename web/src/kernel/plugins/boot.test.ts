@@ -65,6 +65,13 @@ describe('plugin boot', () => {
     expect(started.plugins).toEqual([]);
   });
 
+  it('starts without plugins, and without complaint, while a password change is pending', async () => {
+    server.use(http.get('*/api/v1/manifest', () => new HttpResponse(null, { status: 423 })));
+    const started = await boot();
+    expect(started.manifest).toBeUndefined();
+    expect(started.manifestError).toBeUndefined();
+  });
+
   it('starts without plugins, and says so, when the manifest cannot be read', async () => {
     server.use(http.get('*/api/v1/manifest', () => new HttpResponse(null, { status: 503 })));
     const started = await boot();
