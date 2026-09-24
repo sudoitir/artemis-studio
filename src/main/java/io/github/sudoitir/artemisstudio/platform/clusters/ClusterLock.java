@@ -72,7 +72,9 @@ public class ClusterLock {
          * Client-activity sampling for the flow view (ADR-0081): one instance samples a
          * cluster, every instance serves the persisted result.
          */
-        FLOW_SAMPLE(NAMESPACE + 3);
+        FLOW_SAMPLE(NAMESPACE + 3),
+        /** Setup review (ADR-0106): one instance reads a cluster's nodes per interval. */
+        SETUP_REVIEW(NAMESPACE + 4);
 
         private final int namespace;
 

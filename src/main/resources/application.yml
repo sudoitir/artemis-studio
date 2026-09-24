@@ -223,6 +223,10 @@ artemis-studio:
     # (ADR-0105). Blank: no link.
     public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
     email-timeout: 15s           # SMTP connect + read + write timeout, per delivery
+  setup-review:
+    # HA, clustering and durability configuration review (ADR-0106): one batched read per node.
+    interval: 15m                # how often every cluster is reviewed
+    min-interval: 30s            # least spacing between two reviews of one cluster
   sse:
     # Keep-alive comment interval for GET /api/v1/stream (ADR-0018). Lower it if a
     # proxy in front of Studio idles the connection out sooner than this.

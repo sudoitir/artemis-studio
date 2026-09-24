@@ -92,6 +92,10 @@
     "kind" : "KERNEL",
     "required" : true
   }, {
+    "id" : "setupreview",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
     "id" : "sql",
     "kind" : "FEATURE",
     "required" : false
