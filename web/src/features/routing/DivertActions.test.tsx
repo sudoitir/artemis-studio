@@ -212,7 +212,7 @@ describe('deleting a divert', () => {
       <DeleteDivertAction clusterId="c1" divert={{ ...DIVERT, owner: 'MESSAGE_CAPTURE' }} />,
     );
     expect(await screen.findByText('Owned by message capture')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Delete divert/ })).not.toBeInTheDocument();
   });
 
   it('previews per node and arms only on the divert name typed exactly', async () => {
@@ -226,10 +226,10 @@ describe('deleting a divert', () => {
     const user = userEvent.setup();
     renderWithProviders(<DeleteDivertAction clusterId="c1" divert={DIVERT} />);
 
-    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: /^Delete divert/ }));
     expect(await screen.findByText(/AUDIT.IN stops receiving a copy/)).toBeInTheDocument();
 
-    const confirm = screen.getByRole('button', { name: 'Delete on every live node' });
+    const confirm = await screen.findByRole('button', { name: 'Delete on every live node' });
     expect(confirm).toBeDisabled();
     await user.type(screen.getByRole('textbox', { name: /audit-copy/ }), 'audit-cop');
     expect(confirm).toBeDisabled();
@@ -246,7 +246,7 @@ describe('deleting a divert', () => {
     const user = userEvent.setup();
     renderWithProviders(<DeleteDivertAction clusterId="c1" divert={DIVERT} />);
 
-    const trigger = await screen.findByRole('button', { name: 'Delete' });
+    const trigger = await screen.findByRole('button', { name: /^Delete divert/ });
     await user.click(trigger);
     const dialog = await screen.findByRole('dialog');
     await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement | null));

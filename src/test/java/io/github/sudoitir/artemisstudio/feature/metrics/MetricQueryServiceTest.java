@@ -1,16 +1,21 @@
 package io.github.sudoitir.artemisstudio.feature.metrics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.NodeBucket;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -38,6 +43,9 @@ class MetricQueryServiceTest {
     @Mock
     ClusterAccessGuard clusterAccess;
 
+    @Mock
+    ClusterDirectory directory;
+
     MetricQueryService service;
 
     private final UUID clusterId = UUID.randomUUID();
@@ -45,7 +53,7 @@ class MetricQueryServiceTest {
     @BeforeEach
     void setUp() {
         when(reaper.retentionDays()).thenReturn(7);
-        service = new MetricQueryService(repository, reaper, clusterAccess);
+        service = new MetricQueryService(repository, reaper, clusterAccess, directory);
     }
 
     @Test
@@ -98,5 +106,84 @@ class MetricQueryServiceTest {
 
         assertThat(response.truncated()).isTrue();
         assertThat(response.from()).isAfter(from);
+    }
+
+    private static ClusterNode node(UUID id, String name, boolean active) {
+        ClusterNode n = mock(ClusterNode.class);
+        when(n.getId()).thenReturn(id);
+        when(n.getName()).thenReturn(name);
+        when(n.getActive()).thenReturn(active);
+        return n;
+    }
+
+    @Test
+    void splitByNodeNamesEachNodeAndListsAServingNodeWithNoSampleAsNotSampled() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID backup = UUID.randomUUID();
+        // Built before the stubbing that returns them: Mockito cannot stub inside another stubbing.
+        List<ClusterNode> nodes = List.of(
+                node(a, "artemis-a", true), node(b, "artemis-b", true), node(backup, "artemis-a-backup", false));
+        when(directory.nodes(clusterId)).thenReturn(nodes);
+        Instant to = Instant.now();
+        when(repository.rateSeries(any(), anyString(), any(), any(), any(), any()))
+                .thenReturn(List.of(new Bucket(to.minusSeconds(60), 30.0, null)));
+        when(repository.rateSeriesByNode(eq(clusterId), eq("messagesAdded"), eq("orders"), any(), any(), any()))
+                .thenReturn(List.of(new NodeBucket(a, to.minusSeconds(60), 30.0, null)));
+
+        MetricSeriesResponse response = service.query(
+                clusterId, List.of("messagesAdded"), "QUEUE", "orders", to.minusSeconds(3600), to, null, "NODE");
+
+        assertThat(response.splitBy()).isEqualTo("NODE");
+        assertThat(response.series().get(0).points()).hasSize(1);
+        assertThat(response.byNode())
+                .extracting(n -> n.nodeName() + ":" + n.sampled())
+                // The standby is neither serving nor sampled, so it is not a node of this split.
+                .containsExactly("artemis-a:true", "artemis-b:false");
+        assertThat(response.byNode().get(1).series().get(0).points()).isEmpty();
+    }
+
+    @Test
+    void splitByNodeWidensTheStepSoEveryNodeTogetherStaysWithinTheBound() {
+        List<ClusterNode> many = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            many.add(node(UUID.randomUUID(), "node-" + i, true));
+        }
+        when(directory.nodes(clusterId)).thenReturn(many);
+        Instant to = Instant.now();
+
+        MetricSeriesResponse response = service.query(
+                clusterId,
+                List.of("messageCount"),
+                "QUEUE",
+                "orders",
+                to.minus(Duration.ofHours(24)),
+                to,
+                Duration.ofSeconds(60),
+                "NODE");
+
+        long buckets = Duration.ofHours(24).dividedBy(Duration.parse(response.step()));
+        assertThat(buckets * many.size()).isLessThanOrEqualTo(2_000);
+        assertThat(response.truncated()).isTrue();
+    }
+
+    @Test
+    void aSplitIsRefusedForTheClusterScopeAndForAnyOtherDimension() {
+        Instant to = Instant.now();
+        assertThatThrownBy(() -> service.query(
+                        clusterId, List.of("messageCount"), "CLUSTER", null, to.minusSeconds(60), to, null, "NODE"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("needs one queue");
+        assertThatThrownBy(() -> service.query(
+                        clusterId,
+                        List.of("messageCount"),
+                        "QUEUE",
+                        "orders",
+                        to.minusSeconds(60),
+                        to,
+                        null,
+                        "ADDRESS"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("splitBy must be NODE");
     }
 }

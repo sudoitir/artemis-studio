@@ -89,3 +89,20 @@
   padding-block: 4px;
   border-block-end: 1px solid var(--as-border);
 }
+
+/* The Split layout's pane: as tall as the graph beside it, scrolling on its own. */
+.pane {
+  padding: var(--mantine-spacing-md);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface);
+  block-size: clamp(560px, calc(100dvh - 120px), 1100px);
+  overflow: auto;
+}
+
+.statements {
+  margin: 0;
+  padding-inline-start: var(--mantine-spacing-md);
+  display: grid;
+  gap: 4px;
+}

@@ -1,8 +1,9 @@
+import { METRIC_RANGES, type MetricRange } from '../../kernel/time/ranges.ts';
 import type { FlowNodeView } from './api.ts';
 
 /**
  * What the flow view is showing, as URL search params (non-negotiable #9): a shared or reloaded
- * address restores the same focus, ranking, grouping, bound, layers and sort.
+ * address restores the same focus, ranking, grouping, bound, layers, sort, layout and selection.
  */
 
 export const FLOW_RANKS = ['IN', 'OUT', 'BACKLOG'] as const;
@@ -20,8 +21,12 @@ export type FlowLayer = (typeof FLOW_LAYERS)[number];
 export const DEFAULT_LAYERS: readonly FlowLayer[] = ['BRIDGES', 'CLUSTER', 'DIVERTS'];
 
 export interface FlowSearch {
-  /** The graph is the default view; the table is its accessible twin. */
-  tab?: 'table';
+  /** The graph is the default view; the table is its accessible twin; split adds the monitoring pane. */
+  tab?: 'table' | 'split';
+  /** The selected node's id (`queue:<name>`, `client:<name>`…): what the inspector or the pane shows. */
+  node?: string;
+  /** The window of the split pane's trends; absent for an hour. */
+  range?: MetricRange;
   /** `client:<name>`, `address:<name>` or `queue:<name>`. */
   focus?: string;
   hops?: number;
@@ -38,7 +43,11 @@ const FOCUS = /^(client|address|queue):.+$/;
 
 export function validateFlowSearch(raw: Record<string, unknown>): FlowSearch {
   const out: FlowSearch = {};
-  if (raw.tab === 'table') out.tab = 'table';
+  if (raw.tab === 'table' || raw.tab === 'split') out.tab = raw.tab;
+  if (typeof raw.node === 'string' && raw.node) out.node = raw.node;
+  if (typeof raw.range === 'string' && (METRIC_RANGES as readonly string[]).includes(raw.range) && raw.range !== '1h') {
+    out.range = raw.range as MetricRange;
+  }
   if (typeof raw.focus === 'string' && FOCUS.test(raw.focus)) out.focus = raw.focus;
   const hops = Number(raw.hops);
   if (Number.isInteger(hops) && hops >= 2 && hops <= 3) out.hops = hops;
@@ -99,4 +108,16 @@ export function focusOf(node: FlowNodeView): string | null {
     default:
       return null;
   }
+}
+
+/** Synthetic nodes that stand for many resources, or none: nothing to open or copy. */
+const NO_MENU_ROLES = new Set(['TEMPORARY', 'ANONYMOUS']);
+
+/** Whether a flow node is one resource a menu can be about. */
+export function hasActions(node: FlowNodeView): boolean {
+  return (
+    ['QUEUE', 'ADDRESS', 'PRODUCER', 'CONSUMER'].includes(node.kind ?? '') &&
+    !NO_MENU_ROLES.has(node.role ?? '') &&
+    Boolean(node.label)
+  );
 }

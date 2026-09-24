@@ -72,6 +72,7 @@ export default defineConfig({
               { text: 'Configuration', link: '/guide/configuration' },
               { text: 'SQL Console', link: '/guide/sql-console' },
               { text: 'Flow', link: '/guide/flow' },
+              { text: 'Keyboard shortcuts', link: '/guide/keyboard' },
               { text: 'Message capture', link: '/guide/message-capture' },
               { text: 'Message transfer', link: '/guide/message-transfer' },
               { text: 'Data governance', link: '/guide/data-governance' },

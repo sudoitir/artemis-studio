@@ -142,4 +142,59 @@ describe('MetricsView', () => {
       to: undefined,
     });
   });
+
+  it('splits a queue by broker node on request, one chart per node, and says which node was not sampled', async () => {
+    const urls: string[] = [];
+    server.use(
+      http.get('*/api/v1/clusters/c1/metrics', ({ request }) => {
+        urls.push(request.url);
+        const split = new URL(request.url).searchParams.get('splitBy') === 'NODE';
+        const points = [{ ts: '2026-09-04T09:00:00.000Z', value: 30 }];
+        return HttpResponse.json({
+          from: '2026-09-04T09:00:00.000Z',
+          to: '2026-09-04T10:00:00.000Z',
+          step: 'PT1M',
+          truncated: false,
+          series: [series('messagesAdded', 'RATE', [{ ts: '2026-09-04T09:00:00.000Z', value: 40 }])],
+          ...(split
+            ? {
+                splitBy: 'NODE',
+                byNode: [
+                  { nodeId: 'a', nodeName: 'artemis-a', sampled: true, series: [series('messagesAdded', 'RATE', points)] },
+                  { nodeId: 'b', nodeName: 'artemis-b', sampled: false, series: [] },
+                ],
+              }
+            : {}),
+        });
+      }),
+      http.get('*/api/v1/clusters/c1/rr/stats', () => HttpResponse.json({ addresses: [] })),
+    );
+
+    currentSearch = { range: '1h', subject: 'orders' };
+    const { unmount } = renderWithProviders(<MetricsView />);
+    await userEvent.click(await screen.findByRole('switch', { name: 'Break down by broker node' }));
+    const call = navigateSpy.mock.calls.at(-1)?.[0] as { search: (prev: object) => Record<string, unknown> };
+    expect(call.search({ subject: 'orders' })).toEqual({ subject: 'orders', split: 'node' });
+    unmount();
+
+    currentSearch = { range: '1h', subject: 'orders', split: 'node' };
+    renderWithProviders(<MetricsView />);
+    expect(await screen.findByRole('region', { name: 'History on artemis-a' })).toHaveTextContent('in 30 msg/s');
+    expect(screen.getByRole('region', { name: 'History on artemis-b' })).toHaveTextContent('Not sampled in this window');
+    expect(urls.at(-1)).toContain('splitBy=NODE');
+  });
+
+  it('offers no split for the whole cluster', async () => {
+    currentSearch = { range: '1h', split: 'node' };
+    server.use(
+      http.get('*/api/v1/clusters/c1/metrics', ({ request }) => {
+        expect(request.url).not.toContain('splitBy');
+        return HttpResponse.json({ from: '2026-09-04T09:00:00.000Z', to: '2026-09-04T10:00:00.000Z', step: 'PT1M', truncated: false, series: [] });
+      }),
+      http.get('*/api/v1/clusters/c1/rr/stats', () => HttpResponse.json({ addresses: [] })),
+    );
+    renderWithProviders(<MetricsView />);
+    await screen.findByRole('heading', { name: 'Metrics' });
+    expect(screen.queryByRole('switch', { name: 'Break down by broker node' })).not.toBeInTheDocument();
+  });
 });

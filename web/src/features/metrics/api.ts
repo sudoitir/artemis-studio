@@ -7,6 +7,7 @@ type Schemas = components["schemas"];
 
 export type MetricSeries = Schemas["MetricSeries"];
 export type MetricSeriesResponse = Schemas["MetricSeriesResponse"];
+export type MetricNodeSeries = Schemas["MetricNodeSeries"];
 
 export const keys = {
   metrics: (id: string, params: MetricsParams) => clusterKey(id, 'metrics', params),
@@ -19,6 +20,8 @@ export interface MetricsParams {
   from: string;
   to: string;
   step?: string;
+  /** `NODE` adds one entry per serving node beside the total; one queue only (ADR-0110). */
+  splitBy?: "NODE";
 }
 
 /**
@@ -43,6 +46,7 @@ export function useMetrics(
       sp.set("from", params.from);
       sp.set("to", params.to);
       if (params.step) sp.set("step", params.step);
+      if (params.splitBy) sp.set("splitBy", params.splitBy);
       return request<MetricSeriesResponse>(
         `/clusters/${clusterId}/metrics?${sp.toString()}`,
       );

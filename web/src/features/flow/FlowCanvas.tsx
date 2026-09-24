@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   Controls,
@@ -10,15 +10,19 @@ import {
   useStore,
   useStoreApi,
 } from '@xyflow/react';
-import { Alert, Loader } from '@mantine/core';
+import { Alert, Loader, Text } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
 
+import { AnchoredMenu } from '../../ui/AnchoredMenu.tsx';
+import type { MenuAnchor } from '../../ui/menuAnchor.ts';
 import type { FlowGraphView } from './api.ts';
 import { FlowCanvasContext, type FlowCanvasState } from './canvasContext.ts';
 import { allocateDots } from './edgeEncoding.ts';
 import { FlowEdge } from './FlowEdge.tsx';
 import { DENSE_NODES, layoutSignature, pathThrough, toReactFlow } from './flowLayout.ts';
 import { FlowLegend } from './FlowLegend.tsx';
+import { hasActions } from './flowSearch.ts';
+import { FlowNodeActions } from './rowActions.tsx';
 import { AddressNode, ClientNode, LaneNode, QueueNode, RemoteNode } from './FlowNodes.tsx';
 import { useFlowLayout } from './useFlowLayout.ts';
 import classes from './FlowCanvas.module.css';
@@ -127,16 +131,47 @@ function RefitOnLayout({ signature }: { signature: string | null }) {
 }
 
 /**
+ * A selection the operator cannot see — restored from the address, or chosen by keyboard or from the
+ * pane — is brought into view at the current zoom. The rest of the graph dims around a selection, so
+ * one off-screen would leave nothing bright to look at.
+ */
+function RevealSelected({ id, ready }: { id: string | null; ready: boolean }) {
+  const flow = useReactFlow();
+  const store = useStoreApi();
+  const reducedMotion = useReducedMotion();
+  useEffect(() => {
+    if (!id || !ready) return;
+    const frame = requestAnimationFrame(() => {
+      const node = flow.getInternalNode(id);
+      if (!node) return;
+      const { width, height, transform } = store.getState();
+      const [tx, ty, zoom] = transform;
+      const { x, y } = node.internals.positionAbsolute;
+      const w = node.measured.width ?? 0;
+      const h = node.measured.height ?? 0;
+      const left = x * zoom + tx;
+      const top = y * zoom + ty;
+      if (left >= 0 && top >= 0 && left + w * zoom <= width && top + h * zoom <= height) return;
+      void flow.setCenter(x + w / 2, y + h / 2, { zoom, duration: reducedMotion ? 0 : 300 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [flow, store, id, ready, reducedMotion]);
+  return null;
+}
+
+/**
  * The flow graph (flow-visualization spec, ADR-0080): four columns laid out by ELK in a worker,
  * rates as width, labels and moving dots, faults in words, and the path through whatever is hovered,
  * focused or selected emphasised.
  */
 export function FlowCanvas({
+  clusterId,
   graph,
   selectedId,
   onSelect,
   paused,
 }: {
+  clusterId: string;
   graph: FlowGraphView;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -148,6 +183,11 @@ export function FlowCanvas({
   const [hovered, setHovered] = useState<string | null>(null);
   const [showText, setShowText] = useState(true);
   const [visible, setVisible] = useState(true);
+  const [menu, setMenu] = useState<{ id: string; anchor: MenuAnchor; opener: HTMLElement } | null>(null);
+  const openMenu = useCallback((id: string, anchor: MenuAnchor, opener: HTMLElement) => {
+    setMenu({ id, anchor, opener });
+  }, []);
+  const menuNode = menu ? (graph.nodes ?? []).find((n) => n.id === menu.id) : undefined;
 
   useEffect(() => {
     let onScreen = true;
@@ -197,8 +237,8 @@ export function FlowCanvas({
   }, [motion, model]);
 
   const context = useMemo<FlowCanvasState>(
-    () => ({ select: onSelect, emphasize: setHovered, showText, motion }),
-    [onSelect, showText, motion],
+    () => ({ select: onSelect, openMenu, emphasize: setHovered, showText, motion }),
+    [onSelect, openMenu, showText, motion],
   );
   const dense = model.nodes.length > DENSE_NODES;
   const laidOut = Object.keys(layout.positions).length > 0;
@@ -238,6 +278,8 @@ export function FlowCanvas({
               elementsSelectable={false}
               onlyRenderVisibleElements={dense}
               onPaneClick={() => onSelect(null)}
+              // The menu is anchored to a point on screen; panning moves the node away from it.
+              onMoveStart={() => setMenu(null)}
               proOptions={{ hideAttribution: true }}
             >
               <Background gap={24} />
@@ -245,11 +287,36 @@ export function FlowCanvas({
               <FlowMiniMap />
               <ZoomDetail onChange={setShowText} />
               <RefitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
+              <RevealSelected id={selectedId} ready={laidOut && !layout.pending} />
             </ReactFlow>
           </ReactFlowProvider>
         </FlowCanvasContext.Provider>
       </div>
       <FlowLegend motion={motion} />
+      <AnchoredMenu
+        opened={menu !== null}
+        anchor={menu?.anchor ?? null}
+        label={`Actions for ${menuNode?.label ?? 'node'}`}
+        onClose={() => {
+          const opener = menu?.opener;
+          setMenu(null);
+          if (opener?.isConnected) opener.focus();
+        }}
+      >
+        {menuNode && hasActions(menuNode) ? (
+          <FlowNodeActions
+            clusterId={clusterId}
+            node={menuNode}
+            restoreFocus={() => {
+              if (menu?.opener.isConnected) menu.opener.focus();
+            }}
+          />
+        ) : (
+          <Text size="sm" c="dimmed" px="sm" py={6}>
+            Nothing to open for this node.
+          </Text>
+        )}
+      </AnchoredMenu>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import { request, type ApiError } from './api/request.ts';
@@ -34,8 +35,13 @@ export function useManifestFeature(id: ModuleId): ManifestFeatureView | undefine
  */
 export function useEnabledFeatures(features: StudioFeature[]): StudioFeature[] {
   const manifest = useManifest().data;
-  if (!manifest) return features;
-  return features.filter(
-    (feature) => manifest.features.find((entry) => entry.id === feature.id)?.enabled !== false,
+  // The same array for the same inputs: hooks that derive from the feature list (the current view,
+  // the palette's sources) would otherwise see a new list on every render and re-run for nothing.
+  return useMemo(
+    () =>
+      manifest
+        ? features.filter((feature) => manifest.features.find((entry) => entry.id === feature.id)?.enabled !== false)
+        : features,
+    [features, manifest],
   );
 }

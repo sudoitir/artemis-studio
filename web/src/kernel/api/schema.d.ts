@@ -4568,6 +4568,12 @@ export interface components {
             matchesAvailable: number;
             note?: string | null;
         };
+        MetricNodeSeries: {
+            nodeId: string;
+            nodeName: string;
+            sampled: boolean;
+            series: components["schemas"]["MetricSeries"][];
+        };
         MetricPoint: {
             /** Format: date-time */
             ts: string;
@@ -4590,6 +4596,8 @@ export interface components {
             step: string;
             truncated: boolean;
             series: components["schemas"]["MetricSeries"][];
+            splitBy?: string | null;
+            byNode?: components["schemas"]["MetricNodeSeries"][] | null;
         };
         FlowBrokerNodeView: {
             nodeId?: string;
@@ -4609,6 +4617,14 @@ export interface components {
             consumersTotal: number;
             truncated: boolean;
             brokerXmlSnippet?: string;
+            /** Format: int64 */
+            backlog?: number | null;
+            /** Format: int64 */
+            consumers?: number | null;
+            /** Format: double */
+            inRate?: number | null;
+            /** Format: double */
+            outRate?: number | null;
         };
         FlowEdgeView: {
             id?: string;
@@ -4639,6 +4655,7 @@ export interface components {
             presentOf?: number;
             studio: boolean;
             faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
+            byNode?: components["schemas"]["FlowNodeRate"][] | null;
         };
         FlowFocusView: {
             kind?: string;
@@ -4674,6 +4691,28 @@ export interface components {
             /** Format: int32 */
             faults: number;
         };
+        FlowNodeRate: {
+            nodeId: string;
+            node: string;
+            /** Format: double */
+            rate?: number | null;
+            /** Format: date-time */
+            asOf?: string | null;
+            stale: boolean;
+        };
+        FlowNodeShare: {
+            nodeId: string;
+            node: string;
+            /** Format: int64 */
+            messageCount?: number | null;
+            /** Format: int64 */
+            consumerCount?: number | null;
+            /** Format: double */
+            inRate?: number | null;
+            /** Format: double */
+            outRate?: number | null;
+            stale: boolean;
+        };
         FlowNodeView: {
             id?: string;
             /** @enum {string} */
@@ -4693,6 +4732,7 @@ export interface components {
             users?: string[];
             brokerNodes?: string[];
             faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
+            byNode?: components["schemas"]["FlowNodeShare"][] | null;
         };
         FlowTotals: {
             /** Format: int32 */
@@ -8481,6 +8521,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 step?: string;
+                splitBy?: string;
             };
             header?: never;
             path: {
@@ -8532,6 +8573,7 @@ export interface operations {
                 limit?: number;
                 groupBy?: "CLIENT_ID" | "USER" | "HOST";
                 layers?: string;
+                byNode?: boolean;
             };
             header?: never;
             path: {

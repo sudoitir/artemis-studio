@@ -23,6 +23,8 @@ export const keys = {
 export function useQueues(
   id: string,
   params: ResourceParams = {},
+  /** `enabled: false` holds the read; `live: false` reads once instead of polling. */
+  options: { enabled?: boolean; live?: boolean } = {},
 ): UseQueryResult<PagedView<QueueView>, ApiError> {
   return useQuery({
     queryKey: keys.resource(id, "queues", params),
@@ -35,10 +37,37 @@ export function useQueues(
     // `/clusters//queues`, which is a 400 — and an errored observed query puts
     // the whole shell into its offline state, so every cluster-less screen
     // claimed Studio had lost the brokers.
-    enabled: id !== "",
-    refetchInterval: poll(5_000),
+    enabled: id !== "" && (options.enabled ?? true),
+    refetchInterval: options.live === false ? false : poll(5_000),
     placeholderData: (prev) => prev,
   });
+}
+
+/**
+ * One queue by name, exactly. The listing is the only read of a queue, so this asks it for the name
+ * and keeps the exact match: a filter is a substring match on queue or address, and `orders` also
+ * matches `orders.dlq`. `snapshot`, when the caller already has the row, answers without a request.
+ */
+export function useQueue(
+  clusterId: string,
+  queueName: string | undefined,
+  snapshot?: QueueView,
+): { queue: QueueView | undefined; isPending: boolean; isError: boolean } {
+  const lookup = useQuery({
+    queryKey: keys.resource(clusterId, "queues", { q: queueName, size: 50 }),
+    queryFn: () =>
+      request<PagedView<QueueView>>(
+        `/clusters/${clusterId}/queues${resourceSearch({ q: queueName, size: 50 })}`,
+      ),
+    enabled: !snapshot && clusterId !== "" && Boolean(queueName),
+    refetchInterval: poll(5_000),
+  });
+  if (snapshot) return { queue: snapshot, isPending: false, isError: false };
+  return {
+    queue: lookup.data?.data.find((q) => q.queueName === queueName),
+    isPending: Boolean(queueName) && lookup.isPending,
+    isError: lookup.isError,
+  };
 }
 
 /**

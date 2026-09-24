@@ -79,4 +79,18 @@ describe('flow search', () => {
   it('always sends the bound and ranking the server should apply', () => {
     expect(flowQueryString({})).toBe('rank=IN&limit=40&groupBy=CLIENT_ID');
   });
+
+  it('asks for the per-node breakdown only in the Split layout', () => {
+    expect(flowQueryString({ tab: 'table' })).not.toContain('byNode');
+    expect(flowQueryString({ tab: 'split' })).toContain('byNode=true');
+  });
+
+  it('keeps the layout, the selection and a non-default range', () => {
+    expect(validateFlowSearch({ tab: 'split', node: 'queue:ORDERS.inbound', range: '6h' })).toEqual({
+      tab: 'split',
+      node: 'queue:ORDERS.inbound',
+      range: '6h',
+    });
+    expect(validateFlowSearch({ tab: 'graph', range: '1h', node: '' })).toEqual({});
+  });
 });

@@ -18,6 +18,8 @@ import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowEdgeView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowFocusView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowGraphView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowKpis;
+import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowNodeRate;
+import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowNodeShare;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowNodeView;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowTotals;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeKind;
@@ -146,10 +148,23 @@ public class FlowGraphService {
                     .add(s, nodeNames.get(s.nodeId()));
         }
         Instant windowStart = now.minus(tierC.multipliedBy(3));
-        Map<String, SubjectRate> added =
-                metrics.latestRateWithTimeBySubject(clusterId, "messagesAdded", windowStart, now.plusSeconds(1));
-        Map<String, SubjectRate> acked =
-                metrics.latestRateWithTimeBySubject(clusterId, "messagesAcked", windowStart, now.plusSeconds(1));
+        // With a breakdown, the per-node rates are read and the totals derived from them — the same
+        // aggregate the unsplit read computes in SQL, so one query per metric either way (ADR-0110).
+        Map<String, Map<UUID, SubjectRate>> addedByNode = Map.of();
+        Map<String, Map<UUID, SubjectRate>> ackedByNode = Map.of();
+        Map<String, SubjectRate> added;
+        Map<String, SubjectRate> acked;
+        if (query.byNode()) {
+            addedByNode = metrics.latestRateWithTimeBySubjectAndNode(
+                    clusterId, "messagesAdded", windowStart, now.plusSeconds(1));
+            ackedByNode = metrics.latestRateWithTimeBySubjectAndNode(
+                    clusterId, "messagesAcked", windowStart, now.plusSeconds(1));
+            added = summed(addedByNode);
+            acked = summed(ackedByNode);
+        } else {
+            added = metrics.latestRateWithTimeBySubject(clusterId, "messagesAdded", windowStart, now.plusSeconds(1));
+            acked = metrics.latestRateWithTimeBySubject(clusterId, "messagesAcked", windowStart, now.plusSeconds(1));
+        }
 
         Map<String, ClientAgg> producers = new TreeMap<>();
         Map<String, ClientAgg> consumers = new TreeMap<>();
@@ -285,10 +300,24 @@ public class FlowGraphService {
                 .max(Instant::compareTo)
                 .orElse(null);
 
+        List<FlowNodeView> drawnNodes = drawing.nodes();
+        List<FlowEdgeView> drawnEdges = drawing.edges();
+        FlowKpis kpis = kpis(queues, producers, consumers, added, acked, brokerNodes, diverts, bridges, sampledNodes);
+        if (query.byNode()) {
+            Breakdown breakdown = new Breakdown(nodeNames, samples, addedByNode, ackedByNode, fresh);
+            drawnNodes = drawnNodes.stream().map(n -> breakdown.node(n, queues)).toList();
+            drawnEdges = drawnEdges.stream()
+                    .map(e -> breakdown.edge(e, producers, consumers))
+                    .toList();
+            brokerNodes = brokerNodes.stream()
+                    .map(b -> breakdown.brokerNode(b, queues))
+                    .toList();
+        }
+
         return new FlowGraphView(
-                drawing.nodes(),
-                drawing.edges(),
-                kpis(queues, producers, consumers, added, acked, brokerNodes, diverts, bridges, sampledNodes),
+                drawnNodes,
+                drawnEdges,
+                kpis,
                 new FlowTotals(all.size(), chosen.size(), query.limit(), query.clamped()),
                 focusView,
                 sampledAt,
@@ -1034,6 +1063,159 @@ public class FlowGraphService {
         return "queue:" + queue;
     }
 
+    private static Map<String, SubjectRate> summed(Map<String, Map<UUID, SubjectRate>> byNode) {
+        Map<String, SubjectRate> out = new HashMap<>();
+        byNode.forEach((subject, perNode) -> out.put(subject, SubjectRate.sum(perNode.values())));
+        return out;
+    }
+
+    /**
+     * Each drawn resource broken down per broker node (ADR-0110), from the per-node rows the graph is
+     * otherwise summed from. A figure a node did not report is null, never 0, and a node whose figures
+     * are old — or whose latest sweep failed — is marked stale.
+     */
+    private static final class Breakdown {
+        private final Map<UUID, String> names;
+        private final Map<UUID, NodeSampleState> states = new HashMap<>();
+        private final Map<String, Map<UUID, SubjectRate>> added;
+        private final Map<String, Map<UUID, SubjectRate>> acked;
+        private final Freshness fresh;
+
+        Breakdown(
+                Map<UUID, String> names,
+                List<NodeSample> samples,
+                Map<String, Map<UUID, SubjectRate>> added,
+                Map<String, Map<UUID, SubjectRate>> acked,
+                Freshness fresh) {
+            this.names = names;
+            this.added = added;
+            this.acked = acked;
+            this.fresh = fresh;
+            samples.forEach(s -> states.put(s.nodeId(), state(s.errorKind())));
+        }
+
+        private String name(UUID node) {
+            return names.getOrDefault(node, "removed node " + node.toString().substring(0, 8));
+        }
+
+        private static Double rateOf(Map<String, Map<UUID, SubjectRate>> rates, String queue, UUID node) {
+            SubjectRate r = rates.getOrDefault(queue, Map.of()).get(node);
+            return r == null ? null : r.rate();
+        }
+
+        /** Sums two rates where either may be unknown; a ternary here would unbox a null. */
+        private static Double plus(Double a, Double b) {
+            if (a == null) {
+                return b;
+            }
+            if (b == null) {
+                return a;
+            }
+            return a + b;
+        }
+
+        private List<FlowNodeShare> shares(List<QueueAgg> of) {
+            Map<UUID, FlowNodeShare> out = new java.util.TreeMap<>();
+            for (QueueAgg q : of) {
+                for (Map.Entry<UUID, QueueSnapshot> e : q.perNode.entrySet()) {
+                    UUID node = e.getKey();
+                    QueueSnapshot s = e.getValue();
+                    FlowNodeShare prev = out.get(node);
+                    Double in = rateOf(added, q.name, node);
+                    Double outRate = rateOf(acked, q.name, node);
+                    boolean stale = fresh.olderThan(s.ts(), fresh.tierC());
+                    out.put(
+                            node,
+                            prev == null
+                                    ? new FlowNodeShare(
+                                            node.toString(),
+                                            name(node),
+                                            s.messageCount(),
+                                            s.consumerCount(),
+                                            in,
+                                            outRate,
+                                            stale)
+                                    : new FlowNodeShare(
+                                            prev.nodeId(),
+                                            prev.node(),
+                                            prev.messageCount() + s.messageCount(),
+                                            prev.consumerCount() + s.consumerCount(),
+                                            plus(prev.inRate(), in),
+                                            plus(prev.outRate(), outRate),
+                                            prev.stale() || stale));
+                }
+            }
+            return out.values().stream()
+                    .sorted(Comparator.comparing(FlowNodeShare::node))
+                    .toList();
+        }
+
+        FlowNodeView node(FlowNodeView n, Map<String, QueueAgg> queues) {
+            if (n.kind() == NodeKind.QUEUE && n.role() != NodeRole.TEMPORARY) {
+                QueueAgg q = queues.get(n.id().substring("queue:".length()));
+                return q == null || q.perNode.isEmpty() ? n : n.withByNode(shares(List.of(q)));
+            }
+            if (n.kind() == NodeKind.ADDRESS && n.role() == null) {
+                String address = n.id().substring("address:".length());
+                List<QueueAgg> bound = queues.values().stream()
+                        .filter(q -> address.equals(q.address) && q.role == null)
+                        .toList();
+                return bound.isEmpty() ? n : n.withByNode(shares(bound));
+            }
+            return n;
+        }
+
+        FlowEdgeView edge(FlowEdgeView e, Map<String, ClientAgg> producers, Map<String, ClientAgg> consumers) {
+            if (e.kind() != EdgeKind.PRODUCE && e.kind() != EdgeKind.CONSUME) {
+                return e;
+            }
+            boolean producing = e.kind() == EdgeKind.PRODUCE;
+            // produce:<label>-><address>, consume:<label>-><queue>
+            String rest = e.id().substring(producing ? "produce:".length() : "consume:".length());
+            int arrow = rest.lastIndexOf("->");
+            ClientAgg client = (producing ? producers : consumers).get(rest.substring(0, arrow));
+            TargetAgg target = client == null ? null : client.targets.get(rest.substring(arrow + 2));
+            if (target == null || target.perNode.isEmpty()) {
+                return e;
+            }
+            List<FlowNodeRate> rates = target.perNode.entrySet().stream()
+                    .map(entry -> {
+                        NodeRateAgg r = entry.getValue();
+                        boolean failed = states.getOrDefault(entry.getKey(), NodeSampleState.OK) != NodeSampleState.OK;
+                        return new FlowNodeRate(
+                                entry.getKey().toString(),
+                                name(entry.getKey()),
+                                r.rate,
+                                r.asOf,
+                                failed || (r.asOf != null && fresh.olderThan(r.asOf, fresh.sampleInterval())));
+                    })
+                    .sorted(Comparator.comparing(FlowNodeRate::node))
+                    .toList();
+            return e.withByNode(rates);
+        }
+
+        FlowBrokerNodeView brokerNode(FlowBrokerNodeView b, Map<String, QueueAgg> queues) {
+            UUID node = UUID.fromString(b.nodeId());
+            Long backlog = null;
+            Long consumerTotal = null;
+            Double in = null;
+            Double out = null;
+            for (QueueAgg q : queues.values()) {
+                if (q.role != null) {
+                    continue;
+                }
+                QueueSnapshot s = q.perNode.get(node);
+                if (s != null) {
+                    backlog = (backlog == null ? 0 : backlog) + s.messageCount();
+                    consumerTotal = (consumerTotal == null ? 0 : consumerTotal) + s.consumerCount();
+                }
+                in = plus(in, rateOf(added, q.name, node));
+                out = plus(out, rateOf(acked, q.name, node));
+            }
+            return b.withTotals(backlog, consumerTotal, in, out);
+        }
+    }
+
     private record Path(String address, String queue) {
         String key() {
             return queue == null ? "a:" + address : "q:" + queue;
@@ -1079,7 +1261,11 @@ public class FlowGraphService {
             this.role = role;
         }
 
+        /** Each node's part, for a breakdown (ADR-0110). */
+        final Map<UUID, QueueSnapshot> perNode = new HashMap<>();
+
         void add(QueueSnapshot s, String nodeName) {
+            perNode.put(s.nodeId(), s);
             routingType = s.routingType();
             messageCount = (messageCount == null ? 0 : messageCount) + s.messageCount();
             consumerCount = (consumerCount == null ? 0 : consumerCount) + s.consumerCount();
@@ -1102,6 +1288,20 @@ public class FlowGraphService {
         int members;
         boolean stalled;
         Instant asOf;
+        /** Each node's part of the rate, for a breakdown (ADR-0110). */
+        final Map<UUID, NodeRateAgg> perNode = new HashMap<>();
+    }
+
+    private static final class NodeRateAgg {
+        Double rate;
+        Instant asOf;
+
+        void add(Double r, Instant sampledAt) {
+            if (r != null) {
+                rate = (rate == null ? 0 : rate) + r;
+            }
+            asOf = asOf == null || sampledAt.isAfter(asOf) ? sampledAt : asOf;
+        }
     }
 
     private static final class ClientAgg {
@@ -1131,6 +1331,7 @@ public class FlowGraphService {
             }
             t.members += e.memberCount();
             t.stalled |= e.stalled();
+            t.perNode.computeIfAbsent(stored.nodeId(), k -> new NodeRateAgg()).add(e.rate(), stored.sampledAt());
             t.asOf = t.asOf == null || stored.sampledAt().isAfter(t.asOf) ? stored.sampledAt() : t.asOf;
         }
 

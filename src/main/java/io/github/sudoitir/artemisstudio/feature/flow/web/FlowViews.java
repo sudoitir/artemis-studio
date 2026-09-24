@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.flow.web;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
 
@@ -109,7 +112,84 @@ public final class FlowViews {
             List<String> hosts,
             List<String> users,
             List<String> brokerNodes,
-            List<Fault> faults) {}
+            List<Fault> faults,
+            @Schema(nullable = true) List<FlowNodeShare> byNode) {
+
+        public FlowNodeView(
+                String id,
+                NodeKind kind,
+                NodeRole role,
+                String label,
+                Integer members,
+                Long messageCount,
+                Long consumerCount,
+                List<String> routingTypes,
+                List<String> protocols,
+                List<String> hosts,
+                List<String> users,
+                List<String> brokerNodes,
+                List<Fault> faults) {
+            this(
+                    id,
+                    kind,
+                    role,
+                    label,
+                    members,
+                    messageCount,
+                    consumerCount,
+                    routingTypes,
+                    protocols,
+                    hosts,
+                    users,
+                    brokerNodes,
+                    faults,
+                    null);
+        }
+
+        public FlowNodeView withByNode(List<FlowNodeShare> shares) {
+            return new FlowNodeView(
+                    id,
+                    kind,
+                    role,
+                    label,
+                    members,
+                    messageCount,
+                    consumerCount,
+                    routingTypes,
+                    protocols,
+                    hosts,
+                    users,
+                    brokerNodes,
+                    faults,
+                    shares);
+        }
+    }
+
+    /**
+     * One broker node's part of a queue or address (ADR-0110), when the breakdown was asked for.
+     *
+     * @param messageCount waiting messages on this node; null when not known
+     * @param consumerCount consumers attached on this node; null when not known
+     * @param inRate messages added per second on this node; null while not measurable, never 0
+     * @param outRate messages acknowledged per second on this node; null while not measurable
+     * @param stale the node's figures are older than three of their source's intervals
+     */
+    public record FlowNodeShare(
+            @Schema(requiredMode = REQUIRED) String nodeId,
+            @Schema(requiredMode = REQUIRED) String node,
+            @Schema(nullable = true) Long messageCount,
+            @Schema(nullable = true) Long consumerCount,
+            @Schema(nullable = true) Double inRate,
+            @Schema(nullable = true) Double outRate,
+            boolean stale) {}
+
+    /** One broker node's part of an edge's rate (ADR-0110). Null rate: not measurable, never 0. */
+    public record FlowNodeRate(
+            @Schema(requiredMode = REQUIRED) String nodeId,
+            @Schema(requiredMode = REQUIRED) String node,
+            @Schema(nullable = true) Double rate,
+            @Schema(nullable = true) Instant asOf,
+            boolean stale) {}
 
     /**
      * @param rate messages per second, or null while not measurable
@@ -146,7 +226,76 @@ public final class FlowViews {
             Integer presentOn,
             Integer presentOf,
             boolean studio,
-            List<Fault> faults) {}
+            List<Fault> faults,
+            @Schema(nullable = true) List<FlowNodeRate> byNode) {
+
+        public FlowEdgeView(
+                String id,
+                EdgeKind kind,
+                String source,
+                String target,
+                Double rate,
+                RateSource rateSource,
+                Instant asOf,
+                Long averagedOverSeconds,
+                boolean stale,
+                Delivery delivery,
+                Integer members,
+                Boolean exclusive,
+                String filter,
+                String transformer,
+                boolean bypassed,
+                Integer presentOn,
+                Integer presentOf,
+                boolean studio,
+                List<Fault> faults) {
+            this(
+                    id,
+                    kind,
+                    source,
+                    target,
+                    rate,
+                    rateSource,
+                    asOf,
+                    averagedOverSeconds,
+                    stale,
+                    delivery,
+                    members,
+                    exclusive,
+                    filter,
+                    transformer,
+                    bypassed,
+                    presentOn,
+                    presentOf,
+                    studio,
+                    faults,
+                    null);
+        }
+
+        public FlowEdgeView withByNode(List<FlowNodeRate> rates) {
+            return new FlowEdgeView(
+                    id,
+                    kind,
+                    source,
+                    target,
+                    rate,
+                    rateSource,
+                    asOf,
+                    averagedOverSeconds,
+                    stale,
+                    delivery,
+                    members,
+                    exclusive,
+                    filter,
+                    transformer,
+                    bypassed,
+                    presentOn,
+                    presentOf,
+                    studio,
+                    faults,
+                    rates);
+        }
+    }
 
     /** Totals over every path in the cluster, not only the shown ones. Rates are null when none is known. */
     public record FlowKpis(Double inRate, Double outRate, long backlog, int clients, int faults) {}
@@ -162,6 +311,8 @@ public final class FlowViews {
     /**
      * @param producersTotal, consumersTotal what the node reported having; above the seen counts when truncated
      * @param brokerXmlSnippet for a refused permission, the management access that grants it
+     * @param backlog, consumers, inRate, outRate the node's totals over every queue, with a breakdown
+     *     only (ADR-0110); null otherwise, and null for a figure not known
      */
     public record FlowBrokerNodeView(
             String nodeId,
@@ -174,7 +325,62 @@ public final class FlowViews {
             int consumersSeen,
             int consumersTotal,
             boolean truncated,
-            String brokerXmlSnippet) {}
+            String brokerXmlSnippet,
+            @Schema(nullable = true) Long backlog,
+            @Schema(nullable = true) Long consumers,
+            @Schema(nullable = true) Double inRate,
+            @Schema(nullable = true) Double outRate) {
+
+        public FlowBrokerNodeView(
+                String nodeId,
+                String name,
+                NodeSampleState state,
+                String message,
+                Instant sampledAt,
+                int producersSeen,
+                int producersTotal,
+                int consumersSeen,
+                int consumersTotal,
+                boolean truncated,
+                String brokerXmlSnippet) {
+            this(
+                    nodeId,
+                    name,
+                    state,
+                    message,
+                    sampledAt,
+                    producersSeen,
+                    producersTotal,
+                    consumersSeen,
+                    consumersTotal,
+                    truncated,
+                    brokerXmlSnippet,
+                    null,
+                    null,
+                    null,
+                    null);
+        }
+
+        /** This node's totals over every queue (ADR-0110), when the breakdown was asked for. */
+        public FlowBrokerNodeView withTotals(Long backlog, Long consumers, Double inRate, Double outRate) {
+            return new FlowBrokerNodeView(
+                    nodeId,
+                    name,
+                    state,
+                    message,
+                    sampledAt,
+                    producersSeen,
+                    producersTotal,
+                    consumersSeen,
+                    consumersTotal,
+                    truncated,
+                    brokerXmlSnippet,
+                    backlog,
+                    consumers,
+                    inRate,
+                    outRate);
+        }
+    }
 
     /** @param matched false when the focus names nothing currently in the cluster */
     public record FlowFocusView(String kind, String name, int hops, boolean matched) {}

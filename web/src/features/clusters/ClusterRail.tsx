@@ -3,6 +3,7 @@ import { Loader, Text } from '@mantine/core';
 import { useClusters, useEnvironments, type ClusterSummary, type EnvironmentView } from './api.ts';
 import { RegisterClusterButton } from './RegisterCluster.tsx';
 import { NavItem } from '../../kernel/shell/NavItem.tsx';
+import { sameViewOn, useCurrentView } from '../../kernel/nav/currentView.ts';
 import styles from './ClusterRail.module.css';
 
 /**
@@ -22,6 +23,8 @@ import styles from './ClusterRail.module.css';
 export function ClusterRail({ collapsed }: { collapsed: boolean }) {
   const clusters = useClusters();
   const environments = useEnvironments();
+  // Choosing another cluster keeps the view (ADR-0109): comparing Queues on two clusters is two clicks.
+  const view = useCurrentView();
 
   if (!clusters.data) {
     return <Loader size="sm" />;
@@ -58,7 +61,7 @@ export function ClusterRail({ collapsed }: { collapsed: boolean }) {
           {groupClusters.map((c) => (
             <NavItem
               key={c.id}
-              to={`/clusters/${c.id}`}
+              to={sameViewOn(c.id, view)}
               label={c.name}
               collapsed={collapsed}
               trailing={c.nodeCount}

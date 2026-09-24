@@ -1,37 +1,53 @@
 import { useEffect } from 'react';
-import type { SpotlightActionGroupData } from '@mantine/spotlight';
 import { useNavigate } from '@tanstack/react-router';
 
+import type { PaletteSource } from '../../kernel/feature.ts';
 import { useQueues } from './api.ts';
 
-/** The command palette's Queues group: the open cluster's queues by name, each opening the filtered queue list. */
-export function QueuePalette({
-  clusterId,
-  report,
-}: {
-  clusterId?: string;
-  report: (groups: SpotlightActionGroupData[]) => void;
-}) {
-  const queues = useQueues(clusterId ?? '', {});
+const SHOWN = 8;
+
+/**
+ * The command palette's Queues group (ADR-0109): the queues whose name or address matches what is
+ * typed, each opening that queue. It reads Studio's own queue snapshot — never a broker — and only
+ * while the palette is open with at least two characters typed, once per query rather than polling.
+ */
+export const QueuePalette: PaletteSource = ({ clusterId, query, opened, report }) => {
+  const searching = Boolean(clusterId) && opened && query.length >= 2;
+  const queues = useQueues(clusterId ?? '', { q: query, size: SHOWN }, { enabled: searching, live: false });
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!clusterId || !queues.data) {
+    if (!searching || !clusterId || !queues.data || queues.isPlaceholderData) {
       report([]);
       return;
     }
+    const { data, count } = queues.data;
     report([
       {
         group: 'Queues',
-        actions: queues.data.data.slice(0, 40).map((q) => ({
-          id: `queue-${q.address}-${q.queueName}`,
-          label: `${q.address} / ${q.queueName}`,
-          description: `depth ${q.totalMessageCount} · ${q.nodesPresent}/${q.nodesTotal} nodes`,
-          onClick: () => navigate({ to: `/clusters/${clusterId}/queues`, search: { q: q.queueName } }),
-        })),
+        actions: [
+          ...data.map((q) => ({
+            id: `queue-${q.address}-${q.queueName}`,
+            label: q.queueName,
+            description: `${q.address === q.queueName ? '' : `on ${q.address} · `}depth ${q.totalMessageCount.toLocaleString()} · ${q.nodesPresent}/${q.nodesTotal} nodes`,
+            // The query itself, so the palette's own filter keeps what the server already matched.
+            keywords: [query, q.address],
+            onClick: () => navigate({ to: `/clusters/${clusterId}/queues`, search: { queue: q.queueName } }),
+          })),
+          ...(count > data.length
+            ? [
+                {
+                  id: 'queues-all',
+                  label: `Show all ${count.toLocaleString()} queues matching "${query}"`,
+                  keywords: [query],
+                  onClick: () => navigate({ to: `/clusters/${clusterId}/queues`, search: { q: query } }),
+                },
+              ]
+            : []),
+        ],
       },
     ]);
-  }, [clusterId, queues.data, navigate, report]);
+  }, [searching, clusterId, query, queues.data, queues.isPlaceholderData, navigate, report]);
 
   return null;
-}
+};

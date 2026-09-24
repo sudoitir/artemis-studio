@@ -80,14 +80,24 @@ export interface NavContribution {
   permission?: string;
   /** Shown after the label, such as a count of what needs attention. */
   Badge?: ComponentType<{ clusterId: string }>;
+  /**
+   * The letter that, after `g`, goes to this view (ADR-0109). Unique among the built-in views; a
+   * plugin's is ignored, so a plugin can never take a letter an operator already relies on.
+   */
+  hotkey?: string;
 }
 
 /**
  * A feature's command-palette groups. It is rendered inside the palette, so it may use hooks, and calls
  * `report` whenever its groups change; `clusterId` is the cluster in view, if there is one.
+ *
+ * `query` is what the operator has typed (debounced) and `opened` whether the palette is open: a source
+ * that searches fetches only while it is open, never on every keystroke of a broker (ADR-0109).
  */
 export type PaletteSource = ComponentType<{
   clusterId?: string;
+  query: string;
+  opened: boolean;
   report: (groups: SpotlightActionGroupData[]) => void;
 }>;
 

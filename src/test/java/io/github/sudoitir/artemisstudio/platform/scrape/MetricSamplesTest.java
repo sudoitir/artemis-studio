@@ -203,4 +203,68 @@ class MetricSamplesTest extends PostgresIntegrationTest {
 
         assertThat(rates).doesNotContainKey("fresh-queue");
     }
+
+    @Test
+    void perNodeLatestRatesAddUpToTheSubjectRate() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sampleOnTwoNodes(base);
+
+        Map<UUID, MetricSamples.SubjectRate> perNode = repository
+                .latestRateWithTimeBySubjectAndNode(clusterId, "messagesAdded", base, base.plusSeconds(60))
+                .get("orders");
+        MetricSamples.SubjectRate total = repository
+                .latestRateWithTimeBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60))
+                .get("orders");
+
+        assertThat(perNode).hasSize(2);
+        assertThat(perNode.get(nodeId).rate()).isEqualTo(10.0);
+        assertThat(MetricSamples.SubjectRate.sum(perNode.values())).isEqualTo(total);
+    }
+
+    @Test
+    void aNodeSampledOnceHasNoRateRatherThanZero() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        UUID once = UUID.randomUUID();
+        sample("messagesAdded", "orders", base, 100.0);
+        sample("messagesAdded", "orders", base.plusSeconds(10), 200.0);
+        sample("messagesAdded", "orders", once, base, 5.0);
+
+        Map<UUID, MetricSamples.SubjectRate> perNode = repository
+                .latestRateWithTimeBySubjectAndNode(clusterId, "messagesAdded", base, base.plusSeconds(60))
+                .get("orders");
+
+        assertThat(perNode).containsOnlyKeys(nodeId);
+    }
+
+    @Test
+    void perNodeRateSeriesAddUpToTheTotalSeries() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sampleOnTwoNodes(base);
+
+        List<MetricSamples.NodeBucket> byNode = repository.rateSeriesByNode(
+                clusterId, "messagesAdded", "orders", base, base.plusSeconds(60), Duration.ofSeconds(60));
+        List<MetricSamples.Bucket> total = repository.rateSeries(
+                clusterId, "messagesAdded", "orders", base, base.plusSeconds(60), Duration.ofSeconds(60));
+
+        assertThat(byNode).hasSize(2);
+        assertThat(byNode.stream().mapToDouble(MetricSamples.NodeBucket::value).sum())
+                .isCloseTo(total.get(0).value(), org.assertj.core.data.Offset.offset(1e-9));
+    }
+
+    @Test
+    void perNodeGaugeSeriesKeepsEachNodeApartWithItsPeak() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        UUID other = UUID.randomUUID();
+        sample("messageCount", "orders", base, 10.0);
+        sample("messageCount", "orders", base.plusSeconds(15), 30.0);
+        sample("messageCount", "orders", other, base, 9_000.0);
+
+        List<MetricSamples.NodeBucket> byNode = repository.gaugeSeriesByNode(
+                clusterId, "messageCount", "orders", base, base.plusSeconds(60), Duration.ofSeconds(60));
+
+        assertThat(byNode)
+                .extracting(
+                        b -> b.nodeId().equals(nodeId) ? "this:" + b.value() + "/" + b.peak() : "other:" + b.value())
+                .containsExactlyInAnyOrder("this:20.0/30.0", "other:9000.0");
+    }
 }

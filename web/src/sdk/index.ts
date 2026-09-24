@@ -32,6 +32,26 @@ export { NAV_GROUPS, type NavGroupId } from '../kernel/nav/groups.ts';
 export { clusterRoute, rootRoute } from '../kernel/routing/roots.ts';
 export { ApiError, clusterKey, request } from '../kernel/api/request.ts';
 export { useCan } from '../kernel/auth/useCan.ts';
+export {
+  ACTION_SECTIONS,
+  type ActionHost,
+  type ActionMode,
+  type ActionProps,
+  type ActionSection,
+  type ActionTargets,
+  type AddressTarget,
+  type ConnectionTarget,
+  type ConsumerTarget,
+  type DivertTarget,
+  type HostedDialogProps,
+  type MessageTarget,
+  type ProducerTarget,
+  type QueueTarget,
+  type SessionTarget,
+} from '../kernel/actions/types.ts';
+export { ActionMenuItem } from '../ui/ActionMenuItem.tsx';
+export { CapabilityGate } from '../ui/CapabilityGate.tsx';
+export { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
 export { useMe } from '../kernel/auth/api.ts';
 export { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 export { NodeOutcomeSummary, OutcomeSummary, type OutcomeRow } from '../ui/NodeOutcomeSummary.tsx';

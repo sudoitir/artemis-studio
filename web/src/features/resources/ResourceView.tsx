@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -8,8 +8,12 @@ import { type PagedView, type ResourceParams } from '../../kernel/api/paging.ts'
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
+import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
+import type { ActionKind, ActionTargets } from '../../kernel/actions/types.ts';
 import type { ApiError } from '../../kernel/api/request.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
+import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
@@ -20,6 +24,31 @@ interface RowContext {
   clusterId: string;
   /** When the rows on screen were fetched, in epoch ms. A close depends on it. */
   fetchedAt: number | null;
+}
+
+/**
+ * A value that names another resource, as a link to it (ADR-0107) — or as plain text when the
+ * feature presenting it is disabled, or when the broker gave no value.
+ */
+function linked(
+  kind: 'queue' | 'address' | 'connection' | 'session',
+  value: string | null | undefined,
+): React.ReactNode {
+  if (!value) return '';
+  const target = (
+    kind === 'queue'
+      ? { queueName: value }
+      : kind === 'address'
+        ? { address: value }
+        : kind === 'connection'
+          ? { connectionId: value, nodeId: '', nodeName: '' }
+          : { sessionId: value, nodeId: '', nodeName: '' }
+  ) as never;
+  return (
+    <ResourceLink kind={kind} target={target}>
+      {value}
+    </ResourceLink>
+  );
 }
 
 interface KindConfig<T> {
@@ -35,6 +64,15 @@ interface KindConfig<T> {
    * click apart.
    */
   action?: (row: T, ctx: RowContext) => React.ReactNode;
+  /** The row's menu (ADR-0107): which resource it is, and how the row names itself. */
+  menu: RowMenuConfig<T>;
+}
+
+/** What a grid row's action menu is about. */
+interface RowMenuConfig<T> {
+  kind: ActionKind;
+  target: (row: T) => ActionTargets[ActionKind];
+  label: (row: T) => string;
 }
 
 /** The trailing action column. Fixed width; the action names itself, the header does not. */
@@ -67,8 +105,13 @@ const CONFIG: {
   addresses: {
     hook: useAddresses,
     rowKey: (r) => `${r.nodeId}:${r.name}`,
-    filter: 'Filter by address',
+    filter: 'Address name',
     noun: 'address',
+    menu: {
+      kind: 'address',
+      target: (r) => ({ address: r.name, snapshot: r }),
+      label: (r) => r.name,
+    },
     columns: [
       { id: 'name', header: 'Address', accessor: (r) => r.name, sortKey: 'name' },
       { id: 'routing', header: 'Routing', accessor: (r) => r.routingTypes ?? '', width: 130 },
@@ -81,11 +124,29 @@ const CONFIG: {
   consumers: {
     hook: useConsumers,
     rowKey: (r) => `${r.nodeId}:${r.consumerId}`,
-    filter: 'Filter by queue',
+    filter: 'Queue name or session id',
     noun: 'consumer',
+    menu: {
+      kind: 'consumer',
+      target: (r) => ({
+        nodeId: r.nodeId,
+        nodeName: r.nodeName,
+        consumerId: r.consumerId ?? '',
+        queueName: r.queueName,
+        sessionId: r.sessionId,
+        snapshot: r,
+      }),
+      label: (r) => `${r.queueName ?? 'consumer'} (${r.consumerId ?? 'no id'})`,
+    },
     columns: [
-      { id: 'queue', header: 'Queue', accessor: (r) => r.queueName ?? '', sortKey: 'queue' },
-      { id: 'address', header: 'Address', accessor: (r) => r.address ?? '' },
+      {
+        id: 'queue',
+        header: 'Queue',
+        accessor: (r) => r.queueName ?? '',
+        cell: (r) => linked('queue', r.queueName),
+        sortKey: 'queue',
+      },
+      { id: 'address', header: 'Address', accessor: (r) => r.address ?? '', cell: (r) => linked('address', r.address) },
       { id: 'protocol', header: 'Protocol', accessor: (r) => r.protocol ?? '', width: 100 },
       {
         id: 'delivered',
@@ -119,12 +180,29 @@ const CONFIG: {
   sessions: {
     hook: useSessions,
     rowKey: (r) => `${r.nodeId}:${r.sessionId}`,
-    filter: 'Filter by session id',
+    filter: 'Session id, connection id or user',
     noun: 'session',
+    menu: {
+      kind: 'session',
+      target: (r) => ({
+        nodeId: r.nodeId,
+        nodeName: r.nodeName,
+        sessionId: r.sessionId ?? '',
+        connectionId: r.connectionId,
+        snapshot: r,
+      }),
+      label: (r) => r.sessionId ?? 'session',
+    },
     columns: [
       { id: 'session', header: 'Session', accessor: (r) => r.sessionId ?? '', sortKey: 'session' },
       { id: 'user', header: 'User', accessor: (r) => r.user ?? '', width: 120 },
-      { id: 'conn', header: 'Connection', accessor: (r) => r.connectionId ?? '', width: 140 },
+      {
+        id: 'conn',
+        header: 'Connection',
+        accessor: (r) => r.connectionId ?? '',
+        cell: (r) => linked('connection', r.connectionId),
+        width: 140,
+      },
       {
         id: 'consumers',
         header: 'Consumers',
@@ -156,8 +234,13 @@ const CONFIG: {
   connections: {
     hook: useConnections,
     rowKey: (r) => `${r.nodeId}:${r.connectionId}`,
-    filter: 'Filter by remote address',
+    filter: 'Remote address, client id or connection id',
     noun: 'connection',
+    menu: {
+      kind: 'connection',
+      target: (r) => ({ nodeId: r.nodeId, nodeName: r.nodeName, connectionId: r.connectionId ?? '', snapshot: r }),
+      label: (r) => r.clientId || r.remoteAddress || r.connectionId || 'connection',
+    },
     columns: [
       {
         id: 'remote',
@@ -191,10 +274,28 @@ const CONFIG: {
   producers: {
     hook: useProducers,
     rowKey: (r) => `${r.nodeId}:${r.producerId}`,
-    filter: 'Filter by address',
+    filter: 'Address, producer name or session id',
     noun: 'producer',
+    menu: {
+      kind: 'producer',
+      target: (r) => ({
+        nodeId: r.nodeId,
+        nodeName: r.nodeName,
+        producerId: r.producerId ?? '',
+        address: r.address,
+        sessionId: r.sessionId,
+        snapshot: r,
+      }),
+      label: (r) => r.name || r.address || r.producerId || 'producer',
+    },
     columns: [
-      { id: 'address', header: 'Address', accessor: (r) => r.address ?? '', sortKey: 'address' },
+      {
+        id: 'address',
+        header: 'Address',
+        accessor: (r) => r.address ?? '',
+        cell: (r) => linked('address', r.address),
+        sortKey: 'address',
+      },
       { id: 'name', header: 'Name', accessor: (r) => r.name ?? '' },
       { id: 'protocol', header: 'Protocol', accessor: (r) => r.protocol ?? '', width: 100 },
       { id: 'sent', header: 'Sent', accessor: (r) => r.messagesSent, numeric: true, width: 100 },
@@ -205,6 +306,9 @@ const CONFIG: {
 
 /** The remaining five cross-node views, all from one column-spec-driven grid (ADR-0017). */
 export function ResourceView({ kind }: { kind: Kind }) {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as { q?: string; sort?: string; page?: number };
   const navigate = useNavigate();
@@ -264,6 +368,8 @@ export function ResourceView({ kind }: { kind: Kind }) {
     <Stack gap="sm">
       <Group justify="space-between">
         <TextInput
+          ref={filterRef}
+          label={`Filter ${kind}`}
           placeholder={config.filter}
           value={filter}
           onChange={(e) => setFilter(e.currentTarget.value)}
@@ -280,11 +386,23 @@ export function ResourceView({ kind }: { kind: Kind }) {
         </Stack>
       ) : (
         <VirtualTable
+          label={kind.charAt(0).toUpperCase() + kind.slice(1)}
           columns={columns}
           data={rows}
           sort={search.sort}
           onSortChange={setSort}
           rowKey={config.rowKey}
+          rowMenu={{
+            label: config.menu.label,
+            render: (row, menu) => (
+              <ResourceActions
+                kind={config.menu.kind}
+                clusterId={clusterId}
+                target={config.menu.target(row)}
+                restoreFocus={menu.restoreFocus}
+              />
+            ),
+          }}
           emptyLabel={
             <Text size="sm">
               No {config.noun}s right now. This view is a live read across every serving node — one

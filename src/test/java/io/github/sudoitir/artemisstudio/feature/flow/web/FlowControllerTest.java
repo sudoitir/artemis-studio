@@ -109,4 +109,25 @@ class FlowControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{id}/flow", clusterId).param("focus", "orders"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void theBreakdownIsOptInAndCarriesEachNodesShare() throws Exception {
+        String plain = mvc.perform(get("/api/v1/clusters/{id}/flow", clusterId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getHeader("ETag");
+
+        var splitResponse = mvc.perform(
+                        get("/api/v1/clusters/{id}/flow", clusterId).param("byNode", "true"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse();
+        String split = splitResponse.getHeader("ETag");
+        org.assertj.core.api.Assertions.assertThat(splitResponse.getContentAsString())
+                .contains("\"byNode\":[{")
+                .contains("\"node\":\"node-a\"");
+
+        org.assertj.core.api.Assertions.assertThat(split).isNotEqualTo(plain);
+    }
 }

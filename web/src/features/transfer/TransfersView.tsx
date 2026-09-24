@@ -180,6 +180,7 @@ export function TransfersView() {
         <Skeleton height={160} />
       ) : (
         <VirtualTable
+          label="Transfers"
           columns={columns}
           data={query.data}
           rowKey={(r) => r.id}

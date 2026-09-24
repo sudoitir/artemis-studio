@@ -115,6 +115,26 @@ class PagedListServiceTest {
     }
 
     @Test
+    void aConsumerIsFoundByTheSessionItRunsInAsWellAsByItsQueue() {
+        UUID clusterId = UUID.randomUUID();
+        BrokerNodeEntity b = node(clusterId, "node-b", URL_B);
+        when(nodes.nodes(clusterId)).thenReturn(List.of(b));
+        when(connections.forCluster(eq(clusterId), eq(URL_B)))
+                .thenReturn(client(URL_B, "search-broker.json", "list-consumers.json"));
+
+        // A session row links to its consumers by session id, which is not the field the listing
+        // used to filter on (the queue name).
+        PagedView<ConsumerView> bySession =
+                service.consumers(clusterId, ResourceQuery.of("dbb33b79-a798-11f1", 1, 50, null));
+        PagedView<ConsumerView> byQueue = service.consumers(clusterId, ResourceQuery.of("spike.a.q000", 1, 50, null));
+        PagedView<ConsumerView> neither = service.consumers(clusterId, ResourceQuery.of("no-such-thing", 1, 50, null));
+
+        assertThat(bySession.data()).extracting(ConsumerView::queueName).containsExactly("SPIKE.A.q000");
+        assertThat(byQueue.data()).hasSize(1);
+        assertThat(neither.data()).isEmpty();
+    }
+
+    @Test
     void everyNodeDownRethrowsTheClassifiedFailure() {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);

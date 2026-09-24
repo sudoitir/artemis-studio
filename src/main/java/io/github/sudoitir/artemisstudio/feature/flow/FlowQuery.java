@@ -12,7 +12,22 @@ import java.util.Set;
  * @param clamped the caller asked for more paths than {@link #MAX_LIMIT}
  */
 public record FlowQuery(
-        Focus focus, int hops, Rank rank, int limit, GroupBy groupBy, Set<Layer> layers, boolean clamped) {
+        Focus focus,
+        int hops,
+        Rank rank,
+        int limit,
+        GroupBy groupBy,
+        Set<Layer> layers,
+        boolean clamped,
+        boolean byNode) {
+
+    /**
+     * The same query, with or without each resource's per-node breakdown (ADR-0110). Only the Split
+     * layout asks for it, so the default graph's payload does not grow with the node count.
+     */
+    public FlowQuery withByNode(boolean breakdown) {
+        return new FlowQuery(focus, hops, rank, limit, groupBy, layers, clamped, breakdown);
+    }
 
     public static final int DEFAULT_LIMIT = 40;
     public static final int MAX_LIMIT = 200;
@@ -69,7 +84,8 @@ public record FlowQuery(
                 Math.clamp(limit, 1, MAX_LIMIT),
                 groupBy == null ? GroupBy.CLIENT_ID : groupBy,
                 parseLayers(layers),
-                limit > MAX_LIMIT);
+                limit > MAX_LIMIT,
+                false);
     }
 
     private static Set<Layer> parseLayers(String layers) {

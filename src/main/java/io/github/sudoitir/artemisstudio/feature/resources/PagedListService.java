@@ -57,7 +57,13 @@ public class PagedListService {
 
     @Transactional(readOnly = true)
     public PagedView<AddressView> addresses(UUID clusterId, ResourceQuery query) {
-        return fanOut(clusterId, ResourceKind.ADDRESSES, query, mapper::address, AddressView::name, nameComparator());
+        return fanOut(
+                clusterId,
+                ResourceKind.ADDRESSES,
+                query,
+                mapper::address,
+                List.of(AddressView::name),
+                nameComparator());
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +73,8 @@ public class PagedListService {
                 ResourceKind.CONSUMERS,
                 query,
                 mapper::consumer,
-                ConsumerView::queueName,
+                // The fields other views link a consumer by: its queue, and the session it runs in.
+                List.of(ConsumerView::queueName, ConsumerView::sessionId),
                 Comparator.comparing(ConsumerView::queueName, nullSafe()));
     }
 
@@ -78,7 +85,7 @@ public class PagedListService {
                 ResourceKind.SESSIONS,
                 query,
                 mapper::session,
-                SessionView::sessionId,
+                List.of(SessionView::sessionId, SessionView::connectionId, SessionView::user),
                 Comparator.comparing(SessionView::sessionId, nullSafe()));
     }
 
@@ -89,7 +96,8 @@ public class PagedListService {
                 ResourceKind.CONNECTIONS,
                 query,
                 mapper::connection,
-                ConnectionView::remoteAddress,
+                // A flow client is named by its client id; a session names its connection by id.
+                List.of(ConnectionView::remoteAddress, ConnectionView::clientId, ConnectionView::connectionId),
                 Comparator.comparing(ConnectionView::remoteAddress, nullSafe()));
     }
 
@@ -100,7 +108,7 @@ public class PagedListService {
                 ResourceKind.PRODUCERS,
                 query,
                 mapper::producer,
-                ProducerView::address,
+                List.of(ProducerView::address, ProducerView::name, ProducerView::sessionId),
                 Comparator.comparing(ProducerView::address, nullSafe()));
     }
 
@@ -109,7 +117,7 @@ public class PagedListService {
             ResourceKind kind,
             ResourceQuery query,
             BiFunction<JsonNode, NodeRef, T> rowMapper,
-            Function<T, String> filterField,
+            List<Function<T, String>> filterFields,
             Comparator<T> comparator) {
         // Every one of the five public reads routes through here, so the scope check
         // lives here too — a sixth kind cannot be added without inheriting it.
@@ -141,7 +149,7 @@ public class PagedListService {
         }
 
         List<T> filtered = merged.stream()
-                .filter(row -> query.matches(filterField.apply(row)))
+                .filter(row -> filterFields.stream().anyMatch(field -> query.matches(field.apply(row))))
                 .toList();
         return query.paginate(filtered, comparator);
     }

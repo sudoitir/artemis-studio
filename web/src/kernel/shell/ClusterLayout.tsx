@@ -1,14 +1,16 @@
 import { Stack } from '@mantine/core';
 import { Outlet, useParams } from '@tanstack/react-router';
 
+import { ActionHostProvider } from '../actions/ActionHost.tsx';
 import { useFeatures } from '../features.ts';
 import { useSlot } from '../slots.ts';
 import { useClusterStream } from '../stream/useClusterStream.ts';
+import { Breadcrumb } from './Breadcrumb.tsx';
 
 /**
  * One cluster's screen: the header its features contribute, then the routed view.
  *
- * It mounts the cluster's one SSE stream, subscribed to the topics of every enabled feature
+ * It hosts the dialogs row actions open (ADR-0107), and mounts the cluster's one SSE stream, subscribed to the topics of every enabled feature
  * (ADR-0018, ADR-0070). A view never opens a second one for a topic a feature handles: a second
  * `EventSource` is a second connection, and it fights over the shared stream-status store. The
  * stream reconnects indefinitely and reports its state to the header's freshness indicator
@@ -20,12 +22,17 @@ export function ClusterLayout() {
   useClusterStream(clusterId, topics);
   const header = useSlot('cluster.header');
 
+  // The action host is per cluster: the dialogs row actions open live here, outside every grid, and
+  // leaving the cluster closes them.
   return (
-    <Stack gap="lg">
-      {header.map(({ id, Component }) => (
-        <Component key={id} clusterId={clusterId} />
-      ))}
-      <Outlet />
-    </Stack>
+    <ActionHostProvider>
+      <Stack gap="lg">
+        <Breadcrumb />
+        {header.map(({ id, Component }) => (
+          <Component key={id} clusterId={clusterId} />
+        ))}
+        <Outlet />
+      </Stack>
+    </ActionHostProvider>
   );
 }

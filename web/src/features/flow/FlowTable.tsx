@@ -5,8 +5,9 @@ import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import type { FlowEdgeView, FlowGraphView, FlowNodeView } from './api.ts';
 import { edgeText, FAULT_LABELS, RELATION, rateSortValue, rateSourceLabel } from './flowFormat.ts';
+import { focusOf, hasActions } from './flowSearch.ts';
+import { FlowNodeActions } from './rowActions.tsx';
 import classes from './FlowView.module.css';
-
 
 const KIND: Record<string, string> = {
   PRODUCER: 'client',
@@ -26,14 +27,17 @@ interface Row {
 
 /**
  * The same paths the graph draws, as rows (flow-visualization spec: the table presents the same
- * paths as the graph). One row per edge; activating a row focuses its client or queue.
+ * paths as the graph). One row per edge; activating a row focuses its client or queue, and its
+ * menu opens that resource elsewhere, never changing the broker.
  */
 export function FlowTable({
+  clusterId,
   graph,
   sort,
   onSortChange,
   onFocus,
 }: {
+  clusterId: string;
   graph: FlowGraphView;
   sort: string | undefined;
   onSortChange: (sort: string | undefined) => void;
@@ -98,14 +102,29 @@ export function FlowTable({
 
   return (
     <VirtualTable
+      label="Flow paths"
       columns={columns}
       data={rows}
       sort={sort}
       onSortChange={onSortChange}
       rowKey={(r) => r.id}
       onRowClick={(r) => {
-        const focus = focusFor(r);
+        const subject = subjectOf(r);
+        const focus = subject ? focusOf(subject) : null;
         if (focus) onFocus(focus);
+      }}
+      rowMenu={{
+        label: (r) => subjectOf(r)?.label ?? r.id,
+        render: (r, menu) => {
+          const subject = subjectOf(r);
+          return subject && hasActions(subject) ? (
+            <FlowNodeActions clusterId={clusterId} node={subject} restoreFocus={menu.restoreFocus} />
+          ) : (
+            <Text size="sm" c="dimmed" px="sm" py={6}>
+              Nothing to open for this path.
+            </Text>
+          );
+        },
       }}
       emptyLabel={<Text size="sm">No paths to list for this view.</Text>}
     />
@@ -141,24 +160,23 @@ function toRows(graph: FlowGraphView): Row[] {
   });
 }
 
-function focusFor(row: Row): string | null {
+/** The resource a row is about: its client, its queue, or the address it diverts to. */
+function subjectOf(row: Row): FlowNodeView | undefined {
   switch (row.edge.kind) {
     case 'PRODUCE':
-      return row.from ? `client:${row.from.label}` : null;
+    case 'BRIDGE':
+    case 'CLUSTER_HOP':
+      return row.from;
     case 'CONSUME':
-      return row.to ? `client:${row.to.label}` : null;
     case 'ROUTE':
-      return row.to ? `queue:${row.to.label}` : null;
+      return row.to;
     case 'DIVERT':
     case 'WILDCARD':
     case 'DEAD_LETTER':
     case 'EXPIRY':
-      return row.to?.kind === 'ADDRESS' ? `address:${row.to.label}` : null;
-    case 'BRIDGE':
-    case 'CLUSTER_HOP':
-      return row.from ? `queue:${row.from.label}` : null;
+      return row.to?.kind === 'ADDRESS' ? row.to : undefined;
     default:
-      return null;
+      return undefined;
   }
 }
 

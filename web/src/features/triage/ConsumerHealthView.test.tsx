@@ -13,6 +13,8 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
   useParams: () => ({ clusterId: 'c1' }),
   useSearch: () => currentSearch,
   useNavigate: () => navigateSpy,
+  // Queue names are links (ADR-0107); this view is rendered without a router here.
+  Link: ({ children, ...rest }: { children: React.ReactNode }) => <a {...(rest as object)}>{children}</a>,
 }));
 
 const { ConsumerHealthView } = await import('./ConsumerHealthView.tsx');

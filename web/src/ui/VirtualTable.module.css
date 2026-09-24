@@ -12,6 +12,12 @@
   border-radius: var(--mantine-radius-md);
 }
 
+.scroll[data-compact] {
+  block-size: auto;
+  min-block-size: 0;
+  max-block-size: 320px;
+}
+
 /* One track list, declared once as `--as-cols` and consumed by the header row
    and every body row. Both are grid containers over the same tracks, so the
    columns line up by construction — there is no second layout pass to drift
@@ -170,4 +176,21 @@
   color: var(--as-text-dimmed);
   border: 1px dashed var(--as-border);
   border-radius: var(--mantine-radius-md);
+}
+
+/* The Actions control's cell: centred like the select column. */
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* The row whose menu is open stays marked, so the operator can see which row the menu is for. */
+.bodyRow[data-menu-open] {
+  background: var(--as-grid-row-hover);
+}
+
+.bodyRow[data-selected] {
+  background: var(--as-grid-row-hover);
 }

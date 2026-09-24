@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Alert, Anchor, Badge, Group, Spoiler, Stack, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Group, Spoiler, Stack, Switch, Text, Title } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useMetrics, type MetricSeries } from './api.ts';
@@ -11,6 +11,7 @@ import { DepthChart } from './DepthChart.tsx';
 import { ThroughputChart } from './ThroughputChart.tsx';
 import { ConsumersChart } from './ConsumersChart.tsx';
 import { MetricsTable } from './MetricsTable.tsx';
+import { NodeSplitCharts } from './NodeSplitPanels.tsx';
 import { StatRow, type Stat } from './StatRow.tsx';
 import { earliest, formatCount, formatExact, formatRate, latest } from './axis.ts';
 import { useSlot } from '../../kernel/slots.ts';
@@ -36,12 +37,15 @@ export function MetricsView() {
     from?: string;
     to?: string;
     subject?: string;
+    split?: 'node';
   };
 
   const live = !search.from && !search.to;
   const range = search.range ?? '1h';
   const spec = rangeSpec(range);
   const subject = search.subject;
+  // The split is per queue only (ADR-0110): a cluster total has no node series to add up to it.
+  const split = Boolean(subject) && search.split === 'node';
 
   // Ticks at the bucket width, not at a second: the window can only move when a
   // new bucket exists, and a key that changed every second would mint a cache
@@ -66,6 +70,7 @@ export function MetricsView() {
       from,
       to,
       step: live ? spec.step : undefined,
+      splitBy: split ? 'NODE' : undefined,
     },
     live ? Math.max(15_000, spec.stepMs) : false,
   );
@@ -127,7 +132,7 @@ export function MetricsView() {
             onClick={() =>
               navigate({
                 to: '.',
-                search: (prev: Record<string, unknown>) => ({ ...prev, subject: undefined }),
+                search: (prev: Record<string, unknown>) => ({ ...prev, subject: undefined, split: undefined }),
               })
             }
           >
@@ -135,6 +140,20 @@ export function MetricsView() {
           </Anchor>
           .
         </Alert>
+      ) : null}
+
+      {subject ? (
+        <Switch
+          label="Break down by broker node"
+          checked={split}
+          onChange={(event) => {
+            const on = event.currentTarget.checked;
+            void navigate({
+              to: '.',
+              search: (prev: Record<string, unknown>) => ({ ...prev, split: on ? 'node' : undefined }),
+            });
+          }}
+        />
       ) : null}
 
       {metrics.data?.truncated ? (
@@ -186,6 +205,17 @@ export function MetricsView() {
       >
         <ConsumersChart series={consumers} range={range} from={fromMs} to={toMs} syncId={syncId} />
       </ChartPanel>
+
+      {split && metrics.data && !error ? (
+        <Stack gap="xs">
+          <Title order={4}>Per broker node</Title>
+          <Text size="sm" c="dimmed">
+            One chart per node, on one scale, so a node's share is read by comparing heights. The nodes add up
+            to the totals above.
+          </Text>
+          <NodeSplitCharts response={metrics.data} range={range} from={fromMs} to={toMs} syncId={syncId} />
+        </Stack>
+      ) : null}
 
       {error || isPending ? null : (
         <Spoiler maxHeight={0} showLabel="Show this window as a table" hideLabel="Hide the table">

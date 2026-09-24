@@ -178,6 +178,7 @@ export function ResultGrid({
   useDisplayZone();
   return (
     <VirtualTable
+      label="Query results"
       columns={columns}
       data={rows}
       rowKey={rowKey}

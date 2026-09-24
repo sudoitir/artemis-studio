@@ -7,6 +7,7 @@ import { keys } from './api.ts';
 import { TransferActions } from './TransferActions.tsx';
 import { TransferRunView } from './TransferRunView.tsx';
 import { TransfersView } from './TransfersView.tsx';
+import { TransferQueueMessages } from './rowActions.tsx';
 
 const runsRoute = createRoute({
   getParentRoute: () => clusterRoute,
@@ -32,10 +33,12 @@ export const transferFeature = defineFeature({
       label: 'Transfers',
       icon: IconTransfer,
       path: 'transfers',
+      hotkey: 'x',
       permission: 'message:read',
     },
   ],
   slots: {
+    'queue.actions': [{ id: 'transfer.queue', order: 30, section: 'operate', Component: TransferQueueMessages }],
     'messages.selection': [{ id: 'transfer-actions', order: 10, Component: TransferActions }],
   },
   streamTopics: {

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import type { MetricRange } from '../../kernel/time/ranges.ts';
 import {
   Alert,
   Badge,
@@ -10,12 +11,13 @@ import {
   SegmentedControl,
   Select,
   Skeleton,
+  Splitter,
   Stack,
   Text,
   Title,
   VisuallyHidden,
 } from '@mantine/core';
-import { useReducedMotion } from '@mantine/hooks';
+import { useLocalStorage, useReducedMotion } from '@mantine/hooks';
 import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
@@ -25,6 +27,7 @@ import { BrokerNodeNotices } from './BrokerNodeNotices.tsx';
 import { FlowCanvas } from './FlowCanvas.tsx';
 import { FlowInspector } from './FlowInspector.tsx';
 import { FlowKpis } from './FlowKpis.tsx';
+import { FlowMonitorPane } from './FlowMonitorPane.tsx';
 import { GROUP_LABELS, RANK_LABELS, totalRateLabel } from './flowFormat.ts';
 import {
   DEFAULT_LIMIT,
@@ -170,6 +173,7 @@ export function FlowView() {
         <FlowBody
           clusterId={clusterId}
           data={graph.data}
+          breakdownPending={graph.isPlaceholderData}
           search={search}
           rank={rank}
           setSearch={setSearch}
@@ -179,23 +183,46 @@ export function FlowView() {
   );
 }
 
+/** The graph's and the pane's share of the Split layout, in %, remembered in this browser. */
+const DEFAULT_SPLIT = [56, 44];
+const PANE_MIN = 20;
+const GRAPH_MIN = 35;
+
+function validSplit(sizes: unknown): sizes is number[] {
+  return (
+    Array.isArray(sizes) &&
+    sizes.length === 2 &&
+    sizes.every((n) => typeof n === 'number' && Number.isFinite(n)) &&
+    sizes[0] >= GRAPH_MIN &&
+    sizes[1] >= PANE_MIN
+  );
+}
+
 function FlowBody({
   clusterId,
   data,
+  breakdownPending,
   search,
   rank,
   setSearch,
 }: {
   clusterId: string;
   data: FlowGraphView;
+  breakdownPending: boolean;
   search: FlowSearch;
   rank: FlowRank;
   setSearch: (patch: Partial<Record<keyof FlowSearch, unknown>>) => void;
 }) {
   const now = useServerNow();
   const reducedMotion = useReducedMotion();
-  const [selected, setSelected] = useState<string | null>(null);
+  // The selection is in the address (flow-visualization spec): a reload or a shared link restores it.
+  const selected = search.node ?? null;
   const [paused, setPaused] = useState(false);
+  const [split, setSplit] = useLocalStorage<number[]>({
+    key: 'as:flow:split',
+    defaultValue: DEFAULT_SPLIT,
+    getInitialValueInEffect: false,
+  });
   const opener = useRef<HTMLElement | null>(null);
 
   const totals = data.totals ?? { paths: 0, shown: 0, limit: DEFAULT_LIMIT, clamped: false };
@@ -204,24 +231,22 @@ function FlowBody({
   const tab = search.tab ?? 'graph';
   const nodes = data.nodes ?? [];
 
-  const select = useCallback((id: string | null) => {
-    if (id) {
-      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      setSelected(id);
-    } else {
-      setSelected(null);
-    }
-  }, []);
+  const select = useCallback(
+    (id: string | null) => {
+      if (id) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setSearch({ node: id ?? undefined });
+    },
+    [setSearch],
+  );
 
   const closeInspector = () => {
-    setSelected(null);
+    setSearch({ node: undefined });
     const back = opener.current;
     if (back?.isConnected) back.focus();
   };
 
   const focusOn = (next: string) => {
-    setSelected(null);
-    setSearch({ focus: next, hops: undefined });
+    setSearch({ focus: next, hops: undefined, node: undefined });
   };
 
   // Values are focus strings, unique by construction: an address and its queue commonly share a
@@ -283,9 +308,10 @@ function FlowBody({
               data={[
                 { value: 'graph', label: 'Graph' },
                 { value: 'table', label: 'Table' },
+                { value: 'split', label: 'Split' },
               ]}
               value={tab}
-              onChange={(value) => setSearch({ tab: value === 'table' ? 'table' : undefined })}
+              onChange={(value) => setSearch({ tab: value === 'graph' ? undefined : value })}
             />
             <Group gap="sm" align="flex-end" wrap="wrap">
               <Select
@@ -303,7 +329,7 @@ function FlowBody({
                   if (value) focusOn(value);
                 }}
               />
-              {tab === 'graph' ? (
+              {tab !== 'table' ? (
                 reducedMotion ? (
                   <Text size="xs" c="dimmed">
                     Motion off: your system asks for reduced motion.
@@ -348,9 +374,31 @@ function FlowBody({
             </Text>
           ))}
 
-          {tab === 'graph' ? (
+          {tab === 'split' ? (
+            <Splitter
+              onResizeEnd={(_, sizes) => {
+                if (validSplit(sizes)) setSplit(sizes);
+              }}
+              attributes={{ handle: { 'aria-label': 'Resize the monitoring pane' } }}
+            >
+              <Splitter.Pane defaultSize={validSplit(split) ? split[0] : DEFAULT_SPLIT[0]} min={GRAPH_MIN}>
+                <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={select} paused={paused} />
+              </Splitter.Pane>
+              <Splitter.Pane defaultSize={validSplit(split) ? split[1] : DEFAULT_SPLIT[1]} min={PANE_MIN} collapsible>
+                <FlowMonitorPane
+                  clusterId={clusterId}
+                  graph={data}
+                  nodeId={selected}
+                  range={search.range ?? '1h'}
+                  breakdownPending={breakdownPending}
+                  onRangeChange={(range: MetricRange) => setSearch({ range: range === '1h' ? undefined : range })}
+                  onClear={closeInspector}
+                />
+              </Splitter.Pane>
+            </Splitter>
+          ) : tab === 'graph' ? (
             <div className={classes.graphLayout} data-inspecting={selected ? true : undefined}>
-              <FlowCanvas graph={data} selectedId={selected} onSelect={select} paused={paused} />
+              <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={select} paused={paused} />
               {selected ? (
                 <FlowInspector
                   graph={data}
@@ -363,6 +411,7 @@ function FlowBody({
             </div>
           ) : (
             <FlowTable
+              clusterId={clusterId}
               graph={data}
               sort={search.sort}
               onSortChange={(sort) => setSearch({ sort })}

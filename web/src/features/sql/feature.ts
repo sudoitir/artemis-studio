@@ -39,7 +39,7 @@ export const sqlFeature = defineFeature({
   id: 'sql',
   routes: { cluster: [sqlRoute] },
   nav: [
-    { group: 'messaging', order: 30, label: 'SQL Console', icon: IconTerminal2, path: 'sql', permission: 'message:read' },
+    { group: 'messaging', order: 30, label: 'SQL Console', icon: IconTerminal2, path: 'sql', hotkey: 's', permission: 'message:read' },
   ],
   slots: {
     'settings.sections': [{ id: 'sql-index', order: 60, group: 'studio', title: 'Message index', Component: IndexSection }],

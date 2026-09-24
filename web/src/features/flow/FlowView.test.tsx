@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -71,8 +71,52 @@ function graph(over: Record<string, unknown> = {}) {
   };
 }
 
-function serve(body: Record<string, unknown>) {
-  server.use(http.get('*/api/v1/clusters/c1/flow', () => HttpResponse.json(body)));
+function serve(body: Record<string, unknown>, seen: string[] = []) {
+  server.use(
+    http.get('*/api/v1/clusters/c1/flow', ({ request }) => {
+      seen.push(request.url);
+      return HttpResponse.json(body);
+    }),
+  );
+}
+
+/** The queue's node shares: a stranded backlog on artemis-b, and artemis-c silent. */
+function splitGraph() {
+  const base = graph({ measuring: false, sampledAt: '2026-09-14T10:00:00Z' });
+  const nodes = (base.nodes as Array<Record<string, unknown>>).map((n) =>
+    n.kind === 'QUEUE'
+      ? {
+          ...n,
+          byNode: [
+            { nodeId: 'a', node: 'artemis-a', messageCount: 10, consumerCount: 3, inRate: 5, outRate: 5, stale: false },
+            { nodeId: 'b', node: 'artemis-b', messageCount: 9000, consumerCount: 0, inRate: 5, outRate: 0, stale: false },
+            { nodeId: 'c', node: 'artemis-c', messageCount: null, consumerCount: null, inRate: null, outRate: null, stale: true },
+          ],
+        }
+      : n,
+  );
+  return { ...base, nodes };
+}
+
+function serveHistory() {
+  const points = [{ ts: '2026-09-14T10:00:00Z', value: 10 }];
+  const series = (metric: string) => ({ metric, kind: 'GAUGE', unit: 'messages', points });
+  server.use(
+    http.get('*/api/v1/clusters/c1/metrics', () =>
+      HttpResponse.json({
+        from: '2026-09-14T09:00:00Z',
+        to: '2026-09-14T10:00:00Z',
+        step: 'PT1M',
+        truncated: false,
+        series: [],
+        splitBy: 'NODE',
+        byNode: [
+          { nodeId: 'a', nodeName: 'artemis-a', sampled: true, series: ['messageCount', 'messagesAdded', 'messagesAcked'].map(series) },
+          { nodeId: 'b', nodeName: 'artemis-b', sampled: false, series: [] },
+        ],
+      }),
+    ),
+  );
 }
 
 describe('FlowView', () => {
@@ -221,5 +265,83 @@ describe('FlowView', () => {
     expect(headers.map((h) => h.textContent?.trim())).toEqual(
       expect.arrayContaining(['From', 'Relation', 'To', 'Rate', 'Rate from', 'Clients', 'Faults']),
     );
+  });
+
+  it('opens the Split layout through the URL, and only it asks for the per-node breakdown', async () => {
+    const seen: string[] = [];
+    serve(graph(), seen);
+    renderWithProviders(<FlowView />);
+
+    await userEvent.click(await screen.findByRole('radio', { name: 'Split' }));
+    const call = routerState.navigate.mock.calls.at(-1)?.[0] as { search: (prev: object) => Record<string, unknown> };
+    expect(call.search({ rank: 'OUT' })).toEqual({ rank: 'OUT', tab: 'split' });
+    expect(seen.every((url) => !url.includes('byNode'))).toBe(true);
+  });
+
+  it('restores the selection from the address, states imbalance in words, and never reads a silent node as zero', async () => {
+    routerState.search = { tab: 'split', node: 'queue:ORDERS.inbound' };
+    const seen: string[] = [];
+    serve(splitGraph(), seen);
+    serveHistory();
+    renderWithProviders(<FlowView />);
+
+    const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
+    expect(seen.at(-1)).toContain('byNode=true');
+    expect(pane).toHaveTextContent('artemis-b holds 9,000 messages and has no consumer; the consumers are on artemis-a.');
+    expect(pane).toHaveTextContent('artemis-c did not answer, so its share is unknown and left out.');
+    const grid = screen.getByRole('grid', { name: 'orders per node' });
+    const silent = (await within(grid).findByText('artemis-c')).closest('[role="row"]') as HTMLElement;
+    expect(silent).toHaveTextContent('did not answer');
+    expect(within(silent).getAllByText('unknown')).toHaveLength(4);
+
+    // The trends are the metrics feature's, per node; a node without samples says so.
+    expect(await screen.findByRole('region', { name: 'History on artemis-a' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'History on artemis-b' })).toHaveTextContent('Not sampled in this window');
+  });
+
+  it('clears the selection through the address', async () => {
+    routerState.search = { tab: 'split', node: 'queue:ORDERS.inbound' };
+    serve(splitGraph());
+    serveHistory();
+    renderWithProviders(<FlowView />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Clear selection' }));
+    const call = routerState.navigate.mock.calls.at(-1)?.[0] as { search: (prev: object) => Record<string, unknown> };
+    expect(call.search({ tab: 'split', node: 'queue:ORDERS.inbound' })).toEqual({ tab: 'split', node: undefined });
+  });
+
+  it('opens the inspector for a selection in the address in the graph layout', async () => {
+    routerState.search = { node: 'queue:ORDERS.inbound' };
+    serve(graph());
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByRole('complementary', { name: 'Details of Queue orders' })).toBeInTheDocument();
+  });
+
+  it('resizes the monitoring pane from the keyboard', async () => {
+    routerState.search = { tab: 'split' };
+    serve(splitGraph());
+    renderWithProviders(<FlowView />);
+
+    const separator = await screen.findByRole('separator', { name: 'Resize the monitoring pane' });
+    const before = Number(separator.getAttribute('aria-valuenow'));
+    separator.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(Number(separator.getAttribute('aria-valuenow'))).toBeLessThan(before);
+    // With nothing selected, the pane shows each broker node's totals.
+    expect(screen.getByRole('grid', { name: 'Totals per broker node' })).toBeInTheDocument();
+  });
+
+  it("offers a path's resource to open, and nothing that changes the broker", async () => {
+    routerState.search = { tab: 'table' };
+    serve(graph());
+    renderWithProviders(<FlowView />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for order-svc' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /Focus the view on this/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /Open its connections/ })).toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: /Delete|Purge|Close/ })).not.toBeInTheDocument();
+    expect(within(menu).getByText(/This view never changes the broker/)).toBeInTheDocument();
   });
 });

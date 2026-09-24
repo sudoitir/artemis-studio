@@ -30,7 +30,7 @@ export const rrFeature = defineFeature({
   id: 'rr',
   routes: { cluster: [rrRoute] },
   nav: [
-    { group: 'observe', order: 40, label: 'Requests', icon: IconArrowsExchange, path: 'rr', permission: 'cluster:read' },
+    { group: 'observe', order: 40, label: 'Requests', icon: IconArrowsExchange, path: 'rr', hotkey: 'r', permission: 'cluster:read' },
   ],
   slots: {
     'metrics.panels': [{ id: 'rr-latency', order: 10, Component: LatencyCard }],

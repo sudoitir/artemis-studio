@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Code, Popover, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Popover, UnstyledButton } from '@mantine/core';
 
 import type { GateVerdict } from './capabilityGate.ts';
+import { CapabilityReason } from './CapabilityReason.tsx';
 
 /**
  * Wraps a control that may be unavailable, keeping it visible and explaining
@@ -42,19 +43,7 @@ export function CapabilityGate({
         </UnstyledButton>
       </Popover.Target>
       <Popover.Dropdown>
-        <Stack gap="xs">
-          <Text size="xs">{verdict.reason}</Text>
-          {verdict.snippet ? (
-            <>
-              <Text size="xs" fw={600}>
-                Add this to <Code>broker.xml</Code>:
-              </Text>
-              <Code block style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>
-                {verdict.snippet}
-              </Code>
-            </>
-          ) : null}
-        </Stack>
+        <CapabilityReason reason={verdict.reason} snippet={verdict.snippet} />
       </Popover.Dropdown>
     </Popover>
   );

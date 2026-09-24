@@ -30,6 +30,9 @@ public class MetricSamples {
 
     public record Bucket(Instant ts, double value, Double peak) {}
 
+    /** One node's bucket of a per-node series (ADR-0110). */
+    public record NodeBucket(UUID nodeId, Instant ts, double value, Double peak) {}
+
     private final NamedParameterJdbcTemplate jdbc;
 
     /**
@@ -39,7 +42,28 @@ public class MetricSamples {
      * @param span the time between the two samples the rate spans — a slow-tier queue's
      *     rate is an average over minutes, and a reader must be able to say so
      */
-    public record SubjectRate(double rate, Instant asOf, Duration span) {}
+    public record SubjectRate(double rate, Instant asOf, Duration span) {
+
+        /**
+         * Several nodes' rates as one: summed, as of the newest, spanning the longest — the same
+         * aggregate {@link #latestRateWithTimeBySubject} computes in SQL.
+         */
+        public static SubjectRate sum(java.util.Collection<SubjectRate> perNode) {
+            double rate = 0;
+            Instant asOf = Instant.EPOCH;
+            Duration span = Duration.ZERO;
+            for (SubjectRate r : perNode) {
+                rate += r.rate();
+                if (r.asOf().isAfter(asOf)) {
+                    asOf = r.asOf();
+                }
+                if (r.span().compareTo(span) > 0) {
+                    span = r.span();
+                }
+            }
+            return new SubjectRate(rate, asOf, span);
+        }
+    }
 
     /**
      * Like {@link #latestRateBySubject}, but computed per node and summed, divided by the
@@ -78,6 +102,42 @@ public class MetricSamples {
                             rs.getDouble("rate"),
                             rs.getTimestamp("as_of").toInstant(),
                             Duration.ofMillis(Math.round(spanSeconds * 1000))));
+        });
+        return out;
+    }
+
+    /**
+     * {@link #latestRateWithTimeBySubject} without the sum across nodes: each subject's rate on each
+     * node that sampled it twice in the window (ADR-0110). The per-node rates of a subject add up to
+     * its {@link #latestRateWithTimeBySubject} rate exactly; see {@link SubjectRate#sum}.
+     *
+     * @return subject name → node id → rate on that node
+     */
+    public Map<String, Map<UUID, SubjectRate>> latestRateWithTimeBySubjectAndNode(
+            UUID clusterId, String metric, Instant from, Instant to) {
+        String sql = """
+                SELECT subject_name, node_id,
+                       GREATEST(max(value) - min(value), 0)::double precision AS delta,
+                       max(ts) AS as_of,
+                       EXTRACT(EPOCH FROM max(ts) - min(ts))::double precision AS span_seconds
+                  FROM metric_sample
+                 WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                   AND ts >= :from AND ts < :to
+                 GROUP BY subject_name, node_id
+                HAVING count(*) >= 2 AND max(ts) > min(ts)
+                """;
+        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
+                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
+        Map<String, Map<UUID, SubjectRate>> out = new java.util.HashMap<>();
+        jdbc.query(sql, p, rs -> {
+            double spanSeconds = rs.getDouble("span_seconds");
+            out.computeIfAbsent(rs.getString("subject_name"), k -> new java.util.HashMap<>())
+                    .put(
+                            rs.getObject("node_id", UUID.class),
+                            new SubjectRate(
+                                    rs.getDouble("delta") / spanSeconds,
+                                    rs.getTimestamp("as_of").toInstant(),
+                                    Duration.ofMillis(Math.round(spanSeconds * 1000))));
         });
         return out;
     }
@@ -161,6 +221,63 @@ public class MetricSamples {
                 sql,
                 params(clusterId, metric, subjectName, from, to, step),
                 (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
+    }
+
+    /**
+     * {@link #gaugeSeries} for one subject, kept apart per node (ADR-0110): the average in each
+     * bucket on each node, and its peak. The same rows and index as the total; only the grouping
+     * differs.
+     */
+    public List<NodeBucket> gaugeSeriesByNode(
+            UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        String sql = """
+                SELECT node_id,
+                       date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
+                       avg(value) AS v, max(value) AS peak
+                  FROM metric_sample
+                 WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                   AND subject_name = :subjectName
+                   AND ts >= :from AND ts < :to
+                 GROUP BY node_id, bucket ORDER BY node_id, bucket
+                """;
+        return jdbc.query(
+                sql,
+                params(clusterId, metric, subjectName, from, to, step),
+                (rs, i) -> new NodeBucket(
+                        rs.getObject("node_id", UUID.class),
+                        rs.getTimestamp("bucket").toInstant(),
+                        rs.getDouble("v"),
+                        (Double) rs.getObject("peak")));
+    }
+
+    /**
+     * {@link #rateSeries} for one subject, kept apart per node (ADR-0110). Computed exactly as the
+     * total is, so the nodes' buckets add up to the total's.
+     */
+    public List<NodeBucket> rateSeriesByNode(
+            UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        String sql = """
+                SELECT node_id, bucket, sum(delta) / :stepSeconds AS v
+                  FROM (
+                    SELECT node_id,
+                           date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
+                           GREATEST(max(value) - min(value), 0) AS delta
+                      FROM metric_sample
+                     WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                       AND subject_name = :subjectName
+                       AND ts >= :from AND ts < :to
+                     GROUP BY node_id, bucket
+                  ) delta_per_node
+                 GROUP BY node_id, bucket ORDER BY node_id, bucket
+                """;
+        return jdbc.query(
+                sql,
+                params(clusterId, metric, subjectName, from, to, step),
+                (rs, i) -> new NodeBucket(
+                        rs.getObject("node_id", UUID.class),
+                        rs.getTimestamp("bucket").toInstant(),
+                        rs.getDouble("v"),
+                        null));
     }
 
     /**

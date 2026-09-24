@@ -13,6 +13,7 @@ export type FlowEdgeView = Schemas['FlowEdgeView'];
 export type FlowBrokerNodeView = Schemas['FlowBrokerNodeView'];
 export type FlowKpis = Schemas['FlowKpis'];
 export type FlowTotals = Schemas['FlowTotals'];
+export type FlowNodeShare = Schemas['FlowNodeShare'];
 
 /**
  * How often an open flow view re-reads. Each read also renews the cluster's observation lease
@@ -28,6 +29,8 @@ export function flowQueryString(search: FlowSearch): string {
   params.set('limit', String(search.limit ?? DEFAULT_LIMIT));
   params.set('groupBy', search.groupBy ?? 'CLIENT_ID');
   if (search.layers) params.set('layers', search.layers);
+  // The per-node breakdown grows the payload with the node count, so only the Split layout asks for it.
+  if (search.tab === 'split') params.set('byNode', 'true');
   return params.toString();
 }
 

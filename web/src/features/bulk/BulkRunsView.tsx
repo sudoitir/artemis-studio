@@ -43,6 +43,7 @@ export function BulkRunsView() {
         <Skeleton height={160} />
       ) : (
         <VirtualTable
+          label="Bulk runs"
           columns={columns}
           data={query.data}
           rowKey={(r) => r.id}

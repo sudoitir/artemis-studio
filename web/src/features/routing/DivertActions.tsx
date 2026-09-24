@@ -8,6 +8,10 @@ import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { focusBack } from '../../kernel/actions/focusBack.ts';
+import { useActionHost } from '../../kernel/actions/hostContext.ts';
+import type { HostedDialogProps } from '../../kernel/actions/types.ts';
+import { useDivertWriteGate } from './divertGate.ts';
 
 const PERMISSION_LABEL = 'Create and delete diverts';
 
@@ -294,15 +298,8 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
  * itself; the operator is sent to the capture subscription that owns it instead.
  */
 export function DeleteDivertAction({ clusterId, divert }: { clusterId: string; divert: DivertView }) {
-  const { can, loading } = useCan();
-  const cluster = useCluster(clusterId);
-  const write = cluster.data?.capabilities.managementWrite;
-  const gate = gateFor(can('divert:write', clusterId), PERMISSION_LABEL, write, loading || cluster.isPending);
-
-  const [open, setOpen] = useState(false);
-  const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
-  const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
-  const remove = useDeleteDivert(clusterId, divert.name);
+  const gate = useDivertWriteGate(clusterId);
+  const host = useActionHost();
 
   if (divert.owner === 'MESSAGE_CAPTURE') {
     return (
@@ -312,66 +309,104 @@ export function DeleteDivertAction({ clusterId, divert }: { clusterId: string; d
     );
   }
 
+  return (
+    <CapabilityGate verdict={gate}>
+      <Button
+        size="compact-xs"
+        variant="subtle"
+        color="red"
+        disabled={gate.kind === 'blocked'}
+        aria-label={`Delete divert ${divert.name}`}
+        // Hosted outside the grid (ADR-0107), so a delete that removes this row keeps its outcome.
+        onClick={(e) =>
+          host.open(DeleteDivertDialog, { clusterId, divert }, { restoreFocus: focusBack(e.currentTarget) })
+        }
+      >
+        Delete
+      </Button>
+    </CapabilityGate>
+  );
+}
+
+/**
+ * The delete itself: it opens on the preview of what each node would do, and is armed by typing the
+ * divert's name.
+ */
+export function DeleteDivertDialog({
+  clusterId,
+  divert,
+  opened,
+  onClose,
+}: HostedDialogProps & { clusterId: string; divert: DivertView }) {
+  const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
+  const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
+  const [previewFailed, setPreviewFailed] = useState<string | null>(null);
+  const remove = useDeleteDivert(clusterId, divert.name);
+
+  const takePreview = () => {
+    setPreview(null);
+    setPreviewFailed(null);
+    remove.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
+  };
+
   const close = () => {
-    if (remove.isPending) return;
-    setOpen(false);
+    if (remove.isPending && preview) return;
     setPreview(null);
     setResult(null);
+    setPreviewFailed(null);
     remove.reset();
+    onClose();
   };
 
   return (
-    <>
-      <CapabilityGate verdict={gate}>
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          color="red"
-          disabled={gate.kind === 'blocked'}
-          onClick={() => {
-            setOpen(true);
-            remove.mutate({ dryRun: true }, { onSuccess: setPreview });
-          }}
-        >
-          Delete
-        </Button>
-      </CapabilityGate>
+    <Modal
+      opened={opened}
+      onClose={close}
+      onEnterTransitionEnd={takePreview}
+      title={`Delete divert "${divert.name}"`}
+      size="lg"
+    >
+      <Stack gap="sm">
+        <Text size="sm">
+          {divert.exclusive
+            ? `Messages on ${divert.address} stop going to ${divert.forwardingAddress} and resume reaching their original destinations.`
+            : `${divert.forwardingAddress} stops receiving a copy of the messages on ${divert.address}. Traffic on ${divert.address} itself is unaffected.`}
+        </Text>
 
-      <Modal opened={open} onClose={close} title={`Delete divert "${divert.name}"`} size="lg">
-        <Stack gap="sm">
-          <Text size="sm">
-            {divert.exclusive
-              ? `Messages on ${divert.address} stop going to ${divert.forwardingAddress} and resume reaching their original destinations.`
-              : `${divert.forwardingAddress} stops receiving a copy of the messages on ${divert.address}. Traffic on ${divert.address} itself is unaffected.`}
-          </Text>
-
-          {remove.isError ? (
-            <Alert color="red" variant="light" title={remove.error.title}>
+        <div aria-live="polite">
+          {remove.isPending && !preview && !result ? (
+            <Text size="sm" c="dimmed">
+              Asking each node what the delete would do…
+            </Text>
+          ) : null}
+          {previewFailed ? (
+            <Alert color="yellow" variant="light" title="The preview could not be taken" role="alert">
+              {previewFailed} Nothing was deleted. Close this and try again once the nodes answer.
+            </Alert>
+          ) : null}
+          {remove.isError && !previewFailed ? (
+            <Alert color="red" variant="light" title={remove.error.title} role="alert">
               {remove.error.message}
             </Alert>
           ) : null}
+          {result ? <NodeOutcomeSummary outcome={result} /> : preview ? <NodeOutcomeSummary outcome={preview} /> : null}
+        </div>
 
-          {result ? (
-            <NodeOutcomeSummary outcome={result} />
-          ) : preview ? (
-            <>
-              <NodeOutcomeSummary outcome={preview} />
-              <ConfirmByTyping
-                token={divert.name}
-                confirmLabel="Delete on every live node"
-                loading={remove.isPending}
-                onConfirm={() => remove.mutate({ dryRun: false }, { onSuccess: setResult })}
-              />
-            </>
-          ) : null}
+        {preview && !result ? (
+          <ConfirmByTyping
+            token={divert.name}
+            confirmLabel="Delete on every live node"
+            loading={remove.isPending}
+            onConfirm={() => remove.mutate({ dryRun: false }, { onSuccess: setResult })}
+          />
+        ) : null}
 
-          <Group justify="flex-end">
-            <Button size="xs" variant="subtle" onClick={close}>
-              {result ? 'Done' : 'Cancel'}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </>
+        <Group justify="flex-end">
+          <Button size="xs" variant="subtle" onClick={close}>
+            {result ? 'Done' : 'Cancel'}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }

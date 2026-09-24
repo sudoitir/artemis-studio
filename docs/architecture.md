@@ -125,8 +125,13 @@ a kernel root, navigation entries in one of the kernel's fixed groups (observe,
 messaging, resources, configuration, activity), palette groups, stream topic
 handlers, and slot contributions. Slots are kernel-owned places another feature's
 component appears: `shell.header`, `shell.navbar`, `home.empty`, `cluster.header`,
-`cluster.registration.afterProbe`, `queue.detail.panels`, `metrics.panels`,
-`topology.node.marks`, `settings.sections`, `routing.tabs`, `admin.tabs`, `account.sections`.
+`cluster.registration.afterProbe`, `queue.detail.panels`, `queues.selection`,
+`messages.selection`, `metrics.panels`, `flow.selection.panels`, `topology.node.marks`,
+`settings.sections`, `routing.tabs`, `admin.tabs`, `account.sections`. Row menus and links
+are slots too (ADR-0107): `<kind>.actions` for queue, address, connection, session,
+consumer, producer, message, divert and client, each item naming its section (Open, Copy,
+Operate, Destroy); and `<kind>.link` for queue, address, connection and session, which
+plugins may not contribute.
 
 The shell reads the manifest and drops a disabled feature's navigation, slots and
 topics; every feature's routes stay registered so a deep link reaches the page that

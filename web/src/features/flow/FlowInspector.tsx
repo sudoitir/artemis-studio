@@ -60,8 +60,10 @@ export function FlowInspector({
   const inbound = (graph.edges ?? []).filter((e) => e.target === nodeId);
   const outbound = (graph.edges ?? []).filter((e) => e.source === nodeId);
   const faults = (node.faults ?? []).map((f) => FAULT_LABELS[f] ?? f.toLowerCase());
-  const open = (path: string) =>
-    navigate({ to: `/clusters/$clusterId/${path}`, params: { clusterId }, search: { q: node.label } });
+  // The exact resource: a queue opens itself; the rest open the view filtered to the name, which
+  // the resource filters match on (client id, user or host for connections).
+  const open = (path: string, search: Record<string, string | undefined> = { q: node.label }) =>
+    navigate({ to: `/clusters/$clusterId/${path}`, params: { clusterId }, search });
 
   const facts: Array<[string, string]> = [];
   if (node.role) facts.push(['What it is', ROLE_WORD[node.role] ?? node.role.toLowerCase()]);
@@ -154,9 +156,14 @@ export function FlowInspector({
               Focus the view on this
             </Button>
           ) : null}
-          {(node.kind === 'QUEUE' || node.kind === 'ADDRESS') && !node.role ? (
-            <Button size="xs" variant="subtle" onClick={() => open('queues')}>
+          {node.kind === 'QUEUE' && !node.role ? (
+            <Button size="xs" variant="subtle" onClick={() => open('queues', { queue: node.label })}>
               Open in Queues
+            </Button>
+          ) : null}
+          {node.kind === 'ADDRESS' && !node.role ? (
+            <Button size="xs" variant="subtle" onClick={() => open('addresses')}>
+              Open in Addresses
             </Button>
           ) : null}
           {node.kind === 'CONSUMER' ? (

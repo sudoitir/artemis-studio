@@ -1,0 +1,40 @@
+/* A blocked item stays focusable so its reason can be reached (ADR-0107): Mantine only dims
+   `[data-disabled]`, which also removes the item from keyboard navigation, so the dimmed state is
+   ours. The label stays at body contrast; only the secondary line is dimmed. */
+.item[aria-disabled='true'] {
+  cursor: help;
+}
+
+.item[aria-disabled='true'] .label {
+  color: var(--as-text-dimmed);
+}
+
+.danger .label {
+  color: var(--as-danger);
+}
+
+.label {
+  display: block;
+}
+
+.hint {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.35;
+  color: var(--as-text-dimmed);
+  white-space: normal;
+  max-inline-size: 36ch;
+}
+
+/* The anchor the menu is positioned from: a point at the pointer or under the trigger. It holds the
+   menu's accessible name, so it is clipped rather than hidden from assistive technology. */
+.anchor {
+  position: fixed;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}

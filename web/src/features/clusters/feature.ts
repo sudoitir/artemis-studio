@@ -33,7 +33,7 @@ export const clustersFeature = defineFeature({
   id: 'clusters',
   routes: { cluster: [clusterIndexRoute, topologyRoute] },
   nav: [
-    { group: 'observe', order: 10, label: 'Topology', icon: IconSitemap, path: 'topology', permission: 'cluster:read' },
+    { group: 'observe', order: 10, label: 'Topology', icon: IconSitemap, path: 'topology', hotkey: 't', permission: 'cluster:read' },
   ],
   palette: ClusterPalette,
   slots: {

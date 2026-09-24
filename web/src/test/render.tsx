@@ -7,6 +7,7 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
 import { FEATURES } from '../app/features.ts';
 import { createAppRouter } from '../app/router.ts';
 import type { StudioFeature } from '../kernel/feature.ts';
+import { ActionHostProvider } from '../kernel/actions/ActionHost.tsx';
 import { FeatureProvider } from '../kernel/FeatureProvider.tsx';
 import { theme } from '../theme.ts';
 
@@ -21,7 +22,9 @@ function Providers({ children }: { children: ReactNode }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
       <QueryClientProvider client={makeClient()}>
-        <FeatureProvider features={FEATURES}>{children}</FeatureProvider>
+        <FeatureProvider features={FEATURES}>
+          <ActionHostProvider>{children}</ActionHostProvider>
+        </FeatureProvider>
       </QueryClientProvider>
     </MantineProvider>
   );

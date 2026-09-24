@@ -1,10 +1,11 @@
-import { memo, useContext, type ReactNode } from 'react';
+import { memo, useContext, useRef, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 import type { FlowNodeView } from './api.ts';
 import { FlowCanvasContext } from './canvasContext.ts';
 import { FAULT_LABELS, formatCount } from './flowFormat.ts';
 import type { FlowNodeData, LaneData } from './flowLayout.ts';
+import { anchorBelow, clampToViewport } from '../../ui/menuAnchor.ts';
 import classes from './FlowCanvas.module.css';
 
 const KIND_WORD: Record<string, string> = {
@@ -50,7 +51,10 @@ function Frame({
   outbound: boolean;
   children: ReactNode;
 }) {
-  const { select, emphasize } = useContext(FlowCanvasContext);
+  const { select, emphasize, openMenu } = useContext(FlowCanvasContext);
+  // Shift+F10 and the menu key are followed by the browser's own contextmenu event, which would
+  // reopen the menu at the pointer and close the one the keyboard opened.
+  const suppressContextMenuUntil = useRef(0);
   const faults = faultWords(data.view);
   return (
     <div
@@ -62,10 +66,19 @@ function Frame({
       tabIndex={0}
       aria-label={nodeSentence(data.view)}
       onClick={() => select(id)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        if (performance.now() < suppressContextMenuUntil.current) return;
+        openMenu(id, clampToViewport({ x: event.clientX, y: event.clientY }), event.currentTarget);
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           select(id);
+        } else if ((event.key === 'F10' && event.shiftKey) || event.key === 'ContextMenu') {
+          event.preventDefault();
+          suppressContextMenuUntil.current = performance.now() + 500;
+          openMenu(id, anchorBelow(event.currentTarget), event.currentTarget);
         }
       }}
       onMouseEnter={() => emphasize(id)}
