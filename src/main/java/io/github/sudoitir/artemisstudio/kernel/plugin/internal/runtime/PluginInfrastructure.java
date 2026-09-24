@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
-import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.ConditionContext;
@@ -9,7 +8,7 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.HttpMessageConverters;
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor;
 import org.springframework.security.access.AccessDeniedException;
@@ -90,14 +89,13 @@ class PluginMessageConverterConfig implements WebMvcConfigurer {
     }
 
     @Override
-    public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
-        // extendMessageConverters, not configureMessageConverters: the latter REPLACES the whole
-        // default list rather than adding to it, which would drop StringHttpMessageConverter and
-        // have every plain-String response come back JSON-quoted instead of as text/plain.
-        // Appended, not prepended, so it never pre-empts an earlier converter (String, byte[],
-        // resource) for a type those already handle; it only ever adds a JSON converter built
-        // from the plugin's own rebuilt copy of the curated jsonMapper for whatever needs one.
-        converters.add(new JacksonJsonHttpMessageConverter(jsonMapper.rebuild().build()));
+    public void configureMessageConverters(HttpMessageConverters.ServerBuilder builder) {
+        // Appended to the default list, not set as the JSON converter: it never pre-empts an earlier
+        // converter (String, byte[], resource) for a type those already handle, so a plain-String
+        // response stays text/plain. It only adds a JSON converter built from the plugin's own
+        // rebuilt copy of the curated jsonMapper, whose serializer caches die with the plugin.
+        builder.configureMessageConvertersList(converters -> converters.add(
+                new JacksonJsonHttpMessageConverter(jsonMapper.rebuild().build())));
     }
 }
 
