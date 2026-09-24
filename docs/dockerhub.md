@@ -11,6 +11,11 @@ messages.
 It works against your **existing** brokers. No `broker.xml` rewrite beyond
 enabling the management endpoints you almost certainly already run.
 
+Extend it with **plugins**, installed from the UI: screens, API, assistant tools and
+data of their own, most without a restart. When a plugin needs one, Studio restarts
+itself if the container has a restart policy — the compose file sets
+`ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED=true` beside `restart: unless-stopped`.
+
 > **⚠️ Alpha.** Under active development, not yet feature-complete. These images are
 > **pre-stable dev builds** — the `:dev` tag is the moving pointer and there is no
 > `:latest` yet. Expect breaking changes.

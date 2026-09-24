@@ -428,3 +428,11 @@ Resolutions:
 - **Bundle size was +7.4 % gzip against a +5 % target.**
   - The shared set is trimmed: `react-dom/client` is dropped (plugins never create roots), and `@mantine/notifications` is replaced by an SDK `notify()` function.
   - The size is measured again. If the Module Federation runtime overhead alone still exceeds 5 %, the accepted ceiling is +8 %, recorded with the measured first-load time. The runtime is the fixed cost of loading plugins at all.
+
+**Measured on the implementation (task 8.1).** Production build, gzip level 9, against `main`:
+- **All JS and CSS:** 1.93 MB → 2.08 MB (**+7.6 %**), inside the accepted +8 %.
+- **First load** (the entry and everything `index.html` preloads): 751 KB → 881 KB (**+17.3 %**).
+
+Nearly all of the first-load growth is `@mantine/core`. A shared singleton has to expose the whole library, because a plugin may use any component, so Mantine loses tree-shaking in the host. The cost cannot be avoided while plugins render with the host's theme and context: a second Mantine copy renders unstyled.
+- `@mantine/notifications` was removed from the shared scope. Plugins notify through the SDK's `notify`.
+- `react-dom/client` stays shared. Unsharing it saves nothing, because the host bundles it either way.

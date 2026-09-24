@@ -132,47 +132,47 @@
 
 ## 8. Frontend plugin host
 
-- [ ] 8.1 `@module-federation/vite` host in `vite.config.ts` only, with the shared singletons pinned exactly. `web/src/sdk/` exports the public surface, and an eslint boundary guards it.
-- [ ] 8.2 Async bootstrap in `main.tsx`: a splash in `index.html`, a raw manifest fetch (5 s) that seeds the query cache, then `registerRemotes` and `Promise.allSettled(loadRemote)` (10 s each), then the router. On 401 boot without plugins; `LoginView` then uses `location.replace`.
-- [ ] 8.3 `StudioFeature.id: FeatureId | PluginId`. Validate plugin routes (`/p/<id>`), namespace their slot ids, accept only declared topics and existing nav groups.
-- [ ] 8.4 Kernel catch-all routes `/p/$pluginId/$` and `/clusters/$clusterId/p/$pluginId/$`, explaining the plugin's state.
-- [ ] 8.5 ErrorBoundaries around plugin slots, badges and palette sources.
-- [ ] 8.6 Manifest version check on focus and every 60 s → non-blocking "Plugins changed — Reload".
-- [ ] 8.7 vitest: bootstrap paths (ok / 401 / manifest down / remote fails), catch-all states, boundaries.
+- [x] 8.1 `@module-federation/vite` host in `vite.config.ts` only, with the shared singletons pinned exactly. `web/src/sdk/` exports the public surface, and an eslint boundary guards it.
+- [x] 8.2 Async bootstrap in `main.tsx`: a splash in `index.html`, a raw manifest fetch (5 s) that seeds the query cache, then `registerRemotes` and `Promise.allSettled(loadRemote)` (10 s each), then the router. On 401 boot without plugins; `LoginView` then uses `location.replace`.
+- [x] 8.3 `StudioFeature.id: FeatureId | PluginId`. Validate plugin routes (`/p/<id>`), namespace their slot ids, accept only declared topics and existing nav groups.
+- [x] 8.4 Kernel catch-all routes `/p/$pluginId/$` and `/clusters/$clusterId/p/$pluginId/$`, explaining the plugin's state.
+- [x] 8.5 ErrorBoundaries around plugin slots, badges and palette sources.
+- [x] 8.6 Manifest version check on focus and every 60 s → non-blocking "Plugins changed — Reload".
+- [x] 8.7 vitest: bootstrap paths (ok / 401 / manifest down / remote fails), catch-all states, boundaries.
 
 ## 9. Admin → Plugins screen (`web/src/features/plugins/`)
 
-- [ ] 9.1 Feature registration (`admin.tabs`) and `api.ts` hooks (polling at 1 s while activating, 30 s otherwise).
-- [ ] 9.2 List: `VirtualTable` rows (monogram or icon, name, vendor, version with "available", range, status in words, contributions), attention-first sorting with inline fixes, the attention summary, the connection budget.
-- [ ] 9.3 Drop-anywhere overlay plus `FileButton`; Check for updates; "Who can install plugins" (installers only).
-- [ ] 9.4 Install/update stepper:
+- [x] 9.1 Feature registration (`admin.tabs`) and `api.ts` hooks (polling at 1 s while activating, 30 s otherwise).
+- [x] 9.2 List: `VirtualTable` rows (monogram or icon, name, vendor, version with "available", range, status in words, contributions), attention-first sorting with inline fixes, the attention summary, the connection budget.
+- [x] 9.3 Drop-anywhere overlay plus `FileButton`; Check for updates; "Who can install plugins" (installers only).
+- [x] 9.4 Install/update stepper:
   - Inspect: live checklist, Copy report
   - Review: capability sentences, What changes, SQL, reversibility, activation class
   - Confirm: blast radius, `ConfirmByTyping`, step-up (password or IdP)
   - Progress: timeline and four outcomes, `aria-live`, closable
-- [ ] 9.5 Detail drawer (`?plugin=`): Overview, Contributions, Data, History, Danger zone (disable, uninstall, purge with dry run).
-- [ ] 9.6 Shell-header indicator and admin banner (`shell.header` slot); empty state; disabled-with-reason for non-installers and when the kill switch is on.
-- [ ] 9.7 vitest for every state and outcome, and a keyboard-only pass through the stepper and the purge; contrast checked in both schemes; `npm run ui-review` screenshots.
+- [x] 9.5 Detail drawer (`?plugin=`): Overview, Contributions, Data, History, Danger zone (disable, uninstall, purge with dry run).
+- [x] 9.6 Shell-header indicator and admin banner (`shell.header` slot); empty state; disabled-with-reason for non-installers and when the kill switch is on.
+- [x] 9.7 vitest for every state and outcome, and a keyboard-only pass through the stepper and the purge; contrast checked in both schemes; `npm run ui-review` screenshots.
 
 ## 10. Authoring kit and release
 
-- [ ] 10.1 `spring-boot-maven-plugin` `exec` classifier; `Dockerfile` and `ci.yml` switch to `artemis-studio-exec.jar`; image smoke test.
-- [ ] 10.2 Central publishing: pom `developers`/`scm`, sources, javadoc (`-Xdoclint:none`), gpg, `central-publishing-maven-plugin` (confirm the configuration with ctx7), and a CI publish step using the secrets.
-- [ ] 10.3 `@PluginApi` on the supported types; japicmp gate (skipped without a baseline).
-- [ ] 10.4 `PluginVerifier.main(jar)`, sharing `PluginValidator`, plus warnings for irreversible changesets.
-- [ ] 10.5 `web/packages/plugin-sdk`: `.d.ts` generated from `web/src/sdk` (without `Register`), exact peer pins, the `studioPlugin({ id })` preset (shared `import:false`, base, output, forbidden-import check); CI publish with OIDC trusted publishing.
-- [ ] 10.6 `examples/plugin-template/`: pom (provided dep, shade and relocate, `plugin.json` filtering, `frontend-maven-plugin`, the verifier), `web/`, and the notes sample (entity, reversible changelog, `@PreAuthorize` controller, MCP tool, route, slot, settings tab).
-- [ ] 10.7 CI job: build the template against the fresh Studio; Playwright e2e covering upload → review → install (route and slot live, no restart) → update with a changeset (SQL preview, 503 window) → a failed activation that keeps the old version → a broken remote that shows the catch-all.
-- [ ] 10.8 Compose `JAVA_OPTS` gains `-XX:MaxMetaspaceSize=256m`.
+- [x] 10.1 `spring-boot-maven-plugin` `exec` classifier; `Dockerfile` and `ci.yml` switch to `artemis-studio-exec.jar`; image smoke test.
+- [x] 10.2 Central publishing: pom `developers`/`scm`, sources, javadoc (`-Xdoclint:none`), gpg, `central-publishing-maven-plugin` (confirm the configuration with ctx7), and a CI publish step using the secrets.
+- [x] 10.3 `@PluginApi` on the supported types; japicmp gate (skipped without a baseline).
+- [x] 10.4 `PluginVerifier.main(jar)`, sharing `PluginValidator`, plus warnings for irreversible changesets.
+- [x] 10.5 `web/packages/plugin-sdk`: `.d.ts` generated from `web/src/sdk` (without `Register`), exact peer pins, the `studioPlugin({ id })` preset (shared `import:false`, base, output, forbidden-import check); CI publish with OIDC trusted publishing.
+- [x] 10.6 `examples/plugin-template/`: pom (provided dep, shade and relocate, `plugin.json` filtering, `frontend-maven-plugin`, the verifier), `web/`, and the notes sample (entity, reversible changelog, `@PreAuthorize` controller, MCP tool, route, slot, settings tab).
+- [x] 10.7 CI job: build the template against the fresh Studio; Playwright e2e covering upload → review → install (route and slot live, no restart) → update with a changeset (SQL preview, 503 window) → a failed activation that keeps the old version → a broken remote that shows the catch-all.
+- [x] 10.8 Compose `JAVA_OPTS` gains `-XX:MaxMetaspaceSize=256m`.
 
 ## 11. Docs and verification
 
-- [ ] 11.1 Rewrite `site/src/guide/plugins.md` as "Plugins":
+- [x] 11.1 Rewrite `site/src/guide/plugins.md` as "Plugins":
   - install; the installer tier; activation classes; update and rollback; disable, uninstall and purge
   - security posture, the kill switch, the connection budget
   - troubleshooting (the failure matrix)
   - Build a plugin from the template
 
   Remove the in-tree and `register.patch` content, and update the sidebar.
-- [ ] 11.2 README, `docs/architecture.md` (plugin runtime section), `docs/dockerhub.md`, and `CLAUDE.md` (layout: the plugin runtime and where plugin code lives).
-- [ ] 11.3 `just verify` green; bundle size and first-load timing compared; shots diff reviewed; `openspec validate plugins --strict`.
+- [x] 11.2 README, `docs/architecture.md` (plugin runtime section), `docs/dockerhub.md`, and `CLAUDE.md` (layout: the plugin runtime and where plugin code lives).
+- [x] 11.3 `just verify` green; bundle size and first-load timing compared; shots diff reviewed; `openspec validate plugins --strict`.
