@@ -1446,7 +1446,11 @@ public class PluginHost implements SmartLifecycle {
         return e.getMessage() != null ? e.getMessage() : e.toString();
     }
 
+    /** The id already passed the descriptor check at upload; re-checked here because it becomes SQL. */
     private static String schemaName(String pluginId) {
+        if (!pluginId.matches("[a-z0-9-]{1,50}")) {
+            throw new IllegalArgumentException("Not a plugin id: " + pluginId);
+        }
         return "plugin_" + pluginId.replace('-', '_');
     }
 
