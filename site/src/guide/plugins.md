@@ -271,6 +271,9 @@ class Orders implements PluginMessageHandler {
   `max-delivery-attempts`. It needs `message:read` and `queue:purge`.
 - **`send(OutboundMessage)`** sends a body, headers and properties to an address. It needs
   `message:send`.
+- **`checkSend(clusterId, address, actingUserId)`** answers why such a send would be refused (a
+  reserved address, an unknown cluster, a missing `message:send`) without sending, so a plugin can
+  reject a bad target when a user configures it. `send` still checks every message.
 - **Every registration acts for a user**, whose grants are checked when it is made and on every pass
   after (`artemis-studio.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
   a permission, the registration is `SUSPENDED` and says why. It resumes when the permission

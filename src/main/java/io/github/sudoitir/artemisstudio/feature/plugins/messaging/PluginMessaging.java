@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.plugins.messaging;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * A plugin's door to its clusters' messages (ADR-0111). Inject it into a plugin bean; Studio puts
@@ -47,6 +48,17 @@ public final class PluginMessaging {
 
     public List<MessageRegistration> registrations() {
         return service.registrations(pluginId);
+    }
+
+    /**
+     * Check a send without making it: the reason {@link #send} would refuse a message to
+     * {@code address} on the cluster as {@code actingUserId} (a missing or too-long address, an
+     * address Studio or the broker reserves, an unknown cluster, a missing {@code message:send}), or
+     * empty when it would be allowed. Use it to refuse a bad target when a user configures it rather
+     * than when the first message goes out; {@link #send} still checks every message.
+     */
+    public Optional<String> checkSend(UUID clusterId, String address, UUID actingUserId) {
+        return service.sendDenial(clusterId, address, actingUserId);
     }
 
     /**

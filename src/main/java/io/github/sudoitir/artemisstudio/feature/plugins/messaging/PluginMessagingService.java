@@ -166,18 +166,29 @@ public class PluginMessagingService implements PluginScopedBeans {
                 .toList();
     }
 
+    /** Why a send to {@code address} as {@code actingUserId} would be refused, or empty when it would be allowed. */
+    Optional<String> sendDenial(UUID clusterId, String address, UUID actingUserId) {
+        if (clusterId == null || blank(address)) {
+            return Optional.of("A message needs a cluster and an address.");
+        }
+        if (address.length() > MAX_NAME) {
+            return Optional.of("The address is longer than " + MAX_NAME + " characters.");
+        }
+        String reserved = Reservations.reason(address);
+        if (reserved != null) {
+            return Optional.of(reserved);
+        }
+        if (clusters.cluster(clusterId).isEmpty()) {
+            return Optional.of("The cluster " + clusterId + " is not registered.");
+        }
+        return access.denial(actingUserId, clusterId, List.of(MessagePermissions.MESSAGE_SEND));
+    }
+
     void send(String pluginId, OutboundMessage message) {
-        if (message == null || message.clusterId() == null || blank(message.address())) {
+        if (message == null) {
             throw new RegistrationRefusedException("A message needs a cluster and an address.");
         }
-        if (message.address().length() > MAX_NAME) {
-            throw new RegistrationRefusedException("The address is longer than " + MAX_NAME + " characters.");
-        }
-        String reserved = Reservations.reason(message.address());
-        if (reserved != null) {
-            throw new RegistrationRefusedException(reserved);
-        }
-        access.denial(message.actingUserId(), message.clusterId(), List.of(MessagePermissions.MESSAGE_SEND))
+        sendDenial(message.clusterId(), message.address(), message.actingUserId())
                 .ifPresent(why -> {
                     throw new RegistrationRefusedException(why);
                 });

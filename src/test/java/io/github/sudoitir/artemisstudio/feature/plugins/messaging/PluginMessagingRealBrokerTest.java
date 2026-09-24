@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.plugins.messaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.PluginMessagingReconciler;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
@@ -339,6 +340,30 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
                                 operator)))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("reserved");
+    }
+
+    @Test
+    void checkSendGivesTheReasonASendWouldBeRefusedWithoutSending() throws Exception {
+        String queue = queue("CHECK");
+        String plugin = activate("check");
+        PluginMessaging messaging = messaging(plugin);
+        UUID reader = user(Set.of("message:read"));
+        Session session = jms.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        MessageConsumer consumer = session.createConsumer(session.createQueue(queue));
+
+        assertThat(messaging.checkSend(clusterId, queue, operator)).isEmpty();
+        assertThat(messaging.checkSend(clusterId, queue, reader)).get(STRING).contains("message:send");
+        assertThat(messaging.checkSend(clusterId, "artemis-studio.capture.x", operator))
+                .get(STRING)
+                .contains("reserved");
+        assertThat(messaging.checkSend(UUID.randomUUID(), queue, operator))
+                .get(STRING)
+                .contains("not registered");
+        assertThat(messaging.checkSend(clusterId, " ", operator)).get(STRING).contains("an address");
+        assertThat(messaging.checkSend(clusterId, "q".repeat(1_001), operator))
+                .get(STRING)
+                .contains("longer than");
+        assertThat(consumer.receive(500)).isNull();
     }
 
     // ---- lifecycle and permissions ------------------------------------------
