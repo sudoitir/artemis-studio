@@ -101,8 +101,22 @@ class BulkRunTest extends BulkTestSupport {
         return run.items().stream().map(BulkItemView::status).toList();
     }
 
+    /**
+     * The run's audit outcome, once written. The runner commits the run's terminal status and then the
+     * audit outcome, each in its own transaction (ADR-0078), so a reader that has just seen the run
+     * finish can still find the audit event pending for a moment.
+     */
     private String auditOutcome(Long id) {
-        return jdbc.queryForObject("SELECT outcome FROM audit_event WHERE id = ?", String.class, id);
+        Instant deadline = Instant.now().plus(Duration.ofSeconds(5));
+        String outcome;
+        do {
+            outcome = jdbc.queryForObject("SELECT outcome FROM audit_event WHERE id = ?", String.class, id);
+            if (!"PENDING".equals(outcome)) {
+                return outcome;
+            }
+            java.util.concurrent.locks.LockSupport.parkNanos(20_000_000);
+        } while (Instant.now().isBefore(deadline));
+        return outcome;
     }
 
     @Test
