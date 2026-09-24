@@ -5,9 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push supersedes a PR's run, but never main's: main's run is a release, which tags
+# before it pushes the image, so cancelling it burns a version with nothing published.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
