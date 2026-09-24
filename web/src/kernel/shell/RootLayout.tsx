@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import { AppShell, Center, Group, Loader, ScrollArea, Text } from '@mantine/core';
-import { useHotkeys, useReducedMotion } from '@mantine/hooks';
+import { AppShell, Button, Center, Group, Kbd, Loader, ScrollArea, Text } from '@mantine/core';
+import { spotlight } from '@mantine/spotlight';
+import { IconSearch } from '@tabler/icons-react';
+import { useDocumentTitle, useHotkeys, useReducedMotion } from '@mantine/hooks';
 import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 
 import styles from './RootLayout.module.css';
@@ -14,6 +16,9 @@ import { FreshnessBar } from './FreshnessBar.tsx';
 import { NavToggle } from './NavToggle.tsx';
 import { UserMenu } from './UserMenu.tsx';
 import { useNavCollapsed } from './useNavCollapsed.ts';
+import { useCurrentView } from '../nav/currentView.ts';
+import { useTitleParts } from './pageTitle.ts';
+import { recordRecent } from './recents.ts';
 
 const NAVBAR_ID = 'as-navbar';
 const MAIN_ID = 'as-main';
@@ -49,6 +54,34 @@ export function RootLayout() {
       navigate({ to: '/change-password' });
     }
   }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
+
+  // Every tab says what it holds (ADR-0109): an operator with six Studio tabs open finds the one
+  // on prod's Queues without opening each.
+  const view = useCurrentView();
+  const titleParts = useTitleParts();
+  useDocumentTitle(
+    [titleParts.resource, view?.item?.label, view ? titleParts.cluster : undefined, branding.productName]
+      .filter(Boolean)
+      .join(' · '),
+  );
+
+  // Every place visited feeds the palette's Recent group: a view, or the resource open in it.
+  const recentLabel = view?.item
+    ? titleParts.resource
+      ? `${titleParts.resource}`
+      : view.item.label
+    : undefined;
+  useEffect(() => {
+    if (!view?.item || !recentLabel) return;
+    recordRecent(view.clusterId, {
+      label: recentLabel,
+      kind: titleParts.resource ? `In ${view.item.label}` : `View · ${view.groupLabel ?? ''}`.replace(/ · $/, ''),
+      to: location.pathname,
+      search: (location.search ?? {}) as Record<string, unknown>,
+    });
+    // The search is part of the place (the open queue), but a filter typed into it is not a new place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.clusterId, view?.item, recentLabel, location.pathname]);
 
   useHotkeys([['mod+B', toggle]]);
   usePluginsChanged();
@@ -92,9 +125,21 @@ export function RootLayout() {
           </Group>
           <Group gap="md" wrap="nowrap">
             <FreshnessBar />
-            <Text size="xs" c="dimmed" visibleFrom="lg">
-              <kbd>⌘</kbd> <kbd>K</kbd> search · <kbd>⌘</kbd> <kbd>B</kbd> sidebar
-            </Text>
+            {/* A visible way into the palette: a shortcut nobody can see is one nobody finds. */}
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<IconSearch size={14} aria-hidden />}
+              rightSection={
+                <Kbd size="xs" visibleFrom="lg">
+                  ⌘K
+                </Kbd>
+              }
+              onClick={() => spotlight.open()}
+              aria-keyshortcuts="Meta+K Control+K"
+            >
+              Search
+            </Button>
             <UserMenu me={me.data} />
           </Group>
         </Group>

@@ -6,6 +6,7 @@ import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { validateResourceSearch } from '../../kernel/routing/search.ts';
 import { keys } from './api.ts';
+import { ResourcePalette } from './ResourcePalette.tsx';
 import { ResourceView } from './ResourceView.tsx';
 import {
   AddressCloseConsumers,
@@ -57,6 +58,7 @@ export const resourcesFeature = defineFeature({
     path: kind,
     permission: 'cluster:read',
   })),
+  palette: ResourcePalette,
   slots: {
     'connection.actions': [
       { id: 'resources.connection.open', order: 20, section: 'open', Component: ConnectionOpenSessions },

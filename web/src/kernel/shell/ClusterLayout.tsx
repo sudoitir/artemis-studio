@@ -5,6 +5,7 @@ import { ActionHostProvider } from '../actions/ActionHost.tsx';
 import { useFeatures } from '../features.ts';
 import { useSlot } from '../slots.ts';
 import { useClusterStream } from '../stream/useClusterStream.ts';
+import { Breadcrumb } from './Breadcrumb.tsx';
 
 /**
  * One cluster's screen: the header its features contribute, then the routed view.
@@ -26,6 +27,7 @@ export function ClusterLayout() {
   return (
     <ActionHostProvider>
       <Stack gap="lg">
+        <Breadcrumb />
         {header.map(({ id, Component }) => (
           <Component key={id} clusterId={clusterId} />
         ))}

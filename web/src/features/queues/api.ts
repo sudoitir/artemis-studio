@@ -23,6 +23,8 @@ export const keys = {
 export function useQueues(
   id: string,
   params: ResourceParams = {},
+  /** `enabled: false` holds the read; `live: false` reads once instead of polling. */
+  options: { enabled?: boolean; live?: boolean } = {},
 ): UseQueryResult<PagedView<QueueView>, ApiError> {
   return useQuery({
     queryKey: keys.resource(id, "queues", params),
@@ -35,8 +37,8 @@ export function useQueues(
     // `/clusters//queues`, which is a 400 — and an errored observed query puts
     // the whole shell into its offline state, so every cluster-less screen
     // claimed Studio had lost the brokers.
-    enabled: id !== "",
-    refetchInterval: poll(5_000),
+    enabled: id !== "" && (options.enabled ?? true),
+    refetchInterval: options.live === false ? false : poll(5_000),
     placeholderData: (prev) => prev,
   });
 }

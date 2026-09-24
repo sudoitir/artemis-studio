@@ -13,14 +13,26 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => navigate,
   useParams: () => ({ clusterId: 'c1' }),
+  useLocation: () => ({ pathname: '/clusters/c1/topology', search: {} }),
 }));
 
 // Imported after the mock is registered.
 const { CommandPalette } = await import('./CommandPalette.tsx');
 
-function mockApi() {
+const queueRequests: string[] = [];
+
+function mockApi(permissions: string[] = ['*']) {
+  queueRequests.length = 0;
   server.use(
     manifestHandler(),
+    http.get('*/api/v1/auth/me', () =>
+      HttpResponse.json({
+        id: 'u1',
+        username: 'op',
+        mustChangePassword: false,
+        grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
+      }),
+    ),
     http.get('*/api/v1/clusters', () =>
       HttpResponse.json([
         {
@@ -33,8 +45,9 @@ function mockApi() {
         },
       ]),
     ),
-    http.get('*/api/v1/clusters/c1/queues', () =>
-      HttpResponse.json({
+    http.get('*/api/v1/clusters/c1/queues', ({ request }) => {
+      queueRequests.push(new URL(request.url).search);
+      return HttpResponse.json({
         data: [
           {
             address: 'ORDERS',
@@ -53,8 +66,8 @@ function mockApi() {
         count: 1,
         page: 1,
         pageSize: 50,
-      }),
-    ),
+      });
+    }),
   );
 }
 
@@ -73,25 +86,58 @@ describe('CommandPalette', () => {
     const action = await screen.findByRole('button', { name: /prod-eu/i });
     await user.click(action);
 
+    // Already on the Topology view, so the other cluster opens on the same view.
     expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/topology' });
   });
 
-  it('lists a queue action that navigates with the queue name as search', async () => {
+  it('searches queues only once the palette is open and two characters are typed, and opens the queue', async () => {
+    navigate.mockClear();
+    mockApi();
+    const user = userEvent.setup();
+    renderWithProviders(<CommandPalette />);
+
+    // Closed, the palette reads nothing.
+    await new Promise((r) => setTimeout(r, 300));
+    expect(queueRequests).toEqual([]);
+
+    await user.keyboard('{Control>}k{/Control}');
+    const search = await screen.findByPlaceholderText(/jump to a cluster/i);
+    await user.type(search, 'O');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(queueRequests).toEqual([]);
+    await user.type(search, 'RDERS');
+
+    const action = await screen.findByRole('button', { name: /^ORDERS/ });
+    await user.click(action);
+
+    expect(queueRequests.every((q) => q.includes('q=ORDERS'))).toBe(true);
+    expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/queues', search: { queue: 'ORDERS' } });
+  });
+
+  it('offers to search the live views without reading them', async () => {
     navigate.mockClear();
     mockApi();
     const user = userEvent.setup();
     renderWithProviders(<CommandPalette />);
 
     await user.keyboard('{Control>}k{/Control}');
-    const search = await screen.findByPlaceholderText(/jump to a cluster/i);
-    await user.type(search, 'ORDERS');
+    await user.type(await screen.findByPlaceholderText(/jump to a cluster/i), '10.4.2');
+    await user.click(await screen.findByRole('button', { name: /Search connections for "10.4.2"/ }));
+    expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/connections', search: { q: '10.4.2' } });
+  });
 
-    const action = await screen.findByRole('button', { name: /ORDERS/i });
-    await user.click(action);
+  it('lists a view the operator may not open as unavailable, with the reason', async () => {
+    mockApi(['cluster:read']);
+    const user = userEvent.setup();
+    renderWithProviders(<CommandPalette />);
 
-    expect(navigate).toHaveBeenCalledWith({
-      to: '/clusters/c1/queues',
-      search: { q: 'ORDERS' },
-    });
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(await screen.findByPlaceholderText(/jump to a cluster/i), 'Audit');
+    await screen.findByRole('button', { name: /Audit/ });
+    await user.clear(screen.getByPlaceholderText(/jump to a cluster/i));
+    await user.type(screen.getByPlaceholderText(/jump to a cluster/i), 'Transfers');
+    const transfers = await screen.findByRole('button', { name: /Transfers/ });
+    expect(transfers).toBeDisabled();
+    expect(transfers).toHaveTextContent(/needs the message:read permission/);
   });
 });

@@ -35,6 +35,7 @@ import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useSlot, type MessageSelection } from '../../kernel/slots.ts';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
+import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 
 const PAGE_SIZE = 200;
 
@@ -94,6 +95,7 @@ export function MessagesView() {
   const [debounced] = useDebouncedValue(filter, 250);
   // The open message is in the address, so a link to one message opens it (non-negotiable #9).
   const openId = search.message ?? null;
+  useTitlePart('resource', openId ? `${queueName} › message ${openId}` : queueName);
   const setOpenId = (id: string | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, message: id ?? undefined }) });
   const [selected, setSelected] = useState<Set<string>>(new Set());

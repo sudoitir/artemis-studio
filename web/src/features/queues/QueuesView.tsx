@@ -12,6 +12,7 @@ import { CreateQueueForm } from './CreateQueueForm.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useSlot, type QueueSelection } from '../../kernel/slots.ts';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
+import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 
@@ -126,6 +127,7 @@ export function QueuesView() {
   const onPage = (query.data?.data ?? []).find((q) => q.queueName === search.queue);
   const offPage = useQueue(clusterId, onPage ? undefined : search.queue);
   const selected = onPage ?? offPage.queue ?? null;
+  useTitlePart('resource', selected?.queueName);
   const setSelected = (queue: QueueView | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, queue: queue?.queueName }) });
   const [createOpen, setCreateOpen] = useState(false);
