@@ -46,8 +46,10 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "bulk_run",
                     // Cross-broker message transfer (ADR-0097, changeset feature-transfer 0001).
                     "transfer_(run|copied)",
-                    // CONFIG_DRIFT admitted by the state-condition check (changeset feature-alerting 0002).
-                    "CREATE TABLE alert_rule ",
+                    // Email, Teams and PagerDuty channel kinds, the CONFIG_DRIFT and SETUP_RISK state
+                    // conditions, and the delivery log's index (ADR-0105, changeset feature-alerting 0002).
+                    "CREATE TABLE (alert_rule|notification_channel) ",
+                    "ix_alert_delivery_channel_seq",
                     // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0006).
                     "plugin_(artifact|install|installer|upload)",
                     "studio_boot")

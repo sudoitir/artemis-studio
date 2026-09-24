@@ -20,6 +20,7 @@ import {
   METRIC_NOTES,
   RATE_METRICS,
   CONFIG_DRIFT_TEMPLATE,
+  SETUP_RISK_TEMPLATE,
   SLOW_CONSUMER_TEMPLATE,
   STATE_CONDITIONS,
   metricKind,
@@ -83,6 +84,13 @@ export function RuleForm({
     setStateCondition(CONFIG_DRIFT_TEMPLATE.stateCondition);
     setForSeconds(CONFIG_DRIFT_TEMPLATE.forSeconds);
     setSeverity(CONFIG_DRIFT_TEMPLATE.severity);
+  };
+
+  const applySetupRiskTemplate = () => {
+    setName(SETUP_RISK_TEMPLATE.name);
+    setStateCondition(SETUP_RISK_TEMPLATE.stateCondition);
+    setForSeconds(SETUP_RISK_TEMPLATE.forSeconds);
+    setSeverity(SETUP_RISK_TEMPLATE.severity);
   };
 
   const valid =
@@ -150,6 +158,17 @@ export function RuleForm({
             style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
           >
             Start from the configuration-drift template
+          </Anchor>
+        ) : null}
+        {kind === 'STATE' && !initial ? (
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            onClick={applySetupRiskTemplate}
+            style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
+          >
+            Start from the setup-risk template
           </Anchor>
         ) : null}
 

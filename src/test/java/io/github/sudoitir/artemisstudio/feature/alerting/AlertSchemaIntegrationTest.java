@@ -94,7 +94,14 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
                 "SETUP_RISK")) {
             rules.save(AlertRuleEntity.state(c, "rule " + condition, condition, 0, "WARNING"));
         }
-        assertThat(rules.findByClusterIdAndKindAndEnabledTrue(c, "STATE")).hasSize(6);
+        assertThat(rules.findByClusterIdAndKindAndEnabledTrue(c, "STATE")).hasSize(7);
+    }
+
+    @Test
+    void everyChannelKindPersists() {
+        for (String kind : List.of("WEBHOOK", "SLACK", "EMAIL", "TEAMS", "PAGERDUTY")) {
+            assertThat(channel("kind-" + kind, kind).getKind()).isEqualTo(kind);
+        }
     }
 
     @Test

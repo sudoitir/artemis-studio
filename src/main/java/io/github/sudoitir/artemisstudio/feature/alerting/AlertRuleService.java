@@ -28,8 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AlertRuleService {
 
-    private static final Set<String> STATE_CONDITIONS =
-            Set.of("SPLIT_BRAIN", "NODE_DOWN", "REPLICATION_BEHIND", "CLUSTER_DEGRADED", "CLOCK_SKEW", "CONFIG_DRIFT");
+    private static final Set<String> STATE_CONDITIONS = Set.of(
+            "SPLIT_BRAIN",
+            "NODE_DOWN",
+            "REPLICATION_BEHIND",
+            "CLUSTER_DEGRADED",
+            "CLOCK_SKEW",
+            "CONFIG_DRIFT",
+            "SETUP_RISK");
     private static final Set<String> COMPARATORS = Set.of("GT", "GTE", "LT", "LTE", "EQ", "NE");
 
     private final AlertRuleRepository rules;

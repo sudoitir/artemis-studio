@@ -75,7 +75,9 @@ public class AlertDeliveryEntity {
         this.nextAttemptAt = now;
     }
 
+    /** The successful attempt counts too, so the delivery log's "attempts" is every try made. */
     public void recordSuccess(Instant now) {
+        this.attempts++;
         this.state = "SENT";
         this.deliveredAt = now;
         this.lastError = null;
@@ -90,6 +92,17 @@ public class AlertDeliveryEntity {
         } else {
             this.nextAttemptAt = now.plus(nextDelay);
         }
+    }
+
+    /**
+     * An operator returns a dead delivery to the queue (ADR-0105 D6): attempted on the
+     * dispatcher's next pass, with a fresh attempt budget. The last error is kept until the
+     * next attempt replaces it, so the log still says why it died.
+     */
+    public void requeue(Instant now) {
+        this.state = "PENDING";
+        this.attempts = 0;
+        this.nextAttemptAt = now;
     }
 
     /** A permanently-invalid destination (e.g. a revoked Slack webhook) — no retry. */

@@ -134,6 +134,13 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
+            <!-- SMTP for email notification channels (ADR-0099). Studio builds one sender per
+                 channel; the auto-configured global JavaMailSender is unused and backs off
+                 without spring.mail.host. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <dependency>
             <!-- @ApplicationModule / @NamedInterface declarations only; no runtime (ADR-0069). -->
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-api</artifactId>

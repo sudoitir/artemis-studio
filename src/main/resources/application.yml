@@ -219,6 +219,10 @@ artemis-studio:
     connect-timeout: 10s         # notificationRestClient connect + read timeout
     initial-backoff: 5s          # first retry delay (exponential with jitter)
     max-backoff: 10m             # backoff ceiling
+    # Where operators reach Studio; notifications link back to the cluster's alerts when set
+    # (ADR-0105). Blank: no link.
+    public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
+    email-timeout: 15s           # SMTP connect + read + write timeout, per delivery
   sse:
     # Keep-alive comment interval for GET /api/v1/stream (ADR-0018). Lower it if a
     # proxy in front of Studio idles the connection out sooner than this.
