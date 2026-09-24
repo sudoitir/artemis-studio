@@ -42,7 +42,7 @@ export function SettingsView() {
       orientation="vertical"
       activateTabWithKeyboard={false}
       keepMounted={false}
-      classNames={{ list: classes.list, panel: classes.panel }}
+      classNames={{ list: classes.list, tab: classes.tab, panel: classes.panel }}
     >
       <Tabs.List aria-label="Settings sections">
         {groups.map((group) => (

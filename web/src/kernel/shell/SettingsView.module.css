@@ -3,6 +3,13 @@
   padding-inline-end: var(--mantine-spacing-md);
 }
 
+/* Tab labels line up with their group heading instead of centring in the column. */
+.tab {
+  justify-content: flex-start;
+  text-align: start;
+  padding-inline: var(--mantine-spacing-sm);
+}
+
 /* A group heading, not a tab: quiet, and spaced from the group above it. */
 .group {
   padding-inline-start: var(--mantine-spacing-sm);
