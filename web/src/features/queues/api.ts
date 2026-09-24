@@ -42,6 +42,33 @@ export function useQueues(
 }
 
 /**
+ * One queue by name, exactly. The listing is the only read of a queue, so this asks it for the name
+ * and keeps the exact match: a filter is a substring match on queue or address, and `orders` also
+ * matches `orders.dlq`. `snapshot`, when the caller already has the row, answers without a request.
+ */
+export function useQueue(
+  clusterId: string,
+  queueName: string | undefined,
+  snapshot?: QueueView,
+): { queue: QueueView | undefined; isPending: boolean; isError: boolean } {
+  const lookup = useQuery({
+    queryKey: keys.resource(clusterId, "queues", { q: queueName, size: 50 }),
+    queryFn: () =>
+      request<PagedView<QueueView>>(
+        `/clusters/${clusterId}/queues${resourceSearch({ q: queueName, size: 50 })}`,
+      ),
+    enabled: !snapshot && clusterId !== "" && Boolean(queueName),
+    refetchInterval: poll(5_000),
+  });
+  if (snapshot) return { queue: snapshot, isPending: false, isError: false };
+  return {
+    queue: lookup.data?.data.find((q) => q.queueName === queueName),
+    isPending: Boolean(queueName) && lookup.isPending,
+    isError: lookup.isError,
+  };
+}
+
+/**
  * What the queue is configured as on each node that has it. The broker's update
  * replaces the whole configuration, so the edit form reads this first: a form of
  * blank inputs cannot say what the queue runs, nor whether an update took.

@@ -2,6 +2,7 @@ import type { AnyRoute } from '@tanstack/react-router';
 
 import { CONTRACT, type StudioFeature } from '../feature.ts';
 import type { ManifestFeatureView } from '../manifest.ts';
+import { ACTION_SECTIONS } from '../actions/types.ts';
 import { NAV_GROUPS } from '../nav/groups.ts';
 import type { SlotContribution, SlotContributions, SlotName } from '../slots.ts';
 import { guarded } from './guarded.tsx';
@@ -10,6 +11,7 @@ import { guarded } from './guarded.tsx';
 export type Checked = { ok: true; feature: StudioFeature } | { ok: false; reason: string };
 
 const NAV_GROUP_IDS = new Set<string>(NAV_GROUPS.map((group) => group.id));
+const ACTION_SECTION_IDS = new Set<string>(ACTION_SECTIONS.map((section) => section.id));
 
 /** The first segment a plugin route's path must have: everything it adds lives under `p/<id>/`. */
 export function pluginPathPrefix(id: string): string {
@@ -65,13 +67,26 @@ export function checkPlugin(entry: ManifestFeatureView, exported: unknown): Chec
 
   const slots: SlotContributions = {};
   for (const [name, contributions] of Object.entries(feature.slots ?? {}) as [SlotName, SlotContribution<never>[]][]) {
+    // Where a resource name links to is Studio's own: a plugin that could redirect every queue
+    // link would be a phishing surface inside the console (ADR-0105).
+    if (name.endsWith('.link')) {
+      return { ok: false, reason: `it contributes to ${name}, and links to built-in resources are Studio's own` };
+    }
+    const action = name.endsWith('.actions');
     for (const contribution of contributions) {
       if (!contribution.id.startsWith(`${id}.`)) {
         return { ok: false, reason: `its ${name} entry "${contribution.id}" is not named ${id}.…` };
       }
+      if (action && !ACTION_SECTION_IDS.has(String(contribution.section))) {
+        return {
+          ok: false,
+          reason: `its ${name} entry "${contribution.id}" names no menu section (one of ${[...ACTION_SECTION_IDS].join(', ')})`,
+        };
+      }
     }
-    // Header and badge-like slots stay silent on failure; panels and tabs say what happened.
-    const quiet = name === 'shell.header' || name === 'topology.node.marks';
+    // Header, badge-like and menu slots stay silent on failure — a sentence inside a menu is not a
+    // menu item; panels and tabs say what happened.
+    const quiet = name === 'shell.header' || name === 'topology.node.marks' || action;
     (slots as Record<string, SlotContribution<never>[]>)[name] = contributions.map((contribution) => ({
       ...contribution,
       // A plugin's settings are listed under Plugins, never mixed into Studio's own groups.

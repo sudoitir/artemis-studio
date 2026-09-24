@@ -1,5 +1,19 @@
 import type { ComponentType } from 'react';
 
+import type {
+  ActionProps,
+  ActionSection,
+  AddressTarget,
+  ClientTarget,
+  ConnectionTarget,
+  ConsumerTarget,
+  DivertTarget,
+  LinkProps,
+  MessageTarget,
+  ProducerTarget,
+  QueueTarget,
+  SessionTarget,
+} from './actions/types.ts';
 import { useFeatures } from './features.ts';
 
 /** Queues picked by name, or every queue matching the queues screen's filter (`q`, blank for all). */
@@ -57,6 +71,30 @@ export interface SlotProps {
   'admin.tabs': object;
   /** A section of the signed-in user's Account page, under the contribution's title. */
   'account.sections': object;
+
+  /*
+   * Row actions (ADR-0105): the items of a resource's row menu, wherever a grid lists it. Each
+   * contribution names its `section`, renders `ActionMenuItem`s, and opens its dialogs through
+   * `host`, never in the row. In `navigate` mode it offers nothing that changes the broker.
+   */
+  'queue.actions': ActionProps<QueueTarget>;
+  'address.actions': ActionProps<AddressTarget>;
+  'connection.actions': ActionProps<ConnectionTarget>;
+  'session.actions': ActionProps<SessionTarget>;
+  'consumer.actions': ActionProps<ConsumerTarget>;
+  'producer.actions': ActionProps<ProducerTarget>;
+  'message.actions': ActionProps<MessageTarget>;
+  'divert.actions': ActionProps<DivertTarget>;
+  'client.actions': ActionProps<ClientTarget>;
+
+  /*
+   * Links (ADR-0105): the owning feature's link to one resource, wrapping its name. Built-in only —
+   * a plugin may not decide where Studio's own resource links lead.
+   */
+  'queue.link': LinkProps<QueueTarget>;
+  'address.link': LinkProps<AddressTarget>;
+  'connection.link': LinkProps<ConnectionTarget>;
+  'session.link': LinkProps<SessionTarget>;
 }
 
 export type SlotName = keyof SlotProps;
@@ -84,6 +122,8 @@ export interface SlotContribution<P> {
   title?: string;
   /** `settings.sections` only: the heading its tab sits under. Without one it is listed under Plugins. */
   group?: SettingsGroupId;
+  /** `*.actions` only: the menu section the item is listed under. */
+  section?: ActionSection;
   Component: ComponentType<P>;
 }
 

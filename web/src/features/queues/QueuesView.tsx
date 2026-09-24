@@ -4,13 +4,16 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster } from '../clusters/index.ts';
-import { useQueues, type QueueView } from './api.ts';
+import { useQueue, useQueues, type QueueView } from './api.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { QueueDetailDrawer } from './QueueDetailDrawer.tsx';
 import { CreateQueueForm } from './CreateQueueForm.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useSlot, type QueueSelection } from '../../kernel/slots.ts';
+import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
+import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
+import { gateFor } from '../../ui/capabilityGate.ts';
 
 const PAGE_SIZE = 200;
 
@@ -117,17 +120,29 @@ export function QueuesView() {
   // rows each render, so a pause, an edit or a delete that refetches the listing is
   // reflected in the panel instead of leaving it showing the queue as it was when
   // it was opened (non-negotiable #9).
-  const selected = (query.data?.data ?? []).find((q) => q.queueName === search.queue) ?? null;
+  //
+  // A shared or palette link can name a queue that is not on the loaded page; it is looked up by
+  // name then, rather than the link silently opening nothing.
+  const onPage = (query.data?.data ?? []).find((q) => q.queueName === search.queue);
+  const offPage = useQueue(clusterId, onPage ? undefined : search.queue);
+  const selected = onPage ?? offPage.queue ?? null;
   const setSelected = (queue: QueueView | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, queue: queue?.queueName }) });
   const [createOpen, setCreateOpen] = useState(false);
-  const { can } = useCan();
+  const { can, loading: grantsLoading } = useCan();
   const mayCreate = can('queue:create', clusterId);
 
   // An empty grid has three quite different causes, and presenting an absence as
   // a fact is the one that misleads: a node Studio could not reach contributes no
   // rows, which looks exactly like a cluster with no queues.
   const cluster = useCluster(clusterId);
+  // Offered while grants load, and never hidden: an operator without the grant sees why (non-negotiable #5).
+  const createGate = gateFor(
+    mayCreate,
+    'Create queues and addresses',
+    cluster.data?.capabilities.managementWrite,
+    grantsLoading || cluster.isPending,
+  );
   const unreachable = (cluster.data?.topology.nodes ?? [])
     .flatMap((n) => n.endpoints)
     .filter((e) => e.lastError)
@@ -191,21 +206,22 @@ export function QueuesView() {
 
   return (
     <Stack gap="sm">
-      <Group justify="space-between">
+      <Group justify="space-between" align="flex-end">
         <TextInput
-          placeholder="Filter by queue or address"
+          label="Filter queues"
+          placeholder="Queue or address name"
           value={filter}
           onChange={(e) => setFilter(e.currentTarget.value)}
           w={280}
           size="xs"
         />
-        <Group gap="xs">
+        <Group gap="xs" align="flex-end">
           {/* The count and position live in the pager, stated once. */}
-          {mayCreate ? (
-            <Button size="xs" onClick={() => setCreateOpen(true)}>
+          <CapabilityGate verdict={createGate} what="creating a queue">
+            <Button size="xs" disabled={createGate.kind === 'blocked'} onClick={() => setCreateOpen(true)}>
               New queue
             </Button>
-          ) : null}
+          </CapabilityGate>
         </Group>
       </Group>
 
@@ -262,6 +278,17 @@ export function QueuesView() {
           selected={selectedKeys}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}
+          rowMenu={{
+            label: (r) => r.queueName,
+            render: (r, menu) => (
+              <ResourceActions
+                kind="queue"
+                clusterId={clusterId}
+                target={{ queueName: r.queueName, address: r.address, snapshot: r }}
+                restoreFocus={menu.restoreFocus}
+              />
+            ),
+          }}
           emptyLabel={
             search.q ? (
               <Stack gap={4} align="flex-start">

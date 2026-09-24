@@ -152,7 +152,7 @@ export function QueueLifecycleActions({
  * <p>Disconnecting consumers is the operator's explicit choice (ADR-0084). Changing
  * it takes the preview again, so what is confirmed is always what was previewed.
  */
-function DeleteQueueDialog({
+export function DeleteQueueDialog({
   clusterId,
   queue,
   opened,
