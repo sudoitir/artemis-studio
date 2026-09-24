@@ -26,7 +26,7 @@ interface RowContext {
 }
 
 /**
- * A value that names another resource, as a link to it (ADR-0105) — or as plain text when the
+ * A value that names another resource, as a link to it (ADR-0107) — or as plain text when the
  * feature presenting it is disabled, or when the broker gave no value.
  */
 function linked(
@@ -63,7 +63,7 @@ interface KindConfig<T> {
    * click apart.
    */
   action?: (row: T, ctx: RowContext) => React.ReactNode;
-  /** The row's menu (ADR-0105): which resource it is, and how the row names itself. */
+  /** The row's menu (ADR-0107): which resource it is, and how the row names itself. */
   menu: RowMenuConfig<T>;
 }
 

@@ -1,6 +1,6 @@
 ## Context
 
-The decisions are recorded in ADR-0105 to ADR-0108. This file is the working design: how
+The decisions are recorded in ADR-0107 to ADR-0110. This file is the working design: how
 the pieces fit, what was verified against the libraries, and the thresholds the UI uses.
 
 Library facts come from mantine.dev/llms.txt (Mantine 9.6.1) and ctx7 (TanStack Virtual).
@@ -42,7 +42,7 @@ Library facts come from mantine.dev/llms.txt (Mantine 9.6.1) and ctx7 (TanStack 
 
 ## Decisions
 
-**D1 — Slots, not a new contribution field (ADR-0105).** Action and link slots reuse the
+**D1 — Slots, not a new contribution field (ADR-0107).** Action and link slots reuse the
 slot machinery: enabled filtering, order, plugin namespacing and guarding.
 `SlotContribution` gains an optional `section` from `ACTION_SECTIONS`.
 
@@ -82,7 +82,7 @@ slot machinery: enabled filtering, order, plugin namespacing and guarding.
 - `MessageTarget { queueName, messageId, node?, snapshot? }`
 - `DivertTarget { name, snapshot? }`
 
-**D6 — Roving grid (ADR-0106).**
+**D6 — Roving grid (ADR-0108).**
 - `ui/useRovingGrid` is a pure model: `{ rowKey, col }` plus the key-to-move reducer, with
   unit tests.
 - `VirtualTable` renders `tabIndex=0` only on the active cell, and on the first
@@ -97,7 +97,7 @@ slot machinery: enabled filtering, order, plugin namespacing and guarding.
 **D7 — Copy.** Ctrl/Cmd+C with an empty selection on a focused cell copies `data-full`,
 then calls `onAnnounce` if provided.
 
-**D8 — Title and crumb (ADR-0107).**
+**D8 — Title and crumb (ADR-0109).**
 - `kernel/shell/pageTitle.ts` is a tiny external store with `set(part, value)` for
   `cluster`, `view` and `resource`, and `useDocumentTitle` is applied in `RootLayout`.
 - `useCurrentView()` returns the nav contribution whose path is the longest prefix of the

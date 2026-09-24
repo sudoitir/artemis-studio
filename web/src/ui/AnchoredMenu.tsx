@@ -5,7 +5,7 @@ import classes from './ActionMenu.module.css';
 import type { MenuAnchor } from './menuAnchor.ts';
 
 /**
- * One controlled menu opened at a point rather than from a trigger it wraps (ADR-0105). A grid
+ * One controlled menu opened at a point rather than from a trigger it wraps (ADR-0107). A grid
  * renders one of these for all of its rows: the items of a closed menu are not mounted, so a page
  * of rows costs one menu, not one per row.
  *

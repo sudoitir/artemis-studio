@@ -317,7 +317,7 @@ export function DeleteDivertAction({ clusterId, divert }: { clusterId: string; d
         color="red"
         disabled={gate.kind === 'blocked'}
         aria-label={`Delete divert ${divert.name}`}
-        // Hosted outside the grid (ADR-0105), so a delete that removes this row keeps its outcome.
+        // Hosted outside the grid (ADR-0107), so a delete that removes this row keeps its outcome.
         onClick={(e) =>
           host.open(DeleteDivertDialog, { clusterId, divert }, { restoreFocus: focusBack(e.currentTarget) })
         }

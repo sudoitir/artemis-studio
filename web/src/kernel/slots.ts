@@ -73,7 +73,7 @@ export interface SlotProps {
   'account.sections': object;
 
   /*
-   * Row actions (ADR-0105): the items of a resource's row menu, wherever a grid lists it. Each
+   * Row actions (ADR-0107): the items of a resource's row menu, wherever a grid lists it. Each
    * contribution names its `section`, renders `ActionMenuItem`s, and opens its dialogs through
    * `host`, never in the row. In `navigate` mode it offers nothing that changes the broker.
    */
@@ -88,7 +88,7 @@ export interface SlotProps {
   'client.actions': ActionProps<ClientTarget>;
 
   /*
-   * Links (ADR-0105): the owning feature's link to one resource, wrapping its name. Built-in only —
+   * Links (ADR-0107): the owning feature's link to one resource, wrapping its name. Built-in only —
    * a plugin may not decide where Studio's own resource links lead.
    */
   'queue.link': LinkProps<QueueTarget>;

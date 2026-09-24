@@ -1,4 +1,4 @@
-/* A blocked item stays focusable so its reason can be reached (ADR-0105): Mantine only dims
+/* A blocked item stays focusable so its reason can be reached (ADR-0107): Mantine only dims
    `[data-disabled]`, which also removes the item from keyboard navigation, so the dimmed state is
    ours. The label stays at body contrast; only the secondary line is dimmed. */
 .item[aria-disabled='true'] {

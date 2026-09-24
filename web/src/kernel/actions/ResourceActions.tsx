@@ -10,7 +10,7 @@ import { ACTION_SECTIONS, type ActionHost, type ActionKind, type ActionMode, typ
 type ActionSlot<K extends ActionKind> = `${K}.actions` & SlotName;
 
 /**
- * The items every enabled feature contributes to a resource's row menu (ADR-0105), grouped under
+ * The items every enabled feature contributes to a resource's row menu (ADR-0107), grouped under
  * the kernel's sections in their order. Rendered inside an open menu only, so the contributions'
  * own hooks (grants, capabilities) run for the one row whose menu is open.
  *

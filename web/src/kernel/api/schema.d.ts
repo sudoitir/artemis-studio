@@ -548,6 +548,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/setup-review/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["runSetupReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/setup-review/acceptances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acceptSetupRisk"];
+        delete: operations["revokeSetupRisk"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/rr/expectations": {
         parameters: {
             query?: never;
@@ -942,6 +974,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channelId}/deliveries/{seq}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["testConfiguration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1452,6 +1516,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["stream_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/setup-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["setupReview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2012,6 +2092,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["firing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channelId}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["deliveries"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2602,6 +2698,20 @@ export interface components {
             secret?: string;
             enabled: boolean;
         };
+        ChannelHealthView: {
+            lastState: string;
+            /** Format: date-time */
+            lastCreatedAt: string;
+            /** Format: date-time */
+            lastDeliveredAt?: string | null;
+            lastError?: string | null;
+            /** Format: int64 */
+            pending: number;
+            /** Format: int64 */
+            failedLast24h: number;
+            /** Format: int64 */
+            sentLast24h: number;
+        };
         NotificationChannelView: {
             /** Format: uuid */
             id: string;
@@ -2610,6 +2720,9 @@ export interface components {
             config: string;
             enabled: boolean;
             hasSecret: boolean;
+            /** Format: int64 */
+            boundRuleCount: number;
+            health?: components["schemas"]["ChannelHealthView"];
         };
         PluginChangesetView: {
             id: string;
@@ -3154,6 +3267,91 @@ export interface components {
             /** @description Why capture would be refused as things stand, or null when it would not. */
             refusal?: string | null;
         };
+        AcceptanceView: {
+            reason: string;
+            acceptedBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            active: boolean;
+        };
+        EvidenceView: {
+            node?: string | null;
+            key: string;
+            value?: string | null;
+        };
+        NotAssessedView: {
+            code: string;
+            subject: string;
+            subjectLabel: string;
+            reason?: string | null;
+        };
+        ReviewedNodeView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            live: boolean;
+            reviewed: boolean;
+            reason?: string | null;
+        };
+        SetupFindingView: {
+            code: string;
+            category: string;
+            severity: string;
+            subject: string;
+            subjectLabel: string;
+            title: string;
+            impact: string;
+            evidence: components["schemas"]["EvidenceView"][];
+            recommendation: string;
+            snippet?: string | null;
+            caveats: string[];
+            appliable: boolean;
+            /** Format: date-time */
+            firstSeenAt: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+            stale: boolean;
+            acceptance?: components["schemas"]["AcceptanceView"];
+        };
+        SetupReviewView: {
+            /** Format: uuid */
+            clusterId: string;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: int64 */
+            durationMs: number;
+            /** Format: int32 */
+            nodesTotal: number;
+            /** Format: int32 */
+            nodesReviewed: number;
+            clusterEvaluated: boolean;
+            nodes: components["schemas"]["ReviewedNodeView"][];
+            findings: components["schemas"]["SetupFindingView"][];
+            notAssessed: components["schemas"]["NotAssessedView"][];
+            open: components["schemas"]["SeverityCountsView"];
+            /** Format: int32 */
+            accepted: number;
+            /** Format: int32 */
+            rulesInCatalogue: number;
+            notice?: string | null;
+        };
+        SeverityCountsView: {
+            /** Format: int32 */
+            critical: number;
+            /** Format: int32 */
+            warning: number;
+            /** Format: int32 */
+            info: number;
+        };
+        AcceptRiskRequest: {
+            code: string;
+            subject: string;
+            reason: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+        };
         CreateExpectationRequest: {
             requestAddress: string;
             replyAddresses?: string[];
@@ -3621,6 +3819,37 @@ export interface components {
              * @enum {string}
              */
             routingTypes: "ANYCAST" | "MULTICAST" | "ANYCAST,MULTICAST";
+        };
+        ChannelTestResultView: {
+            delivered: boolean;
+            permanent: boolean;
+            error?: string | null;
+            /** Format: int64 */
+            durationMs: number;
+        };
+        AlertDeliveryView: {
+            /** Format: int64 */
+            seq: number;
+            /** Format: uuid */
+            ruleId: string;
+            summary: string;
+            state: string;
+            /** Format: int32 */
+            attempts: number;
+            lastError?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            nextAttemptAt: string;
+            /** Format: date-time */
+            deliveredAt?: string | null;
+        };
+        ChannelTestRequest: {
+            /** Format: uuid */
+            channelId?: string | null;
+            kind: string;
+            config?: string;
+            secret?: string;
         };
         ReauthenticateRequest: {
             password: string;
@@ -6238,6 +6467,79 @@ export interface operations {
             };
         };
     };
+    runSetupReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SetupReviewView"];
+                };
+            };
+        };
+    };
+    acceptSetupRisk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptRiskRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SetupReviewView"];
+                };
+            };
+        };
+    };
+    revokeSetupRisk: {
+        parameters: {
+            query: {
+                code: string;
+                subject: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SetupReviewView"];
+                };
+            };
+        };
+    };
     listExpectations: {
         parameters: {
             query?: never;
@@ -7065,12 +7367,61 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["ChannelTestResultView"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: string;
+                seq: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AlertDeliveryView"];
+                };
+            };
+        };
+    };
+    testConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelTestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChannelTestResultView"];
+                };
             };
         };
     };
@@ -7875,6 +8226,28 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["StreamFrameView"];
+                };
+            };
+        };
+    };
+    setupReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SetupReviewView"];
                 };
             };
         };
@@ -8723,6 +9096,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AlertFiringView"][];
+                };
+            };
+        };
+    };
+    deliveries: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AlertDeliveryView"][];
                 };
             };
         };

@@ -246,7 +246,7 @@ export function DeleteQueue({ clusterId, target, host }: ActionProps<QueueTarget
   );
 }
 
-/** A queue's name as a link to its detail (ADR-0105). */
+/** A queue's name as a link to its detail (ADR-0107). */
 export function QueueLink({ clusterId, target, children }: LinkProps<QueueTarget>) {
   return (
     <Link to={`/clusters/${clusterId}/queues`} search={{ queue: target.queueName }} className={linkClasses.link}>

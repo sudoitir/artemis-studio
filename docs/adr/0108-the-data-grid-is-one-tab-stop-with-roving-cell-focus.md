@@ -1,4 +1,4 @@
-# ADR-0106: The data grid is one tab stop with roving cell focus
+# ADR-0108: The data grid is one tab stop with roving cell focus
 
 - **Status**: accepted
 - **Date**: 2026-09-24
@@ -16,7 +16,7 @@ model:
 - The grid has no accessible name.
 - The full-value reveal is positioned with a physical `left`.
 
-A row action menu (ADR-0105) needs a keyboard path, and that path starts with being able
+A row action menu (ADR-0107) needs a keyboard path, and that path starts with being able
 to stand on a row.
 
 ## Decision

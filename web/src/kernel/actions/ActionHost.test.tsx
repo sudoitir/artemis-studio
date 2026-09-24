@@ -26,7 +26,7 @@ function Opener({ onEntered, restoreFocus }: { onEntered: () => void; restoreFoc
   );
 }
 
-describe('ActionHost (ADR-0105)', () => {
+describe('ActionHost (ADR-0107)', () => {
   it('opens a dialog after mounting it, so its enter transition — where previews start — fires', async () => {
     const onEntered = vi.fn();
     const restoreFocus = vi.fn();

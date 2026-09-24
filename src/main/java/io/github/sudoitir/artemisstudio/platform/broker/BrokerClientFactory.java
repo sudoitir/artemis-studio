@@ -99,7 +99,8 @@ public class BrokerClientFactory implements DisposableBean {
     public JolokiaBrokerClient forNode(BrokerConnectionSettings settings, String jolokiaUrl) {
         RestClient.Builder builder = RestClient.builder()
                 .requestFactory(transport(settings).factory())
-                .messageConverters(converters -> applyJolokiaConverters(converters, mapper));
+                .configureMessageConverters(converters ->
+                        converters.configureMessageConvertersList(c -> applyJolokiaConverters(c, mapper)));
         if (settings.hasCredentials()) {
             builder.requestInterceptor((request, body, execution) -> {
                 request.getHeaders().setBasicAuth(settings.username(), settings.password());

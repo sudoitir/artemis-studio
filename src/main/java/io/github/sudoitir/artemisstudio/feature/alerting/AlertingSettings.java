@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Notification delivery cadence and retry bounds (ADR-0036). */
+/** Notification delivery cadence, retry bounds and the SMTP timeout (ADR-0036, ADR-0105). */
 @Component
 @RequiredArgsConstructor
 public class AlertingSettings implements SettingsContribution {
@@ -16,6 +16,7 @@ public class AlertingSettings implements SettingsContribution {
     public static final String MAX_ATTEMPTS = "alerting.max-attempts";
     public static final String INITIAL_BACKOFF = "alerting.initial-backoff";
     public static final String MAX_BACKOFF = "alerting.max-backoff";
+    public static final String EMAIL_TIMEOUT = "alerting.email-timeout";
 
     private final AlertingProperties defaults;
 
@@ -58,6 +59,14 @@ public class AlertingSettings implements SettingsContribution {
                         "Ceiling on the exponential retry delay.",
                         Kind.DURATION,
                         () -> defaults.maxBackoff().toString(),
+                        null),
+                new SettingDef(
+                        EMAIL_TIMEOUT,
+                        "Alerting",
+                        "Email delivery timeout",
+                        "Connect, read and write timeout of one SMTP delivery. A slower server is retried.",
+                        Kind.DURATION,
+                        () -> defaults.emailTimeout().toString(),
                         null));
     }
 }

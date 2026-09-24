@@ -12,12 +12,17 @@ export type AlertRuleView = Schemas["AlertRuleView"];
 export type ClusterFiringCountView = Schemas["ClusterFiringCountView"];
 export type NotificationChannelRequest = Schemas["NotificationChannelRequest"];
 export type NotificationChannelView = Schemas["NotificationChannelView"];
+export type ChannelHealthView = Schemas["ChannelHealthView"];
+export type AlertDeliveryView = Schemas["AlertDeliveryView"];
+export type ChannelTestRequest = Schemas["ChannelTestRequest"];
+export type ChannelTestResultView = Schemas["ChannelTestResultView"];
 
 export const keys = {
   alertFiring: (id: string) => clusterKey(id, 'alerts', 'firing'),
   alertHistory: (id: string, page: number, size: number) => clusterKey(id, 'alerts', 'history', page, size),
   alertRules: (id: string) => clusterKey(id, 'alerts', 'rules'),
   channels: ['channels'] as const,
+  deliveries: (channelId: string) => ['channels', channelId, 'deliveries'] as const,
   firingCounts: ['alerts', 'firing'] as const,
 };
 
@@ -162,9 +167,46 @@ export function useDeleteNotificationChannel() {
   });
 }
 
+/** Tests a saved channel. A failed test is a result (200), not an error. */
 export function useTestNotificationChannel() {
-  return useMutation<void, ApiError, string>({
+  const qc = useQueryClient();
+  return useMutation<ChannelTestResultView, ApiError, string>({
     mutationFn: (channelId) =>
-      request<void>(`/channels/${channelId}/test`, { method: "POST" }),
+      request<ChannelTestResultView>(`/channels/${channelId}/test`, { method: "POST" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.channels }),
+  });
+}
+
+/** Tests a configuration before it is saved; a blank secret with a channel id uses the stored one. */
+export function useTestChannelConfig() {
+  return useMutation<ChannelTestResultView, ApiError, ChannelTestRequest>({
+    mutationFn: (body) =>
+      request<ChannelTestResultView>("/channels/test", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  });
+}
+
+export function useChannelDeliveries(
+  channelId: string | null,
+): UseQueryResult<AlertDeliveryView[], ApiError> {
+  return useQuery({
+    queryKey: keys.deliveries(channelId ?? ""),
+    queryFn: () => request<AlertDeliveryView[]>(`/channels/${channelId}/deliveries?limit=100`),
+    enabled: channelId !== null,
+    refetchInterval: poll(10_000),
+  });
+}
+
+export function useRetryDelivery(channelId: string) {
+  const qc = useQueryClient();
+  return useMutation<AlertDeliveryView, ApiError, number>({
+    mutationFn: (seq) =>
+      request<AlertDeliveryView>(`/channels/${channelId}/deliveries/${seq}/retry`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.deliveries(channelId) });
+      qc.invalidateQueries({ queryKey: keys.channels });
+    },
   });
 }

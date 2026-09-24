@@ -1,4 +1,4 @@
-# ADR-0107: Navigation aids and single-key shortcuts
+# ADR-0109: Navigation aids and single-key shortcuts
 
 - **Status**: accepted
 - **Date**: 2026-09-24

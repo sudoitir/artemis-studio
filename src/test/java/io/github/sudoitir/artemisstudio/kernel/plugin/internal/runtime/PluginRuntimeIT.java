@@ -299,7 +299,6 @@ class PluginRuntimeIT extends PostgresIntegrationTest {
         boolean collected = false;
         for (int i = 0; i < 20 && !collected; i++) {
             System.gc();
-            System.runFinalization();
             Thread.sleep(200);
             collected = loaderRef.get() == null;
         }

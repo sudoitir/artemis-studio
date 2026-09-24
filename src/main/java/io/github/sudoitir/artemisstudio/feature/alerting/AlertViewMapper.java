@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelHealthView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelView;
 import java.util.List;
 import java.util.UUID;
@@ -49,8 +50,15 @@ public class AlertViewMapper {
                 e.getResolvedAt());
     }
 
-    public NotificationChannelView channel(NotificationChannelEntity e) {
+    public NotificationChannelView channel(NotificationChannelEntity e, long boundRuleCount, ChannelHealthView health) {
         return new NotificationChannelView(
-                e.getId(), e.getName(), e.getKind(), e.getConfig(), e.isEnabled(), e.getSecretCt() != null);
+                e.getId(),
+                e.getName(),
+                e.getKind(),
+                e.getConfig(),
+                e.isEnabled(),
+                e.getSecretCt() != null,
+                boundRuleCount,
+                health);
     }
 }

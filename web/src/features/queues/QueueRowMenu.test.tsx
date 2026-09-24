@@ -82,7 +82,7 @@ function handlers(permissions: string[], rows = [queue('orders'), queue('payment
   ];
 }
 
-describe('the queue row menu (ADR-0105)', () => {
+describe('the queue row menu (ADR-0107)', () => {
   it('deletes a queue from the keyboard alone, and hands focus back to the row', async () => {
     search = {};
     const urls: string[] = [];

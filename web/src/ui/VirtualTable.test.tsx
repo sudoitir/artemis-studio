@@ -88,7 +88,7 @@ describe('VirtualTable', () => {
     expect(seen).toEqual(['depth', '-depth', undefined]);
   });
 
-  describe('keyboard (ADR-0106)', () => {
+  describe('keyboard (ADR-0108)', () => {
     function Harness({
       data = rows,
       onRowClick,
@@ -220,7 +220,7 @@ describe('VirtualTable', () => {
     });
   });
 
-  describe('row menu (ADR-0105)', () => {
+  describe('row menu (ADR-0107)', () => {
     function WithMenu({ onDelete = () => {} }: { onDelete?: (name: string) => void }) {
       return (
         <VirtualTable

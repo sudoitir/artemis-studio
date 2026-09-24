@@ -101,10 +101,10 @@ separate places.
   - `AnchoredMenu`, `ActionMenuItem` and `CapabilityReason` are new.
 - **Features**: queues, messages, bulk, transfer, flow, metrics, triage, resources, routing,
   clusters and settings.
-- **ADRs**: 0105 (row actions), 0106 (roving grid), 0107 (navigation and shortcuts) and
-  0108 (per-node series and flow breakdown).
+- **ADRs**: 0107 (row actions), 0108 (roving grid), 0109 (navigation and shortcuts) and
+  0110 (per-node series and flow breakdown).
 - **Not in this change**:
-  - a correct cluster-scope gauge total (ADR-0108 D4, filed);
+  - a correct cluster-scope gauge total (ADR-0110 D4, filed);
   - fine-step rate under-count (filed);
   - `?event=` deep links for audit and events, which have no single-event read (filed);
   - per-client history;

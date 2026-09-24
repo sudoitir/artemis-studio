@@ -23,6 +23,7 @@ public final class AlertingModule {
             .settingKey(AlertingSettings.MAX_ATTEMPTS)
             .settingKey(AlertingSettings.INITIAL_BACKOFF)
             .settingKey(AlertingSettings.MAX_BACKOFF)
+            .settingKey(AlertingSettings.EMAIL_TIMEOUT)
             .streamTopic(TopicDef.signal("alerts"))
             .mcpTool(new McpToolDef(
                     "alert_rule",

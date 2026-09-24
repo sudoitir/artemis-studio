@@ -52,7 +52,7 @@ export interface RowMenuContext {
   restoreFocus: () => void;
 }
 
-/** A per-row action menu (ADR-0105): its items are rendered only while it is open. */
+/** A per-row action menu (ADR-0107): its items are rendered only while it is open. */
 export interface RowMenu<T> {
   /** Names the row in "Actions for <label>". */
   label: (row: T) => string;
@@ -149,7 +149,7 @@ interface VirtualTableProps<T> {
  * `aria-sort` from the current `sort` param and clicking it navigates. Row
  * selection is opt-in (`selectable`) and its state lives with the caller.
  *
- * <p>The keyboard model is the WAI-ARIA grid (ADR-0106): the grid is one tab
+ * <p>The keyboard model is the WAI-ARIA grid (ADR-0108): the grid is one tab
  * stop, the arrow keys move a roving focus between cells (the header row
  * included), Enter activates a row, Space selects it, Shift+F10 opens its menu,
  * and Ctrl/Cmd+C copies a focused cell. The focused cell is remembered by row

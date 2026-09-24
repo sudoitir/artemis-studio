@@ -1,4 +1,4 @@
-# ADR-0105: Row actions are per-resource slots in one anchored menu, served by a host that outlives the row
+# ADR-0107: Row actions are per-resource slots in one anchored menu, served by a host that outlives the row
 
 - **Status**: accepted
 - **Date**: 2026-09-24

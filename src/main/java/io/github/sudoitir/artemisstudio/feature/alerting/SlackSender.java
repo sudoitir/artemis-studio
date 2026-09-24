@@ -1,11 +1,11 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -16,7 +16,8 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Delivers to a Slack incoming webhook (ADR-0036). The channel's secret <em>is</em>
- * the webhook URL — Slack has no separate signing step. A {@code 404 no_team}
+ * the webhook URL — Slack has no separate signing step. The message is Block Kit rendered from
+ * {@link AlertMessageFormatter} (ADR-0105). A {@code 404 no_team}
  * means the webhook was revoked and is never retried; a {@code 429} honours
  * {@code Retry-After}.
  */
@@ -39,12 +40,13 @@ public class SlackSender implements NotificationSender {
 
     @Override
     public Result send(long deliveryId, String channelConfigJson, String webhookUrl, String payloadJson) {
-        String text = summarize(payloadJson);
-        String body = mapper.writeValueAsString(Map.of(
-                "text",
-                text,
-                "blocks",
-                List.of(Map.of("type", "section", "text", Map.of("type", "mrkdwn", "text", text)))));
+        String body;
+        try {
+            body = mapper.writeValueAsString(blocks(AlertMessage.parse(payloadJson, mapper)));
+        } catch (RuntimeException e) {
+            log.warn("Failed to render alert payload for Slack: {}", e.toString());
+            return Result.permanent("The alert payload could not be rendered: " + e.getMessage());
+        }
         try {
             restClient
                     .post()
@@ -57,7 +59,7 @@ public class SlackSender implements NotificationSender {
         } catch (HttpClientErrorException.NotFound e) {
             return Result.permanent("Slack webhook not found — likely revoked: " + e.getResponseBodyAsString());
         } catch (HttpClientErrorException.TooManyRequests e) {
-            return Result.retryable("Slack rate limited", retryAfter(e.getResponseHeaders()));
+            return Result.retryable("Slack rate limited", RetryAfter.parse(e.getResponseHeaders()));
         } catch (HttpStatusCodeException e) {
             return Result.retryable("Slack responded " + e.getStatusCode());
         } catch (RestClientException e) {
@@ -65,38 +67,52 @@ public class SlackSender implements NotificationSender {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private String summarize(String payloadJson) {
-        try {
-            Map<String, Object> payload = mapper.readValue(payloadJson, Map.class);
-            String ruleName = String.valueOf(payload.get("ruleName"));
-            String severity = String.valueOf(payload.get("severity"));
-            List<Map<String, Object>> transitions = (List<Map<String, Object>>) payload.get("transitions");
-            StringBuilder sb = new StringBuilder("*[" + severity + "] " + ruleName + "*\n");
-            for (Map<String, Object> t : transitions) {
-                sb.append("• ")
-                        .append(t.get("subject"))
-                        .append(": ")
-                        .append(t.get("kind"))
-                        .append(t.get("value") != null ? " (" + t.get("value") + ")" : "")
-                        .append("\n");
-            }
-            return sb.toString();
-        } catch (RuntimeException e) {
-            log.warn("Failed to summarize alert payload for Slack: {}", e.toString());
-            return payloadJson;
+    /**
+     * Block Kit: the title as a header, the facts as fields, one line per subject, and a button
+     * back to Studio when there is a link. {@code text} is the notification fallback.
+     */
+    static Map<String, Object> blocks(AlertMessage m) {
+        List<Map<String, Object>> blocks = new ArrayList<>();
+        blocks.add(Map.of("type", "header", "text", plain(truncate(AlertMessageFormatter.title(m), 150))));
+        List<Map<String, Object>> fields = new ArrayList<>();
+        fields.add(mrkdwn("*Severity*\n" + AlertMessageFormatter.severityWord(m.severity())));
+        fields.add(mrkdwn("*Rule*\n" + escape(m.ruleName())));
+        if (m.clusterName() != null) {
+            fields.add(mrkdwn("*Cluster*\n" + escape(m.clusterName())));
         }
+        blocks.add(Map.of("type", "section", "fields", fields));
+        StringBuilder lines = new StringBuilder();
+        for (AlertMessage.Line t : m.transitions()) {
+            lines.append("• ").append(escape(AlertMessageFormatter.line(t))).append('\n');
+        }
+        blocks.add(Map.of("type", "section", "text", mrkdwn(truncate(lines.toString(), 2900))));
+        if (m.studioUrl() != null) {
+            blocks.add(Map.of(
+                    "type",
+                    "actions",
+                    "elements",
+                    List.of(Map.of("type", "button", "text", plain("Open in Studio"), "url", m.studioUrl()))));
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("text", AlertMessageFormatter.title(m));
+        body.put("blocks", blocks);
+        return body;
     }
 
-    private static Duration retryAfter(HttpHeaders headers) {
-        List<String> values = headers != null ? headers.get(HttpHeaders.RETRY_AFTER) : null;
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        try {
-            return Duration.ofSeconds(Long.parseLong(values.get(0).trim()));
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    private static Map<String, Object> plain(String text) {
+        return Map.of("type", "plain_text", "text", text);
+    }
+
+    private static Map<String, Object> mrkdwn(String text) {
+        return Map.of("type", "mrkdwn", "text", text);
+    }
+
+    /** Slack's three control characters in mrkdwn. */
+    static String escape(String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static String truncate(String value, int max) {
+        return value.length() <= max ? value : value.substring(0, max - 1) + "…";
     }
 }

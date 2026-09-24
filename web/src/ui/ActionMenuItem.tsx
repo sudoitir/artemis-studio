@@ -13,7 +13,7 @@ function firstSentence(text: string): string {
 }
 
 /**
- * One item of a row's action menu (ADR-0105).
+ * One item of a row's action menu (ADR-0107).
  *
  * <p>An item the operator may not use is never removed and never `disabled`: Mantine skips disabled
  * items in keyboard navigation, which would leave a keyboard user no way to learn why. It is

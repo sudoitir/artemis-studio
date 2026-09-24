@@ -79,6 +79,7 @@ export const STATE_CONDITIONS = [
   'CLUSTER_DEGRADED',
   'CLOCK_SKEW',
   'CONFIG_DRIFT',
+  'SETUP_RISK',
 ] as const;
 
 /**
@@ -89,6 +90,19 @@ export const STATE_CONDITIONS = [
 export const CONFIG_DRIFT_TEMPLATE = {
   name: 'Configuration drift',
   stateCondition: 'CONFIG_DRIFT',
+  forSeconds: 0,
+  severity: 'WARNING',
+} as const;
+
+/**
+ * A prefilled state rule for setup risk (ADR-0106): one firing per open critical or
+ * warning finding of the setup review that has not been accepted as a known risk.
+ * A template, not a seeded rule — whether a single pair is acceptable is the
+ * operator's call, and accepting the risk on the review silences it.
+ */
+export const SETUP_RISK_TEMPLATE = {
+  name: 'Cluster setup risk',
+  stateCondition: 'SETUP_RISK',
   forSeconds: 0,
   severity: 'WARNING',
 } as const;
@@ -114,6 +128,8 @@ const STATE_LABELS: Record<string, string> = {
   REPLICATION_BEHIND: 'Replication behind',
   CLUSTER_DEGRADED: 'Cluster degraded',
   CLOCK_SKEW: 'Clock skew',
+  CONFIG_DRIFT: 'Configuration drift',
+  SETUP_RISK: 'Setup risk',
 };
 
 export function stateConditionLabel(condition: string): string {

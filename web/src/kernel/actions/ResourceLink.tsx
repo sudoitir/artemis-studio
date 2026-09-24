@@ -10,7 +10,7 @@ export type LinkKind = 'queue' | 'address' | 'connection' | 'session';
 type LinkSlot<K extends LinkKind> = `${K}.link` & SlotName;
 
 /**
- * A resource's name, as a link to the resource itself (ADR-0105): the owning feature renders the
+ * A resource's name, as a link to the resource itself (ADR-0107): the owning feature renders the
  * link, so a view naming a queue never needs to know where queues live. When that feature is
  * disabled the name is plain text — never a link that leads to a page explaining it is off.
  */

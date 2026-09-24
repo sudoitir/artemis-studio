@@ -9,7 +9,7 @@ import { useClusterStream } from '../stream/useClusterStream.ts';
 /**
  * One cluster's screen: the header its features contribute, then the routed view.
  *
- * It hosts the dialogs row actions open (ADR-0105), and mounts the cluster's one SSE stream, subscribed to the topics of every enabled feature
+ * It hosts the dialogs row actions open (ADR-0107), and mounts the cluster's one SSE stream, subscribed to the topics of every enabled feature
  * (ADR-0018, ADR-0070). A view never opens a second one for a topic a feature handles: a second
  * `EventSource` is a second connection, and it fights over the shared stream-status store. The
  * stream reconnects indefinitely and reports its state to the header's freshness indicator

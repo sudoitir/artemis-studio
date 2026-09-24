@@ -1,59 +1,87 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
+import io.github.sudoitir.artemisstudio.feature.alerting.AlertStateMachine.TransitionKind;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertDeliveryView;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelHealthView;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelTestRequest;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelTestResultView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelView;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Notification channel CRUD and the manual "send test" action. A channel's
- * secret (a Slack webhook URL, a webhook signing secret) is AES-GCM at rest via
- * {@link SecretVault}'s opaque-AAD overload (ADR-0036) and never returned in
- * plaintext.
+ * Notification channel CRUD, testing, and the delivery log (ADR-0036, ADR-0105). A channel's
+ * secret (a Slack or Teams webhook URL, a webhook signing secret, an SMTP password, a PagerDuty
+ * routing key) is AES-GCM at rest via {@link SecretVault}'s opaque-AAD overload and never
+ * returned in plaintext.
  */
 @Service
 @RequiredArgsConstructor
 public class NotificationChannelService {
 
-    private static final Set<String> KINDS = Set.of("WEBHOOK", "SLACK");
+    /** The delivery log's page size ceiling. */
+    static final int LOG_MAX = 100;
 
     private final NotificationChannelRepository channels;
+    private final AlertDeliveryRepository deliveries;
+    private final AlertRuleChannelRepository ruleChannels;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final AlertViewMapper mapper;
     private final SecretVault vault;
     private final List<NotificationSender> senders;
+    private final ChannelConfigValidator validator;
+    private final AlertPayloads payloads;
     private final ObjectMapper json;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_READ)")
     @Transactional(readOnly = true)
     public List<NotificationChannelView> list() {
-        return channels.findAllByOrderByName().stream().map(mapper::channel).toList();
+        Map<UUID, Long> bound = new HashMap<>();
+        ruleChannels.boundRuleCounts().forEach(b -> bound.put(b.getChannelId(), b.getRules()));
+        Map<UUID, AlertDeliveryEntity> latest = new HashMap<>();
+        deliveries.latestPerChannel().forEach(d -> latest.put(d.getChannelId(), d));
+        Map<UUID, AlertDeliveryRepository.ChannelDeliveryCounts> counts = new HashMap<>();
+        deliveries.countsSince(Instant.now().minus(Duration.ofHours(24))).forEach(c -> counts.put(c.getChannelId(), c));
+
+        return channels.findAllByOrderByName().stream()
+                .map(c -> mapper.channel(
+                        c, bound.getOrDefault(c.getId(), 0L), health(latest.get(c.getId()), counts.get(c.getId()))))
+                .toList();
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
     public NotificationChannelView create(NotificationChannelRequest request) {
-        validateKind(request.kind());
+        validator.validate(request.kind(), request.config(), request.secret(), false);
         NotificationChannelEntity channel = new NotificationChannelEntity(
                 request.name(), request.kind(), request.config() != null ? request.config() : "{}", null, null);
+        channel.setEnabled(request.enabled());
         channels.save(channel); // need the generated id before sealing the AAD
         if (request.secret() != null && !request.secret().isBlank()) {
-            seal(channel, request.secret());
+            seal(channel, request.secret().trim());
         }
 
         AuditEvent event = audit.begin(
@@ -66,14 +94,17 @@ public class NotificationChannelService {
                 Map.of("kind", channel.getKind()),
                 false);
         audit.succeed(event, 1);
-        return mapper.channel(channel);
+        return view(channel);
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
     public NotificationChannelView update(UUID channelId, NotificationChannelRequest request) {
-        validateKind(request.kind());
         NotificationChannelEntity channel = requireChannel(channelId);
+        if (!channel.getKind().equals(request.kind())) {
+            throw new IllegalArgumentException("kind: a channel's kind cannot be changed; create a new channel");
+        }
+        validator.validate(request.kind(), request.config(), request.secret(), channel.getSecretCt() != null);
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
@@ -82,19 +113,19 @@ public class NotificationChannelService {
                 channel.getName(),
                 null,
                 null,
-                Map.of("kind", request.kind()),
+                Map.of("kind", request.kind(), "enabled", request.enabled()),
                 false);
 
         channel.setName(request.name());
         channel.setConfig(request.config() != null ? request.config() : "{}");
         channel.setEnabled(request.enabled());
         if (request.secret() != null && !request.secret().isBlank()) {
-            seal(channel, request.secret());
+            seal(channel, request.secret().trim());
         }
         channels.save(channel);
 
         audit.succeed(event, 1);
-        return mapper.channel(channel);
+        return view(channel);
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
@@ -108,62 +139,163 @@ public class NotificationChannelService {
                 channel.getName(),
                 null,
                 null,
-                Map.of(),
+                Map.of("boundRules", ruleChannels.countByChannelId(channelId)),
                 false);
         channels.delete(channel); // cascades alert_rule_channel
         audit.succeed(event, 1);
     }
 
-    /** Sends one test notification through the real sender, synchronously — not queued. */
+    /** Sends one test notification through a saved channel, synchronously — not queued. */
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
     @Transactional
-    public void test(UUID channelId) {
+    public ChannelTestResultView test(UUID channelId) {
         NotificationChannelEntity channel = requireChannel(channelId);
+        return send(channel.getName(), channel.getKind(), channel.getConfig(), storedSecret(channel));
+    }
+
+    /**
+     * Tests a configuration that need not be saved. A blank secret with a channel id uses that
+     * channel's stored secret — only for the same kind, since the secret is sealed to it.
+     */
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
+    @Transactional
+    public ChannelTestResultView test(ChannelTestRequest request) {
+        boolean hasSecret = request.secret() != null && !request.secret().isBlank();
+        NotificationChannelEntity stored = request.channelId() == null ? null : requireChannel(request.channelId());
+        if (stored != null && !stored.getKind().equals(request.kind())) {
+            throw new IllegalArgumentException("kind: a channel's kind cannot be changed; create a new channel");
+        }
+        validator.validate(
+                request.kind(), request.config(), request.secret(), stored != null && stored.getSecretCt() != null);
+        String secret = hasSecret ? request.secret().trim() : stored != null ? storedSecret(stored) : "";
+        String name =
+                stored != null ? stored.getName() : "(unsaved " + request.kind().toLowerCase() + " channel)";
+        return send(name, request.kind(), request.config() != null ? request.config() : "{}", secret);
+    }
+
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_READ)")
+    @Transactional(readOnly = true)
+    public List<AlertDeliveryView> deliveries(UUID channelId, int limit) {
+        requireChannel(channelId);
+        int size = Math.min(Math.max(limit, 1), LOG_MAX);
+        return deliveries.findByChannelIdOrderBySeqDesc(channelId, PageRequest.of(0, size)).stream()
+                .map(this::deliveryView)
+                .toList();
+    }
+
+    /** Returns a dead delivery to the queue with a fresh attempt budget. 409 for any other state. */
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_WRITE)")
+    @Transactional
+    public AlertDeliveryView retry(UUID channelId, long seq) {
+        NotificationChannelEntity channel = requireChannel(channelId);
+        AlertDeliveryEntity delivery = deliveries
+                .findById(seq)
+                .filter(d -> d.getChannelId().equals(channelId))
+                .orElseThrow(() -> new NotFoundException("AlertDelivery", seq));
+        if (!"DEAD".equals(delivery.getState())) {
+            throw new ConflictException(
+                    "delivery-not-dead",
+                    "Delivery " + seq + " is " + delivery.getState()
+                            + "; only a permanently failed delivery can be retried.");
+        }
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
-                "TEST_NOTIFICATION_CHANNEL",
+                "RETRY_NOTIFICATION_DELIVERY",
                 "NOTIFICATION_CHANNEL",
                 channel.getName(),
                 null,
                 null,
-                Map.of(),
+                Map.of("delivery", seq),
                 false);
+        delivery.requeue(Instant.now());
+        deliveries.save(delivery);
+        audit.succeed(event, 1);
+        return deliveryView(delivery);
+    }
 
+    private ChannelTestResultView send(String name, String kind, String config, String secret) {
+        AuditEvent event = audit.begin(
+                actorResolver.resolve(),
+                "TEST_NOTIFICATION_CHANNEL",
+                "NOTIFICATION_CHANNEL",
+                name,
+                null,
+                null,
+                Map.of("kind", kind),
+                false);
         NotificationSender sender = senders.stream()
-                .filter(s -> s.kind().equals(channel.getKind()))
+                .filter(s -> s.kind().equals(kind))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No sender for channel kind " + channel.getKind()));
-        String secret = channel.getSecretCt() == null
-                ? ""
-                : vault.decrypt(
-                        channel.getId() + "|" + channel.getKind(), channel.getSecretCt(), channel.getSecretNonce());
-        String payload = json.writeValueAsString(Map.of(
-                "ruleName",
-                "Test notification",
-                "severity",
-                "INFO",
-                "transitions",
-                List.of(Map.of("subject", "test", "kind", "FIRED", "value", 0))));
+                .orElseThrow(() -> new IllegalStateException("No sender for channel kind " + kind));
+        // A PagerDuty test opens an incident and resolves it at once, so no test leaves a page open.
+        List<AlertPayloads.Item> items = "PAGERDUTY".equals(kind)
+                ? List.of(
+                        new AlertPayloads.Item("test", TransitionKind.FIRED, null),
+                        new AlertPayloads.Item("test", TransitionKind.RESOLVED, null))
+                : List.of(new AlertPayloads.Item("test", TransitionKind.FIRED, null));
+        String payload = payloads.build(
+                UUID.randomUUID(), "Test notification from Artemis Studio", "INFO", null, items, Instant.now());
 
-        NotificationSender.Result result = sender.send(0L, channel.getConfig(), secret, payload);
+        long started = System.nanoTime();
+        NotificationSender.Result result = sender.send(0L, config, secret, payload);
+        long millis = Duration.ofNanos(System.nanoTime() - started).toMillis();
         if (result.success()) {
             audit.succeed(event, 1);
         } else {
             audit.fail(event, result.error());
-            throw new NotificationDeliveryException("Test notification failed: " + result.error());
         }
+        return new ChannelTestResultView(result.success(), result.permanent(), result.error(), millis);
+    }
+
+    private NotificationChannelView view(NotificationChannelEntity channel) {
+        return mapper.channel(channel, ruleChannels.countByChannelId(channel.getId()), null);
+    }
+
+    private static ChannelHealthView health(
+            AlertDeliveryEntity latest, AlertDeliveryRepository.ChannelDeliveryCounts counts) {
+        if (latest == null) {
+            return null;
+        }
+        return new ChannelHealthView(
+                latest.getState(),
+                latest.getCreatedAt(),
+                latest.getDeliveredAt(),
+                latest.getLastError(),
+                counts == null ? 0 : counts.getPending(),
+                counts == null ? 0 : counts.getFailed(),
+                counts == null ? 0 : counts.getSent());
+    }
+
+    private AlertDeliveryView deliveryView(AlertDeliveryEntity d) {
+        String summary;
+        try {
+            summary = AlertMessageFormatter.title(AlertMessage.parse(d.getPayload(), json));
+        } catch (RuntimeException e) {
+            summary = "(unreadable payload)";
+        }
+        return new AlertDeliveryView(
+                d.getSeq(),
+                d.getRuleId(),
+                summary,
+                d.getState(),
+                d.getAttempts(),
+                d.getLastError(),
+                d.getCreatedAt(),
+                d.getNextAttemptAt(),
+                d.getDeliveredAt());
+    }
+
+    private String storedSecret(NotificationChannelEntity channel) {
+        return channel.getSecretCt() == null
+                ? ""
+                : vault.decrypt(
+                        channel.getId() + "|" + channel.getKind(), channel.getSecretCt(), channel.getSecretNonce());
     }
 
     private void seal(NotificationChannelEntity channel, String plaintext) {
         SecretVault.Sealed sealed = vault.encrypt(channel.getId() + "|" + channel.getKind(), plaintext);
         channel.replaceSecret(sealed.ciphertext(), sealed.nonce());
         channels.save(channel);
-    }
-
-    private void validateKind(String kind) {
-        if (!KINDS.contains(kind)) {
-            throw new IllegalArgumentException("unknown channel kind: " + kind);
-        }
     }
 
     private NotificationChannelEntity requireChannel(UUID channelId) {

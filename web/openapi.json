@@ -1542,6 +1542,109 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/setup-review/run" : {
+      "post" : {
+        "tags" : [ "setup-review-controller" ],
+        "operationId" : "runSetupReview",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupReviewView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/setup-review/acceptances" : {
+      "post" : {
+        "tags" : [ "setup-review-controller" ],
+        "operationId" : "acceptSetupRisk",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AcceptRiskRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupReviewView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "setup-review-controller" ],
+        "operationId" : "revokeSetupRisk",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "code",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "subject",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupReviewView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/rr/expectations" : {
       "get" : {
         "tags" : [ "request-reply-controller" ],
@@ -2892,8 +2995,78 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChannelTestResultView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/{channelId}/deliveries/{seq}/retry" : {
+      "post" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "retry",
+        "parameters" : [ {
+          "name" : "channelId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "seq",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AlertDeliveryView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/test" : {
+      "post" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "testConfiguration",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChannelTestRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChannelTestResultView"
+                }
+              }
+            }
           }
         }
       }
@@ -3900,6 +4073,33 @@
               "text/event-stream" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/StreamFrameView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/setup-review" : {
+      "get" : {
+        "tags" : [ "setup-review-controller" ],
+        "operationId" : "setupReview",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupReviewView"
                 }
               }
             }
@@ -5350,6 +5550,45 @@
         }
       }
     },
+    "/api/v1/channels/{channelId}/deliveries" : {
+      "get" : {
+        "tags" : [ "notification-channels-controller" ],
+        "operationId" : "deliveries",
+        "parameters" : [ {
+          "name" : "channelId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AlertDeliveryView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/providers" : {
       "get" : {
         "tags" : [ "auth-session-controller" ],
@@ -6692,6 +6931,38 @@
         },
         "required" : [ "enabled", "kind", "name" ]
       },
+      "ChannelHealthView" : {
+        "type" : "object",
+        "properties" : {
+          "lastState" : {
+            "type" : "string"
+          },
+          "lastCreatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastDeliveredAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "pending" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "failedLast24h" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "sentLast24h" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "failedLast24h", "lastCreatedAt", "lastState", "pending", "sentLast24h" ]
+      },
       "NotificationChannelView" : {
         "type" : "object",
         "properties" : {
@@ -6713,9 +6984,17 @@
           },
           "hasSecret" : {
             "type" : "boolean"
+          },
+          "boundRuleCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "health" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/ChannelHealthView"
           }
         },
-        "required" : [ "config", "enabled", "hasSecret", "id", "kind", "name" ]
+        "required" : [ "boundRuleCount", "config", "enabled", "hasSecret", "id", "kind", "name" ]
       },
       "PluginChangesetView" : {
         "type" : "object",
@@ -8112,6 +8391,249 @@
         },
         "required" : [ "ringBytes", "ringMessages" ]
       },
+      "AcceptanceView" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          },
+          "acceptedBy" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "acceptedBy", "active", "createdAt", "reason" ]
+      },
+      "EvidenceView" : {
+        "type" : "object",
+        "properties" : {
+          "node" : {
+            "type" : [ "string", "null" ]
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "key" ]
+      },
+      "NotAssessedView" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          },
+          "subjectLabel" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "code", "subject", "subjectLabel" ]
+      },
+      "ReviewedNodeView" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "live" : {
+            "type" : "boolean"
+          },
+          "reviewed" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "live", "nodeId", "nodeName", "reviewed" ]
+      },
+      "SetupFindingView" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "category" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          },
+          "subjectLabel" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "impact" : {
+            "type" : "string"
+          },
+          "evidence" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceView"
+            }
+          },
+          "recommendation" : {
+            "type" : "string"
+          },
+          "snippet" : {
+            "type" : [ "string", "null" ]
+          },
+          "caveats" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "appliable" : {
+            "type" : "boolean"
+          },
+          "firstSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "stale" : {
+            "type" : "boolean"
+          },
+          "acceptance" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/AcceptanceView"
+          }
+        },
+        "required" : [ "appliable", "category", "caveats", "code", "evidence", "firstSeenAt", "impact", "lastSeenAt", "recommendation", "severity", "stale", "subject", "subjectLabel", "title" ]
+      },
+      "SetupReviewView" : {
+        "type" : "object",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reviewedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "durationMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "nodesTotal" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodesReviewed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "clusterEvaluated" : {
+            "type" : "boolean"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReviewedNodeView"
+            }
+          },
+          "findings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SetupFindingView"
+            }
+          },
+          "notAssessed" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NotAssessedView"
+            }
+          },
+          "open" : {
+            "$ref" : "#/components/schemas/SeverityCountsView"
+          },
+          "accepted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rulesInCatalogue" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notice" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "accepted", "clusterEvaluated", "clusterId", "durationMs", "findings", "nodes", "nodesReviewed", "nodesTotal", "notAssessed", "open", "rulesInCatalogue" ]
+      },
+      "SeverityCountsView" : {
+        "type" : "object",
+        "properties" : {
+          "critical" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "warning" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "info" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "critical", "info", "warning" ]
+      },
+      "AcceptRiskRequest" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "subject" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "code", "reason", "subject" ]
+      },
       "CreateExpectationRequest" : {
         "type" : "object",
         "properties" : {
@@ -9227,6 +9749,84 @@
           }
         },
         "required" : [ "name", "routingTypes" ]
+      },
+      "ChannelTestResultView" : {
+        "type" : "object",
+        "properties" : {
+          "delivered" : {
+            "type" : "boolean"
+          },
+          "permanent" : {
+            "type" : "boolean"
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          },
+          "durationMs" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "delivered", "durationMs", "permanent" ]
+      },
+      "AlertDeliveryView" : {
+        "type" : "object",
+        "properties" : {
+          "seq" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "ruleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "nextAttemptAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deliveredAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "attempts", "createdAt", "nextAttemptAt", "ruleId", "seq", "state", "summary" ]
+      },
+      "ChannelTestRequest" : {
+        "type" : "object",
+        "properties" : {
+          "channelId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "config" : {
+            "type" : "string"
+          },
+          "secret" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind" ]
       },
       "ReauthenticateRequest" : {
         "type" : "object",

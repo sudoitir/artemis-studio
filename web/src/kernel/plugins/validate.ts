@@ -68,7 +68,7 @@ export function checkPlugin(entry: ManifestFeatureView, exported: unknown): Chec
   const slots: SlotContributions = {};
   for (const [name, contributions] of Object.entries(feature.slots ?? {}) as [SlotName, SlotContribution<never>[]][]) {
     // Where a resource name links to is Studio's own: a plugin that could redirect every queue
-    // link would be a phishing surface inside the console (ADR-0105).
+    // link would be a phishing surface inside the console (ADR-0107).
     if (name.endsWith('.link')) {
       return { ok: false, reason: `it contributes to ${name}, and links to built-in resources are Studio's own` };
     }

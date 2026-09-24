@@ -1,4 +1,4 @@
-# ADR-0108: Per-node metric series and the flow breakdown
+# ADR-0110: Per-node metric series and the flow breakdown
 
 - **Status**: accepted
 - **Date**: 2026-09-24

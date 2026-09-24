@@ -49,7 +49,7 @@ function Explanation({
 }
 
 /**
- * Hosts the dialogs row actions open (ADR-0105), outside any grid: a dialog mounted in a
+ * Hosts the dialogs row actions open (ADR-0107), outside any grid: a dialog mounted in a
  * virtualized row is unmounted when the row scrolls away or when the refresh its own success
  * triggers removes the row, and its outcome goes with it.
  *

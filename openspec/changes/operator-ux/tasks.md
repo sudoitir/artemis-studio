@@ -1,6 +1,6 @@
 ## 1. Decision record
 
-- [x] 1.1 ADR-0105..0108, indexed in `docs/adr/README.md`
+- [x] 1.1 ADR-0107..0110, indexed in `docs/adr/README.md`
 - [x] 1.2 Library facts verified (Mantine llms.txt, ctx7 TanStack Virtual) and recorded in design.md
 
 ## 2. Roving grid (ui)

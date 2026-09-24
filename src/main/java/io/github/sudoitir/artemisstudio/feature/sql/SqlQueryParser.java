@@ -22,7 +22,6 @@ import net.sf.jsqlparser.expression.IntervalExpression;
 import net.sf.jsqlparser.expression.JsonExpression;
 import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.expression.NotExpression;
-import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.SignedExpression;
 import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;
@@ -236,7 +235,6 @@ public class SqlQueryParser {
             case OrExpression or ->
                 new Predicate.Or(List.of(predicate(or.getLeftExpression()), predicate(or.getRightExpression())));
             case NotExpression not -> new Predicate.Not(predicate(not.getExpression()));
-            case Parenthesis p -> predicate(p.getExpression());
             case ParenthesedExpressionList<?> list -> parenthesised(list);
             case IsNullExpression isNull -> new Predicate.IsNull(term(isNull.getLeftExpression()), isNull.isNot());
             case LikeExpression like -> like(like);
@@ -368,7 +366,7 @@ public class SqlQueryParser {
             case net.sf.jsqlparser.schema.Column column -> columnTerm(column);
             case JsonExpression json -> jsonTerm(json);
             case Function function -> caseFold(function);
-            case Parenthesis p -> term(p.getExpression());
+            case ParenthesedExpressionList<?> list when list.size() == 1 -> term(list.getFirst());
             default ->
                 throw new SqlSyntaxException(
                         "Not a column the dialect knows. Columns are listed in the console help.", e.toString());
@@ -476,7 +474,7 @@ public class SqlQueryParser {
             case DoubleValue d -> new Literal.Num(d.getValue(), false);
             case BooleanValue b -> new Literal.Bool(b.getValue());
             case SignedExpression signed -> signedLiteral(signed);
-            case Parenthesis p -> literal(p.getExpression());
+            case ParenthesedExpressionList<?> list when list.size() == 1 -> literal(list.getFirst());
             case Function f -> nowLiteral(f);
             case Subtraction sub -> relativeTime(sub);
             default ->

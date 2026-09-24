@@ -17,7 +17,7 @@ import { CloseAddressConsumers, CloseDialog } from './CloseConnection.tsx';
 import { useCloseAddressGate, useCloseGate } from './closeGates.ts';
 
 /*
- * Row actions and links for the live resource views (ADR-0105). A view links to a live resource
+ * Row actions and links for the live resource views (ADR-0107). A view links to a live resource
  * by filtering its listing on the identifier; the listings match the identifiers other views link
  * with (cross-node-resource-views), so the filtered listing shows exactly that resource.
  */

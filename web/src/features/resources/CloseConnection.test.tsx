@@ -194,7 +194,7 @@ describe('closing a connection from a row', () => {
   });
 });
 
-describe('the close outcome outlives its row (ADR-0105)', () => {
+describe('the close outcome outlives its row (ADR-0107)', () => {
   it('stays on screen after the refreshed listing drops the closed row', async () => {
     server.use(meHandler(), clusterHandler(), closeHandler(live));
     const user = userEvent.setup();

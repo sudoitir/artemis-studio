@@ -6,7 +6,7 @@ import type { GateVerdict } from '../../ui/capabilityGate.ts';
 type Schemas = components['schemas'];
 
 /**
- * The sections of a row's action menu, in the order it shows them (ADR-0105). The list is closed,
+ * The sections of a row's action menu, in the order it shows them (ADR-0107). The list is closed,
  * like the navigation groups: an action names one, and adding one is a kernel change.
  */
 export const ACTION_SECTIONS = [
@@ -112,7 +112,7 @@ export interface HostedDialogProps {
 type Blocked = Extract<GateVerdict, { kind: 'blocked' }>;
 
 /**
- * Where an action's dialog lives (ADR-0105): outside the grid, so it outlives the row that opened
+ * Where an action's dialog lives (ADR-0107): outside the grid, so it outlives the row that opened
  * it, the menu that offered it, and the refresh that removes the row when the action succeeds.
  */
 export interface ActionHost {

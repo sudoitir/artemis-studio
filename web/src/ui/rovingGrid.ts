@@ -1,5 +1,5 @@
 /**
- * The keyboard model of a data grid (ADR-0106): one tab stop, and the WAI-ARIA APG grid keys to
+ * The keyboard model of a data grid (ADR-0108): one tab stop, and the WAI-ARIA APG grid keys to
  * move between cells. Pure, so the moves are tested apart from any rendering.
  *
  * <p>Row 0 is the header row; body rows are 1…`rows`. Columns are 0…`cols - 1` in visual order.

@@ -1,11 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -58,7 +55,7 @@ public class WebhookSender implements NotificationSender {
                     .toBodilessEntity();
             return Result.ok();
         } catch (HttpClientErrorException.TooManyRequests e) {
-            return Result.retryable("Webhook receiver rate limited", retryAfter(e.getResponseHeaders()));
+            return Result.retryable("Webhook receiver rate limited", RetryAfter.parse(e.getResponseHeaders()));
         } catch (HttpStatusCodeException e) {
             return Result.retryable("Webhook responded " + e.getStatusCode());
         } catch (RestClientException e) {
@@ -73,18 +70,6 @@ public class WebhookSender implements NotificationSender {
             Object url = config.get("url");
             return url == null ? null : url.toString();
         } catch (RuntimeException e) {
-            return null;
-        }
-    }
-
-    private static Duration retryAfter(HttpHeaders headers) {
-        List<String> values = headers != null ? headers.get(HttpHeaders.RETRY_AFTER) : null;
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        try {
-            return Duration.ofSeconds(Long.parseLong(values.get(0).trim()));
-        } catch (NumberFormatException e) {
             return null;
         }
     }

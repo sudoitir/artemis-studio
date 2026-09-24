@@ -76,6 +76,8 @@ export default defineConfig({
               { text: 'Message transfer', link: '/guide/message-transfer' },
               { text: 'Data governance', link: '/guide/data-governance' },
               { text: 'Broker configuration', link: '/guide/broker-configuration' },
+              { text: 'Setup review', link: '/guide/setup-review' },
+              { text: 'Alert delivery', link: '/guide/alert-delivery' },
               { text: 'MCP server', link: '/guide/mcp' },
               { text: 'Plugins', link: '/guide/plugins' },
             ],

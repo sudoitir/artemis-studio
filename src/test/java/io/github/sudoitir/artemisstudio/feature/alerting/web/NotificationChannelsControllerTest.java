@@ -65,11 +65,63 @@ class NotificationChannelsControllerTest extends PostgresIntegrationTest {
     @Test
     void unknownKindIsRejected() throws Exception {
         String body = """
-                {"name":"bad-%s","kind":"EMAIL","config":"{}","enabled":true}""".formatted(java.util.UUID.randomUUID());
+                {"name":"bad-%s","kind":"SMS","config":"{}","enabled":true}""".formatted(java.util.UUID.randomUUID());
 
         mvc.perform(post("/api/v1/channels")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void anEmailChannelIsValidatedPerFieldAndReportsItsBoundRules() throws Exception {
+        String name = "mail-" + java.util.UUID.randomUUID();
+        String noRecipients = """
+                {"name":"%s","kind":"EMAIL","config":"{\\"host\\":\\"smtp.example.com\\",\\"port\\":587,\\"security\\":\\"STARTTLS\\",\\"from\\":\\"a@example.com\\",\\"to\\":[]}","enabled":true}""".formatted(name);
+        mvc.perform(post("/api/v1/channels")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(noRecipients))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.startsWith("to:")));
+
+        String valid = noRecipients.replace("[]", "[\\\"oncall@example.com\\\"]");
+        String created = mvc.perform(post("/api/v1/channels")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(valid))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.boundRuleCount").value(0))
+                .andExpect(jsonPath("$.hasSecret").value(false))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String id = created.split("\"id\":\"")[1].split("\"")[0];
+
+        mvc.perform(get("/api/v1/channels/{id}/deliveries", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+        mvc.perform(post("/api/v1/channels/{id}/deliveries/{seq}/retry", id, 999999999L))
+                .andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/channels/{id}", id)).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void aFailedTestOfAnUnsavedConfigurationIsAResultNotAnError() throws Exception {
+        // Port 9 (discard) on loopback: nothing listens, so the connection is refused at once.
+        String body = """
+                {"kind":"TEAMS","config":"{}","secret":"http://127.0.0.1:9/hook"}""";
+        mvc.perform(post("/api/v1/channels/test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.delivered").value(false))
+                .andExpect(jsonPath("$.permanent").value(false))
+                .andExpect(jsonPath("$.error").isNotEmpty());
+
+        String invalid = """
+                {"kind":"PAGERDUTY","config":"{}","secret":"too-short"}""";
+        mvc.perform(post("/api/v1/channels/test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalid))
                 .andExpect(status().isBadRequest());
     }
 

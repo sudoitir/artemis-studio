@@ -63,7 +63,7 @@ export function CloseConnectionAction({
           // Named, not an icon alone: a row of identical glyphs tells a screen
           // reader nothing about which connection it is about to disconnect.
           aria-label={`Close the ${NOUN[kind]} for ${rowLabel}`}
-          // Hosted outside the grid (ADR-0105): a close that succeeds removes this row on the next
+          // Hosted outside the grid (ADR-0107): a close that succeeds removes this row on the next
           // refresh, and a dialog mounted in the row would take its outcome with it.
           onClick={(e) =>
             host.open(
