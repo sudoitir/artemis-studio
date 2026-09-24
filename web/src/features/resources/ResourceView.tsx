@@ -280,6 +280,7 @@ export function ResourceView({ kind }: { kind: Kind }) {
         </Stack>
       ) : (
         <VirtualTable
+          label={kind.charAt(0).toUpperCase() + kind.slice(1)}
           columns={columns}
           data={rows}
           sort={search.sort}

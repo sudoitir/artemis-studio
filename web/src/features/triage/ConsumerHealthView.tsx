@@ -160,6 +160,7 @@ export function ConsumerHealthView() {
         </Stack>
       ) : (
         <VirtualTable
+          label="Consumer health"
           columns={columns}
           data={rows}
           sort={search.sort}

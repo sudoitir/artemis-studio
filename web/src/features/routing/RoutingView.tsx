@@ -294,6 +294,7 @@ function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab
         </Stack>
       ) : tab === 'diverts' ? (
         <VirtualTable
+          label="Diverts"
           columns={divertColumns(clusterId)}
           data={rows as DivertView[]}
           sort={search.sort}
@@ -309,6 +310,7 @@ function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab
         />
       ) : (
         <VirtualTable
+          label="Bridges"
           columns={BRIDGE_COLUMNS}
           data={rows as BridgeView[]}
           sort={search.sort}

@@ -313,6 +313,7 @@ export function MessagesView() {
         </Stack>
       ) : (
         <VirtualTable
+          label="Messages"
           columns={columns}
           data={rows}
           rowKey={(m) => String(m.messageId)}

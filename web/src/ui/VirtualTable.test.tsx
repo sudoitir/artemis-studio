@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Menu } from '@mantine/core';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../test/render.tsx';
@@ -87,15 +88,199 @@ describe('VirtualTable', () => {
     expect(seen).toEqual(['depth', '-depth', undefined]);
   });
 
-  it('makes free-text cells focusable for the truncation reveal, but not numeric cells', () => {
-    renderWithProviders(
-      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />,
-    );
-    const nameCell = screen.getByText('ORDERS').closest('[role="gridcell"]')!;
-    const depthCell = screen.getByText('12').closest('[role="gridcell"]')!;
-    expect(nameCell).toHaveAttribute('tabindex', '0');
-    expect(nameCell).toHaveAttribute('data-full', 'ORDERS');
-    expect(depthCell).not.toHaveAttribute('tabindex');
+  describe('keyboard (ADR-0106)', () => {
+    function Harness({
+      data = rows,
+      onRowClick,
+      selectable,
+    }: {
+      data?: Q[];
+      onRowClick?: (row: Q) => void;
+      selectable?: boolean;
+    }) {
+      const [selected, setSelected] = useState<Set<string>>(new Set());
+      const [sort, setSort] = useState<string | undefined>(undefined);
+      return (
+        <>
+          <button type="button">before</button>
+          <VirtualTable
+            label="Queues"
+            columns={columns}
+            data={data}
+            rowKey={(r) => r.name}
+            sort={sort}
+            onSortChange={setSort}
+            onRowClick={onRowClick}
+            selectable={selectable}
+            selected={selected}
+            onToggleRow={(key) => {
+              const next = new Set(selected);
+              if (next.has(key)) next.delete(key);
+              else next.add(key);
+              setSelected(next);
+            }}
+          />
+          <button type="button">after</button>
+        </>
+      );
+    }
+
+    const cellOf = (text: string) => screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+
+    it('is one tab stop, named, entering on the first row', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<Harness />);
+      expect(screen.getByRole('grid', { name: 'Queues' })).toBeInTheDocument();
+
+      screen.getByRole('button', { name: 'before' }).focus();
+      await user.tab();
+      expect(cellOf('ORDERS')).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'after' })).toHaveFocus();
+      await user.tab({ shift: true });
+      expect(cellOf('ORDERS')).toHaveFocus();
+    });
+
+    it('moves between cells with the arrows, keeping the column', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      await user.keyboard('{ArrowDown}');
+      expect(cellOf('SHIPMENTS')).toHaveFocus();
+      await user.keyboard('{ArrowRight}');
+      expect(cellOf('0')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(cellOf('431')).toHaveFocus();
+      await user.keyboard('{Control>}{Home}{/Control}');
+      expect(cellOf('12')).toHaveFocus();
+      await user.keyboard('{Home}');
+      expect(cellOf('ORDERS')).toHaveFocus();
+    });
+
+    it('reaches the header, where Enter sorts', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      await user.keyboard('{ArrowUp}');
+      const sortQueue = screen.getByRole('button', { name: /queue/i });
+      expect(sortQueue).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(screen.getByRole('columnheader', { name: /queue/i })).toHaveAttribute('aria-sort', 'ascending');
+    });
+
+    it('activates a row with Enter and selects it with Space', async () => {
+      const user = userEvent.setup();
+      const onRowClick = vi.fn();
+      renderWithProviders(<Harness onRowClick={onRowClick} selectable />);
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      // With selection on, the grid is still entered on the first value, not on the checkbox.
+      expect(cellOf('ORDERS')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(cellOf('SHIPMENTS')).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(onRowClick).toHaveBeenCalledWith({ name: 'SHIPMENTS', depth: 0 });
+      await user.keyboard(' ');
+      expect(screen.getByRole('checkbox', { name: 'Select row SHIPMENTS' })).toBeChecked();
+    });
+
+    it('keeps focus on the same row when the data is reordered', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderWithProviders(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      await user.keyboard('{ArrowDown}');
+      expect(cellOf('SHIPMENTS')).toHaveFocus();
+      rerender(<Harness data={[...rows].reverse()} />);
+      expect(cellOf('SHIPMENTS')).toHaveFocus();
+    });
+
+    it('hands focus to a neighbour when the focused row goes away', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderWithProviders(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      await user.keyboard('{ArrowDown}');
+      rerender(<Harness data={rows.filter((r) => r.name !== 'SHIPMENTS')} />);
+      await waitFor(() => expect(cellOf('DLQ')).toHaveFocus());
+    });
+
+    it('copies the focused cell with Ctrl+C and says so', async () => {
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+      renderWithProviders(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      await user.keyboard('{Control>}c{/Control}');
+      expect(writeText).toHaveBeenCalledWith('ORDERS');
+      expect(await screen.findByText('Copied ORDERS')).toBeInTheDocument();
+    });
+  });
+
+  describe('row menu (ADR-0105)', () => {
+    function WithMenu({ onDelete = () => {} }: { onDelete?: (name: string) => void }) {
+      return (
+        <VirtualTable
+          label="Queues"
+          columns={columns}
+          data={rows}
+          rowKey={(r) => r.name}
+          rowMenu={{
+            label: (r) => r.name,
+            render: (r) => (
+              <>
+                <Menu.Item>Open {r.name}</Menu.Item>
+                <Menu.Item onClick={() => onDelete(r.name)}>Delete {r.name}</Menu.Item>
+              </>
+            ),
+          }}
+        />
+      );
+    }
+
+    it('opens from the row\'s Actions control and returns focus to it', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<WithMenu />);
+      const trigger = screen.getByRole('button', { name: 'Actions for SHIPMENTS' });
+      expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+      await user.click(trigger);
+      const menu = await screen.findByRole('menu', { name: 'Actions for SHIPMENTS' });
+      expect(within(menu).getByRole('menuitem', { name: 'Delete SHIPMENTS' })).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Actions for SHIPMENTS' })).toHaveFocus());
+    });
+
+    it('opens with Shift+F10 from any cell of the row, and acts from the keyboard', async () => {
+      const user = userEvent.setup();
+      const onDelete = vi.fn();
+      renderWithProviders(<WithMenu onDelete={onDelete} />);
+      cellOf('DLQ').focus();
+      await user.keyboard('{Shift>}{F10}{/Shift}');
+      const menu = await screen.findByRole('menu', { name: 'Actions for DLQ' });
+      await waitFor(() => expect(within(menu).getByRole('menuitem', { name: 'Open DLQ' })).toHaveFocus());
+      await user.keyboard('{ArrowDown}{Enter}');
+      expect(onDelete).toHaveBeenCalledWith('DLQ');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Actions for DLQ' })).toHaveFocus());
+    });
+
+    it('opens on right-click, but leaves the browser menu to Shift+right-click', async () => {
+      renderWithProviders(<WithMenu />);
+      const shifted = fireEvent.contextMenu(cellOf('ORDERS'), { shiftKey: true });
+      expect(shifted).toBe(true);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+      const handled = fireEvent.contextMenu(cellOf('ORDERS'), { clientX: 40, clientY: 50 });
+      expect(handled).toBe(false);
+      expect(await screen.findByRole('menu', { name: 'Actions for ORDERS' })).toBeInTheDocument();
+    });
+
+    function cellOf(text: string) {
+      return screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+    }
   });
 
   it('reveals the full value with a copy control when a cell is actually clipped', async () => {

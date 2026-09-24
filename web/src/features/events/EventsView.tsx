@@ -245,6 +245,7 @@ export function EventsView() {
         </Text>
       ) : (
         <VirtualTable
+          label="Broker events"
           columns={columns}
           data={rows}
           rowKey={(e) => String(e.seq)}

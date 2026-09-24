@@ -171,3 +171,20 @@
   border: 1px dashed var(--as-border);
   border-radius: var(--mantine-radius-md);
 }
+
+/* The Actions control's cell: centred like the select column. */
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* The row whose menu is open stays marked, so the operator can see which row the menu is for. */
+.bodyRow[data-menu-open] {
+  background: var(--as-grid-row-hover);
+}
+
+.bodyRow[data-selected] {
+  background: var(--as-grid-row-hover);
+}

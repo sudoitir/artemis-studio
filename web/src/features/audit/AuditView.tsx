@@ -227,6 +227,7 @@ export function AuditView() {
         </Text>
       ) : (
         <VirtualTable
+          label="Audit events"
           columns={columns}
           data={rows}
           rowKey={auditKey}
