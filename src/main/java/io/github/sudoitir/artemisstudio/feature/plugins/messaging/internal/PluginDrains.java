@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal;
 
 import io.github.sudoitir.artemisstudio.feature.plugins.messaging.Disposition;
 import io.github.sudoitir.artemisstudio.feature.plugins.messaging.PluginMessage;
+import io.github.sudoitir.artemisstudio.feature.plugins.messaging.PluginMessagingProperties;
 import io.github.sudoitir.artemisstudio.feature.plugins.messaging.RegistrationMode;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
@@ -11,6 +12,8 @@ import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.MessageConsumer;
 import jakarta.jms.MessageListener;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -23,11 +26,14 @@ import org.apache.activemq.artemis.api.core.ActiveMQQueueMaxConsumerLimitReached
 import org.springframework.stereotype.Component;
 
 /**
- * The Core consumers that deliver registrations' messages to plugins, one per registration and
- * node, on Studio's plugin session pool (ADR-0111).
+ * The Core consumers that deliver registrations' messages to plugins: one drain per registration
+ * and node, with one slot per unit of the registration's concurrency, on Studio's plugin session
+ * pools (ADR-0111, ADR-0112).
  *
- * <p>Every session is {@code CLIENT_ACKNOWLEDGE} and carries one consumer, so an acknowledge
- * settles exactly the message just handled. A tap's copy is acknowledged whatever the handler
+ * <p>Every slot is its own {@code CLIENT_ACKNOWLEDGE} session carrying one consumer, so an
+ * acknowledge settles exactly the message just handled, and the slots of a drain handle messages
+ * in parallel. A consumer's slots have no prefetch window, so each holds at most the one message
+ * it is handling; the broker's message grouping keeps a group on one slot, in order. A tap's copy is acknowledged whatever the handler
  * said — the original never left its queue. A consumed message is acknowledged only on
  * {@link Disposition#ACCEPT}; a rejection or an exception recovers the session, and the broker
  * redelivers it within its own {@code max-delivery-attempts}. A drain that stops, or a Studio that
@@ -41,6 +47,7 @@ public class PluginDrains {
     private final CorePool corePool;
     private final BrokerConnections connections;
     private final PluginHandlers handlers;
+    private final PluginMessagingProperties properties;
 
     /** One drain's identity and what it reads. {@code source} is the queue name the consumer opens. */
     record Spec(
@@ -48,6 +55,7 @@ public class PluginDrains {
             String pluginId,
             String key,
             RegistrationMode mode,
+            int concurrency,
             UUID clusterId,
             UUID nodeId,
             String nodeName,
@@ -75,6 +83,12 @@ public class PluginDrains {
         return running.containsKey(key(registrationId, nodeId));
     }
 
+    /** How many slots a running drain has, or 0 when it is not running. */
+    int concurrency(UUID registrationId, UUID nodeId) {
+        Drain drain = running.get(key(registrationId, nodeId));
+        return drain == null ? 0 : drain.slots.size();
+    }
+
     /** The registrations draining on a node. */
     Set<UUID> runningOn(UUID nodeId) {
         return running.values().stream()
@@ -90,34 +104,53 @@ public class PluginDrains {
                 .collect(Collectors.toSet());
     }
 
-    /** Start draining, or do nothing if already draining. */
+    /** Start draining, or do nothing if already draining. Every slot starts, or none does. */
     void start(Spec spec) throws StartFailure {
         if (running.containsKey(key(spec.registrationId(), spec.nodeId()))) {
             return;
         }
+        Drain drain = new Drain(spec);
+        try {
+            for (int i = 0; i < spec.concurrency(); i++) {
+                drain.slots.add(openSlot(drain));
+            }
+        } catch (StartFailure e) {
+            drain.close();
+            throw e;
+        }
+        running.put(key(spec.registrationId(), spec.nodeId()), drain);
+        log.info(
+                "Delivering {} of {} on {} to plugin {} ({}, {} at once)",
+                spec.mode() == RegistrationMode.TAP ? "a copy" : "messages",
+                spec.queue(),
+                spec.nodeName(),
+                spec.pluginId(),
+                spec.key(),
+                spec.concurrency());
+    }
+
+    private Slot openSlot(Drain drain) throws StartFailure {
+        Spec spec = drain.spec;
         PooledSession jms;
         try {
             jms = corePool.borrowForPlugins(
-                    spec.clusterId(), CoreUrl.dialable(spec.coreUrl()), connections.coreSettingsFor(spec.clusterId()));
-        } catch (JMSException e) {
+                    spec.clusterId(),
+                    CoreUrl.dialable(spec.coreUrl()),
+                    connections.coreSettingsFor(spec.clusterId()),
+                    spec.mode() == RegistrationMode.CONSUME,
+                    properties.maxThreads());
+        } catch (JMSException | RuntimeException e) {
             throw new StartFailure(
                     "Studio could not open a Core session to " + spec.nodeName() + ": " + reason(e), false, e);
         }
         try {
             MessageConsumer consumer =
                     jms.session().createConsumer(jms.session().createQueue(spec.source()));
-            Drain drain = new Drain(spec, jms, consumer);
-            consumer.setMessageListener(drain);
+            Slot slot = new Slot(drain, jms, consumer);
+            consumer.setMessageListener(slot);
             jms.connection()
                     .setExceptionListener(failure -> connectionFailed(spec.clusterId(), spec.nodeId(), failure));
-            running.put(key(spec.registrationId(), spec.nodeId()), drain);
-            log.info(
-                    "Delivering {} of {} on {} to plugin {} ({})",
-                    spec.mode() == RegistrationMode.TAP ? "a copy" : "messages",
-                    spec.queue(),
-                    spec.nodeName(),
-                    spec.pluginId(),
-                    spec.key());
+            return slot;
         } catch (JMSException e) {
             jms.close();
             boolean elsewhere = causedByMaxConsumers(e);
@@ -193,25 +226,49 @@ public class PluginDrains {
         return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
     }
 
-    /** One registration on one node. */
-    private final class Drain implements MessageListener {
+    /** One registration on one node: its slots, which stop together. */
+    private static final class Drain {
 
         private final Spec spec;
-        private final PooledSession jms;
-        private final MessageConsumer consumer;
+        private final List<Slot> slots = new ArrayList<>();
         private volatile boolean closed;
 
-        Drain(Spec spec, PooledSession jms, MessageConsumer consumer) {
+        Drain(Spec spec) {
             this.spec = spec;
+        }
+
+        /** Stop taking messages on every slot first, then close each; see {@link Slot#close()}. */
+        void close() {
+            closed = true;
+            slots.forEach(Slot::close);
+        }
+
+        /** The connection is already dead; release what is left without waiting on it. */
+        void abandon() {
+            closed = true;
+            slots.forEach(slot -> slot.jms.close());
+        }
+    }
+
+    /** One session and its consumer: a message at a time. */
+    private final class Slot implements MessageListener {
+
+        private final Drain drain;
+        private final PooledSession jms;
+        private final MessageConsumer consumer;
+
+        Slot(Drain drain, PooledSession jms, MessageConsumer consumer) {
+            this.drain = drain;
             this.jms = jms;
             this.consumer = consumer;
         }
 
         @Override
         public void onMessage(Message message) {
-            if (closed) {
+            if (drain.closed) {
                 return;
             }
+            Spec spec = drain.spec;
             Optional<Disposition> outcome;
             try {
                 PluginMessage delivered =
@@ -253,24 +310,17 @@ public class PluginDrains {
          * instead of being redelivered to the next consumer.
          */
         void close() {
-            closed = true;
+            String node = drain.spec.nodeName();
             try {
                 consumer.close();
             } catch (JMSException e) {
-                log.debug("Closing a plugin drain on {}: {}", spec.nodeName(), e.getMessage());
+                log.debug("Closing a plugin drain on {}: {}", node, e.getMessage());
             }
             try {
                 jms.session().recover();
             } catch (JMSException e) {
-                log.debug(
-                        "Returning unsettled messages from a plugin drain on {}: {}", spec.nodeName(), e.getMessage());
+                log.debug("Returning unsettled messages from a plugin drain on {}: {}", node, e.getMessage());
             }
-            jms.close();
-        }
-
-        /** The connection is already dead; release what is left without waiting on it. */
-        void abandon() {
-            closed = true;
             jms.close();
         }
     }

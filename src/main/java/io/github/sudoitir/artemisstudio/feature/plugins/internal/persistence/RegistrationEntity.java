@@ -14,7 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Maps {@code plugin_message_registration} (feature/plugins changeset 0001). */
+/** Maps {@code plugin_message_registration} (feature/plugins changesets 0001, 0002). */
 @Entity
 @Table(name = "plugin_message_registration")
 @Getter
@@ -41,6 +41,9 @@ public class RegistrationEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RegistrationMode mode;
+
+    @Column(nullable = false)
+    private int concurrency;
 
     @Column(name = "acting_user_id", nullable = false)
     private UUID actingUserId;

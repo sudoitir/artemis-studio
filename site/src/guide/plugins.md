@@ -250,7 +250,7 @@ class Orders implements PluginMessageHandler {
 
     void watch(UUID clusterId, UUID operatorId) {
         messaging.register(new RegistrationSpec(
-                "orders", clusterId, "ORDERS.IN", RegistrationMode.TAP, operatorId));
+                "orders", clusterId, "ORDERS.IN", RegistrationMode.TAP, 1, operatorId));
     }
 
     @Override
@@ -278,8 +278,25 @@ class Orders implements PluginMessageHandler {
   after (`artemis-studio.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
   a permission, the registration is `SUSPENDED` and says why. It resumes when the permission
   returns.
-- Studio calls the handler on its own threads, one message at a time per registration and node.
-  Keep it bounded: a handler that blocks holds only its own registration's delivery.
+- **Concurrency.** A registration's `concurrency` is how many messages the handler gets at once on
+  each serving node: 1 to 32 for `CONSUME`, exactly 1 for `TAP`. Studio opens that many consumers
+  per node. Any other value is refused, with the reason.
+- **Flow control.** A `CONSUME` registration's consumers have no prefetch window (the Core client's
+  `consumerWindowSize=0`): the broker hands a consumer its next message only once the last one is
+  settled. At most `concurrency` messages per node are delivered and unsettled, the rest stay on the
+  queue for any other consumer, and a slow handler is simply handed fewer messages. Nothing
+  buffers in Studio or in the plugin.
+- **Order.** With a concurrency above 1, messages are handled in parallel, so their order is not
+  kept, except within a message group. Producers that set the same `JMSXGroupID` (`_AMQ_GROUP_ID`
+  in Core) on related messages get them handled one at a time, in order, on each node: the broker
+  hands every group to one consumer. For an order across a broker cluster's nodes, configure the
+  broker's grouping handler. A concurrency of 1 keeps the queue's order on each node.
+- **Threads.** Studio calls the handler on threads of its own, from a pool that only plugin
+  handlers use: at most `artemis-studio.plugins.messaging.max-threads` (64 by default, at least 2)
+  per node for consumers, and as many for taps. A handler that blocks holds its own consumer and a
+  thread of that pool, never a thread message capture or an operator's session needs. Keep it
+  bounded all the same: blocked handlers across plugins share the pool, and one registration's
+  footprint is its `concurrency` threads per node.
 - Queues under Studio's own prefixes and the broker's management addresses are refused.
 
 **`PluginSecrets`** stores named values encrypted with Studio's secret key: `put`, `get`, `delete`
@@ -305,5 +322,7 @@ runtime), [ADR-0100](/reference/adr/0100-plugin-uis-are-module-federation-remote
 [ADR-0101](/reference/adr/0101-each-plugin-owns-a-schema-pool-and-entity-manager) (the data),
 [ADR-0102](/reference/adr/0102-the-plugin-api-is-published-to-central-and-npm) (the API),
 [ADR-0103](/reference/adr/0103-plugin-installer-tier-and-step-up-reauthentication) (who can install),
-[ADR-0104](/reference/adr/0104-studio-restarts-itself-for-plugins-when-supervised) (restarts)
-and [ADR-0111](/reference/adr/0111-plugin-scoped-beans-and-plugin-messaging) (messages and secrets).
+[ADR-0104](/reference/adr/0104-studio-restarts-itself-for-plugins-when-supervised) (restarts),
+[ADR-0111](/reference/adr/0111-plugin-scoped-beans-and-plugin-messaging) (messages and secrets)
+and [ADR-0112](/reference/adr/0112-plugin-consumers-set-their-concurrency-on-a-thread-pool-of-their-own)
+(consumer concurrency).

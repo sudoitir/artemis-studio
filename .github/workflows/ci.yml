@@ -380,7 +380,8 @@ jobs:
 
   # The plugin API on Maven Central (ADR-0102): the plain jar of the release just tagged, with its
   # sources and javadoc, signed. Its own job, after the release: a Central problem never holds back
-  # the image. japicmp refuses an incompatible change to @PluginApi types first.
+  # the image. japicmp refuses an incompatible change to @PluginApi types first, unless this release
+  # raised Contract.VERSION: that is a deliberate break, announced by the contract (ADR-0102, ADR-0112).
   publish-api:
     needs: release
     runs-on: ubuntu-26.04
@@ -388,6 +389,25 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release.outputs.version }}
+          # Every tag, to read the contract version of the release before this one.
+          fetch-depth: 0
+      - name: Compare the contract version with the previous release
+        id: contract
+        run: |
+          V="${{ needs.release.outputs.version }}"
+          PREV=$(git tag -l | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | awk -v v="$V" '$0 == v { print p; exit } { p = $0 }')
+          FILE=src/main/java/io/github/sudoitir/artemisstudio/kernel/plugin/Contract.java
+          contract() { git show "$1:$FILE" | sed -n 's/.*int VERSION = \([0-9]*\);.*/\1/p'; }
+          NOW=$(contract "$V")
+          [ -n "$NOW" ] || { echo "::error::no Contract.VERSION in $FILE at $V"; exit 1; }
+          BEFORE=$([ -n "$PREV" ] && contract "$PREV" || true)
+          if [ -n "$BEFORE" ] && [ "$NOW" != "$BEFORE" ]; then
+            echo "Contract $BEFORE -> $NOW since $PREV: a deliberate API break, so japicmp is skipped."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Contract $NOW, unchanged since ${PREV:-the first release}: japicmp checks the API."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Check the publishing secrets are set
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
@@ -415,7 +435,8 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           ./mvnw -B versions:set -DnewVersion="${{ needs.release.outputs.version }}" -DgenerateBackupPoms=false
-          ./mvnw -B -Prelease,api-check -DskipTests -Dspring-boot.repackage.skip=true -Dgpg.signer=bc deploy
+          ./mvnw -B -Prelease,api-check -DskipTests -Dspring-boot.repackage.skip=true -Dgpg.signer=bc \
+            -Djapicmp.skip=${{ steps.contract.outputs.skip }} deploy
 
   # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Trusted
   # publishing through GitHub's OIDC: npmjs.com trusts this workflow, so no npm token is stored.

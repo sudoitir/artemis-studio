@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor.Kind;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
@@ -39,10 +40,11 @@ class FeatureContractTest {
     @Test
     void mismatchedContractVersionIsRefusedNamingBothVersions() {
         assertThatThrownBy(() -> registry(
-                        new MockEnvironment(), feature("rr").contract(2).build()))
+                        new MockEnvironment(),
+                        feature("rr").contract(Contract.VERSION + 1).build()))
                 .hasMessageContaining("'rr'")
-                .hasMessageContaining("version 2")
-                .hasMessageContaining("version 1");
+                .hasMessageContaining("version " + (Contract.VERSION + 1))
+                .hasMessageContaining("version " + Contract.VERSION);
     }
 
     @Test

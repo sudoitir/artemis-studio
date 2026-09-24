@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.messaginghub.pooled.jms.JmsPoolConnectionFactory;
@@ -47,7 +48,7 @@ public class CorePool {
      */
     public PooledSession borrow(UUID clusterId, String coreUrl, CoreConnectionSettings settings, int acknowledgeMode)
             throws JMSException {
-        return borrow(clusterId, coreUrl, settings, acknowledgeMode, OPERATOR, OPERATOR_SESSIONS);
+        return borrow(clusterId, coreUrl, settings, acknowledgeMode, OPERATOR, OPERATOR_SESSIONS, factory -> {});
     }
 
     /**
@@ -57,23 +58,42 @@ public class CorePool {
      */
     public PooledSession borrowForCapture(UUID clusterId, String coreUrl, CoreConnectionSettings settings)
             throws JMSException {
-        return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, CAPTURE, CAPTURE_SESSIONS);
+        return borrow(
+                clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, CAPTURE, CAPTURE_SESSIONS, factory -> {});
     }
 
     /**
      * A session for a plugin's message registration, held for as long as the registration runs
-     * (ADR-0111). Plugin drains have their own pool and connection, apart from capture's and the
-     * operator's: they set their own exception listener on it, which on a shared connection would
-     * replace capture's.
+     * (ADR-0111, ADR-0112). Plugin drains have their own pools and connections, apart from capture's
+     * and the operator's: they set their own exception listener on it, which on a shared connection
+     * would replace capture's.
+     *
+     * <p>Their connection factories do not use the Core client's global thread pools, which capture
+     * and operator sessions share: each has a pool of at most {@code maxThreads} threads, so a plugin
+     * handler that blocks holds one of those and never delays anything else in Studio. A consumer
+     * ({@code unbuffered}) gets no prefetch window: the broker hands it the next message only once
+     * the last one is settled, so a slow plugin holds one message per session and the rest stay on
+     * the queue. A tap keeps the bounded window, so its single consumer keeps pace with the queue.
+     *
+     * @param maxThreads applied when the pool is first built for this node
      */
-    public PooledSession borrowForPlugins(UUID clusterId, String coreUrl, CoreConnectionSettings settings)
+    public PooledSession borrowForPlugins(
+            UUID clusterId, String coreUrl, CoreConnectionSettings settings, boolean unbuffered, int maxThreads)
             throws JMSException {
-        return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, PLUGINS, CAPTURE_SESSIONS);
+        String purpose = unbuffered ? PLUGIN_CONSUMERS : PLUGIN_TAPS;
+        return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, purpose, CAPTURE_SESSIONS, factory -> {
+            factory.setUseGlobalPools(false);
+            factory.setThreadPoolMaxSize(maxThreads);
+            if (unbuffered) {
+                factory.setConsumerWindowSize(0);
+            }
+        });
     }
 
     private static final String OPERATOR = "";
     private static final String CAPTURE = "|capture";
-    private static final String PLUGINS = "|plugins";
+    private static final String PLUGIN_TAPS = "|plugins";
+    private static final String PLUGIN_CONSUMERS = "|plugin-consumers";
 
     /** Short-lived browse, send and sampling sessions per node. */
     private static final int OPERATOR_SESSIONS = 8;
@@ -87,11 +107,12 @@ public class CorePool {
             CoreConnectionSettings settings,
             int acknowledgeMode,
             String purpose,
-            int maxSessions)
+            int maxSessions,
+            Consumer<ActiveMQConnectionFactory> tuning)
             throws JMSException {
         String key = clusterId + "|" + coreUrl + purpose;
         JmsPoolConnectionFactory pool =
-                pools.computeIfAbsent(key, k -> buildPool(clusterId, coreUrl, settings, key, maxSessions));
+                pools.computeIfAbsent(key, k -> buildPool(clusterId, coreUrl, settings, key, maxSessions, tuning));
         Connection connection = settings.hasCredentials()
                 ? pool.createConnection(settings.username(), settings.password())
                 : pool.createConnection();
@@ -101,8 +122,14 @@ public class CorePool {
     }
 
     private JmsPoolConnectionFactory buildPool(
-            UUID clusterId, String coreUrl, CoreConnectionSettings settings, String key, int maxSessions) {
+            UUID clusterId,
+            String coreUrl,
+            CoreConnectionSettings settings,
+            String key,
+            int maxSessions,
+            Consumer<ActiveMQConnectionFactory> tuning) {
         ActiveMQConnectionFactory delegate = connectionFactory.build(settings, coreUrl);
+        tuning.accept(delegate);
         JmsPoolConnectionFactory pool = new JmsPoolConnectionFactory();
         pool.setConnectionFactory(delegate);
         pool.setMaxConnections(1);
@@ -131,16 +158,27 @@ public class CorePool {
         for (String key : keys) {
             JmsPoolConnectionFactory pool = pools.remove(key);
             if (pool != null) {
-                pool.stop();
+                stop(pool);
             }
         }
     }
 
     /** Close everything this holds open. Called at its shutdown phase. */
     public void closeAll() {
-        pools.values().forEach(JmsPoolConnectionFactory::stop);
+        pools.values().forEach(CorePool::stop);
         pools.clear();
         keysByCluster.clear();
+    }
+
+    /**
+     * Stop a pool, then close its connection factory: a factory with its own thread pools (the
+     * plugin pools) keeps their threads until it is closed.
+     */
+    private static void stop(JmsPoolConnectionFactory pool) {
+        pool.stop();
+        if (pool.getConnectionFactory() instanceof ActiveMQConnectionFactory factory) {
+            factory.close();
+        }
     }
 
     /** A borrowed connection/session pair. {@link #close()} returns the connection to the pool. */
