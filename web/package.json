@@ -17,6 +17,7 @@
     "ui-review": "node --experimental-strip-types scripts/ui-review.ts"
   },
   "dependencies": {
+    "@artemis-studio/plugin-sdk": "file:src/sdk",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.0",
     "@codemirror/lang-sql": "^6.10.0",
@@ -31,6 +32,7 @@
     "@mantine/hooks": "9.6.1",
     "@mantine/notifications": "9.6.1",
     "@mantine/spotlight": "9.6.1",
+    "@module-federation/runtime": "2.9.0",
     "@tabler/icons-react": "3.46.0",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-router": "1.170.36",
@@ -47,6 +49,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.37.0",
+    "@module-federation/vite": "1.22.1",
     "@playwright/test": "^1.63.0",
     "@tanstack/router-plugin": "1.168.38",
     "@testing-library/jest-dom": "7.0.1",

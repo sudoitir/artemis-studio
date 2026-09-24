@@ -4,15 +4,15 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { isPollingPaused, refreshActiveQueries, setPollingPaused, usePollingPaused } from '../api/polling.ts';
-import type { FeatureId, PaletteSource } from '../feature.ts';
+import type { ModuleId, PaletteSource } from '../feature.ts';
 import { useFeatures } from '../features.ts';
 import { navGroups } from '../registry.ts';
 
-type Report = (feature: FeatureId, groups: SpotlightActionGroupData[]) => void;
+type Report = (feature: ModuleId, groups: SpotlightActionGroupData[]) => void;
 
 /** Mounts one feature's palette source, with a `report` that stays the same across renders. */
 function Source({ feature, Palette, clusterId, onReport }: {
-  feature: FeatureId;
+  feature: ModuleId;
   Palette: PaletteSource;
   clusterId?: string;
   onReport: Report;
@@ -37,7 +37,7 @@ export function CommandPalette() {
   const qc = useQueryClient();
   const paused = usePollingPaused();
   const features = useFeatures();
-  const [contributed, setContributed] = useState<Partial<Record<FeatureId, SpotlightActionGroupData[]>>>({});
+  const [contributed, setContributed] = useState<Partial<Record<ModuleId, SpotlightActionGroupData[]>>>({});
   const onReport = useCallback<Report>(
     (feature, groups) => setContributed((prev) => ({ ...prev, [feature]: groups })),
     [],

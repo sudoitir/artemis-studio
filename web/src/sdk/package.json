@@ -1,0 +1,9 @@
+{
+  "name": "@artemis-studio/plugin-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "In-tree source of the plugin SDK; the host shares it with plugin bundles, and web/packages/plugin-sdk publishes its types.",
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts"
+}

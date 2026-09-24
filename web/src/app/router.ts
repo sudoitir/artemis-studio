@@ -2,7 +2,7 @@ import { createRouter, type RouterHistory } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 
 import type { StudioFeature } from '../kernel/feature.ts';
-import { clusterRoute, rootRoute, shellRoutes } from '../kernel/routing/roots.ts';
+import { clusterRoute, pluginClusterFallback, rootRoute, shellRoutes } from '../kernel/routing/roots.ts';
 import { RouteError } from '../kernel/shell/RouteError.tsx';
 
 /**
@@ -14,7 +14,7 @@ export function createAppRouter(queryClient: QueryClient, features: StudioFeatur
   const routeTree = rootRoute.addChildren([
     ...shellRoutes,
     ...features.flatMap((feature) => feature.routes?.root ?? []),
-    clusterRoute.addChildren(features.flatMap((feature) => feature.routes?.cluster ?? [])),
+    clusterRoute.addChildren([...features.flatMap((feature) => feature.routes?.cluster ?? []), pluginClusterFallback]),
   ]);
   return createRouter({
     routeTree,
