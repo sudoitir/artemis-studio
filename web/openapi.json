@@ -4651,6 +4651,14 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "name" : "byNode",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
         } ],
         "responses" : {
           "200" : {
@@ -11742,6 +11750,22 @@
           },
           "brokerXmlSnippet" : {
             "type" : "string"
+          },
+          "backlog" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "consumers" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "inRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "outRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
           }
         },
         "required" : [ "consumersSeen", "consumersTotal", "producersSeen", "producersTotal", "truncated" ]
@@ -11817,6 +11841,12 @@
             "items" : {
               "type" : "string",
               "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
+            }
+          },
+          "byNode" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "$ref" : "#/components/schemas/FlowNodeRate"
             }
           }
         },
@@ -11923,6 +11953,60 @@
         },
         "required" : [ "backlog", "clients", "faults" ]
       },
+      "FlowNodeRate" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string"
+          },
+          "node" : {
+            "type" : "string"
+          },
+          "rate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "asOf" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "stale" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "node", "nodeId", "stale" ]
+      },
+      "FlowNodeShare" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string"
+          },
+          "node" : {
+            "type" : "string"
+          },
+          "messageCount" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "consumerCount" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "inRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "outRate" : {
+            "type" : [ "number", "null" ],
+            "format" : "double"
+          },
+          "stale" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "node", "nodeId", "stale" ]
+      },
       "FlowNodeView" : {
         "type" : "object",
         "properties" : {
@@ -11987,6 +12071,12 @@
             "items" : {
               "type" : "string",
               "enum" : [ "NO_CONSUMER", "STALLED", "BRIDGE_DOWN", "PARTIAL_PRESENCE" ]
+            }
+          },
+          "byNode" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "$ref" : "#/components/schemas/FlowNodeShare"
             }
           }
         }

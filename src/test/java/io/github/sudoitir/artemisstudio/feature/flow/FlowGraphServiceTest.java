@@ -552,6 +552,86 @@ class FlowGraphServiceTest {
         return FlowQuery.of(focus, 1, Rank.IN, limit, GroupBy.CLIENT_ID, null);
     }
 
+    @Test
+    void aBreakdownIsOnlyGivenWhenAskedFor() {
+        queue("orders", "orders", "ANYCAST", 3, 1);
+        edge(Kind.CONSUME, "billing", "orders", "orders", 4.0, 1, false);
+        samples.add(sample(null, 0, 1));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(graph.nodes()).allSatisfy(n -> assertThat(n.byNode()).isNull());
+        assertThat(graph.edges()).allSatisfy(e -> assertThat(e.byNode()).isNull());
+        assertThat(graph.brokerNodes()).allSatisfy(b -> assertThat(b.backlog()).isNull());
+    }
+
+    @Test
+    void aQueueOnTwoNodesStatesEachNodesBacklogConsumersAndRatesWhichAddUpToItsTotals() {
+        ClusterNode a = mock(ClusterNode.class);
+        when(a.getId()).thenReturn(nodeA);
+        when(a.getName()).thenReturn("node-a");
+        ClusterNode b = mock(ClusterNode.class);
+        when(b.getId()).thenReturn(nodeB);
+        when(b.getName()).thenReturn("node-b");
+        List<ClusterNode> both = List.of(a, b);
+        when(directory.nodes(clusterId)).thenReturn(both);
+        // Stranded: node-b holds the backlog and has no consumer.
+        queues.add(new QueueSnapshot(
+                clusterId, nodeA, "orders", "orders", "ANYCAST", true, false, now, 10, 2, 0, 0, 0, 0, 0));
+        queues.add(new QueueSnapshot(
+                clusterId, nodeB, "orders", "orders", "ANYCAST", true, false, now, 9_000, 0, 0, 0, 0, 0, 0));
+        Map<String, Map<UUID, SubjectRate>> addedByNode = Map.of(
+                "orders",
+                Map.of(
+                        nodeA, new SubjectRate(3.0, now.minusSeconds(5), Duration.ofSeconds(15)),
+                        nodeB, new SubjectRate(27.0, now.minusSeconds(5), Duration.ofSeconds(15))));
+        when(metrics.latestRateWithTimeBySubjectAndNode(eq(clusterId), eq("messagesAdded"), any(), any()))
+                .thenReturn(addedByNode);
+        when(metrics.latestRateWithTimeBySubjectAndNode(eq(clusterId), eq("messagesAcked"), any(), any()))
+                .thenReturn(Map.of(
+                        "orders", Map.of(nodeA, new SubjectRate(3.0, now.minusSeconds(5), Duration.ofSeconds(15)))));
+        samples.add(sample(null, 0, 2));
+        samples.add(new NodeSample(nodeB, clusterId, now, 0, 0, 0, 0, null, null));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40).withByNode(true));
+
+        FlowNodeView queue = graph.nodes().stream()
+                .filter(n -> n.id().equals("queue:orders"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(queue.byNode())
+                .extracting(sh -> sh.node() + " " + sh.messageCount() + "/" + sh.consumerCount() + " in " + sh.inRate()
+                        + " out " + sh.outRate())
+                .containsExactly("node-a 10/2 in 3.0 out 3.0", "node-b 9000/0 in 27.0 out null");
+        // The totals are the sum of the parts, derived from the same per-node read.
+        assertThat(edge(graph, EdgeKind.ROUTE).rate()).isEqualTo(30.0);
+        assertThat(graph.nodes().stream()
+                        .filter(n -> n.id().equals("address:orders"))
+                        .findFirst()
+                        .orElseThrow()
+                        .byNode())
+                .hasSize(2);
+        assertThat(graph.brokerNodes())
+                .extracting(bn -> bn.name() + " " + bn.backlog() + " " + bn.consumers())
+                .containsExactly("node-a 10 2", "node-b 9000 0");
+    }
+
+    @Test
+    void aClientRateOnANodeThatDidNotAnswerIsStaleInTheBreakdownNeverZero() {
+        queue("orders", "orders", "ANYCAST", 3, 1);
+        edge(Kind.CONSUME, "billing", "orders", "orders", 4.0, 1, false);
+        samples.add(sample("UNREACHABLE", 0, 1));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40).withByNode(true));
+
+        FlowEdgeView consume = edge(graph, EdgeKind.CONSUME);
+        assertThat(consume.byNode()).singleElement().satisfies(r -> {
+            assertThat(r.node()).isEqualTo("node-a");
+            assertThat(r.rate()).isEqualTo(4.0);
+            assertThat(r.stale()).isTrue();
+        });
+    }
+
     private void queue(String name, String address, String routingType, long messages, long consumers) {
         queues.add(new QueueSnapshot(
                 clusterId, nodeA, name, address, routingType, true, false, now, messages, consumers, 0, 0, 0, 0, 0));
