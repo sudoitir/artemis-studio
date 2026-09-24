@@ -52,6 +52,11 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("artemis-studio.secret-key", () -> SECRET_KEY);
+        // For the same reason as the scrape tiers: the plugin-messaging pass would visit every
+        // cluster the shared database has accumulated, from a scheduler thread, and call a mocked
+        // BrokerConnections while a test is stubbing it. Its startup sweep still runs, before any
+        // test; tests that need a pass drive the reconciler themselves.
+        registry.add("artemis-studio.plugins.messaging.reconcile-interval", () -> "1h");
     }
 
     /** What an application started outside the Spring test framework needs to use the shared database. */
