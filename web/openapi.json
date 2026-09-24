@@ -675,6 +675,24 @@
         }
       }
     },
+    "/api/v1/admin/plugins/upload" : {
+      "put" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "upload",
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginUploadView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users" : {
       "get" : {
         "tags" : [ "users-controller" ],
@@ -2880,6 +2898,34 @@
         }
       }
     },
+    "/api/v1/auth/reauthenticate" : {
+      "post" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "reauthenticate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReauthenticateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReauthenticationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/password" : {
       "post" : {
         "tags" : [ "auth-controller" ],
@@ -2933,6 +2979,270 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/MeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/uninstall" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "uninstall",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "cascade",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/rollback" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "rollback",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "description" : "Accepted",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginPlanView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/purge" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "purge_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginPurgePlanView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/enable" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "enable",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "description" : "Accepted",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginPlanView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/download-update" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "downloadUpdate",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginUploadView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/disable" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "disable",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "cascade",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/uploads/{sha256}/activate" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "activate",
+        "parameters" : [ {
+          "name" : "sha256",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "description" : "Accepted",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginPlanView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/restart" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "restart",
+        "responses" : {
+          "202" : {
+            "description" : "Accepted"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/installers" : {
+      "get" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "installers",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PluginInstallerView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "grantInstaller",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantInstallerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/check-updates" : {
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "checkUpdates",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PluginUpdateView"
+                  }
                 }
               }
             }
@@ -5100,6 +5410,122 @@
         }
       }
     },
+    "/api/v1/admin/plugins" : {
+      "get" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "list_11",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}" : {
+      "get" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "get_4",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{id}/history" : {
+      "get" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "history_3",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuditEventView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/uploads/{sha256}" : {
+      "get" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "upload_1",
+        "parameters" : [ {
+          "name" : "sha256",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginPlanView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "discard",
+        "parameters" : [ {
+          "name" : "sha256",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/users/{userId}/grants/{roleId}" : {
       "delete" : {
         "tags" : [ "users-controller" ],
@@ -5270,6 +5696,26 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/installers/{userId}" : {
+      "delete" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "revokeInstaller",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         }
       }
@@ -6270,6 +6716,290 @@
           }
         },
         "required" : [ "config", "enabled", "hasSecret", "id", "kind", "name" ]
+      },
+      "PluginChangesetView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "author" : {
+            "type" : "string"
+          },
+          "reversible" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "author", "id", "reversible" ]
+      },
+      "PluginContributionsView" : {
+        "type" : "object",
+        "properties" : {
+          "ui" : {
+            "type" : "boolean"
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginPermissionView"
+            }
+          },
+          "settingKeys" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "streamTopics" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "mcpTools" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginMcpToolView"
+            }
+          }
+        },
+        "required" : [ "mcpTools", "permissions", "settingKeys", "streamTopics", "ui" ]
+      },
+      "PluginDiffView" : {
+        "type" : "object",
+        "properties" : {
+          "permissionsAdded" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "permissionsRemoved" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "settingKeysAdded" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "settingKeysRemoved" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "streamTopicsAdded" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "streamTopicsRemoved" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "mcpToolsAdded" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "mcpToolsRemoved" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "mcpToolsAdded", "mcpToolsRemoved", "permissionsAdded", "permissionsRemoved", "settingKeysAdded", "settingKeysRemoved", "streamTopicsAdded", "streamTopicsRemoved" ]
+      },
+      "PluginInfoView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "vendor" : {
+            "$ref" : "#/components/schemas/PluginVendorView"
+          },
+          "license" : {
+            "type" : [ "string", "null" ]
+          },
+          "changeNotes" : {
+            "type" : [ "string", "null" ]
+          },
+          "since" : {
+            "type" : "string"
+          },
+          "until" : {
+            "type" : [ "string", "null" ]
+          },
+          "restartToActivate" : {
+            "type" : "boolean"
+          },
+          "updateUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "contributions" : {
+            "$ref" : "#/components/schemas/PluginContributionsView"
+          }
+        },
+        "required" : [ "contributions", "name", "requires", "restartToActivate", "since", "title", "vendor" ]
+      },
+      "PluginMcpToolView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "posture" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "name", "posture" ]
+      },
+      "PluginPermissionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "action" ]
+      },
+      "PluginPlanView" : {
+        "type" : "object",
+        "properties" : {
+          "pluginId" : {
+            "type" : "string"
+          },
+          "fromVersion" : {
+            "type" : [ "string", "null" ]
+          },
+          "toVersion" : {
+            "type" : "string"
+          },
+          "activationClass" : {
+            "type" : "string",
+            "enum" : [ "INSTANT", "BRIEF_MAINTENANCE", "RESTART" ]
+          },
+          "pendingChangesets" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginChangesetView"
+            }
+          },
+          "updateSql" : {
+            "type" : "string"
+          },
+          "reversible" : {
+            "type" : "boolean"
+          },
+          "diff" : {
+            "$ref" : "#/components/schemas/PluginDiffView"
+          },
+          "rolesLosingPermission" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "compatible" : {
+            "type" : "boolean"
+          },
+          "missingRequires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "restart" : {
+            "type" : "string",
+            "description" : "NONE; AUTOMATIC: Studio restarts itself once confirmed; MANUAL: restart it yourself.",
+            "enum" : [ "NONE", "AUTOMATIC", "MANUAL" ]
+          },
+          "info" : {
+            "$ref" : "#/components/schemas/PluginInfoView"
+          }
+        },
+        "required" : [ "activationClass", "compatible", "diff", "info", "missingRequires", "pendingChangesets", "pluginId", "restart", "reversible", "rolesLosingPermission", "toVersion", "updateSql" ]
+      },
+      "PluginUploadView" : {
+        "type" : "object",
+        "properties" : {
+          "sha256" : {
+            "type" : "string"
+          },
+          "plan" : {
+            "$ref" : "#/components/schemas/PluginPlanView"
+          },
+          "warnings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginViolationView"
+            }
+          }
+        },
+        "required" : [ "plan", "sha256", "warnings" ]
+      },
+      "PluginVendorView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : [ "string", "null" ]
+          },
+          "email" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "PluginViolationView" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "fix" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string",
+            "enum" : [ "ERROR", "WARNING" ]
+          }
+        },
+        "required" : [ "code", "fix", "message", "severity" ]
       },
       "CreateUserRequest" : {
         "type" : "object",
@@ -8498,6 +9228,38 @@
         },
         "required" : [ "name", "routingTypes" ]
       },
+      "ReauthenticateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password" ]
+      },
+      "ReauthenticationView" : {
+        "type" : "object",
+        "properties" : {
+          "method" : {
+            "type" : "string",
+            "description" : "PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.",
+            "enum" : [ "PASSWORD", "REDIRECT" ]
+          },
+          "startPath" : {
+            "type" : [ "string", "null" ]
+          },
+          "authenticatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "windowSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "method", "windowSeconds" ]
+      },
       "ChangePasswordRequest" : {
         "type" : "object",
         "properties" : {
@@ -8567,9 +9329,87 @@
             "items" : {
               "$ref" : "#/components/schemas/GrantView"
             }
+          },
+          "reauthentication" : {
+            "$ref" : "#/components/schemas/ReauthenticationView"
           }
         },
-        "required" : [ "grants", "id", "mustChangePassword", "username" ]
+        "required" : [ "grants", "id", "mustChangePassword", "reauthentication", "username" ]
+      },
+      "PluginPurgePlanView" : {
+        "type" : "object",
+        "properties" : {
+          "schema" : {
+            "type" : "string"
+          },
+          "tables" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginTableEstimateView"
+            }
+          },
+          "grants" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "settings" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "artifacts" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "artifacts", "grants", "schema", "settings", "tables" ]
+      },
+      "PluginTableEstimateView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "estimatedRows" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "bytes", "estimatedRows", "name" ]
+      },
+      "GrantInstallerRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "username" ]
+      },
+      "PluginUpdateView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "currentVersion" : {
+            "type" : "string"
+          },
+          "availableVersion" : {
+            "type" : [ "string", "null" ]
+          },
+          "changeNotes" : {
+            "type" : [ "string", "null" ]
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "currentVersion", "id" ]
       },
       "UpdateQueueRequest" : {
         "type" : "object",
@@ -11738,6 +12578,179 @@
           }
         },
         "required" : [ "clusterId", "firing" ]
+      },
+      "PluginBudgetView" : {
+        "type" : "object",
+        "properties" : {
+          "maxConnections" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "inUse" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "limit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "perPlugin" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "inUse", "limit", "maxConnections", "perPlugin" ]
+      },
+      "PluginProblemReasonView" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "message" ]
+      },
+      "PluginView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "failure" : {
+            "type" : [ "string", "null" ]
+          },
+          "progress" : {
+            "type" : [ "string", "null" ]
+          },
+          "stepStartedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "installedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "activatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "installedBy" : {
+            "type" : [ "string", "null" ]
+          },
+          "sha256" : {
+            "type" : "string"
+          },
+          "rollbackAvailable" : {
+            "type" : "boolean"
+          },
+          "stuck" : {
+            "type" : "boolean"
+          },
+          "iconUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "dependants" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "info" : {
+            "$ref" : "#/components/schemas/PluginInfoView"
+          }
+        },
+        "required" : [ "dependants", "id", "info", "installedAt", "rollbackAvailable", "sha256", "status", "stuck", "version" ]
+      },
+      "PluginsView" : {
+        "type" : "object",
+        "properties" : {
+          "canInstall" : {
+            "type" : "boolean"
+          },
+          "cannotInstall" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/PluginProblemReasonView"
+          },
+          "uploadEnabled" : {
+            "type" : "boolean"
+          },
+          "safeMode" : {
+            "type" : "boolean"
+          },
+          "safeModeReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "budget" : {
+            "$ref" : "#/components/schemas/PluginBudgetView"
+          },
+          "restart" : {
+            "$ref" : "#/components/schemas/StudioRestartView"
+          },
+          "plugins" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginView"
+            }
+          }
+        },
+        "required" : [ "budget", "canInstall", "plugins", "restart", "safeMode", "uploadEnabled" ]
+      },
+      "StudioRestartView" : {
+        "type" : "object",
+        "properties" : {
+          "supervised" : {
+            "type" : "boolean"
+          },
+          "needed" : {
+            "type" : "boolean"
+          },
+          "restarting" : {
+            "type" : "boolean"
+          },
+          "allowedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "command" : {
+            "type" : "string"
+          },
+          "unreleased" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "command", "needed", "restarting", "supervised", "unreleased" ]
+      },
+      "PluginInstallerView" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "grantedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "grantedBy" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "grantedAt", "userId", "username" ]
       },
       "DeletedView" : {
         "type" : "object",

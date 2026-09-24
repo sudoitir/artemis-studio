@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginMigrations.ChangesetInfo;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import java.util.Map;
  *     remove — keyed by the permission action, only for {@code diff.permissionsRemoved()}
  * @param compatible whether the running Studio falls inside the plugin's declared
  *     {@code studio.since..until} (an unknown running version counts as compatible — design.md §3)
+ * @param descriptor the jar's own descriptor — what the review screen describes
  * @param missingRequires every {@code requires} entry that is neither an enabled built-in feature
  *     nor an active plugin right now; non-empty refuses {@code activate} but not {@code plan}
  */
@@ -32,7 +34,20 @@ public record ActivationPlan(
         ContributionDiff diff,
         Map<String, Integer> rolesLosingPermission,
         boolean compatible,
-        List<String> missingRequires) {
+        List<String> missingRequires,
+        PluginDescriptor descriptor,
+        Restart restart) {
+
+    /**
+     * Whether confirming ends in a restart of Studio: {@code NONE}, {@code AUTOMATIC} (Studio
+     * restarts itself once the new version is recorded, ADR-0104) or {@code MANUAL} (the operator
+     * must restart it — nothing would start it again).
+     */
+    public enum Restart {
+        NONE,
+        AUTOMATIC,
+        MANUAL
+    }
 
     public ActivationPlan {
         pendingChangesets = List.copyOf(pendingChangesets);

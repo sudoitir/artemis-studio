@@ -274,6 +274,11 @@ public final class PluginRuntime implements AutoCloseable {
             log.warn("Plugin '{}' classloader close() threw; unload continues.", id, e);
         }
         PluginClassloaderCaches.clear(classLoader);
+        // Studio's own mapper serialized the plugin's types for its MCP tools and stream events,
+        // and caches a serializer per type for as long as the JVM runs.
+        mainContext
+                .getBeanProvider(tools.jackson.databind.json.JsonMapper.class)
+                .ifAvailable(mapper -> mapper.clearCaches());
     }
 
     private final class Handle implements PluginHandle {

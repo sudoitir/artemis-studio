@@ -1,6 +1,6 @@
 # ADR-0099: Runtime plugins are Spring child contexts behind a gateway, installed from the UI into Postgres
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0104](0104-studio-restarts-itself-for-plugins-when-supervised.md) (restart)
 - **Date**: 2026-09-22
 - **Deciders**: Mahdi Amirabdollahi
 - **Change**: `openspec/changes/plugins`

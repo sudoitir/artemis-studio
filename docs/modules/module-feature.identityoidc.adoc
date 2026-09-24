@@ -15,4 +15,5 @@ _Others_
 |* `i.g.s.a.k.s.IdentityProvisioner` (in Security)
 * `i.g.s.a.k.s.SessionAuthentication` (in Security)
 * `i.g.s.a.k.s.AuthenticationAudit` (in Security)
+* `i.g.s.a.k.s.UserAccounts` (in Security)
 |===

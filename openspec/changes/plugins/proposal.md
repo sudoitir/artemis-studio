@@ -14,7 +14,7 @@ Today every Studio capability is compiled in (ADR-0069). Extending Studio means 
 - **Activation without restart where safe.** Every change is classified before confirmation:
   - **Instant**: no downtime; the old version keeps serving if the new one fails.
   - **Brief maintenance**: database changes; only this plugin pauses.
-  - **Restart**: stated with the exact command.
+  - **Restart**: Studio restarts itself when a supervisor will start it again (compose, Kubernetes); otherwise the review states the exact command.
 - **Updates** come from a dropped jar or a manual "Check for updates" against the plugin's `updateUrl`. Each shows a preview: permission, API and tool diff, the generated SQL, and whether the change is reversible. Code-only updates can be rolled back.
 - **Safe mode.** A plugin that is invalid, incompatible after a Studio upgrade, hangs, or crashes Studio repeatedly is quarantined with its reason and a fix. Studio always starts.
 - **Isolated data.** Each plugin gets its own Postgres schema, connection pool and EntityManager factory. Plugins cannot create objects in `public` or foreign keys into it.

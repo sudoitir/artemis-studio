@@ -15,6 +15,7 @@ import java.lang.classfile.MethodModel;
 import java.lang.classfile.instruction.InvokeInstruction;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
@@ -79,9 +80,12 @@ final class BytecodeChecks {
                 configurationFound = true;
                 checkComponentScanPresent(model, className, violations);
             }
-            checkAnnotations(model, className, violations);
+            // A class-level @RequestMapping is only a prefix; what a handler maps is prefix + method path.
+            List<String> classPrefixes = mappingPaths(model).orElse(List.of(""));
+            checkAnnotations(model, className, null, violations);
             for (MethodModel method : model.methods()) {
-                checkAnnotations(method, className + "#" + method.methodName().stringValue(), violations);
+                checkAnnotations(
+                        method, className + "#" + method.methodName().stringValue(), classPrefixes, violations);
                 method.code().ifPresent(code -> {
                     for (CodeElement element : code) {
                         if (element instanceof InvokeInstruction invoke) {
@@ -135,7 +139,12 @@ final class BytecodeChecks {
         }
     }
 
-    private void checkAnnotations(AttributedElement element, String where, List<Violation> violations) {
+    /**
+     * @param classPrefixes the declaring class's mapping paths, for a method; {@code null} for the
+     *     class itself, whose mapping is only checked combined with each handler method's
+     */
+    private void checkAnnotations(
+            AttributedElement element, String where, List<String> classPrefixes, List<Violation> violations) {
         var attribute = element.findAttribute(Attributes.runtimeVisibleAnnotations());
         if (attribute.isEmpty()) {
             return;
@@ -152,8 +161,8 @@ final class BytecodeChecks {
                 checkScanOrImportTargets(annotation, type, where, violations);
             } else if (type.equals(CONFIGURATION_PROPERTIES)) {
                 checkConfigurationPropertiesPrefix(annotation, where, violations);
-            } else if (MAPPING_ANNOTATIONS.contains(type)) {
-                checkMappingPaths(annotation, where, violations);
+            } else if (MAPPING_ANNOTATIONS.contains(type) && classPrefixes != null) {
+                checkMappingPaths(annotation, where, classPrefixes, violations);
             }
         }
     }
@@ -212,9 +221,18 @@ final class BytecodeChecks {
         }
     }
 
-    private void checkMappingPaths(Annotation annotation, String where, List<Violation> violations) {
-        List<String> allowedPrefixes =
-                List.of("/api/v1/p/" + descriptor.id(), "/api/v1/clusters/{clusterId}/p/" + descriptor.id());
+    /** The paths of a class's own request-mapping annotation, if it has one. */
+    private static Optional<List<String>> mappingPaths(AttributedElement element) {
+        return element.findAttribute(Attributes.runtimeVisibleAnnotations())
+                .flatMap(attribute -> attribute.annotations().stream()
+                        .filter(a -> MAPPING_ANNOTATIONS.contains(a.className().stringValue()))
+                        .findFirst()
+                        .map(BytecodeChecks::paths));
+    }
+
+    /** A mapping annotation's {@code value}/{@code path} strings; none declared maps the empty path. */
+    private static List<String> paths(Annotation annotation) {
+        List<String> paths = new ArrayList<>();
         for (AnnotationElement el : annotation.elements()) {
             String name = el.name().stringValue();
             if (!(name.equals("value") || name.equals("path"))) {
@@ -223,12 +241,33 @@ final class BytecodeChecks {
             List<AnnotationValue> values =
                     el.value() instanceof AnnotationValue.OfArray arr ? arr.values() : List.of(el.value());
             for (AnnotationValue v : values) {
-                if (!(v instanceof AnnotationValue.OfString s)) {
-                    continue;
+                if (v instanceof AnnotationValue.OfString s) {
+                    paths.add(s.stringValue());
                 }
-                String path = s.stringValue();
+            }
+        }
+        return paths.isEmpty() ? List.of("") : paths;
+    }
+
+    /** Spring's combination of a class and a method path: {@code /a} + {@code b} is {@code /a/b}. */
+    private static String combine(String prefix, String path) {
+        if (path.isEmpty()) {
+            return prefix.isEmpty() ? "/" : prefix;
+        }
+        String joined = (prefix.endsWith("/") ? prefix.substring(0, prefix.length() - 1) : prefix)
+                + (path.startsWith("/") ? path : "/" + path);
+        return joined.startsWith("/") ? joined : "/" + joined;
+    }
+
+    private void checkMappingPaths(
+            Annotation annotation, String where, List<String> classPrefixes, List<Violation> violations) {
+        List<String> allowedPrefixes =
+                List.of("/api/v1/p/" + descriptor.id(), "/api/v1/clusters/{clusterId}/p/" + descriptor.id());
+        for (String prefix : classPrefixes) {
+            for (String own : paths(annotation)) {
+                String path = combine(prefix, own);
                 boolean ok = allowedPrefixes.stream()
-                        .anyMatch(prefix -> path.equals(prefix) || path.startsWith(prefix + "/"));
+                        .anyMatch(allowed -> path.equals(allowed) || path.startsWith(allowed + "/"));
                 if (!ok) {
                     violations.add(new Violation(
                             "bytecode-mapping-path",

@@ -33,7 +33,8 @@ class PluginValidatorTest {
     private static PluginValidator validator(String studioVersionOverride) {
         ObjectProvider<BuildProperties> noBuildInfo = mock(ObjectProvider.class);
         when(noBuildInfo.getIfAvailable()).thenReturn(null);
-        var studioVersion = new StudioVersion(noBuildInfo, new PluginProperties(studioVersionOverride, false, null));
+        var studioVersion = new StudioVersion(
+                noBuildInfo, new PluginProperties(studioVersionOverride, false, null, null, null, null));
         return new PluginValidator(new PluginDescriptorParser(), studioVersion);
     }
 
@@ -264,6 +265,38 @@ class PluginValidatorTest {
                         public class NotesController {
                             @GetMapping("/api/v1/other/path")
                             public String notes() { return "x"; }
+                        }
+                        """);
+        assertThat(has(validate(jar), "bytecode-mapping-path")).isTrue();
+    }
+
+    @Test
+    void aClassLevelPrefixCountsTowardsTheGatewayPath() throws Exception {
+        var jar = validPlugin("acme-notes").source("com.acme.acme_notes.NotesController", """
+                        package com.acme.acme_notes;
+                        import org.springframework.web.bind.annotation.*;
+                        @RestController
+                        @RequestMapping("/api/v1/clusters/{clusterId}/p/acme-notes")
+                        public class NotesController {
+                            @GetMapping("/notes")
+                            public String notes() { return "x"; }
+                            @PostMapping
+                            public String add() { return "x"; }
+                        }
+                        """);
+        assertThat(has(validate(jar), "bytecode-mapping-path")).isFalse();
+    }
+
+    @Test
+    void aMethodWithNoPathMapsItsClassPrefixAndIsCheckedToo() throws Exception {
+        var jar = validPlugin("acme-notes").source("com.acme.acme_notes.NotesController", """
+                        package com.acme.acme_notes;
+                        import org.springframework.web.bind.annotation.*;
+                        @RestController
+                        @RequestMapping("/api/v1")
+                        public class NotesController {
+                            @GetMapping
+                            public String root() { return "x"; }
                         }
                         """);
         assertThat(has(validate(jar), "bytecode-mapping-path")).isTrue();

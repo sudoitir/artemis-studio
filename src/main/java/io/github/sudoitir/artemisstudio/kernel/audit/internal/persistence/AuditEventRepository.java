@@ -14,6 +14,9 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
 
     List<AuditEventEntity> findByClusterIdOrderByTsDesc(UUID clusterId);
 
+    List<AuditEventEntity> findByTargetTypeAndTargetNameOrderByTsDesc(
+            String targetType, String targetName, org.springframework.data.domain.Pageable page);
+
     /**
      * The target names whose latest non-preview event is a creation, counting a deletion only
      * when it succeeded: "Studio created this and has no record of removing it". One row per

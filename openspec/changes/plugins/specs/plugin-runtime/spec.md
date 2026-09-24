@@ -80,7 +80,7 @@ The following actions SHALL be restricted to users in the installer tier:
 - purging a plugin's data
 - changing who is an installer
 
-Each of these actions except the upload SHALL additionally require that the user authenticated within the last 5 minutes. When that is not the case the system SHALL answer `401` with problem type `reauth-required`.
+Each of these actions except the upload SHALL additionally require that the user authenticated within the last 5 minutes. When that is not the case the system SHALL answer `403` with problem type `reauthentication-required`.
 
 Callers authenticated by an API token, including the assistant surface, SHALL be refused with `403` problem type `plugin-install-interactive-only`.
 
@@ -90,7 +90,7 @@ Operators SHALL be able to turn plugin installation off at deploy time. The inst
 
 #### Scenario: A stale session cannot activate
 - **WHEN** an installer who signed in an hour ago confirms an activation
-- **THEN** the request is refused with `401 reauth-required`, and succeeds after the installer re-authenticates
+- **THEN** the request is refused with `403 reauthentication-required`, and succeeds after the installer re-authenticates
 
 #### Scenario: A token cannot install
 - **WHEN** a request authenticated by a personal API token uploads a plugin
@@ -127,7 +127,7 @@ Before confirmation the system SHALL classify every activation, update, enable, 
 
 - **Instant.** No pending database changes. The new version starts while the old one keeps serving; only once the new version is ready are requests switched to it, and the old version then finishes its in-flight work and stops. If the new version fails to start, the old version keeps serving.
 - **Brief maintenance.** Pending database changes. The plugin alone answers `503` with problem type `plugin-updating` and a `Retry-After` header while its in-flight work drains, its database changes apply, and the new version starts. The rest of Studio is unaffected.
-- **Restart.** The plugin declares that it needs a restart, or a previous version did not stop cleanly. The system SHALL mark the plugin as needing a restart and state the exact command; it SHALL NOT restart Studio itself.
+- **Restart.** The plugin declares that it needs a restart, or a previous version did not stop cleanly. The system SHALL record the version to start and mark the plugin as needing a restart; the next start of Studio starts it. The review SHALL state beforehand whether Studio will restart itself or the operator must, with the exact command in the latter case.
 
 #### Scenario: An update without database changes has no downtime
 - **WHEN** an installer updates a plugin whose new version has no pending changesets
@@ -140,6 +140,28 @@ Before confirmation the system SHALL classify every activation, update, enable, 
 #### Scenario: Database changes pause only that plugin
 - **WHEN** an update with pending changesets is activated
 - **THEN** that plugin's API answers `503 plugin-updating` with `Retry-After` until the new version is active, while every other screen and API keeps working
+
+### Requirement: Studio restarts itself for a plugin only when something will start it again
+
+The system SHALL restart itself only by exiting gracefully — every plugin stopped, the stop recorded as clean — with a non-zero exit code, and only when it is supervised: `artemis-studio.plugins.restart.supervised` is true, or, when that is unset, it runs on Kubernetes. When it is not supervised it SHALL refuse to exit and state the command to run. It SHALL NOT offer a restart or shutdown over an actuator endpoint.
+
+It SHALL restart itself automatically after an activation whose review said it would, once the version to start is recorded. An installer SHALL also be able to request a restart. That request requires a browser session, re-authentication within 5 minutes, and an audit record, and SHALL be refused within 2 minutes of Studio starting.
+
+The system SHALL report a stopped plugin version whose classes are still in memory a minute after it stopped, and SHALL mark a restart as needed while any such version, or any plugin needing a restart, exists.
+
+#### Scenario: A confirmed restart-class plugin is running after the restart
+- **GIVEN** Studio is supervised
+- **WHEN** an installer confirms a plugin that declares it needs a restart
+- **THEN** Studio stops gracefully, is started again by its supervisor, and the plugin is active
+
+#### Scenario: An unsupervised Studio never stops itself
+- **GIVEN** Studio is not supervised
+- **WHEN** a plugin needs a restart
+- **THEN** Studio keeps running, and the plugin shows as needing a restart with the command to run
+
+#### Scenario: Restarts cannot be chained
+- **WHEN** an installer requests a restart less than 2 minutes after Studio started
+- **THEN** the request is refused with the time it will be allowed
 
 ### Requirement: A plugin's data is isolated and never constrains Studio
 

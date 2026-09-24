@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -56,14 +57,14 @@ public class PluginMigrations {
 
     private static final String CHANGELOG_PATH_TEMPLATE = "db/changelog/plugin/%s/changelog.xml";
 
-    /** Every changeset the plugin's own changelog declares, with whether it carries a rollback. */
-    public record ChangesetInfo(String id, String author, boolean reversible) {}
-
     public record MigrationResult(String tag, List<ChangesetInfo> applied) {}
 
     /** Runs the full activation sequence described above. */
     public MigrationResult migrate(DataSource pluginPool, String schema, String pluginId, String version, Path jarPath)
             throws Exception {
+        if (!hasChangelog(jarPath, pluginId)) {
+            return new MigrationResult(null, List.of()); // a plugin with no data of its own
+        }
         // Liquibase's FastCheckService caches "is this changelog already fully applied?" keyed by
         // (URL, schema) — a singleton meant to speed up repeated runs against a database that isn't
         // changing between them. That assumption breaks down here: a fresh schema's very first
@@ -127,6 +128,9 @@ public class PluginMigrations {
     /** Rolls the plugin's schema back to a previously recorded tag, on a dedicated pool connection. */
     public void rollbackToTag(DataSource pluginPool, String schema, String tag, Path jarPath, String pluginId)
             throws Exception {
+        if (!hasChangelog(jarPath, pluginId)) {
+            return;
+        }
         try (Connection connection = pluginPool.getConnection()) {
             connection.setAutoCommit(true);
             Database database = openDatabase(connection, schema);
@@ -148,6 +152,9 @@ public class PluginMigrations {
     /** The changesets not yet applied to {@code schema} — for the update review. */
     public List<ChangesetInfo> pendingChangesets(DataSource pluginPool, String schema, String pluginId, Path jarPath)
             throws Exception {
+        if (!hasChangelog(jarPath, pluginId)) {
+            return List.of();
+        }
         try (Connection connection = pluginPool.getConnection()) {
             Database database = openDatabase(connection, schema);
             return withResourceAccessor(jarPath, pluginId, accessor -> {
@@ -165,6 +172,9 @@ public class PluginMigrations {
 
     /** The SQL an update would run, without running it — for the review's "What changes" panel. */
     public String updateSql(DataSource pluginPool, String schema, String pluginId, Path jarPath) throws Exception {
+        if (!hasChangelog(jarPath, pluginId)) {
+            return "";
+        }
         try (Connection connection = pluginPool.getConnection()) {
             Database database = openDatabase(connection, schema);
             return withResourceAccessor(jarPath, pluginId, accessor -> {
@@ -174,9 +184,24 @@ public class PluginMigrations {
                 provideDatabase(updateSql, database);
                 updateSql.setOutput(out);
                 updateSql.execute();
-                return out.toString(java.nio.charset.StandardCharsets.UTF_8);
+                return withoutBookkeeping(out.toString(java.nio.charset.StandardCharsets.UTF_8));
             });
         }
+    }
+
+    /**
+     * Only the plugin's own changes: Liquibase's generated SQL also creates, locks and records into
+     * its {@code databasechangelog} tables, which says nothing an operator reviewing a plugin needs.
+     * The output is blocks separated by blank lines, each led by a comment naming it.
+     */
+    static String withoutBookkeeping(String sql) {
+        return java.util.Arrays.stream(sql.split("\\R\\s*\\R"))
+                        .filter(block ->
+                                !block.toLowerCase(java.util.Locale.ROOT).contains("databasechangelog"))
+                        .filter(block -> block.lines().anyMatch(line -> !line.isBlank() && !line.startsWith("--")))
+                        .map(String::strip)
+                        .collect(java.util.stream.Collectors.joining("\n\n"))
+                + "\n";
     }
 
     /** Whether every changeset in the plugin's changelog declares a rollback. */
@@ -186,7 +211,17 @@ public class PluginMigrations {
 
     // ---- internals ---------------------------------------------------------------------------
 
+    /** A changelog is optional: a plugin that keeps no data of its own has none, and no schema. */
+    public boolean hasChangelog(Path jarPath, String pluginId) throws java.io.IOException {
+        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarPath.toFile())) {
+            return jar.getJarEntry(changelogPath(pluginId)) != null;
+        }
+    }
+
     private List<ChangesetInfo> changesets(Path jarPath, String pluginId) throws Exception {
+        if (!hasChangelog(jarPath, pluginId)) {
+            return List.of();
+        }
         return withResourceAccessor(
                 jarPath,
                 pluginId,

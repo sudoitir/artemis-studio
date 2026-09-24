@@ -1,7 +1,12 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.security.internal.InitialInstallers;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
@@ -19,8 +24,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SessionAuthentication {
 
+    /** How recent a sign-in or step-up must be for an action that demands one (ADR-0103). */
+    public static final Duration REAUTHENTICATION_WINDOW = Duration.ofMinutes(5);
+
+    /** The session attribute holding the {@link Instant} of the last sign-in or step-up. */
+    public static final String AUTHENTICATED_AT = SessionAuthentication.class.getName() + ".authenticatedAt";
+
     private final SecurityContextRepository securityContextRepository;
     private final CsrfTokenRepository csrfTokenRepository;
+    private final InitialInstallers initialInstallers;
 
     /**
      * Put the principal in the session. The framework's load-only
@@ -40,7 +52,33 @@ public class SessionAuthentication {
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, request, response);
+        request.getSession().setAttribute(AUTHENTICATED_AT, Instant.now());
         reissueCsrfToken(request, response);
+        initialInstallers.grantIfNoneYet(principal.userId());
+    }
+
+    /**
+     * The signed-in caller proved who they are again (step-up): a new session id, so an identifier
+     * observed before the step-up is not the one that carries it, and a fresh authentication time.
+     */
+    public void reauthenticated(HttpServletRequest request) {
+        request.changeSessionId();
+        request.getSession().setAttribute(AUTHENTICATED_AT, Instant.now());
+    }
+
+    /** When this session last signed in or stepped up; empty without a session. */
+    public Optional<Instant> authenticatedAt(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session == null
+                ? Optional.empty()
+                : Optional.ofNullable((Instant) session.getAttribute(AUTHENTICATED_AT));
+    }
+
+    /** Whether this session signed in or stepped up within {@link #REAUTHENTICATION_WINDOW}. */
+    public boolean recentlyAuthenticated(HttpServletRequest request) {
+        return authenticatedAt(request)
+                .map(at -> at.isAfter(Instant.now().minus(REAUTHENTICATION_WINDOW)))
+                .orElse(false);
     }
 
     /** Clear the session and its security context. */

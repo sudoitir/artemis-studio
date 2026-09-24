@@ -189,6 +189,26 @@ class PluginHostIT extends PostgresIntegrationTest {
     }
 
     @Test
+    void aPluginWithNoDataOfItsOwnInstallsWithNoSchema() throws Exception {
+        String id = uniqueId("acme-nodata");
+        String sha = upload(new PluginJarBuilder(id));
+
+        ActivationPlan plan = host.plan(sha);
+        assertThat(plan.activationClass()).isEqualTo(ActivationClass.INSTANT);
+        assertThat(plan.updateSql()).isEmpty();
+
+        host.activate(sha, "tester");
+        runtimeIds.add(id);
+        seededIds.add(id);
+        awaitStatus(id, PluginInstallStatus.ACTIVE);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM pg_namespace WHERE nspname = ?",
+                        Integer.class,
+                        "plugin_" + id.replace('-', '_')))
+                .isZero();
+    }
+
+    @Test
     void freshInstallWithPendingChangesetsIsBriefMaintenanceAndCreatesTheSchema() throws Exception {
         String id = uniqueId("acme-table");
         String sha = upload(pluginWithATable(id));
@@ -196,7 +216,10 @@ class PluginHostIT extends PostgresIntegrationTest {
         ActivationPlan plan = host.plan(sha);
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.BRIEF_MAINTENANCE);
         assertThat(plan.pendingChangesets()).hasSize(1);
-        assertThat(plan.updateSql()).containsIgnoringCase("CREATE TABLE");
+        assertThat(plan.updateSql())
+                .containsIgnoringCase("CREATE TABLE")
+                .contains("thing")
+                .doesNotContainIgnoringCase("databasechangelog");
 
         host.activate(sha, "tester");
         runtimeIds.add(id);

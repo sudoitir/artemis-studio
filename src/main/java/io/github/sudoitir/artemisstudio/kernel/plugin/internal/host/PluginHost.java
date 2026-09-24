@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLifecycleListener;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginPurged;
+import io.github.sudoitir.artemisstudio.kernel.plugin.SemVer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.StudioVersion;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorException;
@@ -13,18 +14,19 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.Plugin
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginMigrations;
-import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginMigrations.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginMigrations.PluginMigrationException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntime;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeFactory;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry.Active;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.PluginValidator;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ValidationReport;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
 import jakarta.servlet.ServletContext;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -32,6 +34,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -42,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
@@ -105,6 +109,7 @@ public class PluginHost implements SmartLifecycle {
     private final ApplicationEventPublisher events;
     private final TransactionTemplate transactions;
     private final PluginProperties properties;
+    private final StudioRestart restart;
 
     /**
      * One lifecycle operation at a time, Studio-wide (design.md §7: "at most one activation in
@@ -136,7 +141,8 @@ public class PluginHost implements SmartLifecycle {
             ServletContext servletContext,
             ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager,
-            PluginProperties properties) {
+            PluginProperties properties,
+            StudioRestart restart) {
         this.store = store;
         this.validator = validator;
         this.migrations = migrations;
@@ -154,6 +160,7 @@ public class PluginHost implements SmartLifecycle {
         this.events = events;
         this.transactions = new TransactionTemplate(transactionManager);
         this.properties = properties;
+        this.restart = restart;
     }
 
     // ---- SmartLifecycle: boot, shutdown, safe mode (design.md §2, task 6.8) -----------------------
@@ -403,7 +410,7 @@ public class PluginHost implements SmartLifecycle {
         try {
             PluginRuntime runtime = future.get(timeout.toSeconds(), TimeUnit.SECONDS);
             if (!running) {
-                runtime.close(); // Studio began shutting down while this plugin was starting
+                closeRuntime(runtime); // Studio began shutting down while this plugin was starting
                 return;
             }
             registry.set(id, new Active(runtime));
@@ -419,7 +426,7 @@ public class PluginHost implements SmartLifecycle {
             future.whenComplete((runtime, error) -> {
                 if (runtime != null) {
                     log.warn("Plugin '{}' finished starting after its boot timeout; closing it.", id);
-                    runtime.close();
+                    closeRuntime(runtime);
                 }
             });
         } catch (ExecutionException | CompletionException failed) {
@@ -492,6 +499,46 @@ public class PluginHost implements SmartLifecycle {
         });
     }
 
+    // ---- unload watch (design.md §2) ------------------------------------------------------------
+
+    /** A closed runtime's class loader, weakly held: once collected, the version truly unloaded. */
+    private record Closed(String label, WeakReference<ClassLoader> loader, Instant closedAt) {}
+
+    private final List<Closed> closed = new CopyOnWriteArrayList<>();
+    private volatile Instant lastUnloadCheck = Instant.EPOCH;
+
+    private static final Duration UNLOAD_GRACE = Duration.ofMinutes(1);
+    private static final Duration UNLOAD_CHECK_INTERVAL = Duration.ofMinutes(10);
+
+    private void closeRuntime(PluginRuntime runtime) {
+        runtime.close();
+        closed.add(new Closed(
+                runtime.id() + " " + runtime.descriptor().version(),
+                new WeakReference<>(runtime.classLoader()),
+                Instant.now()));
+    }
+
+    /**
+     * Plugin versions closed more than a minute ago whose classes are still in memory — something
+     * still references them, and only a restart frees that memory. Asks the JVM for a collection
+     * at most every ten minutes, and only while there is such a candidate, since a quiet Studio may
+     * otherwise not unload classes for a long time.
+     */
+    public List<String> unreleased() {
+        closed.removeIf(c -> c.loader().get() == null);
+        Instant cutoff = Instant.now().minus(UNLOAD_GRACE);
+        if (closed.stream().anyMatch(c -> c.closedAt().isBefore(cutoff))
+                && lastUnloadCheck.isBefore(Instant.now().minus(UNLOAD_CHECK_INTERVAL))) {
+            lastUnloadCheck = Instant.now();
+            System.gc();
+            closed.removeIf(c -> c.loader().get() == null);
+        }
+        return closed.stream()
+                .filter(c -> c.closedAt().isBefore(cutoff))
+                .map(Closed::label)
+                .toList();
+    }
+
     // ---- read side --------------------------------------------------------------------------
 
     public List<PluginSummary> list() {
@@ -517,8 +564,123 @@ public class PluginHost implements SmartLifecycle {
                 e.getInstalledAt(),
                 e.getActivatedAt(),
                 e.getInstalledBy(),
-                stuck);
+                stuck,
+                e.getPreviousSha256() != null && !e.isSchemaChanged() && e.status() != PluginInstallStatus.UNINSTALLED,
+                tryParseStoredDescriptor(e));
     }
+
+    private PluginDescriptor tryParseStoredDescriptor(PluginInstallEntity e) {
+        try {
+            return parseStoredDescriptor(e);
+        } catch (RuntimeException corrupt) {
+            return null;
+        }
+    }
+
+    // ---- upload -----------------------------------------------------------------------------------
+
+    /** An inspected upload: stored and planned, installed only once someone activates it. */
+    public record Inspection(String sha256, ActivationPlan plan, List<Violation> warnings) {}
+
+    /** Uploads nobody activated within a day are forgotten, and their artifacts removed. */
+    private static final String EXPIRE_UPLOADS =
+            "DELETE FROM plugin_upload WHERE uploaded_at < now() - interval '1 day'";
+
+    /**
+     * Validates {@code jar}, and only when it is valid stores it as an inert upload and plans what
+     * activating it would do (design.md §6/§7). No plugin code runs and nothing is installed.
+     * A plan the host refuses (a vendor mismatch, a downgrade) forgets the upload again, so an
+     * artifact is only ever kept when it could be activated.
+     */
+    public Inspection inspect(Path jar, String actor) throws IOException {
+        jdbc.update(EXPIRE_UPLOADS);
+        store.garbageCollect();
+        ValidationReport report =
+                validator.validate(jar, otherBasePackages(peekId(jar).orElse(null)));
+        if (!report.valid()) {
+            throw new PluginRefusedException(report.violations());
+        }
+        String sha256 = store.put(java.nio.file.Files.readAllBytes(jar));
+        jdbc.update(
+                """
+                INSERT INTO plugin_upload (uploaded_at, sha256, plugin_id, uploaded_by, descriptor, report)
+                VALUES (now(), ?, ?, ?, ?::jsonb, ?::jsonb)
+                ON CONFLICT (sha256) DO UPDATE SET uploaded_at = now(), uploaded_by = EXCLUDED.uploaded_by
+                """,
+                sha256,
+                report.descriptor().id(),
+                actor,
+                json.writeValueAsString(report.descriptor()),
+                json.writeValueAsString(Map.of("warnings", report.warnings())));
+        try {
+            return new Inspection(sha256, buildPlan(sha256, false).plan(), report.warnings());
+        } catch (RuntimeException refused) {
+            forgetUpload(sha256);
+            throw refused;
+        }
+    }
+
+    /** Whether {@code sha256} is an upload still waiting to be activated. */
+    public boolean isPendingUpload(String sha256) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM plugin_upload WHERE sha256 = ? AND uploaded_at >= now() - interval '1 day')",
+                Boolean.class,
+                sha256));
+    }
+
+    /** The plugin a pending upload would install or update. */
+    public Optional<String> uploadPluginId(String sha256) {
+        return jdbc.queryForList("SELECT plugin_id FROM plugin_upload WHERE sha256 = ?", String.class, sha256).stream()
+                .findFirst();
+    }
+
+    /** What activating a pending upload would do, recomputed now. */
+    public ActivationPlan planUpload(String sha256) {
+        requirePendingUpload(sha256);
+        return plan(sha256);
+    }
+
+    /** Activates a pending upload: an install, or an update of the plugin it names. */
+    public ActivationPlan activateUpload(String sha256, String actor) {
+        requirePendingUpload(sha256);
+        return activate(sha256, actor);
+    }
+
+    private void requirePendingUpload(String sha256) {
+        if (!isPendingUpload(sha256)) {
+            throw new PluginRefusedException(List.of(new Violation(
+                    "not-found",
+                    "No pending upload " + sha256 + "; uploads not activated within a day are removed.",
+                    "Upload the jar again.")));
+        }
+    }
+
+    /** Drops an upload nobody will activate, and its artifact unless an install still uses it. */
+    public void forgetUpload(String sha256) {
+        jdbc.update("DELETE FROM plugin_upload WHERE sha256 = ?", sha256);
+        store.garbageCollect();
+    }
+
+    // ---- connection budget ----------------------------------------------------------------------
+
+    /**
+     * design.md §2: 10 core connections plus 3 per active plugin, against 80% of Postgres'
+     * {@code max_connections}.
+     *
+     * @param inUse what the active plugins need now, core included
+     * @param limit the most activation may reach
+     */
+    public record ConnectionBudget(int maxConnections, int inUse, int limit, int perPlugin) {}
+
+    public ConnectionBudget connectionBudget() {
+        int max = readMaxConnections();
+        int active = (int) installs.countByStatus(PluginInstallStatus.ACTIVE.dbValue());
+        return new ConnectionBudget(
+                max, CORE_CONNECTIONS + POOL_PER_PLUGIN * active, (int) (max * 0.8), POOL_PER_PLUGIN);
+    }
+
+    private static final int CORE_CONNECTIONS = 10;
+    private static final int POOL_PER_PLUGIN = 3;
 
     // ---- plan ---------------------------------------------------------------------------------
 
@@ -526,7 +688,7 @@ public class PluginHost implements SmartLifecycle {
      * never creates the plugin's schema; that is {@link PluginMigrations#migrate}'s job, inside the
      * advisory-locked activation sequence (design.md §4). */
     public ActivationPlan plan(String sha256) {
-        return buildPlan(sha256, false, false).plan();
+        return buildPlan(sha256, false).plan();
     }
 
     // ---- activate -------------------------------------------------------------------------------
@@ -556,7 +718,7 @@ public class PluginHost implements SmartLifecycle {
 
     /** Runs with {@link #busy} held; once it returns normally, the activation thread owns the permit. */
     private ActivationPlan beginActivation(String sha256, String actor, boolean allowDowngrade) {
-        PlanContext ctx = buildPlan(sha256, allowDowngrade, true);
+        PlanContext ctx = buildPlan(sha256, allowDowngrade);
         ActivationPlan plan = ctx.plan();
         if (!plan.missingRequires().isEmpty()) {
             throw new PluginRefusedException(List.of(new Violation(
@@ -603,6 +765,12 @@ public class PluginHost implements SmartLifecycle {
                     });
                     store.consumeUpload(sha256);
                     logStep(ctx, actor, "needs_restart", "needs-restart");
+                    // The installer confirmed a plan that said Studio restarts itself; the next
+                    // boot starts this version (needs_restart rows start at boot).
+                    if (ctx.plan().restart() == ActivationPlan.Restart.AUTOMATIC) {
+                        restart.restart(
+                                "%s %s needs a restart".formatted(id, ctx.plan().toVersion()));
+                    }
                 }
                 case INSTANT -> activateInstant(ctx, actor, sha256, descriptorJson, fresh);
                 case BRIEF_MAINTENANCE -> activateBriefMaintenance(ctx, actor, sha256, descriptorJson, fresh);
@@ -635,7 +803,7 @@ public class PluginHost implements SmartLifecycle {
         step(ctx, actor, "registering");
         Optional<PluginRuntime> old = activeRuntime(id);
         registry.set(id, new Active(newRuntime));
-        old.ifPresent(PluginRuntime::close);
+        old.ifPresent(this::closeRuntime);
         finishSuccess(ctx, actor, sha256, descriptorJson, fresh);
     }
 
@@ -650,7 +818,7 @@ public class PluginHost implements SmartLifecycle {
         Optional<PluginRuntime> old = activeRuntime(id);
         registry.set(id, new PluginRuntimeRegistry.Updating(BRIEF_MAINTENANCE_RETRY_SECONDS));
         step(ctx, actor, "draining");
-        old.ifPresent(PluginRuntime::close);
+        old.ifPresent(this::closeRuntime);
 
         PluginRuntime newRuntime;
         try {
@@ -834,7 +1002,7 @@ public class PluginHost implements SmartLifecycle {
                 transitionOut(dependant, true, actor, PluginInstallStatus.DISABLED);
             }
         }
-        activeRuntime(id).ifPresent(PluginRuntime::close);
+        activeRuntime(id).ifPresent(this::closeRuntime);
         registry.remove(id);
         store.update(id, e -> e.transitionTo(finalStatus));
         PluginInstallEntity entity = requireInstall(id);
@@ -983,7 +1151,7 @@ public class PluginHost implements SmartLifecycle {
     private static final int BRIEF_MAINTENANCE_RETRY_SECONDS = 15;
 
     /** {@code jarPath}, both descriptors and the computed {@link ActivationPlan}, threaded from
-     * {@link #buildPlan(String, boolean, boolean)} into the async activation so it never has to recompute or re-read
+     * {@link #buildPlan(String, boolean)} into the async activation so it never has to recompute or re-read
      * anything the plan already established — in particular the <em>previous</em> descriptor, which
      * {@link PluginStore#update} would otherwise have already overwritten by the time a failure
      * needs it to resume the old version. */
@@ -995,7 +1163,7 @@ public class PluginHost implements SmartLifecycle {
             String previousSha,
             ActivationPlan plan) {}
 
-    private PlanContext buildPlan(String sha256, boolean allowDowngrade, boolean forActivation) {
+    private PlanContext buildPlan(String sha256, boolean allowDowngrade) {
         Path jarPath;
         try {
             jarPath = store.materialize(sha256);
@@ -1034,7 +1202,7 @@ public class PluginHost implements SmartLifecycle {
                                         descriptor.vendor().name()),
                         "Purge the existing installation first, or upload a jar from the same vendor.")));
             }
-            if (!allowDowngrade && compareSemver(descriptor.version(), existing.getVersion()) < 0) {
+            if (!allowDowngrade && SemVer.compare(descriptor.version(), existing.getVersion()) < 0) {
                 throw new PluginRefusedException(List.of(new Violation(
                         "downgrade-refused",
                         "%s %s is older than the installed %s."
@@ -1052,9 +1220,6 @@ public class PluginHost implements SmartLifecycle {
         // doesn't exist yet just means Liquibase's own DATABASECHANGELOG lookup comes back empty,
         // which pendingChangesets/updateSql already treat as "every changeset is pending" — exactly
         // what a pre-install review should show, with no side effect on an admin who never installs.
-        if (forActivation) {
-            ensureSchemaExists(schema);
-        }
         List<ChangesetInfo> pending;
         String updateSql;
         try {
@@ -1090,7 +1255,11 @@ public class PluginHost implements SmartLifecycle {
                 diff,
                 rolesLosing,
                 compatible,
-                missing);
+                missing,
+                descriptor,
+                activationClass != ActivationClass.RESTART
+                        ? ActivationPlan.Restart.NONE
+                        : restart.supervised() ? ActivationPlan.Restart.AUTOMATIC : ActivationPlan.Restart.MANUAL);
         return new PlanContext(sha256, jarPath, descriptor, previousDescriptor, previousSha, plan);
     }
 
@@ -1222,7 +1391,7 @@ public class PluginHost implements SmartLifecycle {
                 .map(e -> e.status() == PluginInstallStatus.ACTIVE)
                 .orElse(false);
         long activeInclThis = alreadyActive ? activeCount : activeCount + 1;
-        int needed = 10 + 3 * (int) activeInclThis;
+        int needed = CORE_CONNECTIONS + POOL_PER_PLUGIN * (int) activeInclThis;
         int max = readMaxConnections();
         int threshold = (int) (max * 0.8);
         if (needed > threshold) {
@@ -1237,10 +1406,6 @@ public class PluginHost implements SmartLifecycle {
     private int readMaxConnections() {
         String raw = jdbc.queryForObject("SHOW max_connections", String.class);
         return Integer.parseInt(raw.trim());
-    }
-
-    private void ensureSchemaExists(String schema) {
-        jdbc.execute("CREATE SCHEMA IF NOT EXISTS " + quoteIdent(schema));
     }
 
     private Optional<PluginRuntime> activeRuntime(String id) {
@@ -1291,36 +1456,5 @@ public class PluginHost implements SmartLifecycle {
 
     private static String quoteIdent(String identifier) {
         return "\"" + identifier.replace("\"", "\"\"") + "\"";
-    }
-
-    /**
-     * A minimal dotted-numeric comparator: {@code major.minor.patch[-pre]}, missing components
-     * treated as {@code 0}. Good enough to detect a downgrade among well-formed semver strings;
-     * a plugin author who ships something else gets a best-effort lexical fallback rather than a
-     * crash.
-     */
-    private static int compareSemver(String a, String b) {
-        String[] pa = a.split("[-+]", 2)[0].split("\\.");
-        String[] pb = b.split("[-+]", 2)[0].split("\\.");
-        int length = Math.max(pa.length, pb.length);
-        for (int i = 0; i < length; i++) {
-            Integer va = i < pa.length ? parseIntOrNull(pa[i]) : 0;
-            Integer vb = i < pb.length ? parseIntOrNull(pb[i]) : 0;
-            if (va == null || vb == null) {
-                return a.compareTo(b);
-            }
-            if (!va.equals(vb)) {
-                return Integer.compare(va, vb);
-            }
-        }
-        return 0;
-    }
-
-    private static Integer parseIntOrNull(String s) {
-        try {
-            return Integer.parseInt(s);
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }

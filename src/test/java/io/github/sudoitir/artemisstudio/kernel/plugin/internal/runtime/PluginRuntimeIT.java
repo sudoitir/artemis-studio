@@ -316,7 +316,7 @@ class PluginRuntimeIT extends PostgresIntegrationTest {
                 }
             }
             if (!pinnedByThread) {
-                String path = "/tmp/plugin-leak.hprof";
+                String path = "target/plugin-leak.hprof";
                 new java.io.File(path).delete();
                 java.lang.management.ManagementFactory.getPlatformMBeanServer()
                         .invoke(
@@ -330,6 +330,81 @@ class PluginRuntimeIT extends PostgresIntegrationTest {
         assertThat(collected)
                 .as("the plugin classloader must be collected after unload")
                 .isTrue();
+    }
+
+    /**
+     * The loader of a plugin that actually served requests — JSON built from its own record type,
+     * a {@code @PreAuthorize} expression reading a parameter, a JPA query — is collected too.
+     * Activating and closing alone leaves every request-time cache untouched.
+     */
+    @Test
+    void anExercisedPluginIsCollectedAfterUnload() throws Exception {
+        WeakReference<ClassLoader> loaderRef = activateExerciseAndClose();
+        boolean collected = false;
+        for (int i = 0; i < 20 && !collected; i++) {
+            System.gc();
+            Thread.sleep(200);
+            collected = loaderRef.get() == null;
+        }
+        if (!collected) {
+            String path = "target/plugin-leak-exercised.hprof";
+            new java.io.File(path).delete();
+            java.lang.management.ManagementFactory.getPlatformMBeanServer()
+                    .invoke(
+                            new javax.management.ObjectName("com.sun.management:type=HotSpotDiagnostic"),
+                            "dumpHeap",
+                            new Object[] {path, true},
+                            new String[] {"java.lang.String", "boolean"});
+            System.err.println("[LEAK] heap dump written to " + path);
+        }
+        assertThat(collected)
+                .as("an exercised plugin's classloader must be collected after unload")
+                .isTrue();
+    }
+
+    private WeakReference<ClassLoader> activateExerciseAndClose() throws Exception {
+        Path jar = notesJar("1.0.0")
+                .source("com.acme.notes.NoteView", """
+                        package com.acme.notes;
+                        public record NoteView(String id, String text, java.util.List<String> tags) {}
+                        """)
+                .source("com.acme.notes.ViewsController", """
+                        package com.acme.notes;
+                        import java.util.List;
+                        import org.springframework.security.access.prepost.PreAuthorize;
+                        import org.springframework.web.bind.annotation.*;
+                        @RestController
+                        @RequestMapping("/api/v1/clusters/{clusterId}/p/acme-notes")
+                        public class ViewsController {
+                            @GetMapping("/views/{name}")
+                            @PreAuthorize("@perm.can(#clusterId, 'acme-notes:read') && #name != 'x'")
+                            public List<NoteView> views(@PathVariable java.util.UUID clusterId, @PathVariable String name) {
+                                return List.of(new NoteView(name, "t", List.of("a")));
+                            }
+                        }
+                        """)
+                .build();
+        PluginRuntime runtime = runtimeFactory.activate(descriptorOf(jar), jar, webContext.getServletContext());
+        registry.set("acme-notes", new PluginRuntimeRegistry.Active(runtime));
+        WeakReference<ClassLoader> loaderRef = new WeakReference<>(runtime.classLoader());
+        for (int i = 0; i < 3; i++) {
+            mvc().perform(MockMvcRequestBuilders.get(
+                                    "/api/v1/clusters/{c}/p/acme-notes/views/n{i}", java.util.UUID.randomUUID(), i)
+                            .with(authentication(callerWith("acme-notes:read"))))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                            .isOk());
+        }
+        mvc().perform(
+                        MockMvcRequestBuilders.post("/api/v1/p/acme-notes/notes")
+                                .with(authentication(callerWith()))
+                                .with(org.springframework.security.test.web.servlet.request
+                                        .SecurityMockMvcRequestPostProcessors.csrf())
+                                .param("text", "hi"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                        .isOk());
+        registry.remove("acme-notes");
+        runtime.close();
+        return loaderRef;
     }
 
     /**

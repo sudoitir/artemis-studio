@@ -212,6 +212,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["upload"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -932,6 +948,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/reauthenticate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reauthenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password": {
         parameters: {
             query?: never;
@@ -974,6 +1006,166 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/uninstall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["uninstall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rollback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["purge_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["enable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/download-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["downloadUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["disable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/uploads/{sha256}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/installers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["installers"];
+        put?: never;
+        post: operations["grantInstaller"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/check-updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["checkUpdates"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1876,6 +2068,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_11"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["history_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/uploads/{sha256}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["upload_1"];
+        put?: never;
+        post?: never;
+        delete: operations["discard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{userId}/grants/{roleId}": {
         parameters: {
             query?: never;
@@ -1951,6 +2207,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["deleteAddress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/installers/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeInstaller"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2338,6 +2610,90 @@ export interface components {
             config: string;
             enabled: boolean;
             hasSecret: boolean;
+        };
+        PluginChangesetView: {
+            id: string;
+            author: string;
+            reversible: boolean;
+        };
+        PluginContributionsView: {
+            ui: boolean;
+            permissions: components["schemas"]["PluginPermissionView"][];
+            settingKeys: string[];
+            streamTopics: string[];
+            mcpTools: components["schemas"]["PluginMcpToolView"][];
+        };
+        PluginDiffView: {
+            permissionsAdded: string[];
+            permissionsRemoved: string[];
+            settingKeysAdded: string[];
+            settingKeysRemoved: string[];
+            streamTopicsAdded: string[];
+            streamTopicsRemoved: string[];
+            mcpToolsAdded: string[];
+            mcpToolsRemoved: string[];
+        };
+        PluginInfoView: {
+            name: string;
+            title: string;
+            description?: string | null;
+            vendor: components["schemas"]["PluginVendorView"];
+            license?: string | null;
+            changeNotes?: string | null;
+            since: string;
+            until?: string | null;
+            restartToActivate: boolean;
+            updateUrl?: string | null;
+            requires: string[];
+            contributions: components["schemas"]["PluginContributionsView"];
+        };
+        PluginMcpToolView: {
+            name: string;
+            posture: string;
+            description?: string | null;
+        };
+        PluginPermissionView: {
+            action: string;
+            description?: string | null;
+        };
+        PluginPlanView: {
+            pluginId: string;
+            fromVersion?: string | null;
+            toVersion: string;
+            /** @enum {string} */
+            activationClass: "INSTANT" | "BRIEF_MAINTENANCE" | "RESTART";
+            pendingChangesets: components["schemas"]["PluginChangesetView"][];
+            updateSql: string;
+            reversible: boolean;
+            diff: components["schemas"]["PluginDiffView"];
+            rolesLosingPermission: {
+                [key: string]: number;
+            };
+            compatible: boolean;
+            missingRequires: string[];
+            /**
+             * @description NONE; AUTOMATIC: Studio restarts itself once confirmed; MANUAL: restart it yourself.
+             * @enum {string}
+             */
+            restart: "NONE" | "AUTOMATIC" | "MANUAL";
+            info: components["schemas"]["PluginInfoView"];
+        };
+        PluginUploadView: {
+            sha256: string;
+            plan: components["schemas"]["PluginPlanView"];
+            warnings: components["schemas"]["PluginViolationView"][];
+        };
+        PluginVendorView: {
+            name: string;
+            url?: string | null;
+            email?: string | null;
+        };
+        PluginViolationView: {
+            code: string;
+            message: string;
+            fix: string;
+            /** @enum {string} */
+            severity: "ERROR" | "WARNING";
         };
         CreateUserRequest: {
             username: string;
@@ -3266,6 +3622,21 @@ export interface components {
              */
             routingTypes: "ANYCAST" | "MULTICAST" | "ANYCAST,MULTICAST";
         };
+        ReauthenticateRequest: {
+            password: string;
+        };
+        ReauthenticationView: {
+            /**
+             * @description PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.
+             * @enum {string}
+             */
+            method: "PASSWORD" | "REDIRECT";
+            startPath?: string | null;
+            /** Format: date-time */
+            authenticatedAt?: string | null;
+            /** Format: int64 */
+            windowSeconds: number;
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -3288,6 +3659,34 @@ export interface components {
             username: string;
             mustChangePassword: boolean;
             grants: components["schemas"]["GrantView"][];
+            reauthentication: components["schemas"]["ReauthenticationView"];
+        };
+        PluginPurgePlanView: {
+            schema: string;
+            tables: components["schemas"]["PluginTableEstimateView"][];
+            /** Format: int64 */
+            grants: number;
+            /** Format: int64 */
+            settings: number;
+            /** Format: int64 */
+            artifacts: number;
+        };
+        PluginTableEstimateView: {
+            name: string;
+            /** Format: int64 */
+            estimatedRows: number;
+            /** Format: int64 */
+            bytes: number;
+        };
+        GrantInstallerRequest: {
+            username: string;
+        };
+        PluginUpdateView: {
+            id: string;
+            currentVersion: string;
+            availableVersion?: string | null;
+            changeNotes?: string | null;
+            error?: string | null;
         };
         UpdateQueueRequest: {
             /** @description A JMS selector limiting what the queue accepts. */
@@ -4561,6 +4960,67 @@ export interface components {
             /** Format: int64 */
             firing: number;
         };
+        PluginBudgetView: {
+            /** Format: int32 */
+            maxConnections: number;
+            /** Format: int32 */
+            inUse: number;
+            /** Format: int32 */
+            limit: number;
+            /** Format: int32 */
+            perPlugin: number;
+        };
+        PluginProblemReasonView: {
+            code: string;
+            message: string;
+        };
+        PluginView: {
+            id: string;
+            version: string;
+            status: string;
+            failure?: string | null;
+            progress?: string | null;
+            /** Format: date-time */
+            stepStartedAt?: string | null;
+            /** Format: date-time */
+            installedAt: string;
+            /** Format: date-time */
+            activatedAt?: string | null;
+            installedBy?: string | null;
+            sha256: string;
+            rollbackAvailable: boolean;
+            stuck: boolean;
+            iconUrl?: string | null;
+            dependants: string[];
+            info: components["schemas"]["PluginInfoView"];
+        };
+        PluginsView: {
+            canInstall: boolean;
+            cannotInstall?: components["schemas"]["PluginProblemReasonView"];
+            uploadEnabled: boolean;
+            safeMode: boolean;
+            safeModeReason?: string | null;
+            budget: components["schemas"]["PluginBudgetView"];
+            restart: components["schemas"]["StudioRestartView"];
+            plugins: components["schemas"]["PluginView"][];
+        };
+        StudioRestartView: {
+            supervised: boolean;
+            needed: boolean;
+            restarting: boolean;
+            /** Format: date-time */
+            allowedAt?: string | null;
+            command: string;
+            unreleased: string[];
+        };
+        PluginInstallerView: {
+            /** Format: uuid */
+            userId: string;
+            username: string;
+            /** Format: date-time */
+            grantedAt: string;
+            grantedBy?: string | null;
+        };
         /** @description How many captured messages the deletion destroyed. */
         DeletedView: {
             /** Format: int64 */
@@ -5090,6 +5550,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginUploadView"];
+                };
             };
         };
     };
@@ -6594,6 +7074,30 @@ export interface operations {
             };
         };
     };
+    reauthenticate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReauthenticateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReauthenticationView"];
+                };
+            };
+        };
+    };
     changePassword: {
         parameters: {
             query?: never;
@@ -6654,6 +7158,242 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    uninstall: {
+        parameters: {
+            query?: {
+                cascade?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rollback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginPlanView"];
+                };
+            };
+        };
+    };
+    purge_1: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginPurgePlanView"];
+                };
+            };
+        };
+    };
+    enable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginPlanView"];
+                };
+            };
+        };
+    };
+    downloadUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginUploadView"];
+                };
+            };
+        };
+    };
+    disable: {
+        parameters: {
+            query?: {
+                cascade?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    activate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginPlanView"];
+                };
+            };
+        };
+    };
+    restart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    installers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginInstallerView"][];
+                };
+            };
+        };
+    };
+    grantInstaller: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantInstallerRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    checkUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginUpdateView"][];
                 };
             };
         };
@@ -8047,6 +8787,112 @@ export interface operations {
             };
         };
     };
+    list_11: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginsView"];
+                };
+            };
+        };
+    };
+    get_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
+                };
+            };
+        };
+    };
+    history_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuditEventView"][];
+                };
+            };
+        };
+    };
+    upload_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginPlanView"];
+                };
+            };
+        };
+    };
+    discard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     removeGrant: {
         parameters: {
             query: {
@@ -8159,6 +9005,26 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
+            };
+        };
+    };
+    revokeInstaller: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

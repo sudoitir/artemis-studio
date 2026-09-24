@@ -11,7 +11,7 @@ Every successful sign-in, through any identity provider, and every successful st
 
 ### Requirement: Sensitive actions can require fresh authentication
 
-The system SHALL record when a session last authenticated. An action that requires fresh authentication SHALL be refused with `401` and problem type `reauth-required` when that was more than 5 minutes ago. A user of a credential provider SHALL re-authenticate by re-entering their password. Step-up attempts SHALL be throttled like logins, and after 5 consecutive failed attempts the session SHALL be ended.
+The system SHALL record when a session last authenticated. An action that requires fresh authentication SHALL be refused with `403` and problem type `reauthentication-required` when that was more than 5 minutes ago — not `401`, because the caller is still signed in and a client treats `401` as "sign in again". A user of a credential provider SHALL re-authenticate by re-entering their password. Step-up attempts SHALL be throttled like logins, and after 5 consecutive failed attempts the session SHALL be ended.
 
 #### Scenario: Re-entering the password satisfies step-up
 

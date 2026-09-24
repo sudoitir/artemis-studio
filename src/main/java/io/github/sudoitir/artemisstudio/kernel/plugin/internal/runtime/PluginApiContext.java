@@ -26,7 +26,17 @@ public class PluginApiContext {
     public PluginApiContext(ApplicationContext mainContext) {
         GenericApplicationContext ctx = new GenericApplicationContext();
         Map<String, Object> exported = mainContext.getBeansWithAnnotation(PluginApi.class);
-        exported.forEach((name, bean) -> ctx.getBeanFactory().registerSingleton(name, bean));
+        // Only a bean whose own class carries @PluginApi: the lookup above also matches an
+        // annotation inherited from an interface, and a contract interface a plugin implements
+        // (ScheduledJob, SettingsContribution, ...) is API without making every core bean that
+        // implements it visible to plugins.
+        exported.forEach((name, bean) -> {
+            if (org.springframework.util.ClassUtils.getUserClass(
+                            org.springframework.aop.support.AopUtils.getTargetClass(bean))
+                    .isAnnotationPresent(PluginApi.class)) {
+                ctx.getBeanFactory().registerSingleton(name, bean);
+            }
+        });
         ctx.getBeanFactory().registerSingleton("clock", mainContext.getBean(Clock.class));
         ctx.getBeanFactory().registerSingleton("jsonMapper", mainContext.getBean(JsonMapper.class));
         ctx.refresh();

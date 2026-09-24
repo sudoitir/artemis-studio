@@ -205,7 +205,7 @@ Linkage errors against a changed API surface at activation and quarantine the pl
 |---|---|---|---|
 | **Instant** | install, update or enable with no pending changesets; disable; uninstall; code rollback | The new runtime starts and warms up, then the gateway reference, MCP and bridges swap, then the old runtime drains and closes. If the start fails, the old version keeps serving. Plugins must do no work until their SPI beans are bridged, because `@PostConstruct` runs while both versions are live; the docs say so | none |
 | **Brief maintenance** | install or update with pending changesets | Gateway answers 503, jobs are cancelled, in-flight work drains, then migrate with `lock_timeout`, then the new version starts | seconds, this plugin only |
-| **Restart** | `activation: restart` declared; a runtime that did not stop cleanly | Status `needs-restart`. The banner shows the exact command (`docker compose restart studio`) | whole Studio |
+| **Restart** | `activation: restart` declared; a runtime that did not stop cleanly | Status `needs-restart`, with the version to start recorded. When supervised (compose, Kubernetes), Studio exits gracefully and its supervisor starts it again with the plugin active (ADR-0104); otherwise the banner shows the exact command (`docker compose restart studio`) | whole Studio |
 
 **Failures, Studio always up:**
 - **Migration fails or hits `lock_timeout`.** The failing changeset is rolled back, the old version resumes, and the plugin is `failed` with the error.
@@ -373,7 +373,7 @@ Linkage errors against a changed API surface at activation and quarantine the pl
 | Plugin listener, `apply` or topic handler throws | isolated to that plugin, logged |
 | UI remote fails, or a component throws | catch-all / ErrorBoundary; built-ins unaffected |
 | Old UI after a backend update | manifest version mismatch → "Reload" |
-| Stale session, token/MCP caller, non-installer, rate limit | `401 reauth-required` / `403` / `403` / `429` |
+| Stale session, token/MCP caller, non-installer, rate limit | `403 reauthentication-required` (not 401: the SPA treats 401 as signed out) / `403` / `403` / `429` |
 | Overlapping deploy (two instances briefly) | advisory locks serialise; running two instances is documented as unsupported |
 
 ## Risks / Trade-offs

@@ -100,17 +100,17 @@
 
 ## 7. Admin API and security
 
-- [ ] 7.1 Installer tier:
+- [x] 7.1 Installer tier:
   - `plugin_installer`, seeded with the bootstrap admin or `artemis-studio.plugins.initial-installers`
   - `InstallerGuard`, checked on every request
   - installer management endpoints
   - `canInstall` in the plugins view
-- [ ] 7.2 Step-up:
+- [x] 7.2 Step-up:
   - a session auth-time stamp
   - `POST /api/v1/auth/step-up` (password through `LoginAttemptLimiter`; end the session after 5 failures), with session id rotation
-  - `401 reauth-required` enforcement for plugin actions
-- [ ] 7.3 OIDC step-up: a resolver customizer (`prompt=login`, `max_age=300` on `?stepup`), plus a success-handler branch that checks the same provider and `sub`, and an `auth_time` within 300 s (failing closed). It stamps the session, rotates its id and returns to the stored URL.
-- [ ] 7.4 `PluginAdminController`:
+  - `403 reauthentication-required` enforcement for plugin actions (not 401, which the SPA treats as signed out)
+- [x] 7.3 OIDC step-up: a resolver customizer (`prompt=login`, `max_age=300` on `?stepup`), plus a success-handler branch that checks the same provider and `sub`, and an `auth_time` within 300 s (failing closed). It stamps the session, rotates its id and returns to the stored URL.
+- [x] 7.4 `PluginAdminController`:
   - `PUT /upload` (octet-stream, bounded 50 MB) → validate → pending → review DTO
   - `GET /` (inventory), `GET /{id}`
   - `POST /{id}/activate|rollback|enable|disable|uninstall`
@@ -118,15 +118,17 @@
   - `POST /check-updates` (https, no redirects, size and time limits, sha check)
 
   Rules: interactive only, one activation in flight, 5 uploads per hour, the kill switch.
-- [ ] 7.5 Review pre-flight: the contribution diff, the role impact of removed permissions, pending changesets with `update-sql`, reversibility, and the activation class.
-- [ ] 7.6 Audit for every step, plus a structured stdout line. Admin banner data (pending, failed, incompatible, needs-restart, safe mode).
-- [ ] 7.7 Security tests:
+- [x] 7.5 Review pre-flight: the contribution diff, the role impact of removed permissions, pending changesets with `update-sql`, reversibility, and the activation class.
+- [x] 7.6 Audit for every step, plus a structured stdout line. Admin banner data (pending, failed, incompatible, needs-restart, safe mode).
+- [x] 7.7 Security tests:
   - escalation through a custom role → 403; revocation takes effect on the next request
   - step-up stale / wrong subject / missing `auth_time` / lockout
   - bearer and MCP callers denied
   - no multipart parsing before authentication
   - rate limit
   - one test per failure-matrix row
+
+- [x] 7.8 Self-restart (ADR-0104): `StudioRestart` (graceful exit 75, supervised by property or Kubernetes, 2-minute cool-down), `AUTOMATIC`/`MANUAL` in the plan, automatic after a confirmed restart-class activation, `POST /restart` with the ADR-0103 guards, the unload watch feeding "restart needed", compose `restart.supervised` beside `restart: unless-stopped`.
 
 ## 8. Frontend plugin host
 

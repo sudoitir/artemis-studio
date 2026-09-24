@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.settings;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -11,6 +12,7 @@ import java.util.function.Supplier;
  * @param apply pushes a changed value into a consumer that caches it; {@code null}
  *     when the consumer reads the setting from {@link SettingsService} on each use
  */
+@PluginApi
 public record SettingDef(
         String key,
         String group,

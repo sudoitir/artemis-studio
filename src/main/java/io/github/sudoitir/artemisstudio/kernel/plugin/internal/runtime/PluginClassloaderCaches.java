@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime;
 
 import java.beans.Introspector;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.CachedIntrospectionResults;
@@ -77,6 +78,123 @@ final class PluginClassloaderCaches {
         clearStaticMapField("org.springframework.core.convert.Property", "annotationCache");
         removeFromStaticMapField("org.springframework.core.io.support.SpringFactoriesLoader", "cache", loader);
         clearObjenesisCacheForLoader(loader);
+        evictSecurityAnnotationScanners(loader);
+        // Spring AI's static default mapper serializes MCP tool results; its type and serializer
+        // caches keep every plugin type it ever saw (found in a heap dump of an unloaded plugin).
+        org.springframework.ai.util.JacksonUtils.getDefaultJsonMapper().clearCaches();
+        // The MCP annotation support caches each tool's input and output schema by Method and by
+        // Type, statically and softly: reclaimable under memory pressure, but not promptly.
+        // @Bean method metadata, cached per Method (soft) for every configuration class ever enhanced.
+        for (String cache : List.of("beanNameCache", "scopedProxyCache")) {
+            evictStaticMapKeys("org.springframework.context.annotation.BeanAnnotationHelper", cache, loader);
+        }
+        for (String cache : List.of("methodSchemaCache", "typeSchemaCache")) {
+            evictStaticMapKeys(
+                    "org.springframework.ai.mcp.annotation.method.tool.utils.McpJsonSchemaGenerator", cache, loader);
+        }
+    }
+
+    /** Removes the keys of a static map that name anything {@code loader} defined. */
+    private static void evictStaticMapKeys(String ownerClassName, String fieldName, ClassLoader loader) {
+        try {
+            Field field = Class.forName(ownerClassName).getDeclaredField(fieldName);
+            field.setAccessible(true);
+            if (field.get(null) instanceof Map<?, ?> map) {
+                map.keySet().removeIf(key -> belongsTo(key, loader));
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            log.debug(
+                    "Could not evict {} from {}#{} (its internals may have changed); a plugin unload may need a"
+                            + " restart to fully reclaim its classloader.",
+                    loader,
+                    ownerClassName,
+                    fieldName,
+                    e);
+        }
+    }
+
+    /**
+     * Spring Security's {@code SecurityAnnotationScanners} keeps JVM-wide static maps of scanners,
+     * and each scanner caches the {@code @PreAuthorize}/{@code @PostAuthorize} it found per method —
+     * keyed by {@code MethodClassKey} (method and target class) and by {@code Parameter}. A plugin
+     * whose secured method was ever called stays reachable from there for the life of the JVM; a
+     * heap dump of an unloaded plugin found exactly this path. Only this loader's entries go.
+     */
+    private static void evictSecurityAnnotationScanners(ClassLoader loader) {
+        try {
+            Class<?> scanners =
+                    Class.forName("org.springframework.security.core.annotation.SecurityAnnotationScanners");
+            for (String name : List.of("uniqueTemplateScanners", "uniqueTypesScanners")) {
+                Field field = scanners.getDeclaredField(name);
+                field.setAccessible(true);
+                if (field.get(null) instanceof Map<?, ?> byType) {
+                    for (Object scanner : byType.values()) {
+                        evictScannerCaches(unwrapTemplate(scanner), loader);
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            log.debug(
+                    "Could not evict {} from Spring Security's annotation scanner caches (its internals may have"
+                            + " changed); a plugin unload may need a restart to fully reclaim its classloader.",
+                    loader,
+                    e);
+        }
+    }
+
+    /** {@code ExpressionTemplateSecurityAnnotationScanner} delegates to a {@code unique} scanner, which holds the caches. */
+    private static Object unwrapTemplate(Object scanner) throws ReflectiveOperationException {
+        if (scanner.getClass().getSimpleName().equals("ExpressionTemplateSecurityAnnotationScanner")) {
+            Field unique = scanner.getClass().getDeclaredField("unique");
+            unique.setAccessible(true);
+            return unique.get(scanner);
+        }
+        return scanner;
+    }
+
+    private static void evictScannerCaches(Object scanner, ClassLoader loader) throws ReflectiveOperationException {
+        for (Field field : scanner.getClass().getDeclaredFields()) {
+            if (!Map.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            field.setAccessible(true);
+            if (field.get(scanner) instanceof Map<?, ?> cache) {
+                cache.keySet().removeIf(key -> belongsTo(key, loader));
+            }
+        }
+    }
+
+    /** A class, generic type, {@code MethodClassKey}, {@code Method} or {@code Parameter} naming anything the loader defined. */
+    private static boolean belongsTo(Object key, ClassLoader loader) {
+        if (key instanceof Class<?> type) {
+            return type.getClassLoader() == loader;
+        }
+        if (key instanceof java.lang.reflect.ParameterizedType generic) {
+            return belongsTo(generic.getRawType(), loader)
+                    || java.util.Arrays.stream(generic.getActualTypeArguments()).anyMatch(t -> belongsTo(t, loader));
+        }
+        if (key instanceof java.lang.reflect.GenericArrayType array) {
+            return belongsTo(array.getGenericComponentType(), loader);
+        }
+        if (key instanceof java.lang.reflect.Parameter parameter) {
+            return parameter.getDeclaringExecutable().getDeclaringClass().getClassLoader() == loader;
+        }
+        if (key instanceof java.lang.reflect.Method method) {
+            return method.getDeclaringClass().getClassLoader() == loader;
+        }
+        if (key instanceof org.springframework.core.MethodClassKey methodClassKey) {
+            try {
+                Field method = org.springframework.core.MethodClassKey.class.getDeclaredField("method");
+                Field target = org.springframework.core.MethodClassKey.class.getDeclaredField("targetClass");
+                method.setAccessible(true);
+                target.setAccessible(true);
+                return belongsTo(method.get(methodClassKey), loader)
+                        || (target.get(methodClassKey) instanceof Class<?> c && c.getClassLoader() == loader);
+            } catch (ReflectiveOperationException e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     /**

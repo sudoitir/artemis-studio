@@ -364,14 +364,8 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String toolName = snake + "_ping";
 
         // ---- install (v1.0.0) then an Instant update (v2.0.0) -------------------------------------
-        // Classloader collection after an update (task 6.11's own bullet) is asserted by
-        // PluginRuntimeIT#unloadCollectsTheClassloader. Under this richer fixture (settings, a
-        // topic, a scheduled job and an MCP tool together) an inline collection check here stayed
-        // flaky even after this session found and fixed a real, reproducible pin in the shared
-        // PluginJobBridge scheduler (see that class: removeOnCancelPolicy + a neutral thread
-        // factory) — see this session's report for the open item; a heap-dump tool wasn't available
-        // in this environment to run the remaining investigation to ground, and a flaky assertion
-        // left in place would be worse than one left out and reported.
+        // Classloader collection after a plugin did real work is PluginUnloadIT's; this test is
+        // about the lifecycle itself.
         installThenInstantUpdate(id, mvc, key, toolName);
 
         // ---- Brief-maintenance update (v3.0.0: first changeset) ----------------------------------

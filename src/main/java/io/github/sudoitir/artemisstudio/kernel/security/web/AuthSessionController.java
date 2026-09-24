@@ -3,13 +3,16 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.LoginService;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +37,8 @@ public class AuthSessionController {
 
     private final LoginService logins;
     private final IdentityProviderListing providers;
+    private final UserAccounts accounts;
+    private final SessionAuthentication sessions;
 
     public record LoginRequest(
             @Schema(nullable = true, description = "The credential provider to sign in with. Omit for local.")
@@ -51,18 +56,27 @@ public class AuthSessionController {
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String username,
             @Schema(requiredMode = REQUIRED) boolean mustChangePassword,
-            @Schema(requiredMode = REQUIRED) List<GrantView> grants) {
+            @Schema(requiredMode = REQUIRED) List<GrantView> grants,
+            @Schema(requiredMode = REQUIRED) ReauthenticationView reauthentication) {}
 
-        public static MeView of(StudioPrincipal principal) {
-            var grants = principal.grantList().stream()
-                    .map(g -> new GrantView(
-                            g.scopeType().name(),
-                            g.scopeId(),
-                            g.permissions().stream().sorted().toList()))
-                    .toList();
-            return new MeView(principal.userId(), principal.getUsername(), principal.mustChangePassword(), grants);
-        }
-    }
+    /**
+     * How this user confirms it is them for an action that needs a recent sign-in (ADR-0103).
+     *
+     * @param authenticatedAt when this session last signed in or stepped up
+     * @param startPath for {@code REDIRECT}: where the browser begins it; append {@code returnTo}
+     */
+    public record ReauthenticationView(
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.",
+                    allowableValues = {"PASSWORD", "REDIRECT"})
+            String method,
+
+            @Schema(nullable = true) String startPath,
+            @Schema(nullable = true) Instant authenticatedAt,
+            @Schema(requiredMode = REQUIRED) long windowSeconds) {}
+
+    public record ReauthenticateRequest(@NotBlank String password) {}
 
     public record IdentityProviderView(
             @Schema(requiredMode = REQUIRED) String id,
@@ -88,7 +102,18 @@ public class AuthSessionController {
 
     @PostMapping("/login")
     public MeView login(@Valid @RequestBody LoginRequest request, HttpServletRequest req, HttpServletResponse resp) {
-        return MeView.of(logins.login(request.provider(), request.username(), request.password(), req, resp));
+        return view(logins.login(request.provider(), request.username(), request.password(), req, resp), req);
+    }
+
+    /** Step-up with a password (ADR-0103); a single-sign-on user steps up at {@code reauthentication.startPath}. */
+    @PostMapping("/reauthenticate")
+    public ReauthenticationView reauthenticate(
+            @AuthenticationPrincipal StudioPrincipal principal,
+            @Valid @RequestBody ReauthenticateRequest request,
+            HttpServletRequest req,
+            HttpServletResponse resp) {
+        logins.reauthenticate(principal, request.password(), req, resp);
+        return reauthentication(principal, req);
     }
 
     @PostMapping("/logout")
@@ -98,7 +123,36 @@ public class AuthSessionController {
     }
 
     @GetMapping("/me")
-    public MeView me(@AuthenticationPrincipal StudioPrincipal principal) {
-        return MeView.of(principal);
+    public MeView me(@AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        return view(principal, req);
+    }
+
+    private MeView view(StudioPrincipal principal, HttpServletRequest req) {
+        var grants = principal.grantList().stream()
+                .map(g -> new GrantView(
+                        g.scopeType().name(),
+                        g.scopeId(),
+                        g.permissions().stream().sorted().toList()))
+                .toList();
+        return new MeView(
+                principal.userId(),
+                principal.getUsername(),
+                principal.mustChangePassword(),
+                grants,
+                reauthentication(principal, req));
+    }
+
+    private ReauthenticationView reauthentication(StudioPrincipal principal, HttpServletRequest req) {
+        String providerId = accounts.byId(principal.userId())
+                .map(UserAccounts.Account::providerId)
+                .orElse(LoginService.DEFAULT_PROVIDER);
+        var redirect = providers.providers().stream()
+                .filter(p -> p.id().equals(providerId) && "REDIRECT".equals(p.kind()))
+                .findFirst();
+        return new ReauthenticationView(
+                redirect.isPresent() ? "REDIRECT" : "PASSWORD",
+                redirect.map(p -> p.startPath() + "?stepup").orElse(null),
+                sessions.authenticatedAt(req).orElse(null),
+                SessionAuthentication.REAUTHENTICATION_WINDOW.toSeconds());
     }
 }

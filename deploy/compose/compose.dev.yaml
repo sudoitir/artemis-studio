@@ -123,12 +123,17 @@ services:
       # The dev brokers' users hold only the default `amq` role. Studio warns about it;
       # a real deployment gives Studio's broker user a dedicated role.
       ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: amq
+      # A plugin that needs a restart restarts Studio itself; `restart: unless-stopped` below
+      # is what starts it again. Remove both together, never one (ADR-0104).
+      ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+      JAVA_OPTS: -XX:MaxMetaspaceSize=256m
     ports:
       # Loopback only: the API is unauthenticated until Phase 8 (ADR-0002 area).
       - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
       interval: 10s
