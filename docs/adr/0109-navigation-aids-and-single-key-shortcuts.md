@@ -56,7 +56,7 @@ ADR-0052 keeps refresh and pause off the keyboard because the browser owns ⌘R 
      - inside a dialog or a menu, so a confirmation can never be navigated away from.
    - A key from a non-Latin layout falls back to its physical key.
    - A personal setting turns single-key shortcuts off (WCAG 2.1.4). With it off, help is
-     still reachable from the header and the palette.
+     still reachable from the header's keyboard button.
 5. **Browser-reserved shortcuts stay unbound** (ADR-0052 stands).
 
 ## Consequences

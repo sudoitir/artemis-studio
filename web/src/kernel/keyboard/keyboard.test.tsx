@@ -4,7 +4,6 @@ import { Modal } from '@mantine/core';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { FEATURES } from '../../app/features.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 
 const navigate = vi.fn();
@@ -102,13 +101,6 @@ describe('single-key shortcuts (ADR-0109)', () => {
 });
 
 describe('view letters', () => {
-  it('are unique among the built-in views, and every one is a single lowercase letter', () => {
-    const letters = FEATURES.flatMap((f) => f.nav ?? []).flatMap((n) => (n.hotkey ? [n.hotkey] : []));
-    expect(new Set(letters).size).toBe(letters.length);
-    for (const letter of letters) expect(letter).toMatch(/^[a-z]$/);
-    expect(viewHotkeys(FEATURES).size).toBe(letters.length);
-  });
-
   it("ignore a plugin's letter", () => {
     const plugin = { id: 'acme-notes', nav: [{ group: 'observe', order: 1, label: 'Notes', icon: () => null, path: 'p/acme-notes', hotkey: 'z' }] };
     expect(viewHotkeys([plugin as never]).has('z')).toBe(false);

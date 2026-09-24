@@ -135,8 +135,8 @@ reason.
 
 ### Requirement: Single-key shortcuts are listed and can be turned off
 
-The console SHALL list every keyboard shortcut in a help dialog, opened by `?` and from the
-palette and the header. It SHALL offer `g` followed by a view's letter to go to that view,
+The console SHALL list every keyboard shortcut in a popover anchored to a keyboard button in
+the header, opened by that button and by `?`. It SHALL offer `g` followed by a view's letter to go to that view,
 and `/` to focus the current view's filter. Single-key shortcuts SHALL be ignored:
 - while typing;
 - with a modifier;

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { ActionIcon, AppShell, Button, Center, Group, Kbd, Loader, ScrollArea, Text, Tooltip } from '@mantine/core';
+import { AppShell, Button, Center, Group, Kbd, Loader, ScrollArea, Text } from '@mantine/core';
 import { spotlight } from '@mantine/spotlight';
-import { IconKeyboard, IconSearch } from '@tabler/icons-react';
+import { IconSearch } from '@tabler/icons-react';
 import { useDocumentTitle, useHotkeys, useReducedMotion } from '@mantine/hooks';
 import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 
@@ -19,8 +19,7 @@ import { useNavCollapsed } from './useNavCollapsed.ts';
 import { useCurrentView } from '../nav/currentView.ts';
 import { useTitleParts } from './pageTitle.ts';
 import { recordRecent } from './recents.ts';
-import { setShortcutsHelpOpen } from '../keyboard/shortcuts.ts';
-import { ShortcutsDialog } from '../keyboard/ShortcutsDialog.tsx';
+import { ShortcutsHelp } from '../keyboard/ShortcutsHelp.tsx';
 import { useKeySequences } from '../keyboard/useKeySequences.ts';
 
 const NAVBAR_ID = 'as-navbar';
@@ -144,17 +143,7 @@ export function RootLayout() {
             >
               Search
             </Button>
-            <Tooltip label="Keyboard shortcuts (?)">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label="Keyboard shortcuts"
-                aria-keyshortcuts="Shift+Slash"
-                onClick={() => setShortcutsHelpOpen(true)}
-              >
-                <IconKeyboard size={18} aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <ShortcutsHelp />
             <UserMenu me={me.data} />
           </Group>
         </Group>
@@ -177,7 +166,6 @@ export function RootLayout() {
       </AppShell.Main>
 
       <CommandPalette />
-      <ShortcutsDialog />
     </AppShell>
   );
 }

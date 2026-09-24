@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { FEATURES } from '../../app/features.ts';
-import { matchView, sameViewOn } from './currentView.ts';
+import { FEATURES } from './features.ts';
+import { matchView, sameViewOn } from '../kernel/nav/currentView.ts';
 
 describe('matchView (ADR-0109)', () => {
   it('names the view an address is under, by the longest navigation path', () => {

@@ -11,7 +11,6 @@ import type { ModuleId, PaletteSource } from '../feature.ts';
 import { useFeatures } from '../features.ts';
 import { navGroups } from '../registry.ts';
 import { readRecents } from './recents.ts';
-import { setShortcutsHelpOpen } from '../keyboard/shortcuts.ts';
 
 type Report = (feature: ModuleId, groups: SpotlightActionGroupData[]) => void;
 
@@ -97,13 +96,6 @@ export function CommandPalette() {
             ? 'Start refetching on the usual interval again'
             : 'Stop refetching until you resume; does not survive a reload',
           onClick: () => setPollingPaused(!isPollingPaused()),
-        },
-        {
-          id: 'keyboard-shortcuts',
-          label: 'Keyboard shortcuts',
-          description: 'Every shortcut, and the switch for the single-key ones',
-          keywords: ['keys', 'hotkeys', 'help'],
-          onClick: () => setShortcutsHelpOpen(true),
         },
       ],
     });
