@@ -85,6 +85,16 @@ safe message operations, and SQL over your messages — all from a single instan
   a `broker.xml` fragment, and see where each node has drifted. On a first run Studio
   offers the cluster's current state as revision 1; nothing is adopted without your
   say, and a bridge is never adopted because the broker reports only part of one.
+- **[Setup review](https://sudoitir.github.io/artemis-studio/guide/setup-review)** — each
+  cluster's HA, clustering, durability and message-safety configuration checked against
+  known mistakes: a single replication pair that cannot win a quorum vote, redistribution
+  left at `-1`, a connector advertising `localhost`, no dead-letter address. Every finding
+  carries the evidence per node and the `broker.xml` fix, and can be accepted as a known
+  risk, with a reason, on the record.
+- **[Alert delivery](https://sudoitir.github.io/artemis-studio/guide/alert-delivery)** —
+  Slack, Microsoft Teams, PagerDuty (incidents open and resolve with the alert), email and
+  signed webhooks, each tested before it is saved, with a delivery log that says why a
+  notification failed.
 - **[Data governance](https://sudoitir.github.io/artemis-studio/guide/data-governance)**
   — sensitive headers and properties are masked, PII is classified automatically,
   and redaction follows the viewer's role.
@@ -203,7 +213,7 @@ from the commit messages ([`changelog/`](changelog/)).
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [x] | **A · Improve CI/CD:** Optimize CI/CD so source changes trigger image publishing, site changes trigger site deployment, and relevant checks run only when needed.                                |
 | [x] | **A · Cross-broker message transfer:** move messages between queues on different brokers, forced redistribution of specific messages, and arbitrary queue-to-queue transfers across remote nodes |
-| [ ] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
+| [x] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
 | [ ] | **A · Observability export:** OpenTelemetry metrics                                                                                                                                              |
 | [ ] | **A · Message lineage:** track messages across queues, diverts, bridges, DLQs, and captured payloads                                                                                             |
 | [x] | **A · Consumer health:** depth trends, consumption velocity, and slow-consumer root-cause context                                                                                                |

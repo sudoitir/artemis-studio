@@ -34,6 +34,7 @@ export const FEATURE_IDS = [
   'triage',
   'bulk',
   'transfer',
+  'setupreview',
   'apitokens',
   'plugins',
   'identity-local',

@@ -17,6 +17,7 @@ import { resourcesFeature } from '../features/resources/feature.ts';
 import { routingFeature } from '../features/routing/feature.ts';
 import { rrFeature } from '../features/rr/feature.ts';
 import { securityFeature } from '../features/security/feature.ts';
+import { setupreviewFeature } from '../features/setupreview/feature.ts';
 import { settingsFeature } from '../features/settings/feature.ts';
 import { sqlFeature } from '../features/sql/feature.ts';
 import { transferFeature } from '../features/transfer/feature.ts';
@@ -42,6 +43,7 @@ export const FEATURES: StudioFeature[] = [
   sqlFeature,
   resourcesFeature,
   routingFeature,
+  setupreviewFeature,
   brokerconfigFeature,
   settingsFeature,
   eventsFeature,

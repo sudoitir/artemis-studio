@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 /**
  * Evaluates one cluster's rules of one kind (design.md decision 3) — called
@@ -53,7 +52,7 @@ public class AlertEvaluator {
     private final List<AlertCondition> conditions;
 
     private final SseHub hub;
-    private final ObjectMapper mapper;
+    private final AlertPayloads payloads;
 
     @Transactional
     public void evaluate(UUID clusterId, String kind) {
@@ -162,17 +161,13 @@ public class AlertEvaluator {
         if (channelIds.isEmpty()) {
             return;
         }
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("ruleId", rule.getId());
-        payload.put("ruleName", rule.getName());
-        payload.put("severity", rule.getSeverity());
-        payload.put(
-                "transitions",
-                transitions.stream()
-                        .map(t -> Map.of(
-                                "subject", t.subjectKey(), "kind", t.kind().name(), "value", t.value()))
-                        .toList());
-        String json = mapper.writeValueAsString(payload);
+        String json = payloads.build(
+                rule.getId(),
+                rule.getName(),
+                rule.getSeverity(),
+                rule.getClusterId(),
+                transitions.stream().map(AlertPayloads.Item::of).toList(),
+                Instant.now());
         for (UUID channelId : channelIds) {
             deliveries.save(new AlertDeliveryEntity(rule.getId(), channelId, json));
         }

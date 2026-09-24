@@ -60,13 +60,68 @@ public final class AlertViews {
             @Schema(requiredMode = REQUIRED) int page,
             @Schema(requiredMode = REQUIRED) int size) {}
 
+    /**
+     * @param boundRuleCount how many rules route to this channel — what deleting it would silence
+     * @param health the channel's recent delivery record, or null before its first delivery
+     */
     public record NotificationChannelView(
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) String kind,
             @Schema(requiredMode = REQUIRED) String config,
             @Schema(requiredMode = REQUIRED) boolean enabled,
-            @Schema(requiredMode = REQUIRED) boolean hasSecret) {}
+            @Schema(requiredMode = REQUIRED) boolean hasSecret,
+            @Schema(requiredMode = REQUIRED) long boundRuleCount,
+            @Schema(nullable = true) ChannelHealthView health) {}
+
+    /**
+     * A channel's delivery record (ADR-0105 D6).
+     *
+     * @param lastState {@code PENDING}, {@code SENT} or {@code DEAD} — of the newest delivery
+     * @param lastError the newest delivery's last error, if it has one
+     */
+    public record ChannelHealthView(
+            @Schema(requiredMode = REQUIRED) String lastState,
+            @Schema(requiredMode = REQUIRED) Instant lastCreatedAt,
+            @Schema(nullable = true) Instant lastDeliveredAt,
+            @Schema(nullable = true) String lastError,
+            @Schema(requiredMode = REQUIRED) long pending,
+            @Schema(requiredMode = REQUIRED) long failedLast24h,
+            @Schema(requiredMode = REQUIRED) long sentLast24h) {}
+
+    /** One entry of a channel's delivery log. {@code summary} is the notification's title line. */
+    public record AlertDeliveryView(
+            @Schema(requiredMode = REQUIRED) long seq,
+            @Schema(requiredMode = REQUIRED) UUID ruleId,
+            @Schema(requiredMode = REQUIRED) String summary,
+            @Schema(requiredMode = REQUIRED) String state,
+            @Schema(requiredMode = REQUIRED) int attempts,
+            @Schema(nullable = true) String lastError,
+            @Schema(requiredMode = REQUIRED) Instant createdAt,
+            @Schema(requiredMode = REQUIRED) Instant nextAttemptAt,
+            @Schema(nullable = true) Instant deliveredAt) {}
+
+    /**
+     * A test of a configuration that need not be saved (ADR-0105 D6). With {@code channelId} and a
+     * blank {@code secret}, the channel's stored secret is used, so editing a channel never needs
+     * its secret re-entered to test it.
+     */
+    public record ChannelTestRequest(
+            @Schema(nullable = true) UUID channelId,
+            @NotBlank String kind,
+            String config,
+            String secret) {}
+
+    /**
+     * @param delivered the receiver accepted the notification
+     * @param permanent when not delivered: retrying the same configuration would fail the same way
+     * @param error the receiver's or the transport's stated cause, when not delivered
+     */
+    public record ChannelTestResultView(
+            @Schema(requiredMode = REQUIRED) boolean delivered,
+            @Schema(requiredMode = REQUIRED) boolean permanent,
+            @Schema(nullable = true) String error,
+            @Schema(requiredMode = REQUIRED) long durationMs) {}
 
     /** {@code secret} is write-only: omit to leave an existing secret unchanged on update. */
     public record NotificationChannelRequest(

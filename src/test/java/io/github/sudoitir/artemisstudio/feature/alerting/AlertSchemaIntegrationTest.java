@@ -80,6 +80,30 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
         assertThat(states).hasSize(1);
     }
 
+    /** Every condition the API accepts is one the database accepts — CONFIG_DRIFT once was not. */
+    @Test
+    void everyStateConditionTheApiOffersPersists() {
+        UUID c = cluster();
+        for (String condition : List.of(
+                "SPLIT_BRAIN",
+                "NODE_DOWN",
+                "REPLICATION_BEHIND",
+                "CLUSTER_DEGRADED",
+                "CLOCK_SKEW",
+                "CONFIG_DRIFT",
+                "SETUP_RISK")) {
+            rules.save(AlertRuleEntity.state(c, "rule " + condition, condition, 0, "WARNING"));
+        }
+        assertThat(rules.findByClusterIdAndKindAndEnabledTrue(c, "STATE")).hasSize(7);
+    }
+
+    @Test
+    void everyChannelKindPersists() {
+        for (String kind : List.of("WEBHOOK", "SLACK", "EMAIL", "TEAMS", "PAGERDUTY")) {
+            assertThat(channel("kind-" + kind, kind).getKind()).isEqualTo(kind);
+        }
+    }
+
     @Test
     void kindShapeCheckRejectsAThresholdRuleWithAStateCondition() {
         UUID c = cluster();

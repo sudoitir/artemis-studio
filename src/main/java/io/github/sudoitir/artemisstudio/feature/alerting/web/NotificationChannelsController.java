@@ -1,6 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.alerting.web;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.NotificationChannelService;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertDeliveryView;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelTestRequest;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelTestResultView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelView;
 import jakarta.validation.Valid;
@@ -15,10 +18,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Global notification channel CRUD and manual test delivery (alerting spec, ADR-0036). */
+/** Global notification channels, their tests and delivery log (alerting spec, ADR-0036, ADR-0105). */
 @RestController
 @RequestMapping("/api/v1/channels")
 @RequiredArgsConstructor
@@ -49,9 +53,26 @@ public class NotificationChannelsController {
         channels.delete(channelId);
     }
 
+    /** A failed test is a result, not an error: 200 either way, with the cause in the body. */
     @PostMapping("/{channelId}/test")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void test(@PathVariable UUID channelId) {
-        channels.test(channelId);
+    public ChannelTestResultView test(@PathVariable UUID channelId) {
+        return channels.test(channelId);
+    }
+
+    /** Tests a configuration before it is saved; see {@link ChannelTestRequest}. */
+    @PostMapping("/test")
+    public ChannelTestResultView testConfiguration(@Valid @RequestBody ChannelTestRequest request) {
+        return channels.test(request);
+    }
+
+    @GetMapping("/{channelId}/deliveries")
+    public List<AlertDeliveryView> deliveries(
+            @PathVariable UUID channelId, @RequestParam(defaultValue = "50") int limit) {
+        return channels.deliveries(channelId, limit);
+    }
+
+    @PostMapping("/{channelId}/deliveries/{seq}/retry")
+    public AlertDeliveryView retry(@PathVariable UUID channelId, @PathVariable long seq) {
+        return channels.retry(channelId, seq);
     }
 }
