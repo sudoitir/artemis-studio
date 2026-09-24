@@ -22,11 +22,15 @@ const METRICS = ['messageCount', 'messagesAdded', 'messagesAcked'];
 const SMALL_HEIGHT = 120;
 
 const series = (node: MetricNodeSeries, metric: string) => node.series.find((s) => s.metric === metric);
-const peak = (nodes: MetricNodeSeries[], metrics: string[]) =>
-  Math.max(
+/** The shared scale's top: the largest value across every node, rounded up to a readable figure. */
+const peak = (nodes: MetricNodeSeries[], metrics: string[]) => {
+  const max = Math.max(
     1,
     ...nodes.flatMap((n) => metrics.flatMap((m) => (series(n, m)?.points ?? []).map((p) => p.value ?? 0))),
   );
+  const unit = 10 ** Math.floor(Math.log10(max));
+  return Math.ceil(max / unit) * unit;
+};
 
 /**
  * A queue's history as small multiples, one per broker node, on one shared scale (ADR-0110): a
@@ -98,6 +102,9 @@ export function NodeSplitCharts({
                     {added === null ? 'unknown' : `${formatRate(added)} msg/s`} · out{' '}
                     {acked === null ? 'unknown' : `${formatRate(acked)} msg/s`}
                   </Text>
+                  <Text size="xs" fw={600} c="dimmed">
+                    Depth, messages
+                  </Text>
                   <CompositeChart
                     {...common}
                     data={mergeByTimestamp([{ name: 'depth', series: series(node, 'messageCount') }])}
@@ -105,6 +112,9 @@ export function NodeSplitCharts({
                     yAxisProps={{ ...yAxisProps(), domain: [0, depthMax] }}
                     series={[{ name: 'depth', label: 'Depth (avg)', color: 'var(--as-chart-1)', type: 'line' }]}
                   />
+                  <Text size="xs" fw={600} c="dimmed">
+                    Added and acked, msg/s
+                  </Text>
                   <CompositeChart
                     {...common}
                     data={mergeByTimestamp([
@@ -112,7 +122,9 @@ export function NodeSplitCharts({
                       { name: 'acked', series: series(node, 'messagesAcked') },
                     ])}
                     withLegend
-                    valueFormatter={(v) => `${formatRate(v)} msg/s`}
+                    legendProps={{ verticalAlign: 'top', height: 28 }}
+                    h={SMALL_HEIGHT + 28}
+                    valueFormatter={formatRate}
                     yAxisProps={{ ...yAxisProps(), domain: [0, rateMax] }}
                     series={[
                       { name: 'added', label: 'Added', color: 'var(--as-chart-1)', type: 'line' },

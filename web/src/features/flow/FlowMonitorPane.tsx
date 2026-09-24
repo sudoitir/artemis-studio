@@ -17,8 +17,10 @@ const KIND_WORD: Record<string, string> = {
 };
 
 const UNKNOWN = 'unknown';
+const MEASURING = 'measuring…';
 const count = (n: number | null | undefined) => (n === null || n === undefined ? UNKNOWN : formatCount(n));
-const rate = (n: number | null | undefined) => (n === null || n === undefined ? UNKNOWN : `${formatRate(n)} msg/s`);
+// Rates are messages per second, named in the column headers ("In/s"), so the figures fit the pane.
+const rate = (n: number | null | undefined) => (n === null || n === undefined ? MEASURING : formatRate(n));
 
 /** One row per broker node; `stale` is a node that did not answer, whose figures are unknown, not zero. */
 interface NodeRow {
@@ -35,36 +37,61 @@ function figure(value: (r: NodeRow) => string, r: NodeRow) {
   return <Text size="sm" className={r.stale ? classes.stale : classes.figure}>{r.stale ? UNKNOWN : value(r)}</Text>;
 }
 
-function nodeColumns(withBacklog: boolean): GridColumn<NodeRow>[] {
+type Columns = 'resource' | 'producer' | 'consumer';
+
+function nodeColumns(shape: Columns): GridColumn<NodeRow>[] {
+  // The node's state rides in its own cell: a column for it would not fit beside the graph.
   const columns: GridColumn<NodeRow>[] = [
-    { id: 'node', header: 'Node', accessor: (r) => r.node },
     {
-      id: 'state',
-      header: 'State',
-      width: 130,
-      accessor: (r) => (r.stale ? 'did not answer' : 'answered'),
-      cell: (r) => <Text size="sm" className={r.stale ? classes.stale : undefined}>{r.stale ? 'did not answer' : 'answered'}</Text>,
+      id: 'node',
+      header: 'Node',
+      accessor: (r) => (r.stale ? `${r.node} (did not answer)` : r.node),
+      cell: (r) => (
+        <Text size="sm" truncate title={r.node}>
+          {r.node}
+          {r.stale ? (
+            <Text span size="xs" className={classes.stale}>
+              {' '}
+              did not answer
+            </Text>
+          ) : null}
+        </Text>
+      ),
     },
   ];
-  if (withBacklog) {
-    columns.push(
-      { id: 'backlog', header: 'Backlog', numeric: true, width: 100, accessor: (r) => count(r.messageCount), cell: (r) => figure((x) => count(x.messageCount), r) },
-      { id: 'consumers', header: 'Consumers', numeric: true, width: 100, accessor: (r) => count(r.consumerCount), cell: (r) => figure((x) => count(x.consumerCount), r) },
-    );
-  }
-  columns.push(
-    { id: 'in', header: 'In', numeric: true, width: 110, accessor: (r) => rate(r.inRate), cell: (r) => figure((x) => rate(x.inRate), r) },
-    { id: 'out', header: 'Out', numeric: true, width: 110, accessor: (r) => rate(r.outRate), cell: (r) => figure((x) => rate(x.outRate), r) },
-  );
-  return columns;
+  const inRate: GridColumn<NodeRow> = {
+    id: 'in',
+    header: shape === 'producer' ? 'Sends/s' : 'In/s',
+    numeric: true,
+    width: shape === 'producer' ? 100 : 72,
+    accessor: (r) => rate(r.inRate),
+    cell: (r) => figure((x) => rate(x.inRate), r),
+  };
+  const outRate: GridColumn<NodeRow> = {
+    id: 'out',
+    header: shape === 'consumer' ? 'Receives/s' : 'Out/s',
+    numeric: true,
+    width: shape === 'consumer' ? 116 : 76,
+    accessor: (r) => rate(r.outRate),
+    cell: (r) => figure((x) => rate(x.outRate), r),
+  };
+  if (shape === 'producer') return [...columns, inRate];
+  if (shape === 'consumer') return [...columns, outRate];
+  return [
+    ...columns,
+    { id: 'backlog', header: 'Backlog', numeric: true, width: 84, accessor: (r) => count(r.messageCount), cell: (r) => figure((x) => count(x.messageCount), r) },
+    { id: 'consumers', header: 'Consumers', numeric: true, width: 112, accessor: (r) => count(r.consumerCount), cell: (r) => figure((x) => count(x.consumerCount), r) },
+    inRate,
+    outRate,
+  ];
 }
 
-function NodeTable({ label, rows, withBacklog }: { label: string; rows: NodeRow[]; withBacklog: boolean }) {
+function NodeTable({ label, rows, shape }: { label: string; rows: NodeRow[]; shape: Columns }) {
   return (
     <VirtualTable
       label={label}
       compact
-      columns={nodeColumns(withBacklog)}
+      columns={nodeColumns(shape)}
       data={rows}
       rowKey={(r) => r.nodeId}
       emptyLabel={<Text size="sm">No broker node reported this.</Text>}
@@ -136,7 +163,7 @@ export function FlowMonitorPane({
               : ''}
             Select a client, address or queue to break it down per node. These are each node's totals now.
           </Text>
-          <NodeTable label="Totals per broker node" rows={rows} withBacklog />
+          <NodeTable label="Totals per broker node" rows={rows} shape="resource" />
         </Stack>
       </section>
     );
@@ -193,7 +220,11 @@ export function FlowMonitorPane({
                 ))}
               </ul>
             ) : null}
-            <NodeTable label={`${node.label} per node`} rows={rows} withBacklog={!client} />
+            <NodeTable
+              label={`${node.label} per node`}
+              rows={rows}
+              shape={node.kind === 'PRODUCER' ? 'producer' : node.kind === 'CONSUMER' ? 'consumer' : 'resource'}
+            />
           </>
         )}
 

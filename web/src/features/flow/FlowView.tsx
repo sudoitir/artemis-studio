@@ -184,7 +184,7 @@ export function FlowView() {
 }
 
 /** The graph's and the pane's share of the Split layout, in %, remembered in this browser. */
-const DEFAULT_SPLIT = [62, 38];
+const DEFAULT_SPLIT = [56, 44];
 const PANE_MIN = 20;
 const GRAPH_MIN = 35;
 

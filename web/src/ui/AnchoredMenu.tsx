@@ -58,6 +58,10 @@ export function AnchoredMenu({
         hideDetached={false}
         withinPortal
         withInitialFocusPlaceholder={false}
+        // Pointer events only. By default a keydown outside the menu closes it, and the keydown that
+        // opened it (Shift+F10, the menu key) is still reaching the document when the listener is
+        // added: the menu would close as it opens. Focus is inside the menu while it is open.
+        clickOutsideEvents={['mousedown', 'touchstart']}
         loop
       >
         <Menu.Target>

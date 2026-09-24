@@ -46,7 +46,7 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
         <Table.Tbody>
           {rows.map((row) => (
             <Table.Tr key={row.what}>
-              <Table.Td w={200}>
+              <Table.Td w={150}>
                 <Keys keys={row.keys} />
               </Table.Td>
               <Table.Td>

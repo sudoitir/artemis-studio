@@ -1,4 +1,4 @@
-import { memo, useContext, type ReactNode } from 'react';
+import { memo, useContext, useRef, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 import type { FlowNodeView } from './api.ts';
@@ -52,6 +52,9 @@ function Frame({
   children: ReactNode;
 }) {
   const { select, emphasize, openMenu } = useContext(FlowCanvasContext);
+  // Shift+F10 and the menu key are followed by the browser's own contextmenu event, which would
+  // reopen the menu at the pointer and close the one the keyboard opened.
+  const suppressContextMenuUntil = useRef(0);
   const faults = faultWords(data.view);
   return (
     <div
@@ -65,6 +68,7 @@ function Frame({
       onClick={() => select(id)}
       onContextMenu={(event) => {
         event.preventDefault();
+        if (performance.now() < suppressContextMenuUntil.current) return;
         openMenu(id, clampToViewport({ x: event.clientX, y: event.clientY }), event.currentTarget);
       }}
       onKeyDown={(event) => {
@@ -73,6 +77,7 @@ function Frame({
           select(id);
         } else if ((event.key === 'F10' && event.shiftKey) || event.key === 'ContextMenu') {
           event.preventDefault();
+          suppressContextMenuUntil.current = performance.now() + 500;
           openMenu(id, anchorBelow(event.currentTarget), event.currentTarget);
         }
       }}

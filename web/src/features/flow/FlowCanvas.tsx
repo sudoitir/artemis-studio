@@ -131,6 +131,35 @@ function RefitOnLayout({ signature }: { signature: string | null }) {
 }
 
 /**
+ * A selection the operator cannot see — restored from the address, or chosen by keyboard or from the
+ * pane — is brought into view at the current zoom. The rest of the graph dims around a selection, so
+ * one off-screen would leave nothing bright to look at.
+ */
+function RevealSelected({ id, ready }: { id: string | null; ready: boolean }) {
+  const flow = useReactFlow();
+  const store = useStoreApi();
+  const reducedMotion = useReducedMotion();
+  useEffect(() => {
+    if (!id || !ready) return;
+    const frame = requestAnimationFrame(() => {
+      const node = flow.getInternalNode(id);
+      if (!node) return;
+      const { width, height, transform } = store.getState();
+      const [tx, ty, zoom] = transform;
+      const { x, y } = node.internals.positionAbsolute;
+      const w = node.measured.width ?? 0;
+      const h = node.measured.height ?? 0;
+      const left = x * zoom + tx;
+      const top = y * zoom + ty;
+      if (left >= 0 && top >= 0 && left + w * zoom <= width && top + h * zoom <= height) return;
+      void flow.setCenter(x + w / 2, y + h / 2, { zoom, duration: reducedMotion ? 0 : 300 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [flow, store, id, ready, reducedMotion]);
+  return null;
+}
+
+/**
  * The flow graph (flow-visualization spec, ADR-0080): four columns laid out by ELK in a worker,
  * rates as width, labels and moving dots, faults in words, and the path through whatever is hovered,
  * focused or selected emphasised.
@@ -258,6 +287,7 @@ export function FlowCanvas({
               <FlowMiniMap />
               <ZoomDetail onChange={setShowText} />
               <RefitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
+              <RevealSelected id={selectedId} ready={laidOut && !layout.pending} />
             </ReactFlow>
           </ReactFlowProvider>
         </FlowCanvasContext.Provider>
