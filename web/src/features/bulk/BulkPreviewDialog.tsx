@@ -213,7 +213,13 @@ export function BulkPreviewDialog({
 
             {op.destructive ? (
               <ConfirmByTyping
-                token={`${op.verb.toLowerCase()} ${acting.length} ${acting.length === 1 ? 'queue' : 'queues'}`}
+                // One queue is confirmed by its name, as a single-queue destroy is everywhere else;
+                // many are confirmed by the action and the count.
+                token={
+                  acting.length === 1
+                    ? acting[0].queueName
+                    : `${op.verb.toLowerCase()} ${acting.length} queues`
+                }
                 confirmLabel={confirmLabel}
                 loading={execute.isPending}
                 disabled={(overCap && !override) || execute.isPending}

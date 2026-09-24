@@ -7,6 +7,7 @@ import { keys } from './api.ts';
 import { BulkActionBar } from './BulkActionBar.tsx';
 import { BulkRunsView } from './BulkRunsView.tsx';
 import { BulkRunView } from './BulkRunView.tsx';
+import { PurgeQueue } from './rowActions.tsx';
 
 const runsRoute = createRoute({
   getParentRoute: () => clusterRoute,
@@ -29,6 +30,7 @@ export const bulkFeature = defineFeature({
     { group: 'activity', order: 15, label: 'Bulk runs', icon: IconStack2, path: 'bulk', permission: 'cluster:read' },
   ],
   slots: {
+    'queue.actions': [{ id: 'bulk.purge', order: 5, section: 'destroy', Component: PurgeQueue }],
     'queues.selection': [{ id: 'bulk-actions', order: 10, Component: BulkActionBar }],
   },
   streamTopics: {
