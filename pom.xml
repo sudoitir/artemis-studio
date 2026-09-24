@@ -73,7 +73,7 @@
         <!-- SQL Console dialect parser (ADR-0058). Not BOM-managed. -->
         <jsqlparser.version>5.4</jsqlparser.version>
         <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
-        <node.version>v22.14.0</node.version>
+        <node.version>v24.21.0</node.version>
 
         <!-- The frontend build is opt-in so `mvn test` stays fast in day-to-day work.
              CI and the Docker image activate the `frontend` profile. -->

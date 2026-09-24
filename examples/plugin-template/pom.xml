@@ -24,7 +24,7 @@
         <studio.since>${studio.version}</studio.since>
         <!-- Studio's extension contract; a plugin built for another is refused. -->
         <studio.contract>1</studio.contract>
-        <node.version>v22.14.0</node.version>
+        <node.version>v24.21.0</node.version>
         <!-- Normally empty: the SDK comes from npm. Set to a packed SDK (.tgz) to build against a
              Studio that is not released yet, as Studio's own CI does. -->
         <studio.sdk></studio.sdk>
