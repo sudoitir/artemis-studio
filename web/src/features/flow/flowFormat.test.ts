@@ -86,9 +86,9 @@ describe('flow search', () => {
   });
 
   it('keeps the layout, the selection and a non-default range', () => {
-    expect(validateFlowSearch({ tab: 'split', node: 'queue:orders', range: '6h' })).toEqual({
+    expect(validateFlowSearch({ tab: 'split', node: 'queue:ORDERS.inbound', range: '6h' })).toEqual({
       tab: 'split',
-      node: 'queue:orders',
+      node: 'queue:ORDERS.inbound',
       range: '6h',
     });
     expect(validateFlowSearch({ tab: 'graph', range: '1h', node: '' })).toEqual({});

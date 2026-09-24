@@ -37,11 +37,51 @@ named in words: *no consumer*, *stalled*, *not connected*, *on 1 of 2 nodes*.
 Hover or focus any node and the full upstream and downstream path through it stays
 bright while the rest fades. Select it to open its details: its figures, the flow into
 and out of it with each rate's source and age, and buttons to focus the view on it or
-open it in Queues, Consumers, Producers or Connections. Flow itself never changes the
-broker.
+open it in Queues (the queue itself), Addresses, Consumers, Producers or Connections.
+The selection is part of the address, so a reload or a shared link opens the same
+details. Flow itself never changes the broker.
+
+Right-click a node, or focus it and press **Shift+F10** or the menu key, for its menu:
+open the resource where it can be acted on, copy its name or link, and — for a client —
+focus the view on it or open its connections. The menu never offers anything that
+changes the broker.
 
 The **Table** view lists exactly what the graph draws, sortable, for keyboard and
-screen-reader use or for copying into a ticket.
+screen-reader use or for copying into a ticket. Each row has the same menu, from its
+**Actions** button or the same keys.
+
+## Which node is it on? The Split layout
+
+In a cluster of several nodes, the question behind most backlogs is *which node* the
+messages are piling up on. **Split** puts the graph beside a monitoring pane that
+follows the selection:
+
+- **A queue or an address** is broken down per broker node: its backlog, consumers,
+  messages in and messages out on each. Above the table, the pane says in words what is
+  uneven:
+  - *92% of the backlog is on artemis-b* — one node holds three quarters or more of a
+    backlog of at least 100 messages;
+  - *artemis-b holds 9,000 messages and has no consumer; the consumers are on
+    artemis-a* — a node with messages and no consumer while others have them;
+  - *artemis-a receives 90% of messages in but delivers 50% of messages out* — a node's
+    share of incoming messages exceeds its share of delivered ones by 40 points or more,
+    at 1 msg/s or more.
+
+  Otherwise it says *Balanced across N nodes*. A node that did not answer is listed as
+  such, its figures read *unknown*, and it is left out of the percentages rather than
+  counted as zero.
+- **A queue** also shows its history per node, over a range you pick: one small chart
+  per node, on one shared scale, so heights compare directly. These come from Metrics,
+  and appear when the Metrics feature is enabled.
+- **A client** shows its rates per node. Client history is not kept, so it has no
+  trends.
+- **With nothing selected**, the pane shows each broker node's totals.
+
+Drag the separator to resize the pane, or focus it and use the arrow keys; drag past
+its minimum or press **Enter** on it to fold it away. The size is remembered in this
+browser. Only Split asks the server for the per-node breakdown, so Graph and Table cost
+what they always did. The same per-node split of a queue is on the **Metrics** page:
+scope it to one queue and turn on *Break down by broker node*.
 
 ## Bounded, on purpose
 
@@ -52,8 +92,8 @@ ranked by messages in, messages out or backlog, and always says how many it left
 
 The totals at the top cover every path, not only the shown ones. To reach the rest,
 raise the limit (the server draws at most 200), or **focus** the view on one client,
-address or queue and widen it hop by hop. Focus, ranking, grouping, layers and the
-table sort are all in the URL, so a link restores the same view.
+address or queue and widen it hop by hop. Focus, ranking, grouping, layers, the
+table sort, the layout and the selection are all in the URL, so a link restores the same view.
 
 Ranking uses half-decade buckets, so two paths whose rates differ by a few percent do
 not swap places on every refresh, and a refresh that only changes rates never moves a
@@ -137,4 +177,5 @@ Under **Settings → Flow**, without a restart:
 
 Viewing Flow needs `cluster:read`. The design is recorded in
 [ADR-0080](/reference/adr/0080-flow-graph-elk-layered-layout-and-svg-motion) (layout and motion) and
-[ADR-0081](/reference/adr/0081-demand-driven-client-sampling) (sampling).
+[ADR-0081](/reference/adr/0081-demand-driven-client-sampling) (sampling), and the per-node breakdown in
+[ADR-0110](/reference/adr/0110-per-node-metric-series-and-flow-breakdown).

@@ -35,7 +35,7 @@
 
 ## 6. Shortcuts
 
-- [x] 6.1 Engine, store, help dialog, `NavContribution.hotkey` (unique test)
+- [x] 6.1 Engine, store, help popover, `NavContribution.hotkey` (unique test)
 - [x] 6.2 `useFilterShortcut` adopted by list views (filters labelled)
 - [x] 6.3 Settings → Display switch
 - [x] 6.4 Tests: `g q`, ignore rules, `?` help round trip, off switch, `code` fallback
@@ -59,8 +59,8 @@
 
 ## 9. Verification and docs
 
-- [ ] 9.1 `just verify` green
-- [ ] 9.2 Docs: architecture slot list, flow guide, keyboard guide
+- [x] 9.1 `just verify` green
+- [x] 9.2 Docs: architecture slot list, flow guide, keyboard guide
 - [ ] 9.3 Archive the change, sync specs, tick README roadmap; file follow-ups
 
 ## Notes for whoever continues
