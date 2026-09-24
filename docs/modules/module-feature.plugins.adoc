@@ -20,5 +20,16 @@ _Others_
 * `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.p.internal.host.StudioRestart` (in Plugin contract)
+* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
+* `i.g.s.a.k.s.GrantLoader` (in Security)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.p.b.CorePool` (in Broker connectivity)
+* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.a.p.c.ClusterLock` (in Clusters)
+* `i.g.s.a.k.s.StudioInstance` (in Settings)
 * `i.g.s.a.k.a.AuditQueryService` (in Audit log)
+|Events listened to
+|* `i.g.s.a.k.p.PluginPurged` 
+* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

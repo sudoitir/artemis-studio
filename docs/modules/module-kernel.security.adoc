@@ -3,7 +3,11 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.security`
 |Spring components
-|_Configuration properties_
+|_Event listeners_
+
+* `i.g.s.a.k.s.PluginSecretStore`
+
+_Configuration properties_
 
 * `i.g.s.a.k.s.SecretKeyProperties`
 
@@ -24,4 +28,6 @@ _Others_
 * `i.g.s.a.k.p.PluginProperties` (in Plugin contract)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.p.IdentityProviderListing` (in Plugin contract)
+|Events listened to
+|* `i.g.s.a.k.p.PluginPurged` 
 |===

@@ -25,6 +25,14 @@ public interface PluginHandle {
     ClassLoader classLoader();
 
     /**
+     * The plugin's own beans of a type, by name — not its parents' — for a bridge that looks for a
+     * contribution without needing the context itself.
+     */
+    default <T> java.util.Map<String, T> beansOfType(Class<T> type) {
+        return applicationContext().getBeansOfType(type);
+    }
+
+    /**
      * Runs {@code call} with the thread context classloader set to this plugin's own, restoring
      * the previous one afterward, and counts the call as in-flight for the duration so an unload
      * waits for it to finish (or times out) before closing the plugin's context.

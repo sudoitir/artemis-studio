@@ -65,6 +65,7 @@ public class CaptureAddresses {
 
     /** Whether a name belongs to Studio's own capture objects, which no capture may cover. */
     public static boolean isCaptureObject(String name) {
-        return name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX);
+        // A plugin's tap is Studio's own object too, and a capture of it would copy a copy.
+        return DivertOperations.isStudioTap(name);
     }
 }

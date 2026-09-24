@@ -6,14 +6,21 @@
 @ApplicationModule(
         displayName = "Plugins",
         allowedDependencies = {
+            "feature.messages",
+            "feature.queues",
+            "feature.sql",
             "kernel.audit",
             "kernel.audit::web",
             "kernel.core",
+            "kernel.jobs",
             "kernel.plugin",
             "kernel.plugin::descriptor",
             "kernel.plugin::host",
             "kernel.plugin::validation",
-            "kernel.security"
+            "kernel.security",
+            "kernel.settings",
+            "platform.broker",
+            "platform.clusters"
         })
 package io.github.sudoitir.artemisstudio.feature.plugins;
 

@@ -54,7 +54,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "setup_(review|finding|finding_acceptance)",
                     // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0006).
                     "plugin_(artifact|install|installer|upload)",
-                    "studio_boot")
+                    "studio_boot",
+                    // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
+                    // feature-plugins 0001).
+                    "plugin_secret",
+                    "plugin_message_registration")
             .map(Pattern::compile)
             .toList();
 

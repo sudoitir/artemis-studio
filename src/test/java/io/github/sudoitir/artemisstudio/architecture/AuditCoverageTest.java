@@ -62,7 +62,11 @@ class AuditCoverageTest {
                     "re-masks stored messages under a policy whose rule change was already audited"),
             Map.entry("feature.rr.RrDeadlineSweep", "marks flows past their deadline"),
             Map.entry("feature.rr.RrFlowReaper", "trims request-reply flows past retention"),
-            Map.entry("feature.sql.CaptureLoss", "measures capture loss for the index view"));
+            Map.entry("feature.sql.CaptureLoss", "measures capture loss for the index view"),
+            Map.entry(
+                    "feature.plugins.internal.persistence.RegistrationRepository",
+                    "registration bookkeeping; PluginMessagingService audits the register and unregister calls that use"
+                            + " it, and purge removes a plugin's rows with the rest of its data"));
 
     @Test
     void everyOperatorWriteInAFeatureIsAudited() {
