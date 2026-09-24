@@ -418,8 +418,7 @@ jobs:
           ./mvnw -B -Prelease,api-check -DskipTests -Dspring-boot.repackage.skip=true -Dgpg.signer=bc deploy
 
   # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Trusted
-  # publishing through GitHub's OIDC once it is set up on npmjs.com; until then — the first
-  # publish, which trusted publishing needs to exist — the NPM_STAGE_TOKEN secret.
+  # publishing through GitHub's OIDC: npmjs.com trusts this workflow, so no npm token is stored.
   publish-sdk:
     needs: release
     runs-on: ubuntu-26.04
@@ -442,9 +441,7 @@ jobs:
           node packages/plugin-sdk/build.mjs "${{ needs.release.outputs.version }}"
       - name: Publish
         working-directory: web/packages/plugin-sdk/dist
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_STAGE_TOKEN }}
-        # Trusted publishing (OIDC) needs npm 11.5.1 or later; fail here rather than fall back to the token silently.
+        # Trusted publishing (OIDC) needs npm 11.5.1 or later.
         run: |
           npx -y semver@7 -r '>=11.5.1' "$(npm -v)" >/dev/null || { echo "npm $(npm -v) is too old to publish"; exit 1; }
           npm publish --access public --provenance
