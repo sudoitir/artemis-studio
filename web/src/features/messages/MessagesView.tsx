@@ -34,6 +34,7 @@ import { SendMessage } from './SendMessage.tsx';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useSlot, type MessageSelection } from '../../kernel/slots.ts';
+import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 
 const PAGE_SIZE = 200;
 
@@ -85,13 +86,16 @@ export function MessagesView() {
     clusterId: string;
     queueName: string;
   };
-  const search = useSearch({ strict: false }) as { node?: string; filter?: string; page?: number };
+  const search = useSearch({ strict: false }) as { node?: string; filter?: string; page?: number; message?: string };
   const navigate = useNavigate();
 
   const cluster = useCluster(clusterId);
   const [filter, setFilter] = useState(search.filter ?? '');
   const [debounced] = useDebouncedValue(filter, 250);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The open message is in the address, so a link to one message opens it (non-negotiable #9).
+  const openId = search.message ?? null;
+  const setOpenId = (id: string | null) =>
+    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, message: id ?? undefined }) });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sendOpen, setSendOpen] = useState(false);
   const [purgeOpen, setPurgeOpen] = useState(false);
@@ -322,6 +326,17 @@ export function MessagesView() {
           selected={selected}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}
+          rowMenu={{
+            label: (m) => `message ${m.messageId}`,
+            render: (m, menu) => (
+              <ResourceActions
+                kind="message"
+                clusterId={clusterId}
+                target={{ queueName, messageId: m.messageId, node: search.node }}
+                restoreFocus={menu.restoreFocus}
+              />
+            ),
+          }}
           emptyLabel={
             <Stack gap={4}>
               <Text fw={600}>No messages match</Text>

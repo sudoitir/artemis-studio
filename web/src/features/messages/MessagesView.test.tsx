@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,13 +6,33 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 
-vi.mock('@tanstack/react-router', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
-  useParams: () => ({ clusterId: 'c1', queueName: 'PHASE3.SRC' }),
-  useSearch: () => ({}),
-  useNavigate: () => () => {},
-  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
-}));
+// The address is state here, as it is in the app: the open message lives in it (`?message=`).
+let searchState: Record<string, unknown> = {};
+const searchListeners = new Set<() => void>();
+afterEach(() => {
+  searchState = {};
+});
+
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const { useSyncExternalStore } = await import('react');
+  return {
+    ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+    useParams: () => ({ clusterId: 'c1', queueName: 'PHASE3.SRC' }),
+    useSearch: () =>
+      useSyncExternalStore(
+        (listener) => {
+          searchListeners.add(listener);
+          return () => searchListeners.delete(listener);
+        },
+        () => searchState,
+      ),
+    useNavigate: () => (options: { search?: unknown }) => {
+      if (typeof options.search === 'function') searchState = options.search(searchState);
+      searchListeners.forEach((listener) => listener());
+    },
+    Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  };
+});
 
 const { MessagesView } = await import('./MessagesView.tsx');
 
@@ -291,5 +311,67 @@ describe('the purge and the bulk safety cap', () => {
 
     await vi.waitFor(() => expect(urls).toHaveLength(2));
     expect(urls.at(-1)).toContain('override=true');
+  });
+});
+
+describe('one message, from its row (ADR-0107)', () => {
+  it('deletes a single message only once its id is typed, and states the outcome', async () => {
+    const summary = {
+      messageId: 205,
+      type: 3,
+      durable: true,
+      priority: 4,
+      timestamp: 1789847475826,
+      expiration: 0,
+      size: 9,
+      groupId: null,
+      correlationId: null,
+      bodyPreview: 'order B-5',
+      bodyTruncated: false,
+      propertyCount: 0,
+      redactions: [],
+    };
+    const bodies: unknown[] = [];
+    mockCluster([endpoint('n1', 'primary')]);
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({
+          id: 'u1',
+          username: 'op',
+          mustChangePassword: false,
+          grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
+        }),
+      ),
+      http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () =>
+        HttpResponse.json({
+          data: [summary],
+          count: 1,
+          countUnavailable: null,
+          page: 1,
+          pageSize: 200,
+          node: 'n1',
+          transport: 'CORE',
+        }),
+      ),
+      http.post('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages/actions/delete', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ affectedCount: 1 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for message 205' }));
+    const menu = await screen.findByRole('menu', { name: 'Actions for message 205' });
+    await user.click(within(menu).getByRole('menuitem', { name: /^Delete…/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete message 205' });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete this message' });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByRole('textbox', { name: /type "205" to confirm/i }), '205');
+    await user.click(confirm);
+
+    expect(await within(dialog).findByText('Done: the message was deleted.')).toBeInTheDocument();
+    expect(bodies).toEqual([{ messageIds: [205] }]);
   });
 });
