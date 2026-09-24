@@ -22,6 +22,7 @@ class OidcIdentity implements IdentityProviders {
 
     private final ObjectProvider<ClientRegistrationRepository> registrations;
     private final OidcAuthenticationSuccessHandler successHandler;
+    private final OidcStepUp stepUp;
 
     record Registration(String id, String label, String startPath) implements RedirectIdentityProvider {}
 
@@ -44,8 +45,11 @@ class OidcIdentity implements IdentityProviders {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        if (registrations.getIfAvailable() != null) {
-            http.oauth2Login(oauth2 -> oauth2.successHandler(successHandler));
+        ClientRegistrationRepository repository = registrations.getIfAvailable();
+        if (repository != null) {
+            http.oauth2Login(oauth2 -> oauth2.successHandler(successHandler)
+                    .authorizationEndpoint(
+                            endpoint -> endpoint.authorizationRequestResolver(stepUp.resolver(repository))));
         }
     }
 }

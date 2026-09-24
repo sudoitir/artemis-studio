@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
@@ -17,6 +18,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * {@code X-Request-Id} header or a fresh UUID.
  */
 @Component
+@PluginApi
 public class ActorResolver {
 
     private static final String REQUEST_ID_HEADER = "X-Request-Id";

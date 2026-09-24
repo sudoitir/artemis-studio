@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- An Artemis Studio plugin: one jar holding its descriptor, code, database changes and UI.
+         Rename com.acme.notes / acme-notes throughout; `mvn verify` builds the jar and checks it
+         exactly as Studio will when it is uploaded. -->
+    <groupId>com.acme</groupId>
+    <artifactId>acme-notes</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
+        <!-- @PreAuthorize("@perm.can(#clusterId, ...)") reads parameter names. -->
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- The oldest Studio this plugin supports. Its API jar is what the plugin compiles
+             against, and it becomes plugin.json's studio.since, so Studio refuses the plugin
+             on anything older. -->
+        <studio.version>2026.09.0</studio.version>
+        <studio.since>${studio.version}</studio.since>
+        <!-- Studio's extension contract; a plugin built for another is refused. -->
+        <studio.contract>1</studio.contract>
+        <node.version>v22.14.0</node.version>
+        <!-- Normally empty: the SDK comes from npm. Set to a packed SDK (.tgz) to build against a
+             Studio that is not released yet, as Studio's own CI does. -->
+        <studio.sdk></studio.sdk>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Studio's own dependency versions: the plugin runs on these. -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>4.1.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Studio itself: provided at runtime, never bundled. Only @PluginApi types are the
+             supported API; anything else may change in any release. -->
+        <dependency>
+            <groupId>io.github.sudoitir</groupId>
+            <artifactId>artemis-studio</artifactId>
+            <version>${studio.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <!-- plugin.json gets its version, contract and studio.since from this pom. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>META-INF/artemis-studio/plugin.json</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>META-INF/artemis-studio/plugin.json</exclude>
+                </excludes>
+            </resource>
+        </resources>
+
+        <plugins>
+            <!-- The UI: built by Vite with @artemis-studio/plugin-sdk's preset straight into
+                 target/classes/META-INF/artemis-studio/ui, so it lands in the jar. -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>2.0.2</version>
+                <configuration>
+                    <workingDirectory>web</workingDirectory>
+                    <installDirectory>${project.build.directory}/node</installDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-and-npm</id>
+                        <goals><goal>install-node-and-npm</goal></goals>
+                        <configuration><nodeVersion>${node.version}</nodeVersion></configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-install</id>
+                        <goals><goal>npm</goal></goals>
+                        <configuration><arguments>install --no-audit --no-fund ${studio.sdk}</arguments></configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-build</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>process-classes</phase>
+                        <configuration><arguments>run build</arguments></configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Bundling a library? Studio refuses classes outside basePackage, so add
+                 maven-shade-plugin with an artifactSet naming only that library and a relocation
+                 under com.acme.notes.shaded — see README.md. This plugin bundles nothing. -->
+
+            <!-- Checks the finished jar exactly as Studio will on upload, and fails the build
+                 on anything Studio would refuse. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.4</version>
+                <executions>
+                    <execution>
+                        <id>verify-plugin</id>
+                        <phase>verify</phase>
+                        <goals><goal>java</goal></goals>
+                        <configuration>
+                            <mainClass>io.github.sudoitir.artemisstudio.kernel.plugin.PluginVerifier</mainClass>
+                            <classpathScope>compile</classpathScope>
+                            <arguments>
+                                <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

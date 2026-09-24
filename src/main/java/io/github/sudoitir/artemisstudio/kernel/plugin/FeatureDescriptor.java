@@ -33,7 +33,9 @@ public record FeatureDescriptor(
         KERNEL,
         PLATFORM,
         FEATURE,
-        IDENTITY_PROVIDER
+        IDENTITY_PROVIDER,
+        /** An installed plugin's namespaced contributions, added by {@code FeatureRegistry.addPlugin}. */
+        PLUGIN
     }
 
     public FeatureDescriptor {

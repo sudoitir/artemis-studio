@@ -14,14 +14,41 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 }));
 
 const { LoginView } = await import('./LoginView.tsx');
+const { setBootState } = await import('../plugins/boot.ts');
+const BOOTED = { manifest: { version: '1' } as never, plugins: [], failures: new Map<string, string>() };
 
 const LOCAL = { id: 'local', kind: 'CREDENTIAL', label: 'Password', startPath: null };
 
 describe('LoginView', () => {
   beforeEach(() => {
     server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([LOCAL])));
+    setBootState(BOOTED);
   });
-  afterEach(() => navigate.mockClear());
+  afterEach(() => {
+    navigate.mockClear();
+    setBootState({ plugins: [], failures: new Map() });
+  });
+
+  it('starts the page again after sign-in when it started signed out, so plugins load', async () => {
+    setBootState({ plugins: [], failures: new Map() });
+    const replace = vi.fn();
+    vi.stubGlobal('location', { ...window.location, replace, pathname: '/login' });
+    server.use(
+      http.post('*/api/v1/auth/login', () =>
+        HttpResponse.json({ id: 'u1', username: 'alice', mustChangePassword: false, grants: [] }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    await user.type(screen.getByLabelText(/Username/), 'alice');
+    await user.type(screen.getByLabelText(/Password/), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
+    expect(navigate).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 
   it('submits credentials and navigates home on success', async () => {
     server.use(

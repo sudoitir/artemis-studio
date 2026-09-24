@@ -16,6 +16,7 @@ _Others_
 * `i.g.s.a.p.m.SettingsMcpTools`
 |Bean references
 |* `i.g.s.a.p.c.ClusterService` (in Clusters)
+* `i.g.s.a.k.p.PluginRuntimeStatus` (in Plugin contract)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.s.SettingsService` (in Settings)
 |===

@@ -1,19 +1,15 @@
 package io.github.sudoitir.artemisstudio.kernel.stream.web;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
-import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.stream.EventReplay;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,28 +33,16 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RestController
 public class StreamController {
 
-    private static final Set<String> DEFAULT_TOPICS = Set.of("topology", "health", "queues");
     private static final int REPLAY_CAP = 500;
 
     private final SseHub hub;
     private final ClusterAccessGuard clusterAccess;
-    private final Set<String> knownTopics;
-    private final Set<String> defaultTopics;
-    private final Map<String, EventReplay> replays;
+    private final StreamTopicRegistry topics;
 
-    public StreamController(
-            SseHub hub, ClusterAccessGuard clusterAccess, FeatureRegistry features, List<EventReplay> replays) {
+    public StreamController(SseHub hub, ClusterAccessGuard clusterAccess, StreamTopicRegistry topics) {
         this.hub = hub;
         this.clusterAccess = clusterAccess;
-        this.knownTopics = features.enabled().stream()
-                .flatMap(d -> d.streamTopics().stream())
-                .map(TopicDef::name)
-                .collect(Collectors.toUnmodifiableSet());
-        this.defaultTopics =
-                DEFAULT_TOPICS.stream().filter(knownTopics::contains).collect(Collectors.toUnmodifiableSet());
-        this.replays = replays.stream()
-                .filter(r -> knownTopics.contains(r.topic()))
-                .collect(Collectors.toUnmodifiableMap(EventReplay::topic, Function.identity()));
+        this.topics = topics;
     }
 
     @GetMapping(path = "/api/v1/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -70,13 +54,14 @@ public class StreamController {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         response.setHeader("X-Accel-Buffering", "no");
 
+        Set<String> known = this.topics.known();
         Set<String> wanted = Arrays.stream(topics.split(","))
                 .map(String::trim)
-                .filter(knownTopics::contains)
+                .filter(known::contains)
                 .collect(Collectors.toUnmodifiableSet());
 
         SseEmitter emitter = new SseEmitter(0L);
-        Subscriber subscriber = new Subscriber(emitter, wanted.isEmpty() ? defaultTopics : wanted);
+        Subscriber subscriber = new Subscriber(emitter, wanted.isEmpty() ? this.topics.defaultTopics() : wanted);
         hub.register(clusterId, subscriber);
 
         emitter.onCompletion(() -> hub.remove(clusterId, subscriber));
@@ -84,7 +69,7 @@ public class StreamController {
         emitter.onError(e -> hub.remove(clusterId, subscriber));
 
         if (lastEventId != null) {
-            replays.forEach((topic, replay) -> {
+            this.topics.replays().forEach((topic, replay) -> {
                 if (subscriber.wants(topic)) {
                     for (EventReplay.Replayed missed : replay.since(clusterId, lastEventId, REPLAY_CAP)) {
                         hub.sendTo(subscriber, topic, missed.data(), missed.id());

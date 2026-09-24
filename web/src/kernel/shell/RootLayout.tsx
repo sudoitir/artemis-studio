@@ -6,6 +6,7 @@ import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-rou
 import styles from './RootLayout.module.css';
 import { branding } from '../../branding.ts';
 import { useMe } from '../auth/api.ts';
+import { usePluginsChanged } from '../plugins/usePluginsChanged.tsx';
 import { useSlot } from '../slots.ts';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
 import { CommandPalette } from './CommandPalette.tsx';
@@ -50,6 +51,7 @@ export function RootLayout() {
   }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
 
   useHotkeys([['mod+B', toggle]]);
+  usePluginsChanged();
 
   // Every hook above runs unconditionally on every render; only the JSX branches.
   if (isPublicRoute) {

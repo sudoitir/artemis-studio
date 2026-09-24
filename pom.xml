@@ -25,6 +25,21 @@
         </license>
     </licenses>
 
+    <!-- Required by Maven Central for the published plugin API (ADR-0102). -->
+    <developers>
+        <developer>
+            <id>sudoitir</id>
+            <name>Mahdi Amirabdollahi</name>
+            <url>https://github.com/sudoitir</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/sudoitir/artemis-studio.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/sudoitir/artemis-studio.git</developerConnection>
+        <url>https://github.com/sudoitir/artemis-studio</url>
+    </scm>
+
     <properties>
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
@@ -34,6 +49,12 @@
         <artemis.version>2.57.0</artemis.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <spotless.version>3.10.2</spotless.version>
+        <!-- Publishing the plugin API (ADR-0102); verified against Maven Central 2026-09-23. -->
+        <central-publishing.version>0.11.0</central-publishing.version>
+        <maven-gpg.version>3.2.8</maven-gpg.version>
+        <maven-source.version>3.4.0</maven-source.version>
+        <maven-javadoc.version>3.12.0</maven-javadoc.version>
+        <japicmp.version>0.26.2</japicmp.version>
         <palantir-java-format.version>2.97.0</palantir-java-format.version>
 
         <!-- Lombok version comes from the Spring Boot BOM. MapStruct and the
@@ -269,6 +290,21 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- The runnable jar is target/artemis-studio-exec.jar (the image, the release
+                         asset). The plain jar keeps the main artifact's name: it is the plugin API
+                         plugins compile against, published to Maven Central (ADR-0102). -->
+                    <classifier>exec</classifier>
+                </configuration>
+                <executions>
+                    <!-- Bakes the running version into META-INF/build-info.properties, read
+                         by StudioVersion (kernel.plugin) for the plugin compatibility range. -->
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Annotation processors, in order (ADR-0014): Lombok, then the
@@ -360,6 +396,119 @@
     </build>
 
     <profiles>
+        <!-- `-Prelease`: the plugin API to Maven Central (ADR-0102). Sources, javadoc and GPG
+             signatures are what Central requires; the Central plugin uploads and publishes. The
+             passphrase comes from MAVEN_GPG_PASSPHRASE and the token from settings.xml server
+             `central` (CI writes both from secrets). Run with -Dspring-boot.repackage.skip=true:
+             Central gets the plain jar, its sources and javadoc, never the runnable exec jar. -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc.version}</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg.version}</version>
+                        <configuration>
+                            <!-- Reads MAVEN_GPG_PASSPHRASE; never a passphrase on the command line. -->
+                            <bestPractices>true</bestPractices>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- `-Papi-check`: the plugin API may not break within a contract version (ADR-0102).
+             Compares every @PluginApi type with the latest release on Maven Central; with no
+             release yet there is nothing to compare, and it passes. A deliberate break bumps
+             Contract.VERSION and is released with -Djapicmp.skip. -->
+        <profile>
+            <id>api-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>${japicmp.version}</version>
+                        <configuration>
+                            <oldVersion>
+                                <dependency>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>RELEASE</version>
+                                </dependency>
+                            </oldVersion>
+                            <newVersion>
+                                <file>
+                                    <path>${project.build.directory}/${project.build.finalName}.jar</path>
+                                </file>
+                            </newVersion>
+                            <parameter>
+                                <includes>
+                                    <include>@io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi</include>
+                                </includes>
+                                <onlyModified>true</onlyModified>
+                                <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+                                <ignoreMissingOldVersion>true</ignoreMissingOldVersion>
+                                <skipPomModules>false</skipPomModules>
+                            </parameter>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals><goal>cmp</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Activate with `-Pfrontend` (CI, Docker). Builds web/ with a managed Node,
              then copies web/dist into the jar's static resources. -->
         <profile>

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://artemis-studio.sudoit.ir/schema/plugin.schema.json",
+  "title": "Artemis Studio plugin.json",
+  "description": "The descriptor every plugin jar carries at META-INF/artemis-studio/plugin.json (ADR-0099, ADR-0102). This schema is documentation for plugin authors; PluginDescriptorParser is the code path that actually enforces it, and a test asserts the two never drift apart.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "version", "vendor", "basePackage", "configuration", "contract", "studio", "ui", "activation", "title"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "id": {
+      "type": "string",
+      "description": "vendor-name, at least two kebab-case segments, at most 50 characters, never identity-*.",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)+$",
+      "maxLength": 50
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "description": "Semantic version.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "vendor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "email": { "type": "string", "format": "email" }
+      }
+    },
+    "description": { "type": "string" },
+    "license": { "type": "string" },
+    "changeNotes": { "type": "string", "description": "Rendered as plain text." },
+    "basePackage": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+    "configuration": { "type": "string", "description": "The root @Configuration FQCN." },
+    "contract": { "type": "integer", "minimum": 1, "description": "Must equal the extension contract this build compiled against." },
+    "studio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["since"],
+      "properties": {
+        "since": { "type": "string", "pattern": "^\\d{4}\\.\\d{2}\\.\\d+$" },
+        "until": { "type": "string", "pattern": "^\\d{4}\\.\\d{2}\\.(\\d+|\\*)$" }
+      }
+    },
+    "requires": { "type": "array", "items": { "type": "string" } },
+    "ui": { "type": "boolean" },
+    "activation": { "type": "string", "enum": ["AUTO", "RESTART"] },
+    "updateUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "title": { "type": "string", "minLength": 1 },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "description"],
+        "properties": {
+          "action": { "type": "string", "description": "Namespaced <id>:<action>." },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "settingKeys": { "type": "array", "items": { "type": "string", "description": "Namespaced <id>.<key>." } },
+    "streamTopics": { "type": "array", "items": { "type": "string", "description": "<id> or <id>.<topic>." } },
+    "mcpTools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "posture", "description"],
+        "properties": {
+          "name": { "type": "string", "description": "Prefixed <id_snake>_." },
+          "posture": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}

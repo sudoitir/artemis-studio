@@ -25,7 +25,7 @@ RUN groupadd -r studio && useradd -r -g studio studio \
     && apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY --from=app /src/target/artemis-studio.jar app.jar
+COPY --from=app /src/target/artemis-studio-exec.jar app.jar
 USER studio
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=50"

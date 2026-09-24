@@ -24,7 +24,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleService;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
-import io.github.sudoitir.artemisstudio.kernel.stream.web.StreamController;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpRunbookPrompts;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -141,9 +140,9 @@ class FeatureToggleTest {
 
             Set<String> topicNames =
                     feature.streamTopics().stream().map(TopicDef::name).collect(Collectors.toSet());
-            @SuppressWarnings("unchecked")
-            Set<String> topics =
-                    (Set<String>) ReflectionTestUtils.getField(context.getBean(StreamController.class), "knownTopics");
+            Set<String> topics = context.getBean(
+                            io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry.class)
+                    .known();
             assertThat(topics).noneMatch(topicNames::contains);
 
             SecurityContextHolder.getContext().setAuthentication(administrator());

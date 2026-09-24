@@ -60,6 +60,10 @@
     "kind" : "FEATURE",
     "required" : false
   }, {
+    "id" : "plugins",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
     "id" : "queues",
     "kind" : "FEATURE",
     "required" : false

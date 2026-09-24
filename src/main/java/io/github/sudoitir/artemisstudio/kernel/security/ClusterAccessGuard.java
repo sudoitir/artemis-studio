@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  * writes, settings, user/role/environment administration).
  */
 @Component
+@PluginApi
 @RequiredArgsConstructor
 public class ClusterAccessGuard {
 

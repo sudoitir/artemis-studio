@@ -1,375 +1,254 @@
 ---
-title: Build a plugin
-description: Add a feature to Artemis Studio — screens, API, tables and assistant tools — as one module, inside the repository or kept in its own.
+title: Plugins
+description: Install, update and remove plugins from the Artemis Studio UI — screens, API, assistant tools and data of their own, most with no restart — and build your own from the template.
 ---
 
-# Build a plugin
+# Plugins
 
-A plugin is a **feature module**: one backend package, one frontend folder and its
-own tables, all under one id. It is compiled into Studio, so the build checks its
-boundaries, its schema and its types together with everything else
-([ADR-0069](/reference/adr/0069-kernel-plugin-modular-monolith)). Once built in, it can
-be turned off at startup like any other feature.
+A plugin adds to Studio what Studio does not do itself: screens, an API, assistant tools, settings,
+background jobs and data of its own. It is **one `.jar`**, installed from **Administration → Plugins**.
+You see everything it will be able to do before anything is installed, and most plugins start
+**without a restart**.
 
-This page builds `notes`: operator notes per cluster, with a screen, an API, a
-table and an assistant tool. Every piece is optional except the first three files.
+::: warning A plugin is trusted code
+A plugin runs inside Studio, with Studio's access to your brokers and database, and its screens act
+with the rights of whoever views them. Studio checks every jar thoroughly before installing it, but
+those checks stop accidents and misuse of the contract, not a determined attacker. Install plugins
+you would run as part of Studio itself.
+:::
 
-## 1. Backend module
+## Install a plugin
 
-```
-src/main/java/io/github/sudoitir/artemisstudio/feature/notes/
-  package-info.java        what the module may depend on
-  NotesModule.java         its descriptor
-  NotesFeature.java        its configuration, loaded only while enabled
-  NoteService.java
-  web/NotesController.java
-  mcp/NotesMcpTools.java
-  internal/persistence/NoteEntity.java, NoteRepository.java
-```
+Drop the `.jar` anywhere on **Administration → Plugins**, or choose **Install plugin**. Four steps
+follow, and nothing is installed until the third:
 
-Keep the package under `io.github.sudoitir.artemisstudio.feature`: that is what the
-module and boundary tests scan.
+1. **Inspect.** Studio reads the jar without running any of its code. It checks the descriptor,
+   every class, and every database change. If Studio would refuse the jar, you see every reason at
+   once, each with what its author must change, and **Copy report** gives it to them. Nothing is
+   stored.
+2. **Review: what this plugin will be able to do.** Each capability is stated as a sentence:
+   - screens, assistant tools (read-only or changing things), permissions and settings
+   - the database changes, with **Show the SQL**
+   - what it depends on
+   - for an update, what changes: permissions added or removed, and how many roles lose one
+3. **Confirm.** The review says who is affected and for how long. You confirm it is you (below)
+   and type the plugin's id. The button names the exact action, for example "Update Notes to 1.5.0
+   (3 database changes)".
+4. **Progress.** A timeline follows the activation as it runs. You can close the dialog: the
+   activation carries on, and the plugin's row shows where it has got to.
 
-```java
-// package-info.java
-@ApplicationModule(
-        displayName = "Notes",
-        allowedDependencies = {"kernel.audit", "kernel.plugin", "kernel.security", "platform.clusters", "platform.mcp"})
-package io.github.sudoitir.artemisstudio.feature.notes;
+A plugin's screens appear after you reload Studio. Anyone else who has Studio open is told that
+plugins changed and offered a reload; nothing reloads on its own.
 
-import org.springframework.modulith.ApplicationModule;
-```
+### Confirming it is you
 
-```java
-// NotesModule.java — what Studio must know even while the feature is off
-public final class NotesModule {
+Anything that changes a plugin runs code on the server, so it needs a sign-in within the last
+**five minutes**:
 
-    public static final String NOTE_READ = "note:read";
-    public static final String NOTE_WRITE = "note:write";
+- **Password accounts** re-enter their password. After five wrong attempts, the session ends.
+- **Single sign-on accounts** sign in again at their identity provider, which asks for a fresh
+  login. You return to where you were, with nothing you reviewed lost. The provider must report
+  when you signed in (`auth_time`). If it does not, the step-up is refused.
 
-    public static final FeatureDescriptor DESCRIPTOR = FeatureDescriptor.builder()
-            .id("notes")
-            .title("Notes")
-            .kind(FeatureDescriptor.Kind.FEATURE)
-            .permission(new PermissionDef(NOTE_READ, "Read cluster notes"))
-            .permission(new PermissionDef(NOTE_WRITE, "Write cluster notes"))
-            .apiPrefix("/api/v1/clusters/{clusterId}/notes")
-            .mcpTool(new McpToolDef("list_notes", McpToolDef.Posture.READ, "A cluster's operator notes.", List.of()))
-            .build();
+Uploading and reviewing need no confirmation, because nothing runs until you activate.
 
-    private NotesModule() {}
-}
-```
+## What needs a restart
 
-```java
-// NotesFeature.java — scans this package while artemis-studio.features.notes.enabled is not false
-@FeatureModule("notes")
-public class NotesFeature {}
-```
+Every change is classified before you confirm it, and does no more than it says:
 
-The service checks the permission and audits the write; the controller is ordinary
-Spring MVC.
+| Class | When | What happens | Downtime |
+| --- | --- | --- | --- |
+| **Instant** | No database change is pending | The new version starts while the old one keeps serving. Requests switch over once it is ready, and the old version finishes its work and stops. If the new version fails to start, the old one keeps serving. | None |
+| **Brief maintenance** | The update changes the plugin's database | For a few seconds that plugin alone answers "updating", while its work drains, its schema changes and the new version starts. | Seconds, that plugin only |
+| **Restart** | The plugin says it needs one, or a version did not stop cleanly | The version to start is recorded and starts with Studio. | All of Studio, briefly |
 
-```java
-@Service
-@RequiredArgsConstructor
-public class NoteService {
+**When a restart is needed, Studio restarts itself if something will start it again.** It stops
+gracefully: every plugin is closed and the stop is recorded as clean. Then it exits for its
+supervisor to restart it. That works:
 
-    private final NoteRepository notes;
-    private final ClusterAccessGuard clusterAccess;
-    private final ActorResolver actors;
-    private final AuditService audit;
+- **with the compose files**, which set `ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED=true` next to
+  `restart: unless-stopped`. Keep those two together: remove one and you must remove the other.
+- **on Kubernetes**, which Studio detects.
+- **anywhere else**, once you set `artemis-studio.plugins.restart.supervised=true`, if your process
+  manager restarts Studio when it exits.
 
-    public List<NoteView> list(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, NotesModule.NOTE_READ);
-        return notes.findByClusterIdOrderByCreatedAtDesc(clusterId).stream().map(NoteView::of).toList();
-    }
+Otherwise Studio does not stop itself. Exiting would leave it down, so it shows the command to run
+instead (`docker compose restart studio`). The review tells you in advance which of the two will
+happen.
 
-    @Transactional
-    public NoteView add(UUID clusterId, String text) {
-        clusterAccess.requireCluster(clusterId, NotesModule.NOTE_WRITE);
-        AuditEvent event = audit.begin(actors.resolve(), "ADD_NOTE", "CLUSTER", null, clusterId, null, Map.of(), false);
-        NoteView note = NoteView.of(notes.save(new NoteEntity(clusterId, text)));
-        audit.succeed(event, 1);
-        return note;
-    }
-}
-```
+Installers can also restart Studio from the Plugins tab, for example after a plugin that did not
+stop cleanly. That needs the same confirmation as any plugin change, and it is refused within two
+minutes of a start, so nothing can hold Studio in a restart loop.
 
-```java
-@RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/notes")
-@RequiredArgsConstructor
-public class NotesController {
+## Update and roll back
 
-    private final NoteService notes;
+- **Upload the new version** the same way as a new plugin. The review shows the difference from
+  the version installed. A plugin can only be updated by a jar from the **same vendor**, and never
+  to an **older** version: use Roll back for that.
+- **Check for updates** asks each plugin's update URL, if it names one, for a newer version. The
+  check happens only when you ask; Studio never contacts anything on its own. An update is
+  downloaded over https only, without following redirects, and must match the checksum its vendor
+  published. Then it goes through the same inspection and review as an upload.
+- **Roll back** reactivates the version that ran before, instantly, as long as the current version
+  **changed no database**. A database change can't be undone reliably once data has been written
+  under it, so after one, Roll back is unavailable and says why. The review warns about this
+  before you confirm, and flags every change that has no rollback of its own: take a backup first.
 
-    @GetMapping
-    public List<NoteView> list(@PathVariable UUID clusterId) {
-        return notes.list(clusterId);
-    }
+## Disable, uninstall, purge
 
-    @PostMapping
-    public NoteView add(@PathVariable UUID clusterId, @RequestBody @Valid NoteRequest request) {
-        return notes.add(clusterId, request.text());
-    }
-}
-```
+| | Its screens, API, tools, jobs | Its data |
+| --- | --- | --- |
+| **Disable** | Stop; Enable brings them back | Kept |
+| **Uninstall** | Removed | Kept, so installing it again picks the data up |
+| **Purge** (after Uninstall) | — | **Deleted for good**: its schema, the roles' grants of its permissions, its saved settings, its stored jars |
 
-Entities and repositories live in `internal.persistence`; nothing outside the module
-may use them.
+Purge shows its reach first: each table with its approximate rows and size. You then type the
+plugin's id. If another plugin requires the one you are disabling, Studio says which and offers to
+disable them together.
 
-## 2. Database change
+## Who can install plugins
 
-The module owns its tables in its own changelog.
+Installing a plugin runs its code, so this is **not a role permission**. No role and no wildcard
+permission lets anyone install, not even one that can edit every role. Instead a short list of
+**installers** can. It is checked on every request, so removing someone takes effect on their next
+click.
 
-```
-src/main/resources/db/changelog/feature/notes/
-  changelog.xml
-  changes/0001-notes.sql
-```
+- The **administrator Studio creates on first start** is the first installer.
+- Or name them in `artemis-studio.plugins.initial-installers`, as a username, or
+  `<registration-id>:<subject>` for a single sign-on user. This list is used only while nobody is an
+  installer; after that, installers manage installers.
+- An installer adds or removes others under **Who can install** on the Plugins tab, after
+  confirming it is them. The last installer cannot be removed.
+- Administrators who are not installers see everything, with the actions disabled and the reason
+  beside them.
 
-```xml
-<!-- changelog.xml -->
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
-    <includeAll path="changes/" relativeToChangelogFile="true"/>
-</databaseChangeLog>
-```
+Plugins are only ever changed **from a browser session**. API tokens and the MCP endpoint are
+refused, even an installer's.
 
-```sql
---liquibase formatted sql
+## Security, in short
 
---changeset artemis-studio:feature-notes-0001
-CREATE TABLE note (
-    created_at timestamptz NOT NULL DEFAULT now(),
-    text       text        NOT NULL,
-    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    cluster_id uuid        NOT NULL REFERENCES cluster(id) ON DELETE CASCADE
-);
-CREATE INDEX ix_note_cluster ON note (cluster_id, created_at DESC);
---rollback DROP TABLE note;
-```
+- **Checked before it is stored.** Studio reads the whole jar's bytecode without loading it.
+  - **Refused shapes:** unexpected files; archive tricks such as duplicate or escaping entries,
+    oversized entries and extreme compression ratios; and manifest attributes that change how the
+    JVM loads code.
+  - **Confinement:** classes outside the plugin's own package, and names outside its namespace.
+  - **Refused calls:** `System.exit`, starting processes, `@Scheduled`, `@Async`, and database
+    changes that run a command or a Java class.
+- **Its data is its own.** Each plugin has its own database schema and a pool of 3 connections. It
+  may not create anything in Studio's schema or reference Studio's tables. Activation fails if it
+  tries, and the previous version resumes.
+- **It uses Studio's permissions.** A plugin's API sits behind Studio's sign-in, and its
+  permissions are granted through roles like any built-in's.
+- **Everything is audited.** Every upload, activation, change and removal is in the audit log with
+  who, from where, the jar's checksum and the outcome. Each step is also written to Studio's log,
+  because a plugin shares Studio's database role and could, in principle, change the audit table.
+- **The kill switch.** `artemis-studio.plugins.upload.enabled=false` switches installing and
+  updating off. Installed plugins keep running, and can still be disabled and removed.
 
-Columns go widest-aligned first (timestamps, then text, then uuid and boolean). A
-foreign key onto another module's table needs that module in `allowedDependencies`
-(`cluster` belongs to `platform.clusters`, which is why it is listed above), and
-`ON DELETE CASCADE` removes the notes with their cluster. Never edit a released changeset: add
-`0002-….sql` beside it.
+## Capacity
 
-Include it from `db.changelog-master.xml`, after the modules it references:
+Each active plugin takes up to 3 database connections, next to Studio's own 10. Activation is
+refused, with the reason, once that would exceed 80% of Postgres' `max_connections`. The Plugins tab
+shows the current count.
 
-```xml
-<include file="db/changelog/feature/notes/changelog.xml" relativeToChangelogFile="false"/>
-```
+When a plugin stops, its classes should leave memory. If a stopped version is still in memory a
+minute later, the Plugins tab says so and recommends a restart. The compose files cap metaspace at
+256 MB (`-XX:MaxMetaspaceSize=256m`), so a plugin that does not unload cleanly fails loudly rather
+than growing without limit.
 
-## 3. MCP tool
+## Configuration
 
-A tool is a Spring AI `@McpTool` in the module's `mcp` package. It is registered only
-while the feature is enabled, and the catalogue entry in the descriptor is what
-`studio_help` shows.
+| Property (environment variable) | Default | |
+| --- | --- | --- |
+| `artemis-studio.plugins.upload.enabled` (`ARTEMIS_STUDIO_PLUGINS_UPLOAD_ENABLED`) | `true` | `false` switches installing and updating off |
+| `artemis-studio.plugins.initial-installers` | — | Who can install while nobody can: usernames or `registration-id:subject` |
+| `artemis-studio.plugins.restart.supervised` (`ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED`) | unset: `true` on Kubernetes | Something starts Studio again after it exits |
+| `artemis-studio.plugins.safe-mode` (`ARTEMIS_STUDIO_PLUGINS_SAFE_MODE`) | `false` | Start without any plugin |
+| `artemis-studio.plugins.start-timeout-seconds` | `60` | How long a plugin gets to start |
+| `artemis-studio.features.plugins.enabled` | `true` | `false` removes the Plugins tab and its API; installed plugins still run |
 
-```java
-@Component
-@RequiredArgsConstructor
-public class NotesMcpTools {
+## When something goes wrong
 
-    private final NoteService notes;
+A plugin can never stop Studio from starting. Studio is already serving before any plugin starts,
+and each plugin starts on its own, within a time limit.
 
-    @McpTool(
-            name = "list_notes",
-            description = "A cluster's operator notes, newest first.",
-            annotations = @McpTool.McpAnnotations(
-                    readOnlyHint = true, destructiveHint = false, idempotentHint = true, openWorldHint = false))
-    public McpSchema.CallToolResult listNotes(@McpToolParam(required = true) String clusterId) {
-        return McpErrors.guard(() -> notes.list(McpArgs.uuid("clusterId", clusterId)));
-    }
-}
-```
+| What you see | Why, and what to do |
+| --- | --- |
+| **"This jar cannot be installed"**, with a list | Studio would refuse it. Nothing was stored. **Copy report** for the plugin's author. |
+| **Failed**, with a reason | It did not start. If an update failed, the previous version kept serving. Retry, upload a fixed version, or uninstall. |
+| **Failed: "schema at version X"** | The update changed its database, the new version then failed to start, and the change could not be undone. Upload a fixed version, or restore from backup. |
+| **Incompatible** | It does not support this version of Studio (its `since`/`until`). Update the plugin, or uninstall it. It becomes active again by itself if Studio moves back into its range. |
+| **Restart required** | See [What needs a restart](#what-needs-a-restart). |
+| **Refused: "another plugin operation is in progress"** | One change at a time, across all plugins. Wait for it to finish. |
+| **Refused: connection budget** | Disable another plugin, or raise Postgres' `max_connections`. |
+| **A plugin's page says it could not show its screens** | The plugin is running, but its UI failed to load in this browser. The rest of Studio is unaffected. Reload, then check the plugin's row. |
+| **Safe mode: no plugin is running** | Studio stopped uncleanly three times in 15 minutes, so it started without plugins. Or `safe-mode` is set. Fix or remove the plugin that failed, then restart normally. |
 
-The tool calls the same service as the controller, so the caller's grants and the
-audit trail apply unchanged. A tool that changes something takes `dryRun` (default
-true) and, if it destroys anything, `confirm` equal to the subject's name.
+## Build a plugin
 
-## 4. Register it
+Start from the template:
+[`examples/plugin-template`](https://github.com/sudoitir/artemis-studio/tree/main/examples/plugin-template).
+It is a complete plugin, **Notes**, notes operators leave on queues, with every kind of contribution:
 
-`src/main/java/io/github/sudoitir/artemisstudio/app/StudioFeatures.java` is the one list:
-
-```java
-@Import({ /* … */ NotesFeature.class })
-public class StudioFeatures {
-    public static List<FeatureDescriptor> descriptors() {
-        return List.of(/* … */ NotesModule.DESCRIPTOR);
-    }
-}
-```
-
-Give it a module test, which starts it with its direct dependencies only:
-
-```java
-@ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
-class NotesModuleTest extends ModuleIntegrationTest {
-
-    @MockitoBean
-    ScopeHierarchy scopeHierarchy;
-}
-```
-
-Then regenerate what the frontend reads from the backend:
+- an entity in its own schema, with a reversible changelog
+- an audited service
+- an API behind Studio's permissions
+- an assistant tool
+- a setting and a background job
+- a page in every cluster, a navigation entry, a panel in every queue's details, and live updates
 
 ```bash
-./mvnw test -Dtest='OpenApiSnapshotTest,ManifestSnapshotTest'   # web/openapi.json, web/manifest.snapshot.json
-npm --prefix web run gen:api                                     # web/src/kernel/api/schema.d.ts
+mvn verify
 ```
 
-## 5. Frontend
+That builds the plugin into one jar: descriptor, classes, database changes and UI. Then it checks the
+jar **exactly as Studio will on upload**, so a refusal shows up in your build, not in front of an
+operator.
 
-```
-web/src/features/notes/
-  api.ts          hooks and query keys
-  NotesView.tsx
-  feature.ts      what it contributes
-```
+**What a plugin builds against:**
 
-```ts
-// api.ts
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+- **Java.** `io.github.sudoitir:artemis-studio` from Maven Central, `provided`. Use only the types
+  marked `@PluginApi`: those are kept stable within a contract version. Anything else can change in
+  any release.
+- **UI.** [`@artemis-studio/plugin-sdk`](https://www.npmjs.com/package/@artemis-studio/plugin-sdk)
+  from npm. Its Vite preset, `studioPlugin({ id })`, builds a Module Federation bundle that takes
+  React, Mantine and TanStack from Studio, so one bundle is small and matches Studio's look.
+- **Versions.** Build against the Studio and SDK version of the **oldest** Studio you support. It
+  becomes your `studio.since`, and Studio refuses the plugin on anything older.
 
-import { clusterKey, request, type ApiError } from '../../kernel/api/request.ts';
-import type { components } from '../../kernel/api/schema.d.ts';
+**The rules Studio enforces** (the template's README explains each):
 
-export type NoteView = components['schemas']['NoteView'];
+- **Its namespace.** One id, lowercase kebab-case with your organisation first (`acme-notes`),
+  prefixes everything the plugin adds:
+  - its API: `/api/v1/p/<id>` and `/api/v1/clusters/{clusterId}/p/<id>`
+  - its routes: `p/<id>/…`
+  - its permissions (`<id>:…`), settings (`<id>.…`), live topics and assistant tools
+    (`<id_in_snake_case>_…`)
+- **Its own package.** Classes live only under its `basePackage`. A library it bundles must be
+  shaded and relocated under it.
+- **Studio runs its threads.** No `@Scheduled`, `@Async` or threads of its own: contribute a
+  `ScheduledJob`, and Studio runs it and stops it with the plugin.
+- **Changes are audited.** Audit every change with `AuditService`, like Studio's own features do.
+- **Its data is its own.** Its tables live in its own schema, with no foreign keys to Studio's. Give
+  every changeset a rollback, or updates that apply it cannot be rolled back.
 
-const notesKey = (clusterId: string) => clusterKey(clusterId, 'notes');
+**Offer updates** by naming an `updateUrl` (https) in `plugin.json` that answers:
 
-export function useNotes(clusterId: string) {
-  return useQuery<NoteView[], ApiError>({
-    queryKey: notesKey(clusterId),
-    queryFn: () => request(`/clusters/${clusterId}/notes`),
-  });
-}
-
-export function useAddNote(clusterId: string) {
-  const qc = useQueryClient();
-  return useMutation<NoteView, ApiError, { text: string }>({
-    mutationFn: (body) => request(`/clusters/${clusterId}/notes`, { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notesKey(clusterId) }),
-  });
-}
-```
-
-```tsx
-// NotesView.tsx
-import { useState } from 'react';
-import { Alert, Button, Stack, Text, Textarea, Title } from '@mantine/core';
-import { useParams } from '@tanstack/react-router';
-
-import { useAddNote, useNotes } from './api.ts';
-
-export function NotesView() {
-  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const notes = useNotes(clusterId);
-  const add = useAddNote(clusterId);
-  const [text, setText] = useState('');
-
-  return (
-    <Stack gap="sm" maw={640}>
-      <Title order={3}>Notes</Title>
-      <Textarea label="New note" value={text} onChange={(e) => setText(e.currentTarget.value)} />
-      <Button loading={add.isPending} onClick={() => add.mutate({ text }, { onSuccess: () => setText('') })}>
-        Add note
-      </Button>
-      {add.isError ? <Alert color="red" title={add.error.title}>{add.error.message}</Alert> : null}
-      {notes.data?.map((note) => <Text key={note.id}>{note.text}</Text>)}
-    </Stack>
-  );
-}
+```json
+{ "version": "1.5.0", "url": "https://acme.example/acme-notes-1.5.0.jar", "sha256": "…", "changeNotes": "…" }
 ```
 
-```ts
-// feature.ts
-import { IconNotes } from '@tabler/icons-react';
-import { createRoute } from '@tanstack/react-router';
+Studio asks only when an installer chooses **Check for updates**. It downloads the jar without
+following redirects, and refuses it unless it hashes to that `sha256`.
 
-import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { NotesView } from './NotesView.tsx';
+## How it works
 
-const notesRoute = createRoute({
-  getParentRoute: () => clusterRoute,
-  path: 'notes',
-  component: featureView('notes', NotesView),
-});
-
-export const notesFeature = defineFeature({
-  contract: CONTRACT,
-  id: 'notes',
-  routes: { cluster: [notesRoute] },
-  nav: [{ group: 'activity', order: 30, label: 'Notes', icon: IconNotes, path: 'notes', permission: 'note:read' }],
-});
-```
-
-Register it in `web/src/app/features.ts` (`FEATURES`) and add `'notes'` to
-`FEATURE_IDS` in `web/src/kernel/feature.ts`; a test holds that list to the
-backend's manifest snapshot. `featureView` is what makes `/clusters/…/notes` explain
-itself when the feature is off.
-
-## What else a plugin can contribute
-
-| Backend | How |
-|---|---|
-| Runtime settings | a `SettingsContribution` bean, keys named `notes.*`, listed in the descriptor's `settingKey` |
-| Scheduled work | a `ScheduledJob` bean (`ScheduledJob.fixedDelay` / `cron`) |
-| A live stream topic | `.streamTopic(TopicDef.signal("notes"))`, published with `SseHub.publish(clusterId, "notes")` |
-| Broker notifications | a `BrokerEventSink` bean |
-| A check during cluster registration | a `RegistrationCheckContributor` bean |
-| Another feature it needs | `.require("queues")` and that module in `allowedDependencies` |
-
-| Frontend (`defineFeature`) | How |
-|---|---|
-| Refresh on a topic | `streamTopics: { notes: ({ clusterId, invalidate }) => invalidate(clusterKey(clusterId, 'notes')) }` |
-| A section on Settings | `slots: { 'settings.sections': [{ id: 'notes', order: 80, title: 'Notes', Component }] }` |
-| A panel elsewhere | other slots: `cluster.header`, `queue.detail.panels`, `metrics.panels`, `admin.tabs`, `account.sections`, … |
-| Command palette | `palette`: a component that calls `report(groups)` |
-
-A plugin never imports another feature's internals. It reaches another feature only
-through that feature's `index.ts` along an edge allowed in `web/eslint.config.js`,
-and on the backend only through a declared dependency. `just verify` fails otherwise.
-
-## Keep a plugin in its own repository
-
-Studio composes plugins at build time, so an external plugin is kept separately and
-added to a Studio checkout before the build. Mirror Studio's paths in the plugin's
-repository:
-
-```
-notes-plugin/
-  src/main/java/io/github/sudoitir/artemisstudio/feature/notes/…
-  src/main/resources/db/changelog/feature/notes/…
-  src/test/java/io/github/sudoitir/artemisstudio/feature/notes/…
-  web/src/features/notes/…
-```
-
-and overlay it onto the checkout:
-
-```bash
-git clone https://github.com/sudoitir/artemis-studio studio
-cp -r notes-plugin/src notes-plugin/web studio/
-# then the registration lines from steps 2, 4 and 5 — keep them as a patch in the plugin's repository:
-git -C studio apply ../notes-plugin/register.patch
-cd studio && just verify && docker build -t my-studio .
-```
-
-The build runs the module, boundary, schema and contract tests over the plugin as if
-it had always been there, and the image carries it like any built-in feature.
-
-## Turn it off
-
-```bash
-ARTEMIS_STUDIO_FEATURES_NOTES_ENABLED=false
-```
-
-Its screen explains that it is off, its API answers `404 feature-disabled`, its tool
-disappears, and its table stays, so turning it back on is a restart.
+Each plugin runs in its own Spring context, with its own class loader, schema and connection pool.
+One gateway routes its API, and Studio's registries take and drop its contributions at runtime. Its
+UI is a Module Federation bundle loaded when Studio starts. The design and its trade-offs are in
+[ADR-0099](/reference/adr/0099-runtime-plugins-are-child-contexts-installed-from-the-ui) (the
+runtime), [ADR-0100](/reference/adr/0100-plugin-uis-are-module-federation-remotes) (the UI),
+[ADR-0101](/reference/adr/0101-each-plugin-owns-a-schema-pool-and-entity-manager) (the data),
+[ADR-0102](/reference/adr/0102-the-plugin-api-is-published-to-central-and-npm) (the API),
+[ADR-0103](/reference/adr/0103-plugin-installer-tier-and-step-up-reauthentication) (who can install)
+and [ADR-0104](/reference/adr/0104-studio-restarts-itself-for-plugins-when-supervised) (restarts).

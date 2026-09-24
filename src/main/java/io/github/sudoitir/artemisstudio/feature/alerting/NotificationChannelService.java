@@ -150,7 +150,7 @@ public class NotificationChannelService {
             audit.succeed(event, 1);
         } else {
             audit.fail(event, result.error());
-            throw new IllegalStateException("Test notification failed: " + result.error());
+            throw new NotificationDeliveryException("Test notification failed: " + result.error());
         }
     }
 

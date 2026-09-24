@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
  * a matching scope.
  */
 @Component("perm")
+@PluginApi
 @RequiredArgsConstructor
 public class PermissionResolver {
 

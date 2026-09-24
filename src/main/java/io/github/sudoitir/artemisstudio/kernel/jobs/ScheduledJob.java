@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.time.Duration;
 import java.util.function.Supplier;
 import org.springframework.scheduling.Trigger;
@@ -12,6 +13,7 @@ import org.springframework.scheduling.Trigger;
  * @param id stable, unique across the installation — it names the job in status and metrics
  * @param featureId the owning module
  */
+@PluginApi
 public record ScheduledJob(String id, String featureId, Trigger trigger, Runnable task) {
 
     /** Fixed delay from the end of the previous run; the interval is re-read every fire. */

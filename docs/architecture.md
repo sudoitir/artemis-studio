@@ -134,6 +134,35 @@ explains the feature is off. `eslint-plugin-boundaries` (ADR-0074) fails the lin
 the kernel imports a feature, or a feature imports another feature other than through
 its `index.ts` along an allowed edge.
 
+### Runtime plugins
+
+A plugin is a third party's jar, uploaded in Admin → Plugins and stored in Postgres
+(ADR-0099). It is not a module of this build and is not checked by `ModularityTest`;
+it is contained at runtime instead:
+
+- **Validation** (`kernel.plugin.internal.validation`) reads the jar's bytecode with
+  `java.lang.classfile` and never loads it: an entry allowlist, zip-consistency and size
+  limits, classes confined to its `basePackage`, namespaced ids, denied annotations and
+  calls, and a Liquibase preflight that refuses changes running commands or Java.
+- **Runtime** (`internal.runtime`): its own `URLClassLoader`, a child
+  `GenericWebApplicationContext` whose parent holds only `@PluginApi` beans, its own
+  schema `plugin_<id>`, Hikari pool and `EntityManagerFactory` (ADR-0101), and its own
+  `DispatcherServlet` behind `PluginGateway` (`/api/v1/p/<id>/**`,
+  `/api/v1/clusters/{id}/p/<id>/**`). `PluginBridge`s add and remove its
+  contributions — permissions, settings, topics, jobs, MCP tools, core events — in
+  copy-on-write registries.
+- **Host** (`internal.host.PluginHost`) sequences plan, activate (Instant, Brief
+  maintenance, Restart), disable, uninstall, rollback and purge, one at a time; starts
+  plugins after `ApplicationReadyEvent`; trips safe mode after three unclean boots; and
+  restarts Studio when a plugin needs it and a supervisor will start it again
+  (`StudioRestart`, ADR-0104).
+- **Administration** (`feature/plugins`) puts the installer tier and step-up
+  re-authentication (ADR-0103) in front of every change and audits each step.
+- **UI** (ADR-0100): `web/src/kernel/plugins/boot.ts` loads each active plugin's Module
+  Federation bundle before the router is built, validates it and wraps every
+  contribution in an error boundary. The shared-library list is
+  `web/packages/plugin-sdk/shared.js`, read by both the host and the plugin preset.
+
 ## Components and data flow
 
 ```

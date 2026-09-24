@@ -22,7 +22,7 @@ class FeatureContractTest {
     }
 
     private static FeatureRegistry registry(MockEnvironment env, FeatureDescriptor... descriptors) {
-        return new FeatureRegistry(new InstalledFeatures(List.of(descriptors)), env);
+        return new FeatureRegistry(new InstalledFeatures(List.of(descriptors)), env, event -> {});
     }
 
     @Test

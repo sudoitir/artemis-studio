@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageVie
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -47,6 +48,20 @@ public class AuditQueryService {
                 PageRequest.of(p - 1, s));
         return new AuditPageView(
                 result.getContent().stream().map(AuditQueryService::toView).toList(), result.getTotalElements(), p, s);
+    }
+
+    /**
+     * The latest events about one Studio-wide target, newest first — a plugin's history. Not
+     * cluster-scoped, so the caller enforces who may read it.
+     */
+    @Transactional(readOnly = true)
+    public List<AuditEventView> forTarget(String targetType, String targetName, int limit) {
+        return events
+                .findByTargetTypeAndTargetNameOrderByTsDesc(
+                        targetType, targetName, PageRequest.of(0, Math.min(Math.max(limit, 1), 500)))
+                .stream()
+                .map(AuditQueryService::toView)
+                .toList();
     }
 
     private static String blankToNull(String v) {

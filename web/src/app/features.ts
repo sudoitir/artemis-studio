@@ -9,6 +9,7 @@ import { flowFeature } from '../features/flow/feature.ts';
 import { governanceFeature } from '../features/governance/feature.ts';
 import { identityLocalFeature } from '../features/identity-local/feature.ts';
 import { mcpFeature } from '../features/mcp/feature.ts';
+import { pluginsFeature } from '../features/plugins/feature.ts';
 import { messagesFeature } from '../features/messages/feature.ts';
 import { metricsFeature } from '../features/metrics/feature.ts';
 import { queuesFeature } from '../features/queues/feature.ts';
@@ -49,5 +50,6 @@ export const FEATURES: StudioFeature[] = [
   governanceFeature,
   identityLocalFeature,
   apitokensFeature,
+  pluginsFeature,
   mcpFeature,
 ];

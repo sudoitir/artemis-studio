@@ -35,6 +35,7 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
     private final SessionAuthentication sessions;
     private final AuthenticationAudit audit;
     private final OidcProperties properties;
+    private final OidcStepUp stepUps;
 
     @Override
     public void onAuthenticationSuccess(
@@ -51,7 +52,20 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
                 usernameFor(oidcUser),
                 oidcUser.getEmail(),
                 groups(oidcUser.getClaims().get(properties.oidcClaim())));
+        Optional<OidcStepUp.Pending> stepUp = stepUps.takePending(request);
         AuthenticationAudit.Attempt attempt = audit.loginAttempted(identity.username(), request);
+        if (stepUp.isPresent()) {
+            Optional<String> refused = OidcStepUp.verify(
+                    stepUp.get(), identity.providerId(), identity.subject(), oidcUser.getAuthenticatedAt());
+            if (refused.isPresent()) {
+                // Fail closed: the session now holds whoever just signed in, which is not the user
+                // who asked to confirm it is them, so it ends here.
+                attempt.failed("step-up refused: " + refused.get());
+                sessions.end(request, response);
+                response.sendRedirect("/login?error=stepup");
+                return;
+            }
+        }
         Optional<StudioPrincipal> principal = provisioner.provision(identity);
         if (principal.isEmpty()) {
             attempt.failed("no group mapping or default role");
@@ -60,7 +74,7 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
         }
         sessions.establish(principal.get(), request, response);
         attempt.succeeded();
-        response.sendRedirect("/");
+        response.sendRedirect(stepUp.map(OidcStepUp.Pending::returnTo).orElse("/"));
     }
 
     private static Set<String> groups(Object claim) {

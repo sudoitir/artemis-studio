@@ -18,7 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class ArtemisStudioApplicationTests {
 
     @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine");
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -14,6 +15,7 @@ import org.springframework.security.core.userdetails.User;
  * {@link Grant}s to check against. Built once per authentication, not once per
  * permission check.
  */
+@PluginApi
 public class StudioPrincipal extends User {
 
     private final UUID userId;

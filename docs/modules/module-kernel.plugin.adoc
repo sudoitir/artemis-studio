@@ -3,5 +3,28 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.plugin`
 |Spring components
-|* `i.g.s.a.k.p.FeatureRegistry`
+|_Services_
+
+* `i.g.s.a.k.p.PluginInstallers`
+
+_Event listeners_
+
+* `i.g.s.a.k.p.internal.host.PluginHost`
+* `i.g.s.a.k.p.PluginBridge` (via `i.g.s.a.k.p.internal.runtime.CoreEventPluginBridge`)
+
+_Configuration properties_
+
+* `i.g.s.a.k.p.PluginProperties`
+
+_Others_
+
+* `i.g.s.a.k.p.PluginBridge` (via `i.g.s.a.k.p.FeatureRegistry`)
+* `i.g.s.a.k.p.StudioVersion`
+* `i.g.s.a.k.p.internal.descriptor.PluginDescriptorParser`
+* `i.g.s.a.k.p.internal.host.StudioRestart`
+* `i.g.s.a.k.p.PluginRuntimeStatus` (via `i.g.s.a.k.p.internal.runtime.PluginRuntimeStatusImpl`)
+* `i.g.s.a.k.p.internal.validation.PluginValidator`
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `org.springframework.context.ApplicationEvent` 
 |===

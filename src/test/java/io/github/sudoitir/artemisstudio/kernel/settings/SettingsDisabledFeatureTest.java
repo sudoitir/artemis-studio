@@ -48,7 +48,8 @@ class SettingsDisabledFeatureTest {
                                 .kind(Kind.FEATURE)
                                 .settingKey(RR_KEY)
                                 .build())),
-                env);
+                env,
+                event -> {});
         return new SettingsService(
                 repo,
                 audit,

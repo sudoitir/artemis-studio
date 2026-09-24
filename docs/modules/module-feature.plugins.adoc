@@ -1,0 +1,24 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.feature.plugins`
+|Spring components
+|_Services_
+
+* `i.g.s.a.f.p.PluginAdministration`
+
+_Others_
+
+* `i.g.s.a.f.p.PluginsFeature`
+* `i.g.s.a.f.p.UpdateChecker`
+|Bean references
+|* `i.g.s.a.k.p.internal.host.PluginHost` (in Plugin contract)
+* `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)
+* `i.g.s.a.k.p.PluginProperties` (in Plugin contract)
+* `i.g.s.a.k.s.SessionAuthentication` (in Security)
+* `i.g.s.a.k.s.UserAccounts` (in Security)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.p.internal.host.StudioRestart` (in Plugin contract)
+* `i.g.s.a.k.a.AuditQueryService` (in Audit log)
+|===

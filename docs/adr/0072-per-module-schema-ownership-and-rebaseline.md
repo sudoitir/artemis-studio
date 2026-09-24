@@ -1,6 +1,6 @@
 # ADR-0072: Each module owns its tables; the schema history is re-baselined once, per module
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0101](0101-each-plugin-owns-a-schema-pool-and-entity-manager.md) (plugins own a schema, not tables in `public`)
 - **Date**: 2026-09-13
 - **Deciders**: Mahdi Amirabdollahi
 - **Supersedes**: the history-continuity part of [ADR-0008](0008-schema-migrations-liquibase.md) (Liquibase, XML master and SQL changesets remain)

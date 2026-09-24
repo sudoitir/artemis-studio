@@ -31,7 +31,7 @@ export const alertingFeature = defineFeature({
     'shell.header': [{ id: 'alerting-firing-total', order: 10, Component: FiringTotal }],
     'topology.node.marks': [{ id: 'alerting-firing', order: 10, Component: FiringNodeMark }],
     'settings.sections': [
-      { id: 'alerting-channels', order: 70, title: 'Notification channels', Component: ChannelsSection },
+      { id: 'alerting-channels', order: 70, group: 'studio', title: 'Notification channels', Component: ChannelsSection },
     ],
   },
   streamTopics: {

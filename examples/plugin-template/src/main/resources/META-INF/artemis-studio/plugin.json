@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "acme-notes",
+  "name": "acme-notes",
+  "title": "Notes",
+  "version": "${project.version}",
+  "vendor": { "name": "Acme", "url": "https://acme.example" },
+  "description": "Notes on queues, shared with everyone who operates the cluster.",
+  "license": "Apache-2.0",
+  "changeNotes": "First release.",
+  "basePackage": "com.acme.notes",
+  "configuration": "com.acme.notes.NotesConfiguration",
+  "contract": ${studio.contract},
+  "studio": { "since": "${studio.since}" },
+  "ui": true,
+  "activation": "AUTO",
+  "permissions": [
+    { "action": "acme-notes:read", "description": "Read notes" },
+    { "action": "acme-notes:write", "description": "Write and delete notes" }
+  ],
+  "settingKeys": ["acme-notes.max-length"],
+  "streamTopics": ["acme-notes"],
+  "mcpTools": [
+    { "name": "acme_notes_list", "posture": "read", "description": "Lists the notes on a queue." }
+  ]
+}

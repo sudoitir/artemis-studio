@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+
 /**
  * Who is performing a mutating action (ADR-0041, superseding ADR-0023).
  * {@code username} is the authenticated principal's username or the literal
@@ -7,6 +9,7 @@ package io.github.sudoitir.artemisstudio.kernel.security;
  * authenticated, else {@code null}. Scheduler-originated actions use
  * {@link #system()}.
  */
+@PluginApi
 public record Actor(String username, String sourceIp, String requestId, java.util.UUID userId, String tokenName) {
 
     public static final String ANONYMOUS = "anonymous";

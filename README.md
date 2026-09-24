@@ -93,6 +93,11 @@ safe message operations, and SQL over your messages — all from a single instan
   that records every change and its outcome.
 - **[MCP server](https://sudoitir.github.io/artemis-studio/guide/mcp)** — the same
   capabilities for an AI assistant, under the same grants and the same audit trail.
+- **[Plugins](https://sudoitir.github.io/artemis-studio/guide/plugins)** — install a
+  plugin's `.jar` from the UI: screens, API, assistant tools and data of its own, with
+  everything it can do shown before you confirm, and no restart unless it needs one.
+  Updates show what changes and roll back; a failing plugin never stops Studio. Start
+  a plugin from [the template](examples/plugin-template).
 
 ## Why
 

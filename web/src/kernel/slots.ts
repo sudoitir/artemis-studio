@@ -61,6 +61,20 @@ export interface SlotProps {
 
 export type SlotName = keyof SlotProps;
 
+/**
+ * The closed, ordered headings a Settings page groups its tabs under, in the order an operator's
+ * reach widens: their own preferences, then what is shared across Studio, then this cluster, then
+ * what plugins added. Adding one is a kernel change, like a navigation group (ADR-0070).
+ */
+export const SETTINGS_GROUPS = [
+  { id: 'personal', label: 'Yours' },
+  { id: 'studio', label: 'Studio' },
+  { id: 'cluster', label: 'This cluster' },
+  { id: 'plugins', label: 'Plugins' },
+] as const;
+
+export type SettingsGroupId = (typeof SETTINGS_GROUPS)[number]['id'];
+
 export interface SlotContribution<P> {
   /** Unique within the slot. */
   id: string;
@@ -68,6 +82,8 @@ export interface SlotContribution<P> {
   order: number;
   /** The heading or tab label, in the slots that show one. */
   title?: string;
+  /** `settings.sections` only: the heading its tab sits under. Without one it is listed under Plugins. */
+  group?: SettingsGroupId;
   Component: ComponentType<P>;
 }
 

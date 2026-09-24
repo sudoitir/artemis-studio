@@ -35,11 +35,21 @@ export const FEATURE_IDS = [
   'bulk',
   'transfer',
   'apitokens',
+  'plugins',
   'identity-local',
   'identity-oidc',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
+
+/**
+ * An installed plugin's id, as its `plugin.json` declares it: lowercase kebab-case, vendor first,
+ * at least two segments (ADR-0099). A plugin's routes, slot ids and topics are all namespaced by it.
+ */
+export type PluginId = `${string}-${string}`;
+
+/** A built-in module or an installed plugin — whatever the manifest lists. */
+export type ModuleId = FeatureId | PluginId;
 
 /**
  * The routes a feature adds, each created with a kernel root from `routing/roots.ts` as its parent. The
@@ -92,7 +102,8 @@ export type TopicHandler = (frame: {
 /** What a frontend feature contributes to the shell (ADR-0070). */
 export interface StudioFeature {
   contract: typeof CONTRACT;
-  id: FeatureId;
+  /** A built-in's module id, or a plugin's id (a plugin is loaded from its own bundle at startup). */
+  id: ModuleId;
   routes?: RouteContributions;
   nav?: NavContribution[];
   palette?: PaletteSource;

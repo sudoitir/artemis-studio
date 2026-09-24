@@ -1,0 +1,19 @@
+.list {
+  min-inline-size: 13rem;
+  padding-inline-end: var(--mantine-spacing-md);
+}
+
+/* A group heading, not a tab: quiet, and spaced from the group above it. */
+.group {
+  padding-inline-start: var(--mantine-spacing-sm);
+  padding-block: var(--mantine-spacing-md) var(--mantine-spacing-xs);
+}
+
+.group:first-child {
+  padding-block-start: 0;
+}
+
+.panel {
+  padding-inline-start: var(--mantine-spacing-lg);
+  max-inline-size: 45rem;
+}

@@ -20,6 +20,8 @@ _Others_
 * `i.g.s.a.k.s.SessionAuthentication`
 * `i.g.s.a.k.s.UserAccounts`
 |Bean references
-|* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+|* `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)
+* `i.g.s.a.k.p.PluginProperties` (in Plugin contract)
+* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.p.IdentityProviderListing` (in Plugin contract)
 |===

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
@@ -24,10 +25,17 @@ public class UserAccounts {
     private final AppUserRepository users;
     private final RoleRepository roles;
     private final UserRoleRepository userRoles;
+    private final PluginInstallers installers;
 
     /** A user as sign-in needs it. {@code passwordHash} is {@code null} for a user an external provider created. */
     public record Account(
-            UUID id, String username, String passwordHash, boolean disabled, boolean mustChangePassword) {}
+            UUID id,
+            String username,
+            String passwordHash,
+            boolean disabled,
+            boolean mustChangePassword,
+            String providerId,
+            String externalSubject) {}
 
     @Transactional(readOnly = true)
     public Optional<Account> byUsername(String username) {
@@ -66,10 +74,13 @@ public class UserAccounts {
         }
         AppUserEntity admin = AppUserEntity.local(username, null, passwordHash);
         admin.setMustChangePassword(true);
-        admin = users.save(admin);
+        // Flushed now: plugin_installer below references the row through a plain SQL foreign key.
+        admin = users.saveAndFlush(admin);
         RoleEntity role = roles.findByName("ADMIN")
                 .orElseThrow(() -> new IllegalStateException("the built-in ADMIN role is missing"));
         userRoles.save(new UserRoleEntity(admin.getId(), role.getId(), "GLOBAL", ScopeIds.GLOBAL));
+        // The person who set Studio up can install plugins (ADR-0103); nobody else can until they say so.
+        installers.grant(admin.getId(), "bootstrap");
         return true;
     }
 
@@ -79,6 +90,8 @@ public class UserAccounts {
                 user.getUsername(),
                 user.getPasswordHash(),
                 user.isDisabled(),
-                user.isMustChangePassword());
+                user.isMustChangePassword(),
+                user.getProviderId(),
+                user.getExternalSubject());
     }
 }

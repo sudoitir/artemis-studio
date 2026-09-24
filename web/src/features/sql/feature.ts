@@ -42,6 +42,6 @@ export const sqlFeature = defineFeature({
     { group: 'messaging', order: 30, label: 'SQL Console', icon: IconTerminal2, path: 'sql', permission: 'message:read' },
   ],
   slots: {
-    'settings.sections': [{ id: 'sql-index', order: 60, title: 'Message index', Component: IndexSection }],
+    'settings.sections': [{ id: 'sql-index', order: 60, group: 'studio', title: 'Message index', Component: IndexSection }],
   },
 });

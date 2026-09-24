@@ -19,7 +19,13 @@ import { FEATURES } from './app/features.ts';
 import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
 import { theme } from './theme.ts';
+import { BootNotice } from './kernel/plugins/BootNotice.tsx';
 import { createAppRouter } from './app/router.ts';
+import { manifestKey } from './kernel/manifest.ts';
+import { boot } from './kernel/plugins/boot.ts';
+// A module is only in Module Federation's shared scope when the host bundle imports it; this is
+// what hands plugin bundles the running Studio's SDK instead of a copy of their own.
+import '@artemis-studio/plugin-sdk';
 
 /**
  * Shiki, loaded by dynamic `import()` so nothing but the adapter itself is in the
@@ -68,15 +74,22 @@ const queryClient = new QueryClient({
 // (`app/time.ts`); it never rejects, so nothing downstream has to handle it.
 startServerTimeSync();
 
-const router = createAppRouter(queryClient, FEATURES);
+// Plugins are loaded before the router exists, because their routes are part of it (ADR-0100).
+// Nothing here can keep Studio's own screens from loading: every step is bounded, and a failure
+// leaves the plugin out with its reason (kernel/plugins/boot.ts).
+const started = await boot();
+if (started.manifest) queryClient.setQueryData(manifestKey, started.manifest);
+const features = [...FEATURES, ...started.plugins];
+const router = createAppRouter(queryClient, features);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="dark">
       <CodeHighlightAdapterProvider adapter={shikiAdapter}>
         <Notifications position="top-right" />
+        <BootNotice />
         <QueryClientProvider client={queryClient}>
-          <FeatureProvider features={FEATURES}>
+          <FeatureProvider features={features}>
             <RouterProvider router={router} />
           </FeatureProvider>
         </QueryClientProvider>

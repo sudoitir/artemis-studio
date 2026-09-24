@@ -30,8 +30,17 @@ Studio is a modular monolith with the same module ids on both sides:
 `web/src/features/<id>/` with `feature.ts` (`defineFeature`: routes, nav, palette,
 topics, slots) and `api.ts`, listed in `web/src/app/features.ts`; its id added to
 `FEATURE_IDS`. Cross-feature needs are a slot or a named public export on an allowed
-edge, never a reach into another module's internals. The site guide "Build a plugin"
-walks one end to end.
+edge, never a reach into another module's internals.
+
+**Runtime plugins are a different thing** (ADR-0099..0104): a third party's jar, uploaded
+in Admin → Plugins and run in its own child context, class loader, schema and pool.
+Their host is `kernel.plugin.internal.{host,runtime,validation,store}`, their admin API
+`feature/plugins`, their UI loader `web/src/kernel/plugins/`, the SDK surface
+`web/src/sdk/` (published as `@artemis-studio/plugin-sdk` from `web/packages/plugin-sdk`),
+and the author's starting point `examples/plugin-template/`. Only `@PluginApi` types
+are the supported Java API. A class that JVM-wide caches may key by a plugin type gets
+an eviction in `PluginClassloaderCaches`; `PluginUnloadIT` fails with a heap dump when
+one is missing.
 
 ## Stack (fixed — changing any of these needs an ADR)
 

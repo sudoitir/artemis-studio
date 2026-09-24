@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { branding } from '../../branding.ts';
 import { ApiError } from '../api/request.ts';
 import { useAuthProviders, useLogin } from './api.ts';
+import { bootState } from '../plugins/boot.ts';
 
 /**
  * The login screen, built only from the installation's identity providers
@@ -33,7 +34,14 @@ export function LoginView() {
       { provider: chosen, username, password },
       {
         onSuccess: (me) => {
-          navigate({ to: me.mustChangePassword ? '/change-password' : '/' });
+          const to = me.mustChangePassword ? '/change-password' : '/';
+          // A page that started signed out loaded no plugins (it could not read the manifest), so it
+          // starts again, signed in; one that already has them just moves on.
+          if (bootState().manifest === undefined) {
+            window.location.replace(to);
+          } else {
+            navigate({ to });
+          }
         },
       },
     );

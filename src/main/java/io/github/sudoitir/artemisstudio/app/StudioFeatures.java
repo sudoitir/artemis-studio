@@ -20,6 +20,8 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessagesFeature;
 import io.github.sudoitir.artemisstudio.feature.messages.MessagesModule;
 import io.github.sudoitir.artemisstudio.feature.metrics.MetricsFeature;
 import io.github.sudoitir.artemisstudio.feature.metrics.MetricsModule;
+import io.github.sudoitir.artemisstudio.feature.plugins.PluginsFeature;
+import io.github.sudoitir.artemisstudio.feature.plugins.PluginsModule;
 import io.github.sudoitir.artemisstudio.feature.queues.QueuesFeature;
 import io.github.sudoitir.artemisstudio.feature.queues.QueuesModule;
 import io.github.sudoitir.artemisstudio.feature.resources.ResourcesFeature;
@@ -72,6 +74,7 @@ import org.springframework.context.annotation.Import;
     BulkFeature.class,
     TransferFeature.class,
     ApiTokensFeature.class,
+    PluginsFeature.class,
     IdentityLocalFeature.class,
     IdentityOidcFeature.class
 })
@@ -104,6 +107,7 @@ public class StudioFeatures {
                 BulkModule.DESCRIPTOR,
                 TransferModule.DESCRIPTOR,
                 ApiTokensModule.DESCRIPTOR,
+                PluginsModule.DESCRIPTOR,
                 IdentityLocalModule.DESCRIPTOR,
                 IdentityOidcModule.DESCRIPTOR);
     }

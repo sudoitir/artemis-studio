@@ -9,4 +9,7 @@ public interface ApiTokenGrantRepository extends JpaRepository<ApiTokenGrantEnti
     List<ApiTokenGrantEntity> findByIdTokenId(UUID tokenId);
 
     void deleteByIdScopeTypeAndIdScopeId(String scopeType, UUID scopeId);
+
+    /** Purge (design.md §4): every grant a plugin's permissions contributed, keyed by its {@code <id>:} prefix. */
+    void deleteByIdActionStartingWith(String actionPrefix);
 }

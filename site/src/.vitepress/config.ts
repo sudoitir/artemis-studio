@@ -77,7 +77,7 @@ export default defineConfig({
               { text: 'Data governance', link: '/guide/data-governance' },
               { text: 'Broker configuration', link: '/guide/broker-configuration' },
               { text: 'MCP server', link: '/guide/mcp' },
-              { text: 'Build a plugin', link: '/guide/plugins' },
+              { text: 'Plugins', link: '/guide/plugins' },
             ],
           },
           reference({

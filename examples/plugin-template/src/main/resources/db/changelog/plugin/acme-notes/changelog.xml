@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The plugin's database changes, applied to its own schema (plugin_acme_notes) when it is
+     activated. Never edit a released changeset: add a new file. Give every changeset a rollback,
+     or updates that apply it cannot be rolled back. -->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <include file="changes/0001-note.sql" relativeToChangelogFile="true"/>
+</databaseChangeLog>

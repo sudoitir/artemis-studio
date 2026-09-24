@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Scheduled jobs",
-        allowedDependencies = {"kernel.core", "kernel.security"})
+        allowedDependencies = {"kernel.core", "kernel.plugin", "kernel.security"})
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import org.springframework.modulith.ApplicationModule;

@@ -1,24 +1,42 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin;
 
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor.Kind;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorParser;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallEntity;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.ManifestController;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 /**
- * The manifest lists every built-in module with its enabled flag and attributes
- * the permission catalogue to enabled modules only. Authentication is enforced by
- * the filter chain and swept for every endpoint by {@code EndpointProtectionTest}.
+ * The manifest lists every built-in module with its enabled flag and attributes the permission
+ * catalogue to enabled modules and <em>active</em> plugins only, plus (task 6.9) each plugin's
+ * {@code origin}, {@code version}, {@code vendor}, {@code status} and, when it has a UI and is
+ * active, its {@code ui.entry} — and the top-level {@code safeMode} flag. Authentication is
+ * enforced by the filter chain and swept for every endpoint by {@code EndpointProtectionTest}.
  */
 class ManifestControllerTest {
+
+    private static final String DESCRIPTOR_JSON = """
+            {"schemaVersion":1,"id":"acme-notes","name":"acme-notes","version":"1.2.0",
+            "vendor":{"name":"Acme"},"basePackage":"com.acme.notes",
+            "configuration":"com.acme.notes.PluginConfig","contract":1,
+            "studio":{"since":"2026.01.0"},"ui":true,"activation":"AUTO","title":"Notes",
+            "permissions":[{"action":"acme-notes:write","description":"Write notes"}],
+            "streamTopics":["acme-notes"]}
+            """;
 
     @Test
     void listsEnabledAndDisabledFeaturesAndCataloguesOnlyEnabledPermissions() throws Exception {
@@ -38,17 +56,18 @@ class ManifestControllerTest {
                                 .kind(Kind.FEATURE)
                                 .permission(new PermissionDef("capture:write", "Turn capture on"))
                                 .build())),
-                env);
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(new ManifestController(
-                        registry, new StaticListableBeanFactory().getBeanProvider(IdentityProviderListing.class)))
-                .build();
+                env,
+                event -> {});
+        MockMvc mvc = mvc(registry, List.of(), false);
 
         mvc.perform(get("/api/v1/manifest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contract").value(1))
+                .andExpect(jsonPath("$.safeMode").value(false))
                 .andExpect(jsonPath("$.features.length()").value(2))
                 .andExpect(jsonPath("$.features[0].id").value("queues"))
                 .andExpect(jsonPath("$.features[0].enabled").value(true))
+                .andExpect(jsonPath("$.features[0].origin").value("BUILTIN"))
                 .andExpect(jsonPath("$.features[0].topics[0]").value("queues"))
                 .andExpect(jsonPath("$.features[1].id").value("sql"))
                 .andExpect(jsonPath("$.features[1].enabled").value(false))
@@ -58,5 +77,73 @@ class ManifestControllerTest {
                 .andExpect(jsonPath("$.permissionCatalogue[0].action").value("queue:create"))
                 .andExpect(jsonPath("$.permissionCatalogue[0].featureId").value("queues"))
                 .andExpect(jsonPath("$.identityProviders.length()").value(0));
+    }
+
+    @Test
+    void activePluginEntryCarriesVersionVendorStatusAndUiEntryAndItsPermissionsAreCatalogued() throws Exception {
+        var registry = new FeatureRegistry(new InstalledFeatures(List.of()), new MockEnvironment(), event -> {});
+        registry.addPlugin(new PluginDescriptorParser().parse(DESCRIPTOR_JSON.getBytes(StandardCharsets.UTF_8)));
+
+        PluginInstallEntity entity =
+                new PluginInstallEntity("acme-notes", "1.2.0", "Acme", "a".repeat(64), "root", DESCRIPTOR_JSON);
+        entity.transitionTo(PluginInstallStatus.ACTIVE);
+
+        MockMvc mvc = mvc(registry, List.of(entity), false);
+
+        mvc.perform(get("/api/v1/manifest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.features[0].id").value("acme-notes"))
+                .andExpect(jsonPath("$.features[0].origin").value("PLUGIN"))
+                .andExpect(jsonPath("$.features[0].version").value("1.2.0"))
+                .andExpect(jsonPath("$.features[0].vendor").value("Acme"))
+                .andExpect(jsonPath("$.features[0].status").value("active"))
+                .andExpect(jsonPath("$.features[0].enabled").value(true))
+                .andExpect(jsonPath("$.features[0].ui.entry")
+                        .value("/plugin-ui/acme-notes/" + "a".repeat(8) + "/remoteEntry.js"))
+                .andExpect(jsonPath("$.permissionCatalogue.length()").value(1))
+                .andExpect(jsonPath("$.permissionCatalogue[0].action").value("acme-notes:write"))
+                .andExpect(jsonPath("$.permissionCatalogue[0].featureId").value("acme-notes"));
+    }
+
+    @Test
+    void inactivePluginHasNoUiEntryAndNoCataloguedPermissions() throws Exception {
+        var registry = new FeatureRegistry(new InstalledFeatures(List.of()), new MockEnvironment(), event -> {});
+        // Not attached via registry.addPlugin: an inactive plugin never has a FeatureRegistry entry.
+        PluginInstallEntity entity =
+                new PluginInstallEntity("acme-notes", "1.2.0", "Acme", "a".repeat(64), "root", DESCRIPTOR_JSON);
+        entity.fail("boom");
+
+        MockMvc mvc = mvc(registry, List.of(entity), false);
+
+        mvc.perform(get("/api/v1/manifest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.features[0].status").value("failed"))
+                .andExpect(jsonPath("$.features[0].enabled").value(false))
+                .andExpect(jsonPath("$.features[0].ui").doesNotExist())
+                .andExpect(jsonPath("$.permissionCatalogue.length()").value(0));
+    }
+
+    @Test
+    void safeModeFlagReflectsTheHost() throws Exception {
+        var registry = new FeatureRegistry(new InstalledFeatures(List.of()), new MockEnvironment(), event -> {});
+        MockMvc mvc = mvc(registry, List.of(), true);
+
+        mvc.perform(get("/api/v1/manifest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.safeMode").value(true));
+    }
+
+    private static MockMvc mvc(FeatureRegistry registry, List<PluginInstallEntity> plugins, boolean safeMode) {
+        PluginInstallRepository installs = Mockito.mock(PluginInstallRepository.class);
+        when(installs.findAll()).thenReturn(plugins);
+        PluginHost host = Mockito.mock(PluginHost.class);
+        when(host.safeMode()).thenReturn(safeMode);
+        return MockMvcBuilders.standaloneSetup(new ManifestController(
+                        registry,
+                        installs,
+                        new PluginDescriptorParser(),
+                        host,
+                        new StaticListableBeanFactory().getBeanProvider(IdentityProviderListing.class)))
+                .build();
     }
 }

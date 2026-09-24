@@ -1,0 +1,53 @@
+.warning {
+  color: var(--as-warning);
+}
+
+.danger {
+  color: var(--as-danger);
+}
+
+.notes {
+  white-space: pre-wrap;
+  border-inline-start: 2px solid var(--as-border);
+  padding-inline-start: var(--mantine-spacing-sm);
+}
+
+.drop {
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--as-text-dimmed);
+  border-radius: var(--mantine-radius-md);
+  background: color-mix(in srgb, var(--as-surface) 88%, transparent);
+  pointer-events: none;
+}
+
+.monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px solid var(--as-border);
+  font-size: 11px;
+  font-weight: 600;
+  flex: none;
+}
+
+.icon {
+  inline-size: 24px;
+  block-size: 24px;
+  flex: none;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}

@@ -17,7 +17,7 @@ const featureEdges = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'packages/*/dist'] },
   {
     files: ['src/**/*.{ts,tsx}'],
     plugins: { boundaries },
@@ -26,6 +26,8 @@ export default tseslint.config(
         { type: 'kernel', pattern: 'src/kernel' },
         { type: 'ui', pattern: 'src/ui' },
         { type: 'app', pattern: 'src/app' },
+        // The plugin SDK (ADR-0100): a curated re-export of kernel and ui for plugin bundles.
+        { type: 'sdk', pattern: 'src/sdk' },
         { type: 'test', pattern: 'src/test' },
         { type: 'feature', pattern: 'src/features/*', capture: ['id'] },
       ],
@@ -50,6 +52,7 @@ export default tseslint.config(
               allow: { to: [{ element: { type: 'ui' } }, { element: { type: 'kernel' }, file: { categories: 'schema' } }] },
             },
             { from: { element: { type: 'kernel' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
+            { from: { element: { type: 'sdk' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
             { from: { element: { type: ['app', 'test'] } }, allow: { to: { element: { type: '*' } } } },
             {
               from: { element: { type: 'feature' } },

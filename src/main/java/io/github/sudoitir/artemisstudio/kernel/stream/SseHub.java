@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * fan-out is post-MVP (matches {@code docs/architecture.md}).
  */
 @Component
+@PluginApi
 @Slf4j
 public class SseHub {
 

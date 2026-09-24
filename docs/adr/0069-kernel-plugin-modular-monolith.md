@@ -1,6 +1,6 @@
 # ADR-0069: Studio is a kernel + plugin modular monolith, composed at build time and verified by Spring Modulith
 
-- **Status**: accepted
+- **Status**: accepted; superseded in part by [ADR-0099](0099-runtime-plugins-are-child-contexts-installed-from-the-ui.md) (runtime plugins; built-ins stay composed at build time)
 - **Date**: 2026-09-13
 - **Deciders**: Mahdi Amirabdollahi
 - **Change**: `openspec/changes/kernel-plugin-architecture`

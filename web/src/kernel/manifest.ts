@@ -2,7 +2,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import { request, type ApiError } from './api/request.ts';
 import type { components } from './api/schema.d.ts';
-import type { FeatureId, StudioFeature } from './feature.ts';
+import type { ModuleId, StudioFeature } from './feature.ts';
 
 export type ManifestView = components['schemas']['ManifestView'];
 export type ManifestFeatureView = components['schemas']['ManifestFeatureView'];
@@ -11,8 +11,9 @@ export const manifestKey = ['manifest'] as const;
 
 /**
  * What this installation offers (feature-modules spec). It describes and never authorizes: every
- * endpoint enforces its permission whatever a screen derived from this. It changes only on a
- * restart, so it is read once per page load.
+ * endpoint enforces its permission whatever a screen derived from this. Read once per page load:
+ * plugin bundles are loaded before the router exists, so a plugin change needs a reload anyway,
+ * and `usePluginsChanged` offers one when the server's `version` moves on.
  */
 export function useManifest(): UseQueryResult<ManifestView, ApiError> {
   return useQuery({
@@ -23,7 +24,7 @@ export function useManifest(): UseQueryResult<ManifestView, ApiError> {
 }
 
 /** The manifest's entry for a module; undefined until the manifest has loaded. */
-export function useManifestFeature(id: FeatureId): ManifestFeatureView | undefined {
+export function useManifestFeature(id: ModuleId): ManifestFeatureView | undefined {
   return useManifest().data?.features.find((feature) => feature.id === id);
 }
 

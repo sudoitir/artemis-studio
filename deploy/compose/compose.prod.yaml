@@ -16,7 +16,7 @@ name: artemis-studio
 
 services:
   postgres:
-    image: postgres:17
+    image: postgres:18
     environment:
       POSTGRES_DB: ${DB_NAME:?}
       POSTGRES_USER: ${DB_USER:?}
@@ -45,7 +45,7 @@ services:
       - -c
       - random_page_cost=1.1
       - -c
-      - effective_io_concurrency=200
+      - effective_io_concurrency=64
       - -c
       - default_statistics_target=200
       - -c
@@ -61,7 +61,7 @@ services:
       - -c
       - timezone=UTC
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
@@ -89,7 +89,12 @@ services:
       # The broker role Studio's own broker user holds. Required for message capture only:
       # capture queues are restricted to it, and capture is refused until it is set.
       ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
-      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50}
+      # A plugin that needs a restart restarts Studio itself; `restart: unless-stopped` below
+      # is what starts it again. Remove both together, never one (ADR-0104).
+      ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+      # Metaspace is bounded so a plugin that does not unload cleanly fails loudly rather than
+      # growing without limit; a restart frees it.
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=256m}
     ports:
       - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
     depends_on:

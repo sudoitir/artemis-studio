@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,6 +9,7 @@ import java.util.UUID;
  * (ADR-0027). Implemented by the module that owns the topic; the stream controller
  * sends the replay before live delivery resumes.
  */
+@PluginApi
 public interface EventReplay {
 
     /** The topic this replay serves. */
