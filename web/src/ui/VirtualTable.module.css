@@ -12,6 +12,12 @@
   border-radius: var(--mantine-radius-md);
 }
 
+.scroll[data-compact] {
+  block-size: auto;
+  min-block-size: 0;
+  max-block-size: 320px;
+}
+
 /* One track list, declared once as `--as-cols` and consumed by the header row
    and every body row. Both are grid containers over the same tracks, so the
    columns line up by construction — there is no second layout pass to drift

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   Controls,
@@ -10,15 +10,19 @@ import {
   useStore,
   useStoreApi,
 } from '@xyflow/react';
-import { Alert, Loader } from '@mantine/core';
+import { Alert, Loader, Text } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
 
+import { AnchoredMenu } from '../../ui/AnchoredMenu.tsx';
+import type { MenuAnchor } from '../../ui/menuAnchor.ts';
 import type { FlowGraphView } from './api.ts';
 import { FlowCanvasContext, type FlowCanvasState } from './canvasContext.ts';
 import { allocateDots } from './edgeEncoding.ts';
 import { FlowEdge } from './FlowEdge.tsx';
 import { DENSE_NODES, layoutSignature, pathThrough, toReactFlow } from './flowLayout.ts';
 import { FlowLegend } from './FlowLegend.tsx';
+import { hasActions } from './flowSearch.ts';
+import { FlowNodeActions } from './rowActions.tsx';
 import { AddressNode, ClientNode, LaneNode, QueueNode, RemoteNode } from './FlowNodes.tsx';
 import { useFlowLayout } from './useFlowLayout.ts';
 import classes from './FlowCanvas.module.css';
@@ -132,11 +136,13 @@ function RefitOnLayout({ signature }: { signature: string | null }) {
  * focused or selected emphasised.
  */
 export function FlowCanvas({
+  clusterId,
   graph,
   selectedId,
   onSelect,
   paused,
 }: {
+  clusterId: string;
   graph: FlowGraphView;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -148,6 +154,11 @@ export function FlowCanvas({
   const [hovered, setHovered] = useState<string | null>(null);
   const [showText, setShowText] = useState(true);
   const [visible, setVisible] = useState(true);
+  const [menu, setMenu] = useState<{ id: string; anchor: MenuAnchor; opener: HTMLElement } | null>(null);
+  const openMenu = useCallback((id: string, anchor: MenuAnchor, opener: HTMLElement) => {
+    setMenu({ id, anchor, opener });
+  }, []);
+  const menuNode = menu ? (graph.nodes ?? []).find((n) => n.id === menu.id) : undefined;
 
   useEffect(() => {
     let onScreen = true;
@@ -197,8 +208,8 @@ export function FlowCanvas({
   }, [motion, model]);
 
   const context = useMemo<FlowCanvasState>(
-    () => ({ select: onSelect, emphasize: setHovered, showText, motion }),
-    [onSelect, showText, motion],
+    () => ({ select: onSelect, openMenu, emphasize: setHovered, showText, motion }),
+    [onSelect, openMenu, showText, motion],
   );
   const dense = model.nodes.length > DENSE_NODES;
   const laidOut = Object.keys(layout.positions).length > 0;
@@ -238,6 +249,8 @@ export function FlowCanvas({
               elementsSelectable={false}
               onlyRenderVisibleElements={dense}
               onPaneClick={() => onSelect(null)}
+              // The menu is anchored to a point on screen; panning moves the node away from it.
+              onMoveStart={() => setMenu(null)}
               proOptions={{ hideAttribution: true }}
             >
               <Background gap={24} />
@@ -250,6 +263,30 @@ export function FlowCanvas({
         </FlowCanvasContext.Provider>
       </div>
       <FlowLegend motion={motion} />
+      <AnchoredMenu
+        opened={menu !== null}
+        anchor={menu?.anchor ?? null}
+        label={`Actions for ${menuNode?.label ?? 'node'}`}
+        onClose={() => {
+          const opener = menu?.opener;
+          setMenu(null);
+          if (opener?.isConnected) opener.focus();
+        }}
+      >
+        {menuNode && hasActions(menuNode) ? (
+          <FlowNodeActions
+            clusterId={clusterId}
+            node={menuNode}
+            restoreFocus={() => {
+              if (menu?.opener.isConnected) menu.opener.focus();
+            }}
+          />
+        ) : (
+          <Text size="sm" c="dimmed" px="sm" py={6}>
+            Nothing to open for this node.
+          </Text>
+        )}
+      </AnchoredMenu>
     </div>
   );
 }

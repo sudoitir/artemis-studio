@@ -132,6 +132,8 @@ interface VirtualTableProps<T> {
   onAtTopChange?: (atTop: boolean) => void;
   /** A per-row action menu, opened by right-click, by the row's Actions control, or by Shift+F10. */
   rowMenu?: RowMenu<T>;
+  /** Sized to its rows, up to a short cap, instead of to the viewport: a handful of rows in a pane. */
+  compact?: boolean;
 }
 
 /**
@@ -172,6 +174,7 @@ export function VirtualTable<T>({
   onToggleAll,
   onAtTopChange,
   rowMenu,
+  compact,
 }: VirtualTableProps<T>) {
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
@@ -552,6 +555,7 @@ export function VirtualTable<T>({
     <div
       ref={scrollRef}
       className={styles.scroll}
+      data-compact={compact || undefined}
       onScroll={(e) => {
         if (reveal && performance.now() > quietScrollUntil.current) setReveal(null);
         if (menu) closeMenu(false);

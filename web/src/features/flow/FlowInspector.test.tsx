@@ -69,7 +69,7 @@ describe('FlowInspector', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('focuses the view and opens the existing screen without mutating anything', async () => {
+  it('focuses the view and opens the exact queue without mutating anything', async () => {
     const onFocus = vi.fn();
     renderWithProviders(
       <FlowInspector graph={graph} nodeId="queue:ORDERS.inbound" clusterId="c1" onClose={() => {}} onFocus={onFocus} />,
@@ -82,7 +82,7 @@ describe('FlowInspector', () => {
     expect(navigate).toHaveBeenCalledWith({
       to: '/clusters/$clusterId/queues',
       params: { clusterId: 'c1' },
-      search: { q: 'ORDERS.inbound' },
+      search: { queue: 'ORDERS.inbound' },
     });
   });
 });

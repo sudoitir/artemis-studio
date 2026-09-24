@@ -15,6 +15,7 @@ import type {
   SessionTarget,
 } from './actions/types.ts';
 import { useFeatures } from './features.ts';
+import type { MetricRange } from './time/ranges.ts';
 
 /** Queues picked by name, or every queue matching the queues screen's filter (`q`, blank for all). */
 export type QueueSelection = { kind: 'names'; names: string[] } | { kind: 'filter'; q: string; total: number };
@@ -61,6 +62,8 @@ export interface SlotProps {
   };
   /** At the foot of a cluster's metrics view. */
   'metrics.panels': { clusterId: string };
+  /** In the flow view's monitoring pane, when a queue is selected: its history over `range`, per node. */
+  'flow.selection.panels': { clusterId: string; queueName: string; range: MetricRange };
   /** Inside a box on the topology graph, after its name. `nodeIds` are the broker endpoints the box stands for. */
   'topology.node.marks': { clusterId: string; nodeIds: string[] };
   /** A section of a cluster's Settings page, under the contribution's title. */

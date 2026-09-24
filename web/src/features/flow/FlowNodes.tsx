@@ -5,6 +5,7 @@ import type { FlowNodeView } from './api.ts';
 import { FlowCanvasContext } from './canvasContext.ts';
 import { FAULT_LABELS, formatCount } from './flowFormat.ts';
 import type { FlowNodeData, LaneData } from './flowLayout.ts';
+import { anchorBelow, clampToViewport } from '../../ui/menuAnchor.ts';
 import classes from './FlowCanvas.module.css';
 
 const KIND_WORD: Record<string, string> = {
@@ -50,7 +51,7 @@ function Frame({
   outbound: boolean;
   children: ReactNode;
 }) {
-  const { select, emphasize } = useContext(FlowCanvasContext);
+  const { select, emphasize, openMenu } = useContext(FlowCanvasContext);
   const faults = faultWords(data.view);
   return (
     <div
@@ -62,10 +63,17 @@ function Frame({
       tabIndex={0}
       aria-label={nodeSentence(data.view)}
       onClick={() => select(id)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        openMenu(id, clampToViewport({ x: event.clientX, y: event.clientY }), event.currentTarget);
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           select(id);
+        } else if ((event.key === 'F10' && event.shiftKey) || event.key === 'ContextMenu') {
+          event.preventDefault();
+          openMenu(id, anchorBelow(event.currentTarget), event.currentTarget);
         }
       }}
       onMouseEnter={() => emphasize(id)}

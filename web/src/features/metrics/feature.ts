@@ -4,6 +4,7 @@ import { createRoute } from '@tanstack/react-router';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { MetricsView } from './MetricsView.tsx';
+import { NodeSplitPanels } from './NodeSplitPanels.tsx';
 import { QueueHistoryPanels } from './QueueHistoryPanels.tsx';
 import { METRIC_RANGES, type MetricRange } from './ranges.ts';
 import { OpenQueueHistory } from './rowActions.tsx';
@@ -14,6 +15,8 @@ export interface MetricsSearch {
   to?: string;
   /** Queue name to scope the series to; absent means cluster-wide. */
   subject?: string;
+  /** `node`: a queue's series also broken down per broker node. Ignored without a queue. */
+  split?: 'node';
 }
 
 function validateMetricsSearch(raw: Record<string, unknown>): MetricsSearch {
@@ -21,6 +24,7 @@ function validateMetricsSearch(raw: Record<string, unknown>): MetricsSearch {
   // The scope survives a range change and an absolute window alike, so it is read
   // before either branch returns.
   if (typeof raw.subject === 'string' && raw.subject) out.subject = raw.subject;
+  if (raw.split === 'node') out.split = 'node';
   if (typeof raw.from === 'string' && raw.from && typeof raw.to === 'string' && raw.to) {
     out.from = raw.from;
     out.to = raw.to;
@@ -50,5 +54,6 @@ export const metricsFeature = defineFeature({
   slots: {
     'queue.actions': [{ id: 'metrics.history', order: 30, section: 'open', Component: OpenQueueHistory }],
     'queue.detail.panels': [{ id: 'metrics-queue-history', order: 10, Component: QueueHistoryPanels }],
+    'flow.selection.panels': [{ id: 'metrics.node-split', order: 10, Component: NodeSplitPanels }],
   },
 });

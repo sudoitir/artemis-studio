@@ -49,13 +49,13 @@
 
 ## 8. Flow split
 
-- [ ] 8.1 `flowSearch`: `tab=split`, `node`, `range`; selection from the URL
-- [ ] 8.2 `Splitter` layout, persisted sizes, collapsible pane
-- [ ] 8.3 `FlowMonitorPane` + `imbalance.ts` (table-driven tests)
-- [ ] 8.4 `flow.selection.panels` slot + `metrics/NodeSplitPanels`; ranges moved to kernel
-- [ ] 8.5 Navigate-mode menus on graph nodes and table rows
-- [ ] 8.6 Metrics view split toggle
-- [ ] 8.7 Tests
+- [x] 8.1 `flowSearch`: `tab=split`, `node`, `range`; selection from the URL
+- [x] 8.2 `Splitter` layout, persisted sizes, collapsible pane
+- [x] 8.3 `FlowMonitorPane` + `imbalance.ts` (table-driven tests)
+- [x] 8.4 `flow.selection.panels` slot + `metrics/NodeSplitPanels`; ranges moved to kernel
+- [x] 8.5 Navigate-mode menus on graph nodes and table rows
+- [x] 8.6 Metrics view split toggle
+- [x] 8.7 Tests
 
 ## 9. Verification and docs
 
@@ -65,11 +65,8 @@
 
 ## Notes for whoever continues
 
-- Done and pushed: sections 1–7 (the roving grid, row menus on every resource grid, cross-links,
-  navigation, shortcuts, and the per-node backend for metrics and flow).
-- Still in the Flow row menus (task 8.5): FlowTable rows and graph nodes should render
-  `ResourceActions` with `mode="navigate"` (kinds `queue`, `address`, `client`). No `client.actions`
-  contribution exists yet; flow should contribute "Focus the view on this" and "Open its connections".
+- Done and pushed: sections 1–8 (the roving grid, row menus on every resource grid, cross-links,
+  navigation, shortcuts, the per-node backend for metrics and flow, and the Flow Split layout).
 - Frontend types for the breakdown are in `schema.d.ts`: `FlowNodeShare`, `FlowNodeRate`,
   `FlowBrokerNodeView.backlog|consumers|inRate|outRate`, and `MetricNodeSeries` / `MetricSeriesResponse.byNode`.
 - Imbalance thresholds live in design.md D11.

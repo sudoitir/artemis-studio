@@ -1,0 +1,17 @@
+/* Small multiples: as many per row as fit, each at least wide enough to read its time axis. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--mantine-spacing-md);
+}
+
+.node {
+  display: grid;
+  gap: var(--mantine-spacing-xs);
+  padding-block-start: var(--mantine-spacing-xs);
+  border-block-start: 1px solid var(--as-border);
+}
+
+.figures {
+  font-variant-numeric: tabular-nums;
+}
