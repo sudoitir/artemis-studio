@@ -1,0 +1,16 @@
+{
+  "name": "@artemis-studio/plugin-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Build the UI of an Artemis Studio plugin: typings for the Studio APIs a plugin may use, and a Vite preset.",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/sudoitir/artemis-studio.git", "directory": "web/packages/plugin-sdk" },
+  "homepage": "https://sudoitir.github.io/artemis-studio/guide/plugins",
+  "type": "module",
+  "exports": {
+    ".": { "types": "./types/sdk/index.d.ts", "default": "./index.js" },
+    "./vite": { "types": "./vite.d.ts", "default": "./vite.js" }
+  },
+  "files": ["index.js", "shared.js", "shared.d.ts", "vite.js", "vite.d.ts", "peers.json", "types", "README.md"],
+  "sideEffects": false
+}

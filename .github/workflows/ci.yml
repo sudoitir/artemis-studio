@@ -34,6 +34,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       web: ${{ steps.filter.outputs.web }}
       image: ${{ steps.filter.outputs.image }}
+      plugin: ${{ steps.filter.outputs.plugin }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -52,6 +53,11 @@ jobs:
             web:
               - *ci
               - 'web/**'
+            # The plugin template and the SDK package: built and run against Studio (ADR-0102).
+            plugin:
+              - *ci
+              - 'examples/plugin-template/**'
+              - 'web/packages/**'
             image:
               - *ci
               - 'src/**'
@@ -103,6 +109,83 @@ jobs:
       - run: npm run lint
       - run: npm test
 
+  # The plugin kit, end to end (ADR-0102): build the template plugin against this Studio's API
+  # jar and SDK, check it exactly as an upload would, then install, use, update, roll back and
+  # remove it through a running Studio's API and UI.
+  plugin-template:
+    needs: changes
+    if: >-
+      needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
+      || needs.changes.outputs.plugin == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: artemis_studio
+          POSTGRES_USER: artemis_studio
+          POSTGRES_PASSWORD: artemis_studio
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U artemis_studio" --health-interval 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build Studio (runnable jar with its UI; API jar into the local repository)
+        run: ./mvnw -B -Pfrontend -DskipTests install
+
+      - name: Pack the plugin SDK from this build
+        working-directory: web
+        run: |
+          node packages/plugin-sdk/build.mjs 2026.01.0
+          (cd packages/plugin-sdk/dist && npm pack)
+
+      - name: Build the template as 1.0.0 and 1.0.1, each checked as Studio will check it
+        run: |
+          set -euo pipefail
+          SDK=$(ls "$GITHUB_WORKSPACE"/web/packages/plugin-sdk/dist/*.tgz)
+          for V in 1.0.0 1.0.1; do
+            rm -rf "$RUNNER_TEMP/tpl" && cp -r examples/plugin-template "$RUNNER_TEMP/tpl"
+            sed -i "0,/<version>1.0.0<\/version>/s//<version>$V<\/version>/" "$RUNNER_TEMP/tpl/pom.xml"
+            ./mvnw -B -f "$RUNNER_TEMP/tpl/pom.xml" verify \
+              -Dstudio.version=0.1.0-SNAPSHOT -Dstudio.since=2026.01.0 -Dstudio.sdk="$SDK"
+            cp "$RUNNER_TEMP/tpl/target/acme-notes-$V.jar" "$RUNNER_TEMP/"
+          done
+
+      - name: Start Studio
+        run: |
+          set -euo pipefail
+          ARTEMIS_STUDIO_DB_URL=jdbc:postgresql://localhost:5432/artemis_studio \
+          ARTEMIS_STUDIO_DB_USER=artemis_studio ARTEMIS_STUDIO_DB_PASSWORD=artemis_studio \
+          ARTEMIS_STUDIO_SECRET_KEY="$(openssl rand -base64 32)" \
+            nohup java -jar target/artemis-studio-exec.jar > "$RUNNER_TEMP/studio.log" 2>&1 &
+          timeout 180 bash -c 'until curl -sf http://localhost:8080/actuator/health >/dev/null; do sleep 2; done'
+          timeout 60 bash -c "until grep -q 'password:' '$RUNNER_TEMP/studio.log'; do sleep 1; done"
+          echo "ADMIN_PASSWORD=$(awk '/password:/ {print $2; exit}' "$RUNNER_TEMP/studio.log")" >> "$GITHUB_ENV"
+
+      - name: Install, use, update, roll back and remove the plugin
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          STUDIO=http://localhost:8080 NEW_PASSWORD="ci-$(openssl rand -hex 12)" \
+          JAR_V1="$RUNNER_TEMP/acme-notes-1.0.0.jar" JAR_V2="$RUNNER_TEMP/acme-notes-1.0.1.jar" \
+            node --experimental-strip-types scripts/plugin-e2e.ts
+
+      - name: Studio's log
+        if: failure()
+        run: tail -300 "$RUNNER_TEMP/studio.log"
+
   # Pull requests: prove the Dockerfile still builds. Single-arch, no push.
   # A skipped check counts as passed, so `!failure() && !cancelled()` lets this run
   # when only one side changed and the other job was skipped.
@@ -139,6 +222,8 @@ jobs:
     needs: [changes, backend, frontend]
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     concurrency:
       group: release
       cancel-in-progress: false
@@ -187,7 +272,7 @@ jobs:
       - name: Stage release assets
         run: |
           V=${{ steps.ver.outputs.version }}
-          cp target/artemis-studio.jar "artemis-studio-$V.jar"
+          cp target/artemis-studio-exec.jar "artemis-studio-$V.jar"
           sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
 
       - uses: actions/setup-node@v7
@@ -290,3 +375,71 @@ jobs:
           # Docker Hub does not resolve repo-relative paths, so without this the
           # screenshots render broken even when the push succeeds.
           enable-url-completion: true
+
+  # The plugin API on Maven Central (ADR-0102): the plain jar of the release just tagged, with its
+  # sources and javadoc, signed. Its own job, after the release: a Central problem never holds back
+  # the image. japicmp refuses an incompatible change to @PluginApi types first.
+  publish-api:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
+      - name: Check the publishing secrets are set
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          missing=0
+          for name in SONATYPE_USERNAME SONATYPE_PASSWORD GPG_PRIVATE_KEY GPG_PASSPHRASE; do
+            if [ -z "${!name}" ]; then echo "::error::repository secret $name is not set"; missing=1; fi
+          done
+          exit $missing
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          server-id: central
+          server-username-env-var: MAVEN_USERNAME
+          server-password-env-var: MAVEN_PASSWORD
+      - name: Publish io.github.sudoitir:artemis-studio:${{ needs.release.outputs.version }}
+        env:
+          MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B versions:set -DnewVersion="${{ needs.release.outputs.version }}" -DgenerateBackupPoms=false
+          ./mvnw -B -Prelease,api-check -DskipTests -Dspring-boot.repackage.skip=true -Dgpg.signer=bc deploy
+
+  # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Trusted
+  # publishing through GitHub's OIDC once it is set up on npmjs.com; until then — the first
+  # publish, which trusted publishing needs to exist — the NPM_STAGE_TOKEN secret.
+  publish-sdk:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Build @artemis-studio/plugin-sdk
+        working-directory: web
+        run: |
+          npm ci
+          node packages/plugin-sdk/build.mjs "${{ needs.release.outputs.version }}"
+      - name: Publish
+        working-directory: web/packages/plugin-sdk/dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_STAGE_TOKEN }}
+        run: npm publish --access public --provenance
