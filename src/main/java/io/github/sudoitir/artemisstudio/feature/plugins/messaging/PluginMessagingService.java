@@ -47,6 +47,7 @@ public class PluginMessagingService implements PluginScopedBeans {
 
     private static final Pattern KEY = Pattern.compile("[A-Za-z0-9._:-]{1,200}");
     private static final int MAX_NAME = 1000;
+    private static final int MAX_CONCURRENCY = 32;
 
     private final RegistrationRepository registrations;
     private final RegistrationNodeRepository nodeStates;
@@ -86,7 +87,9 @@ public class PluginMessagingService implements PluginScopedBeans {
                         "queue",
                         spec.queue(),
                         "mode",
-                        spec.mode().name()),
+                        spec.mode().name(),
+                        "concurrency",
+                        spec.concurrency()),
                 false);
         UUID replaced = tx.execute(status -> {
             Optional<RegistrationEntity> existing = registrations.findByPluginIdAndKey(pluginId, spec.key());
@@ -97,6 +100,8 @@ public class PluginMessagingService implements PluginScopedBeans {
                         && e.getQueue().equals(spec.queue())
                         && e.getMode() == spec.mode();
                 if (sameTarget) {
+                    // A changed concurrency is converged by the pass below, which restarts the drains.
+                    e.setConcurrency(spec.concurrency());
                     e.setActingUserId(spec.actingUserId());
                     e.setUpdatedAt(clock.instant());
                     registrations.save(e);
@@ -114,6 +119,7 @@ public class PluginMessagingService implements PluginScopedBeans {
             row.setClusterId(spec.clusterId());
             row.setQueue(spec.queue());
             row.setMode(spec.mode());
+            row.setConcurrency(spec.concurrency());
             row.setActingUserId(spec.actingUserId());
             row.setCreatedAt(clock.instant());
             row.setUpdatedAt(clock.instant());
@@ -255,6 +261,15 @@ public class PluginMessagingService implements PluginScopedBeans {
         if (spec.mode() == null) {
             throw new RegistrationRefusedException("A registration needs a mode: TAP or CONSUME.");
         }
+        if (spec.mode() == RegistrationMode.TAP && spec.concurrency() != 1) {
+            throw new RegistrationRefusedException(
+                    "A tap delivers one copy at a time, so its concurrency is 1, not " + spec.concurrency() + ".");
+        }
+        if (spec.mode() == RegistrationMode.CONSUME
+                && (spec.concurrency() < 1 || spec.concurrency() > MAX_CONCURRENCY)) {
+            throw new RegistrationRefusedException("A consumer's concurrency is 1 to " + MAX_CONCURRENCY
+                    + " messages at once per node, not " + spec.concurrency() + ".");
+        }
         if (spec.clusterId() == null || clusters.cluster(spec.clusterId()).isEmpty()) {
             throw new RegistrationRefusedException("The cluster " + spec.clusterId() + " is not registered.");
         }
@@ -313,6 +328,7 @@ public class PluginMessagingService implements PluginScopedBeans {
                 reg.getClusterId(),
                 reg.getQueue(),
                 reg.getMode(),
+                reg.getConcurrency(),
                 reg.getActingUserId(),
                 overall,
                 detail,

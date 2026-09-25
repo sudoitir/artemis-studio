@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.support;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +43,7 @@ public final class PluginJarBuilder {
         descriptor.put("vendor", Map.of("name", "Acme"));
         descriptor.put("basePackage", "com.acme." + id.replace('-', '_'));
         descriptor.put("configuration", "com.acme." + id.replace('-', '_') + ".PluginConfig");
-        descriptor.put("contract", 1);
+        descriptor.put("contract", Contract.VERSION);
         descriptor.put("studio", Map.of("since", "2026.01.0"));
         descriptor.put("ui", false);
         descriptor.put("activation", "AUTO");

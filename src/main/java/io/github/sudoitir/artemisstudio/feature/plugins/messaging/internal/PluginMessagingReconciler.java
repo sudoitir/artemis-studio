@@ -262,8 +262,14 @@ public class PluginMessagingReconciler {
     }
 
     private NodeResult assertConsumer(ClusterNode node, JolokiaBrokerClient client, RegistrationEntity reg) {
-        if (drains.isRunning(reg.getId(), node.getId())) {
+        int runningWith = drains.concurrency(reg.getId(), node.getId());
+        if (runningWith == reg.getConcurrency()) {
             return new NodeResult(RegistrationState.ACTIVE, null, null);
+        }
+        if (runningWith > 0) {
+            // Registered again with another concurrency: restarted with the new count. What the old
+            // slots held and had not settled goes back to the queue.
+            drains.stop(reg.getId(), node.getId());
         }
         if (node.getCoreUrl() == null) {
             return new NodeResult(
@@ -292,6 +298,7 @@ public class PluginMessagingReconciler {
                 reg.getPluginId(),
                 reg.getKey(),
                 reg.getMode(),
+                reg.getConcurrency(),
                 reg.getClusterId(),
                 node.getId(),
                 node.getName(),

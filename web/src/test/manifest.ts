@@ -35,7 +35,7 @@ export function manifestHandler(
 ) {
   return http.get('*/api/v1/manifest', () =>
     HttpResponse.json({
-      contract: 1,
+      contract: 2,
       version,
       safeMode,
       features: [

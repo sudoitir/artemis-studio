@@ -8,6 +8,7 @@ import java.util.UUID;
 /**
  * A registration as Studio holds it, with what the last pass found on each node.
  *
+ * @param concurrency the messages handled at once on each serving node, as registered
  * @param state the overall state: {@link RegistrationState#ACTIVE} when every node it covers is
  *     active, otherwise the state that most needs attention
  * @param detail why it is not active, in words, or {@code null}
@@ -20,6 +21,7 @@ public record MessageRegistration(
         UUID clusterId,
         String queue,
         RegistrationMode mode,
+        int concurrency,
         UUID actingUserId,
         RegistrationState state,
         String detail,

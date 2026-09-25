@@ -32,7 +32,7 @@ class ManifestControllerTest {
     private static final String DESCRIPTOR_JSON = """
             {"schemaVersion":1,"id":"acme-notes","name":"acme-notes","version":"1.2.0",
             "vendor":{"name":"Acme"},"basePackage":"com.acme.notes",
-            "configuration":"com.acme.notes.PluginConfig","contract":1,
+            "configuration":"com.acme.notes.PluginConfig","contract":2,
             "studio":{"since":"2026.01.0"},"ui":true,"activation":"AUTO","title":"Notes",
             "permissions":[{"action":"acme-notes:write","description":"Write notes"}],
             "streamTopics":["acme-notes"]}
@@ -62,7 +62,7 @@ class ManifestControllerTest {
 
         mvc.perform(get("/api/v1/manifest"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.contract").value(1))
+                .andExpect(jsonPath("$.contract").value(Contract.VERSION))
                 .andExpect(jsonPath("$.safeMode").value(false))
                 .andExpect(jsonPath("$.features.length()").value(2))
                 .andExpect(jsonPath("$.features[0].id").value("queues"))

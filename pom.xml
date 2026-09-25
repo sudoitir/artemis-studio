@@ -472,7 +472,7 @@
         <!-- `-Papi-check`: the plugin API may not break within a contract version (ADR-0102).
              Compares every @PluginApi type with the latest release on Maven Central; with no
              release yet there is nothing to compare, and it passes. A deliberate break bumps
-             Contract.VERSION and is released with -Djapicmp.skip. -->
+             Contract.VERSION, and the release job then passes -Djapicmp.skip=true (ADR-0112). -->
         <profile>
             <id>api-check</id>
             <build>

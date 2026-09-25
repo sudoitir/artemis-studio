@@ -7,6 +7,9 @@ import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.PluginMessagingReconciler;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
+import io.github.sudoitir.artemisstudio.feature.sql.CaptureMode;
+import io.github.sudoitir.artemisstudio.feature.sql.CaptureReconciler;
+import io.github.sudoitir.artemisstudio.feature.sql.MessageIndexService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginPurged;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorParser;
@@ -28,6 +31,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
+import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -35,6 +39,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.C
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RegisterClusterRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterDetail;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -57,6 +62,7 @@ import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
+import org.apache.activemq.artemis.api.core.client.ActiveMQClient;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +70,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
@@ -81,7 +88,9 @@ import tools.jackson.databind.JsonNode;
         properties = {
             "artemis-studio.capture.broker-role=amq",
             "artemis-studio.plugins.messaging.reconcile-interval=1h",
-            "artemis-studio.plugins.messaging.tap-ring-size=5"
+            "artemis-studio.plugins.messaging.tap-ring-size=5",
+            "artemis-studio.capture.reconcile-interval=1h",
+            "artemis-studio.capture.flush-interval=200ms"
         })
 class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
 
@@ -135,6 +144,18 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
 
     @Autowired
     TransactionTemplate tx;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    @Autowired
+    MessageIndexService indexes;
+
+    @Autowired
+    CaptureReconciler captureReconciler;
+
+    @Autowired
+    QueueSnapshotUpsert snapshots;
 
     private final String run = UUID.randomUUID().toString().substring(0, 8);
     private final List<PluginRuntime> active = new ArrayList<>();
@@ -196,7 +217,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         String queue = queue("TAP");
         String plugin = activate("tap");
         MessageRegistration reg = messaging(plugin)
-                .register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, operator));
+                .register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, 1, operator));
         assertThat(reg.state()).isEqualTo(RegistrationState.ACTIVE);
         assertThat(tapQueues()).hasSize(1);
 
@@ -223,7 +244,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         String queue = queue("SLOW");
         String plugin = activate("slow");
         MessagingProbe.GATE.put(plugin, new Semaphore(0));
-        messaging(plugin).register(new RegistrationSpec("slow", clusterId, queue, RegistrationMode.TAP, operator));
+        messaging(plugin).register(new RegistrationSpec("slow", clusterId, queue, RegistrationMode.TAP, 1, operator));
 
         long started = System.nanoTime();
         send(queue, 100, 64 * 1024);
@@ -242,7 +263,8 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         String queue = queue("CONSUME");
         String plugin = activate("consume");
         MessagingProbe.ANSWER.put(plugin, Disposition.REJECT);
-        messaging(plugin).register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, operator));
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 1, operator));
 
         send(queue, 1, 16);
         PluginMessage first = MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS);
@@ -266,7 +288,8 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         String plugin = activate("stop");
         Semaphore gate = new Semaphore(0);
         MessagingProbe.GATE.put(plugin, gate);
-        messaging(plugin).register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, operator));
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 1, operator));
         send(queue, 2, 16);
         assertThat(MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS)).isNotNull();
 
@@ -285,10 +308,169 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         awaitQueueCount(queue, 1);
 
         String again = activate("stop2");
-        messaging(again).register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, operator));
+        messaging(again)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 1, operator));
         PluginMessage redelivered = MessagingProbe.inbox(again).poll(10, TimeUnit.SECONDS);
         assertThat(redelivered).isNotNull();
         awaitQueueCount(queue, 0);
+    }
+
+    // ---- concurrency and flow control (ADR-0112) ------------------------------
+
+    @Test
+    void aConsumerRunsAsManyHandlersAtOnceAsItsConcurrencyAndAChangedConcurrencyTakesEffect() throws Exception {
+        String queue = queue("PAR");
+        String plugin = activate("par");
+        Semaphore gate = new Semaphore(0);
+        MessagingProbe.GATE.put(plugin, gate);
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 2, operator));
+        MessageRegistration reg = messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 4, operator));
+        assertThat(reg.concurrency()).isEqualTo(4);
+        assertThat(reg.state()).isEqualTo(RegistrationState.ACTIVE);
+
+        send(queue, 5, 16);
+        // Every handler blocks, so four in the inbox at once means four ran at the same time.
+        for (int i = 0; i < 4; i++) {
+            assertThat(MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS))
+                    .as("handler %d", i)
+                    .isNotNull();
+        }
+        assertThat(MessagingProbe.inbox(plugin).poll(1, TimeUnit.SECONDS))
+                .as("a fifth while four are busy")
+                .isNull();
+        gate.release(10_000);
+        awaitQueueCount(queue, 0);
+    }
+
+    @Test
+    void aStalledConsumerHoldsAtMostItsConcurrencyAndTheRestStayOnTheQueue() throws Exception {
+        String queue = queue("STALL");
+        String plugin = activate("stall");
+        Semaphore gate = new Semaphore(0);
+        MessagingProbe.GATE.put(plugin, gate);
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 3, operator));
+
+        send(queue, 100, 16);
+        for (int i = 0; i < 3; i++) {
+            assertThat(MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS)).isNotNull();
+        }
+        Thread.sleep(1_000);
+        assertThat(MessagingProbe.inbox(plugin)).isEmpty();
+        assertThat(queueAttribute(queue, "DeliveringCount")).isLessThanOrEqualTo(3);
+        assertThat(queueAttribute(queue, "MessageCount")).isEqualTo(100);
+
+        gate.release(10_000);
+        awaitQueueCount(queue, 0);
+    }
+
+    @Test
+    void aMessageGroupIsHandledInOrderAtAConcurrencyAboveOne() throws Exception {
+        String queue = queue("GROUP");
+        String plugin = activate("group");
+        Semaphore gate = new Semaphore(0);
+        MessagingProbe.GATE.put(plugin, gate);
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 4, operator));
+
+        try (Session session = jms.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
+            MessageProducer producer = session.createProducer(session.createQueue(queue));
+            for (int seq = 1; seq <= 3; seq++) {
+                for (String group : List.of("G", "H")) {
+                    TextMessage m = session.createTextMessage(group + seq);
+                    m.setStringProperty("JMSXGroupID", group);
+                    producer.send(m);
+                }
+            }
+        }
+        // The first of each group is being handled; free consumers do not take the rest of a group.
+        List<String> order = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            PluginMessage first = MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS);
+            assertThat(first).isNotNull();
+            order.add(new String(first.body(), StandardCharsets.UTF_8));
+        }
+        assertThat(order).containsExactlyInAnyOrder("G1", "H1");
+        assertThat(MessagingProbe.inbox(plugin).poll(1, TimeUnit.SECONDS)).isNull();
+
+        gate.release(10_000);
+        awaitQueueCount(queue, 0);
+        MessagingProbe.inbox(plugin).forEach(m -> order.add(new String(m.body(), StandardCharsets.UTF_8)));
+        assertThat(order).hasSize(6);
+        assertThat(order.stream().filter(b -> b.startsWith("G"))).containsExactly("G1", "G2", "G3");
+        assertThat(order.stream().filter(b -> b.startsWith("H"))).containsExactly("H1", "H2", "H3");
+    }
+
+    @Test
+    void blockedPluginHandlersDoNotDelayCaptureOnTheSameCluster() throws Exception {
+        // More blocked handlers than the Core client's global pool has threads: if plugin handlers
+        // ran there, capture's deliveries would wait for one of them.
+        int globalThreads = ActiveMQClient.DEFAULT_GLOBAL_THREAD_POOL_MAX_SIZE;
+        int registrations = globalThreads / 32 + 1;
+        String plugin = activate("block");
+        Semaphore gate = new Semaphore(0);
+        MessagingProbe.GATE.put(plugin, gate);
+        for (int i = 0; i < registrations; i++) {
+            String queue = queue("BLOCK" + i);
+            messaging(plugin)
+                    .register(
+                            new RegistrationSpec("work" + i, clusterId, queue, RegistrationMode.CONSUME, 32, operator));
+            send(queue, 32, 16);
+        }
+        int running = Math.min(registrations * 32, 64);
+        for (int i = 0; i < running; i++) {
+            assertThat(MessagingProbe.inbox(plugin).poll(20, TimeUnit.SECONDS))
+                    .as("blocked handler %d", i)
+                    .isNotNull();
+        }
+
+        String captured = queue("CAPTURED");
+        ClusterNode node = directory.nodes(clusterId).getFirst();
+        snapshots.upsertBatch(List.of(new QueueRow(
+                clusterId, node.getId(), captured, captured, "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false)));
+        UUID subscription = indexes.create(
+                        clusterId,
+                        new MessageIndexService.Spec(
+                                captured, null, 1, null, CaptureMode.CAPTURE, 1000L, null, null, null, null))
+                .entity()
+                .getId();
+        try {
+            captureReconciler.reconcileNow(clusterId);
+            long started = System.nanoTime();
+            send(captured, 20, 16);
+            long deadline = started + TimeUnit.SECONDS.toNanos(15);
+            while (capturedCount() < 20 && System.nanoTime() < deadline) {
+                Thread.sleep(100);
+            }
+            assertThat(capturedCount())
+                    .as("copies captured while plugin handlers block")
+                    .isEqualTo(20);
+        } finally {
+            gate.release(10_000);
+            quietly(() -> indexes.delete(clusterId, subscription));
+            captureReconciler.reconcileNow(clusterId);
+        }
+    }
+
+    @Test
+    void aConcurrencyOutsideItsRangeIsRefusedWithTheReason() throws Exception {
+        String queue = queue("RANGE");
+        String plugin = activate("range");
+        assertThatThrownBy(() -> messaging(plugin)
+                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 0, operator)))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("1 to 32");
+        assertThatThrownBy(() -> messaging(plugin)
+                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 33, operator)))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("1 to 32");
+        assertThatThrownBy(() -> messaging(plugin)
+                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, 2, operator)))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("concurrency is 1");
+        assertThat(messaging(plugin).registrations()).isEmpty();
     }
 
     // ---- send ----------------------------------------------------------------
@@ -372,7 +554,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     void aStoppedPluginLeavesNothingOnTheBroker() throws Exception {
         String queue = queue("GONE");
         String plugin = activate("gone");
-        messaging(plugin).register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, operator));
+        messaging(plugin).register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, 1, operator));
         assertThat(tapQueues()).hasSize(1);
         PluginMessaging handle = messaging(plugin);
 
@@ -395,7 +577,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     void unregisteringRemovesTheTapAtOnce() throws Exception {
         String queue = queue("UNREG");
         String plugin = activate("unreg");
-        messaging(plugin).register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, operator));
+        messaging(plugin).register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, 1, operator));
         assertThat(tapQueues()).hasSize(1);
         assertThat(messaging(plugin).unregister("orders")).isTrue();
         assertThat(tapQueues()).isEmpty();
@@ -407,7 +589,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         String queue = queue("REVOKE");
         String plugin = activate("revoke");
         UUID reader = user(Set.of("message:read"));
-        messaging(plugin).register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, reader));
+        messaging(plugin).register(new RegistrationSpec("orders", clusterId, queue, RegistrationMode.TAP, 1, reader));
         assertThat(tapQueues()).hasSize(1);
 
         List<UserRoleEntity> grants = tx.execute(s -> userRoles.findByIdUserId(reader));
@@ -438,16 +620,16 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         UUID nobody = user(Set.of());
         UUID reader = user(Set.of("message:read"));
         assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, nobody)))
+                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, 1, nobody)))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("message:read");
         assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, reader)))
+                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 1, reader)))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("queue:purge");
         assertThatThrownBy(() -> messaging(plugin)
                         .register(new RegistrationSpec(
-                                "x", clusterId, "artemis-studio.capture.abc", RegistrationMode.TAP, operator)))
+                                "x", clusterId, "artemis-studio.capture.abc", RegistrationMode.TAP, 1, operator)))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("reserved");
         assertThat(messaging(plugin).registrations()).isEmpty();
@@ -459,8 +641,8 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         String queueB = queue("ISOB");
         String a = activate("isoa");
         String b = activate("isob");
-        messaging(a).register(new RegistrationSpec("same", clusterId, queueA, RegistrationMode.TAP, operator));
-        messaging(b).register(new RegistrationSpec("same", clusterId, queueB, RegistrationMode.TAP, operator));
+        messaging(a).register(new RegistrationSpec("same", clusterId, queueA, RegistrationMode.TAP, 1, operator));
+        messaging(b).register(new RegistrationSpec("same", clusterId, queueB, RegistrationMode.TAP, 1, operator));
 
         assertThat(messaging(a).registrations())
                 .extracting(MessageRegistration::queue)
@@ -571,12 +753,24 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     }
 
     private long queueCount(String queue) {
+        return queueAttribute(queue, "MessageCount");
+    }
+
+    private long queueAttribute(String queue, String attribute) {
         JsonNode value = client.single(JolokiaRequest.read(
                         io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans.queue(
                                 broker, queue, queue, "anycast"),
-                        "MessageCount"))
-                .attribute("MessageCount");
+                        attribute))
+                .attribute(attribute);
         return value == null ? -1 : value.asLong();
+    }
+
+    private long capturedCount() {
+        Long count = jdbc.queryForObject(
+                "SELECT count(*) FROM message_index WHERE cluster_id = ? AND origin = 'CAPTURED'",
+                Long.class,
+                clusterId);
+        return count == null ? 0 : count;
     }
 
     private void awaitQueueCount(String queue, long expected) throws InterruptedException {
