@@ -188,9 +188,11 @@ app() { # node kind client-id address sleep-ms
       --clientID "$3" --destination "$(destination "$4")" --message-count "$count" --sleep "$5" --receive-timeout 600000
   fi
 }
-app artemis-primary   producer order-service        ORDERS.inbound      40
-app artemis-primary   consumer billing-service      ORDERS.inbound      45
-app artemis-primary   consumer fraud-screening      ORDERS.inbound      90
+# The busiest stream by far, a few hundred a second, so its lines stand out on Flow (width
+# follows the square root of the rate); its two consumers together keep up with it.
+app artemis-primary   producer order-service        ORDERS.inbound      2
+app artemis-primary   consumer billing-service      ORDERS.inbound      3
+app artemis-primary   consumer fraud-screening      ORDERS.inbound      6
 app artemis-secondary producer payments-gateway     PAYMENTS.capture    80
 app artemis-secondary consumer ledger-writer        PAYMENTS.capture    85
 app artemis-primary   producer warehouse-events     SHIPPING.events     150
