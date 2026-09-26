@@ -3,11 +3,12 @@
 #   docker compose -f deploy/compose/compose.dev.yaml \
 #                  -f deploy/compose/compose.demo.yaml up -d      (or: just demo)
 #
-# Adds a second live/backup replication pair, so every cross-node view has four
-# nodes rather than two — which is the difference between a screenshot that shows
-# the product and one that shows a laptop. `just demo` then drives real traffic
-# through it with the broker image's own client; nothing writes to `metric_sample`
-# directly, because a chart of invented samples is worth less than no chart.
+# Adds a second and a third live/backup replication pair, so every cross-node view
+# has six nodes rather than two — which is the difference between a screenshot that
+# shows the product and one that shows a laptop. Three pairs, not two: quorum voting
+# needs at least three primaries to keep a majority when one pair is lost.
+# `just demo` then drives real traffic through it with the broker image's own
+# client; nothing writes to `metric_sample` directly, because a chart of invented samples is worth less than no chart.
 #
 # Not hardened, not for anywhere public.
 
@@ -47,6 +48,43 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22secondary-backup%22/Started' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  artemis-tertiary:
+    image: apache/activemq-artemis:2.44.0
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "8561:8161"
+      - "61620:61616"
+    volumes:
+      - ./artemis/tertiary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22tertiary%22/Started' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  artemis-tertiary-backup:
+    image: apache/activemq-artemis:2.44.0
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "8661:8161"
+      - "61621:61616"
+    volumes:
+      - ./artemis/tertiary-backup/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
+    depends_on:
+      artemis-tertiary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22tertiary-backup%22/Started' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
