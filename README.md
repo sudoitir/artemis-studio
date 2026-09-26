@@ -179,8 +179,9 @@ just dev             # or: backend :8080 + Vite :5173 together, with live reload
 just verify          # everything CI runs
 ```
 
-`ADMIN_PASSWORD=… just demo` adds a second live/backup pair and fills all four
-nodes with realistic traffic: applications behind diverts, a bridge and cluster
+`ADMIN_PASSWORD=… just demo` adds a second and a third live/backup pair (three
+primaries, so quorum voting keeps a majority when one pair is lost) and fills all
+six nodes with realistic traffic: applications behind diverts, a bridge and cluster
 hops, an address with no consumer whose backlog keeps growing, a real dead-letter
 backlog and one stopped node. On a fresh stack the printed password is one-time, so
 add `NEW_ADMIN_PASSWORD=…` on the first run and use that password afterwards. The

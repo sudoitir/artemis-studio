@@ -89,7 +89,7 @@ if [ -n "$existing" ]; then
   echo "removing the previous registration: $existing"
   api DELETE "/clusters/$existing" >/dev/null
 fi
-# Every node is seeded. Discovery finds the other three from the first, but a node
+# Every node is seeded. Discovery finds the others from the first, but a node
 # discovered through a cluster connection carries no management URL, so it cannot
 # be scraped — it would render as an unreachable node in a cluster that is in fact
 # healthy.
@@ -98,10 +98,12 @@ cluster=$(api POST /clusters -d '{
     "http://artemis-primary:8161/console/jolokia",
     "http://artemis-backup:8161/console/jolokia",
     "http://artemis-secondary:8161/console/jolokia",
-    "http://artemis-secondary-backup:8161/console/jolokia"
+    "http://artemis-secondary-backup:8161/console/jolokia",
+    "http://artemis-tertiary:8161/console/jolokia",
+    "http://artemis-tertiary-backup:8161/console/jolokia"
   ],
   "name": "demo",
-  "description": "Four-node replication estate — two live/backup pairs",
+  "description": "Six-node replication estate — three live/backup pairs",
   "credentials": {"username": "artemis", "password": "artemis"},
   "coreCredentials": {"username": "artemis", "password": "artemis"}
 }' | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')

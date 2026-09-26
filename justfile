@@ -80,14 +80,14 @@ dev-up:
     @{{compose_dev}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
         || echo "→ admin account already exists (reset with 'just dev-down' then 'just dev-up')"
 
-# Dev stack plus a second live/backup pair, filled with realistic traffic.
+# Dev stack plus a second and a third live/backup pair, filled with realistic traffic.
 # Needs the admin password `just dev-up` printed: ADMIN_PASSWORD=... just demo
 # On a fresh stack that password is one-time; add NEW_ADMIN_PASSWORD=... the first time.
 [group('develop')]
 demo:
     {{compose_demo}} up --build -d
-    @echo "→ waiting for all four brokers…"
-    @timeout 180 bash -c 'until {{compose_demo}} ps --format json | grep -c healthy | grep -qv "^[0-3]$"; do sleep 3; done' || true
+    @echo "→ waiting for all six brokers…"
+    @timeout 180 bash -c 'until {{compose_demo}} ps --format json | grep -c healthy | grep -qv "^[0-5]$"; do sleep 3; done' || true
     COMPOSE="{{compose_demo}}" ./scripts/demo-seed.sh
 
 # Capture the README screenshots against whatever is running on :8080.
