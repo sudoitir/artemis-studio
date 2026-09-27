@@ -21,6 +21,9 @@ services:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
       ANONYMOUS_LOGIN: "false"
+      # The image's default heap is 2 GB per broker; several of them, Studio and Postgres must fit
+      # in a laptop's Docker VM (Docker Desktop's is often 4 to 8 GB), or its OOM killer ends one.
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     ports:
       - "8361:8161"
       - "61618:61616"
@@ -38,6 +41,9 @@ services:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
       ANONYMOUS_LOGIN: "false"
+      # The image's default heap is 2 GB per broker; several of them, Studio and Postgres must fit
+      # in a laptop's Docker VM (Docker Desktop's is often 4 to 8 GB), or its OOM killer ends one.
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     ports:
       - "8461:8161"
       - "61619:61616"
@@ -58,6 +64,9 @@ services:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
       ANONYMOUS_LOGIN: "false"
+      # The image's default heap is 2 GB per broker; several of them, Studio and Postgres must fit
+      # in a laptop's Docker VM (Docker Desktop's is often 4 to 8 GB), or its OOM killer ends one.
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     ports:
       - "8561:8161"
       - "61620:61616"
@@ -75,6 +84,9 @@ services:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
       ANONYMOUS_LOGIN: "false"
+      # The image's default heap is 2 GB per broker; several of them, Studio and Postgres must fit
+      # in a laptop's Docker VM (Docker Desktop's is often 4 to 8 GB), or its OOM killer ends one.
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     ports:
       - "8661:8161"
       - "61621:61616"
