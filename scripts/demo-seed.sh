@@ -28,6 +28,9 @@ TRAFFIC_MINUTES=${TRAFFIC_MINUTES:-20}
 COMPOSE=${COMPOSE:?set COMPOSE to the docker compose invocation for the demo stack}
 
 JAR=/var/lib/artemis-instance/bin/artemis
+# The demo's clients run in the broker containers, one JVM each; without this they would take the
+# broker's heap setting, and a dozen of them would not fit in a laptop's Docker VM.
+CLIENT_JVM=(-e 'JAVA_ARGS_APPEND=-Xms16m -Xmx64m -XX:+UseSerialGC')
 COOKIES=$(mktemp)
 trap 'rm -f "$COOKIES"' EXIT
 
@@ -112,14 +115,14 @@ echo "registered: $cluster"
 # Rates chosen so the four addresses are visibly different on one axis rather than
 # one line and three flat ones.
 produce() { # node address count sleep-ms
-  $COMPOSE exec -T "$1" $JAR producer \
+  $COMPOSE exec -T "${CLIENT_JVM[@]}" "$1" $JAR producer \
     --url tcp://localhost:61616 --user artemis --password artemis \
     --destination "queue://$2" --message-count "$3" --sleep "${4:-0}" \
     --message-size 512 >/dev/null 2>&1 || true
 }
 
 consume() { # node address count
-  $COMPOSE exec -T "$1" $JAR consumer \
+  $COMPOSE exec -T "${CLIENT_JVM[@]}" "$1" $JAR consumer \
     --url tcp://localhost:61616 --user artemis --password artemis \
     --destination "queue://$2" --message-count "$3" --receive-timeout 2000 \
     --break-on-null >/dev/null 2>&1 || true
@@ -183,10 +186,10 @@ destination() { case "$1" in *://*) echo "$1" ;; *) echo "queue://$1" ;; esac; }
 app() { # node kind client-id address sleep-ms
   local count=$(( (TRAFFIC_MINUTES + 30) * 60 * 1000 / $5 ))
   if [ "$2" = producer ]; then
-    $COMPOSE exec -d "$1" $JAR producer --url tcp://localhost:61616 --user artemis --password artemis \
+    $COMPOSE exec -d "${CLIENT_JVM[@]}" "$1" $JAR producer --url tcp://localhost:61616 --user artemis --password artemis \
       --clientID "$3" --destination "$(destination "$4")" --message-count "$count" --sleep "$5" --message-size 512
   else
-    $COMPOSE exec -d "$1" $JAR consumer --url tcp://localhost:61616 --user artemis --password artemis \
+    $COMPOSE exec -d "${CLIENT_JVM[@]}" "$1" $JAR consumer --url tcp://localhost:61616 --user artemis --password artemis \
       --clientID "$3" --destination "$(destination "$4")" --message-count "$count" --sleep "$5" --receive-timeout 600000
   fi
 }

@@ -8585,9 +8585,9 @@ export interface operations {
     };
     plugin: {
         parameters: {
-            query: {
-                metric: string;
-                subject: string;
+            query?: {
+                metric?: string;
+                subject?: string;
                 from?: string;
                 to?: string;
                 step?: string;

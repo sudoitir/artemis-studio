@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -63,14 +64,22 @@ export function ActionHostProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(1);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
+  // Exit timers still pending when the provider unmounts are cleared, so none updates state after it.
+  const timers = useRef(new Set<number>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach((t) => window.clearTimeout(t));
+  }, []);
 
   const close = useCallback((id: number) => {
     setEntries((all) => all.map((e) => (e.id === id ? { ...e, opened: false } : e)));
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      timers.current.delete(timer);
       const entry = entriesRef.current.find((e) => e.id === id);
       setEntries((all) => all.filter((e) => e.id !== id));
       if (entry?.restoreFocus && window.location.href === entry.href) entry.restoreFocus();
     }, EXIT_MS);
+    timers.current.add(timer);
   }, []);
 
   const host = useMemo<ActionHost>(() => {
