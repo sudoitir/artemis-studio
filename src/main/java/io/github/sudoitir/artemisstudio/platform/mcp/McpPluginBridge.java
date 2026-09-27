@@ -190,6 +190,10 @@ class McpPluginBridge implements PluginBridge {
         }
         try {
             return handle.runInPlugin(() -> callHandler.apply(ctx, request));
+        } catch (io.modelcontextprotocol.spec.McpError e) {
+            // The protocol's own shape: a plugin tool refusing a malformed call (-32602) says so, as
+            // Studio's own tools do through McpErrors.
+            throw e;
         } catch (Exception e) {
             log.warn("Plugin '{}' MCP tool call failed", handle.id(), e);
             return McpErrors.error("That call failed inside plugin '" + handle.id() + "'.");

@@ -154,6 +154,17 @@ class PluginMcpAccessIT extends PostgresIntegrationTest {
     }
 
     @Test
+    void aPluginToolsMalformedCallRefusalReachesTheCallerAsIs() throws Exception {
+        String id = activate(accessJar(newId()));
+        var key = key(Grant.ScopeType.GLOBAL, null, Set.of(id + ":admin"));
+
+        JsonNode called = McpFixture.callTool(mvc, key, snake(id) + "_global", Map.of("mode", "bad"));
+
+        assertThat(called.path("error").path("code").asInt()).isEqualTo(-32602);
+        assertThat(called.path("error").path("message").asString()).contains("fast or slow");
+    }
+
+    @Test
     void helpShowsEachPluginToolsPermissionScopeAndParams() throws Exception {
         String id = activate(accessJar(newId()));
         var key = key(Grant.ScopeType.GLOBAL, null, Set.of(id + ":read"));
@@ -296,6 +307,10 @@ class PluginMcpAccessIT extends PostgresIntegrationTest {
                             @McpTool(name = "%2$s_global", description = "Changes a global thing.",
                                     annotations = @McpTool.McpAnnotations(readOnlyHint = false))
                             public String global(@McpToolParam(required = false, description = "x") String mode) {
+                                if ("bad".equals(mode)) {
+                                    throw io.modelcontextprotocol.spec.McpError.builder(-32602)
+                                            .message("mode is fast or slow.").build();
+                                }
                                 count();
                                 return "reached";
                             }
