@@ -72,6 +72,13 @@
   --as-code-string: var(--mantine-color-teal-4);
   --as-code-number: var(--mantine-color-violet-4);
   --as-code-comment: var(--as-text-dimmed);
+  /* Document editor (YAML, JSON): keys, and the rare anchor, alias or tag.
+     Measured on the dark body: 6.78:1 and 5.84:1. */
+  --as-code-property: var(--mantine-color-indigo-3);
+  --as-code-meta: var(--mantine-color-grape-4);
+  /* Half the row-hover tint, so the caret's line is findable without competing
+     with the selection; text keeps the body contrast on it. */
+  --as-code-active-line: color-mix(in srgb, var(--as-grid-row-hover) 50%, transparent);
 
   /* Topology graph (React Flow). */
   --as-graph-node-bg: var(--mantine-color-body);
@@ -175,6 +182,8 @@
   --as-code-keyword: var(--mantine-color-blue-8); /* 5.02:1 on white */
   --as-code-string: var(--mantine-color-teal-9); /* 5.00:1 on white */
   --as-code-number: var(--mantine-color-violet-9); /* 7.12:1 on white */
+  --as-code-property: var(--mantine-color-indigo-8); /* 5.67:1 on white */
+  --as-code-meta: var(--mantine-color-grape-8); /* 5.82:1 on white */
   /* Inverted for a light surface: prominence is darkness here, not brightness. */
   --as-chart-seq-1: var(--mantine-color-blue-6);
   --as-chart-seq-2: var(--mantine-color-blue-7);
