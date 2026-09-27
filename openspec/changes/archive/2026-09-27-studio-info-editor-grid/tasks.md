@@ -17,4 +17,4 @@
 
 ## 4. Ship
 
-- [ ] 4.1 `just verify` green; PR; merge on green CI; release
+- [x] 4.1 `just verify` green; PR; merge on green CI; release
