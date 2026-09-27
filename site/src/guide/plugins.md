@@ -400,6 +400,28 @@ class NoteCounts implements PluginMetricSource {
 Studio asks only when an installer chooses **Check for updates**. It downloads the jar without
 following redirects, and refuses it unless it hashes to that `sha256`.
 
+### Studio facts and shared UI
+
+**`StudioInfo`** (Java) tells a plugin which Studio it runs on, for example to head a file it
+exports:
+
+- `version()` is the running version, such as `2026.10.1`, and is empty for a development build.
+- `clusterName(clusterId)` is the cluster's display name. It is empty when the current caller holds
+  no `cluster:read` on that cluster, exactly as for an id that does not exist.
+
+**The SDK's UI components** are the ones Studio's own screens use:
+
+- **`CodeEditor`** edits YAML or JSON.
+  - It highlights keys, values, comments and punctuation. It folds, matches brackets and searches
+    (Ctrl-F).
+  - Tab indents. Escape then Tab leaves the editor.
+  - Pass `maxHeight` to make it scroll inside itself, or `lineWrapping` to wrap long lines.
+  - It validates nothing itself: pass your server's diagnostics by line and column.
+- **`VirtualTable`** columns fit their content and can be resized by the viewer: drag a header's
+  border, double-click it, or press Ctrl+Shift+Left/Right on a focused header. Pass a
+  `storageKey` prefixed with your plugin id (`acme-notes.notes`) to remember each viewer's
+  widths.
+
 ## How it works
 
 Each plugin runs in its own Spring context, with its own class loader, schema and connection pool.
