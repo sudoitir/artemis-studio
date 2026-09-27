@@ -1,5 +1,5 @@
 import { Fragment, useRef } from 'react';
-import { Tabs, Text, Title } from '@mantine/core';
+import { Stack, Tabs, Text, Title } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { SETTINGS_GROUPS, useSlot } from '../slots.ts';
@@ -36,45 +36,48 @@ export function SettingsView() {
   };
 
   return (
-    <Tabs
-      value={tab ?? null}
-      onChange={open}
-      orientation="vertical"
-      activateTabWithKeyboard={false}
-      keepMounted={false}
-      classNames={{ list: classes.list, tab: classes.tab, panel: classes.panel }}
-    >
-      <Tabs.List aria-label="Settings sections">
-        {groups.map((group) => (
-          <Fragment key={group.id}>
-            <Text role="presentation" className={classes.group} size="xs" fw={600} tt="uppercase" c="dimmed">
-              {group.label}
-            </Text>
-            {group.sections.map(({ id, title }) => (
-              <Tabs.Tab key={id} value={id}>
-                {title}
-              </Tabs.Tab>
-            ))}
-          </Fragment>
-        ))}
-      </Tabs.List>
+    <Stack gap="md">
+      <Title order={3}>Settings</Title>
+      <Tabs
+        value={tab ?? null}
+        onChange={open}
+        orientation="vertical"
+        activateTabWithKeyboard={false}
+        keepMounted={false}
+        classNames={{ list: classes.list, tab: classes.tab, tabLabel: classes.tabLabel, panel: classes.panel }}
+      >
+        <Tabs.List aria-label="Settings sections">
+          {groups.map((group) => (
+            <Fragment key={group.id}>
+              <Text role="presentation" className={classes.group} size="xs" fw={600} tt="uppercase" c="dimmed">
+                {group.label}
+              </Text>
+              {group.sections.map(({ id, title }) => (
+                <Tabs.Tab key={id} value={id}>
+                  {title}
+                </Tabs.Tab>
+              ))}
+            </Fragment>
+          ))}
+        </Tabs.List>
 
-      {ordered.map(({ id, title, Component }) => (
-        <Tabs.Panel key={id} value={id}>
-          <Title
-            order={3}
-            tabIndex={-1}
-            mb="xs"
-            ref={(el) => {
-              if (el) headings.current.set(id, el);
-              else headings.current.delete(id);
-            }}
-          >
-            {title}
-          </Title>
-          <Component clusterId={clusterId} />
-        </Tabs.Panel>
-      ))}
-    </Tabs>
+        {ordered.map(({ id, title, Component }) => (
+          <Tabs.Panel key={id} value={id}>
+            <Title
+              order={4}
+              tabIndex={-1}
+              mb="xs"
+              ref={(el) => {
+                if (el) headings.current.set(id, el);
+                else headings.current.delete(id);
+              }}
+            >
+              {title}
+            </Title>
+            <Component clusterId={clusterId} />
+          </Tabs.Panel>
+        ))}
+      </Tabs>
+    </Stack>
   );
 }
