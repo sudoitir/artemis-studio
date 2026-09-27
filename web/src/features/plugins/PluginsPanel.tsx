@@ -278,6 +278,7 @@ export function PluginsPanel() {
       ) : (
         <VirtualTable
           label="Plugins"
+          storageKey="plugins"
           columns={columns}
           data={rows}
           rowKey={(p) => p.id}

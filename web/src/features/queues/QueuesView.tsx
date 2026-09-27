@@ -275,6 +275,7 @@ export function QueuesView() {
       ) : (
         <VirtualTable
           label="Queues"
+          storageKey="queues"
           columns={columns}
           data={rows}
           sort={search.sort}

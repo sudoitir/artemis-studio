@@ -192,7 +192,7 @@ export function BulkRunView() {
         </Alert>
       ) : null}
 
-      <VirtualTable label="Queues in this run" columns={columns} data={items} rowKey={(i) => i.queueName} />
+      <VirtualTable label="Queues in this run" storageKey="bulk.run" columns={columns} data={items} rowKey={(i) => i.queueName} />
 
       {opened ? (
         <Stack gap="xs">

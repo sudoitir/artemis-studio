@@ -387,6 +387,7 @@ export function ResourceView({ kind }: { kind: Kind }) {
       ) : (
         <VirtualTable
           label={kind.charAt(0).toUpperCase() + kind.slice(1)}
+          storageKey={`resources.${kind}`}
           columns={columns}
           data={rows}
           sort={search.sort}

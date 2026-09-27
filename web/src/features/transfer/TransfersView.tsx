@@ -181,6 +181,7 @@ export function TransfersView() {
       ) : (
         <VirtualTable
           label="Transfers"
+          storageKey="transfers"
           columns={columns}
           data={query.data}
           rowKey={(r) => r.id}

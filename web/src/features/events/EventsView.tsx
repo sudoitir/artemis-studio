@@ -252,6 +252,7 @@ export function EventsView() {
       ) : (
         <VirtualTable
           label="Broker events"
+          storageKey="events"
           columns={columns}
           data={rows}
           rowKey={(e) => String(e.seq)}

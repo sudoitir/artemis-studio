@@ -62,6 +62,12 @@ export interface RowMenu<T> {
 const ROW_HEIGHT = 36;
 /** How narrow a free-text column may get before the grid scrolls instead. */
 const FLEX_MIN_WIDTH = 180;
+/** The widest a column fits itself to on its own (ADR-0116); a viewer can go further. */
+const FIT_MAX_WIDTH = 480;
+/** The narrowest a viewer can drag a column. */
+const RESIZE_MIN_WIDTH = 48;
+/** One Ctrl+Shift+Arrow step. */
+const RESIZE_STEP = 16;
 /** The leading checkbox column's fixed track. */
 const SELECT_COL_WIDTH = 40;
 /** The trailing actions column's fixed track. */
@@ -84,6 +90,41 @@ function isRtl(): boolean {
     document.dir === "rtl" ||
     getComputedStyle(document.documentElement).direction === "rtl"
   );
+}
+
+/** Widths a viewer set, as stored: only current columns, only sane numbers. */
+function readWidths(storageKey: string | undefined, ids: string[]): Record<string, number> {
+  if (!storageKey) return {};
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(`as.grid.${storageKey}`) ?? "{}");
+    if (!raw || typeof raw !== "object") return {};
+    const out: Record<string, number> = {};
+    for (const [id, w] of Object.entries(raw as Record<string, unknown>)) {
+      if (ids.includes(id) && typeof w === "number" && Number.isFinite(w) && w >= RESIZE_MIN_WIDTH && w <= 4000) {
+        out[id] = Math.round(w);
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writeWidths(storageKey: string | undefined, widths: Record<string, number>) {
+  if (!storageKey) return;
+  try {
+    localStorage.setItem(`as.grid.${storageKey}`, JSON.stringify(widths));
+  } catch {
+    // Storage full or blocked: the widths still hold for this visit.
+  }
+}
+
+/** The width a cell's content needs, padding included; a header's sort button is measured itself. */
+function contentWidth(cell: HTMLElement): number {
+  const button = cell.querySelector<HTMLElement>(":scope > button");
+  const style = getComputedStyle(cell);
+  const padding = (parseFloat(style.paddingInlineStart) || 0) + (parseFloat(style.paddingInlineEnd) || 0);
+  return button ? button.scrollWidth + padding : cell.scrollWidth;
 }
 
 /** A cell's single enabled control, which then takes the cell's focus; otherwise the cell itself. */
@@ -134,6 +175,11 @@ interface VirtualTableProps<T> {
   rowMenu?: RowMenu<T>;
   /** Sized to its rows, up to a short cap, instead of to the viewport: a handful of rows in a pane. */
   compact?: boolean;
+  /**
+   * Remembers the column widths each viewer sets, in this browser (ADR-0116). Stable and unique
+   * per grid; a plugin prefixes its id. Without one, widths last as long as the grid is shown.
+   */
+  storageKey?: string;
 }
 
 /**
@@ -175,6 +221,7 @@ export function VirtualTable<T>({
   onAtTopChange,
   rowMenu,
   compact,
+  storageKey,
 }: VirtualTableProps<T>) {
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
@@ -192,6 +239,15 @@ export function VirtualTable<T>({
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+
+  // ── Column widths (ADR-0116) ───────────────────────────────────────────────
+  // `widths` are what the viewer set, and make a column a fixed track; `fits` are
+  // the floors measured from content, for the columns the viewer has not sized.
+  const columnIds = columns.map((c) => c.id);
+  const columnKey = columnIds.join("\u0000");
+  const [widths, setWidths] = useState<Record<string, number>>(() => readWidths(storageKey, columnIds));
+  const [fits, setFits] = useState<Record<string, number>>({});
+  const fittedFor = useRef<string | null>(null);
 
   // ── Focus model ────────────────────────────────────────────────────────────
   // The active cell, by row key (null for the header row) and column index. A
@@ -245,6 +301,59 @@ export function VirtualTable<T>({
   // changes is what screen readers announce reliably, and a grid nobody copies from adds none.
   const [announcement, setAnnouncement] = useState<string | null>(null);
 
+  /** The widest header or rendered cell of a column, within `cap`. */
+  const measure = useCallback(
+    (col: number, cap: number): number => {
+      const cells = gridRef.current?.querySelectorAll<HTMLElement>(`[data-grid-row] > [data-grid-col="${col}"]`) ?? [];
+      let need = 0;
+      for (const cell of cells) need = Math.max(need, contentWidth(cell));
+      return Math.round(Math.min(need + 2, cap));
+    },
+    [],
+  );
+
+  const setWidth = useCallback(
+    (id: string, width: number) => {
+      setWidths((prev) => {
+        const next = { ...prev, [id]: Math.round(Math.max(RESIZE_MIN_WIDTH, width)) };
+        writeWidths(storageKey, next);
+        return next;
+      });
+    },
+    [storageKey],
+  );
+
+  const startResize = (e: React.PointerEvent<HTMLElement>, id: string) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = e.currentTarget;
+    const start = handle.parentElement!.getBoundingClientRect().width;
+    const x0 = e.clientX;
+    const sign = isRtl() ? -1 : 1;
+    handle.setPointerCapture(e.pointerId);
+    handle.dataset.active = "true";
+    const move = (ev: PointerEvent) =>
+      setWidths((prev) => ({ ...prev, [id]: Math.round(Math.max(RESIZE_MIN_WIDTH, start + (ev.clientX - x0) * sign)) }));
+    const end = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", end);
+      handle.removeEventListener("pointercancel", end);
+      delete handle.dataset.active;
+      setWidths((prev) => {
+        writeWidths(storageKey, prev);
+        return prev;
+      });
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  };
+
+  const fitColumn = (id: string, col: number) => {
+    setWidth(id, measure(col, Math.max(FLEX_MIN_WIDTH, scrollRef.current?.clientWidth ?? FIT_MAX_WIDTH)));
+  };
+
   // The header's height, so a row scrolled into view is not left under the sticky header.
   const [headerHeight, setHeaderHeight] = useState(ROW_HEIGHT);
   useLayoutEffect(() => {
@@ -271,6 +380,20 @@ export function VirtualTable<T>({
     rangeExtractor,
     scrollPaddingStart: headerHeight,
   });
+
+  const rowsRendered = virtualizer.getVirtualItems().length > 0;
+  // Fit once rows are rendered (the virtualizer's first pass renders none), and again when the columns change; never while scrolling, so no
+  // column moves under the pointer.
+  useLayoutEffect(() => {
+    if (!rowsRendered || fittedFor.current === columnKey) return;
+    fittedFor.current = columnKey;
+    const next: Record<string, number> = {};
+    columns.forEach((c, i) => {
+      next[c.id] = measure(firstDataCol + i, FIT_MAX_WIDTH);
+    });
+    setFits(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnKey, rowsRendered, measure, firstDataCol]);
 
   const cellAt = useCallback((row: number, col: number): HTMLElement | null => {
     return (
@@ -452,6 +575,30 @@ export function VirtualTable<T>({
       return;
     }
 
+    // Ctrl+Shift+Left/Right on a header cell resizes its column (ADR-0116); the grid keeps its
+    // one tab stop, so this is the keyboard's way to what the border handle does.
+    const dataIndex = pos.col - firstDataCol;
+    if (
+      pos.row === 0 &&
+      e.ctrlKey &&
+      e.shiftKey &&
+      !e.altKey &&
+      (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+      dataIndex >= 0 &&
+      dataIndex < columns.length
+    ) {
+      e.preventDefault();
+      const column = columns[dataIndex];
+      const grow = (e.key === "ArrowRight") !== isRtl();
+      const current = widths[column.id] ?? cell.getBoundingClientRect().width;
+      const width = Math.round(Math.max(RESIZE_MIN_WIDTH, current + (grow ? RESIZE_STEP : -RESIZE_STEP)));
+      setWidth(column.id, width);
+      // Mounted empty first when it is new, like a copy's announcement, so it is read out.
+      setAnnouncement((prev) => (prev === null ? "" : prev));
+      requestAnimationFrame(() => setAnnouncement(`${column.header} column, ${width} pixels`));
+      return;
+    }
+
     if (e.altKey) return;
     const scroll = scrollRef.current;
     const page = Math.max(
@@ -505,10 +652,14 @@ export function VirtualTable<T>({
    * against — without it the tracks would overflow a grid box still pinned to
    * the viewport, and the rows would be laid out narrower than the header.
    */
+  // A declared `width` is the least a fixed column gets: a value that needs more (MULTICAST in a
+  // 96 px type column, a longer translation) widens it rather than being cut.
+  const floorOf = (c: GridColumn<T>) =>
+    widths[c.id] ?? (c.width ? Math.max(c.width, fits[c.id] ?? 0) : Math.max(FLEX_MIN_WIDTH, fits[c.id] ?? 0));
   const template = [
     selectable ? `${SELECT_COL_WIDTH}px` : null,
     ...columns.map((c) =>
-      c.width ? `${c.width}px` : `minmax(${FLEX_MIN_WIDTH}px, 1fr)`,
+      widths[c.id] || c.width ? `${floorOf(c)}px` : `minmax(${floorOf(c)}px, 1fr)`,
     ),
     rowMenu ? `${ACTIONS_COL_WIDTH}px` : null,
   ]
@@ -516,7 +667,7 @@ export function VirtualTable<T>({
     .join(" ");
   const minInline =
     (selectable ? SELECT_COL_WIDTH : 0) +
-    columns.reduce((sum, c) => sum + (c.width ?? FLEX_MIN_WIDTH), 0) +
+    columns.reduce((sum, c) => sum + floorOf(c), 0) +
     (rowMenu ? ACTIONS_COL_WIDTH : 0);
 
   const sortField = sort?.replace(/^-/, "");
@@ -625,6 +776,7 @@ export function VirtualTable<T>({
                 data-numeric={c.numeric || undefined}
                 data-grid-col={firstDataCol + i}
                 className={`${styles.cell} ${styles.headCell}`}
+                aria-description="Ctrl+Shift+Left or Right resizes this column."
               >
                 {sortable ? (
                   <button
@@ -640,6 +792,17 @@ export function VirtualTable<T>({
                 ) : (
                   c.header
                 )}
+                {/* A pointer affordance for what Ctrl+Shift+Arrow does from the keyboard. */}
+                <span
+                  aria-hidden="true"
+                  className={styles.resizeHandle}
+                  onPointerDown={(e) => startResize(e, c.id)}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    fitColumn(c.id, firstDataCol + i);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
             );
           })}

@@ -326,6 +326,7 @@ export function MessagesView() {
       ) : (
         <VirtualTable
           label="Messages"
+          storageKey="messages"
           columns={columns}
           data={rows}
           rowKey={(m) => String(m.messageId)}

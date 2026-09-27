@@ -179,6 +179,7 @@ export function ResultGrid({
   return (
     <VirtualTable
       label="Query results"
+      storageKey="sql.results"
       columns={columns}
       data={rows}
       rowKey={rowKey}

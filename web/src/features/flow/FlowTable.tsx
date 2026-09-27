@@ -103,6 +103,7 @@ export function FlowTable({
   return (
     <VirtualTable
       label="Flow paths"
+      storageKey="flow.paths"
       columns={columns}
       data={rows}
       sort={sort}

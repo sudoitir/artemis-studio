@@ -44,6 +44,7 @@ export function BulkRunsView() {
       ) : (
         <VirtualTable
           label="Bulk runs"
+          storageKey="bulk.runs"
           columns={columns}
           data={query.data}
           rowKey={(r) => r.id}

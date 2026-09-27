@@ -67,3 +67,5 @@ to stand on a row.
   order still worse, and still gives no way to activate a row.
 - **Dropping `role="grid"` for a table with links.** It loses selection and sort semantics,
   and does not solve activation.
+
+See also [ADR-0116](0116-grid-columns-fit-their-content-and-resize.md), which adds column resizing keys to the header row.
