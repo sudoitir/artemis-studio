@@ -178,6 +178,7 @@ export function ConsumerHealthView() {
       ) : (
         <VirtualTable
           label="Consumer health"
+          storageKey="consumer-health"
           columns={columns}
           data={rows}
           sort={search.sort}

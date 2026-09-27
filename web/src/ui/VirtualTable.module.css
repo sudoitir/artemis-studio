@@ -70,6 +70,7 @@
 }
 
 .headCell {
+  position: relative;
   background: var(--as-grid-header-bg);
   padding-block: 7px;
   line-height: 1.55;
@@ -193,4 +194,36 @@
 
 .bodyRow[data-selected] {
   background: var(--as-grid-row-hover);
+}
+
+/* The column resize handle (ADR-0116): a strip on the header cell's inline-end
+   border, with a line that shows on hover and while dragging. Hidden from
+   assistive technology; Ctrl+Shift+Arrow is its keyboard equivalent. */
+.resizeHandle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  inset-block: 6px;
+  inset-inline-end: 0;
+  inline-size: 2px;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.headCell:hover .resizeHandle::after {
+  background: var(--as-border);
+}
+
+.resizeHandle:hover::after,
+.resizeHandle[data-active]::after {
+  background: var(--mantine-primary-color-filled);
 }

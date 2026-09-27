@@ -252,6 +252,7 @@ export function BulkPreviewDialog({
             </Group>
             <VirtualTable
               label="Queues in this run"
+              storageKey="bulk.preview"
               columns={columns(op.destructive)}
               data={shown}
               rowKey={(i) => i.queueName}

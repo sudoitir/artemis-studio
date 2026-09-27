@@ -90,6 +90,7 @@ function NodeTable({ label, rows, shape }: { label: string; rows: NodeRow[]; sha
   return (
     <VirtualTable
       label={label}
+      storageKey={`flow.nodes.${shape}`}
       compact
       columns={nodeColumns(shape)}
       data={rows}

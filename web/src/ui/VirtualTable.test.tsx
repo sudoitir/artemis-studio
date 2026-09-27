@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Menu } from '@mantine/core';
 import userEvent from '@testing-library/user-event';
@@ -398,6 +398,90 @@ describe('VirtualTable', () => {
       await user.click(screen.getByRole('checkbox', { name: 'Deselect all on this page' }));
       expect(onToggleAll).toHaveBeenLastCalledWith(['ORDERS', 'SHIPMENTS', 'DLQ'], true);
       expect(screen.getByRole('checkbox', { name: 'Select row ORDERS' })).not.toBeChecked();
+    });
+  });
+
+  describe('column widths (ADR-0116)', () => {
+    it('widens a fixed column whose value needs more than its declared width', () => {
+      vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+        return (this.textContent ?? '').length * 10;
+      });
+      const typed: GridColumn<Q>[] = [
+        { id: 'name', header: 'Queue', accessor: (r) => r.name },
+        { id: 'type', header: 'T', accessor: () => 'MULTICAST', width: 60 },
+      ];
+      renderWithProviders(<VirtualTable label="Queues" columns={typed} data={rows} rowKey={(r) => r.name} />);
+      expect(screen.getByRole('grid').style.getPropertyValue('--as-cols')).toBe('minmax(180px, 1fr) 92px');
+    });
+
+    const colsOf = () => screen.getByRole('grid').style.getPropertyValue('--as-cols');
+    const long = { name: 'X'.repeat(30), depth: 1 };
+
+    afterEach(() => {
+      localStorage.clear();
+      vi.restoreAllMocks();
+    });
+
+    it('fits a free-text column to its widest value, within the cap', () => {
+      // jsdom does no layout: a cell needs ten pixels per character.
+      vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+        return (this.textContent ?? '').length * 10;
+      });
+      renderWithProviders(<VirtualTable label="Queues" columns={columns} data={[...rows, long]} rowKey={(r) => r.name} />);
+      expect(colsOf()).toContain('minmax(302px, 1fr)');
+    });
+
+    it('never fits a column below the free-text floor or past the cap', () => {
+      const spy = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+        return (this.textContent ?? '').length;
+      });
+      const { unmount } = renderWithProviders(
+        <VirtualTable label="Queues" columns={columns} data={[long]} rowKey={(r) => r.name} />,
+      );
+      expect(colsOf()).toBe('minmax(180px, 1fr) minmax(180px, 1fr)');
+      unmount();
+
+      spy.mockImplementation(function (this: HTMLElement) {
+        return (this.textContent ?? '').length * 100;
+      });
+      renderWithProviders(<VirtualTable label="Queues" columns={columns} data={[long]} rowKey={(r) => r.name} />);
+      expect(colsOf()).toContain('minmax(480px, 1fr)');
+    });
+
+    it('resizes a column from its header with Ctrl+Shift+Arrow, announces it and remembers it', async () => {
+      localStorage.setItem('as.grid.queues', JSON.stringify({ name: 200 }));
+      renderWithProviders(
+        <VirtualTable label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} onSortChange={vi.fn()} />,
+      );
+      expect(colsOf()).toContain('200px');
+      const header = screen.getByRole('button', { name: /queue/i });
+      header.focus();
+      fireEvent.keyDown(header, { key: 'ArrowRight', ctrlKey: true, shiftKey: true });
+      fireEvent.keyDown(header, { key: 'ArrowRight', ctrlKey: true, shiftKey: true });
+      fireEvent.keyDown(header, { key: 'ArrowLeft', ctrlKey: true, shiftKey: true });
+
+      expect(colsOf()).toContain('216px');
+      expect(await screen.findByText('Queue column, 216 pixels')).toBeInTheDocument();
+      expect(JSON.parse(localStorage.getItem('as.grid.queues')!)).toEqual({ name: 216 });
+      // Focus did not move: the grid is still one tab stop on the same header.
+      expect(header).toHaveFocus();
+    });
+
+    it('describes the resize keys on every header', () => {
+      renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+      for (const header of screen.getAllByRole('columnheader')) {
+        expect(header.getAttribute('aria-description')).toMatch(/Ctrl\+Shift\+Left or Right/);
+      }
+    });
+
+    it('ignores stored widths it cannot trust', () => {
+      localStorage.setItem('as.grid.queues', JSON.stringify({ name: 'wide', gone: 300, depth: 1e9 }));
+      renderWithProviders(<VirtualTable label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+      expect(colsOf()).not.toMatch(/(^|\s)\d+px/);
+
+      localStorage.setItem('as.grid.other', '{not json');
+      renderWithProviders(<VirtualTable label="Other" storageKey="other" columns={columns} data={rows} rowKey={(r) => r.name} />);
+      expect(screen.getByRole('grid', { name: 'Other' })).toBeInTheDocument();
     });
   });
 });

@@ -26,6 +26,7 @@ _Others_
 * `i.g.s.a.p.c.HaStateEvaluator`
 * `i.g.s.a.p.c.NodeStateRecorder`
 * `i.g.s.a.p.c.SplitBrainRegistry`
+* `i.g.s.a.p.c.StudioInfo`
 * `i.g.s.a.p.c.TopologyDiscovery`
 |Bean references
 |* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
@@ -40,4 +41,6 @@ _Others_
 * `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
 * `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
 * `i.g.s.a.k.s.ScopedGrants` (in Security)
+* `i.g.s.a.k.p.StudioVersion` (in Plugin contract)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 |===
