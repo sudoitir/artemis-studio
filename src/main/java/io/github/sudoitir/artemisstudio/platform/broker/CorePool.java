@@ -9,8 +9,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
+import org.apache.activemq.artemis.api.core.ActiveMQException;
+import org.apache.activemq.artemis.api.jms.ActiveMQJMSConstants;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
+import org.apache.activemq.artemis.jms.client.ActiveMQSession;
 import org.messaginghub.pooled.jms.JmsPoolConnectionFactory;
+import org.messaginghub.pooled.jms.JmsPoolSession;
 import org.springframework.stereotype.Component;
 
 /**
@@ -81,7 +85,10 @@ public class CorePool {
             UUID clusterId, String coreUrl, CoreConnectionSettings settings, boolean unbuffered, int maxThreads)
             throws JMSException {
         String purpose = unbuffered ? PLUGIN_CONSUMERS : PLUGIN_TAPS;
-        return borrow(clusterId, coreUrl, settings, Session.CLIENT_ACKNOWLEDGE, purpose, CAPTURE_SESSIONS, factory -> {
+        // A consumer acknowledges each message on its own, so a message it has not settled stays
+        // "delivering" on the broker: that is what lets release() hand it back uncounted.
+        int acknowledgeMode = unbuffered ? ActiveMQJMSConstants.INDIVIDUAL_ACKNOWLEDGE : Session.CLIENT_ACKNOWLEDGE;
+        return borrow(clusterId, coreUrl, settings, acknowledgeMode, purpose, CAPTURE_SESSIONS, factory -> {
             factory.setUseGlobalPools(false);
             factory.setThreadPoolMaxSize(maxThreads);
             if (unbuffered) {
@@ -183,6 +190,31 @@ public class CorePool {
 
     /** A borrowed connection/session pair. {@link #close()} returns the connection to the pool. */
     public record PooledSession(Connection connection, Session session) implements AutoCloseable {
+        /**
+         * Hands back what this {@code INDIVIDUAL_ACKNOWLEDGE} session received and did not
+         * acknowledge, like {@link Session#recover()}, except that none of it counts as a delivery
+         * attempt: the broker's {@code max-delivery-attempts} never dead-letters a message for this.
+         * JMS has no such call. The Core session's rollback that does not consider the last message
+         * delivered cancels the broker's delivering references, and the broker takes their delivery
+         * back; {@code recover()} instead keeps the last one counted. Under {@code CLIENT_ACKNOWLEDGE}
+         * the JMS client acknowledges a message at Core level before the listener runs, so there is
+         * nothing delivering left to cancel and every rollback counts.
+         */
+        public void release() throws JMSException {
+            Session inner = session instanceof JmsPoolSession pooled ? pooled.getInternalSession() : session;
+            if (!(inner instanceof ActiveMQSession artemis)) {
+                throw new IllegalStateException(
+                        "Not an Artemis session: " + inner.getClass().getName());
+            }
+            try {
+                artemis.getCoreSession().rollback(false);
+            } catch (ActiveMQException e) {
+                JMSException failure = new JMSException(e.getMessage());
+                failure.setLinkedException(e);
+                throw failure;
+            }
+        }
+
         @Override
         public void close() {
             try {

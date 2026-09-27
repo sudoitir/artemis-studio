@@ -282,6 +282,44 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         awaitQueueCount(queue, 0);
     }
 
+    /** The broker's default {@code max-delivery-attempts}, which the container broker keeps. */
+    private static final int DELIVERY_ATTEMPTS = 10;
+
+    @Test
+    void aReleasedMessageNeverSpendsADeliveryAttempt() throws Exception {
+        String queue = queue("RELEASE");
+        String plugin = activate("release");
+        MessagingProbe.ANSWER.put(plugin, Disposition.RELEASE);
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 1, operator));
+
+        send(queue, 1, 16);
+        for (int i = 0; i < DELIVERY_ATTEMPTS + 5; i++) {
+            PluginMessage m = MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS);
+            assertThat(m).as("delivery %d", i + 1).isNotNull();
+            assertThat(m.deliveryCount()).as("delivery %d", i + 1).isEqualTo(1);
+        }
+        MessagingProbe.ANSWER.put(plugin, Disposition.ACCEPT);
+        awaitQueueCount(queue, 0);
+    }
+
+    @Test
+    void aRejectedMessageStillRunsOutOfAttempts() throws Exception {
+        String queue = queue("EXHAUST");
+        String plugin = activate("exhaust");
+        MessagingProbe.ANSWER.put(plugin, Disposition.REJECT);
+        messaging(plugin)
+                .register(new RegistrationSpec("work", clusterId, queue, RegistrationMode.CONSUME, 1, operator));
+
+        send(queue, 1, 16);
+        int last = 0;
+        for (PluginMessage m; (m = MessagingProbe.inbox(plugin).poll(5, TimeUnit.SECONDS)) != null; ) {
+            last = m.deliveryCount();
+        }
+        assertThat(last).isEqualTo(DELIVERY_ATTEMPTS);
+        awaitQueueCount(queue, 0);
+    }
+
     @Test
     void messagesAPluginHadNotSettledWhenItStoppedAreDeliveredAgain() throws Exception {
         String queue = queue("STOP");
