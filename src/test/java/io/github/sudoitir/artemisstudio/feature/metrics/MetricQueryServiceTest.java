@@ -9,6 +9,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
@@ -16,9 +18,11 @@ import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.NodeBucket;
+import io.github.sudoitir.artemisstudio.platform.scrape.PluginMetrics;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,9 @@ class MetricQueryServiceTest {
     @Mock
     ClusterDirectory directory;
 
+    @Mock
+    PluginMetrics pluginMetrics;
+
     MetricQueryService service;
 
     private final UUID clusterId = UUID.randomUUID();
@@ -53,7 +60,7 @@ class MetricQueryServiceTest {
     @BeforeEach
     void setUp() {
         when(reaper.retentionDays()).thenReturn(7);
-        service = new MetricQueryService(repository, reaper, clusterAccess, directory);
+        service = new MetricQueryService(repository, reaper, clusterAccess, directory, pluginMetrics);
     }
 
     @Test
@@ -185,5 +192,50 @@ class MetricQueryServiceTest {
                         "ADDRESS"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("splitBy must be NODE");
+    }
+
+    private PluginMetrics.Declared editsMetric() {
+        return new PluginMetrics.Declared(
+                "acme-notes",
+                new PluginDescriptor.Metric("acme-notes:edits", "Edits", "count", "note", "acme-notes:stats"));
+    }
+
+    @Test
+    void aPluginSeriesNeedsTheMetricsDeclaredPermission() {
+        when(pluginMetrics.declared("acme-notes:edits")).thenReturn(Optional.of(editsMetric()));
+        org.mockito.Mockito.doThrow(new NotFoundException("cluster", clusterId))
+                .when(clusterAccess)
+                .requireCluster(clusterId, "acme-notes:stats");
+        Instant to = Instant.now();
+
+        assertThatThrownBy(() -> service.pluginQuery(
+                        clusterId, "acme-notes:edits", "daily", to.minus(Duration.ofHours(1)), to, null))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void aPluginSeriesIsReadAsGaugeBucketsInTheDeclaredUnit() {
+        when(pluginMetrics.declared("acme-notes:edits")).thenReturn(Optional.of(editsMetric()));
+        Instant bucket = Instant.parse("2026-01-01T00:00:00Z");
+        when(repository.pluginSeries(eq(clusterId), eq("acme-notes:edits"), eq("daily"), any(), any(), any()))
+                .thenReturn(List.of(new Bucket(bucket, 3.0, 4.0)));
+        Instant to = Instant.now();
+
+        MetricSeriesResponse response =
+                service.pluginQuery(clusterId, "acme-notes:edits", "daily", to.minus(Duration.ofHours(1)), to, null);
+
+        assertThat(response.series()).singleElement().satisfies(s -> {
+            assertThat(s.unit()).isEqualTo("count");
+            assertThat(s.points()).singleElement().extracting(p -> p.value()).isEqualTo(3.0);
+        });
+    }
+
+    @Test
+    void aMetricNoRunningPluginDeclaresIsUnknown() {
+        when(pluginMetrics.declared("acme-notes:edits")).thenReturn(Optional.empty());
+        Instant to = Instant.now();
+
+        assertThatThrownBy(() -> service.pluginQuery(clusterId, "acme-notes:edits", "daily", to, to, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

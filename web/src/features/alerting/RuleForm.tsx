@@ -12,7 +12,7 @@ import {
   TextInput,
 } from '@mantine/core';
 
-import type { AlertRuleRequest, AlertRuleView, NotificationChannelView } from './api.ts';
+import type { AlertRuleRequest, AlertRuleView, NotificationChannelView, PluginMetricView } from './api.ts';
 import {
   COMPARATORS,
   DERIVED_METRICS,
@@ -27,10 +27,33 @@ import {
   metricLabel,
 } from './severity.ts';
 
-const METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_METRICS].map((m) => ({
+const STUDIO_METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_METRICS].map((m) => ({
   value: m,
   label: `${metricLabel(m)} (${metricKind(m)})`,
 }));
+
+const UNIT_WORDS: Record<string, string> = { count: 'count', per_second: 'per second', ms: 'ms', ratio: 'ratio 0–1' };
+
+/**
+ * Studio's own metrics, then the metrics running plugins publish (ADR-0113). A rule being edited
+ * whose plugin is not running keeps its metric on the list, marked, so the form never shows it
+ * blank.
+ */
+function metricOptions(pluginMetrics: PluginMetricView[], current: string | null) {
+  const plugin = pluginMetrics.map((m) => ({
+    value: m.metric,
+    label: `${m.metric} (${UNIT_WORDS[m.unit] ?? m.unit}, per ${m.subject})`,
+  }));
+  if (current?.includes(':') && !pluginMetrics.some((m) => m.metric === current)) {
+    plugin.push({ value: current, label: `${current} (plugin not running)` });
+  }
+  return plugin.length
+    ? [
+        { group: 'Studio', items: STUDIO_METRIC_OPTIONS },
+        { group: 'Plugins', items: plugin },
+      ]
+    : STUDIO_METRIC_OPTIONS;
+}
 const STATE_OPTIONS = STATE_CONDITIONS.map((c) => ({ value: c, label: c.replace(/_/g, ' ').toLowerCase() }));
 const SEVERITY_OPTIONS = ['INFO', 'WARNING', 'CRITICAL'];
 
@@ -41,12 +64,15 @@ const SEVERITY_OPTIONS = ['INFO', 'WARNING', 'CRITICAL'];
  */
 export function RuleForm({
   channels,
+  pluginMetrics = [],
   initial,
   onSubmit,
   submitting,
   onCancel,
 }: {
   channels: NotificationChannelView[];
+  /** The metrics running plugins publish. */
+  pluginMetrics?: PluginMetricView[];
   initial?: AlertRuleView;
   onSubmit: (body: AlertRuleRequest) => void;
   submitting: boolean;
@@ -92,6 +118,8 @@ export function RuleForm({
     setForSeconds(SETUP_RISK_TEMPLATE.forSeconds);
     setSeverity(SETUP_RISK_TEMPLATE.severity);
   };
+
+  const pluginMetric = pluginMetrics.find((m) => m.metric === metric);
 
   const valid =
     name.trim() &&
@@ -177,7 +205,7 @@ export function RuleForm({
             <Select
               label="Metric"
               placeholder="Choose a metric"
-              data={METRIC_OPTIONS}
+              data={metricOptions(pluginMetrics, metric)}
               value={metric}
               onChange={setMetric}
               w={220}
@@ -229,6 +257,12 @@ export function RuleForm({
       {metric && METRIC_NOTES[metric] ? (
         <Text size="xs" c="dimmed" maw={720}>
           {METRIC_NOTES[metric]}
+        </Text>
+      ) : null}
+      {kind === 'METRIC_THRESHOLD' && pluginMetric ? (
+        <Text size="xs" c="dimmed" maw={720}>
+          {pluginMetric.description} Published by the {pluginMetric.plugin} plugin and sampled on every
+          queue scrape; the rule fires per {pluginMetric.subject}.
         </Text>
       ) : null}
 

@@ -42,6 +42,8 @@ public class PluginValidator {
     static final int MAX_ENTRIES = 20_000;
     static final long MAX_RATIO = 100;
 
+    private static final Pattern METRIC_NAME = Pattern.compile("[a-z0-9-]+:[a-z][a-z0-9_.]{0,63}");
+    private static final Set<String> METRIC_UNITS = Set.of("count", "per_second", "ms", "ratio");
     private static final Set<String> DENIED_MANIFEST_ATTRIBUTES =
             Set.of("Class-Path", "Launcher-Agent-Class", "Add-Opens", "Add-Exports", "Enable-Native-Access");
 
@@ -376,6 +378,7 @@ public class PluginValidator {
 
         checkStudioRange(descriptor, violations);
         checkNamespaces(descriptor, violations);
+        checkMetrics(descriptor, violations);
     }
 
     private void checkStudioRange(PluginDescriptor descriptor, List<Violation> violations) {
@@ -460,5 +463,60 @@ public class PluginValidator {
         }
         // The @ConfigurationProperties prefix itself (artemis-studio.plugins.<id>) is checked
         // against bytecode in BytecodeChecks, which needs the class file, not just the descriptor.
+    }
+
+    /** ADR-0113: metrics are namespaced, readable with a declared permission, and rules watch declared ones. */
+    private void checkMetrics(PluginDescriptor descriptor, List<Violation> violations) {
+        String id = descriptor.id();
+        if (id == null) {
+            return;
+        }
+        Set<String> permissions = new HashSet<>();
+        descriptor.permissions().forEach(p -> permissions.add(p.action()));
+        Set<String> metrics = new HashSet<>();
+        for (var metric : descriptor.metrics()) {
+            String name = metric.name();
+            if (name == null || !METRIC_NAME.matcher(name).matches() || !name.startsWith(id + ":")) {
+                violations.add(new Violation(
+                        "metric-name",
+                        "Metric \"%s\" is not a valid name under \"%s:\".".formatted(name, id),
+                        "Name every metric \"%s:<name>\", with lowercase letters, digits, '.' and '_' after the colon."
+                                .formatted(id)));
+            } else if (!metrics.add(name)) {
+                violations.add(new Violation(
+                        "metric-duplicate",
+                        "Metric \"%s\" is declared twice.".formatted(name),
+                        "Declare each metric once."));
+            }
+            if (!METRIC_UNITS.contains(metric.unit())) {
+                violations.add(new Violation(
+                        "metric-unit",
+                        "Metric \"%s\" has the unit \"%s\".".formatted(name, metric.unit()),
+                        "Use one of " + METRIC_UNITS + "."));
+            }
+            if (!permissions.contains(metric.permission())) {
+                violations.add(new Violation(
+                        "metric-permission",
+                        "Metric \"%s\" is read with \"%s\", which the plugin does not declare."
+                                .formatted(name, metric.permission()),
+                        "Declare that permission under permissions, or name one that is declared."));
+            }
+        }
+        Set<String> keys = new HashSet<>();
+        for (var rule : descriptor.alertRules()) {
+            if (rule.key() == null || rule.key().isBlank() || !keys.add(rule.key())) {
+                violations.add(new Violation(
+                        "alert-rule-key",
+                        "Alert rule key \"%s\" is missing or used twice.".formatted(rule.key()),
+                        "Give every alert rule its own stable key."));
+            }
+            if (!metrics.contains(rule.metric())) {
+                violations.add(new Violation(
+                        "alert-rule-metric",
+                        "Alert rule \"%s\" watches \"%s\", which the plugin does not declare under metrics."
+                                .formatted(rule.key(), rule.metric()),
+                        "Point the rule at one of the plugin's declared metrics."));
+            }
+        }
     }
 }

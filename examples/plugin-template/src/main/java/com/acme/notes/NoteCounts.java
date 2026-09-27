@@ -1,0 +1,40 @@
+package com.acme.notes;
+
+import io.github.sudoitir.artemisstudio.platform.scrape.PluginMetricSource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Publishes {@code acme-notes:notes}, the notes left on each queue, which Studio samples on every
+ * scrape into its metrics, Prometheus and alert rules. The query reads an indexed column of a
+ * small table; a source over anything slower would keep its counts in memory instead.
+ */
+@Component
+public class NoteCounts implements PluginMetricSource {
+
+    @PersistenceContext
+    private EntityManager em;
+
+    @Override
+    public String metric() {
+        return "acme-notes:notes";
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Double> sample(UUID clusterId) {
+        Map<String, Double> counts = new HashMap<>();
+        em.createQuery(
+                        "SELECT n.queue, count(n) FROM Note n WHERE n.clusterId = :cluster GROUP BY n.queue",
+                        Object[].class)
+                .setParameter("cluster", clusterId)
+                .getResultList()
+                .forEach(row -> counts.put((String) row[0], ((Number) row[1]).doubleValue()));
+        return counts;
+    }
+}

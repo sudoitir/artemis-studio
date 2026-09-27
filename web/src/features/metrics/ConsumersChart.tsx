@@ -2,7 +2,7 @@ import { AreaChart } from '@mantine/charts';
 
 import type { MetricSeries } from './api.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
-import { CHART_HEIGHT } from './ChartPanel.tsx';
+import { CHART_HEIGHT } from '../../kernel/metrics/ChartPanel.tsx';
 import {
   formatExact,
   gridProps,
@@ -10,7 +10,7 @@ import {
   mergeByTimestamp,
   timeAxisProps,
   yAxisProps,
-} from './axis.ts';
+} from '../../kernel/metrics/axis.ts';
 import type { MetricRange } from './ranges.ts';
 
 /** Consumer count, step-shaped — a drop to zero next to a depth climb is the classic incident. */

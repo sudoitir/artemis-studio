@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.PluginMetricView;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
@@ -44,6 +45,7 @@ public class AlertRuleService {
     private final ActorResolver actorResolver;
     private final AlertViewMapper mapper;
     private final ClusterAccessGuard clusterAccess;
+    private final PluginMetricCondition pluginMetrics;
 
     /** Every rule kind's predicate, so validation accepts exactly what evaluation can run. */
     private final java.util.List<AlertCondition> conditions;
@@ -52,7 +54,21 @@ public class AlertRuleService {
     public List<AlertRuleView> list(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
         return rules.findByClusterIdOrderByName(clusterId).stream()
-                .map(r -> mapper.rule(r, channelIds(r.getId())))
+                .map(r -> view(r, channelIds(r.getId())))
+                .toList();
+    }
+
+    /** The metrics of running plugins a threshold rule may watch (ADR-0113). */
+    public List<PluginMetricView> pluginMetrics(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
+        return pluginMetrics.declared().stream()
+                .map(d -> new PluginMetricView(
+                        d.metric().name(),
+                        d.plugin(),
+                        d.metric().description(),
+                        d.metric().unit(),
+                        d.metric().subject()))
+                .sorted(java.util.Comparator.comparing(PluginMetricView::metric))
                 .toList();
     }
 
@@ -74,7 +90,7 @@ public class AlertRuleService {
                 Map.of("kind", rule.getKind()),
                 false);
         audit.succeed(event, 1);
-        return mapper.rule(rule, channelIds(rule.getId()));
+        return view(rule, channelIds(rule.getId()));
     }
 
     @Transactional
@@ -109,7 +125,7 @@ public class AlertRuleService {
         bindChannels(ruleId, request.channelIds());
 
         audit.succeed(event, 1);
-        return mapper.rule(existing, channelIds(ruleId));
+        return view(existing, channelIds(ruleId));
     }
 
     @Transactional
@@ -165,6 +181,11 @@ public class AlertRuleService {
             return AlertRuleEntity.state(null, r.name(), r.stateCondition(), r.forSeconds(), r.severity());
         }
         throw new IllegalArgumentException("unknown rule kind: " + r.kind());
+    }
+
+    /** A rule on a plugin metric whose plugin is not running has no source (ADR-0113). */
+    private AlertRuleView view(AlertRuleEntity rule, List<UUID> channelIds) {
+        return mapper.rule(rule, channelIds, !rule.isThreshold() || pluginMetrics.available(rule.getMetric()));
     }
 
     private void bindChannels(UUID ruleId, List<UUID> channelIds) {

@@ -7,6 +7,10 @@
 
 * `i.g.s.a.p.s.MetricSamples`
 
+_Event listeners_
+
+* `i.g.s.a.p.s.PluginMetrics`
+
 _Configuration properties_
 
 * `i.g.s.a.p.s.MetricProperties`
@@ -34,4 +38,6 @@ _Others_
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
+|Events listened to
+|* `i.g.s.a.p.s.ScrapeTierCompleted` 
 |===

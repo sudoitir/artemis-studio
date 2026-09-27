@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFir
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
+import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.PluginMetricView;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +48,11 @@ public class AlertsController {
     @GetMapping("/rules")
     public List<AlertRuleView> rules(@PathVariable UUID clusterId) {
         return ruleService.list(clusterId);
+    }
+
+    @GetMapping("/plugin-metrics")
+    public List<PluginMetricView> pluginMetrics(@PathVariable UUID clusterId) {
+        return ruleService.pluginMetrics(clusterId);
     }
 
     @PostMapping("/rules")

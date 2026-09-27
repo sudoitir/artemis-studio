@@ -195,6 +195,7 @@ It is a complete plugin, **Notes**, notes operators leave on queues, with every 
 - an API behind Studio's permissions
 - an assistant tool
 - a setting and a background job
+- a metric with a default alert rule
 - a page in every cluster, a navigation entry, a panel in every queue's details, and live updates
 
 ```bash
@@ -302,6 +303,53 @@ class Orders implements PluginMessageHandler {
 **`PluginSecrets`** stores named values encrypted with Studio's secret key: `put`, `get`, `delete`
 and `list` (names and dates only). No Studio interface returns a value, and a plugin should keep it
 that way: accept secrets, never echo them. Purging the plugin deletes them.
+
+### Metrics and alerts
+
+A plugin publishes numbers an operator watches through Studio's own metrics: the time series, its
+charts, Prometheus and the alert rules. Nothing parallel is needed on either side.
+
+**Declare** each metric in `plugin.json`, with the permission that reads its series:
+
+```json
+"metrics": [
+  { "name": "acme-notes:notes", "description": "Notes per queue.", "unit": "count",
+    "subject": "queue", "permission": "acme-notes:read" }
+],
+"alertRules": [
+  { "key": "many-notes", "name": "Many notes on a queue", "metric": "acme-notes:notes",
+    "comparator": "GT", "threshold": 50, "forSeconds": 0, "severity": "INFO" }
+]
+```
+
+**Answer for it** with a `PluginMetricSource` bean, which returns the current value per subject:
+
+```java
+@Component
+class NoteCounts implements PluginMetricSource {
+    public String metric() { return "acme-notes:notes"; }
+    public Map<String, Double> sample(UUID clusterId) { return counts.perQueue(clusterId); }
+}
+```
+
+- **When.** Studio asks on every tier-B scrape of a cluster (every 15 s by default). A call that
+  throws or takes longer than two seconds is skipped for that scrape, so answer from what the
+  plugin already holds rather than from a slow query.
+- **Where it goes.**
+  - The values are stored with the queue metrics and share their retention.
+  - Prometheus shows them as `studio_plugin_metric{plugin, metric, cluster, subject}`.
+  - Each value is per Studio instance.
+- **Rules.** Threshold rules can watch the metric, with Studio's comparators, durations,
+  severities and channels. A scope's `subjectPattern` narrows a rule to some subjects.
+  - `alertRules` are created once on every cluster, when the plugin first runs and for clusters
+    registered later. An operator's edit or deletion is never undone.
+  - While the plugin is not running, its rules show "source unavailable" and do not fire.
+- **Charts.** `MetricChart` from the SDK draws Studio's own chart of one subject:
+  `<MetricChart clusterId={id} metric="acme-notes:notes" subject="orders" title="Notes" />`. The
+  reader needs the permission the metric declares. `usePluginSeries` returns the same series as
+  data.
+- A source for a metric `plugin.json` does not declare refuses activation, and a metric read with a
+  permission the plugin does not declare refuses the upload.
 
 **Offer updates** by naming an `updateUrl` (https) in `plugin.json` that answers:
 

@@ -22,5 +22,25 @@
   "streamTopics": ["acme-notes"],
   "mcpTools": [
     { "name": "acme_notes_list", "posture": "read", "description": "Lists the notes on a queue." }
+  ],
+  "metrics": [
+    {
+      "name": "acme-notes:notes",
+      "description": "Notes left on each queue.",
+      "unit": "count",
+      "subject": "queue",
+      "permission": "acme-notes:read"
+    }
+  ],
+  "alertRules": [
+    {
+      "key": "many-notes",
+      "name": "Many notes on a queue",
+      "metric": "acme-notes:notes",
+      "comparator": "GT",
+      "threshold": 50,
+      "forSeconds": 0,
+      "severity": "INFO"
+    }
   ]
 }

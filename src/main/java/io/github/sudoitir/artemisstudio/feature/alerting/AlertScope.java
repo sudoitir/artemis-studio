@@ -3,14 +3,15 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * {@code alert_rule.scope} ({@code {addressPattern, queuePattern, node}}).
+ * {@code alert_rule.scope} ({@code {addressPattern, queuePattern, node, subjectPattern}}), where
+ * {@code subjectPattern} narrows a plugin-metric rule to some of its subjects (ADR-0113).
  * A pattern with no {@code *} must match exactly; {@code *} is a wildcard
  * translated to a regex — enough for "starts with", "ends with", "contains"
  * without pulling in a glob library for three field-level filters.
  */
-public record AlertScope(String addressPattern, String queuePattern, String node) {
+public record AlertScope(String addressPattern, String queuePattern, String node, String subjectPattern) {
 
-    public static final AlertScope NONE = new AlertScope(null, null, null);
+    public static final AlertScope NONE = new AlertScope(null, null, null, null);
 
     public static AlertScope parse(String json, ObjectMapper mapper) {
         if (json == null || json.isBlank()) {
@@ -29,6 +30,10 @@ public record AlertScope(String addressPattern, String queuePattern, String node
 
     public boolean matchesQueue(String queueName) {
         return matches(queuePattern, queueName);
+    }
+
+    public boolean matchesSubject(String subject) {
+        return matches(subjectPattern, subject);
     }
 
     public boolean matchesNode(String artemisNodeId) {

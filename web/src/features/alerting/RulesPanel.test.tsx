@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -22,6 +22,7 @@ function rule(over: Record<string, unknown> = {}) {
     scope: null,
     enabled: true,
     channelIds: [],
+    sourceAvailable: true,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...over,
@@ -29,6 +30,42 @@ function rule(over: Record<string, unknown> = {}) {
 }
 
 describe('RulesPanel', () => {
+  beforeEach(() => {
+    server.use(http.get('*/api/v1/clusters/c1/alerts/plugin-metrics', () => HttpResponse.json([])));
+  });
+
+  it('offers the metrics running plugins publish and describes the chosen one', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json([])),
+      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/alerts/plugin-metrics', () =>
+        HttpResponse.json([
+          { metric: 'acme-notes:edits', plugin: 'acme-notes', description: 'Edits per note.', unit: 'count', subject: 'note' },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RulesPanel clusterId="c1" />);
+
+    await screen.findByText(/No rules yet/);
+    await user.click(screen.getByRole('combobox', { name: 'Metric' }));
+    await user.click(await screen.findByText('acme-notes:edits (count, per note)'));
+
+    expect(screen.getByText(/Edits per note\. Published by the acme-notes plugin/)).toBeInTheDocument();
+  });
+
+  it('says when a rule watches a metric whose plugin is not running', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/alerts/rules', () =>
+        HttpResponse.json([rule({ metric: 'acme-notes:edits', sourceAvailable: false })]),
+      ),
+      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+    );
+    renderWithProviders(<RulesPanel clusterId="c1" />);
+
+    expect(await screen.findByText(/Source unavailable/)).toBeInTheDocument();
+  });
+
   it('lists existing rules and shows the threshold condition', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json([rule()])),

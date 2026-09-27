@@ -19,4 +19,5 @@ _Others_
 * `i.g.s.a.p.s.MetricSampleReaper` (in Scraping)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.p.s.PluginMetrics` (in Scraping)
 |===

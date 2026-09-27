@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.NodeBucket;
+import io.github.sudoitir.artemisstudio.platform.scrape.PluginMetrics;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -54,12 +55,15 @@ public class MetricQueryService {
     private final MetricSampleReaper reaper;
     private final ClusterAccessGuard clusterAccess;
     private final ClusterDirectory directory;
+    private final PluginMetrics pluginMetrics;
 
     public MetricQueryService(
             MetricSamples repository,
             MetricSampleReaper reaper,
             ClusterAccessGuard clusterAccess,
-            ClusterDirectory directory) {
+            ClusterDirectory directory,
+            PluginMetrics pluginMetrics) {
+        this.pluginMetrics = pluginMetrics;
         this.repository = repository;
         this.reaper = reaper;
         this.clusterAccess = clusterAccess;
@@ -113,26 +117,11 @@ public class MetricQueryService {
             }
         }
 
-        boolean truncated = false;
-
-        Instant retentionFloor = Instant.now().minus(Duration.ofDays(reaper.retentionDays()));
-        Instant effectiveFrom = from;
-        if (effectiveFrom.isBefore(retentionFloor)) {
-            effectiveFrom = retentionFloor;
-            truncated = true;
-        }
-
+        Window window = window(from, to, requestedStep);
+        Instant effectiveFrom = window.from();
+        Duration step = window.step();
+        boolean truncated = window.truncated();
         Duration range = Duration.between(effectiveFrom, to);
-        Duration step = requestedStep != null ? requestedStep : Duration.ofMinutes(1);
-        if (step.compareTo(MIN_STEP) < 0) {
-            step = MIN_STEP;
-            truncated = requestedStep != null ? true : truncated;
-        }
-        long maxPointStep = range.dividedBy(MAX_POINTS).plusSeconds(1).getSeconds();
-        if (step.toSeconds() < maxPointStep) {
-            step = Duration.ofSeconds(maxPointStep);
-            truncated = true;
-        }
 
         List<ClusterNode> nodes = splitBy == null ? List.of() : directory.nodes(clusterId);
         if (splitBy != null) {
@@ -160,6 +149,62 @@ public class MetricQueryService {
         Split split = split(clusterId, metrics, subjectName, finalFrom, to, finalStep, nodes);
         return new MetricSeriesResponse(
                 effectiveFrom, to, step.toString(), truncated || split.clamped(), series, SPLIT_BY_NODE, split.nodes());
+    }
+
+    /**
+     * A plugin metric's series for one subject (ADR-0113), as gauge buckets. Needs cluster read and
+     * the permission the metric declares; a metric no running plugin declares is unknown.
+     */
+    public MetricSeriesResponse pluginQuery(
+            UUID clusterId, String metric, String subject, Instant from, Instant to, Duration requestedStep) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        if (metric == null || metric.isBlank()) {
+            throw new IllegalArgumentException("metric is required");
+        }
+        PluginMetrics.Declared declared = pluginMetrics
+                .declared(metric)
+                .orElseThrow(() -> new IllegalArgumentException("unknown metric: " + metric));
+        // Refused like any cluster-scoped read the caller may not make (ClusterAccessGuard).
+        clusterAccess.requireCluster(clusterId, declared.metric().permission());
+        if (subject == null || subject.isBlank()) {
+            throw new IllegalArgumentException("subject is required");
+        }
+        Window window = window(from, to, requestedStep);
+        List<MetricPoint> points =
+                repository.pluginSeries(clusterId, metric, subject, window.from(), to, window.step()).stream()
+                        .map(b -> new MetricPoint(b.ts(), b.value(), b.peak()))
+                        .toList();
+        return new MetricSeriesResponse(
+                window.from(),
+                to,
+                window.step().toString(),
+                window.truncated(),
+                List.of(new MetricSeries(metric, "GAUGE", declared.metric().unit(), points)));
+    }
+
+    private record Window(Instant from, Duration step, boolean truncated) {}
+
+    /** The window clamped to retention, and the step clamped to the fastest tier and the point cap. */
+    private Window window(Instant from, Instant to, Duration requestedStep) {
+        boolean truncated = false;
+        Instant retentionFloor = Instant.now().minus(Duration.ofDays(reaper.retentionDays()));
+        Instant effectiveFrom = from;
+        if (effectiveFrom.isBefore(retentionFloor)) {
+            effectiveFrom = retentionFloor;
+            truncated = true;
+        }
+        Duration range = Duration.between(effectiveFrom, to);
+        Duration step = requestedStep != null ? requestedStep : Duration.ofMinutes(1);
+        if (step.compareTo(MIN_STEP) < 0) {
+            step = MIN_STEP;
+            truncated = requestedStep != null ? true : truncated;
+        }
+        long maxPointStep = range.dividedBy(MAX_POINTS).plusSeconds(1).getSeconds();
+        if (step.toSeconds() < maxPointStep) {
+            step = Duration.ofSeconds(maxPointStep);
+            truncated = true;
+        }
+        return new Window(effectiveFrom, step, truncated);
     }
 
     private record Split(List<MetricNodeSeries> nodes, boolean clamped) {}

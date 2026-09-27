@@ -9,6 +9,7 @@ export type AlertFiringPageView = Schemas["AlertFiringPageView"];
 export type AlertFiringView = Schemas["AlertFiringView"];
 export type AlertRuleRequest = Schemas["AlertRuleRequest"];
 export type AlertRuleView = Schemas["AlertRuleView"];
+export type PluginMetricView = Schemas["PluginMetricView"];
 export type ClusterFiringCountView = Schemas["ClusterFiringCountView"];
 export type NotificationChannelRequest = Schemas["NotificationChannelRequest"];
 export type NotificationChannelView = Schemas["NotificationChannelView"];
@@ -21,6 +22,7 @@ export const keys = {
   alertFiring: (id: string) => clusterKey(id, 'alerts', 'firing'),
   alertHistory: (id: string, page: number, size: number) => clusterKey(id, 'alerts', 'history', page, size),
   alertRules: (id: string) => clusterKey(id, 'alerts', 'rules'),
+  pluginMetrics: (id: string) => clusterKey(id, 'alerts', 'plugin-metrics'),
   channels: ['channels'] as const,
   deliveries: (channelId: string) => ['channels', channelId, 'deliveries'] as const,
   firingCounts: ['alerts', 'firing'] as const,
@@ -33,6 +35,14 @@ export function useAlertRules(
     queryKey: keys.alertRules(clusterId),
     queryFn: () =>
       request<AlertRuleView[]>(`/clusters/${clusterId}/alerts/rules`),
+  });
+}
+
+/** The metrics running plugins publish, which a threshold rule may watch (ADR-0113). */
+export function usePluginMetrics(clusterId: string): UseQueryResult<PluginMetricView[], ApiError> {
+  return useQuery({
+    queryKey: keys.pluginMetrics(clusterId),
+    queryFn: () => request<PluginMetricView[]>(`/clusters/${clusterId}/alerts/plugin-metrics`),
   });
 }
 

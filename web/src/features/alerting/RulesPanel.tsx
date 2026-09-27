@@ -3,7 +3,15 @@ import { ActionIcon, Badge, Group, Stack, Switch, Table, Text, Title } from '@ma
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
-import { useAlertRules, useCreateAlertRule, useDeleteAlertRule, useNotificationChannels, useUpdateAlertRule, type AlertRuleView } from './api.ts';
+import {
+  useAlertRules,
+  useCreateAlertRule,
+  useDeleteAlertRule,
+  useNotificationChannels,
+  usePluginMetrics,
+  useUpdateAlertRule,
+  type AlertRuleView,
+} from './api.ts';
 import { RuleForm } from './RuleForm.tsx';
 import { comparatorSymbol, severityTone, stateConditionLabel } from './severity.ts';
 
@@ -18,6 +26,7 @@ function ruleCondition(rule: AlertRuleView): string {
 export function RulesPanel({ clusterId }: { clusterId: string }) {
   const rules = useAlertRules(clusterId);
   const channels = useNotificationChannels();
+  const pluginMetrics = usePluginMetrics(clusterId);
   const create = useCreateAlertRule(clusterId);
   const update = useUpdateAlertRule(clusterId);
   const remove = useDeleteAlertRule(clusterId);
@@ -31,6 +40,7 @@ export function RulesPanel({ clusterId }: { clusterId: string }) {
       <RuleForm
         key={editing?.id ?? 'new'}
         channels={channels.data ?? []}
+        pluginMetrics={pluginMetrics.data ?? []}
         initial={editing ?? undefined}
         submitting={create.isPending || update.isPending}
         onCancel={editing ? () => setEditing(null) : undefined}
@@ -89,6 +99,12 @@ export function RulesPanel({ clusterId }: { clusterId: string }) {
                     <Text size="sm" ff="monospace">
                       {ruleCondition(r)}
                     </Text>
+                    {r.sourceAvailable ? null : (
+                      <Text size="xs" c="dimmed">
+                        Source unavailable: the plugin that publishes this metric is not running, so
+                        the rule cannot fire.
+                      </Text>
+                    )}
                   </Table.Td>
                   <Table.Td>{r.forSeconds}s</Table.Td>
                   <Table.Td>

@@ -75,6 +75,9 @@ services:
       # the generated one, it does not merge. EXTRA_ARGS only affects the initial
       # `artemis create`, whose output the copy then replaces.
       ANONYMOUS_LOGIN: "false"
+      # The image's default heap is 2 GB per broker; several of them, Studio and Postgres must fit
+      # in a laptop's Docker VM (Docker Desktop's is often 4 to 8 GB), or its OOM killer ends one.
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     ports:
       - "8161:8161"     # web console + Jolokia
       - "61616:61616"   # Core / AMQP / OpenWire
@@ -93,6 +96,9 @@ services:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
       ANONYMOUS_LOGIN: "false"
+      # The image's default heap is 2 GB per broker; several of them, Studio and Postgres must fit
+      # in a laptop's Docker VM (Docker Desktop's is often 4 to 8 GB), or its OOM killer ends one.
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     ports:
       - "8261:8161"
       - "61617:61616"
@@ -126,7 +132,8 @@ services:
       # A plugin that needs a restart restarts Studio itself; `restart: unless-stopped` below
       # is what starts it again. Remove both together, never one (ADR-0104).
       ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
-      JAVA_OPTS: -XX:MaxMetaspaceSize=256m
+      # A fixed heap, so Studio, the brokers and Postgres fit in a laptop's Docker VM together.
+      JAVA_OPTS: -Xmx1g -XX:MaxMetaspaceSize=256m
     ports:
       # Loopback only: the API is unauthenticated until Phase 8 (ADR-0002 area).
       - "127.0.0.1:8080:8080"

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AlertViewMapper {
 
-    public AlertRuleView rule(AlertRuleEntity e, List<UUID> channelIds) {
+    public AlertRuleView rule(AlertRuleEntity e, List<UUID> channelIds, boolean sourceAvailable) {
         return new AlertRuleView(
                 e.getId(),
                 e.getClusterId(),
@@ -34,6 +34,7 @@ public class AlertViewMapper {
                 e.getScope(),
                 e.isEnabled(),
                 channelIds,
+                sourceAvailable,
                 e.getCreatedAt(),
                 e.getUpdatedAt());
     }

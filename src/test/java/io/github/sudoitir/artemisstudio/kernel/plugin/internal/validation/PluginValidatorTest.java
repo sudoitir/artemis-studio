@@ -231,6 +231,64 @@ class PluginValidatorTest {
         assertThat(has(validate(jar), "mcp-tool-namespace")).isTrue();
     }
 
+    private static java.util.Map<String, String> metric(String name, String unit, String permission) {
+        return java.util.Map.of(
+                "name", name, "description", "x", "unit", unit, "subject", "note", "permission", permission);
+    }
+
+    @Test
+    void aDeclaredMetricAndItsRulePassClean() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "permissions", List.of(java.util.Map.of("action", "acme-notes:stats", "description", "x")))
+                .descriptorField("metrics", List.of(metric("acme-notes:edits", "count", "acme-notes:stats")))
+                .descriptorField(
+                        "alertRules",
+                        List.of(java.util.Map.of(
+                                "key", "many-edits",
+                                "name", "Many edits",
+                                "metric", "acme-notes:edits",
+                                "comparator", "GT",
+                                "threshold", 5,
+                                "forSeconds", 60,
+                                "severity", "WARNING")));
+        assertThat(validate(jar)).isEmpty();
+    }
+
+    @Test
+    void metricOutsideTheNamespaceOrWithAnUnknownUnitIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "permissions", List.of(java.util.Map.of("action", "acme-notes:stats", "description", "x")))
+                .descriptorField("metrics", List.of(metric("other:edits", "furlongs", "acme-notes:stats")));
+        var violations = validate(jar);
+        assertThat(has(violations, "metric-name")).isTrue();
+        assertThat(has(violations, "metric-unit")).isTrue();
+    }
+
+    @Test
+    void metricReadWithAnUndeclaredPermissionIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField("metrics", List.of(metric("acme-notes:edits", "count", "acme-notes:stats")));
+        assertThat(has(validate(jar), "metric-permission")).isTrue();
+    }
+
+    @Test
+    void alertRuleOnAnUndeclaredMetricIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "alertRules",
+                        List.of(java.util.Map.of(
+                                "key", "k",
+                                "name", "n",
+                                "metric", "acme-notes:edits",
+                                "comparator", "GT",
+                                "threshold", 1,
+                                "forSeconds", 0,
+                                "severity", "INFO")));
+        assertThat(has(validate(jar), "alert-rule-metric")).isTrue();
+    }
+
     @Test
     void deniedAnnotationScheduled() throws Exception {
         var jar = validPlugin("acme-notes").source("com.acme.acme_notes.Job", """

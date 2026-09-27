@@ -2,7 +2,7 @@ import { CompositeChart } from '@mantine/charts';
 
 import type { MetricSeries } from './api.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
-import { CHART_HEIGHT } from './ChartPanel.tsx';
+import { CHART_HEIGHT } from '../../kernel/metrics/ChartPanel.tsx';
 import {
   formatRate,
   gridProps,
@@ -10,7 +10,7 @@ import {
   mergeByTimestamp,
   timeAxisProps,
   yAxisProps,
-} from './axis.ts';
+} from '../../kernel/metrics/axis.ts';
 import type { MetricRange } from './ranges.ts';
 
 /**
