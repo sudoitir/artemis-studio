@@ -138,6 +138,12 @@ async function main() {
       path: '/admin',
       ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
     },
+    {
+      file: 'settings.png',
+      path: `/clusters/${clusterId}/settings?tab=settings-operational`,
+      ready: () =>
+        page.getByRole('heading', { name: 'Operational configuration' }).waitFor({ timeout: 30_000 }),
+    },
     // ── declared configuration (ADR-0067) ────────────────────────────────
     // Ordered on purpose: the first-run offer only exists while the cluster has
     // no declaration, so it is photographed before anything declares one.
@@ -163,11 +169,12 @@ async function main() {
     },
     {
       file: 'config-plan.png',
-      path: `/clusters/${clusterId}/configuration/apply`,
+      path: `/clusters/${clusterId}/configuration`,
       height: 1200,
       // A declaration the brokers do not yet run, so the plan has something to
-      // show. Declaring writes to Studio only — no broker is touched by any of
-      // these captures, which is why there is no post-apply shot here.
+      // show. Declaring writes to Studio only, and the review drawer only plans:
+      // no broker is touched by any of these captures, which is why there is no
+      // post-apply shot here.
       before: async () => {
         const current = await page.request.get(`${BASE}/api/v1/clusters/${clusterId}/config`);
         const declaration = (await current.json()) as { revision: number; document: unknown };
@@ -186,24 +193,33 @@ async function main() {
             note: 'Screenshot fixture',
           },
         });
-        await page.goto(`${BASE}/clusters/${clusterId}/configuration/apply`);
+        await page.goto(`${BASE}/clusters/${clusterId}/configuration`);
+        await page.getByRole('button', { name: 'Review & apply' }).click();
       },
-      ready: () => page.getByText(/Would apply|Nothing to do/).first().waitFor({ timeout: 30_000 }),
+      // The drawer plans as it opens; the step count is the plan having arrived.
+      ready: () =>
+        page
+          .getByRole('dialog')
+          .getByText(/ steps? · |Nothing to apply/)
+          .first()
+          .waitFor({ timeout: 30_000 }),
     },
     {
       file: 'config-drift.png',
-      path: `/clusters/${clusterId}/configuration?tab=drift`,
+      path: `/clusters/${clusterId}/configuration`,
       height: 1100,
+      // Each node's drift is on the declared tab once the nodes are evaluated.
       before: async () => {
         await page.request
           .post(`${BASE}/api/v1/clusters/${clusterId}/config/drift/evaluate`, {
             headers: { 'X-XSRF-TOKEN': await xsrf(page) },
           })
           .catch(() => undefined);
+        await page.reload();
       },
       ready: () =>
         page
-          .getByText(/live node|Not evaluated yet/)
+          .getByText(/nodes evaluated/)
           .first()
           .waitFor({ timeout: 30_000 }),
     },

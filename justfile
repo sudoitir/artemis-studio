@@ -95,8 +95,9 @@ demo:
 shots:
     {{npm}} run shots
 
-# Record the README demo GIFs (product + SQL console) from a real session on :8080.
+# Record the README demo GIFs (product, flow, SQL console, plugin install) from a real session on :8080.
 # Same prerequisite as `shots`: ADMIN_PASSWORD=... just demo-gif
+# PLUGIN_JAR=<a built plugin-template jar> adds the plugin-install clip; CLIPS=demo,flow records only those.
 [group('develop')]
 demo-gif:
     {{npm}} run demo
