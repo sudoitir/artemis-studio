@@ -305,7 +305,11 @@ class Orders implements PluginMessageHandler {
   (`artemis-studio.capture.broker-role`, as for capture).
 - **`CONSUME`** makes the plugin one of the queue's consumers. `ACCEPT` removes the message.
   `REJECT`, an exception, or the plugin stopping first leaves it for redelivery, within the broker's
-  `max-delivery-attempts`. It needs `message:read` and `queue:purge`.
+  `max-delivery-attempts`. `RELEASE` also leaves it on the queue, but without spending a delivery
+  attempt: return it when the message is not the problem (the service your handler calls is down)
+  and you are stopping the registration until it recovers. The broker offers a released message
+  again at once, so releasing in a loop that keeps receiving only spins. It needs `message:read`
+  and `queue:purge`.
 - **`send(OutboundMessage)`** sends a body, headers and properties to an address. It needs
   `message:send`.
 - **`checkSend(clusterId, address, actingUserId)`** answers why such a send would be refused (a

@@ -292,6 +292,8 @@ public class PluginDrains {
             try {
                 if (spec.mode() == RegistrationMode.TAP || outcome.get() == Disposition.ACCEPT) {
                     message.acknowledge();
+                } else if (outcome.get() == Disposition.RELEASE) {
+                    jms.release();
                 } else {
                     jms.session().recover();
                 }

@@ -9,7 +9,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
  *
  * <p>For a {@link RegistrationMode#CONSUME} registration, only {@link Disposition#ACCEPT}
  * removes the message; {@link Disposition#REJECT}, an exception, or Studio stopping first leave it
- * for redelivery. A handler that blocks holds its registration's delivery on that node for as
+ * for redelivery, and {@link Disposition#RELEASE} leaves it without spending a delivery attempt. A handler that blocks holds its registration's delivery on that node for as
  * long, and nothing else; bound its own waits.
  */
 @PluginApi
