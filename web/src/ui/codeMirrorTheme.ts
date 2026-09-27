@@ -40,6 +40,14 @@ export const codeTheme = EditorView.theme({
     caretColor: "var(--as-text)",
   },
   ".cm-cursor, .cm-dropCursor": { borderInlineStartColor: "var(--as-text)" },
+  // Line numbers and the lint gutter: CodeMirror's own default is a light grey
+  // panel, which glares in the dark scheme.
+  ".cm-gutters": {
+    backgroundColor: "var(--as-surface)",
+    color: "var(--as-text-dimmed)",
+    borderInlineEnd: "1px solid var(--as-border)",
+  },
+  ".cm-activeLineGutter": { backgroundColor: "transparent" },
   ".cm-placeholder": { color: "var(--as-text-dimmed)" },
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
     backgroundColor: "var(--as-grid-row-hover)",
