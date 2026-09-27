@@ -235,6 +235,40 @@ operator.
 - **Its data is its own.** Its tables live in its own schema, with no foreign keys to Studio's. Give
   every changeset a rollback, or updates that apply it cannot be rolled back.
 
+### Assistant tools
+
+A plugin's `@McpTool` beans join Studio's MCP endpoint while it runs. Declare each one in
+`plugin.json`, and **Studio checks its permission before your code runs**:
+
+```json
+"mcpTools": [
+  {
+    "name": "acme_notes_list",
+    "posture": "read",
+    "scope": "cluster",
+    "permission": "acme-notes:read",
+    "description": "Lists the notes on a queue.",
+    "params": [{ "name": "order", "values": ["newest", "oldest"], "note": "Defaults to newest." }]
+  }
+]
+```
+
+- **`permission`** is one of the plugin's own permissions. It is checked against the API key's
+  owner, as it is for every other call.
+- **`scope: cluster`** checks it on the cluster named by the tool's `clusterId` argument, which the
+  tool must take as a required string. A caller without the grant is told *No such cluster, or this
+  key has no grant on it*, exactly as for Studio's own tools, so the cluster's existence stays hidden.
+  **`scope: global`** checks it globally, and a denial names the permission.
+- **`posture`** is `read` or `write`. Annotate a `read` tool
+  `@McpTool.McpAnnotations(readOnlyHint = true)`, and a `write` tool not: hosts decide from that
+  annotation whether to ask the operator first.
+- **`params`** are the accepted values, body shapes and notes your schema leaves out. `studio_help`
+  shows them, with the permission and scope, to any model that asks.
+
+Studio refuses to activate a plugin whose registered tools and declared tools differ, whose
+cluster tool takes no `clusterId`, or whose annotations contradict its posture. Check finer rules
+(such as a second permission for sensitive fields) inside the tool as usual.
+
 ### Messages and secrets
 
 A plugin can react to messages, send them and keep credentials without a client, thread or store of

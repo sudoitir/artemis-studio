@@ -118,6 +118,7 @@ class PluginBridgesIT extends PostgresIntegrationTest {
         return new PluginJarBuilder(id)
                 .descriptorField("basePackage", "com.acme.bridges")
                 .descriptorField("configuration", "com.acme.bridges.PluginConfig")
+                .descriptorField("permissions", List.of(java.util.Map.of("action", id + ":read")))
                 .descriptorField("settingKeys", List.of(id + ".limit"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
@@ -125,6 +126,8 @@ class PluginBridgesIT extends PostgresIntegrationTest {
                         List.of(java.util.Map.of(
                                 "name", id.replace('-', '_') + "_ping",
                                 "posture", "read",
+                                "scope", "global",
+                                "permission", id + ":read",
                                 "description", "Replies pong.")))
                 .changelog("""
                         <?xml version="1.0" encoding="UTF-8"?>
@@ -194,7 +197,7 @@ class PluginBridgesIT extends PostgresIntegrationTest {
                         import org.springframework.stereotype.Component;
                         @Component
                         public class BridgesMcpTools {
-                            @McpTool(name = "%s_ping", description = "Replies pong.")
+                            @McpTool(name = "%s_ping", description = "Replies pong.", annotations = @McpTool.McpAnnotations(readOnlyHint = true))
                             public String ping() { return "pong"; }
                         }
                         """.formatted(id.replace('-', '_')));
@@ -377,7 +380,7 @@ class PluginBridgesIT extends PostgresIntegrationTest {
                         import org.springframework.stereotype.Component;
                         @Component
                         public class BridgesMcpTools {
-                            @McpTool(name = "%s_ping", description = "Replies pong.")
+                            @McpTool(name = "%s_ping", description = "Replies pong.", annotations = @McpTool.McpAnnotations(readOnlyHint = true))
                             public String ping() { return "%s"; }
                         }
                         """.formatted(id.replace('-', '_'), pong))

@@ -233,7 +233,12 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
                         "mcpTools",
-                        List.of(Map.of("name", snake + "_ping", "posture", "read", "description", "Replies pong.")))
+                        List.of(Map.of(
+                                "name", snake + "_ping",
+                                "posture", "read",
+                                "scope", "global",
+                                "permission", id + ":read",
+                                "description", "Replies pong.")))
                 .changelog(withChangeset ? """
                         <?xml version="1.0" encoding="UTF-8"?>
                         <databaseChangeLog
@@ -323,7 +328,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
                         import org.springframework.stereotype.Component;
                         @Component
                         public class LifeMcpTools {
-                            @McpTool(name = "%s_ping", description = "Replies pong.")
+                            @McpTool(name = "%s_ping", description = "Replies pong.", annotations = @McpTool.McpAnnotations(readOnlyHint = true))
                             public String ping() { return "pong"; }
                         }
                         """.formatted(snake));

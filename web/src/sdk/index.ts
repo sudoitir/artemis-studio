@@ -53,6 +53,7 @@ export { ActionMenuItem } from '../ui/ActionMenuItem.tsx';
 export { CapabilityGate } from '../ui/CapabilityGate.tsx';
 export { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
 export { useMe } from '../kernel/auth/api.ts';
+export { CodeEditor, type CodeDiagnostic, type CodeEditorProps } from '../ui/CodeEditor.tsx';
 export { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 export { NodeOutcomeSummary, OutcomeSummary, type OutcomeRow } from '../ui/NodeOutcomeSummary.tsx';
 export { Pager } from '../ui/Pager.tsx';

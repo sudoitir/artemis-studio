@@ -194,11 +194,7 @@ public class FeatureRegistry implements PluginBridge {
                 .settingKeys(d.settingKeys())
                 .streamTopics(d.streamTopics().stream().map(TopicDef::signal).toList())
                 .mcpTools(d.mcpTools().stream()
-                        .map(t -> new McpToolDef(
-                                t.name(),
-                                McpToolDef.Posture.valueOf(t.posture().toUpperCase(java.util.Locale.ROOT)),
-                                t.description(),
-                                List.of()))
+                        .map(PluginDescriptor.McpTool::toCatalogueEntry)
                         .toList())
                 .build();
     }

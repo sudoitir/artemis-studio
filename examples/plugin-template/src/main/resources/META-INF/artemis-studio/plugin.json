@@ -21,7 +21,13 @@
   "settingKeys": ["acme-notes.max-length"],
   "streamTopics": ["acme-notes"],
   "mcpTools": [
-    { "name": "acme_notes_list", "posture": "read", "description": "Lists the notes on a queue." }
+    {
+      "name": "acme_notes_list",
+      "posture": "read",
+      "scope": "cluster",
+      "permission": "acme-notes:read",
+      "description": "Lists the notes on a queue."
+    }
   ],
   "metrics": [
     {

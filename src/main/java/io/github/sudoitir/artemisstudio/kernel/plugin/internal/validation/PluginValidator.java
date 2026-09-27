@@ -453,12 +453,23 @@ public class PluginValidator {
             }
         }
         String mcpPrefix = id.replace('-', '_') + "_";
+        Set<String> declared = new HashSet<>();
+        descriptor.permissions().forEach(p -> declared.add(p.action()));
         for (var tool : descriptor.mcpTools()) {
             if (tool.name() == null || !tool.name().startsWith(mcpPrefix)) {
                 violations.add(new Violation(
                         "mcp-tool-namespace",
                         "Assistant tool \"%s\" is not namespaced under \"%s\".".formatted(tool.name(), mcpPrefix),
                         "Prefix every tool name with \"%s\".".formatted(mcpPrefix)));
+            }
+            // Studio checks this permission before the tool runs (ADR-0114), so it must be one the
+            // plugin declares: an undeclared one could never be granted, and the tool would be dead.
+            if (!declared.contains(tool.permission())) {
+                violations.add(new Violation(
+                        "mcp-tool-permission",
+                        "Assistant tool \"%s\" is guarded by \"%s\", which the plugin does not declare."
+                                .formatted(tool.name(), tool.permission()),
+                        "Declare that permission under permissions, or name one that is declared."));
             }
         }
         // The @ConfigurationProperties prefix itself (artemis-studio.plugins.<id>) is checked
