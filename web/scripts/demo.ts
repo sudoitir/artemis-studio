@@ -7,15 +7,18 @@
  * product answering for itself against the seeded four-node estate — there is no
  * scripted output and nothing is drawn for the camera.
  *
- * Two clips, because they answer two questions and a viewer only watches the
- * first one: `demo.gif` is "what is this", `sql-console.gif` is "what is the
- * thing you cannot do anywhere else".
+ * Separate clips, because they answer separate questions and a viewer only
+ * watches the first one: `demo.gif` is "what is this", `flow.gif` and
+ * `sql-console.gif` are "what can I not do anywhere else", and
+ * `plugin-install.gif` is "what does installing a plugin involve". The last one
+ * needs `PLUGIN_JAR` (a built plugin-template jar that is not installed yet) and
+ * is skipped without it. `CLIPS=flow,demo` records only the named clips.
  *
  * Playwright records WebM per context; ffmpeg turns each into a GIF through a
  * generated palette (a 256-colour default palette turns a dark UI into mud) and
  * an H.264 MP4 beside it.
  */
-import { chromium, type Page } from '@playwright/test';
+import { chromium, type Locator, type Page } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -37,6 +40,49 @@ const GIF_WIDTH = 1000;
 const FPS = 10;
 
 password();
+
+const ONLY = process.env.CLIPS?.split(',').map((c) => c.trim());
+const PLUGIN_JAR = process.env.PLUGIN_JAR;
+
+/**
+ * A visible pointer. Headless Chromium draws no cursor into the recording, so without one a viewer
+ * sees views change with no idea what was clicked. It follows real mouse events and pulses on a
+ * press; `pointer-events: none` keeps it out of the page's own hit testing. Physical left/top on
+ * purpose: mouse events report physical coordinates, whatever the page's direction. A string, because
+ * it runs in the page, not in Node, and this file is type-checked without the DOM.
+ */
+const CURSOR = `(() => {
+  const install = () => {
+    const dot = document.createElement('div');
+    dot.setAttribute('aria-hidden', 'true');
+    dot.style.cssText =
+      'position:fixed;z-index:2147483647;pointer-events:none;inline-size:18px;block-size:18px;margin:-9px 0 0 -9px;' +
+      'border-radius:50%;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.95);' +
+      'box-shadow:0 0 0 1px rgba(0,0,0,.45);transition:transform .12s ease-out;left:-40px;top:-40px';
+    document.body.appendChild(dot);
+    addEventListener('mousemove', (e) => {
+      dot.style.left = e.clientX + 'px';
+      dot.style.top = e.clientY + 'px';
+    }, true);
+    addEventListener('mousedown', () => (dot.style.transform = 'scale(.6)'), true);
+    addEventListener('mouseup', () => (dot.style.transform = 'scale(1)'), true);
+  };
+  if (document.body) install();
+  else addEventListener('DOMContentLoaded', install);
+})();`;
+
+/** Glides the pointer to an element before acting on it, so the viewer's eye arrives first. */
+async function point(page: Page, target: Locator) {
+  await target.scrollIntoViewIfNeeded();
+  const box = await target.boundingBox();
+  if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 14 });
+}
+
+async function click(page: Page, target: Locator) {
+  await point(page, target);
+  await page.waitForTimeout(120);
+  await target.click();
+}
 
 /**
  * Types into an editor at a speed a viewer can read rather than instantly.
@@ -61,7 +107,7 @@ async function hold(page: Page, ms: number) {
  * first cut of this clip feel like a slideshow.
  */
 async function navigate(page: Page, name: string | RegExp) {
-  await page.getByRole('link', { name, exact: typeof name === 'string' }).first().click();
+  await click(page, page.getByRole('link', { name, exact: typeof name === 'string' }).first());
 }
 
 async function encode(webm: string, name: string, skip: number, size: typeof SIZE, gifWidth: number) {
@@ -101,6 +147,7 @@ async function clip(
   drive: (page: Page, clusterId: string, mark: () => void) => Promise<void>,
   { size = SIZE, gifWidth = GIF_WIDTH } = {},
 ) {
+  if (ONLY && !ONLY.includes(name)) return;
   const dir = await mkdtemp(join(tmpdir(), `artemis-studio-${name}-`));
   const browser = await chromium.launch();
   const started = Date.now();
@@ -109,6 +156,7 @@ async function clip(
     colorScheme: 'dark',
     recordVideo: { dir, size },
   });
+  await context.addInitScript({ content: CURSOR });
   const page = await context.newPage();
   let skip = 0;
   try {
@@ -137,42 +185,35 @@ await clip('demo', async (page, clusterId, mark) => {
   mark();
   // Short: a GIF that opens on four seconds of a still frame reads as a
   // screenshot, and a reader who thinks it is one never waits for the motion.
-  await hold(page, 2_200);
+  await hold(page, 1_800);
 
   // Every queue on every node, worst first — the view the bundled console cannot
   // produce at all.
   await navigate(page, 'Queues');
   await page.getByRole('row').nth(1).waitFor({ timeout: 30_000 });
-  await hold(page, 700);
+  await hold(page, 600);
   // Sorting by depth is the whole point of the view: the worst thing in the
   // cluster becomes the first row. The header is a button inside the columnheader.
   const depth = page.getByRole('button', { name: /^depth/i }).first();
-  await depth.click().catch(() => console.warn('demo: no depth column to sort by'));
-  await hold(page, 600);
+  await click(page, depth).catch(() => console.warn('demo: no depth column to sort by'));
+  await hold(page, 400);
   await depth.click().catch(() => {}); // ascending, then descending
-  await hold(page, 1_800);
+  await hold(page, 1_600);
 
   // The dead-letter queues the seed really built, by rejecting messages.
   await navigate(page, 'DLQ');
   // The DLQ view is cards, not a grid — waiting for a row here waits for a
   // timeout and puts twelve dead seconds in the middle of the clip.
   await page.getByText(/dead-letter queues/i).first().waitFor({ timeout: 20_000 });
-  await hold(page, 2_000);
+  await hold(page, 1_800);
 
   // Who produces where and who consumes it, moving: the view no other Artemis console has.
   await navigate(page, 'Flow');
-  await page
-    .locator('.react-flow__node-queue')
-    .first()
-    .waitFor({ timeout: 60_000 })
-    .catch(() => console.warn('demo: flow graph not drawn — let the seed run longer'));
-  await hold(page, 3_200);
+  const queue = page.locator('.react-flow__node-queue').first();
+  await queue.waitFor({ timeout: 60_000 }).catch(() => console.warn('demo: flow graph not drawn — let the seed run longer'));
+  await hold(page, 2_400);
   // Hovering a queue keeps its whole path bright and fades the rest.
-  await page
-    .locator('.react-flow__node-queue')
-    .first()
-    .hover()
-    .catch(() => {});
+  await point(page, queue).catch(() => {});
   await hold(page, 2_000);
 
   await navigate(page, 'Metrics');
@@ -181,7 +222,7 @@ await clip('demo', async (page, clusterId, mark) => {
     .first()
     .waitFor({ timeout: 30_000 })
     .catch(() => console.warn('demo: no plotted series yet — let the seed run longer'));
-  await hold(page, 1_800);
+  await hold(page, 2_000);
 });
 
 // ── 2. Flow, on its own ──────────────────────────────────────────────────────
@@ -269,3 +310,60 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   await page.mouse.wheel(0, 260);
   await hold(page, 2_800);
 });
+
+// ── 4. Installing a plugin ───────────────────────────────────────────────────
+// What an administrator sees before anything runs: what the plugin may do, the database changes it
+// brings (the SQL itself, one click away), and a typed confirmation. Then it is live without a restart.
+if (PLUGIN_JAR) {
+  await clip('plugin-install', async (page, clusterId, mark) => {
+    await page.goto(`${BASE}/admin?tab=plugins`);
+    const install = page.getByRole('button', { name: 'Install plugin…' });
+    await install.waitFor({ timeout: 30_000 });
+    mark();
+    await hold(page, 1_200);
+
+    // The file chooser is the browser's own; Playwright answers it the moment it opens.
+    await point(page, install);
+    const chooser = page.waitForEvent('filechooser');
+    await install.click();
+    await (await chooser).setFiles(PLUGIN_JAR);
+
+    // Inspect, then Review: checked before it is stored, then what it will be able to do.
+    const dialog = page.getByRole('dialog');
+    await dialog.getByText('What this plugin will be able to do').waitFor({ timeout: 60_000 });
+    await hold(page, 2_600);
+    const sql = dialog.getByRole('button', { name: 'Show the SQL' });
+    if (await sql.count()) {
+      await click(page, sql);
+      await hold(page, 800);
+      // Through the SQL at reading pace: the schema this plugin creates is the part worth reading.
+      for (let i = 0; i < 6; i++) {
+        await page.mouse.wheel(0, 180);
+        await hold(page, 450);
+      }
+      await hold(page, 1_000);
+    }
+    await click(page, dialog.getByRole('button', { name: 'Continue' }));
+
+    const confirm = dialog.getByRole('textbox', { name: /to confirm/ });
+    await click(page, confirm);
+    await type(page, 'acme-notes');
+    await hold(page, 500);
+    await click(page, dialog.getByRole('button', { name: /^Install/ }).last());
+    await dialog.getByText(/is active/).waitFor({ timeout: 90_000 });
+    await hold(page, 1_800);
+
+    // Its screen, loaded into the running Studio: a reload picks up the new bundle, then the plugin's
+    // page is one sidebar link like any other.
+    await click(page, dialog.getByRole('button', { name: 'Reload Studio' }));
+    await page.waitForLoadState();
+    await page.goto(`${BASE}/clusters/${clusterId}/topology`);
+    await navigate(page, 'Notes');
+    await page.getByRole('heading').first().waitFor({ timeout: 30_000 });
+    await hold(page, 2_400);
+    // Smaller than the other clips: the story is one dialog, and at this size its text stays legible
+    // in the GIF without scaling it down.
+  }, { size: { width: 1024, height: 720 }, gifWidth: 1024 });
+} else if (!ONLY || ONLY.includes('plugin-install')) {
+  console.warn('plugin-install: skipped — set PLUGIN_JAR to a built plugin-template jar that is not installed yet');
+}

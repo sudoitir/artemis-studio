@@ -42,6 +42,8 @@ safe message operations, and SQL over your messages — all from a single instan
 | [![Flow: moving dots carry each path's rate; hovering a queue keeps its whole path bright](docs/img/flow.gif)](docs/img/flow.gif) | [![The SQL Console: a query across every queue in the cluster, its cost classified before it runs, then a live tail](docs/img/sql-console.gif)](docs/img/sql-console.gif) |
 | **Metrics and charts** | **Governance** |
 | [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
+| **Plugins** | **Settings** |
+| [![Installing a plugin: what it will be able to do and the SQL of its database changes, reviewed before a typed confirmation](docs/img/plugin-install.gif)](docs/img/plugin-install.gif) | [![Settings: display preferences, Studio's operational configuration, this cluster's and each plugin's sections](docs/img/settings.png)](docs/img/settings.png) |
 
 - **Topology** — live/backup pairs and their replication state. The HA role is
   polled from every node on every cycle and never read from configuration; two live
