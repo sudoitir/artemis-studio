@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import java.util.List;
 
 /**
@@ -48,7 +49,42 @@ public record PluginDescriptor(
 
     public record Permission(String action, String description) {}
 
-    public record McpTool(String name, String posture, String description) {}
+    /**
+     * An assistant tool the plugin registers. Studio checks {@code permission} before the tool runs:
+     * on the cluster named by its {@code clusterId} argument when {@code scope} is {@code cluster},
+     * otherwise globally.
+     *
+     * @param posture {@code read} or {@code write}
+     * @param scope {@code cluster} or {@code global}
+     * @param permission one of the plugin's declared permission actions
+     * @param params the detail the tool's schema leaves out, shown by {@code studio_help}
+     */
+    public record McpTool(
+            String name, String posture, String scope, String permission, String description, List<McpParam> params) {
+
+        public McpTool {
+            params = params == null ? List.of() : List.copyOf(params);
+        }
+
+        /** This tool as the MCP catalogue lists it: {@code write} is the catalogue's {@code MUTATE}. */
+        public McpToolDef toCatalogueEntry() {
+            return new McpToolDef(
+                    name,
+                    "read".equals(posture) ? McpToolDef.Posture.READ : McpToolDef.Posture.MUTATE,
+                    description,
+                    params.stream()
+                            .map(p -> new McpToolDef.Param(p.name(), p.values(), p.shape(), p.note()))
+                            .toList(),
+                    new McpToolDef.Access(permission, scope));
+        }
+    }
+
+    /**
+     * @param values the values a discriminator accepts
+     * @param shape the JSON or YAML shape a body argument takes
+     * @param note anything a model gets wrong without being told
+     */
+    public record McpParam(String name, List<String> values, String shape, String note) {}
 
     /**
      * A metric the plugin publishes through a {@code PluginMetricSource} (ADR-0113).

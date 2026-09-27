@@ -32,7 +32,7 @@ class ManifestControllerTest {
     private static final String DESCRIPTOR_JSON = """
             {"schemaVersion":1,"id":"acme-notes","name":"acme-notes","version":"1.2.0",
             "vendor":{"name":"Acme"},"basePackage":"com.acme.notes",
-            "configuration":"com.acme.notes.PluginConfig","contract":2,
+            "configuration":"com.acme.notes.PluginConfig","contract":3,
             "studio":{"since":"2026.01.0"},"ui":true,"activation":"AUTO","title":"Notes",
             "permissions":[{"action":"acme-notes:write","description":"Write notes"}],
             "streamTopics":["acme-notes"]}

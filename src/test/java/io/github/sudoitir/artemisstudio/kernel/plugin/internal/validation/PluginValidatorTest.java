@@ -227,8 +227,44 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of("name", "other_tool", "posture", "read", "description", "x")));
+                        List.of(java.util.Map.of(
+                                "name", "other_tool",
+                                "posture", "read",
+                                "scope", "global",
+                                "permission", "acme-notes:read",
+                                "description", "x")));
         assertThat(has(validate(jar), "mcp-tool-namespace")).isTrue();
+    }
+
+    @Test
+    void mcpToolGuardedByAnUndeclaredPermissionIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "mcpTools",
+                        List.of(java.util.Map.of(
+                                "name", "acme_notes_search",
+                                "posture", "read",
+                                "scope", "cluster",
+                                "permission", "acme-notes:admin",
+                                "description", "x")));
+        assertThat(has(validate(jar), "mcp-tool-permission")).isTrue();
+    }
+
+    @Test
+    void mcpToolWithoutAPermissionIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "mcpTools",
+                        List.of(java.util.Map.of(
+                                "name",
+                                "acme_notes_search",
+                                "posture",
+                                "read",
+                                "scope",
+                                "cluster",
+                                "description",
+                                "x")));
+        assertThat(validate(jar)).isNotEmpty();
     }
 
     private static java.util.Map<String, String> metric(String name, String unit, String permission) {
@@ -240,7 +276,10 @@ class PluginValidatorTest {
     void aDeclaredMetricAndItsRulePassClean() throws Exception {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
-                        "permissions", List.of(java.util.Map.of("action", "acme-notes:stats", "description", "x")))
+                        "permissions",
+                        List.of(
+                                java.util.Map.of("action", "acme-notes:read", "description", "x"),
+                                java.util.Map.of("action", "acme-notes:stats", "description", "x")))
                 .descriptorField("metrics", List.of(metric("acme-notes:edits", "count", "acme-notes:stats")))
                 .descriptorField(
                         "alertRules",
@@ -470,6 +509,10 @@ class PluginValidatorTest {
                                 id.replace('-', '_') + "_search",
                                 "posture",
                                 "read",
+                                "scope",
+                                "global",
+                                "permission",
+                                id + ":read",
                                 "description",
                                 "Search notes")));
     }

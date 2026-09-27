@@ -101,11 +101,36 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "posture", "description"],
+        "required": ["name", "posture", "scope", "permission", "description"],
         "properties": {
           "name": { "type": "string", "description": "Prefixed <id_snake>_." },
-          "posture": { "type": "string" },
-          "description": { "type": "string" }
+          "posture": {
+            "enum": ["read", "write"],
+            "description": "read: the tool changes nothing and is annotated readOnlyHint = true."
+          },
+          "scope": {
+            "enum": ["cluster", "global"],
+            "description": "cluster: Studio checks the permission on the cluster named by the tool's required clusterId argument."
+          },
+          "permission": {
+            "type": "string",
+            "description": "One of this plugin's permissions; Studio checks it before the tool runs."
+          },
+          "description": { "type": "string" },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name"],
+              "properties": {
+                "name": { "type": "string" },
+                "values": { "type": "array", "items": { "type": "string" } },
+                "shape": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            }
+          }
         }
       }
     }

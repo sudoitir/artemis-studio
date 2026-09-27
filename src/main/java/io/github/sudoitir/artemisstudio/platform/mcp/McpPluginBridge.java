@@ -1,10 +1,13 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginBridge;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginRuntimeStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncPromptSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncResourceSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncToolSpecification;
@@ -13,9 +16,11 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.mcp.annotation.McpPrompt;
@@ -38,6 +43,11 @@ import tools.jackson.databind.json.JsonMapper;
  * window gets the same {@code 503 plugin-updating} answer the gateway gives, and so every call runs
  * with the plugin's own thread context classloader set, counted as in-flight against its unload
  * drain — {@link PluginHandle#runInPlugin} is the one sanctioned way in.
+ *
+ * <p>Each tool declares the permission it needs and whether it is checked on a cluster or globally
+ * (ADR-0114). This bridge checks it before the plugin's code runs, on the calling thread where the
+ * key's security context lives: a cluster denial hides the cluster exactly as the built-in tools do
+ * ({@link McpErrors#CLUSTER_DENIED}), a global one names the permission.
  */
 @Slf4j
 @Component
@@ -47,10 +57,16 @@ class McpPluginBridge implements PluginBridge {
     /** Same ceiling {@code McpToolSchemaBudgetTest} enforces for every built-in tool. */
     private static final int PER_TOOL_TOKEN_BUDGET = 190;
 
+    private static final String CLUSTER_ID = "clusterId";
+    private static final String SCOPE_CLUSTER = "cluster";
+    private static final String POSTURE_READ = "read";
+
     private final ObjectProvider<McpStatelessSyncServer> server;
     private final McpToolCatalog catalog;
     private final PluginRuntimeStatus runtimeStatus;
     private final JsonMapper json;
+    private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     private final Map<String, Registered> byPlugin = new ConcurrentHashMap<>();
 
@@ -64,10 +80,9 @@ class McpPluginBridge implements PluginBridge {
 
     @Override
     public void attach(PluginHandle handle) {
-        catalog.addPlugin(handle.id(), toolCatalogueEntries(handle.descriptor()));
-
         McpStatelessSyncServer mcp = server.getIfAvailable();
         if (mcp == null) {
+            catalog.addPlugin(handle.id(), toolCatalogueEntries(handle.descriptor()));
             // The MCP feature is disabled on this installation (spring.ai.mcp.server.enabled=false):
             // there is no server to register against, and nothing calls a plugin tool through it.
             byPlugin.put(handle.id(), new Registered(handle, List.of(), List.of(), List.of()));
@@ -78,7 +93,16 @@ class McpPluginBridge implements PluginBridge {
         List<Object> beans = mcpAnnotatedBeans(handle.applicationContext());
 
         List<SyncToolSpecification> tools = SyncMcpAnnotationProviders.statelessToolSpecifications(beans);
+        Map<String, PluginDescriptor.McpTool> declared = handle.descriptor().mcpTools().stream()
+                .collect(Collectors.toMap(PluginDescriptor.McpTool::name, t -> t));
+        Set<String> registered = tools.stream().map(t -> t.tool().name()).collect(Collectors.toSet());
+        if (!registered.equals(declared.keySet())) {
+            throw new IllegalStateException("Plugin '" + handle.id() + "' registers MCP tools " + sorted(registered)
+                    + " but declares " + sorted(declared.keySet())
+                    + " in plugin.json; every tool must be declared, with its posture, scope and permission");
+        }
         for (SyncToolSpecification tool : tools) {
+            checkDeclaration(handle.id(), tool.tool(), declared.get(tool.tool().name()));
             if (!tool.tool().name().startsWith(prefix)) {
                 throw new IllegalStateException("Plugin '" + handle.id() + "' registers MCP tool '"
                         + tool.tool().name() + "', which is not namespaced under '" + prefix + "'");
@@ -94,10 +118,14 @@ class McpPluginBridge implements PluginBridge {
         List<SyncResourceSpecification> resources = SyncMcpAnnotationProviders.statelessResourceSpecifications(beans);
         List<SyncPromptSpecification> prompts = SyncMcpAnnotationProviders.statelessPromptSpecifications(beans);
 
+        // Only once every tool passed its checks: a refused activation must leave no catalogue entry.
+        catalog.addPlugin(handle.id(), toolCatalogueEntries(handle.descriptor()));
         List<String> toolNames = new ArrayList<>();
         for (SyncToolSpecification tool : tools) {
+            PluginDescriptor.McpTool declaration = declared.get(tool.tool().name());
             SyncToolSpecification wrapped = new SyncToolSpecification(
-                    tool.tool(), (ctx, request) -> callThroughPlugin(handle, tool.callHandler(), ctx, request));
+                    tool.tool(),
+                    (ctx, request) -> callThroughPlugin(handle, declaration, tool.callHandler(), ctx, request));
             mcp.addTool(wrapped);
             toolNames.add(tool.tool().name());
         }
@@ -144,6 +172,7 @@ class McpPluginBridge implements PluginBridge {
      */
     private io.modelcontextprotocol.spec.McpSchema.CallToolResult callThroughPlugin(
             PluginHandle handle,
+            PluginDescriptor.McpTool declaration,
             java.util.function.BiFunction<
                             io.modelcontextprotocol.common.McpTransportContext,
                             io.modelcontextprotocol.spec.McpSchema.CallToolRequest,
@@ -155,6 +184,10 @@ class McpPluginBridge implements PluginBridge {
         if (retryAfter != null) {
             return McpErrors.error("plugin " + handle.id() + " is updating, retry in " + retryAfter.toSeconds() + "s");
         }
+        io.modelcontextprotocol.spec.McpSchema.CallToolResult denied = checkAccess(declaration, request);
+        if (denied != null) {
+            return denied;
+        }
         try {
             return handle.runInPlugin(() -> callHandler.apply(ctx, request));
         } catch (Exception e) {
@@ -163,14 +196,70 @@ class McpPluginBridge implements PluginBridge {
         }
     }
 
+    /**
+     * The declared permission, checked before the plugin runs; {@code null} when the call may go on. A
+     * missing or malformed {@code clusterId} is a malformed call (-32602), as for a built-in tool.
+     */
+    private io.modelcontextprotocol.spec.McpSchema.CallToolResult checkAccess(
+            PluginDescriptor.McpTool declaration, io.modelcontextprotocol.spec.McpSchema.CallToolRequest request) {
+        if (SCOPE_CLUSTER.equals(declaration.scope())) {
+            Object raw =
+                    request.arguments() == null ? null : request.arguments().get(CLUSTER_ID);
+            UUID clusterId;
+            try {
+                clusterId = UUID.fromString(String.valueOf(raw));
+            } catch (IllegalArgumentException e) {
+                throw McpErrors.invalidParams("clusterId must be a cluster id; read studio://clusters for them.");
+            }
+            try {
+                clusterAccess.requireCluster(clusterId, declaration.permission());
+            } catch (NotFoundException e) {
+                return McpErrors.error(McpErrors.CLUSTER_DENIED);
+            }
+            return null;
+        }
+        if (!permissions.can(declaration.permission())) {
+            return McpErrors.error("This key lacks " + declaration.permission() + ", which " + declaration.name()
+                    + " needs. Read studio://permissions to see what it holds.");
+        }
+        return null;
+    }
+
+    /**
+     * What plugin.json says must match what the tool is: a cluster-scoped tool takes a required
+     * {@code clusterId}, and a {@code read} tool is annotated read-only (and a {@code write} one is
+     * not), because a host decides from that annotation whether to ask the operator first.
+     */
+    private static void checkDeclaration(
+            String pluginId, io.modelcontextprotocol.spec.McpSchema.Tool tool, PluginDescriptor.McpTool declared) {
+        if (SCOPE_CLUSTER.equals(declared.scope())) {
+            Map<String, Object> schema = tool.inputSchema() == null ? Map.of() : tool.inputSchema();
+            boolean required = schema.get("required") instanceof List<?> r && r.contains(CLUSTER_ID);
+            boolean string = schema.get("properties") instanceof Map<?, ?> props
+                    && props.get(CLUSTER_ID) instanceof Map<?, ?> p
+                    && "string".equals(p.get("type"));
+            if (!required || !string) {
+                throw new IllegalStateException("Plugin '" + pluginId + "' tool '" + tool.name()
+                        + "' is cluster-scoped but takes no required string argument 'clusterId'");
+            }
+        }
+        boolean readOnly = tool.annotations() != null
+                && Boolean.TRUE.equals(tool.annotations().readOnlyHint());
+        if (readOnly != POSTURE_READ.equals(declared.posture())) {
+            throw new IllegalStateException("Plugin '" + pluginId + "' tool '" + tool.name() + "' is declared '"
+                    + declared.posture() + "' but annotated readOnlyHint = " + readOnly
+                    + "; a read tool is read-only and a write tool is not");
+        }
+    }
+
     private static List<McpToolDef> toolCatalogueEntries(PluginDescriptor descriptor) {
         return descriptor.mcpTools().stream()
-                .map(t -> new McpToolDef(
-                        t.name(),
-                        McpToolDef.Posture.valueOf(t.posture().toUpperCase(Locale.ROOT)),
-                        t.description(),
-                        List.of()))
+                .map(PluginDescriptor.McpTool::toCatalogueEntry)
                 .toList();
+    }
+
+    private static List<String> sorted(Set<String> names) {
+        return names.stream().sorted().toList();
     }
 
     private static String idSnake(String pluginId) {

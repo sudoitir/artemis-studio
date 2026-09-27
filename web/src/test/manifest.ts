@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 
-import { FEATURE_IDS } from '../kernel/feature.ts';
+import { CONTRACT, FEATURE_IDS } from '../kernel/feature.ts';
 import type { ManifestFeatureView } from '../kernel/manifest.ts';
 
 /** An installed plugin's manifest entry, active and without a UI unless overridden. */
@@ -35,7 +35,7 @@ export function manifestHandler(
 ) {
   return http.get('*/api/v1/manifest', () =>
     HttpResponse.json({
-      contract: 2,
+      contract: CONTRACT,
       version,
       safeMode,
       features: [

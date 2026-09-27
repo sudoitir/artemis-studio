@@ -99,10 +99,22 @@ class McpToolCatalog {
                     posture == Posture.READ ? "read" : "mutate",
                     entries.stream()
                             .filter(e -> e.posture() == posture)
-                            .map(e -> Map.of("tool", e.name(), "summary", e.summary()))
+                            .map(McpToolCatalog::indexEntry)
                             .toList());
         }
         return out;
+    }
+
+    /** A plugin tool also names what it needs, which Studio checks before it runs (ADR-0114). */
+    private static Map<String, String> indexEntry(McpToolDef e) {
+        if (e.access() == null) {
+            return Map.of("tool", e.name(), "summary", e.summary());
+        }
+        return Map.of(
+                "tool", e.name(),
+                "summary", e.summary(),
+                "permission", e.access().permission(),
+                "scope", e.access().scope());
     }
 
     /**

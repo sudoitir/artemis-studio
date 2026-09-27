@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -12,8 +13,26 @@ import java.util.Locale;
  * @param name the tool name, exactly as registered
  * @param summary one line, for the index
  * @param params the detail the schema deliberately leaves out
+ * @param access what a plugin tool requires, which Studio checks before it runs (ADR-0114); absent
+ *     for built-in tools, whose services check their own permissions
  */
-public record McpToolDef(String name, Posture posture, String summary, List<Param> params) {
+public record McpToolDef(
+        String name,
+        Posture posture,
+        String summary,
+        List<Param> params,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Access access) {
+
+    public McpToolDef(String name, Posture posture, String summary, List<Param> params) {
+        this(name, posture, summary, params, null);
+    }
+
+    /**
+     * @param permission the permission action the caller needs
+     * @param scope {@code cluster} when it is checked on the tool's {@code clusterId} argument,
+     *     {@code global} otherwise
+     */
+    public record Access(String permission, String scope) {}
 
     /** The {@code dryRun} note every mutating tool shares. */
     public static final String DRY_RUN = "Defaults to true. A dry run reports the affected count and changes nothing.";

@@ -88,7 +88,12 @@ class PluginUnloadIT extends PostgresIntegrationTest {
                 .descriptorField("settingKeys", List.of(ID + ".limit"))
                 .descriptorField(
                         "mcpTools",
-                        List.of(Map.of("name", "acme_unload_list", "posture", "read", "description", "Lists.")))
+                        List.of(Map.of(
+                                "name", "acme_unload_list",
+                                "posture", "read",
+                                "scope", "global",
+                                "permission", ID + ":read",
+                                "description", "Lists.")))
                 .source(PKG + ".Config", """
                         package com.acme.unload;
                         import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
@@ -131,7 +136,7 @@ class PluginUnloadIT extends PostgresIntegrationTest {
                         import org.springframework.stereotype.Component;
                         @Component
                         public class Tools {
-                            @McpTool(name = "acme_unload_list", description = "Lists.")
+                            @McpTool(name = "acme_unload_list", description = "Lists.", annotations = @McpTool.McpAnnotations(readOnlyHint = true))
                             public List<Item> list(@McpToolParam(required = true, description = "A name") String name) {
                                 return List.of(new Item(name, List.of("b")));
                             }
