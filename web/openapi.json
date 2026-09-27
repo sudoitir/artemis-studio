@@ -4577,14 +4577,14 @@
         }, {
           "name" : "metric",
           "in" : "query",
-          "required" : true,
+          "required" : false,
           "schema" : {
             "type" : "string"
           }
         }, {
           "name" : "subject",
           "in" : "query",
-          "required" : true,
+          "required" : false,
           "schema" : {
             "type" : "string"
           }
