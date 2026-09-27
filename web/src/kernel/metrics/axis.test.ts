@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { earliest, formatCount, latest, mergeByTimestamp, tickFormatter, timeAxisProps } from './axis.ts';
-import { rangeSpec } from './ranges.ts';
+import { rangeSpec } from '../time/ranges.ts';
 
 function series(points: Array<{ ts: string; value: number; peak?: number }>) {
   return { metric: 'm', kind: 'GAUGE', unit: 'count', points } as never;

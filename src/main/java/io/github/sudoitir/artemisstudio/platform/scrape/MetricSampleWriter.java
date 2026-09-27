@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -31,6 +33,11 @@ public class MetricSampleWriter {
             VALUES (now(), :value, 'QUEUE', :subjectName, :metric, :clusterId, :nodeId)
             """;
 
+    private static final String PLUGIN_INSERT = """
+            INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
+            VALUES (now(), :value, 'PLUGIN', :subjectName, :metric, :clusterId, NULL)
+            """;
+
     private final NamedParameterJdbcTemplate jdbc;
 
     @Transactional
@@ -48,6 +55,22 @@ public class MetricSampleWriter {
             params.add(sample(r, "messagesExpired", r.messagesExpired()));
         }
         jdbc.batchUpdate(INSERT, params.toArray(SqlParameterSource[]::new));
+    }
+
+    /** A plugin metric's values on one cluster (ADR-0113): subject type {@code PLUGIN}, no node. */
+    @Transactional
+    public void appendPluginSamples(UUID clusterId, String metric, Map<String, Double> values) {
+        if (values.isEmpty()) {
+            return;
+        }
+        SqlParameterSource[] params = values.entrySet().stream()
+                .map(e -> new MapSqlParameterSource()
+                        .addValue("value", e.getValue())
+                        .addValue("subjectName", e.getKey())
+                        .addValue("metric", metric)
+                        .addValue("clusterId", clusterId))
+                .toArray(SqlParameterSource[]::new);
+        jdbc.batchUpdate(PLUGIN_INSERT, params);
     }
 
     private static SqlParameterSource sample(QueueRow r, String metric, long value) {

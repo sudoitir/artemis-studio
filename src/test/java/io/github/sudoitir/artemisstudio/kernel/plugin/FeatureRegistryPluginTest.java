@@ -46,7 +46,9 @@ class FeatureRegistryPluginTest {
                 topics,
                 tools.stream()
                         .map(t -> new PluginDescriptor.McpTool(t, "read", t))
-                        .toList());
+                        .toList(),
+                List.of(),
+                List.of());
     }
 
     @Test

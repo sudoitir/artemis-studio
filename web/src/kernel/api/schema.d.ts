@@ -1700,6 +1700,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}/metrics/plugin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["plugin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/health": {
         parameters: {
             query?: never;
@@ -2060,6 +2076,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["list_10"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/alerts/plugin-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pluginMetrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2686,6 +2718,8 @@ export interface components {
             scope?: string | null;
             enabled: boolean;
             channelIds: string[];
+            /** @description False when the rule watches a plugin metric whose plugin is not running */
+            sourceAvailable: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5167,6 +5201,13 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
+        };
+        PluginMetricView: {
+            metric: string;
+            plugin: string;
+            description: string;
+            unit: string;
+            subject: string;
         };
         AlertFiringPageView: {
             items: components["schemas"]["AlertFiringView"][];
@@ -8542,6 +8583,34 @@ export interface operations {
             };
         };
     };
+    plugin: {
+        parameters: {
+            query: {
+                metric: string;
+                subject: string;
+                from?: string;
+                to?: string;
+                step?: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MetricSeriesResponse"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -9091,6 +9160,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AuditPageView"];
+                };
+            };
+        };
+    };
+    pluginMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginMetricView"][];
                 };
             };
         };

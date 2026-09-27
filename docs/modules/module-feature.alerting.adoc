@@ -32,6 +32,7 @@ _Others_
 * `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.GaugeCondition`)
 * `i.g.s.a.f.a.NotificationHttpConfig`
 * `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.PagerDutySender`)
+* `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.PluginMetricCondition`)
 * `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.RateCondition`)
 * `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.SlackSender`)
 * `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.SlowConsumerCondition`)
@@ -47,6 +48,7 @@ _Others_
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.a.p.s.PluginMetrics` (in Scraping)
 * `i.g.s.a.p.s.MetricSamples` (in Scraping)
 * `i.g.s.a.p.s.ScrapeProperties` (in Scraping)
 * `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
@@ -55,5 +57,6 @@ _Others_
 * `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
 |Events listened to
 |* `i.g.s.a.p.s.ScrapeTierCompleted` 
+* `i.g.s.a.p.c.ClusterRegistered` 
 * `i.g.s.a.p.c.ClusterRegistered` 
 |===

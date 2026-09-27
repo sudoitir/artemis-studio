@@ -58,7 +58,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).
                     "plugin_secret",
-                    "plugin_message_registration")
+                    "plugin_message_registration",
+                    // Plugin metrics (ADR-0113): samples with no broker node (changeset platform-scrape 0002)
+                    // and the record of seeded plugin alert rules (changeset feature-alerting 0003).
+                    "CREATE TABLE metric_sample(_default)? ",
+                    "alert_rule_seed")
             .map(Pattern::compile)
             .toList();
 

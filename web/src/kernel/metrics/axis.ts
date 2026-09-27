@@ -2,9 +2,11 @@ import dayjs from 'dayjs';
 import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
 
-import type { MetricSeries } from './api.ts';
-import { displayZone } from '../../kernel/time/timezone.ts';
-import { rangeSpec, type MetricRange } from './ranges.ts';
+import type { components } from '../api/schema.d.ts';
+import { displayZone } from '../time/timezone.ts';
+import { rangeSpec, type MetricRange } from '../time/ranges.ts';
+
+type MetricSeries = components['schemas']['MetricSeries'];
 
 // Both plugins, and `utc` first: dayjs's `timezone` is built on top of it.
 dayjs.extend(utcPlugin);

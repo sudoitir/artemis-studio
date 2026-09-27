@@ -6,14 +6,14 @@ import { useMetrics, type MetricSeries } from './api.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
 import { rangeSpec, type MetricRange } from './ranges.ts';
 import { RangePicker } from './RangePicker.tsx';
-import { ChartPanel } from './ChartPanel.tsx';
+import { ChartPanel } from '../../kernel/metrics/ChartPanel.tsx';
 import { DepthChart } from './DepthChart.tsx';
 import { ThroughputChart } from './ThroughputChart.tsx';
 import { ConsumersChart } from './ConsumersChart.tsx';
 import { MetricsTable } from './MetricsTable.tsx';
 import { NodeSplitCharts } from './NodeSplitPanels.tsx';
 import { StatRow, type Stat } from './StatRow.tsx';
-import { earliest, formatCount, formatExact, formatRate, latest } from './axis.ts';
+import { earliest, formatCount, formatExact, formatRate, latest } from '../../kernel/metrics/axis.ts';
 import { useSlot } from '../../kernel/slots.ts';
 
 const METRICS = ['messageCount', 'consumerCount', 'messagesAdded', 'messagesAcked'];

@@ -15,7 +15,7 @@ import {
   mergeByTimestamp,
   timeAxisProps,
   yAxisProps,
-} from './axis.ts';
+} from '../../kernel/metrics/axis.ts';
 import classes from './NodeSplit.module.css';
 
 const METRICS = ['messageCount', 'messagesAdded', 'messagesAcked'];

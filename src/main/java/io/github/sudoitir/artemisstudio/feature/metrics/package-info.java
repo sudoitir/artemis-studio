@@ -5,6 +5,7 @@
         displayName = "Metrics",
         allowedDependencies = {
             "kernel.plugin",
+            "kernel.plugin :: descriptor",
             "kernel.security",
             "platform.clusters",
             "platform.mcp",

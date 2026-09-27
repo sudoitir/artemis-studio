@@ -1,6 +1,6 @@
 import { Alert, Card, Group, Skeleton, Stack, Text } from '@mantine/core';
 
-import type { ApiError } from '../../kernel/api/request.ts';
+import type { ApiError } from '../api/request.ts';
 
 /** Every metric plot is this tall, whatever it is currently able to show. */
 export const CHART_HEIGHT = 220;

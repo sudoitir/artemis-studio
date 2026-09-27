@@ -27,8 +27,22 @@ public final class AlertViews {
             @Schema(nullable = true) String scope,
             @Schema(requiredMode = REQUIRED) boolean enabled,
             @Schema(requiredMode = REQUIRED) List<UUID> channelIds,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "False when the rule watches a plugin metric whose plugin is not running")
+            boolean sourceAvailable,
+
             @Schema(requiredMode = REQUIRED) Instant createdAt,
             @Schema(requiredMode = REQUIRED) Instant updatedAt) {}
+
+    /** A metric a running plugin publishes, which a threshold rule may watch (ADR-0113). */
+    public record PluginMetricView(
+            @Schema(requiredMode = REQUIRED) String metric,
+            @Schema(requiredMode = REQUIRED) String plugin,
+            @Schema(requiredMode = REQUIRED) String description,
+            @Schema(requiredMode = REQUIRED) String unit,
+            @Schema(requiredMode = REQUIRED) String subject) {}
 
     /** {@code POST}/{@code PUT} a rule. Exactly one of the threshold fields or {@code stateCondition} must be set. */
     public record AlertRuleRequest(

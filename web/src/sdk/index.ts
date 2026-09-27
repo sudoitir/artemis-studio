@@ -57,6 +57,9 @@ export { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
 export { NodeOutcomeSummary, OutcomeSummary, type OutcomeRow } from '../ui/NodeOutcomeSummary.tsx';
 export { Pager } from '../ui/Pager.tsx';
 export { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
+export { MetricChart } from '../kernel/metrics/MetricChart.tsx';
+export { usePluginSeries } from '../kernel/metrics/pluginSeries.ts';
+export { METRIC_RANGES, type MetricRange } from '../kernel/time/ranges.ts';
 /**
  * Shows a notification in Studio's own notification area. Import this, never
  * `@mantine/notifications` directly: that is not shared, so a plugin's own copy would show nothing.

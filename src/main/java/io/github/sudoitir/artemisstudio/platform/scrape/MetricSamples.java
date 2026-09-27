@@ -185,18 +185,35 @@ public class MetricSamples {
 
     public List<Bucket> gaugeSeries(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        return gaugeSeries("QUEUE", clusterId, metric, subjectName, from, to, step);
+    }
+
+    /** A plugin metric's gauge buckets for one subject (ADR-0113). */
+    public List<Bucket> pluginSeries(
+            UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        return gaugeSeries("PLUGIN", clusterId, metric, subjectName, from, to, step);
+    }
+
+    private List<Bucket> gaugeSeries(
+            String subjectType,
+            UUID clusterId,
+            String metric,
+            String subjectName,
+            Instant from,
+            Instant to,
+            Duration step) {
         String sql = """
                 SELECT date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
                        avg(value) AS v, max(value) AS peak
                   FROM metric_sample
-                 WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                 WHERE cluster_id = :clusterId AND subject_type = :subjectType AND metric = :metric
                    AND (:subjectName::text IS NULL OR subject_name = :subjectName)
                    AND ts >= :from AND ts < :to
                  GROUP BY bucket ORDER BY bucket
                 """;
         return jdbc.query(
                 sql,
-                params(clusterId, metric, subjectName, from, to, step),
+                params(clusterId, metric, subjectName, from, to, step).addValue("subjectType", subjectType),
                 (rs, i) -> new Bucket(
                         rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), (Double) rs.getObject("peak")));
     }

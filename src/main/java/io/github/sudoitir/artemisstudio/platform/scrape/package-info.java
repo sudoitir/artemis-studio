@@ -7,6 +7,7 @@
             "kernel.core",
             "kernel.jobs",
             "kernel.plugin",
+            "kernel.plugin :: descriptor",
             "kernel.settings",
             "kernel.stream",
             "platform.broker",

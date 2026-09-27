@@ -2,7 +2,7 @@ import { Table, Text } from '@mantine/core';
 
 import type { MetricSeries } from './api.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
-import { formatInZone, mergeByTimestamp } from './axis.ts';
+import { formatInZone, mergeByTimestamp } from '../../kernel/metrics/axis.ts';
 import styles from './StatRow.module.css';
 
 /**

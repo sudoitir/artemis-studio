@@ -38,4 +38,21 @@ public class MetricsController {
         return metricQuery.query(
                 clusterId, metric, subjectType, subject, effectiveFrom, effectiveTo, requestedStep, splitBy);
     }
+
+    /** A plugin metric's series for one subject (ADR-0113). */
+    @GetMapping("/plugin")
+    public MetricSeriesResponse plugin(
+            @PathVariable UUID clusterId,
+            // Optional here and checked by the service after cluster access, so a caller without a grant
+            // on the cluster cannot tell it exists from a 400 (ClusterScopeAuthorizationTest).
+            @RequestParam(required = false) String metric,
+            @RequestParam(required = false) String subject,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(required = false) String step) {
+        Instant effectiveTo = to != null ? to : Instant.now();
+        Instant effectiveFrom = from != null ? from : effectiveTo.minus(Duration.ofHours(1));
+        return metricQuery.pluginQuery(
+                clusterId, metric, subject, effectiveFrom, effectiveTo, step != null ? Duration.parse(step) : null);
+    }
 }

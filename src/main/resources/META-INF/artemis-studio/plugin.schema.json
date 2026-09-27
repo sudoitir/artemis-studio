@@ -62,6 +62,38 @@
         }
       }
     },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description", "unit", "subject", "permission"],
+        "properties": {
+          "name": { "type": "string", "description": "<id>:<name>." },
+          "description": { "type": "string" },
+          "unit": { "enum": ["count", "per_second", "ms", "ratio"] },
+          "subject": { "type": "string", "description": "What the values are keyed by, e.g. job." },
+          "permission": { "type": "string", "description": "A declared permission that reads the series." }
+        }
+      }
+    },
+    "alertRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "name", "metric", "comparator", "threshold", "forSeconds", "severity"],
+        "properties": {
+          "key": { "type": "string", "description": "Stable per plugin; a rule is seeded once per key and cluster." },
+          "name": { "type": "string" },
+          "metric": { "type": "string", "description": "A declared metric's name." },
+          "comparator": { "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NE"] },
+          "threshold": { "type": "number" },
+          "forSeconds": { "type": "integer", "minimum": 0 },
+          "severity": { "enum": ["INFO", "WARNING", "CRITICAL"] }
+        }
+      }
+    },
     "settingKeys": { "type": "array", "items": { "type": "string", "description": "Namespaced <id>.<key>." } },
     "streamTopics": { "type": "array", "items": { "type": "string", "description": "<id> or <id>.<topic>." } },
     "mcpTools": {

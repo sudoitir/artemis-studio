@@ -4562,6 +4562,70 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/metrics/plugin" : {
+      "get" : {
+        "tags" : [ "metrics-controller" ],
+        "operationId" : "plugin",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "metric",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "subject",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "step",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MetricSeriesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/health" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
@@ -5483,6 +5547,36 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/AuditPageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/alerts/plugin-metrics" : {
+      "get" : {
+        "tags" : [ "alerts-controller" ],
+        "operationId" : "pluginMetrics",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PluginMetricView"
+                  }
                 }
               }
             }
@@ -6912,6 +7006,10 @@
               "format" : "uuid"
             }
           },
+          "sourceAvailable" : {
+            "type" : "boolean",
+            "description" : "False when the rule watches a plugin metric whose plugin is not running"
+          },
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -6921,7 +7019,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "channelIds", "clusterId", "createdAt", "enabled", "forSeconds", "id", "kind", "name", "severity", "updatedAt" ]
+        "required" : [ "channelIds", "clusterId", "createdAt", "enabled", "forSeconds", "id", "kind", "name", "severity", "sourceAvailable", "updatedAt" ]
       },
       "NotificationChannelRequest" : {
         "type" : "object",
@@ -13160,6 +13258,27 @@
           }
         },
         "required" : [ "count", "data", "page", "pageSize" ]
+      },
+      "PluginMetricView" : {
+        "type" : "object",
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "plugin" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "unit" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "description", "metric", "plugin", "subject", "unit" ]
       },
       "AlertFiringPageView" : {
         "type" : "object",
