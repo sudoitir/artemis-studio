@@ -52,9 +52,12 @@ public class SecurityConfig {
                         org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        // Bearer-token requests carry no ambient browser credential, so there is
-                        // nothing for a cross-site request to ride on (design.md decision 1).
-                        .ignoringRequestMatchers(request -> request.getHeader("Authorization") != null))
+                        // A request a bearer token authenticated carries no ambient browser
+                        // credential, so there is nothing for a cross-site request to ride on
+                        // (design.md decision 1). Any other Authorization header never gets here:
+                        // BearerAuthenticationFilter answers it with 401.
+                        .ignoringRequestMatchers(
+                                request -> request.getAttribute(BearerAuthenticationFilter.AUTHENTICATED) != null))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
