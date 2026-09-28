@@ -10,7 +10,7 @@
 
 ## 3. Scans
 
-- [ ] 3.1 `codeql.yml` and `osv-scanner.yml`; fix what the first runs report; ADR-0124
+- [x] 3.1 `codeql.yml` and `osv-scanner.yml`; fix what the first runs report; ADR-0124
 
 ## 4. Jobs
 
