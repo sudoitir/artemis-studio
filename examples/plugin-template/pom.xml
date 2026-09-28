@@ -12,6 +12,8 @@
     <version>1.0.0</version>
 
     <properties>
+        <!-- Above the Spring Boot BOM's 11.0.24 (three critical CVEs), matching Studio. -->
+        <tomcat.version>11.0.25</tomcat.version>
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <!-- @PreAuthorize("@perm.can(#clusterId, ...)") reads parameter names. -->
@@ -32,6 +34,22 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Studio runs a newer Tomcat than the BOM below names; declared first so it wins. -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
             <!-- Studio's own dependency versions: the plugin runs on these. -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>

@@ -42,6 +42,10 @@
 
     <properties>
         <java.version>25</java.version>
+        <!-- Above Spring Boot 4.1.0's managed 11.0.24, which carries three critical CVEs
+             (GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6, GHSA-h3x4-894j-xpx5). Drop once the
+             Boot BOM manages 11.0.25 or later; OSV-Scanner in CI flags any regression. -->
+        <tomcat.version>11.0.25</tomcat.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
