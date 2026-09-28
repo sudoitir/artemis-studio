@@ -1,71 +1,11 @@
-# data-freshness Specification
+## REMOVED Requirements
 
-## Purpose
-TBD - created by archiving change 07-data-freshness-and-liveness. Update Purpose after archive.
+### Requirement: An operator can refresh the current screen on demand
 
-## Requirements
+**Reason**: The live stream, periodic refetching and resuming from pause keep a screen current. The control added a header button and a palette command for an action the operator rarely needed (ADR-0118).
+**Migration**: Pause and resume to refetch the current screen, or reload.
 
-### Requirement: Every screen states whether it is live and when it last updated
-
-The system SHALL present, on every authenticated screen and in the same place, an
-indicator of the liveness of the data on that screen and how long ago that data
-was last received. The indicator SHALL be derived from the queries the current
-screen depends on, so that no screen can omit it.
-
-Liveness SHALL be reported as one of: connected to the live stream, updating by
-periodic refetch only, attempting to reconnect, unable to reach the server, or
-paused by the operator.
-
-#### Scenario: A screen that polls reports its age
-
-- **WHEN** an operator opens a screen whose data refetches periodically
-- **THEN** the indicator reports how long ago the newest data on that screen
-  arrived, and updates as time passes
-
-#### Scenario: A screen that does not poll still reports its age
-
-- **WHEN** an operator opens a screen whose data is fetched once and not refetched
-- **THEN** the indicator reports how long ago that data arrived, rather than
-  omitting the screen
-
-#### Scenario: The absolute time is available
-
-- **WHEN** an operator inspects the elapsed-time label
-- **THEN** the absolute local time of the last update is available without
-  navigating away
-
-### Requirement: The liveness state distinguishes stream health from data health
-
-The system SHALL report the live stream being unavailable separately from data
-being unavailable. A screen whose stream is down but whose periodic refetch is
-succeeding SHALL NOT be reported as offline.
-
-#### Scenario: Stream down, queries succeeding
-
-- **WHEN** the live stream cannot connect but the screen's queries return
-  successfully
-- **THEN** the indicator reports that updates are arriving by periodic refetch,
-  not that the application is offline
-
-#### Scenario: Queries failing
-
-- **WHEN** the queries the current screen depends on are failing
-- **THEN** the indicator reports that the server cannot be reached
-
-### Requirement: State changes are announced, elapsed time is not
-
-The system SHALL announce a change of liveness state to assistive technology
-politely, and SHALL NOT announce each update of the elapsed-time label.
-
-#### Scenario: A transition is announced
-
-- **WHEN** the liveness state changes from connected to reconnecting
-- **THEN** the change is announced politely
-
-#### Scenario: Ticking is silent
-
-- **WHEN** the elapsed-time label advances while the state is unchanged
-- **THEN** nothing is announced
+## MODIFIED Requirements
 
 ### Requirement: An operator can pause automatic refreshing
 

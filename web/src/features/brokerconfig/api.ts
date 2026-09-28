@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, BASE, clusterKey, lifecycleQuery, type LifecycleVars, request } from "../../kernel/api/request.ts";
 import { type ResourceParams } from "../../kernel/api/paging.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -102,7 +101,7 @@ export function useBrokerConfig(
     // followed. An apply or an evaluation finishing arrives over SSE either way.
     refetchInterval: (query) => {
       const seconds = query.state.data?.driftIntervalSeconds;
-      return poll(Math.min(30_000, Math.max(5_000, (seconds ?? 30) * 1_000)))();
+      return Math.min(30_000, Math.max(5_000, (seconds ?? 30) * 1_000));
     },
   });
 }

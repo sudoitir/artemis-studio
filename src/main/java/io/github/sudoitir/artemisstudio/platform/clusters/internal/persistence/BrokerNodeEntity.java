@@ -144,7 +144,7 @@ public class BrokerNodeEntity implements ClusterNode {
     /**
      * The {@code PATCH} override for the Core URL: discovery stores the
      * broker-advertised connector, which is often unreachable from where Studio
-     * runs (ADR-0026). Marks the row overridden so rediscovery leaves it alone.
+     * runs (ADR-0026). Marks the row overridden so discovery leaves it alone.
      */
     public void applyManualCoreUrl(String coreUrl) {
         this.coreUrl = coreUrl;

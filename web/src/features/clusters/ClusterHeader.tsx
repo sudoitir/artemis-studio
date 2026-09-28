@@ -4,7 +4,7 @@ import { Alert, Button, Group, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { RemoveCluster } from './AddManagementUrl.tsx';
-import { useCluster, useRediscover } from './api.ts';
+import { useCluster } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import styles from './ClusterHeader.module.css';
 
@@ -14,7 +14,6 @@ import styles from './ClusterHeader.module.css';
  */
 export function ClusterHeader({ clusterId }: { clusterId: string }) {
   const { data, isPending, isError, error } = useCluster(clusterId);
-  const rediscover = useRediscover(clusterId);
   // The cluster's name, for the shell's title and breadcrumb (ADR-0109).
   useTitlePart('cluster', data?.name);
   const [removing, setRemoving] = useState(false);
@@ -67,19 +66,9 @@ export function ClusterHeader({ clusterId }: { clusterId: string }) {
             {meta}
           </Text>
         </div>
-        <Group gap="xs">
-          <Button
-            variant="default"
-            size="xs"
-            loading={rediscover.isPending}
-            onClick={() => rediscover.mutate()}
-          >
-            Check
-          </Button>
-          <Button variant="default" size="xs" color="red" onClick={() => setRemoving(true)}>
-            Remove
-          </Button>
-        </Group>
+        <Button variant="default" size="xs" color="red" onClick={() => setRemoving(true)}>
+          Remove
+        </Button>
       </Group>
 
       {data.health.level !== 'OK' && data.health.notes.length > 0 ? (

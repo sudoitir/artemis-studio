@@ -1,0 +1,9 @@
+- [x] 1.1 ADR-0118 and ADR-0119, the README index, and the status lines of ADR-0052 and ADR-0004
+- [x] 2.1 `installPauseSeam`: drive `focusManager` from pause and visibility, installed in `main.tsx`; delete `poll()` and unwrap its call sites
+- [x] 2.2 Tests: a literal interval stops while paused, no fetch after the flip, resume refetches
+- [x] 3.1 Remove the refresh control from `FreshnessBar` and the palette, with its tests
+- [x] 3.2 `ColorSchemeToggle` in the header, a palette command, and a test
+- [x] 4.1 A system rediscovery on `ClusterService` and scrape tier D on `scrape.discovery-interval`; remove the endpoint and regenerate the contract
+- [x] 4.2 Remove **Check** and **Rediscover** from the UI and update the empty-state and settings copy
+- [x] 4.3 Backend test: the tier discovers and keeps a manual override
+- [x] 5.1 `just verify`, plus Playwright screenshots of the header in light and dark, pause on a literal-interval page, and Topology

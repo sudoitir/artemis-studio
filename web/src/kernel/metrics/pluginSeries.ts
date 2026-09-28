@@ -1,7 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { poll } from '../api/polling.ts';
 import { ApiError, clusterKey, request } from '../api/request.ts';
 import type { components } from '../api/schema.d.ts';
 import { rangeSpec, type MetricRange } from '../time/ranges.ts';
@@ -38,7 +37,7 @@ export function usePluginSeries(
       const sp = new URLSearchParams({ metric, subject, from: window.from, to: window.to, step: spec.step });
       return request<MetricSeriesResponse>(`/clusters/${clusterId}/metrics/plugin?${sp.toString()}`);
     },
-    refetchInterval: poll(Math.max(15_000, spec.stepMs)),
+    refetchInterval: Math.max(15_000, spec.stepMs),
     placeholderData: (prev) => prev,
   });
   return Object.assign(query, { window });

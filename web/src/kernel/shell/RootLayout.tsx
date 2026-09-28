@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AppShell, Button, Center, Group, Kbd, Loader, ScrollArea, Text } from '@mantine/core';
+import { AppShell, Button, Center, Divider, Group, Kbd, Loader, ScrollArea, Text } from '@mantine/core';
 import { spotlight } from '@mantine/spotlight';
 import { IconSearch } from '@tabler/icons-react';
 import { useDocumentTitle, useHotkeys, useReducedMotion } from '@mantine/hooks';
@@ -11,6 +11,7 @@ import { useMe } from '../auth/api.ts';
 import { usePluginsChanged } from '../plugins/usePluginsChanged.tsx';
 import { useSlot } from '../slots.ts';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
+import { ColorSchemeToggle } from './ColorSchemeToggle.tsx';
 import { CommandPalette } from './CommandPalette.tsx';
 import { FreshnessBar } from './FreshnessBar.tsx';
 import { NavToggle } from './NavToggle.tsx';
@@ -126,8 +127,11 @@ export function RootLayout() {
               <Component key={id} />
             ))}
           </Group>
-          <Group gap="md" wrap="nowrap">
+          <Group gap="sm" wrap="nowrap">
             <FreshnessBar />
+            {/* The data's state on the left of the rule, the console's own controls on the right. */}
+            <Divider orientation="vertical" />
+            <ColorSchemeToggle />
             {/* A visible way into the palette: a shortcut nobody can see is one nobody finds. */}
             <Button
               size="xs"

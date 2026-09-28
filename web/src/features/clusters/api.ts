@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, clusterKey, request } from "../../kernel/api/request.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -35,7 +34,7 @@ export function useClusters(): UseQueryResult<ClusterSummary[], ApiError> {
   return useQuery({
     queryKey: keys.all,
     queryFn: () => request<ClusterSummary[]>("/clusters"),
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
   });
 }
 
@@ -46,7 +45,7 @@ export function useCluster(
     queryKey: id ? keys.detail(id) : ["clusters", "none"],
     queryFn: () => request<ClusterDetail>(`/clusters/${id}`),
     enabled: id !== null,
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
   });
 }
 
@@ -56,7 +55,7 @@ export function useTopology(
   return useQuery({
     queryKey: keys.topology(id),
     queryFn: () => request<TopologyView>(`/clusters/${id}/topology`),
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
   });
 }
 
@@ -64,7 +63,7 @@ export function useHealth(id: string): UseQueryResult<HealthView, ApiError> {
   return useQuery({
     queryKey: keys.health(id),
     queryFn: () => request<HealthView>(`/clusters/${id}/health`),
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
   });
 }
 
@@ -84,15 +83,6 @@ export function useRegisterCluster() {
     mutationFn: (body) =>
       request("/clusters", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
-  });
-}
-
-export function useRediscover(clusterId: string) {
-  const qc = useQueryClient();
-  return useMutation<TopologyView, ApiError, void>({
-    mutationFn: () =>
-      request(`/clusters/${clusterId}/rediscover`, { method: "POST" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
   });
 }
 

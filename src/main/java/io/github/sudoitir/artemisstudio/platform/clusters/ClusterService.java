@@ -352,20 +352,15 @@ public class ClusterService {
 
     // ---- mutations ------------------------------------------------------------
 
-    @Transactional
-    public Attempt<TopologyView> rediscover(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
-        ClusterEntity cluster = requireCluster(clusterId);
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                "REDISCOVER_CLUSTER",
-                "CLUSTER",
-                cluster.getName(),
-                clusterId,
-                null,
-                Map.of(),
-                false);
-
+    /**
+     * Re-run discovery from every manageable node of a cluster, so a broker that joined
+     * after registration appears on its own (ADR-0004, ADR-0119). Called by the scrape
+     * scheduler's discovery tier: a system operation, with no permission check and no
+     * audit event per tick, like the tiers' own writes. A node that does not answer is
+     * skipped this round (tier A records its error); a cluster with none is left as it
+     * is until the next tick.
+     */
+    public void rediscover(UUID clusterId) {
         List<ProbedSeed> seeds = new ArrayList<>();
         for (BrokerNodeEntity node : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
             if (node.getJolokiaUrl() == null) {
@@ -376,17 +371,12 @@ public class ClusterService {
                 client.resolveBrokerObjectName();
                 seeds.add(new ProbedSeed(node.getJolokiaUrl(), client));
             } catch (BrokerConnectionException ignored) {
-                // Skip a node that is unreachable this round; the refresh loop records its error.
+                // Unreachable this round; tier A records its error.
             }
         }
-        if (seeds.isEmpty()) {
-            return failed(event, BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
+        if (!seeds.isEmpty()) {
+            topologyDiscovery.discover(clusterId, seeds);
         }
-
-        ClusterTopology topology = topologyDiscovery.discover(clusterId, seeds);
-        cluster.touch();
-        audit.succeed(event, endpointCount(topology));
-        return new Attempt.Ok<>(viewMapper.topology(topology));
     }
 
     @Transactional

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, clusterKey, request } from "../../kernel/api/request.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -95,7 +94,7 @@ export function useFiringAlerts(
     queryKey: keys.alertFiring(clusterId),
     queryFn: () =>
       request<AlertFiringView[]>(`/clusters/${clusterId}/alerts/firing`),
-    refetchInterval: poll(15_000),
+    refetchInterval: 15_000,
   });
 }
 
@@ -121,7 +120,7 @@ export function useFiringCounts(
   return useQuery({
     queryKey: keys.firingCounts,
     queryFn: () => request<ClusterFiringCountView[]>("/alerts/firing"),
-    refetchInterval: poll(30_000),
+    refetchInterval: 30_000,
     enabled,
   });
 }
@@ -205,7 +204,7 @@ export function useChannelDeliveries(
     queryKey: keys.deliveries(channelId ?? ""),
     queryFn: () => request<AlertDeliveryView[]>(`/channels/${channelId}/deliveries?limit=100`),
     enabled: channelId !== null,
-    refetchInterval: poll(10_000),
+    refetchInterval: 10_000,
   });
 }
 

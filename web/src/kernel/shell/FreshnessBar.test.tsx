@@ -8,29 +8,33 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { theme } from '../../theme.ts';
 import {
+  installPauseSeam,
   isPollingPaused,
   markPendingChange,
   mountRefetch,
-  poll,
   setPollingPaused,
 } from '../api/polling.ts';
 import { FreshnessBar } from './FreshnessBar.tsx';
 
 /**
  * A screen with one observed query, which is what the bar reports on. The fetch
- * count is the assertion surface: refresh must refetch it, pause must not.
+ * count is the assertion surface: pause must not refetch it, resume must.
+ *
+ * The interval is a plain number, as any hook or plugin declares it: pause is the
+ * query client's job, not the hook's (ADR-0118).
  */
 function Screen({ fetcher, intervalMs }: { fetcher: () => Promise<string>; intervalMs?: number }) {
   const q = useQuery({
     queryKey: ['probe'],
     queryFn: fetcher,
-    refetchInterval: intervalMs ? poll(intervalMs) : undefined,
+    refetchInterval: intervalMs,
   });
   return <div>{q.data ?? 'pending'}</div>;
 }
 
-/** `refetchOnMount` through the pause seam, exactly as `main.tsx` wires it. */
+/** Both halves of the pause seam, exactly as `main.tsx` wires them. */
 function makeClient() {
+  installPauseSeam();
   return new QueryClient({
     defaultOptions: {
       // `gcTime` is finite rather than 0 so an unmounted query survives long
@@ -63,65 +67,6 @@ describe('FreshnessBar', () => {
     const stamp = await screen.findByText(/updated .* ago/);
     expect(stamp.closest('time')).not.toBeNull();
     expect(stamp.closest('time')).toHaveAttribute('dateTime');
-  });
-
-  it('refreshes the current screen on demand', async () => {
-    const user = userEvent.setup();
-    const fetcher = vi.fn().mockResolvedValue('ok');
-    harness(<Screen fetcher={fetcher} />);
-    await screen.findByText('ok');
-    expect(fetcher).toHaveBeenCalledTimes(1);
-
-    await user.click(screen.getByRole('button', { name: 'Refresh data' }));
-
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-  });
-
-  it('does not look busy while the background poll is fetching', async () => {
-    // The control used to bind to the cache's `isFetching`, which is true on every
-    // interval tick — so on a 5s poll it was a spinner every five seconds and the
-    // acknowledgement meant nothing.
-    let release: (v: string) => void = () => {};
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce('ok')
-      .mockImplementationOnce(() => new Promise<string>((r) => (release = r)));
-
-    harness(<Screen fetcher={fetcher} intervalMs={50} />);
-    await screen.findByText('ok');
-
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-    const button = screen.getByRole('button', { name: 'Refresh data' });
-    expect(button).not.toHaveAttribute('data-loading');
-    // The label's job is the opposite: it reports all fetching.
-    expect(screen.getByText(/Polling|Live/)).toBeInTheDocument();
-    release('ok');
-  });
-
-  it('absorbs repeated activation instead of restarting the refetch', async () => {
-    const user = userEvent.setup();
-    let release: (v: string) => void = () => {};
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce('ok')
-      .mockImplementation(() => new Promise<string>((r) => (release = r)));
-
-    harness(<Screen fetcher={fetcher} />);
-    await screen.findByText('ok');
-
-    const button = screen.getByRole('button', { name: 'Refresh data' });
-    await user.click(button);
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-    expect(button).toHaveAttribute('data-loading', 'true');
-
-    // Three more activations while the first is still in flight.
-    await user.click(button);
-    await user.click(button);
-    await user.click(button);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-
-    release('ok');
-    await waitFor(() => expect(button).not.toHaveAttribute('data-loading'));
   });
 
   it('renders the pause control differently when paused, by more than colour', async () => {
@@ -166,18 +111,15 @@ describe('FreshnessBar', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(fetcher).toHaveBeenCalledTimes(1);
 
-      // Toggled through the signal rather than the button: the button's own click
-      // is covered by the refresh case, and fake timers make pointer events fiddly.
+      // Toggled through the signal rather than the button: the button's click is
+      // covered above, and fake timers make pointer events fiddly.
       act(() => setPollingPaused(true));
       expect(isPollingPaused()).toBe(true);
       expect(screen.getByText(/Paused/)).toBeInTheDocument();
 
-      // One interval may already be in flight when the flag flips; what must not
-      // happen is a new one after that.
-      await vi.advanceTimersByTimeAsync(2_000);
-      const settled = fetcher.mock.calls.length;
+      // Not one more tick: the armed interval checks the seam when it fires.
       await vi.advanceTimersByTimeAsync(10_000);
-      expect(fetcher.mock.calls.length).toBe(settled);
+      expect(fetcher).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -200,10 +142,14 @@ describe('FreshnessBar', () => {
       act(() => markPendingChange());
       expect(screen.getByText(/new data available/)).toBeInTheDocument();
 
+      // Resuming refetches the screen at once, not one interval later.
       act(() => setPollingPaused(false));
-      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetcher.mock.calls.length).toBe(paused + 1);
 
-      expect(fetcher.mock.calls.length).toBeGreaterThan(paused);
+      // And the interval runs again.
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(fetcher.mock.calls.length).toBeGreaterThan(paused + 1);
       expect(screen.queryByText(/new data available/)).toBeNull();
     } finally {
       vi.useRealTimers();

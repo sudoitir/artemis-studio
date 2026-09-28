@@ -14,6 +14,7 @@ public final class ScrapeModule {
             .settingKey(ScrapeSettings.TIER_A)
             .settingKey(ScrapeSettings.TIER_B)
             .settingKey(ScrapeSettings.TIER_C)
+            .settingKey(ScrapeSettings.DISCOVERY)
             .settingKey(ScrapeSettings.METRIC_RETENTION_DAYS)
             .settingKey(ScrapeSettings.METRIC_REAPER_CRON)
             .settingKey(ScrapeSettings.METRIC_PARTITION_CRON)

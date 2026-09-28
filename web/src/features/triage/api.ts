@@ -1,6 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
-import { poll } from '../../kernel/api/polling.ts';
 import { type PagedView, type ResourceParams, resourceSearch } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
@@ -29,7 +28,7 @@ export function useConsumerHealth(
       request<PagedView<ConsumerHealthView>>(
         `/clusters/${clusterId}/consumer-health${resourceSearch(params)}`,
       ),
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });
 }
@@ -52,7 +51,7 @@ export function useQueueHealth(
       );
       return page.data[0] ?? null;
     },
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });
 }

@@ -3,13 +3,13 @@ import { Spotlight, type SpotlightActionData, type SpotlightActionGroupData } fr
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useQueryClient } from '@tanstack/react-query';
 
-import { isPollingPaused, refreshActiveQueries, setPollingPaused, usePollingPaused } from '../api/polling.ts';
+import { isPollingPaused, setPollingPaused, usePollingPaused } from '../api/polling.ts';
 import { useCan } from '../auth/useCan.ts';
 import type { ModuleId, PaletteSource } from '../feature.ts';
 import { useFeatures } from '../features.ts';
 import { navGroups } from '../registry.ts';
+import { useColorSchemeToggle } from './useColorSchemeToggle.ts';
 import { readRecents } from './recents.ts';
 
 type Report = (feature: ModuleId, groups: SpotlightActionGroupData[]) => void;
@@ -37,16 +37,15 @@ function Source({ feature, Palette, clusterId, query, opened, onReport }: {
  * A view the operator may not open is still listed, disabled, with the reason: the rail shows it the
  * same way.
  *
- * Refresh and pause live here rather than on a hotkey: the browser owns both
- * shortcuts an operator would reach for (⌘R and ⇧⌘R), and taking either would be
- * worse than not having one (ADR-0052).
+ * Pause and the colour scheme are here too, so every header control is reachable from the keyboard
+ * without a hotkey of its own (ADR-0052, ADR-0118).
  */
 export function CommandPalette() {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { clusterId?: string };
   const clusterId = params.clusterId;
-  const qc = useQueryClient();
   const paused = usePollingPaused();
+  const scheme = useColorSchemeToggle();
   const features = useFeatures();
   const { can, loading: grantsLoading } = useCan();
   const [query, setQuery] = useState('');
@@ -81,14 +80,8 @@ export function CommandPalette() {
     }
 
     out.push({
-      group: 'Data',
+      group: 'Console',
       actions: [
-        {
-          id: 'refresh-data',
-          label: 'Refresh data',
-          description: 'Refetch everything on this screen',
-          onClick: () => void refreshActiveQueries(qc),
-        },
         {
           id: 'toggle-auto-refresh',
           label: paused ? 'Resume auto-refresh' : 'Pause auto-refresh',
@@ -97,6 +90,7 @@ export function CommandPalette() {
             : 'Stop refetching until you resume; does not survive a reload',
           onClick: () => setPollingPaused(!isPollingPaused()),
         },
+        { id: 'toggle-color-scheme', label: scheme.label, onClick: scheme.toggle },
       ],
     });
 
@@ -123,7 +117,7 @@ export function CommandPalette() {
     // In composition order, and only for features still enabled.
     for (const feature of features) out.push(...(contributed[feature.id] ?? []));
     return out;
-  }, [clusterId, navigate, qc, paused, features, contributed, recents, can, grantsLoading]);
+  }, [clusterId, navigate, paused, scheme, features, contributed, recents, can, grantsLoading]);
 
   return (
     <>

@@ -97,11 +97,6 @@ public class ClusterController {
         return service.health(clusterId);
     }
 
-    @PostMapping("/{clusterId}/rediscover")
-    public TopologyView rediscover(@PathVariable UUID clusterId) {
-        return unwrap(service.rediscover(clusterId));
-    }
-
     @PutMapping("/{clusterId}/credentials")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void rotateCredentials(@PathVariable UUID clusterId, @Valid @RequestBody RotateCredentialsRequest request) {

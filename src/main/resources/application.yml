@@ -150,6 +150,7 @@ artemis-studio:
     tier-a-interval: 5s      # HA state + topology + split-brain corroboration
     tier-b-interval: 15s     # re-read the queues that were busy last sweep
     tier-c-interval: 5m      # walk the whole queue set, one page per tick
+    discovery-interval: 1m   # re-read topology so a broker that joins appears (ADR-0119)
   rate-limit:
     # Per broker node. Conservative default so Studio never becomes the load.
     # Enforced by NodeCallLimiter (a per-node permit bucket refilled each second).

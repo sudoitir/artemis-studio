@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import java.time.Instant;
@@ -41,6 +42,8 @@ import tools.jackson.databind.JsonNode;
  *   <li><b>Tier C</b> (~5m): one {@code listQueues} page per node per tick,
  *       walking the whole set over several ticks, then reaping rows the sweep
  *       did not touch.
+ *   <li><b>Discovery</b> (~1m): re-run topology discovery per cluster, so a broker that
+ *       joined after registration appears without anyone asking (ADR-0119).
  * </ul>
  *
  * <p>Every tier: acquire a per-node permit, do the POST, parse, hand a plain
@@ -70,7 +73,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     public void configureTasks(ScheduledTaskRegistrar registrar) {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         tierScheduler = scheduler;
-        scheduler.setPoolSize(3);
+        scheduler.setPoolSize(4);
         scheduler.setThreadNamePrefix("scrape-");
         scheduler.initialize();
         registrar.setTaskScheduler(scheduler);
@@ -81,7 +84,12 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
                 ScheduledJob.fixedDelay(
                         "scrape-tier-b", "scrape", () -> settings.duration(ScrapeSettings.TIER_B), this::tierB),
                 ScheduledJob.fixedDelay(
-                        "scrape-tier-c", "scrape", () -> settings.duration(ScrapeSettings.TIER_C), this::tierC))) {
+                        "scrape-tier-c", "scrape", () -> settings.duration(ScrapeSettings.TIER_C), this::tierC),
+                ScheduledJob.fixedDelay(
+                        "scrape-discovery",
+                        "scrape",
+                        () -> settings.duration(ScrapeSettings.DISCOVERY),
+                        this::discovery))) {
             registrar.addTriggerTask(jobStatuses.instrument(tier), jobStatuses.trigger(tier));
         }
     }
@@ -94,6 +102,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     private final io.github.sudoitir.artemisstudio.kernel.settings.SettingsService settings;
     private final ClusterDirectory clusters;
+    private final ClusterService clusterService;
     private final BrokerConnections connections;
     private final ScrapeCycle scrapeCycle;
     private final NodeStateRecorder persist;
@@ -174,6 +183,22 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeSweepPage(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.C));
+            }
+        }
+    }
+
+    /** One cluster per virtual thread, so a slow seed on one cluster never delays another's. */
+    public void discovery() {
+        try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (RegisteredCluster cluster : clusters.clusters()) {
+                UUID clusterId = cluster.getId();
+                pool.submit(() -> {
+                    try {
+                        clusterService.rediscover(clusterId);
+                    } catch (RuntimeException e) {
+                        log.warn("Topology discovery failed for cluster {}: {}", clusterId, e.toString());
+                    }
+                });
             }
         }
     }

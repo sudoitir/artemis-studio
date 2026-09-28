@@ -1,6 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
-import { poll } from "./polling.ts";
 import { clusterKey, request, type ApiError } from "./request.ts";
 
 /** Generic paged envelope (`PagedView<T>` on the backend). */
@@ -38,7 +37,7 @@ export function useResource<T>(
     queryKey: clusterKey(id, kind, params),
     queryFn: () =>
       request<PagedView<T>>(`/clusters/${id}/${kind}${resourceSearch(params)}`),
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });
 }

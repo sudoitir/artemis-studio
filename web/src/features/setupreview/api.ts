@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 
-import { poll } from '../../kernel/api/polling.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -19,7 +18,7 @@ export function useSetupReview(clusterId: string): UseQueryResult<SetupReviewVie
   return useQuery({
     queryKey: keys.review(clusterId),
     queryFn: () => request<SetupReviewView>(`/clusters/${clusterId}/setup-review`),
-    refetchInterval: poll(60_000),
+    refetchInterval: 60_000,
   });
 }
 
