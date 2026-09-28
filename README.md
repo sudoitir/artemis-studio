@@ -42,9 +42,12 @@ It's 3 a.m. and `ORDERS.DLQ` is backing up somewhere in your cluster. The consol
 ships with Artemis manages one broker at a time and has no idea a cluster exists, so you
 open a tab per node, walk a JMX tree in each one, and read attributes until you find it.
 
-Artemis Studio shows all of it at once: every node of every cluster on one topology, with
-HA roles polled live, and every queue on every node in one table, sorted by depth. The
-queue you were hunting for is the first row.
+Artemis Studio treats **the cluster as the unit of everything**. Every node of every
+cluster is on one topology, with HA roles polled live, and every queue on every node is in
+one table, sorted by depth, so the queue you were hunting for is the first row. One
+instance serves as many clusters as you run. It works against your **existing** brokers:
+beyond the management endpoints you almost certainly have already, `broker.xml` stays as it
+is, and it never starts a broker of its own.
 
 <a href="https://sudoitir.github.io/artemis-studio/"><img src="docs/img/story.png" alt="The story opens at 03:07 with an alert: ORDERS.DLQ depth rising somewhere across 8 brokers in 2 clusters. Play it in your browser."></a>
 
@@ -130,18 +133,6 @@ Studio find it on one screen.
   everything it can do shown before you confirm, and no restart unless it needs one.
   Updates show what changes and roll back; a failing plugin never stops Studio. Start
   a plugin from [the template](examples/plugin-template).
-
-## Why
-
-The console that ships with Artemis manages **one broker at a time** and has no idea
-a cluster exists. That is fine until your question spans nodes, and the questions
-that matter always do: *which node is live*, *where is the backlog*, *where did that
-message go*.
-
-Artemis Studio treats **the cluster as the unit of everything**, and one instance
-serves as many clusters as you run. It works against your **existing** brokers —
-beyond the management endpoints you almost certainly have already, `broker.xml`
-stays as it is — and it never starts a broker of its own.
 
 ## Run it
 
