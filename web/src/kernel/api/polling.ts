@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from 'react';
-import type { Query, QueryClient } from '@tanstack/react-query';
+import { focusManager, type Query, type QueryClient } from '@tanstack/react-query';
 
 /**
- * The one seam that makes every periodic refetch pausable (ADR-0052).
+ * The one seam that pauses automatic refreshing for every query (ADR-0052, ADR-0118).
  *
- * `refetchInterval` accepts a function, so a module-level signal plus {@link poll}
- * converts fifteen literal intervals into pausable ones without per-hook state and
- * without a re-render whenever the flag changes — TanStack Query re-reads the
- * function itself on each cycle.
+ * Every TanStack observer checks `focusManager.isFocused()` before an interval tick
+ * fetches, so reporting "not focused" while paused stops every interval at its next
+ * tick — a literal one, a plugin's, one written next year — with nothing asked of the
+ * hook that declared it. Opt-in wrapping was tried first and leaked on every hook
+ * that forgot it.
  *
  * Deliberately memory-only. A persisted pause outlives the reason someone set it,
  * and the first thing an operator does with a screen they distrust is reload it.
@@ -31,19 +32,25 @@ function subscribe(listener: () => void) {
 }
 
 /**
- * `refetchInterval` for a hook that should stop polling while paused.
+ * Make TanStack's focus state mean "may refresh on its own": the tab is visible and
+ * refreshing is not paused. Called once, beside the `QueryClient`.
  *
- * Returning `false` suspends the interval; TanStack Query calls this again on the
- * next cycle, so resuming needs no remount.
- *
- * ponytail: the interval is re-resolved when the *current* timer fires, so one
- * further poll can land up to `ms` after pausing. Closing that gap means
- * cancelling in-flight fetches, which throws away work the operator did not ask
- * to discard and can leave a screen mid-update. Accepted and recorded in
- * ADR-0055; revisit only if an operator can actually observe it.
+ * A side effect: the retryer also waits for focus, so a request that fails while
+ * paused retries on resume rather than during the pause.
  */
-export function poll(ms: number | false): () => number | false {
-  return () => (paused ? false : ms);
+export function installPauseSeam(): void {
+  // TanStack calls the previous listener's cleanup when a new one is set, so
+  // installing again (a test harness does) never stacks listeners.
+  focusManager.setEventListener((setFocused) => {
+    const update = () => setFocused(!paused && document.visibilityState !== 'hidden');
+    window.addEventListener('visibilitychange', update, false);
+    const unsubscribe = subscribe(update);
+    update();
+    return () => {
+      window.removeEventListener('visibilitychange', update);
+      unsubscribe();
+    };
+  });
 }
 
 /**
@@ -95,20 +102,12 @@ export function usePendingChange(): boolean {
 }
 
 /**
- * Refetch everything the current screen is observing, and resolve when it is done.
+ * Refetch everything the current screen is observing: what resuming does, because the
+ * first thing an operator needs after unpausing is current data.
  *
- * `refetchType: 'active'` is the point: it refetches what is on the display and
- * leaves the rest of the cache alone — the same scope the freshness indicator
- * reports on, so the button and the label can never disagree.
- *
- * `cancelRefetch: false` is the other point. TanStack's default aborts the
- * in-flight fetch and starts another, which is right after a mutation (the
- * in-flight response is known-stale) and wrong for a refresh control (the
- * in-flight response is exactly what was asked for). With it, a second activation
- * joins the first instead of restarting it.
- *
- * The returned promise is what lets the control show *the operator's* refresh
- * rather than every background poll.
+ * `refetchType: 'active'` scopes it to what is on the display, the same scope the
+ * freshness indicator reports on. `cancelRefetch: false` lets a fetch already in
+ * flight finish rather than aborting it for an identical one.
  */
 export function refreshActiveQueries(qc: QueryClient): Promise<void> {
   return qc.invalidateQueries({ refetchType: 'active' }, { cancelRefetch: false });

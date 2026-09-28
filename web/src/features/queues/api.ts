@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, clusterKey, lifecycleBase, lifecycleQuery, type LifecycleVars, request } from "../../kernel/api/request.ts";
 import { type PagedView, type ResourceParams, resourceSearch } from "../../kernel/api/paging.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -38,7 +37,7 @@ export function useQueues(
     // the whole shell into its offline state, so every cluster-less screen
     // claimed Studio had lost the brokers.
     enabled: id !== "" && (options.enabled ?? true),
-    refetchInterval: options.live === false ? false : poll(5_000),
+    refetchInterval: options.live === false ? false : 5_000,
     placeholderData: (prev) => prev,
   });
 }
@@ -60,7 +59,7 @@ export function useQueue(
         `/clusters/${clusterId}/queues${resourceSearch({ q: queueName, size: 50 })}`,
       ),
     enabled: !snapshot && clusterId !== "" && Boolean(queueName),
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
   });
   if (snapshot) return { queue: snapshot, isPending: false, isError: false };
   return {

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, clusterKey, request } from "../../kernel/api/request.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -58,7 +57,7 @@ export function useMessages(
     // screen is open, and a browse that never refreshes shows an arrangement of
     // the queue that stopped being true the moment it was drawn. One bounded
     // page read per interval, pausable with every other poll (ADR-0052).
-    refetchInterval: poll(10_000),
+    refetchInterval: 10_000,
     placeholderData: (prev) => prev,
   });
 }
@@ -194,6 +193,6 @@ export function useDlq(clusterId: string): UseQueryResult<DlqView, ApiError> {
   return useQuery({
     queryKey: ["clusters", clusterId, "dlq"],
     queryFn: () => request<DlqView>(`/clusters/${clusterId}/dlq`),
-    refetchInterval: poll(10_000),
+    refetchInterval: 10_000,
   });
 }

@@ -1,6 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, request } from "../../kernel/api/request.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -35,7 +34,7 @@ export function useEvents(
         `/clusters/${clusterId}/events${qs ? `?${qs}` : ""}`,
       );
     },
-    refetchInterval: poll(5_000),
+    refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });
 }

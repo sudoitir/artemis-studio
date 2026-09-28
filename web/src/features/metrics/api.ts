@@ -1,6 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError, clusterKey, request } from "../../kernel/api/request.ts";
-import { poll } from "../../kernel/api/polling.ts";
 import type { components } from "../../kernel/api/schema.d.ts";
 
 type Schemas = components["schemas"];
@@ -51,7 +50,7 @@ export function useMetrics(
         `/clusters/${clusterId}/metrics?${sp.toString()}`,
       );
     },
-    refetchInterval: poll(refetchMs),
+    refetchInterval: refetchMs,
     placeholderData: (prev) => prev,
   });
 }

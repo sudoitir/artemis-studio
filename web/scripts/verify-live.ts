@@ -1,5 +1,5 @@
 /**
- * The live pause/refresh/window checks, driven rather than clicked.
+ * The live pause and window checks, driven rather than clicked.
  *
  *   ADMIN_PASSWORD=… node --experimental-strip-types web/scripts/verify-live.ts
  *
@@ -8,8 +8,8 @@
  * silence the network, that resuming issues exactly one burst, and that a
  * relative metrics window advances by one bucket and not by one second.
  *
- * Expected: a small number of trailing polls right after pausing (one per polling
- * query — the ceiling recorded in ADR-0055), then zero across navigation.
+ * Expected: zero requests while paused, sitting still or navigating (ADR-0118:
+ * pause is enforced at the query client, so no interval fires after it).
  *
  * Every step after sign-in navigates through the router, never `page.goto`: a
  * full reload drops the query cache and resets the pause flag, which is memory-only

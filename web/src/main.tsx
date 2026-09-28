@@ -14,7 +14,7 @@ import '@mantine/code-highlight/styles.css';
 import '@xyflow/react/dist/style.css';
 import './theme.css';
 
-import { mountRefetch } from './kernel/api/polling.ts';
+import { installPauseSeam, mountRefetch } from './kernel/api/polling.ts';
 import { FEATURES } from './app/features.ts';
 import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
@@ -59,10 +59,12 @@ async function loadShiki() {
 const shikiAdapter = createShikiAdapter(loadShiki);
 
 /**
- * `refetchOnMount` goes through the pause seam (`api/polling.ts`), not a literal:
- * pausing the intervals and leaving mounts alone means an operator who pauses and
- * then navigates has silently unpaused (ADR-0052, ADR-0055).
+ * Pausing is enforced here, once, for every query (ADR-0118): intervals through the
+ * focus seam, opening a view through `refetchOnMount`. Pausing intervals and leaving
+ * mounts alone would mean an operator who pauses and then navigates has silently
+ * unpaused.
  */
+installPauseSeam();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch() },

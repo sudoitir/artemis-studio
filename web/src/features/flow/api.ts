@@ -1,6 +1,5 @@
 import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
 
-import { poll } from '../../kernel/api/polling.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 import { DEFAULT_LIMIT, type FlowSearch } from './flowSearch.ts';
@@ -39,7 +38,7 @@ export function useFlowGraph(clusterId: string, search: FlowSearch): UseQueryRes
   return useQuery({
     queryKey: ['clusters', clusterId, 'flow', qs],
     queryFn: () => request<FlowGraphView>(`/clusters/${clusterId}/flow?${qs}`),
-    refetchInterval: poll(FLOW_POLL_MS),
+    refetchInterval: FLOW_POLL_MS,
     // Changing the ranking or grouping keeps the previous graph on screen until the new one arrives.
     placeholderData: keepPreviousData,
   });
