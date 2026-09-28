@@ -15,6 +15,7 @@ public class ScrapeSettings implements SettingsContribution {
     public static final String TIER_A = "scrape.tier-a-interval";
     public static final String TIER_B = "scrape.tier-b-interval";
     public static final String TIER_C = "scrape.tier-c-interval";
+    public static final String DISCOVERY = "scrape.discovery-interval";
     public static final String METRIC_RETENTION_DAYS = "metric.retention-days";
     public static final String METRIC_REAPER_CRON = "metric.reaper-cron";
     public static final String METRIC_PARTITION_CRON = "metric.partition-maintainer-cron";
@@ -54,6 +55,14 @@ public class ScrapeSettings implements SettingsContribution {
                         "Full queue sweep, one page per node per tick.",
                         Kind.DURATION,
                         () -> scrape.tierCInterval().toString(),
+                        null),
+                new SettingDef(
+                        DISCOVERY,
+                        "Scrape",
+                        "Discovery interval",
+                        "Re-read each cluster's topology, so a broker that joins appears on its own.",
+                        Kind.DURATION,
+                        () -> scrape.discoveryInterval().toString(),
                         null),
                 new SettingDef(
                         METRIC_RETENTION_DAYS,

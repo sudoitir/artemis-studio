@@ -34,8 +34,6 @@ export interface TopologyActionsValue {
   clusterId?: string;
   /** Open the add-a-management-URL flow for one discovered-but-unreachable endpoint. */
   addManagementUrl?: (endpointId: string) => void;
-  /** Re-run discovery — the only action that helps a cluster with no nodes at all. */
-  rediscover?: () => void;
 }
 
 const ActionsContext = createContext<TopologyActionsValue>({});
@@ -172,20 +170,15 @@ function Legend() {
 }
 
 function EmptyCanvas({ height }: { height?: string }) {
-  const { rediscover } = useContext(ActionsContext);
   return (
     <div className={styles.wrapper} style={height ? { blockSize: height } : undefined}>
       <div className={styles.empty}>
         <Text fw={600}>No nodes yet</Text>
         <Text size="sm" c="dimmed">
           Studio learns the topology from the first broker it reaches. Nothing has
-          answered on this cluster's seed address yet.
+          answered on this cluster's seed address yet; Studio keeps looking and shows
+          the nodes here as they answer.
         </Text>
-        {rediscover ? (
-          <Button size="compact-sm" variant="default" onClick={rediscover}>
-            Rediscover
-          </Button>
-        ) : null}
       </div>
     </div>
   );

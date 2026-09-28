@@ -20,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditE
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -51,6 +52,9 @@ class ClusterControllerTest extends PostgresIntegrationTest {
     private final JsonMapper mapper = new JsonMapper();
 
     MockMvc mvc;
+
+    @Autowired
+    ClusterService clusterService;
 
     @Autowired
     WebApplicationContext webContext;
@@ -208,7 +212,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void rediscoverKeepsAnOverriddenNode() throws Exception {
+    void discoveryKeepsAnOverriddenNode() throws Exception {
         when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
         mvc.perform(post("/api/v1/clusters")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -227,12 +231,12 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.manualOverride").value(true));
 
-        // Rediscover: every manageable node answers search + HA read + topology.
+        // A discovery tick: every manageable node answers search + HA read + topology.
         when(connections.forCluster(eq(clusterId), any()))
                 .thenAnswer(inv ->
                         client(inv.getArgument(1), "search-broker.json", "ha-read-primary.json", "topology.json"));
 
-        mvc.perform(post("/api/v1/clusters/{c}/rediscover", clusterId)).andExpect(status().isOk());
+        clusterService.rediscover(clusterId);
 
         var after =
                 nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616").orElseThrow();

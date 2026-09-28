@@ -11,8 +11,8 @@ export function RegisterSection() {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        Register another cluster, or manage this one from its header (Check rediscovers, Remove
-        needs its typed name).
+        Register another cluster, or remove this one from its header (removing needs its typed
+        name). Studio finds brokers that join a registered cluster on its own.
       </Text>
       <RegisterClusterButton />
     </>

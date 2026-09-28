@@ -1710,33 +1710,6 @@
         }
       }
     },
-    "/api/v1/clusters/{clusterId}/rediscover" : {
-      "post" : {
-        "tags" : [ "cluster-controller" ],
-        "operationId" : "rediscover",
-        "parameters" : [ {
-          "name" : "clusterId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/TopologyView"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/clusters/{clusterId}/queues" : {
       "get" : {
         "tags" : [ "cluster-resource-controller" ],

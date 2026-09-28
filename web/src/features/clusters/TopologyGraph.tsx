@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { AddManagementUrl } from './AddManagementUrl.tsx';
-import { useHealth, useRediscover, useTopology } from './api.ts';
+import { useHealth, useTopology } from './api.ts';
 import { layout } from './layout.ts';
 import { TopologyActions, TopologyCanvas } from './TopologyCanvas.tsx';
 
@@ -15,7 +15,6 @@ import { TopologyActions, TopologyCanvas } from './TopologyCanvas.tsx';
 export function TopologyGraph({ clusterId }: { clusterId: string }) {
   const topology = useTopology(clusterId);
   const health = useHealth(clusterId);
-  const rediscover = useRediscover(clusterId);
   const [addingFor, setAddingFor] = useState<string | null>(null);
 
   const model = useMemo(() => {
@@ -27,9 +26,8 @@ export function TopologyGraph({ clusterId }: { clusterId: string }) {
     () => ({
       clusterId,
       addManagementUrl: (endpointId: string) => setAddingFor(endpointId),
-      rediscover: () => rediscover.mutate(),
     }),
-    [clusterId, rediscover],
+    [clusterId],
   );
 
   if (!model) return null;

@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -17,6 +18,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -53,6 +55,9 @@ class ScrapeSchedulerTest {
     ClusterDirectory clusters;
 
     @Mock
+    ClusterService clusterService;
+
+    @Mock
     BrokerConnections connections;
 
     @Mock
@@ -84,6 +89,7 @@ class ScrapeSchedulerTest {
         scheduler = new ScrapeScheduler(
                 settings,
                 clusters,
+                clusterService,
                 connections,
                 scrapeCycle,
                 persist,
@@ -137,6 +143,19 @@ class ScrapeSchedulerTest {
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    @Test
+    void discoveryRunsForEveryClusterAndOneFailureDoesNotStopAnother() {
+        ClusterEntity broken = cluster("broken");
+        ClusterEntity fine = cluster("fine");
+        when(clusters.clusters()).thenReturn(List.of(broken, fine));
+        doThrow(new IllegalStateException("boom")).when(clusterService).rediscover(broken.getId());
+
+        scheduler.discovery();
+
+        verify(clusterService).rediscover(broken.getId());
+        verify(clusterService).rediscover(fine.getId());
     }
 
     @Test

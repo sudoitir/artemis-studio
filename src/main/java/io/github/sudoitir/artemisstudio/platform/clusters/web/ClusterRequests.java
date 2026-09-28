@@ -48,7 +48,7 @@ public final class ClusterRequests {
     /**
      * {@code PATCH /clusters/{id}/nodes/{nodeId}} — give a discovered node a
      * reachable management URL, a reachable Core URL, or both. At least one is
-     * required (ADR-0026); a manual value is never overwritten by rediscovery.
+     * required (ADR-0026); a manual value is never overwritten by discovery.
      */
     public record NodeOverrideRequest(String jolokiaUrl, String coreUrl) {
 
