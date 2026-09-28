@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="web/public/favicon.svg" alt="" width="96" height="96">
+
 # Artemis Studio
 
 **One console for every Apache ActiveMQ Artemis cluster you run.**

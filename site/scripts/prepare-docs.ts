@@ -78,5 +78,7 @@ await copyMarkdown(join(REPO, 'docs/adr'), join(REFERENCE, 'adr'), (name) => nam
 await copyMarkdown(join(REPO, 'changelog'), join(REFERENCE, 'changelog'), () => false, escapeBareTags);
 
 await cp(join(REPO, 'docs/img'), join(SRC, 'public/img'), { recursive: true });
+// The product's mark has one home, the app's own public folder; the site and the README use it.
+await cp(join(REPO, 'web/public/favicon.svg'), join(SRC, 'public/favicon.svg'));
 
 console.log('prepared src/reference and src/public/img from docs/ and changelog/');
