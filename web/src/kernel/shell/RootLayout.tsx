@@ -122,6 +122,7 @@ export function RootLayout() {
       <AppShell.Header>
         <Group h="100%" px="md" gap="xs" justify="space-between">
           <Group gap="xs">
+            <img src="/favicon.svg" alt="" width={24} height={24} />
             <Text fw={600}>{branding.productName}</Text>
             {header.map(({ id, Component }) => (
               <Component key={id} />

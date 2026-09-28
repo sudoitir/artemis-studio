@@ -3,5 +3,6 @@ node_modules/
 # so the site cannot publish a stale copy of a decision record (ADR-0061 D3).
 src/reference/
 src/public/img/
+src/public/favicon.svg
 src/.vitepress/cache/
 src/.vitepress/dist/

@@ -12,6 +12,7 @@ on:
       - 'site/**'
       - 'docs/**'
       - 'changelog/**'
+      - 'web/public/favicon.svg'
       - '.github/workflows/pages.yml'
   # A PR that touches the site only builds it, so a broken build is caught before
   # merge; deploy stays on main.
@@ -20,6 +21,7 @@ on:
       - 'site/**'
       - 'docs/**'
       - 'changelog/**'
+      - 'web/public/favicon.svg'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
