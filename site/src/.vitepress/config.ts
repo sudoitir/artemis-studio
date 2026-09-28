@@ -183,6 +183,9 @@ export default defineConfig({
 
   themeConfig: {
     logo: '/favicon.svg',
+    // The home page is a static file (`public/index.html`), not a VitePress page. A link
+    // with a `target` bypasses the client router, so the logo does a full load of it.
+    logoLink: { link: BASE, target: '_self' },
     search: { provider: 'local' },
     socialLinks: [{ icon: 'github', link: REPO }],
     footer: {
