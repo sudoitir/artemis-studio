@@ -104,7 +104,7 @@ class PluginUnloadIT extends PostgresIntegrationTest {
                         public class Config {
                             @Bean
                             ScheduledJob tick() {
-                                return ScheduledJob.fixedDelay("acme-unload-tick", "acme-unload", () -> Duration.ofHours(1), () -> {});
+                                return ScheduledJob.fixedDelay("acme-unload-tick", "acme-unload", ScheduledJob.Scope.INSTANCE, () -> Duration.ofHours(1), () -> {});
                             }
                         }
                         """)

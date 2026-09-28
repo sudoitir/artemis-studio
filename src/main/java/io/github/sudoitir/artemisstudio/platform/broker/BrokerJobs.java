@@ -16,18 +16,31 @@ class BrokerJobs {
 
     @Bean
     ScheduledJob nodeCallRefillJob(NodeCallLimiter limiter) {
-        return ScheduledJob.fixedDelay("node-call-refill", "broker", () -> Duration.ofSeconds(1), limiter::refill);
+        return ScheduledJob.fixedDelay(
+                "node-call-refill",
+                "broker",
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofSeconds(1),
+                limiter::refill);
     }
 
     @Bean
     ScheduledJob clockOffsetRefreshJob(ClockOffsetService offsets) {
         return ScheduledJob.fixedDelay(
-                "clock-offset-refresh", "broker", () -> ClockOffsetService.REFRESH_INTERVAL, offsets::refresh);
+                "clock-offset-refresh",
+                "broker",
+                ScheduledJob.Scope.INSTANCE,
+                () -> ClockOffsetService.REFRESH_INTERVAL,
+                offsets::refresh);
     }
 
     @Bean
     ScheduledJob monotonicClockWatchJob(MonotonicClockWatch watch) {
         return ScheduledJob.fixedDelay(
-                "monotonic-clock-watch", "broker", () -> MonotonicClockWatch.INTERVAL, watch::check);
+                "monotonic-clock-watch",
+                "broker",
+                ScheduledJob.Scope.INSTANCE,
+                () -> MonotonicClockWatch.INTERVAL,
+                watch::check);
     }
 }

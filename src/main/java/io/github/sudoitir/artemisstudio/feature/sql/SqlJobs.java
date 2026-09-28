@@ -30,7 +30,8 @@ class SqlJobs {
      */
     @Bean
     ScheduledJob sqlTailJob(SqlTailPoller poller, SqlProperties properties) {
-        return ScheduledJob.fixedDelay("sql-tail", "sql", () -> properties.tailInterval(), poller::tick);
+        return ScheduledJob.fixedDelay(
+                "sql-tail", "sql", ScheduledJob.Scope.INSTANCE, () -> properties.tailInterval(), poller::tick);
     }
 
     /**
@@ -41,7 +42,11 @@ class SqlJobs {
     @Bean
     ScheduledJob messageIndexReconcileJob(MessageIndexCapture capture) {
         return ScheduledJob.fixedDelay(
-                "message-index-reconcile", "sql", () -> MessageIndexCapture.RECONCILE, capture::reconcile);
+                "message-index-reconcile",
+                "sql",
+                ScheduledJob.Scope.INSTANCE,
+                () -> MessageIndexCapture.RECONCILE,
+                capture::reconcile);
     }
 
     /**
@@ -52,7 +57,11 @@ class SqlJobs {
     @Bean
     ScheduledJob captureReconcileJob(CaptureReconciler reconciler, CaptureProperties properties) {
         return ScheduledJob.fixedDelay(
-                "capture-reconcile", "sql", () -> properties.reconcileInterval(), reconciler::reconcile);
+                "capture-reconcile",
+                "sql",
+                ScheduledJob.Scope.INSTANCE,
+                () -> properties.reconcileInterval(),
+                reconciler::reconcile);
     }
 
     /**
@@ -63,7 +72,8 @@ class SqlJobs {
      */
     @Bean
     ScheduledJob captureFlushJob(CaptureConsumer consumer, CaptureProperties properties) {
-        return ScheduledJob.fixedDelay("capture-flush", "sql", properties::flushInterval, consumer::flushAll);
+        return ScheduledJob.fixedDelay(
+                "capture-flush", "sql", ScheduledJob.Scope.INSTANCE, properties::flushInterval, consumer::flushAll);
     }
 
     /**
@@ -76,6 +86,7 @@ class SqlJobs {
         return ScheduledJob.cron(
                 "message-index-partitions",
                 "sql",
+                ScheduledJob.Scope.INSTALLATION,
                 () -> settings.value(ScrapeSettings.METRIC_PARTITION_CRON),
                 maintainer::maintain);
     }

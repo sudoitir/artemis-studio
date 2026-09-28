@@ -4,6 +4,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatus;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
+import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +26,11 @@ public class JobsController {
             @Schema(requiredMode = REQUIRED, description = "The module that owns the job.")
             String featureId,
 
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "INSTANCE runs on every instance; INSTALLATION on one instance per tick.")
+            ScheduledJob.Scope scope,
+
             @Schema(nullable = true) Instant lastStart,
             @Schema(nullable = true) Instant lastEnd,
 
@@ -38,20 +44,28 @@ public class JobsController {
             Instant nextRun,
 
             @Schema(
+                    nullable = true,
+                    description = "When this instance last found an installation-wide run held by another instance.")
+            Instant lastSkippedElsewhere,
+
+            @Schema(
                     requiredMode = REQUIRED,
-                    description = "Whether no run has finished within three of the job's intervals.")
+                    description =
+                            "Whether no run has finished, here or elsewhere, within three of the job's intervals.")
             boolean degraded) {
 
         static JobStatusView of(JobStatus s, Instant now) {
             return new JobStatusView(
                     s.id(),
                     s.featureId(),
+                    s.scope(),
                     s.lastStart(),
                     s.lastEnd(),
                     s.lastError(),
                     s.runs(),
                     s.failures(),
                     s.nextRun(),
+                    s.lastSkippedElsewhere(),
                     s.degraded(now));
         }
     }

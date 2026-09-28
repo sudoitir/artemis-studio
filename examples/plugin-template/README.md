@@ -43,7 +43,8 @@ You need Java 25 and Maven. Node is downloaded by the build.
 ## Rules worth knowing before you write code
 
 - **No `@Scheduled`, `@Async` or threads of your own.** Contribute a `ScheduledJob` bean; Studio runs it and
-  stops it with the plugin.
+  stops it with the plugin. Give it a scope: `INSTALLATION` for work on shared rows (it runs on one Studio
+  instance per tick), `INSTANCE` for work on this instance's own state (it runs everywhere).
 - **Audit every change** with `AuditService`, the way `NotesService` does. Operators rely on Studio's audit
   log being complete.
 - **Your schema is yours alone.** No foreign keys into Studio's tables and nothing created outside your schema;

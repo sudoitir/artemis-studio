@@ -10175,6 +10175,11 @@
             "type" : "string",
             "description" : "The module that owns the job."
           },
+          "scope" : {
+            "type" : "string",
+            "description" : "INSTANCE runs on every instance; INSTALLATION on one instance per tick.",
+            "enum" : [ "INSTANCE", "INSTALLATION" ]
+          },
           "lastStart" : {
             "type" : [ "string", "null" ],
             "format" : "date-time"
@@ -10200,12 +10205,17 @@
             "format" : "date-time",
             "description" : "When the scheduler next intends to start it."
           },
+          "lastSkippedElsewhere" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "When this instance last found an installation-wide run held by another instance."
+          },
           "degraded" : {
             "type" : "boolean",
-            "description" : "Whether no run has finished within three of the job's intervals."
+            "description" : "Whether no run has finished, here or elsewhere, within three of the job's intervals."
           }
         },
-        "required" : [ "degraded", "failures", "featureId", "id", "runs" ]
+        "required" : [ "degraded", "failures", "featureId", "id", "runs", "scope" ]
       },
       "SseEmitter" : {
         "type" : "object",

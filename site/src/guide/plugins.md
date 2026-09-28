@@ -230,7 +230,10 @@ operator.
 - **Its own package.** Classes live only under its `basePackage`. A library it bundles must be
   shaded and relocated under it.
 - **Studio runs its threads.** No `@Scheduled`, `@Async` or threads of its own: contribute a
-  `ScheduledJob`, and Studio runs it and stops it with the plugin.
+  `ScheduledJob`, and Studio runs it and stops it with the plugin. A job's scope says where it runs
+  when several Studio instances share one database: `INSTALLATION` jobs (pruning, housekeeping,
+  anything on shared rows) run on one instance per tick, and `INSTANCE` jobs (flushing a buffer,
+  refreshing a cache) run on every instance.
 - **Changes are audited.** Audit every change with `AuditService`, like Studio's own features do.
 - **Its data is its own.** Its tables live in its own schema, with no foreign keys to Studio's. Give
   every changeset a rollback, or updates that apply it cannot be rolled back.

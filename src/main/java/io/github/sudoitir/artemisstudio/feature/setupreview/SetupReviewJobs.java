@@ -14,6 +14,7 @@ class SetupReviewJobs {
         return ScheduledJob.fixedDelay(
                 "setup-review",
                 "setupreview",
+                ScheduledJob.Scope.INSTANCE,
                 () -> settings.duration(SetupReviewSettings.INTERVAL),
                 reviews::reviewAll);
     }

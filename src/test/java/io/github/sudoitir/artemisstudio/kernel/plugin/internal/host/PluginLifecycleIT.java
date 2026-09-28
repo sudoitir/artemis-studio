@@ -318,7 +318,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
                         public class LifeJobs {
                             @Bean
                             public ScheduledJob lifeJob() {
-                                return ScheduledJob.fixedDelay("%s-job", "%s", () -> Duration.ofMinutes(5), () -> {});
+                                return ScheduledJob.fixedDelay("%s-job", "%s", ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(5), () -> {});
                             }
                         }
                         """.formatted(id, id))

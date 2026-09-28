@@ -80,14 +80,27 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
         for (ScheduledJob tier : List.of(
                 ScheduledJob.fixedDelay(
-                        "scrape-tier-a", "scrape", () -> settings.duration(ScrapeSettings.TIER_A), this::tierA),
+                        "scrape-tier-a",
+                        "scrape",
+                        ScheduledJob.Scope.INSTANCE,
+                        () -> settings.duration(ScrapeSettings.TIER_A),
+                        this::tierA),
                 ScheduledJob.fixedDelay(
-                        "scrape-tier-b", "scrape", () -> settings.duration(ScrapeSettings.TIER_B), this::tierB),
+                        "scrape-tier-b",
+                        "scrape",
+                        ScheduledJob.Scope.INSTANCE,
+                        () -> settings.duration(ScrapeSettings.TIER_B),
+                        this::tierB),
                 ScheduledJob.fixedDelay(
-                        "scrape-tier-c", "scrape", () -> settings.duration(ScrapeSettings.TIER_C), this::tierC),
+                        "scrape-tier-c",
+                        "scrape",
+                        ScheduledJob.Scope.INSTALLATION,
+                        () -> settings.duration(ScrapeSettings.TIER_C),
+                        this::tierC),
                 ScheduledJob.fixedDelay(
                         "scrape-discovery",
                         "scrape",
+                        ScheduledJob.Scope.INSTALLATION,
                         () -> settings.duration(ScrapeSettings.DISCOVERY),
                         this::discovery))) {
             registrar.addTriggerTask(jobStatuses.instrument(tier), jobStatuses.trigger(tier));

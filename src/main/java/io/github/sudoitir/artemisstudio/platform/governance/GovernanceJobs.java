@@ -12,17 +12,30 @@ class GovernanceJobs {
     @Bean
     ScheduledJob governanceFindingsFlushJob(FindingsRecorder findings) {
         return ScheduledJob.fixedDelay(
-                "governance-findings-flush", "governance", () -> Duration.ofSeconds(30), findings::flush);
+                "governance-findings-flush",
+                "governance",
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofSeconds(30),
+                findings::flush);
     }
 
     @Bean
     ScheduledJob governanceRemaskJob(GovernanceRemasking remasking) {
-        return ScheduledJob.fixedDelay("governance-remask", "governance", () -> Duration.ofMinutes(1), remasking::run);
+        return ScheduledJob.fixedDelay(
+                "governance-remask",
+                "governance",
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofMinutes(1),
+                remasking::run);
     }
 
     @Bean
     ScheduledJob governancePolicyRefreshJob(PolicyStore store) {
         return ScheduledJob.fixedDelay(
-                "governance-policy-refresh", "governance", () -> Duration.ofSeconds(30), store::refreshIfStale);
+                "governance-policy-refresh",
+                "governance",
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofSeconds(30),
+                store::refreshIfStale);
     }
 }

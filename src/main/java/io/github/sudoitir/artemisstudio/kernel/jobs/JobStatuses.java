@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import net.javacrumbs.shedlock.core.LockConfiguration;
+import net.javacrumbs.shedlock.core.LockingTaskExecutor;
+import net.javacrumbs.shedlock.core.LockingTaskExecutor.TaskResult;
 import org.springframework.scheduling.Trigger;
 import org.springframework.stereotype.Component;
 
@@ -19,14 +22,19 @@ import org.springframework.stereotype.Component;
  * {@code studio.job} timer tagged with the job and its module.
  *
  * <p>A scheduler registers a job with both halves: {@code addTriggerTask(instrument(job),
- * trigger(job))}.
+ * trigger(job))}. An {@link ScheduledJob.Scope#INSTALLATION installation-wide} job runs only while
+ * it holds its ShedLock lock (ADR-0125); a tick that finds it held elsewhere is recorded as skipped.
  */
 @Component
 @PluginApi
 public class JobStatuses {
 
+    /** A floor under every lock's lifetime; ShedLock's keep-alive extends it while a run lasts. */
+    private static final Duration LOCK_AT_MOST = Duration.ofSeconds(60);
+
     private final Map<String, JobStatus> byId = new ConcurrentHashMap<>();
     private final MeterRegistry meters;
+    private final LockingTaskExecutor locks;
 
     /** Guards {@link #paused} and {@link #inFlight}; runs and {@link #pause} wait on it. */
     private final Object gate = new Object();
@@ -34,8 +42,9 @@ public class JobStatuses {
     private boolean paused;
     private int inFlight;
 
-    public JobStatuses(MeterRegistry meters) {
+    public JobStatuses(MeterRegistry meters, LockingTaskExecutor locks) {
         this.meters = meters;
+        this.locks = locks;
     }
 
     /**
@@ -58,22 +67,55 @@ public class JobStatuses {
                 }
                 inFlight++;
             }
-            byId.computeIfPresent(job.id(), (k, s) -> s.started(Instant.now()));
-            long started = System.nanoTime();
             try {
-                job.task().run();
-                byId.computeIfPresent(job.id(), (k, s) -> s.succeeded(Instant.now()));
-            } catch (RuntimeException | Error e) {
-                byId.computeIfPresent(job.id(), (k, s) -> s.failed(Instant.now(), e));
-                throw e;
+                if (job.scope() == ScheduledJob.Scope.INSTALLATION) {
+                    runOnce(job, timer);
+                } else {
+                    runRecorded(job, timer);
+                }
             } finally {
-                timer.record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
                 synchronized (gate) {
                     inFlight--;
                     gate.notifyAll();
                 }
             }
         };
+    }
+
+    private void runRecorded(ScheduledJob job, Timer timer) {
+        byId.computeIfPresent(job.id(), (k, s) -> s.started(Instant.now()));
+        long started = System.nanoTime();
+        try {
+            job.task().run();
+            byId.computeIfPresent(job.id(), (k, s) -> s.succeeded(Instant.now()));
+        } catch (RuntimeException | Error e) {
+            byId.computeIfPresent(job.id(), (k, s) -> s.failed(Instant.now(), e));
+            throw e;
+        } finally {
+            timer.record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
+        }
+    }
+
+    /** Runs the job only while holding its lock; otherwise another instance has this tick. */
+    private void runOnce(ScheduledJob job, Timer timer) {
+        Duration gap = job.minimumGap().get();
+        Duration atMost = gap.compareTo(LOCK_AT_MOST) > 0 ? gap : LOCK_AT_MOST;
+        TaskResult<Void> result;
+        try {
+            result = locks.executeWithLock(
+                    () -> {
+                        runRecorded(job, timer);
+                        return null;
+                    },
+                    new LockConfiguration(Instant.now(), job.id(), atMost, gap));
+        } catch (RuntimeException | Error e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new IllegalStateException(e);
+        }
+        if (!result.wasExecuted()) {
+            byId.computeIfPresent(job.id(), (k, s) -> s.skippedElsewhere(Instant.now()));
+        }
     }
 
     /**

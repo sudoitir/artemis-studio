@@ -12,6 +12,10 @@ class ApiTokensJobs {
     @Bean
     ScheduledJob apiTokenLastUsedFlushJob(ApiTokenService tokens) {
         return ScheduledJob.fixedDelay(
-                "api-token-last-used-flush", "apitokens", () -> Duration.ofMinutes(1), tokens::flushLastUsed);
+                "api-token-last-used-flush",
+                "apitokens",
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofMinutes(1),
+                tokens::flushLastUsed);
     }
 }

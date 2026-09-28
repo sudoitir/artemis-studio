@@ -6,23 +6,95 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.support.SimpleTriggerContext;
 
 class JobStatusesTest {
 
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    private final JobStatuses statuses = new JobStatuses(meters);
+    private final AtomicBoolean heldElsewhere = new AtomicBoolean();
+    private final JobStatuses statuses = new JobStatuses(
+            meters,
+            new DefaultLockingTaskExecutor(config -> heldElsewhere.get() ? Optional.empty() : Optional.of(() -> {})));
+
+    @Test
+    void anInstallationWideJobRunsOnlyWhileItHoldsItsLock() {
+        AtomicInteger ran = new AtomicInteger();
+        Runnable run = statuses.instrument(ScheduledJob.fixedDelay(
+                "shared", "rr", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofSeconds(10), ran::incrementAndGet));
+
+        run.run();
+        assertThat(ran).hasValue(1);
+        assertThat(statuses.all().getFirst().runs()).isEqualTo(1);
+
+        heldElsewhere.set(true);
+        run.run();
+        JobStatus skipped = statuses.all().getFirst();
+        assertThat(ran).hasValue(1);
+        assertThat(skipped.runs()).isEqualTo(1);
+        assertThat(skipped.lastSkippedElsewhere()).isNotNull();
+        assertThat(skipped.scope()).isEqualTo(ScheduledJob.Scope.INSTALLATION);
+    }
+
+    @Test
+    void aTickAnotherInstanceRanDoesNotMakeTheJobDegraded() {
+        heldElsewhere.set(true);
+        ScheduledJob job = ScheduledJob.fixedDelay(
+                "elsewhere", "rr", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofSeconds(1), () -> {});
+        Runnable run = statuses.instrument(job);
+        statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+
+        run.run();
+
+        JobStatus status = statuses.all().getFirst();
+        assertThat(status.lastEnd()).isNull();
+        assertThat(status.degraded(status.lastSkippedElsewhere().plusMillis(2_900)))
+                .isFalse();
+        assertThat(status.degraded(status.lastSkippedElsewhere().plusSeconds(4)))
+                .isTrue();
+    }
+
+    @Test
+    void anInstanceJobIgnoresTheLock() {
+        heldElsewhere.set(true);
+        AtomicInteger ran = new AtomicInteger();
+        statuses.instrument(ScheduledJob.fixedDelay(
+                        "local", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), ran::incrementAndGet))
+                .run();
+        assertThat(ran).hasValue(1);
+    }
+
+    @Test
+    void theMinimumGapIsMostOfTheIntervalAndAtMostFiveMinutes() {
+        assertThat(ScheduledJob.fixedDelay(
+                                "a", "rr", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofSeconds(10), () -> {})
+                        .minimumGap()
+                        .get())
+                .isEqualTo(Duration.ofSeconds(9));
+        assertThat(ScheduledJob.fixedDelay(
+                                "b", "rr", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofHours(1), () -> {})
+                        .minimumGap()
+                        .get())
+                .isEqualTo(Duration.ofMinutes(5));
+        assertThat(ScheduledJob.cron("c", "rr", ScheduledJob.Scope.INSTALLATION, () -> "0 0 4 * * *", () -> {})
+                        .minimumGap()
+                        .get())
+                .isEqualTo(Duration.ofSeconds(30));
+    }
 
     @Test
     void everyRunIsRecordedAndAFailureIsRethrown() {
         AtomicBoolean fail = new AtomicBoolean();
-        Runnable run = statuses.instrument(ScheduledJob.fixedDelay("demo", "rr", () -> Duration.ofSeconds(1), () -> {
-            if (fail.get()) {
-                throw new IllegalStateException("boom");
-            }
-        }));
+        Runnable run = statuses.instrument(
+                ScheduledJob.fixedDelay("demo", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), () -> {
+                    if (fail.get()) {
+                        throw new IllegalStateException("boom");
+                    }
+                }));
 
         run.run();
         JobStatus ok = statuses.all().getFirst();
@@ -47,14 +119,16 @@ class JobStatusesTest {
 
     @Test
     void aDuplicateJobIdIsRefused() {
-        ScheduledJob job = ScheduledJob.fixedDelay("dup", "rr", () -> Duration.ofSeconds(1), () -> {});
+        ScheduledJob job = ScheduledJob.fixedDelay(
+                "dup", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), () -> {});
         statuses.instrument(job);
         assertThatThrownBy(() -> statuses.instrument(job)).hasMessageContaining("'dup'");
     }
 
     @Test
     void theTriggerRecordsTheNextRunAndItsInterval() {
-        ScheduledJob job = ScheduledJob.fixedDelay("tick", "rr", () -> Duration.ofSeconds(15), () -> {});
+        ScheduledJob job = ScheduledJob.fixedDelay(
+                "tick", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(15), () -> {});
         statuses.instrument(job);
 
         Instant next = statuses.trigger(job).nextExecution(new SimpleTriggerContext());
@@ -67,7 +141,19 @@ class JobStatusesTest {
     @Test
     void aJobThatHasNotFinishedWithinThreeIntervalsIsDegraded() {
         Instant registered = Instant.parse("2026-09-13T10:00:00Z");
-        JobStatus s = new JobStatus("tick", "rr", registered, null, null, null, 0, 0, null, Duration.ofSeconds(15));
+        JobStatus s = new JobStatus(
+                "tick",
+                "rr",
+                ScheduledJob.Scope.INSTANCE,
+                registered,
+                null,
+                null,
+                null,
+                0,
+                0,
+                null,
+                Duration.ofSeconds(15),
+                null);
 
         assertThat(s.degraded(registered.plusSeconds(44))).isFalse();
         assertThat(s.degraded(registered.plusSeconds(46))).isTrue();
@@ -79,7 +165,8 @@ class JobStatusesTest {
 
     @Test
     void aJobWithoutAKnownIntervalIsNeverCalledStalled() {
-        JobStatus s = new JobStatus("tick", "rr", Instant.EPOCH, null, null, null, 0, 0, null, null);
+        JobStatus s = new JobStatus(
+                "tick", "rr", ScheduledJob.Scope.INSTANCE, Instant.EPOCH, null, null, null, 0, 0, null, null, null);
         assertThat(s.degraded(Instant.now())).isFalse();
     }
 }

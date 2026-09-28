@@ -14,8 +14,8 @@
 
 ## 4. Jobs
 
-- [ ] 4.1 `ScheduledJob.Scope` (required) and `minimumGap`; ShedLock (`KeepAliveLockProvider` over `JdbcTemplateLockProvider` using DB time) in `JobScheduler` and `ScrapeScheduler`; `shedlock` changeset; `SKIPPED_ELSEWHERE` counts as a finish; ADR-0125
-- [ ] 4.2 Classify every job; update the plugin template, its README and the tests; bump `Contract.VERSION`; `JobSchedulerIT` with two schedulers on one database
+- [x] 4.1 `ScheduledJob.Scope` (required) and `minimumGap`; ShedLock (`KeepAliveLockProvider` over `JdbcTemplateLockProvider` using DB time) in `JobScheduler` and `ScrapeScheduler`; `shedlock` changeset; `SKIPPED_ELSEWHERE` counts as a finish; ADR-0125
+- [x] 4.2 Classify every job; update the plugin template, its README and the tests; bump `Contract.VERSION`; `JobSchedulerIT` with two schedulers on one database
 
 ## 5. Ship
 
