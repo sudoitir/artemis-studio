@@ -18,6 +18,7 @@ class BrokerConfigJobs {
         return ScheduledJob.fixedDelay(
                 "config-drift",
                 "brokerconfig",
+                ScheduledJob.Scope.INSTANCE,
                 () -> settings.duration(BrokerConfigSettings.DRIFT_INTERVAL),
                 drift::evaluateAll);
     }

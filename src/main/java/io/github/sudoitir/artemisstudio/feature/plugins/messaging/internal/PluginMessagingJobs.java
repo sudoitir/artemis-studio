@@ -13,6 +13,10 @@ class PluginMessagingJobs {
     ScheduledJob pluginMessagingReconcileJob(
             PluginMessagingReconciler reconciler, PluginMessagingProperties properties) {
         return ScheduledJob.fixedDelay(
-                "plugin-messaging-reconcile", "plugins", properties::reconcileInterval, reconciler::reconcile);
+                "plugin-messaging-reconcile",
+                "plugins",
+                ScheduledJob.Scope.INSTANCE,
+                properties::reconcileInterval,
+                reconciler::reconcile);
     }
 }

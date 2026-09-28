@@ -40,6 +40,7 @@ public class UserService {
     private final UserRoleRepository userRoles;
     private final PasswordEncoder passwordEncoder;
     private final AdministrationAudit audit;
+    private final SessionTerminator sessions;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -72,6 +73,9 @@ public class UserService {
         user.setDisabled(disabled);
         users.save(user);
         audit.changed(disabled ? "USER_DISABLE" : "USER_ENABLE", "user", user.getUsername(), null);
+        if (disabled) {
+            sessions.endSessionsOf(List.of(user.getUsername()));
+        }
         return toView(user);
     }
 
@@ -110,6 +114,7 @@ public class UserService {
         userRoles.deleteById(new UserRoleEntity(userId, roleId, scopeType, resolvedScopeId).getId());
         audit.changed(
                 "GRANT_REMOVE", "user", user.getUsername(), Map.of("role", role.getName(), "scopeType", scopeType));
+        sessions.endSessionsOf(List.of(user.getUsername()));
     }
 
     private void guardNotLastAdmin(AppUserEntity user, String verb) {

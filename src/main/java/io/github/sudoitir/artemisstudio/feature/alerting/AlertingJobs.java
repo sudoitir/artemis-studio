@@ -13,6 +13,7 @@ class AlertingJobs {
         return ScheduledJob.fixedDelay(
                 "alert-dispatch",
                 "alerting",
+                ScheduledJob.Scope.INSTANCE,
                 () -> settings.duration(AlertingSettings.DISPATCH_INTERVAL),
                 dispatcher::dispatch);
     }

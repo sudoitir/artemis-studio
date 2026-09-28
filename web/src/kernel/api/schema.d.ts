@@ -3965,6 +3965,11 @@ export interface components {
             id: string;
             /** @description The module that owns the job. */
             featureId: string;
+            /**
+             * @description INSTANCE runs on every instance; INSTALLATION on one instance per tick.
+             * @enum {string}
+             */
+            scope: "INSTANCE" | "INSTALLATION";
             /** Format: date-time */
             lastStart?: string | null;
             /** Format: date-time */
@@ -3980,7 +3985,12 @@ export interface components {
              * @description When the scheduler next intends to start it.
              */
             nextRun?: string | null;
-            /** @description Whether no run has finished within three of the job's intervals. */
+            /**
+             * Format: date-time
+             * @description When this instance last found an installation-wide run held by another instance.
+             */
+            lastSkippedElsewhere?: string | null;
+            /** @description Whether no run has finished, here or elsewhere, within three of the job's intervals. */
             degraded: boolean;
         };
         SseEmitter: {

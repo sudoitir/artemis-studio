@@ -1,10 +1,14 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import java.io.Serializable;
 import java.util.Set;
 import java.util.UUID;
 
-/** One resolved role grant: a set of permissions held at a scope (ADR-0038). */
-public record Grant(ScopeType scopeType, UUID scopeId, Set<String> permissions) {
+/**
+ * One resolved role grant: a set of permissions held at a scope (ADR-0038). Serializable because a
+ * signed-in principal carries its grants in the JDBC session store (ADR-0037).
+ */
+public record Grant(ScopeType scopeType, UUID scopeId, Set<String> permissions) implements Serializable {
 
     public enum ScopeType {
         GLOBAL,

@@ -62,7 +62,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Plugin metrics (ADR-0113): samples with no broker node (changeset platform-scrape 0002)
                     // and the record of seeded plugin alert rules (changeset feature-alerting 0003).
                     "CREATE TABLE metric_sample(_default)? ",
-                    "alert_rule_seed")
+                    "alert_rule_seed",
+                    // Installation-wide job locks (ADR-0125, changeset kernel-jobs 0001).
+                    "shedlock")
             .map(Pattern::compile)
             .toList();
 

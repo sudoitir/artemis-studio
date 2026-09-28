@@ -11,6 +11,10 @@ class TransferJobs {
     @Bean
     ScheduledJob transferPreviewHousekeepingJob(TransferService transfers) {
         return ScheduledJob.cron(
-                "transfer-preview-housekeeping", "transfer", () -> "0 25 4 * * *", transfers::deleteExpiredPreviews);
+                "transfer-preview-housekeeping",
+                "transfer",
+                ScheduledJob.Scope.INSTALLATION,
+                () -> "0 25 4 * * *",
+                transfers::deleteExpiredPreviews);
     }
 }

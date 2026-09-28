@@ -12,6 +12,10 @@ class FlowJobs {
     @Bean
     ScheduledJob flowSampleJob(ClientSampler sampler, SettingsService settings) {
         return ScheduledJob.fixedDelay(
-                "flow-sample", "flow", () -> FlowSettings.sampleInterval(settings), sampler::sweepObserved);
+                "flow-sample",
+                "flow",
+                ScheduledJob.Scope.INSTANCE,
+                () -> FlowSettings.sampleInterval(settings),
+                sampler::sweepObserved);
     }
 }

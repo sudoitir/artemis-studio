@@ -13,7 +13,11 @@ class EventsJobs {
     @Bean
     ScheduledJob eventsFlushJob(BrokerEventWriter writer, SettingsService settings) {
         return ScheduledJob.fixedDelay(
-                "events-flush", "events", () -> settings.duration(EventsSettings.FLUSH), writer::flush);
+                "events-flush",
+                "events",
+                ScheduledJob.Scope.INSTANCE,
+                () -> settings.duration(EventsSettings.FLUSH),
+                writer::flush);
     }
 
     /**
@@ -28,6 +32,10 @@ class EventsJobs {
     @Bean
     ScheduledJob eventsReaperJob(BrokerEventReaper reaper, SettingsService settings) {
         return ScheduledJob.cron(
-                "events-reaper", "events", () -> settings.value(EventsSettings.REAPER_CRON), reaper::reap);
+                "events-reaper",
+                "events",
+                ScheduledJob.Scope.INSTALLATION,
+                () -> settings.value(EventsSettings.REAPER_CRON),
+                reaper::reap);
     }
 }

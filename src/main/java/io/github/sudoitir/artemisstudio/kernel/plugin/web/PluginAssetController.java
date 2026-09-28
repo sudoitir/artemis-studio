@@ -34,7 +34,8 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>{@code icon.svg} is the one path served from {@code META-INF/artemis-studio/icon.svg} instead
  * of the {@code ui/} tree, and carries {@code Content-Security-Policy: sandbox} so a plugin's icon
  * — an arbitrary SVG a plugin author supplied — can only ever be rendered inert, through
- * {@code <img>}, never executed. Everything else is under {@code ui/}, with an exact
+ * {@code <img>}, never executed. Every other SVG under {@code ui/} carries the same header. Everything
+ * else is under {@code ui/}, with an exact
  * {@code Content-Type} by extension, {@code X-Content-Type-Options: nosniff} and a
  * {@code private, immutable} cache lifetime — the URL is content-addressed by {@code sha8}, so a
  * cached response can never go stale under the same URL.
@@ -116,10 +117,12 @@ public class PluginAssetController {
                 return;
             }
             response.setStatus(HttpStatus.OK.value());
-            response.setContentType(contentTypeOf(entryName));
+            String contentType = contentTypeOf(entryName);
+            response.setContentType(contentType);
             response.setHeader(HttpHeaders.CACHE_CONTROL, "private, max-age=31536000, immutable");
             response.setHeader("X-Content-Type-Options", "nosniff");
-            if (icon) {
+            // Any SVG can carry script; sandboxed, it renders inert even when opened directly.
+            if (icon || contentType.equals("image/svg+xml")) {
                 response.setHeader("Content-Security-Policy", "sandbox");
             }
             try (var in = jar.getInputStream(entry)) {

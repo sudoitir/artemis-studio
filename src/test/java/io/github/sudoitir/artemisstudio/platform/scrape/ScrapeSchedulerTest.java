@@ -99,7 +99,10 @@ class ScrapeSchedulerTest {
                 new StreamSignals(new SseHub()),
                 coreSubscriptions,
                 eventPublisher,
-                new JobStatuses(new SimpleMeterRegistry()));
+                new JobStatuses(
+                        new SimpleMeterRegistry(),
+                        new net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor(
+                                config -> java.util.Optional.of(() -> {}))));
     }
 
     private JolokiaBrokerClient client(String... fixtures) {

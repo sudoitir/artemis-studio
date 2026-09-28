@@ -183,6 +183,41 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * A signed-in browser session plus an Authorization header that authenticates nothing must not
+     * skip CSRF: the header is refused with 401 before the session can authenticate the request.
+     */
+    @Test
+    void aJunkAuthorizationHeaderNextToASessionIsRefusedNotAllowedPastCsrf() throws Exception {
+        AppUserEntity user = newUser("csrf-junk-header");
+        grantViewer(user);
+        var principal = new io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal(
+                user.getId(),
+                user.getUsername(),
+                Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                false);
+        var context = org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(
+                org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+                        principal, null, principal.getAuthorities()));
+        var session = new org.springframework.mock.web.MockHttpSession();
+        session.setAttribute(
+                org.springframework.security.web.context.HttpSessionSecurityContextRepository
+                        .SPRING_SECURITY_CONTEXT_KEY,
+                context);
+
+        mvc().perform(get("/api/v1/clusters").session(session)).andExpect(status().isOk());
+        for (String header : List.of("Basic eDp4", "Bearer not-a-real-token", "x")) {
+            mvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                                    "/api/v1/environments")
+                            .session(session)
+                            .header("Authorization", header)
+                            .contentType("application/json")
+                            .content("{\"name\":\"csrf-probe\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
     @Test
     void garbageBearerValueIsRejectedNotCrashed() throws Exception {
         mvc().perform(get("/api/v1/clusters").header("Authorization", "Bearer not-a-real-token"))

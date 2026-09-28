@@ -11,17 +11,30 @@ class RrJobs {
     @Bean
     ScheduledJob rrDeadlineSweepJob(RrDeadlineSweep sweep, SettingsService settings) {
         return ScheduledJob.fixedDelay(
-                "rr-deadline-sweep", "rr", () -> settings.duration(RrSettings.SWEEP_INTERVAL), sweep::sweep);
+                "rr-deadline-sweep",
+                "rr",
+                ScheduledJob.Scope.INSTALLATION,
+                () -> settings.duration(RrSettings.SWEEP_INTERVAL),
+                sweep::sweep);
     }
 
     @Bean
     ScheduledJob rrSamplerJob(RrSampler sampler, SettingsService settings) {
         return ScheduledJob.fixedDelay(
-                "rr-sampler", "rr", () -> settings.duration(RrSettings.SAMPLE_INTERVAL), sampler::tick);
+                "rr-sampler",
+                "rr",
+                ScheduledJob.Scope.INSTANCE,
+                () -> settings.duration(RrSettings.SAMPLE_INTERVAL),
+                sampler::tick);
     }
 
     @Bean
     ScheduledJob rrFlowReaperJob(RrFlowReaper reaper, SettingsService settings) {
-        return ScheduledJob.cron("rr-flow-reaper", "rr", () -> settings.value(RrSettings.REAPER_CRON), reaper::reap);
+        return ScheduledJob.cron(
+                "rr-flow-reaper",
+                "rr",
+                ScheduledJob.Scope.INSTALLATION,
+                () -> settings.value(RrSettings.REAPER_CRON),
+                reaper::reap);
     }
 }

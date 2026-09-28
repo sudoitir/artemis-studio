@@ -42,6 +42,10 @@
 
     <properties>
         <java.version>25</java.version>
+        <!-- Above Spring Boot 4.1.0's managed 11.0.24, which carries three critical CVEs
+             (GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6, GHSA-h3x4-894j-xpx5). Drop once the
+             Boot BOM manages 11.0.25 or later; OSV-Scanner in CI flags any regression. -->
+        <tomcat.version>11.0.25</tomcat.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -63,6 +67,8 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <!-- springdoc 3.x is the Spring Boot 4 line (ADR-0019). -->
         <springdoc.version>3.1.1</springdoc.version>
+        <!-- Installation-wide jobs run once across instances (ADR-0125). -->
+        <shedlock.version>7.10.1</shedlock.version>
         <!-- MCP server (ADR-0045). 2.0.1, never 2.0.0: that release's STREAMABLE
              transport retained sessions without bound (CVE-2026-59279). -->
         <spring-ai.version>2.0.1</spring-ai.version>
@@ -162,8 +168,8 @@
              by our own Liquibase changeset (014-identity.sql), never the
              library's auto-initializer. -->
         <dependency>
-            <groupId>org.springframework.session</groupId>
-            <artifactId>spring-session-jdbc</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-session-jdbc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -252,6 +258,11 @@
              web/src/kernel/api/schema.d.ts is generated from a committed snapshot of
              this document (ADR-0019, primary path taken in Phase 3). The 3.x
              line is built against Spring Boot 4.1.0. -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

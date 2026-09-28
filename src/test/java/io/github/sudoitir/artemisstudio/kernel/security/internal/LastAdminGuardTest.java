@@ -52,6 +52,9 @@ class LastAdminGuardTest {
     @Mock
     AdministrationAudit audit;
 
+    @Mock
+    SessionTerminator sessions;
+
     UserService service;
 
     UUID adminRoleId = UUID.randomUUID();
@@ -59,7 +62,7 @@ class LastAdminGuardTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserService(users, roles, userRoles, passwordEncoder, audit);
+        service = new UserService(users, roles, userRoles, passwordEncoder, audit, sessions);
         adminRole = role(adminRoleId, "ADMIN");
     }
 

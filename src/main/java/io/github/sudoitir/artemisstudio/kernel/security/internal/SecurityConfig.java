@@ -39,6 +39,18 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /**
+     * Scripts, connections, workers and forms stay on Studio's own origin; nothing may frame it
+     * (ADR-0122). Styles allow {@code 'unsafe-inline'} because Mantine injects them at runtime and
+     * style injection runs no script. {@code 'wasm-unsafe-eval'} lets the code highlighter compile its
+     * WebAssembly regex engine; it allows no JavaScript eval. Plugin remotes are served from this
+     * origin, so they fit.
+     */
+    static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; "
+            + "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
+            + "connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; "
+            + "form-action 'self'; frame-ancestors 'none'";
+
     @Bean
     SecurityFilterChain filterChain(
             HttpSecurity http,
@@ -52,9 +64,13 @@ public class SecurityConfig {
                         org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        // Bearer-token requests carry no ambient browser credential, so there is
-                        // nothing for a cross-site request to ride on (design.md decision 1).
-                        .ignoringRequestMatchers(request -> request.getHeader("Authorization") != null))
+                        // A request a bearer token authenticated carries no ambient browser
+                        // credential, so there is nothing for a cross-site request to ride on
+                        // (design.md decision 1). Any other Authorization header never gets here:
+                        // BearerAuthenticationFilter answers it with 401.
+                        .ignoringRequestMatchers(
+                                request -> request.getAttribute(BearerAuthenticationFilter.AUTHENTICATED) != null))
+                .headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY)))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(

@@ -11,6 +11,10 @@ class BulkJobs {
     @Bean
     ScheduledJob bulkPreviewHousekeepingJob(BulkService bulk) {
         return ScheduledJob.cron(
-                "bulk-preview-housekeeping", "bulk", () -> "0 20 4 * * *", bulk::deleteExpiredPreviews);
+                "bulk-preview-housekeeping",
+                "bulk",
+                ScheduledJob.Scope.INSTALLATION,
+                () -> "0 20 4 * * *",
+                bulk::deleteExpiredPreviews);
     }
 }

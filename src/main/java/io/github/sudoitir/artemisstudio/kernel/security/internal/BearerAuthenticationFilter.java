@@ -21,10 +21,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * independently of any session cookie (api-tokens spec). Placed after
  * {@code SecurityContextHolderFilter}, which would otherwise overwrite this filter's
  * authentication with the session-less empty context it loads.
+ *
+ * <p>Any other {@code Authorization} header, and a bearer token no provider accepts, is answered
+ * with 401 here. Only a request this filter authenticated skips the CSRF check
+ * ({@link #AUTHENTICATED}); otherwise a junk header plus the session cookie would skip it too.
  */
 class BearerAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+
+    /** Request attribute set once a bearer token authenticated the request. */
+    static final String AUTHENTICATED = BearerAuthenticationFilter.class.getName() + ".AUTHENTICATED";
 
     private final List<IdentityProviders> contributions;
 
@@ -36,22 +43,33 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith(BEARER_PREFIX)) {
-            String token = header.substring(BEARER_PREFIX.length()).trim();
-            Optional<StudioPrincipal> principal = contributions.stream()
-                    .flatMap(c -> c.providers().stream())
-                    .filter(p -> p instanceof BearerIdentityProvider)
-                    .map(p -> ((BearerIdentityProvider) p).authenticate(token))
-                    .flatMap(Optional::stream)
-                    .findFirst();
-            principal.ifPresent(p -> {
-                var authentication = UsernamePasswordAuthenticationToken.authenticated(p, null, p.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContext context = SecurityContextHolder.createEmptyContext();
-                context.setAuthentication(authentication);
-                SecurityContextHolder.setContext(context);
-            });
+        if (header == null) {
+            chain.doFilter(request, response);
+            return;
         }
+        Optional<StudioPrincipal> principal = header.startsWith(BEARER_PREFIX)
+                ? authenticate(header.substring(BEARER_PREFIX.length()).trim())
+                : Optional.empty();
+        if (principal.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+        StudioPrincipal p = principal.get();
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(p, null, p.getAuthorities());
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+        request.setAttribute(AUTHENTICATED, Boolean.TRUE);
         chain.doFilter(request, response);
+    }
+
+    private Optional<StudioPrincipal> authenticate(String token) {
+        return contributions.stream()
+                .flatMap(c -> c.providers().stream())
+                .filter(p -> p instanceof BearerIdentityProvider)
+                .map(p -> ((BearerIdentityProvider) p).authenticate(token))
+                .flatMap(Optional::stream)
+                .findFirst();
     }
 }

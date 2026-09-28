@@ -11,6 +11,10 @@ class StreamJobs {
     @Bean
     ScheduledJob sseHeartbeatJob(SseHub hub, SettingsService settings) {
         return ScheduledJob.fixedDelay(
-                "sse-heartbeat", "stream", () -> settings.duration(StreamSettings.HEARTBEAT_INTERVAL), hub::heartbeat);
+                "sse-heartbeat",
+                "stream",
+                ScheduledJob.Scope.INSTANCE,
+                () -> settings.duration(StreamSettings.HEARTBEAT_INTERVAL),
+                hub::heartbeat);
     }
 }

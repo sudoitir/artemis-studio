@@ -186,8 +186,7 @@ class PluginBridgesIT extends PostgresIntegrationTest {
                         public class BridgesJobs {
                             @Bean
                             public ScheduledJob bridgesJob() {
-                                return ScheduledJob.fixedDelay(
-                                        "%s-job", "%s", () -> Duration.ofMinutes(5), () -> {});
+                                return ScheduledJob.fixedDelay("%s-job", "%s", ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(5), () -> {});
                             }
                         }
                         """.formatted(id, id))
