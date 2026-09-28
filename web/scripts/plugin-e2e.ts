@@ -118,6 +118,10 @@ async function main() {
   const page = await browser.newPage({ storageState: await api.storageState(), baseURL: BASE });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // Studio's Content-Security-Policy must not refuse anything Studio or the plugin itself loads.
+  page.on('console', (m) => {
+    if (m.text().includes('Content Security Policy')) errors.push(m.text());
+  });
   await page.goto('/admin?tab=plugins');
   await page.getByRole('row', { name: /Notes/ }).getByText('Active').waitFor({ timeout: 30_000 });
   if (await page.getByText(/could not show (its|their) screens/).count()) throw new Error('the plugin UI did not load');

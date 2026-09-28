@@ -91,6 +91,7 @@ class PluginAssetControllerIT extends PostgresIntegrationTest {
                 .descriptorField("ui", true)
                 .entry("META-INF/artemis-studio/ui/remoteEntry.js", "export default {};")
                 .entry("META-INF/artemis-studio/ui/style.css", "body{color:red}")
+                .entry("META-INF/artemis-studio/ui/logo.svg", "<svg xmlns='http://www.w3.org/2000/svg'></svg>")
                 .entry("META-INF/artemis-studio/icon.svg", "<svg xmlns='http://www.w3.org/2000/svg'></svg>")
                 .changelog("""
                         <?xml version="1.0" encoding="UTF-8"?>
@@ -126,6 +127,20 @@ class PluginAssetControllerIT extends PostgresIntegrationTest {
                 .andExpect(MockMvcResultMatchers.content().contentTypeCompatibleWith("image/svg+xml"))
                 .andExpect(MockMvcResultMatchers.header().string("Content-Security-Policy", "sandbox"))
                 .andExpect(MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("<svg")));
+
+        // Every other SVG is sandboxed too, so an SVG opened directly can never run script.
+        mvc.perform(MockMvcRequestBuilders.get("/plugin-ui/{id}/{sha8}/logo.svg", id, sha8)
+                        .with(authentication(admin())))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.header().string("Content-Security-Policy", "sandbox"));
+
+        // Script assets carry Studio's own policy, not the sandbox.
+        mvc.perform(MockMvcRequestBuilders.get("/plugin-ui/{id}/{sha8}/remoteEntry.js", id, sha8)
+                        .with(authentication(admin())))
+                .andExpect(MockMvcResultMatchers.header()
+                        .string(
+                                "Content-Security-Policy",
+                                org.hamcrest.Matchers.containsString("frame-ancestors 'none'")));
 
         // Wrong sha8: 404, not the file.
         mvc.perform(MockMvcRequestBuilders.get("/plugin-ui/{id}/{sha8}/remoteEntry.js", id, "deadbeef")
