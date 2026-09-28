@@ -1,0 +1,3 @@
+- [x] 1.1 ADR-0120 (amends 0117) and the README index
+- [x] 1.2 `DiagramView`: `height` as a CSS length; zoom in, out and fit; `insertable` edges with `insertChoices`/`onInsert` ("+" menu, Insert on the box); `nodeActions`/`onNodeAction` ("⋯", right-click, Shift+F10, disabled with a reason); only user pans close a menu
+- [x] 1.3 SDK type exports, vitest, plugin guide section

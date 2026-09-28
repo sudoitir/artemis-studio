@@ -27,6 +27,32 @@ function draw(onSelect = vi.fn(), selectedId: string | null = null) {
   return onSelect;
 }
 
+function drawEditable({ onInsert = vi.fn(), onNodeAction = vi.fn() }: { onInsert?: (e: string, v: string) => void; onNodeAction?: (n: string, a: string) => void }) {
+  render(
+    <MantineProvider>
+      <DiagramView
+        nodes={nodes}
+        edges={edges.map((e) => (e.id === 'a-b' ? { ...e, insertable: true } : e))}
+        aria-label="Flow orders"
+        insertChoices={[
+          { value: 'call', label: 'Call a service', group: 'Steps' },
+          { value: 'send', label: 'Send a message', group: 'Steps' },
+        ]}
+        onInsert={onInsert}
+        nodeActions={(n) =>
+          n.kind === 'Queue'
+            ? []
+            : [
+                { id: 'up', label: 'Move up', disabledReason: n.id === 'a' ? 'It is already the first step.' : undefined },
+                { id: 'remove', label: 'Remove', danger: true },
+              ]
+        }
+        onNodeAction={onNodeAction}
+      />
+    </MantineProvider>,
+  );
+}
+
 describe('DiagramView', () => {
   it('names each box with its kind, label and problem in words', async () => {
     draw();
@@ -60,6 +86,70 @@ describe('DiagramView', () => {
     const renamed = nodes.map((n) => ({ ...n, label: `${n.label}!`, state: undefined }));
     expect(layoutSignature(renamed, edges, 'DOWN')).toBe(layoutSignature(nodes, edges, 'DOWN'));
     expect(layoutSignature(nodes, edges.slice(1), 'DOWN')).not.toBe(layoutSignature(nodes, edges, 'DOWN'));
+  });
+
+  it('shows no editing controls unless the caller offers them', async () => {
+    draw();
+    await screen.findByRole('button', { name: /^Queue, orders/ });
+    expect(screen.queryByRole('button', { name: /^Insert between/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom out' })).toBeInTheDocument();
+  });
+
+  it('offers the insert choices on an insertable arrow and reports the choice', async () => {
+    const onInsert = vi.fn();
+    drawEditable({ onInsert });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Insert between reserve and charge' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Send a message' }));
+    expect(onInsert).toHaveBeenCalledWith('a-b', 'send');
+    // Only the arrow marked insertable offers it.
+    expect(screen.queryByRole('button', { name: 'Insert between orders and reserve' })).toBeNull();
+  });
+
+  it('offers what can go on the arrows into a box with Insert', async () => {
+    const onInsert = vi.fn();
+    drawEditable({ onInsert });
+    const user = userEvent.setup();
+    const charge = await screen.findByRole('button', { name: /^Call a service, charge/ });
+    charge.focus();
+    await user.keyboard('{Insert}');
+    await user.click(await screen.findByRole('menuitem', { name: 'Call a service' }));
+    expect(onInsert).toHaveBeenCalledWith('a-b', 'call');
+  });
+
+  it("opens a box's actions with Shift+F10, keeps a disabled one listed with its reason, and reports the choice", async () => {
+    const onNodeAction = vi.fn();
+    drawEditable({ onNodeAction });
+    const user = userEvent.setup();
+    const reserve = await screen.findByRole('button', { name: /^Call a service, reserve/ });
+    reserve.focus();
+    await user.keyboard('{Shift>}{F10}{/Shift}');
+    const up = await screen.findByRole('menuitem', { name: /Move up/ });
+    expect(up).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('It is already the first step.')).toBeInTheDocument();
+    await user.click(up);
+    expect(onNodeAction).not.toHaveBeenCalled();
+    await waitFor(() => expect(reserve).toHaveFocus());
+    await user.keyboard('{Shift>}{F10}{/Shift}');
+    await user.click(await screen.findByRole('menuitem', { name: /Remove/ }));
+    expect(onNodeAction).toHaveBeenCalledWith('a', 'remove');
+    await waitFor(() => expect(reserve).toHaveFocus());
+  });
+
+  it('opens the actions of a box from its "⋯" and from a right-click', async () => {
+    const onNodeAction = vi.fn();
+    drawEditable({ onNodeAction });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Actions for charge' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Remove/ }));
+    expect(onNodeAction).toHaveBeenCalledWith('b', 'remove');
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: /^Call a service, reserve/ }) });
+    await user.click(await screen.findByRole('menuitem', { name: /Remove/ }));
+    expect(onNodeAction).toHaveBeenLastCalledWith('a', 'remove');
+    // A box without actions has no menu.
+    expect(screen.queryByRole('button', { name: 'Actions for orders' })).toBeNull();
   });
 
   it('reads a warning as a warning', () => {

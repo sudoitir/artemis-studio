@@ -26,11 +26,54 @@
   pointer-events: none;
 }
 
-.fit {
+.controls {
   position: absolute;
   inset-block-start: 8px;
   inset-inline-end: 8px;
   z-index: 5;
+}
+
+/* A box and its "⋯": the button fills the card; the "⋯" sits in its corner. */
+.card {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.more {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.card:hover .more,
+.card:focus-within .more,
+.more[data-selected],
+.more[aria-expanded='true'] {
+  opacity: 1;
+}
+
+/* An arrow's label chip and its "+", side by side at the arrow's middle. */
+.labels {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.insert {
+  pointer-events: all;
+  opacity: 0.7;
+  transition: opacity 120ms ease-out;
+}
+
+.insert:hover,
+.insert:focus-visible,
+.insert[aria-expanded='true'] {
+  opacity: 1;
 }
 
 .handle {
@@ -145,7 +188,6 @@
 }
 
 .chip {
-  position: absolute;
   max-inline-size: 200px;
   padding-inline: 6px;
   border: 1px solid var(--as-border);
@@ -175,7 +217,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .node {
+  .node,
+  .more,
+  .insert {
     transition: none;
   }
 }
