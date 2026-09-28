@@ -14,7 +14,7 @@ A state-changing request SHALL carry a valid CSRF token unless a valid API beare
 
 ### Requirement: Revoking access ends sessions
 
-The system SHALL end every session of each affected user when a user is disabled, when a user's role or grant assignments change, or when a role's permissions change.
+The system SHALL end every session of each affected user when a user is disabled, when a grant is removed from a user, or when a role's permissions change. Sessions SHALL be stored in the database, so they are shared by every instance and can be found by user.
 
 #### Scenario: A disabled user is signed out
 - **WHEN** an administrator disables a signed-in user

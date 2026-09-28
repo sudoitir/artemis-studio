@@ -5,7 +5,7 @@ A security review of the browser and plugin surface found gaps. A request with a
 ## What Changes
 
 - Only a valid API bearer token skips the CSRF check. Any other `Authorization` header is rejected with 401.
-- Disabling a user, changing their role or grant assignments, or changing a role's permissions ends the affected users' sessions.
+- Sessions are stored in the database as intended: the Boot 4 session module was missing, so they lived in memory. Disabling a user, removing a grant or changing a role's permissions ends the affected users' sessions.
 - Every response carries a Content-Security-Policy that allows scripts only from Studio's own origin and forbids framing. Plugin SVG assets are sandboxed.
 - CI runs CodeQL and OSV-Scanner on pull requests, on `main` and weekly.
 - **BREAKING (plugin API)**: every `ScheduledJob` declares a `Scope`, either `INSTANCE` or `INSTALLATION`. Installation-wide jobs run once across instances, through ShedLock on Studio's database. `Contract.VERSION` is bumped.

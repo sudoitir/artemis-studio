@@ -18,7 +18,6 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
 
   session:
-    store-type: jdbc
     jdbc:
       # Liquibase owns this schema (014-identity.sql), not the library's own
       # initializer (ADR-0011).

@@ -1,7 +1,7 @@
 ## 1. CSRF and sessions
 
-- [ ] 1.1 `BearerAuthenticationFilter` answers 401 to an `Authorization` header that is not a valid bearer token; the CSRF skip then only covers authenticated bearer requests; `EndpointProtectionTest` covers a junk header plus a cookie
-- [ ] 1.2 End sessions through `FindByIndexNameSessionRepository` on disable, on role or grant assignment, and on role permission change; `SessionRevocationIT`; ADR-0123
+- [x] 1.1 `BearerAuthenticationFilter` answers 401 to an `Authorization` header that is not a valid bearer token; the CSRF skip then only covers authenticated bearer requests; `EndpointProtectionTest` covers a junk header plus a cookie
+- [x] 1.2 Sessions actually in JDBC (`spring-boot-starter-session-jdbc`; session data serializable); end sessions through `FindByIndexNameSessionRepository` on disable, grant removal and role permission change; `SessionRevocationIT`; ADR-0123
 
 ## 2. Headers
 

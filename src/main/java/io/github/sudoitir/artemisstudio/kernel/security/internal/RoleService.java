@@ -4,10 +4,13 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
@@ -35,6 +38,8 @@ public class RoleService {
     private final FeatureRegistry features;
     private final UserRoleRepository userRoles;
     private final AdministrationAudit audit;
+    private final AppUserRepository users;
+    private final SessionTerminator sessions;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -71,6 +76,13 @@ public class RoleService {
         rolePermissions.deleteByIdRoleId(roleId);
         savePermissions(roleId, request.permissions());
         audit.changed("ROLE_UPDATE", "role", role.getName(), null);
+        // Members' sessions carry the role's old permissions; end them so the change applies now.
+        sessions.endSessionsOf(userRoles.findByIdRoleId(roleId).stream()
+                .map(UserRoleEntity::getUserId)
+                .distinct()
+                .flatMap(id -> users.findById(id).stream())
+                .map(AppUserEntity::getUsername)
+                .toList());
         return toView(role);
     }
 
