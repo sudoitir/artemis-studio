@@ -1,6 +1,6 @@
 # ADR-0117: The SDK exposes a read-only diagram
 
-- **Status**: accepted
+- **Status**: accepted; its "read-only" point is amended by [ADR-0120](0120-the-sdk-diagram-offers-caller-defined-insertions-and-actions.md)
 - **Date**: 2026-09-28
 - **Deciders**: Artemis Studio maintainers
 

@@ -428,6 +428,16 @@ exports:
   - Mark a node that has a problem with `state: 'error'` (or `'warning'`) and a `reason`. It
     shows the word and reads the reason out.
   - The diagram is one tab stop: arrow keys move between nodes, and Enter selects one.
+  - `height` takes pixels or a CSS length: `'100%'` fills a sized parent, such as a resizable panel.
+    Zoom in, zoom out and fit controls sit in its corner.
+  - To let people change the structure from the diagram, offer choices and apply them yourself.
+    The diagram never changes the nodes:
+    - Mark an edge `insertable` and pass `insertChoices` (`value`, `label`, optional `group`) with
+      `onInsert(edgeId, value)`. The edge shows a "+", and Insert on the box it leads to offers the
+      same choices from the keyboard.
+    - Pass `nodeActions(node)` (`id`, `label`, optional `danger` and `disabledReason`) with
+      `onNodeAction(nodeId, actionId)`. A box's actions open from its "⋯", a right-click or
+      Shift+F10. Give an action that does not apply a `disabledReason` rather than leaving it out.
 
 ## How it works
 

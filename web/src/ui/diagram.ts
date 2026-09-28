@@ -23,6 +23,26 @@ export interface DiagramEdge {
   label?: string;
   /** Drawn dashed: a secondary path. Its meaning belongs in its label. */
   dashed?: boolean;
+  /** Something can be inserted on this arrow: it offers the diagram's `insertChoices`. */
+  insertable?: boolean;
+}
+
+/** One thing a `DiagramView` offers to insert on an arrow ("Call a service"). */
+export interface DiagramChoice {
+  value: string;
+  label: string;
+  /** A heading the choice is listed under. */
+  group?: string;
+}
+
+/** One action in a box's menu. The diagram only reports it: the caller changes the nodes. */
+export interface DiagramAction {
+  id: string;
+  label: string;
+  /** Why it cannot be taken here. It stays listed, with the reason, rather than disappearing. */
+  disabledReason?: string;
+  /** Destroys something: shown in the danger colour. The label still says so in words. */
+  danger?: boolean;
 }
 
 /** What positions depend on: which nodes exist and how they connect. A new label moves nothing. */
