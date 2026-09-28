@@ -21,6 +21,7 @@ the commit log. `just changelog` renders them exactly as the next release will.
 
 | Version | Date |
 | --- | --- |
+| [2026.09.55](2026.09.55.md) | 2026-09-28 |
 | [2026.09.54](2026.09.54.md) | 2026-09-28 |
 | [2026.09.53](2026.09.53.md) | 2026-09-28 |
 | [2026.09.52](2026.09.52.md) | 2026-09-28 |
