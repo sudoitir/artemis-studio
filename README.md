@@ -9,6 +9,9 @@
 Live topology, every queue on every node in one table, message flow you can watch,
 safe message operations, and SQL over your messages — all from a single instance.
 
+<a href="https://sudoitir.github.io/artemis-studio/"><img src="https://img.shields.io/badge/Play%20the%20story-Find%20the%20backed--up%20queue%20across%208%20brokers-0b7285?style=for-the-badge&labelColor=0b1418&logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJBcnRlbWlzIFN0dWRpbyI+CiAgPCEtLSBUaGUgY3Jlc2NlbnQgYm93LiBBcnRlbWlzJyBtb29uIGlzIHRoZSBib3csIGRyYXduIGFuZCBsb29zZWQ6IG9uZSBhcnJvdywgZmx5aW5nCiAgICAgICBzdHJhaWdodCB0byB0aGUgdGhpbmcgdGhhdCBuZWVkcyB5b3UuIFRoZSBmYWludCByaW5nIGlzIHRoZSByZXN0IG9mIHRoZSBtb29uLiAtLT4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iYXMtdGlsZSIgY3g9Ii43IiBjeT0iLjMiIHI9Ii45Ij4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMTIzMDNhIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzA4MTExNSIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYXMtbW9vbiIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM3Y2VhZjUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIuNTUiIHN0b3AtY29sb3I9IiMyMmI4Y2YiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGI3Mjg1Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPG1hc2sgaWQ9ImFzLWJpdGUiPgogICAgICA8cmVjdCB4PSItOCIgeT0iLTgiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgZmlsbD0iI2ZmZiIvPgogICAgICA8Y2lyY2xlIGN4PSI4LjMiIGN5PSIxNiIgcj0iMTAiIGZpbGw9IiMwMDAiLz4KICAgIDwvbWFzaz4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNy41IiBmaWxsPSJ1cmwoI2FzLXRpbGUpIi8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMS4yOSAtMS45Nykgcm90YXRlKC0zOCAxNiAxNikiPgogICAgPGNpcmNsZSBjeD0iMTIuOCIgY3k9IjE2IiByPSIxMC4zIiBmaWxsPSJub25lIiBzdHJva2U9IiMzYmM5ZGIiIHN0cm9rZS13aWR0aD0iLjYiIG9wYWNpdHk9Ii4xNiIvPgogICAgPHBhdGggZD0iTTkuODcgNi4xMiA0LjQgMTZsNS40NyA5Ljg4IiBmaWxsPSJub25lIiBzdHJva2U9IiM5ZWVhZjMiIHN0cm9rZS13aWR0aD0iLjciIHN0cm9rZS1saW5lam9pbj0icm91bmQiIG9wYWNpdHk9Ii44NSIvPgogICAgPGNpcmNsZSBjeD0iMTIuOCIgY3k9IjE2IiByPSIxMC4zIiBmaWxsPSJ1cmwoI2FzLW1vb24pIiBtYXNrPSJ1cmwoI2FzLWJpdGUpIi8+CiAgICA8Y2lyY2xlIGN4PSIxMi44IiBjeT0iMTYiIHI9IjkuOTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Q4ZmJmZiIgc3Ryb2tlLXdpZHRoPSIuNSIgb3BhY2l0eT0iLjU1IiBtYXNrPSJ1cmwoI2FzLWJpdGUpIi8+CiAgICA8cGF0aCBkPSJNNC43IDE2aDIwLjUiIHN0cm9rZT0iIzBhMTcxYyIgc3Ryb2tlLXdpZHRoPSIyLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogICAgPHBhdGggZD0iTTQuNyAxNmgyMC41IiBzdHJva2U9IiNmNGZlZmYiIHN0cm9rZS13aWR0aD0iMS4zIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICAgIDxwYXRoIGQ9Ik0yOSAxNmwtNC4yLTIuM3ExIDIuMyAwIDQuNnoiIGZpbGw9IiNmNGZlZmYiIHN0cm9rZT0iIzBhMTcxYyIgc3Ryb2tlLXdpZHRoPSIuNiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgcGFpbnQtb3JkZXI9InN0cm9rZSIvPgogIDwvZz4KPC9zdmc+Cg==" alt="Play the story: find the backed-up queue across 8 brokers" height="36"></a><br>
+<sub>An interactive 3 a.m. incident · about 2 minutes · runs in your browser</sub>
+
 **English** · [简体中文](README.zh.md) · [فارسی](README.fa.md)
 
 [![CI](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml)
@@ -19,7 +22,6 @@ safe message operations, and SQL over your messages — all from a single instan
 [![Stars](https://img.shields.io/github/stars/sudoitir/artemis-studio?style=flat)](https://github.com/sudoitir/artemis-studio/stargazers)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sudoitir/artemis-studio)
 
-[**The story**](https://sudoitir.github.io/artemis-studio/) ·
 [Docs](https://sudoitir.github.io/artemis-studio/guide/) ·
 [Quickstart](https://sudoitir.github.io/artemis-studio/guide/quickstart) ·
 [Flow](https://sudoitir.github.io/artemis-studio/guide/flow) ·
@@ -40,10 +42,17 @@ It's 3 a.m. and `ORDERS.DLQ` is backing up somewhere in your cluster. The consol
 ships with Artemis manages one broker at a time and has no idea a cluster exists, so you
 open a tab per node, walk a JMX tree in each one, and read attributes until you find it.
 
-Artemis Studio shows all of it at once: every node of every cluster on one topology, with
-HA roles polled live, and every queue on every node in one table, sorted by depth. The
-queue you were hunting for is the first row. **[▶ Try the hunt yourself and watch it get
-solved](https://sudoitir.github.io/artemis-studio/)**
+Artemis Studio treats **the cluster as the unit of everything**. Every node of every
+cluster is on one topology, with HA roles polled live, and every queue on every node is in
+one table, sorted by depth, so the queue you were hunting for is the first row. One
+instance serves as many clusters as you run. It works against your **existing** brokers:
+beyond the management endpoints you almost certainly have already, `broker.xml` stays as it
+is, and it never starts a broker of its own.
+
+<a href="https://sudoitir.github.io/artemis-studio/"><img src="docs/img/story.png" alt="The story opens at 03:07 with an alert: ORDERS.DLQ depth rising somewhere across 8 brokers in 2 clusters. Play it in your browser."></a>
+
+**[▶ Play the story](https://sudoitir.github.io/artemis-studio/)**: hunt for the queue yourself, one tab per broker, then watch
+Studio find it on one screen.
 
 ![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue, message flow and the charts](docs/img/demo.gif)
 
@@ -124,18 +133,6 @@ solved](https://sudoitir.github.io/artemis-studio/)**
   everything it can do shown before you confirm, and no restart unless it needs one.
   Updates show what changes and roll back; a failing plugin never stops Studio. Start
   a plugin from [the template](examples/plugin-template).
-
-## Why
-
-The console that ships with Artemis manages **one broker at a time** and has no idea
-a cluster exists. That is fine until your question spans nodes, and the questions
-that matter always do: *which node is live*, *where is the backlog*, *where did that
-message go*.
-
-Artemis Studio treats **the cluster as the unit of everything**, and one instance
-serves as many clusters as you run. It works against your **existing** brokers —
-beyond the management endpoints you almost certainly have already, `broker.xml`
-stays as it is — and it never starts a broker of its own.
 
 ## Run it
 
