@@ -47,8 +47,6 @@ Artemis Studio 是另一回事：**一个实例，管理多个集群**，一切�
 | 集群拓扑 | 跨节点队列 |
 |---|---|
 | ![带复制关系与共享 NodeID 轴的主备拓扑](/img/topology.png) | ![所有节点的所有队列汇入一张虚拟化表格](/img/queues.png) |
-| **指标与图表** | **治理** |
-| ![来自分区化 Postgres 的堆积、吞吐与消费者图表](/img/metrics.png) | ![用户、分层授权、环境、API 令牌与 OIDC 声明映射](/img/governance.png) |
 
 ## 接下来
 

@@ -105,17 +105,6 @@ async function main() {
       ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
     },
     {
-      file: 'metrics.png',
-      path: `/clusters/${clusterId}/metrics?range=15m`,
-      // Taller than the others on purpose: the dashboard is three stacked panels,
-      // and a 900px crop cuts the second one in half.
-      height: 1400,
-      // recharts draws one tick after its container measures, so wait for a
-      // plotted path rather than for the panel around it.
-      ready: () =>
-        page.locator('.recharts-area, .recharts-line').first().waitFor({ timeout: 30_000 }),
-    },
-    {
       file: 'sql.png',
       path: `/clusters/${clusterId}/sql`,
       height: 1100,
@@ -132,11 +121,6 @@ async function main() {
       },
       // Longer than the console's own 30 s query bound, so a slow broker still yields its rows.
       ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }),
-    },
-    {
-      file: 'governance.png',
-      path: '/admin',
-      ready: () => page.getByRole('row').nth(1).waitFor({ timeout: 30_000 }),
     },
     {
       file: 'settings.png',

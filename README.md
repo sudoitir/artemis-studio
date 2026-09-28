@@ -49,7 +49,7 @@ instance serves as many clusters as you run. It works against your **existing** 
 beyond the management endpoints you almost certainly have already, `broker.xml` stays as it
 is, and it never starts a broker of its own.
 
-<a href="https://sudoitir.github.io/artemis-studio/"><img src="docs/img/story.png" alt="The story opens at 03:07 with an alert: ORDERS.DLQ depth rising somewhere across 8 brokers in 2 clusters. Play it in your browser."></a>
+<a href="https://sudoitir.github.io/artemis-studio/"><img src="docs/img/story.webp" width="1600" height="900" alt="The story opens at 03:07 with an alert: ORDERS.DLQ depth rising somewhere across 8 brokers in 2 clusters. Play it in your browser."></a>
 
 **[▶ Play the story](https://sudoitir.github.io/artemis-studio/)**: hunt for the queue yourself, one tab per broker, then watch
 Studio find it on one screen.
@@ -63,8 +63,6 @@ Studio find it on one screen.
 | [![Live/backup topology with replication and a shared-NodeID axis](docs/img/topology.png)](docs/img/topology.png) | [![Every queue across every node in one virtualised grid](docs/img/queues.png)](docs/img/queues.png) |
 | **Client and message flow** | **SQL Console** |
 | [![Flow: moving dots carry each path's rate; hovering a queue keeps its whole path bright](docs/img/flow.gif)](docs/img/flow.gif) | [![The SQL Console: a query across every queue in the cluster, its cost classified before it runs, then a live tail](docs/img/sql-console.gif)](docs/img/sql-console.gif) |
-| **Metrics and charts** | **Governance** |
-| [![Depth, throughput and consumer charts from partitioned Postgres](docs/img/metrics.png)](docs/img/metrics.png) | [![Users, scoped grants, environments, API tokens and OIDC claim mapping](docs/img/governance.png)](docs/img/governance.png) |
 | **Plugins** | **Settings** |
 | [![Installing a plugin: what it will be able to do and the SQL of its database changes, reviewed before a typed confirmation](docs/img/plugin-install.gif)](docs/img/plugin-install.gif) | [![Settings: display preferences, Studio's operational configuration, this cluster's and each plugin's sections](docs/img/settings.png)](docs/img/settings.png) |
 
