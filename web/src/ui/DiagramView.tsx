@@ -250,13 +250,36 @@ const Line = memo(function Line({ id, sourceX, sourceY, targetX, targetY, source
 const nodeTypes = { card: Card };
 const edgeTypes = { line: Line };
 
-function FitOnLayout({ signature }: { signature: string | null }) {
+/**
+ * Fits the view when the boxes or arrows change, and when the frame changes size: a diagram in a
+ * panel that is resized, or shown again after being collapsed, would otherwise keep a view of where
+ * its boxes were, or were laid out at no size at all.
+ */
+function FitOnLayout({ signature, frame }: { signature: string | null; frame: React.RefObject<HTMLDivElement | null> }) {
   const flow = useReactFlow();
   useEffect(() => {
     if (!signature) return;
-    const frame = requestAnimationFrame(() => void flow.fitView(FIT));
-    return () => cancelAnimationFrame(frame);
+    const raf = requestAnimationFrame(() => void flow.fitView(FIT));
+    return () => cancelAnimationFrame(raf);
   }, [flow, signature]);
+  useEffect(() => {
+    const el = frame.current;
+    if (!signature || !el || typeof ResizeObserver === 'undefined') return;
+    let last = { width: el.clientWidth, height: el.clientHeight };
+    let raf = 0;
+    const observer = new ResizeObserver(() => {
+      const size = { width: el.clientWidth, height: el.clientHeight };
+      if (!size.width || !size.height || (size.width === last.width && size.height === last.height)) return;
+      last = size;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => void flow.fitView({ ...FIT, duration: 0 }));
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [flow, signature, frame]);
   return null;
 }
 
@@ -323,6 +346,7 @@ export function DiagramView({
   const [focused, setFocused] = useState<string | null>(null);
   const tabStop = focused && order.includes(focused) ? focused : selectedId && order.includes(selectedId) ? selectedId : (order[0] ?? null);
   const elements = useRef(new Map<string, HTMLButtonElement>());
+  const frameRef = useRef<HTMLDivElement>(null);
   const [announce, setAnnounce] = useState('');
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const inserting = !!(onInsert && insertChoices?.length);
@@ -409,7 +433,7 @@ export function DiagramView({
 
   return (
     <ReactFlowProvider>
-      <div className={classes.frame} style={{ blockSize: height }} role="group" aria-label={ariaLabel} onKeyDown={onKeyDown}>
+      <div ref={frameRef} className={classes.frame} style={{ blockSize: height }} role="group" aria-label={ariaLabel} onKeyDown={onKeyDown}>
         {!layout.ready ? (
           <div className={classes.overlay} aria-busy="true" aria-label="Laying out the diagram">
             <Loader size="sm" />
@@ -437,7 +461,7 @@ export function DiagramView({
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} patternClassName={classes.dots} />
-            <FitOnLayout signature={layout.ready ? layout.signature : null} />
+            <FitOnLayout signature={layout.ready ? layout.signature : null} frame={frameRef} />
           </ReactFlow>
         </RovingContext.Provider>
         <ViewControls />
