@@ -1,0 +1,181 @@
+/*
+ * The SDK diagram (ADR-0117), in the routing canvas's language: a sunken canvas, raised cards,
+ * thin quiet lines. Words carry kind and state; colour appears only on a box with a problem.
+ */
+
+.frame {
+  position: relative;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  background: var(--as-canvas-sunken);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dots {
+  fill: var(--as-canvas-grid);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.fit {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  z-index: 5;
+}
+
+.handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.node {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  padding-block: 6px;
+  padding-inline: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+  box-shadow: var(--as-elevation-1);
+  color: var(--as-text);
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+  transition:
+    box-shadow 140ms ease-out,
+    border-color 140ms ease-out;
+}
+
+.node:hover {
+  box-shadow: var(--as-elevation-2);
+}
+
+.node[data-state='error'] {
+  border-color: var(--as-danger);
+  border-inline-start-width: 4px;
+}
+
+.node[data-state='warning'] {
+  border-color: var(--as-warning);
+  border-inline-start-width: 4px;
+}
+
+.node[data-selected] {
+  border-color: var(--as-text);
+  box-shadow:
+    0 0 0 1px var(--as-text),
+    var(--as-elevation-2);
+}
+
+.node:focus-visible {
+  outline: 2px solid var(--as-text);
+  outline-offset: 3px;
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-inline-size: 100%;
+  font-size: 0.6875rem;
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+}
+
+.state {
+  padding-inline: 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.node[data-state='error'] .state {
+  color: var(--as-danger);
+}
+
+.node[data-state='warning'] .state {
+  color: var(--as-warning);
+}
+
+.label,
+.detail {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.detail {
+  font-size: 0.75rem;
+  color: var(--as-text-dimmed);
+}
+
+.edge,
+.dashed {
+  stroke: var(--as-flow-edge);
+  stroke-width: 1.25;
+  fill: none;
+}
+
+.dashed {
+  stroke-dasharray: 5 4;
+}
+
+.chip {
+  position: absolute;
+  max-inline-size: 200px;
+  padding-inline: 6px;
+  border: 1px solid var(--as-border);
+  border-radius: 999px;
+  background: var(--as-surface-raised);
+  color: var(--as-text-dimmed);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.frame :global(.react-flow__arrowhead) polyline {
+  stroke: var(--as-flow-edge);
+  fill: var(--as-flow-edge);
+}
+
+.live {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node {
+    transition: none;
+  }
+}

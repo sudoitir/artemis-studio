@@ -1,0 +1,3 @@
+- [x] 1.1 ADR-0117 and the README index
+- [x] 1.2 `DiagramView`: layout signature, keyboard roving and selection, announcement, problem words, edge labels in the target's name, tokens, reduced motion, layout-failure state
+- [x] 1.3 SDK export, vitest, plugin guide section

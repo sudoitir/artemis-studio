@@ -421,6 +421,13 @@ exports:
   border, double-click it, or press Ctrl+Shift+Left/Right on a focused header. Pass a
   `storageKey` prefixed with your plugin id (`acme-notes.notes`) to remember each viewer's
   widths.
+- **`DiagramView`** draws boxes and arrows, laid out for you, for example the steps of a workflow.
+  - It is read-only. Pass `nodes` (`id`, `label`, optional `kind`, `detail`) and `edges`
+    (`source`, `target`, optional `label`, and `dashed` for a secondary path).
+  - `selectedId` and `onSelect` tie it to a detail pane beside it.
+  - Mark a node that has a problem with `state: 'error'` (or `'warning'`) and a `reason`. It
+    shows the word and reads the reason out.
+  - The diagram is one tab stop: arrow keys move between nodes, and Enter selects one.
 
 ## How it works
 
