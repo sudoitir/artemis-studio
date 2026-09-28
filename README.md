@@ -17,7 +17,8 @@ safe message operations, and SQL over your messages — all from a single instan
 [![Stars](https://img.shields.io/github/stars/sudoitir/artemis-studio?style=flat)](https://github.com/sudoitir/artemis-studio/stargazers)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sudoitir/artemis-studio)
 
-[**Docs**](https://sudoitir.github.io/artemis-studio/) ·
+[**The story**](https://sudoitir.github.io/artemis-studio/) ·
+[Docs](https://sudoitir.github.io/artemis-studio/guide/) ·
 [Quickstart](https://sudoitir.github.io/artemis-studio/guide/quickstart) ·
 [Flow](https://sudoitir.github.io/artemis-studio/guide/flow) ·
 [SQL Console](https://sudoitir.github.io/artemis-studio/guide/sql-console) ·
@@ -30,6 +31,17 @@ safe message operations, and SQL over your messages — all from a single instan
 > **Alpha.** Under active development and not yet feature-complete. Published images
 > are pre-stable dev builds (`sudoit1/artemis-studio:dev`; there is no `:latest` yet).
 > Expect breaking changes.
+
+## Why
+
+It's 3 a.m. and `ORDERS.DLQ` is backing up somewhere in your cluster. The console that
+ships with Artemis manages one broker at a time and has no idea a cluster exists, so you
+open a tab per node, walk a JMX tree in each one, and read attributes until you find it.
+
+Artemis Studio shows all of it at once: every node of every cluster on one topology, with
+HA roles polled live, and every queue on every node in one table, sorted by depth. The
+queue you were hunting for is the first row. **[▶ Try the hunt yourself and watch it get
+solved](https://sudoitir.github.io/artemis-studio/)**
 
 ![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue, message flow and the charts](docs/img/demo.gif)
 
