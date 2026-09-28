@@ -52,13 +52,10 @@
   white-space: nowrap;
 }
 
-/* The state word and the elapsed label both change while the operator is
-   reading: "Live" becomes "Reconnecting…", "updated 9s ago" becomes "10s". With
-   no reserved track the whole toolbar shifts a few pixels once a second. */
-.state {
-  min-inline-size: 6.5rem;
-}
-
+/* The elapsed label changes every second ("updated 9s ago" becomes "10s"), so it
+   reserves its track; without one the whole toolbar shifts a few pixels once a
+   second. The state word is not reserved: it changes only on a transition, and a
+   track sized for "Reconnecting…" left a gap after "Live" on every healthy screen. */
 .elapsed {
   font-variant-numeric: tabular-nums;
   min-inline-size: 8.5rem;
