@@ -67,8 +67,6 @@ stated — an absence of evidence is not evidence of absence.
 | Cluster topology | Cross-node queues |
 |---|---|
 | ![Live/backup topology with replication and shared-NodeID axis](/img/topology.png) | ![Every queue across every node in one virtualised grid](/img/queues.png) |
-| **Metrics and charts** | **Governance** |
-| ![Depth, throughput and consumer charts from partitioned Postgres](/img/metrics.png) | ![Users, scoped grants, environments, API tokens and OIDC claim mapping](/img/governance.png) |
 
 ## Next
 

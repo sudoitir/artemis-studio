@@ -36,8 +36,6 @@
 | [![主备拓扑，含复制状态与共享 NodeID 轴](docs/img/topology.png)](docs/img/topology.png) | [![所有节点上的所有队列，汇总在一张虚拟滚动表格里](docs/img/queues.png)](docs/img/queues.png) |
 | **客户端与消息流向** | **SQL 控制台** |
 | [![Flow：流动的圆点表示每条路径的速率，悬停某个队列即可高亮它的完整链路](docs/img/flow.gif)](docs/img/flow.gif) | [![SQL 控制台：跨集群所有队列查询，执行前先标明代价，随后实时追踪](docs/img/sql-console.gif)](docs/img/sql-console.gif) |
-| **指标与图表** | **治理** |
-| [![基于分区 Postgres 的堆积、吞吐与消费者图表](docs/img/metrics.png)](docs/img/metrics.png) | [![用户、分级授权、环境、API 令牌与 OIDC 声明映射](docs/img/governance.png)](docs/img/governance.png) |
 
 - **拓扑**——展示主备节点对及其复制状态。HA 角色每个周期都从各节点实时轮询，从不依赖配置文件；同一对节点里出现两个 live，就会触发脑裂告警。
 - **Flow（消息流向）**——一眼看清哪个应用往哪个地址发消息，消息如何经过 divert、bridge 和集群跳转进入队列，又被谁以什么速率消费。没有消费者、消息持续堆积之类的问题会直接用文字标出来；而且只有在有人查看时才会采样客户端，不给 Broker 额外负担。
