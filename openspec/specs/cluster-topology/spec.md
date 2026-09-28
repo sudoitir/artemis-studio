@@ -7,22 +7,6 @@ live-node, replication-state, and split-brain signals from periodic reads.
 
 ## Requirements
 
-### Requirement: Topology is discovered from the seed and refreshed
-
-The system SHALL call `listNetworkTopology()` on a reachable node to enumerate
-every logical node and its advertised connectors, and SHALL persist newly
-learned nodes as discovered. It SHALL re-run discovery on demand and on a schedule.
-
-#### Scenario: Pair discovered from one seed
-
-- **WHEN** discovery runs against a primary whose topology lists a backup
-- **THEN** the backup is persisted as a discovered node under the same cluster
-
-#### Scenario: Rediscovery on demand
-
-- **WHEN** a rediscover request is made for a cluster
-- **THEN** discovery re-runs and the node set is reconciled with the current topology
-
 ### Requirement: A logical node is keyed by NodeID
 
 The system SHALL treat `NodeID` as the identity of a logical node. Two
@@ -241,7 +225,7 @@ rendered as plain text and not as a control that cannot be used.
 ### Requirement: The graph states its empty and loading conditions
 
 A cluster whose topology holds no nodes SHALL render an explanation of why the graph is
-empty together with the action that can change it — rediscovery — and not a blank frame.
+empty, and that Studio keeps looking on its own schedule, and not a blank frame.
 The add-a-management-URL flow is deliberately NOT offered here: it attaches a URL to a
 discovered endpoint, and a cluster with no nodes has none. While the topology is loading,
 the canvas frame SHALL be occupied by a placeholder of the graph's own size rather than a
@@ -251,7 +235,7 @@ bare spinner in an empty area.
 
 - **WHEN** a cluster's topology contains no nodes
 - **THEN** the graph area explains that Studio learns topology from the first broker it
-  reaches and that nothing has answered on the seed address, and offers rediscovery
+  reaches, that nothing has answered on the seed address, and that it keeps looking
 
 #### Scenario: Loading
 
@@ -280,3 +264,22 @@ viewport after a failover.
 
 - **WHEN** the set of logical nodes changes while the graph is open
 - **THEN** the view is re-fitted to the new node set
+
+### Requirement: Topology is discovered from the seed and rediscovered on a schedule
+
+The system SHALL call `listNetworkTopology()` on a reachable node to enumerate
+every logical node and its advertised connectors, and SHALL persist newly
+learned nodes as discovered. It SHALL re-run discovery on its own schedule, at a
+cadence the administrator can change at runtime, for every cluster with a
+reachable manageable node.
+
+#### Scenario: Pair discovered from one seed
+
+- **WHEN** discovery runs against a primary whose topology lists a backup
+- **THEN** the backup is persisted as a discovered node under the same cluster
+
+#### Scenario: Rediscovery on a schedule
+
+- **WHEN** a broker joins a registered cluster
+- **THEN** within one discovery interval it is persisted as a discovered node and shown on
+  open topology views without a reload

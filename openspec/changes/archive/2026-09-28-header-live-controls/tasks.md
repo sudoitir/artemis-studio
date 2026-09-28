@@ -6,4 +6,4 @@
 - [x] 4.1 A system rediscovery on `ClusterService` and scrape tier D on `scrape.discovery-interval`; remove the endpoint and regenerate the contract
 - [x] 4.2 Remove **Check** and **Rediscover** from the UI and update the empty-state and settings copy
 - [x] 4.3 Backend test: the tier discovers and keeps a manual override
-- [ ] 5.1 `just verify`, plus Playwright screenshots of the header in light and dark, pause on a literal-interval page, and Topology
+- [x] 5.1 `just verify`, plus Playwright screenshots of the header in light and dark, pause on a literal-interval page, and Topology
