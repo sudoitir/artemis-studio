@@ -123,3 +123,5 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0115](0115-the-sdk-code-editor-uses-codemirror-yaml-and-json.md) | SDK `CodeEditor` on CodeMirror with `@codemirror/lang-yaml` and `lang-json`; diagnostics by line and column come from the caller; theme shared with the SQL editor |
 | [0116](0116-grid-columns-fit-their-content-and-resize.md) | `VirtualTable` columns fit their content (180–480 px) and resize by drag, double-click or Ctrl+Shift+Arrow; widths per viewer under a `storageKey` |
 | [0117](0117-the-sdk-exposes-a-read-only-diagram.md) | The SDK's `DiagramView`: a read-only, keyboard-operable diagram on xyflow and the ELK worker, fed plain nodes and edges |
+| [0118](0118-pause-is-enforced-at-the-query-client-and-refresh-is-removed.md) | Pause is enforced by TanStack's `focusManager` for every query, plugins included; `poll()` and the refresh control are removed (amends 0052) |
+| [0119](0119-topology-is-rediscovered-on-a-scrape-tier.md) | Topology rediscovery is a scrape tier on `scrape.discovery-interval` (1m); the on-demand endpoint and its buttons are removed (implements 0004) |

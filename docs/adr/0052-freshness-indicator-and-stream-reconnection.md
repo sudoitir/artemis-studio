@@ -1,6 +1,6 @@
 # ADR-0052: One global freshness indicator, and a stream that reconnects forever
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0118](0118-pause-is-enforced-at-the-query-client-and-refresh-is-removed.md))
 - **Date**: 2026-09-06
 - **Deciders**: maintainer
 

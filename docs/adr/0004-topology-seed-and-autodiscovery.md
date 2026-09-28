@@ -1,6 +1,6 @@
 # ADR-0004: Topology by seed node plus auto-discovery
 
-- **Status**: accepted
+- **Status**: accepted (scheduled rediscovery implemented by [ADR-0119](0119-topology-is-rediscovered-on-a-scrape-tier.md))
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
 
