@@ -19,7 +19,9 @@ describe('a plugin component that throws', () => {
       </div>,
     );
     expect(screen.getByText('Studio content')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('The acme-notes plugin could not show this part of the screen');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'The acme-notes plugin could not show this part of the screen',
+    );
   });
 
   it('renders nothing where a sentence would not fit', () => {

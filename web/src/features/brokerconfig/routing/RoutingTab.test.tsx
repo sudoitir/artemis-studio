@@ -7,12 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../test/render.tsx';
 import { server } from '../../../test/setup.ts';
 import type { GateVerdict } from '../../../ui/capabilityGate.ts';
-import type {
-  ConfigBridgeView,
-  ConfigDeclarationView,
-  ConfigDivertView,
-  ConfigDriftFindingView,
-} from '../api.ts';
+import type { ConfigBridgeView, ConfigDeclarationView, ConfigDivertView, ConfigDriftFindingView } from '../api.ts';
 import { declaration, NODE_A } from '../fixtures.ts';
 import type { Section } from '../words.ts';
 import { RoutingTab } from './RoutingTab.tsx';
@@ -226,7 +221,9 @@ describe('RoutingTab', () => {
 
     expect(await screen.findByText(/160 elements, more than the 150 this canvas draws at once/)).toBeInTheDocument();
     expect(screen.getByText(/159 elements are not drawn/)).toBeInTheDocument();
-    expect(screen.getByText(/Every one of them is on the Configuration screen's Declared & live tab/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Every one of them is on the Configuration screen's Declared & live tab/),
+    ).toBeInTheDocument();
     // The operator chooses what the region is anchored on.
     expect(screen.getByRole('combobox', { name: 'Draw the region around' })).toBeInTheDocument();
   });
@@ -291,7 +288,9 @@ describe('RoutingTab', () => {
     const d = routed();
     server.use(
       http.get('*/api/v1/clusters/c1/config/connectors', () =>
-        HttpResponse.json([{ nodeId: 'n-a', nodeName: 'broker-1', names: ['dr-connector'], known: true, reason: null }]),
+        HttpResponse.json([
+          { nodeId: 'n-a', nodeName: 'broker-1', names: ['dr-connector'], known: true, reason: null },
+        ]),
       ),
       http.get('*/api/v1/clusters/c1/config/bridge-credentials', () => HttpResponse.json([])),
       http.put('*/api/v1/clusters/c1/config', async ({ request }) => {

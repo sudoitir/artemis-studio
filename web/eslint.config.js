@@ -49,7 +49,9 @@ export default tseslint.config(
             // Shared components name the generated DTOs they render, and nothing else of the app.
             {
               from: { element: { type: 'ui' } },
-              allow: { to: [{ element: { type: 'ui' } }, { element: { type: 'kernel' }, file: { categories: 'schema' } }] },
+              allow: {
+                to: [{ element: { type: 'ui' } }, { element: { type: 'kernel' }, file: { categories: 'schema' } }],
+              },
             },
             { from: { element: { type: 'kernel' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
             { from: { element: { type: 'sdk' } }, allow: { to: { element: { type: ['kernel', 'ui'] } } } },
@@ -88,10 +90,7 @@ export default tseslint.config(
       // The hook rules only; v7's React Compiler rules are a separate adoption.
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
   {

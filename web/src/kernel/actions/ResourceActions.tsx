@@ -42,9 +42,7 @@ export function ResourceActions<K extends ActionKind>({
     [base, restoreFocus],
   );
 
-  const sections = ACTION_SECTIONS.filter(
-    (section) => mode === 'act' || section.id === 'open' || section.id === 'copy',
-  )
+  const sections = ACTION_SECTIONS.filter((section) => mode === 'act' || section.id === 'open' || section.id === 'copy')
     .map((section) => ({
       ...section,
       items: contributions.filter((c) => (c.section ?? 'open') === section.id),

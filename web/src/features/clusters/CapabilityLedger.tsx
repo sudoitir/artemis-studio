@@ -33,13 +33,7 @@ const DECLARABLE: Partial<Record<Key, string>> = {
     'The address and security settings can be applied from the declared configuration; the plugin still needs broker.xml.',
 };
 
-const ORDER: Key[] = [
-  'managementRead',
-  'managementWrite',
-  'notifications',
-  'messageIo',
-  'slowConsumerDetection',
-];
+const ORDER: Key[] = ['managementRead', 'managementWrite', 'notifications', 'messageIo', 'slowConsumerDetection'];
 
 /**
  * "What this connection can do", as a hanging ledger. Every row shows a status
@@ -87,11 +81,7 @@ export function CapabilityLedger({
                 <div className={styles.detail}>
                   {cap.reason}
                   {cap.brokerXmlSnippet ? (
-                    <CodeHighlight
-                      className={styles.snippet}
-                      code={cap.brokerXmlSnippet.trimEnd()}
-                      language="xml"
-                    />
+                    <CodeHighlight className={styles.snippet} code={cap.brokerXmlSnippet.trimEnd()} language="xml" />
                   ) : null}
                   {cap.brokerXmlSnippet && clusterId && DECLARABLE[key] ? (
                     <Text size="xs" mt="xs">
@@ -111,10 +101,7 @@ export function CapabilityLedger({
   );
 }
 
-function statusWord(
-  key: Key,
-  cap: CapabilityView,
-): { text: string; tone?: 'warning' | 'danger' } {
+function statusWord(key: Key, cap: CapabilityView): { text: string; tone?: 'warning' | 'danger' } {
   if (cap.status === 'AVAILABLE') {
     if (key === 'messageIo' && /degraded|truncat|Core client/i.test(cap.reason)) {
       return { text: 'Limited', tone: 'warning' };

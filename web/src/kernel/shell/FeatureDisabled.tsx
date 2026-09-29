@@ -26,8 +26,8 @@ export function FeatureDisabled({
         {title} is disabled on this installation
       </Title>
       <Text size="sm">
-        This {branding.productShortName} was started with {title} turned off, so its screens, API
-        and assistant tools are not available here. An administrator turns it on by restarting with
+        This {branding.productShortName} was started with {title} turned off, so its screens, API and assistant tools
+        are not available here. An administrator turns it on by restarting with
       </Text>
       <Code block>{property}=true</Code>
       {clusterId ? (

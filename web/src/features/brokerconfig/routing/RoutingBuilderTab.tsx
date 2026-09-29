@@ -35,8 +35,8 @@ export function RoutingBuilderTab({ clusterId }: { clusterId: string }) {
   if (declaration.isError) {
     return (
       <Alert color="red" variant="light" title={declaration.error.title}>
-        {declaration.error.message} The builder draws the declaration, so it has nothing to draw until the
-        declaration can be read. The Diverts and Bridges tabs read the brokers directly.
+        {declaration.error.message} The builder draws the declaration, so it has nothing to draw until the declaration
+        can be read. The Diverts and Bridges tabs read the brokers directly.
       </Alert>
     );
   }

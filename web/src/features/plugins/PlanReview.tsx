@@ -70,7 +70,8 @@ export function PlanReview({ plan, warnings = [] }: { plan: PluginPlanView; warn
           ) : null}
           {writeTools.length > 0 ? (
             <List.Item>
-              Give the assistant {count(writeTools.length, 'tool')} that change things: {writeTools.map((t) => t.name).join(', ')}.
+              Give the assistant {count(writeTools.length, 'tool')} that change things:{' '}
+              {writeTools.map((t) => t.name).join(', ')}.
             </List.Item>
           ) : null}
           {c.permissions.length > 0 ? (
@@ -79,7 +80,9 @@ export function PlanReview({ plan, warnings = [] }: { plan: PluginPlanView; warn
               {c.permissions.map((p) => (p.description ? `${p.action} (${p.description})` : p.action)).join(', ')}.
             </List.Item>
           ) : null}
-          {c.settingKeys.length > 0 ? <List.Item>Keep {count(c.settingKeys.length, 'setting')} of its own.</List.Item> : null}
+          {c.settingKeys.length > 0 ? (
+            <List.Item>Keep {count(c.settingKeys.length, 'setting')} of its own.</List.Item>
+          ) : null}
           {c.streamTopics.length > 0 ? <List.Item>Send live updates to open screens.</List.Item> : null}
           {changes > 0 ? (
             <List.Item>
@@ -94,21 +97,23 @@ export function PlanReview({ plan, warnings = [] }: { plan: PluginPlanView; warn
       {update ? (
         <Section title="What changes">
           <List size="sm" spacing={2}>
-            {[...d.permissionsAdded.map((p) => `Adds permission ${p}`),
+            {[
+              ...d.permissionsAdded.map((p) => `Adds permission ${p}`),
               ...d.permissionsRemoved.map((p) => `Removes permission ${p}`),
               ...d.mcpToolsAdded.map((t) => `Adds assistant tool ${t}`),
               ...d.mcpToolsRemoved.map((t) => `Removes assistant tool ${t}`),
               ...d.settingKeysAdded.map((k) => `Adds setting ${k}`),
               ...d.settingKeysRemoved.map((k) => `Removes setting ${k}`),
               ...d.streamTopicsAdded.map((t) => `Adds live topic ${t}`),
-              ...d.streamTopicsRemoved.map((t) => `Removes live topic ${t}`)].map((line) => (
+              ...d.streamTopicsRemoved.map((t) => `Removes live topic ${t}`),
+            ].map((line) => (
               <List.Item key={line}>{line}</List.Item>
             ))}
             {rolesLosing.map(([permission, roles]) => (
               <List.Item key={`roles-${permission}`}>
                 <span className={styles.warning}>
-                  {count(roles, 'role')} {roles === 1 ? 'grants' : 'grant'} {permission}, which this version removes; those
-                  roles lose it.
+                  {count(roles, 'role')} {roles === 1 ? 'grants' : 'grant'} {permission}, which this version removes;
+                  those roles lose it.
                 </span>
               </List.Item>
             ))}
@@ -127,8 +132,8 @@ export function PlanReview({ plan, warnings = [] }: { plan: PluginPlanView; warn
           <>
             {!plan.reversible ? (
               <Text size="sm" className={styles.warning}>
-                Irreversible: {count(plan.pendingChangesets.filter((cs) => !cs.reversible).length, 'database change')} cannot be
-                undone, so Roll back will not be available afterwards. Take a database backup first.
+                Irreversible: {count(plan.pendingChangesets.filter((cs) => !cs.reversible).length, 'database change')}{' '}
+                cannot be undone, so Roll back will not be available afterwards. Take a database backup first.
               </Text>
             ) : null}
             <Group gap="xs">

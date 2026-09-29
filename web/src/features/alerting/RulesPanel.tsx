@@ -71,8 +71,8 @@ export function RulesPanel({ clusterId }: { clusterId: string }) {
         </Text>
       ) : (rules.data ?? []).length === 0 ? (
         <Text size="sm" c="dimmed">
-          No rules yet — add one above, or edit the built-in split-brain / node-down /
-          replication-behind rules seeded when this cluster was registered.
+          No rules yet — add one above, or edit the built-in split-brain / node-down / replication-behind rules seeded
+          when this cluster was registered.
         </Text>
       ) : (
         <Table>
@@ -101,8 +101,8 @@ export function RulesPanel({ clusterId }: { clusterId: string }) {
                     </Text>
                     {r.sourceAvailable ? null : (
                       <Text size="xs" c="dimmed">
-                        Source unavailable: the plugin that publishes this metric is not running, so
-                        the rule cannot fire.
+                        Source unavailable: the plugin that publishes this metric is not running, so the rule cannot
+                        fire.
                       </Text>
                     )}
                   </Table.Td>
@@ -114,9 +114,7 @@ export function RulesPanel({ clusterId }: { clusterId: string }) {
                   </Table.Td>
                   <Table.Td>
                     <Text size="xs" c="dimmed">
-                      {r.channelIds.length
-                        ? r.channelIds.map((id) => channelById.get(id) ?? id).join(', ')
-                        : 'none'}
+                      {r.channelIds.length ? r.channelIds.map((id) => channelById.get(id) ?? id).join(', ') : 'none'}
                     </Text>
                   </Table.Td>
                   <Table.Td>
@@ -145,11 +143,7 @@ export function RulesPanel({ clusterId }: { clusterId: string }) {
                   </Table.Td>
                   <Table.Td>
                     <Group gap={4}>
-                      <ActionIcon
-                        variant="subtle"
-                        onClick={() => setEditing(r)}
-                        aria-label={`Edit ${r.name}`}
-                      >
+                      <ActionIcon variant="subtle" onClick={() => setEditing(r)} aria-label={`Edit ${r.name}`}>
                         <IconPencil size={16} />
                       </ActionIcon>
                       <ActionIcon

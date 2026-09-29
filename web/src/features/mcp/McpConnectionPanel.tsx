@@ -33,19 +33,12 @@ export function McpConnectionPanel() {
   return (
     <Stack gap="sm">
       <Text size="sm" c="dimmed">
-        {branding.productName} speaks the Model Context Protocol, so an assistant can read
-        your clusters and run the same guarded operations you can — never more than the
-        key's permissions allow.
+        {branding.productName} speaks the Model Context Protocol, so an assistant can read your clusters and run the
+        same guarded operations you can — never more than the key's permissions allow.
       </Text>
 
       <Group align="flex-end">
-        <TextInput
-          label="Endpoint"
-          value={endpoint}
-          readOnly
-          ff="monospace"
-          style={{ flex: 1 }}
-        />
+        <TextInput label="Endpoint" value={endpoint} readOnly ff="monospace" style={{ flex: 1 }} />
         <CopyButton value={endpoint}>
           {({ copy }) => (
             <ActionIcon size="lg" variant="default" onClick={copy} aria-label="Copy endpoint">
@@ -63,9 +56,11 @@ export function McpConnectionPanel() {
       </div>
 
       <Text size="xs" c="dimmed">
-        Create a key above, choose the permissions it should carry, and paste its value in
-        place of <Text component="span" ff="monospace" size="xs">&lt;your-api-key&gt;</Text>.
-        Mutations dry-run by default and destructive ones need an explicit confirmation.
+        Create a key above, choose the permissions it should carry, and paste its value in place of{' '}
+        <Text component="span" ff="monospace" size="xs">
+          &lt;your-api-key&gt;
+        </Text>
+        . Mutations dry-run by default and destructive ones need an explicit confirmation.
       </Text>
     </Stack>
   );

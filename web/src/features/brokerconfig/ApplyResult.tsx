@@ -46,7 +46,13 @@ function nodeRow(node: ConfigNodeApplyView): OutcomeRow {
   const mismatch = node.steps.filter((s) => s.verified === 'MISMATCH').length;
 
   if (!node.live) {
-    return { key: node.nodeId, name: node.nodeName, status: 'skipped — not live', tone: 'warning', detail: node.unavailableReason };
+    return {
+      key: node.nodeId,
+      name: node.nodeName,
+      status: 'skipped — not live',
+      tone: 'warning',
+      detail: node.unavailableReason,
+    };
   }
   const name = node.canary ? `${node.nodeName} (canary)` : node.nodeName;
   // No count column: the status already carries the number that matters, and a
@@ -68,11 +74,26 @@ function nodeRow(node: ConfigNodeApplyView): OutcomeRow {
       detail: node.steps.find((s) => s.status === 'FAILED')?.error ?? node.note,
     };
   }
-  if (mismatch > 0) return { key: node.nodeId, name, status: 'applied — read back differs', tone: 'danger', detail: node.note };
-  if (notAttempted > 0 && applied === 0) return { key: node.nodeId, name, status: 'not attempted', tone: 'warning', detail: node.note };
-  if (notAttempted > 0) return { key: node.nodeId, name, status: `${applied} applied, ${notAttempted} not attempted`, tone: 'warning', detail: node.note };
-  if (applied === 0 && already === node.steps.length) return { key: node.nodeId, name, status: 'already as declared', detail: node.note };
-  return { key: node.nodeId, name, status: `${applied} applied and verified${already ? `, ${already} already` : ''}`, detail: node.note };
+  if (mismatch > 0)
+    return { key: node.nodeId, name, status: 'applied — read back differs', tone: 'danger', detail: node.note };
+  if (notAttempted > 0 && applied === 0)
+    return { key: node.nodeId, name, status: 'not attempted', tone: 'warning', detail: node.note };
+  if (notAttempted > 0)
+    return {
+      key: node.nodeId,
+      name,
+      status: `${applied} applied, ${notAttempted} not attempted`,
+      tone: 'warning',
+      detail: node.note,
+    };
+  if (applied === 0 && already === node.steps.length)
+    return { key: node.nodeId, name, status: 'already as declared', detail: node.note };
+  return {
+    key: node.nodeId,
+    name,
+    status: `${applied} applied and verified${already ? `, ${already} already` : ''}`,
+    detail: node.note,
+  };
 }
 
 /**
@@ -115,9 +136,7 @@ export function ApplyResult({
   const openByDefault = withSteps
     .filter(
       (n) =>
-        withSteps.length <= 2 ||
-        n.canary ||
-        n.steps.some((s) => s.status === 'FAILED' || s.verified === 'MISMATCH'),
+        withSteps.length <= 2 || n.canary || n.steps.some((s) => s.status === 'FAILED' || s.verified === 'MISMATCH'),
     )
     .map((n) => n.nodeId);
   const shows = (step: { section: string; key: string; status: string }) =>
@@ -183,69 +202,69 @@ export function ApplyResult({
         {withSteps
           .filter((node) => node.steps.filter(shows).length > 0)
           .map((node) => {
-          const planned = outcome.plan.nodes.find((p) => p.nodeId === node.nodeId);
-          const shown = node.steps.filter(shows);
-          return (
-            <Accordion.Item value={node.nodeId} key={node.nodeId}>
-              <Accordion.Control>
-                <Text size="xs" fw={600} component="span">
-                  {node.nodeName}
-                  {node.canary ? ' — canary' : ''}
-                </Text>{' '}
-                <Text size="xs" c="dimmed" component="span">
-                  {shown.length === node.steps.length
-                    ? `${node.steps.length} step${node.steps.length === 1 ? '' : 's'}`
-                    : `${shown.length} of ${node.steps.length} steps shown`}
-                </Text>
-              </Accordion.Control>
-              <Accordion.Panel>
-              <Table fz="xs" verticalSpacing={4} withTableBorder layout="fixed">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w={32}>#</Table.Th>
-                    <Table.Th w="34%">Step</Table.Th>
-                    <Table.Th w="40%">Change</Table.Th>
-                    <Table.Th w="20%">Status</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {shown.map((step) => {
-                    // The number is the step's place in the plan, not in the
-                    // filtered view: it is what the halt message refers to.
-                    const i = node.steps.indexOf(step);
-                    const plan = planned?.steps.find((s) => s.id === step.stepId);
-                    const words = stepStatusWords(step);
-                    return (
-                      <Table.Tr key={step.stepId}>
-                        <Table.Td className={classes.stepNumber}>{i + 1}</Table.Td>
-                        <Table.Td>
-                          <Text size="xs">{step.description}</Text>
-                          <Text size="xs" c="dimmed">
-                            {step.op.toLowerCase()} {wireSectionLabel(step.section)} {step.key}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td className={classes.compare}>
-                          {plan ? <Diff before={plan.before} after={plan.after} /> : '—'}
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs" className={classes.state} data-tone={words.tone}>
-                            {words.text}
-                          </Text>
-                          {step.error ? (
-                            <Text size="xs" c="var(--as-danger)">
-                              {step.error}
-                            </Text>
-                          ) : null}
-                        </Table.Td>
+            const planned = outcome.plan.nodes.find((p) => p.nodeId === node.nodeId);
+            const shown = node.steps.filter(shows);
+            return (
+              <Accordion.Item value={node.nodeId} key={node.nodeId}>
+                <Accordion.Control>
+                  <Text size="xs" fw={600} component="span">
+                    {node.nodeName}
+                    {node.canary ? ' — canary' : ''}
+                  </Text>{' '}
+                  <Text size="xs" c="dimmed" component="span">
+                    {shown.length === node.steps.length
+                      ? `${node.steps.length} step${node.steps.length === 1 ? '' : 's'}`
+                      : `${shown.length} of ${node.steps.length} steps shown`}
+                  </Text>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Table fz="xs" verticalSpacing={4} withTableBorder layout="fixed">
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th w={32}>#</Table.Th>
+                        <Table.Th w="34%">Step</Table.Th>
+                        <Table.Th w="40%">Change</Table.Th>
+                        <Table.Th w="20%">Status</Table.Th>
                       </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
-              </Accordion.Panel>
-            </Accordion.Item>
-          );
-        })}
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {shown.map((step) => {
+                        // The number is the step's place in the plan, not in the
+                        // filtered view: it is what the halt message refers to.
+                        const i = node.steps.indexOf(step);
+                        const plan = planned?.steps.find((s) => s.id === step.stepId);
+                        const words = stepStatusWords(step);
+                        return (
+                          <Table.Tr key={step.stepId}>
+                            <Table.Td className={classes.stepNumber}>{i + 1}</Table.Td>
+                            <Table.Td>
+                              <Text size="xs">{step.description}</Text>
+                              <Text size="xs" c="dimmed">
+                                {step.op.toLowerCase()} {wireSectionLabel(step.section)} {step.key}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td className={classes.compare}>
+                              {plan ? <Diff before={plan.before} after={plan.after} /> : '—'}
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="xs" className={classes.state} data-tone={words.tone}>
+                                {words.text}
+                              </Text>
+                              {step.error ? (
+                                <Text size="xs" c="var(--as-danger)">
+                                  {step.error}
+                                </Text>
+                              ) : null}
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </Accordion.Panel>
+              </Accordion.Item>
+            );
+          })}
       </Accordion>
       {clusterId && outcome.auditEventId != null && !outcome.dryRun ? (
         <Text size="xs" c="dimmed">

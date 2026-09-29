@@ -31,7 +31,11 @@ export function pluginEntry(id: string, overrides: Partial<ManifestFeatureView> 
  */
 export function manifestHandler(
   disabled: string[] = [],
-  { plugins = [], safeMode = false, version = '1' }: { plugins?: ManifestFeatureView[]; safeMode?: boolean; version?: string } = {},
+  {
+    plugins = [],
+    safeMode = false,
+    version = '1',
+  }: { plugins?: ManifestFeatureView[]; safeMode?: boolean; version?: string } = {},
 ) {
   return http.get('*/api/v1/manifest', () =>
     HttpResponse.json({

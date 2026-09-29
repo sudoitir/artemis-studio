@@ -96,7 +96,9 @@ function SyncEvidence({ node, clusterId }: { node: ConfigNodeStateView; clusterI
   }
   const words = {
     VERIFIED_APPLY: node.basisRef ? `Verified by apply #${node.basisRef}` : 'Verified by an apply',
-    ADOPTED: node.basisRef ? `Adopted as revision ${node.basisRef}; no broker was written` : 'Adopted from this cluster',
+    ADOPTED: node.basisRef
+      ? `Adopted as revision ${node.basisRef}; no broker was written`
+      : 'Adopted from this cluster',
     OBSERVED_MATCH: 'Observed to match; Studio has not written to this node',
   }[node.basis];
   return (

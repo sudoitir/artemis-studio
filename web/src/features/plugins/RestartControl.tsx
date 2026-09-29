@@ -10,7 +10,15 @@ import { StepUp } from './StepUp.tsx';
  * other plugin change, when Studio can restart itself; the command otherwise. It says who is
  * affected — everyone — before it can be pressed.
  */
-export function RestartControl({ restart, reasons, canAct }: { restart: StudioRestartView; reasons: string[]; canAct: boolean }) {
+export function RestartControl({
+  restart,
+  reasons,
+  canAct,
+}: {
+  restart: StudioRestartView;
+  reasons: string[];
+  canAct: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const request = useRestartStudio();
   const fresh = useFreshSignIn();
@@ -25,9 +33,12 @@ export function RestartControl({ restart, reasons, canAct }: { restart: StudioRe
   if (!restart.needed) return null;
 
   const allowedAt = restart.allowedAt ? new Date(restart.allowedAt) : null;
-  const refusal = request.error && !needsReauthentication(request.error)
-    ? violationsOf(request.error).map((v) => `${v.message} ${v.fix}`).join(' ') || request.error.message
-    : null;
+  const refusal =
+    request.error && !needsReauthentication(request.error)
+      ? violationsOf(request.error)
+          .map((v) => `${v.message} ${v.fix}`)
+          .join(' ') || request.error.message
+      : null;
 
   return (
     <Alert variant="light" title="Studio needs a restart" color="yellow">
@@ -54,11 +65,13 @@ export function RestartControl({ restart, reasons, canAct }: { restart: StudioRe
       <Modal opened={open} onClose={() => setOpen(false)} title="Restart Studio">
         <Stack gap="md">
           <Text size="sm">
-            Everyone using Studio is disconnected until it is back, usually under a minute. Nothing in progress on
-            your brokers is affected. Every running plugin stops and starts again.
+            Everyone using Studio is disconnected until it is back, usually under a minute. Nothing in progress on your
+            brokers is affected. Every running plugin stops and starts again.
           </Text>
           {allowedAt && allowedAt.getTime() > Date.now() ? (
-            <Text size="sm">Studio started moments ago; a restart is allowed from {allowedAt.toLocaleTimeString()}.</Text>
+            <Text size="sm">
+              Studio started moments ago; a restart is allowed from {allowedAt.toLocaleTimeString()}.
+            </Text>
           ) : null}
           <StepUp returnTo={`${window.location.pathname}?tab=plugins`} />
           {refusal ? (

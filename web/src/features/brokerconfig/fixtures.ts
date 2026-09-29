@@ -25,7 +25,13 @@ export function declaration(over: Partial<ConfigDeclarationView> = {}): ConfigDe
     revision: 3,
     document: {
       version: 1,
-      addresses: [{ name: 'orders.request', routingTypes: ['ANYCAST'], queues: [{ name: 'orders.request', routingType: 'ANYCAST', durable: true }] }],
+      addresses: [
+        {
+          name: 'orders.request',
+          routingTypes: ['ANYCAST'],
+          queues: [{ name: 'orders.request', routingType: 'ANYCAST', durable: true }],
+        },
+      ],
       addressSettings: [{ match: 'orders.#', values: { addressFullMessagePolicy: 'PAGE', maxSizeBytes: 104857600 } }],
       securitySettings: [{ match: 'orders.#', permissions: { send: ['app-role'], consume: ['app-role'] } }],
       diverts: [],
@@ -46,10 +52,38 @@ export function declaration(over: Partial<ConfigDeclarationView> = {}): ConfigDe
 
 export const CATALOGUE: ConfigCatalogueView = {
   addressSettingKeys: [
-    { jsonName: 'addressFullMessagePolicy', xmlName: 'address-full-policy', type: 'ENUM', allowedValues: ['PAGE', 'DROP', 'FAIL', 'BLOCK'], hazardClass: 'HIGH', applicable: true },
-    { jsonName: 'maxSizeBytes', xmlName: 'max-size-bytes', type: 'LONG', allowedValues: [], hazardClass: 'HIGH', applicable: true },
-    { jsonName: 'deadLetterAddress', xmlName: 'dead-letter-address', type: 'STRING', allowedValues: [], hazardClass: 'MEDIUM', applicable: true },
-    { jsonName: 'autoDeleteQueues', xmlName: 'auto-delete-queues', type: 'BOOLEAN', allowedValues: [], hazardClass: 'MEDIUM', applicable: true },
+    {
+      jsonName: 'addressFullMessagePolicy',
+      xmlName: 'address-full-policy',
+      type: 'ENUM',
+      allowedValues: ['PAGE', 'DROP', 'FAIL', 'BLOCK'],
+      hazardClass: 'HIGH',
+      applicable: true,
+    },
+    {
+      jsonName: 'maxSizeBytes',
+      xmlName: 'max-size-bytes',
+      type: 'LONG',
+      allowedValues: [],
+      hazardClass: 'HIGH',
+      applicable: true,
+    },
+    {
+      jsonName: 'deadLetterAddress',
+      xmlName: 'dead-letter-address',
+      type: 'STRING',
+      allowedValues: [],
+      hazardClass: 'MEDIUM',
+      applicable: true,
+    },
+    {
+      jsonName: 'autoDeleteQueues',
+      xmlName: 'auto-delete-queues',
+      type: 'BOOLEAN',
+      allowedValues: [],
+      hazardClass: 'MEDIUM',
+      applicable: true,
+    },
   ],
   permissionTypes: ['send', 'consume', 'manage', 'browse'],
 };
@@ -66,7 +100,14 @@ export function cluster(writeStatus = 'AVAILABLE') {
       messageIo: { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null },
       notifications: { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null },
     },
-    health: { clusterId: 'c1', level: 'OK', liveEndpointNames: [], splitBrain: 'NONE', replicationBehind: false, notes: [] },
+    health: {
+      clusterId: 'c1',
+      level: 'OK',
+      liveEndpointNames: [],
+      splitBrain: 'NONE',
+      replicationBehind: false,
+      notes: [],
+    },
   };
 }
 
@@ -133,7 +174,8 @@ export function plan(over: Partial<ConfigApplyOutcomeView> = {}): ConfigApplyOut
           nodeName: 'broker-1',
           section: 'ADDRESS_SETTING',
           key: 'orders.#',
-          message: 'address-full-policy DROP discards messages once the limit is hit; orders.request is under this match.',
+          message:
+            'address-full-policy DROP discards messages once the limit is hit; orders.request is under this match.',
         },
       ],
       findings: [],
@@ -142,8 +184,24 @@ export function plan(over: Partial<ConfigApplyOutcomeView> = {}): ConfigApplyOut
       canaryNodeId: 'n-a',
     },
     nodes: [
-      { nodeId: 'n-a', nodeName: 'broker-1', live: true, canary: true, unavailableReason: null, steps: [stepApply('WOULD_APPLY')], note: null },
-      { nodeId: 'n-b', nodeName: 'broker-2', live: true, canary: false, unavailableReason: null, steps: [stepApply('WOULD_APPLY')], note: null },
+      {
+        nodeId: 'n-a',
+        nodeName: 'broker-1',
+        live: true,
+        canary: true,
+        unavailableReason: null,
+        steps: [stepApply('WOULD_APPLY')],
+        note: null,
+      },
+      {
+        nodeId: 'n-b',
+        nodeName: 'broker-2',
+        live: true,
+        canary: false,
+        unavailableReason: null,
+        steps: [stepApply('WOULD_APPLY')],
+        note: null,
+      },
     ],
     stepCap: 100,
     overCap: false,

@@ -55,7 +55,14 @@ export { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
 export { useMe } from '../kernel/auth/api.ts';
 export { CodeEditor, type CodeDiagnostic, type CodeEditorProps } from '../ui/CodeEditor.tsx';
 export { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
-export { DiagramView, type DiagramAction, type DiagramChoice, type DiagramEdge, type DiagramNode, type DiagramViewProps } from '../ui/DiagramView.tsx';
+export {
+  DiagramView,
+  type DiagramAction,
+  type DiagramChoice,
+  type DiagramEdge,
+  type DiagramNode,
+  type DiagramViewProps,
+} from '../ui/DiagramView.tsx';
 export { NodeOutcomeSummary, OutcomeSummary, type OutcomeRow } from '../ui/NodeOutcomeSummary.tsx';
 export { Pager } from '../ui/Pager.tsx';
 export { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';

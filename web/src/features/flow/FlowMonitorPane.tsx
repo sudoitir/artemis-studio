@@ -34,7 +34,11 @@ interface NodeRow {
 }
 
 function figure(value: (r: NodeRow) => string, r: NodeRow) {
-  return <Text size="sm" className={r.stale ? classes.stale : classes.figure}>{r.stale ? UNKNOWN : value(r)}</Text>;
+  return (
+    <Text size="sm" className={r.stale ? classes.stale : classes.figure}>
+      {r.stale ? UNKNOWN : value(r)}
+    </Text>
+  );
 }
 
 type Columns = 'resource' | 'producer' | 'consumer';
@@ -79,8 +83,22 @@ function nodeColumns(shape: Columns): GridColumn<NodeRow>[] {
   if (shape === 'consumer') return [...columns, outRate];
   return [
     ...columns,
-    { id: 'backlog', header: 'Backlog', numeric: true, width: 84, accessor: (r) => count(r.messageCount), cell: (r) => figure((x) => count(x.messageCount), r) },
-    { id: 'consumers', header: 'Consumers', numeric: true, width: 112, accessor: (r) => count(r.consumerCount), cell: (r) => figure((x) => count(x.consumerCount), r) },
+    {
+      id: 'backlog',
+      header: 'Backlog',
+      numeric: true,
+      width: 84,
+      accessor: (r) => count(r.messageCount),
+      cell: (r) => figure((x) => count(x.messageCount), r),
+    },
+    {
+      id: 'consumers',
+      header: 'Consumers',
+      numeric: true,
+      width: 112,
+      accessor: (r) => count(r.consumerCount),
+      cell: (r) => figure((x) => count(x.consumerCount), r),
+    },
     inRate,
     outRate,
   ];
@@ -159,9 +177,7 @@ export function FlowMonitorPane({
         <Stack gap="sm">
           <Title order={4}>Broker nodes</Title>
           <Text size="sm" c="dimmed">
-            {nodeId
-              ? 'The selection is not in the shown paths any more. '
-              : ''}
+            {nodeId ? 'The selection is not in the shown paths any more. ' : ''}
             Select a client, address or queue to break it down per node. These are each node's totals now.
           </Text>
           <NodeTable label="Totals per broker node" rows={rows} shape="resource" />

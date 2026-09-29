@@ -256,8 +256,7 @@ export function AuditView() {
         </Stack>
       ) : rows.length === 0 ? (
         <Text size="sm" c="dimmed">
-          No audit events match. Every message operation, purge and cluster change is recorded here
-          the moment it runs.
+          No audit events match. Every message operation, purge and cluster change is recorded here the moment it runs.
         </Text>
       ) : (
         <VirtualTable
@@ -298,8 +297,8 @@ export function AuditView() {
           <Skeleton height={28} />
         ) : !selected && offPage.error?.status === 404 ? (
           <Alert color="blue" variant="light" title="This audit event no longer exists">
-            No audit event with this id exists on this cluster. Check the link, or ask whoever shared it
-            to copy it again.
+            No audit event with this id exists on this cluster. Check the link, or ask whoever shared it to copy it
+            again.
           </Alert>
         ) : !selected && offPage.isError ? (
           <Alert color="red" variant="light" title={offPage.error.title}>
@@ -308,8 +307,7 @@ export function AuditView() {
         ) : selected ? (
           <Stack gap="xs">
             <Text size="xs" c="dimmed">
-              {at(selected)} · {selected.username ?? 'anonymous'} ·{' '}
-              {selected.targetName ?? 'no target'}
+              {at(selected)} · {selected.username ?? 'anonymous'} · {selected.targetName ?? 'no target'}
               {selected.dryRun ? ' · dry run' : ''}
             </Text>
             {selected.error ? (
@@ -346,7 +344,6 @@ export function AuditView() {
           </Stack>
         ) : null}
       </Drawer>
-
     </Stack>
   );
 }

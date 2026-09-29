@@ -28,13 +28,22 @@ async function widthOf(page: Page, name: string): Promise<number> {
 /** Every header cell's inline start against the first body row's, in px. */
 async function misalignment(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const doc = (globalThis as unknown as { document: { querySelector(s: string): { children: ArrayLike<{ getBoundingClientRect(): { left: number } }> } | null } }).document;
+    const doc = (
+      globalThis as unknown as {
+        document: {
+          querySelector(s: string): { children: ArrayLike<{ getBoundingClientRect(): { left: number } }> } | null;
+        };
+      }
+    ).document;
     const head = doc.querySelector('[role="grid"] [data-grid-row="0"]');
     const body = doc.querySelector('[role="grid"] [data-grid-row="1"]');
     if (!head || !body) return Number.POSITIVE_INFINITY;
     let worst = 0;
     for (let i = 0; i < head.children.length; i++) {
-      worst = Math.max(worst, Math.abs(head.children[i].getBoundingClientRect().left - body.children[i].getBoundingClientRect().left));
+      worst = Math.max(
+        worst,
+        Math.abs(head.children[i].getBoundingClientRect().left - body.children[i].getBoundingClientRect().left),
+      );
     }
     return worst;
   });
@@ -43,13 +52,23 @@ async function misalignment(page: Page): Promise<number> {
 /** Queue-column cells whose value is cut, among those narrower than `under` px. */
 async function cutQueueCells(page: Page, under: number): Promise<number> {
   const col = await header(page, 'Queue').getAttribute('data-grid-col');
-  return page.evaluate(([limit, index]) => {
-    const doc = (globalThis as unknown as { document: { querySelectorAll(s: string): ArrayLike<{ scrollWidth: number; clientWidth: number }> } }).document;
-    const cells = doc.querySelectorAll(`[role="grid"] [data-grid-row]:not([data-grid-row="0"]) > [data-grid-col="${index}"]`);
-    let n = 0;
-    for (let i = 0; i < cells.length; i++) if (cells[i].scrollWidth > cells[i].clientWidth && cells[i].scrollWidth < limit) n++;
-    return n;
-  }, [under, col] as const);
+  return page.evaluate(
+    ([limit, index]) => {
+      const doc = (
+        globalThis as unknown as {
+          document: { querySelectorAll(s: string): ArrayLike<{ scrollWidth: number; clientWidth: number }> };
+        }
+      ).document;
+      const cells = doc.querySelectorAll(
+        `[role="grid"] [data-grid-row]:not([data-grid-row="0"]) > [data-grid-col="${index}"]`,
+      );
+      let n = 0;
+      for (let i = 0; i < cells.length; i++)
+        if (cells[i].scrollWidth > cells[i].clientWidth && cells[i].scrollWidth < limit) n++;
+      return n;
+    },
+    [under, col] as const,
+  );
 }
 
 async function openQueues(page: Page, clusterId: string) {
@@ -80,7 +99,11 @@ async function main() {
   await page.mouse.up();
   const dragged = await widthOf(page, 'Queue');
   record('dragging a header border widens its column', Math.abs(dragged - before - 80) <= 3, `${before} → ${dragged}`);
-  record('header and rows stay aligned after a drag', (await misalignment(page)) <= 1, `${await misalignment(page)} px`);
+  record(
+    'header and rows stay aligned after a drag',
+    (await misalignment(page)) <= 1,
+    `${await misalignment(page)} px`,
+  );
 
   // 3. The width survives a reload.
   await openQueues(page, clusterId);
@@ -91,15 +114,26 @@ async function main() {
   await header(page, 'Queue').getByRole('button').focus();
   await page.keyboard.press('Control+Shift+ArrowRight');
   const keyed = await widthOf(page, 'Queue');
-  const said = await page.getByRole('status').filter({ hasText: /Queue column, \d+ pixels/ }).count();
-  record('Ctrl+Shift+Right widens by 16 px and says so', Math.abs(keyed - reloaded - 16) <= 1 && said > 0, `${reloaded} → ${keyed}, announced ${said > 0}`);
+  const said = await page
+    .getByRole('status')
+    .filter({ hasText: /Queue column, \d+ pixels/ })
+    .count();
+  record(
+    'Ctrl+Shift+Right widens by 16 px and says so',
+    Math.abs(keyed - reloaded - 16) <= 1 && said > 0,
+    `${reloaded} → ${keyed}, announced ${said > 0}`,
+  );
 
   // 5. Double-click fits the column back to its content.
   const handle = header(page, 'Queue').locator('span[aria-hidden="true"]').last();
   await handle.dblclick();
   const fitted = await widthOf(page, 'Queue');
   const cutAfterFit = await cutQueueCells(page, Number.POSITIVE_INFINITY);
-  record('double-clicking the border fits the column to every value', cutAfterFit === 0 && fitted !== keyed, `${keyed} → ${fitted}, ${cutAfterFit} cut`);
+  record(
+    'double-clicking the border fits the column to every value',
+    cutAfterFit === 0 && fitted !== keyed,
+    `${keyed} → ${fitted}, ${cutAfterFit} cut`,
+  );
 
   // 6. Screenshots, light and dark.
   for (const scheme of ['light', 'dark'] as const) {
@@ -120,7 +154,9 @@ async function main() {
     await p.goto(`${BASE}/clusters/${id}/sql`);
     await p.getByRole('textbox', { name: /query/i }).click();
     await p.keyboard.press('ControlOrMeta+a');
-    await p.keyboard.type("SELECT name, messageCount FROM queues -- the deepest first\nWHERE messageCount > 0\nORDER BY messageCount DESC");
+    await p.keyboard.type(
+      'SELECT name, messageCount FROM queues -- the deepest first\nWHERE messageCount > 0\nORDER BY messageCount DESC',
+    );
     await p.screenshot({ path: `${OUT}/sql-${scheme}.png` });
     await shot.close();
   }

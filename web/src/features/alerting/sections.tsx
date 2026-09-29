@@ -7,8 +7,8 @@ export function ChannelsSection() {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        Slack, Microsoft Teams, PagerDuty, email and signed-webhook destinations alert rules can route to — global, not per cluster, since
-        one channel commonly serves several clusters.
+        Slack, Microsoft Teams, PagerDuty, email and signed-webhook destinations alert rules can route to — global, not
+        per cluster, since one channel commonly serves several clusters.
       </Text>
       <NotificationChannels />
     </>

@@ -54,8 +54,7 @@ export function ChartPanel({
         <div style={{ blockSize: CHART_HEIGHT }}>
           {error ? (
             <Alert color="red" variant="light" title={error.title} h="100%">
-              {error.message} — this window could not be read, which is not the same
-              as there being nothing in it.
+              {error.message} — this window could not be read, which is not the same as there being nothing in it.
             </Alert>
           ) : isPending ? (
             <Skeleton height={CHART_HEIGHT} radius="sm" />

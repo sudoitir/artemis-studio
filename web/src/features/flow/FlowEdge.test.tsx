@@ -8,11 +8,27 @@ import { edgeText } from './flowFormat.ts';
 describe('flow edge', () => {
   it('states delivery, rate and faults in words', () => {
     expect(
-      edgeText({ kind: 'ROUTE', delivery: 'COPY', rate: 12.5, rateSource: 'QUEUE_METRIC', stale: false, faults: [], bypassed: false, studio: false }),
+      edgeText({
+        kind: 'ROUTE',
+        delivery: 'COPY',
+        rate: 12.5,
+        rateSource: 'QUEUE_METRIC',
+        stale: false,
+        faults: [],
+        bypassed: false,
+        studio: false,
+      }),
     ).toBe('copy · 12.5 msg/s');
-    expect(edgeText({ kind: 'CONSUME', rateSource: 'SAMPLER', stale: true, faults: ['STALLED'], bypassed: false, studio: false })).toBe(
-      'measuring… · stalled · stale',
-    );
+    expect(
+      edgeText({
+        kind: 'CONSUME',
+        rateSource: 'SAMPLER',
+        stale: true,
+        faults: ['STALLED'],
+        bypassed: false,
+        studio: false,
+      }),
+    ).toBe('measuring… · stalled · stale');
   });
 
   it('draws the dots it was given, spread along the path', () => {

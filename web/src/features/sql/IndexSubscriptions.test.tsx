@@ -71,9 +71,7 @@ describe('IndexSubscriptions', () => {
 
   it('shows what a subscription is holding', async () => {
     mockMe();
-    server.use(
-      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([subscription()])),
-    );
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([subscription()])));
     renderWithProviders(<IndexSubscriptions />);
 
     expect(await screen.findByText('ORDER.IN')).toBeInTheDocument();
@@ -87,9 +85,7 @@ describe('IndexSubscriptions', () => {
     mockMe();
     server.use(
       http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([subscription()])),
-      http.delete('*/api/v1/clusters/c1/sql/index/s1', () =>
-        HttpResponse.json({ messagesDestroyed: 1284 }),
-      ),
+      http.delete('*/api/v1/clusters/c1/sql/index/s1', () => HttpResponse.json({ messagesDestroyed: 1284 })),
     );
     const user = userEvent.setup();
     renderWithProviders(<IndexSubscriptions />);
@@ -121,9 +117,7 @@ describe('IndexSubscriptions', () => {
     expect(screen.getByText(/ring-bounded, non-durable queue/i)).toBeInTheDocument();
     expect(screen.getByText(/security setting/i)).toBeInTheDocument();
     // ADR-0065: nothing here is temporary, and the screen must not imply otherwise.
-    expect(
-      screen.getByText(/None of those objects disappears when the broker restarts/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/None of those objects disappears when the broker restarts/i)).toBeInTheDocument();
     expect(screen.queryByText(/lost when the broker restarts/i)).not.toBeInTheDocument();
     // The configuration equivalent, for an estate that deploys from broker.xml.
     expect(screen.getByText('artemis-studio.capture.<instance>.#')).toBeInTheDocument();

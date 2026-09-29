@@ -56,8 +56,7 @@ function family(type: string): { word: string; color: string } {
   if (type.startsWith('CONSUMER')) return { word: 'consumer', color: 'blue' };
   if (type.startsWith('SESSION')) return { word: 'session', color: 'grape' };
   if (type.startsWith('CONNECTION')) return { word: 'connection', color: 'indigo' };
-  if (type.startsWith('BINDING') || type.startsWith('ADDRESS'))
-    return { word: 'binding', color: 'teal' };
+  if (type.startsWith('BINDING') || type.startsWith('ADDRESS')) return { word: 'binding', color: 'teal' };
   if (type.startsWith('MESSAGE')) return { word: 'message', color: 'orange' };
   if (type.startsWith('UNKNOWN')) return { word: 'unknown', color: 'gray' };
   return { word: 'other', color: 'gray' };
@@ -110,9 +109,7 @@ function CopyEventLink({ clusterId, seq }: { clusterId: string; seq: number }) {
     <ActionMenuItem
       label="Copy link"
       icon={<IconLink size={16} aria-hidden />}
-      onSelect={() =>
-        host.copy(absoluteHref(clusterHref(clusterId, 'events', { event: seq })), 'link to the event')
-      }
+      onSelect={() => host.copy(absoluteHref(clusterHref(clusterId, 'events', { event: seq })), 'link to the event')}
     />
   );
 }
@@ -153,9 +150,7 @@ export function EventsView() {
     } catch {
       return; // malformed frame — ignore
     }
-    setBuffer((prev) =>
-      prev.some((x) => x.seq === e.seq) ? prev : [e, ...prev].slice(0, LIVE_BUFFER_MAX),
-    );
+    setBuffer((prev) => (prev.some((x) => x.seq === e.seq) ? prev : [e, ...prev].slice(0, LIVE_BUFFER_MAX)));
   }, []);
   useClusterStream(clusterId, live ? ['events'] : [], onFrame);
 
@@ -212,9 +207,7 @@ export function EventsView() {
         >
           {notifications.reason}
         </Alert>
-        {notifications.brokerXmlSnippet ? (
-          <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" />
-        ) : null}
+        {notifications.brokerXmlSnippet ? <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" /> : null}
       </Stack>
     );
   }
@@ -224,20 +217,15 @@ export function EventsView() {
       <Group justify="space-between" align="flex-end">
         <Title order={3}>Events</Title>
         <Group gap="md">
-          <Switch
-            size="xs"
-            label="Live"
-            checked={live}
-            onChange={(e) => setLive(e.currentTarget.checked)}
-          />
+          <Switch size="xs" label="Live" checked={live} onChange={(e) => setLive(e.currentTarget.checked)} />
         </Group>
       </Group>
 
       {dropped > 0 ? (
         <Alert color="orange" variant="light" title="Some events were dropped">
-          {dropped} notification{dropped === 1 ? ' has' : 's have'} been dropped for this cluster
-          because they arrived faster than the write buffer could be flushed. Raise{' '}
-          <code>events.buffer-size</code> in settings if this persists.
+          {dropped} notification{dropped === 1 ? ' has' : 's have'} been dropped for this cluster because they arrived
+          faster than the write buffer could be flushed. Raise <code>events.buffer-size</code> in settings if this
+          persists.
         </Alert>
       ) : null}
 
@@ -276,8 +264,8 @@ export function EventsView() {
         </Stack>
       ) : rows.length === 0 ? (
         <Text size="sm" c="dimmed">
-          No broker events recorded yet. Consumer, session, connection and binding activity on this
-          cluster's brokers shows up here as it happens.
+          No broker events recorded yet. Consumer, session, connection and binding activity on this cluster's brokers
+          shows up here as it happens.
         </Text>
       ) : (
         <VirtualTable
@@ -318,8 +306,8 @@ export function EventsView() {
           <Skeleton height={28} />
         ) : !selected && offPage.error?.status === 404 ? (
           <Alert color="blue" variant="light" title="This event no longer exists">
-            Broker events are kept for a limited time, so retention may have removed it, or the link
-            names an event of another cluster.
+            Broker events are kept for a limited time, so retention may have removed it, or the link names an event of
+            another cluster.
           </Alert>
         ) : !selected && offPage.isError ? (
           <Alert color="red" variant="light" title={offPage.error.title}>
@@ -328,8 +316,7 @@ export function EventsView() {
         ) : selected ? (
           <Stack gap="xs">
             <Text size="xs" c="dimmed">
-              {occurredAt(selected)} · {selected.address ?? 'no address'} ·{' '}
-              {subjectOf(selected)}
+              {occurredAt(selected)} · {selected.address ?? 'no address'} · {subjectOf(selected)}
             </Text>
             {selected.props && Object.keys(selected.props).length > 0 ? (
               <Code block className={styles.props}>
@@ -343,7 +330,6 @@ export function EventsView() {
           </Stack>
         ) : null}
       </Drawer>
-
     </Stack>
   );
 }

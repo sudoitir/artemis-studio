@@ -41,8 +41,8 @@ export function DeliveryLog({
         </Text>
       ) : (deliveries.data ?? []).length === 0 ? (
         <Text size="sm" c="dimmed">
-          Nothing has been sent to this channel yet. A delivery is queued when a rule bound to it fires or resolves;
-          use “Send a test” to try it now.
+          Nothing has been sent to this channel yet. A delivery is queued when a rule bound to it fires or resolves; use
+          “Send a test” to try it now.
         </Text>
       ) : (
         <Stack gap="xs">

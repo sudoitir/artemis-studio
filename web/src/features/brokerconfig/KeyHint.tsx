@@ -13,13 +13,7 @@ export function KeyHint({ name, help }: { name: string; help: KeyHelp }) {
   return (
     <Popover width={360} position="bottom-start" withArrow shadow="md">
       <Popover.Target>
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="xs"
-          aria-label={`About ${name}`}
-          title={`About ${name}`}
-        >
+        <ActionIcon variant="subtle" color="gray" size="xs" aria-label={`About ${name}`} title={`About ${name}`}>
           <IconInfoCircle size={14} aria-hidden />
         </ActionIcon>
       </Popover.Target>

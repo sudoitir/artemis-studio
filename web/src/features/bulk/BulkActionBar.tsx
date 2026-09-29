@@ -29,11 +29,19 @@ export function BulkActionBar({ clusterId, selection, count, clear }: SlotProps[
     <>
       {ORDER.map((each) => {
         const op = OPERATIONS[each];
-        const permitted = gateFor(can(op.permission, clusterId), op.permissionLabel, write, loading || cluster.isPending);
+        const permitted = gateFor(
+          can(op.permission, clusterId),
+          op.permissionLabel,
+          write,
+          loading || cluster.isPending,
+        );
         // An empty selection is one more reason the control cannot act, explained the same way.
         const gate: GateVerdict =
           permitted.kind === 'allowed' && count === 0
-            ? { kind: 'blocked', reason: 'No queues are selected. Select queues in the grid, or select all matching the filter.' }
+            ? {
+                kind: 'blocked',
+                reason: 'No queues are selected. Select queues in the grid, or select all matching the filter.',
+              }
             : permitted;
         return (
           <CapabilityGate key={each} verdict={gate} what={`${op.gerund} these queues`}>

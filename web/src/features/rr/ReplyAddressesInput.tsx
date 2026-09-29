@@ -63,15 +63,15 @@ export function ReplyAddressesHelp({ clusterId, value }: { clusterId: string; va
       <Text id="reply-addresses-help" size="xs" c="dimmed">
         {value.length === 0 ? (
           <>
-            Empty means replies arrive on a <strong>temporary queue</strong> named by each
-            request&rsquo;s <Code>replyTo</Code>. If your responders answer on a shared queue
-            instead, name it here — otherwise no reply can be joined to its request.
+            Empty means replies arrive on a <strong>temporary queue</strong> named by each request&rsquo;s{' '}
+            <Code>replyTo</Code>. If your responders answer on a shared queue instead, name it here — otherwise no reply
+            can be joined to its request.
           </>
         ) : (
           <>
-            <Code>*</Code> matches any run of characters, so <Code>orders.reply.*</Code> covers one
-            reply queue per responder, including ones that do not exist yet. Matching is anchored,
-            and Artemis&rsquo;s <Code>#</Code> is not a wildcard here.
+            <Code>*</Code> matches any run of characters, so <Code>orders.reply.*</Code> covers one reply queue per
+            responder, including ones that do not exist yet. Matching is anchored, and Artemis&rsquo;s <Code>#</Code> is
+            not a wildcard here.
           </>
         )}
       </Text>
@@ -91,8 +91,8 @@ export function ReplyAddressesHelp({ clusterId, value }: { clusterId: string; va
       ) : null}
       {isError ? (
         <Text size="xs" c="dimmed">
-          Could not read this cluster&rsquo;s addresses, so matches are not shown here. Patterns are
-          still saved, and the server resolves them.{' '}
+          Could not read this cluster&rsquo;s addresses, so matches are not shown here. Patterns are still saved, and
+          the server resolves them.{' '}
           <Anchor component="button" type="button" size="xs" onClick={retry}>
             Retry
           </Anchor>

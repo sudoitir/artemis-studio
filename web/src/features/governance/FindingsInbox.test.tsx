@@ -53,7 +53,9 @@ describe('FindingsInbox', () => {
     mockApis(['governance:read'], { OPEN: [] });
     renderWithProviders(<FindingsInbox />);
 
-    expect(await screen.findByText(/No personal data has been detected in a field that no rule covers/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/No personal data has been detected in a field that no rule covers/),
+    ).toBeInTheDocument();
   });
 
   it('says a filtered-empty view is filtered, and offers to clear the filter', async () => {
@@ -80,7 +82,9 @@ describe('FindingsInbox', () => {
   it('announces a successful dismissal from the keyboard', async () => {
     mockApis(['governance:write']);
     server.use(
-      http.post('*/api/v1/governance/findings/f1/dismiss', () => HttpResponse.json({ ...FINDING, status: 'DISMISSED' })),
+      http.post('*/api/v1/governance/findings/f1/dismiss', () =>
+        HttpResponse.json({ ...FINDING, status: 'DISMISSED' }),
+      ),
     );
     const user = userEvent.setup();
     renderWithProviders(<FindingsInbox />);
@@ -90,7 +94,9 @@ describe('FindingsInbox', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Dismissed: property contact on orders.eu is no longer masked'),
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Dismissed: property contact on orders.eu is no longer masked',
+      ),
     );
   });
 

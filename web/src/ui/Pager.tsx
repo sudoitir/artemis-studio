@@ -36,20 +36,10 @@ export function Pager({
       </Text>
       {lastPage > 1 ? (
         <Group gap="xs">
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page <= 1}
-            onClick={() => onChange(page - 1)}
-          >
+          <Button size="xs" variant="default" disabled={page <= 1} onClick={() => onChange(page - 1)}>
             Previous
           </Button>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={page >= lastPage}
-            onClick={() => onChange(page + 1)}
-          >
+          <Button size="xs" variant="default" disabled={page >= lastPage} onClick={() => onChange(page + 1)}>
             Next
           </Button>
         </Group>

@@ -53,8 +53,8 @@ export function AdoptionSuggestion({
       <Stack gap="sm">
         <Text size="sm">
           {live.length} live node{live.length === 1 ? '' : 's'} can be read. Adopting declares what they run today, so
-          the first revision starts in sync and every later change shows as a difference from it. Nothing is written
-          to a broker.
+          the first revision starts in sync and every later change shows as a difference from it. Nothing is written to
+          a broker.
         </Text>
 
         <div aria-live="polite">
@@ -88,12 +88,7 @@ export function AdoptionSuggestion({
         </div>
 
         <Group gap="sm">
-          <Button
-            size="xs"
-            onClick={onAdopt}
-            disabled={!canWrite}
-            title={canWrite ? undefined : blockedReason}
-          >
+          <Button size="xs" onClick={onAdopt} disabled={!canWrite} title={canWrite ? undefined : blockedReason}>
             Review and adopt as revision 1
           </Button>
           <Tooltip label={WHY_NOT_AUTOMATIC} multiline w={340} withArrow>

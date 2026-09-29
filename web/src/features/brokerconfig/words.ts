@@ -1,4 +1,11 @@
-import type { ConfigCatalogueView, ConfigDeclarationView, ConfigDriftFindingView, ConfigHazardView, ConfigNodeStateView, ConfigStepApplyView } from './api.ts';
+import type {
+  ConfigCatalogueView,
+  ConfigDeclarationView,
+  ConfigDriftFindingView,
+  ConfigHazardView,
+  ConfigNodeStateView,
+  ConfigStepApplyView,
+} from './api.ts';
 import { prettyKey, prettyValue } from './pretty.ts';
 
 /**
@@ -32,8 +39,7 @@ export const SECTION_TEACHING: Record<Section, string> = {
     'An address receives messages; a queue binds to it and holds them for consumers. Declared ones are created where missing and never deleted by an apply.',
   addressSettings:
     'Per-match limits and policies: what happens when an address fills, where dead letters go, how redelivery backs off. A wildcard match applies to every address under it.',
-  securitySettings:
-    'Which roles may send, consume, create and manage on the addresses a match covers.',
+  securitySettings: 'Which roles may send, consume, create and manage on the addresses a match covers.',
   diverts:
     'A divert copies — or, when exclusive, takes — the messages arriving at one address and routes them to another.',
   bridges:
@@ -210,7 +216,10 @@ export function appliedWords(declaration: ConfigDeclarationView): { text: string
   const live = declaration.nodes.filter((n) => n.live);
   if (!declaration.declared) return { text: 'Nothing is declared for this cluster yet' };
   if (live.length === 0) {
-    return { text: `Revision ${declaration.revision} — no node is live, so nothing could be applied or compared`, tone: 'warning' };
+    return {
+      text: `Revision ${declaration.revision} — no node is live, so nothing could be applied or compared`,
+      tone: 'warning',
+    };
   }
   const applied = live.filter((n) => n.state === 'IN_SYNC' && n.verifiedRevision === declaration.revision).length;
   return {

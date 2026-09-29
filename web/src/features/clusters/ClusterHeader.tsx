@@ -33,9 +33,7 @@ export function ClusterHeader({ clusterId }: { clusterId: string }) {
   // Keyed on which capabilities are short, so dismissing today's gap does not
   // also hide a different one that appears tomorrow. Computed before the early
   // returns below so the hook order never depends on the query state.
-  const [capsDismissed, dismissCaps] = useDismissedNotice(
-    `capabilities:${clusterId}:${gaps.join(',')}`,
-  );
+  const [capsDismissed, dismissCaps] = useDismissedNotice(`capabilities:${clusterId}:${gaps.join(',')}`);
 
   if (isPending) return <Loader size="sm" />;
   if (isError) {
@@ -99,8 +97,8 @@ export function ClusterHeader({ clusterId }: { clusterId: string }) {
         >
           <Stack gap="xs">
             <Text size="sm">
-              One or more features are limited by this connection. Each row below expands with the
-              reason and the <code>broker.xml</code> change that closes the gap.
+              One or more features are limited by this connection. Each row below expands with the reason and the{' '}
+              <code>broker.xml</code> change that closes the gap.
             </Text>
             <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />
           </Stack>

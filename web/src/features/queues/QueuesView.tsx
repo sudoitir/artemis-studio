@@ -72,12 +72,7 @@ const columns: GridColumn<QueueView>[] = [
     id: 'paused',
     header: 'State',
     accessor: (r) => r.paused,
-    cell: (r) =>
-      r.paused
-        ? r.perNode.every((n) => n.paused)
-          ? 'paused'
-          : 'paused on some nodes'
-        : '',
+    cell: (r) => (r.paused ? (r.perNode.every((n) => n.paused) ? 'paused' : 'paused on some nodes') : ''),
     width: 150,
   },
   {
@@ -301,9 +296,7 @@ export function QueuesView() {
             search.q ? (
               <Stack gap={4} align="flex-start">
                 <Text fw={600}>No queue matches "{search.q}"</Text>
-                <Text size="sm">
-                  There may still be queues on this cluster — none of them match this filter.
-                </Text>
+                <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
                 <Button
                   size="xs"
                   variant="light"
@@ -331,8 +324,8 @@ export function QueuesView() {
                 </Text>
                 <Text size="sm">
                   There may be queues here that Studio cannot currently see —
-                  {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the
-                  last scrape, so this is an incomplete view rather than an empty cluster.
+                  {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is
+                  an incomplete view rather than an empty cluster.
                   {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
                 </Text>
               </Stack>
@@ -340,9 +333,9 @@ export function QueuesView() {
               <Stack gap={4} align="flex-start">
                 <Text fw={600}>No queues yet</Text>
                 <Text size="sm">
-                  A queue is where messages wait for a consumer. Studio fills this grid from each
-                  broker's <code>listQueues</code>; produce to an address or create a queue and it
-                  appears here within a scrape tick.
+                  A queue is where messages wait for a consumer. Studio fills this grid from each broker's{' '}
+                  <code>listQueues</code>; produce to an address or create a queue and it appears here within a scrape
+                  tick.
                 </Text>
                 {mayCreate ? (
                   <Button size="xs" variant="light" onClick={() => setCreateOpen(true)}>
@@ -355,20 +348,10 @@ export function QueuesView() {
         />
       )}
 
-      <Pager
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={total}
-        onChange={setPage}
-        label="queues"
-      />
+      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />
 
       <QueueDetailDrawer queue={selected} onClose={() => setSelected(null)} />
-      <CreateQueueForm
-        clusterId={clusterId}
-        opened={createOpen}
-        onClose={() => setCreateOpen(false)}
-      />
+      <CreateQueueForm clusterId={clusterId} opened={createOpen} onClose={() => setCreateOpen(false)} />
     </Stack>
   );
 }

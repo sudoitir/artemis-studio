@@ -1,26 +1,26 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { ApiError, clusterKey, request } from "../../kernel/api/request.ts";
-import type { components } from "../../kernel/api/schema.d.ts";
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
+import type { components } from '../../kernel/api/schema.d.ts';
 
-type Schemas = components["schemas"];
+type Schemas = components['schemas'];
 
-export type CapabilitiesView = Schemas["CapabilitiesView"];
-export type CapabilityView = Schemas["CapabilityView"];
-export type ClusterDetail = Schemas["ClusterDetail"];
-export type ClusterSummary = Schemas["ClusterSummary"];
-export type EnvironmentRequest = Schemas["EnvironmentRequest"];
-export type EnvironmentView = Schemas["EnvironmentView"];
-export type HealthView = Schemas["HealthView"];
-export type LogicalNodeView = Schemas["LogicalNodeView"];
-export type NodeEndpointView = Schemas["NodeEndpointView"];
-export type RegisterClusterRequest = Schemas["RegisterClusterRequest"];
-export type RegisterPreview = Schemas["RegisterPreview"];
-export type TopologyView = Schemas["TopologyView"];
+export type CapabilitiesView = Schemas['CapabilitiesView'];
+export type CapabilityView = Schemas['CapabilityView'];
+export type ClusterDetail = Schemas['ClusterDetail'];
+export type ClusterSummary = Schemas['ClusterSummary'];
+export type EnvironmentRequest = Schemas['EnvironmentRequest'];
+export type EnvironmentView = Schemas['EnvironmentView'];
+export type HealthView = Schemas['HealthView'];
+export type LogicalNodeView = Schemas['LogicalNodeView'];
+export type NodeEndpointView = Schemas['NodeEndpointView'];
+export type RegisterClusterRequest = Schemas['RegisterClusterRequest'];
+export type RegisterPreview = Schemas['RegisterPreview'];
+export type TopologyView = Schemas['TopologyView'];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
-export type CapabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
-export type SplitBrain = "NONE" | "SUSPECTED" | "CRITICAL";
-export type HealthLevel = "OK" | "DEGRADED" | "CRITICAL" | "UNKNOWN";
+export type CapabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
+export type SplitBrain = 'NONE' | 'SUSPECTED' | 'CRITICAL';
+export type HealthLevel = 'OK' | 'DEGRADED' | 'CRITICAL' | 'UNKNOWN';
 
 export const keys = {
   all: ['clusters'] as const,
@@ -33,25 +33,21 @@ export const keys = {
 export function useClusters(): UseQueryResult<ClusterSummary[], ApiError> {
   return useQuery({
     queryKey: keys.all,
-    queryFn: () => request<ClusterSummary[]>("/clusters"),
+    queryFn: () => request<ClusterSummary[]>('/clusters'),
     refetchInterval: 5_000,
   });
 }
 
-export function useCluster(
-  id: string | null,
-): UseQueryResult<ClusterDetail, ApiError> {
+export function useCluster(id: string | null): UseQueryResult<ClusterDetail, ApiError> {
   return useQuery({
-    queryKey: id ? keys.detail(id) : ["clusters", "none"],
+    queryKey: id ? keys.detail(id) : ['clusters', 'none'],
     queryFn: () => request<ClusterDetail>(`/clusters/${id}`),
     enabled: id !== null,
     refetchInterval: 5_000,
   });
 }
 
-export function useTopology(
-  id: string,
-): UseQueryResult<TopologyView, ApiError> {
+export function useTopology(id: string): UseQueryResult<TopologyView, ApiError> {
   return useQuery({
     queryKey: keys.topology(id),
     queryFn: () => request<TopologyView>(`/clusters/${id}/topology`),
@@ -70,8 +66,8 @@ export function useHealth(id: string): UseQueryResult<HealthView, ApiError> {
 export function useCheckConnection() {
   return useMutation<RegisterPreview, ApiError, RegisterClusterRequest>({
     mutationFn: (body) =>
-      request("/clusters?dryRun=true", {
-        method: "POST",
+      request('/clusters?dryRun=true', {
+        method: 'POST',
         body: JSON.stringify(body),
       }),
   });
@@ -80,22 +76,17 @@ export function useCheckConnection() {
 export function useRegisterCluster() {
   const qc = useQueryClient();
   return useMutation<ClusterDetail, ApiError, RegisterClusterRequest>({
-    mutationFn: (body) =>
-      request("/clusters", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body) => request('/clusters', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });
 }
 
 export function useOverrideNodeUrl(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<
-    NodeEndpointView,
-    ApiError,
-    { nodeId: string; jolokiaUrl?: string; coreUrl?: string }
-  >({
+  return useMutation<NodeEndpointView, ApiError, { nodeId: string; jolokiaUrl?: string; coreUrl?: string }>({
     mutationFn: ({ nodeId, jolokiaUrl, coreUrl }) =>
       request(`/clusters/${clusterId}/nodes/${nodeId}`, {
-        method: "PATCH",
+        method: 'PATCH',
         body: JSON.stringify({ jolokiaUrl, coreUrl }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
@@ -105,21 +96,17 @@ export function useOverrideNodeUrl(clusterId: string) {
 export function useDeleteCluster() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (id) => request(`/clusters/${id}`, { method: "DELETE" }),
+    mutationFn: (id) => request(`/clusters/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });
 }
 
 export function useRotateCredentials(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<
-    void,
-    ApiError,
-    { username: string; password: string; kind?: "JOLOKIA_BASIC" | "CORE" }
-  >({
+  return useMutation<void, ApiError, { username: string; password: string; kind?: 'JOLOKIA_BASIC' | 'CORE' }>({
     mutationFn: (body) =>
       request(`/clusters/${clusterId}/credentials`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
@@ -129,7 +116,7 @@ export function useRotateCredentials(clusterId: string) {
 export function useEnvironments(): UseQueryResult<EnvironmentView[], ApiError> {
   return useQuery({
     queryKey: keys.environments,
-    queryFn: () => request<EnvironmentView[]>("/environments"),
+    queryFn: () => request<EnvironmentView[]>('/environments'),
   });
 }
 
@@ -137,8 +124,8 @@ export function useCreateEnvironment() {
   const qc = useQueryClient();
   return useMutation<EnvironmentView, ApiError, EnvironmentRequest>({
     mutationFn: (body) =>
-      request<EnvironmentView>("/environments", {
-        method: "POST",
+      request<EnvironmentView>('/environments', {
+        method: 'POST',
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
@@ -147,14 +134,10 @@ export function useCreateEnvironment() {
 
 export function useUpdateEnvironment() {
   const qc = useQueryClient();
-  return useMutation<
-    EnvironmentView,
-    ApiError,
-    { environmentId: string; body: EnvironmentRequest }
-  >({
+  return useMutation<EnvironmentView, ApiError, { environmentId: string; body: EnvironmentRequest }>({
     mutationFn: ({ environmentId, body }) =>
       request<EnvironmentView>(`/environments/${environmentId}`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
@@ -164,8 +147,7 @@ export function useUpdateEnvironment() {
 export function useDeleteEnvironment() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (environmentId) =>
-      request<void>(`/environments/${environmentId}`, { method: "DELETE" }),
+    mutationFn: (environmentId) => request<void>(`/environments/${environmentId}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.environments }),
   });
 }
@@ -175,7 +157,7 @@ export function useAssignClusterEnvironment(clusterId: string) {
   return useMutation<void, ApiError, string | null>({
     mutationFn: (environmentId) =>
       request<void>(`/clusters/${clusterId}/environment`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify({ environmentId }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),

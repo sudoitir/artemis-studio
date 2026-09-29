@@ -289,13 +289,12 @@ function FlowBody({
           <Stack gap="xs" className={classes.empty}>
             <Title order={4}>No flow to show yet</Title>
             <Text size="sm">
-              Flow draws the clients producing to each address, the queues those addresses route into, and the
-              clients consuming them. This cluster has no queues Studio has seen and no connected producers or
-              consumers.
+              Flow draws the clients producing to each address, the queues those addresses route into, and the clients
+              consuming them. This cluster has no queues Studio has seen and no connected producers or consumers.
             </Text>
             <Text size="sm" c="dimmed">
-              Clients appear here within one sampling interval of attaching. New queues appear once the queue sweep
-              has read them.
+              Clients appear here within one sampling interval of attaching. New queues appear once the queue sweep has
+              read them.
             </Text>
           </Stack>
         </Paper>
@@ -382,7 +381,13 @@ function FlowBody({
               attributes={{ handle: { 'aria-label': 'Resize the monitoring pane' } }}
             >
               <Splitter.Pane defaultSize={validSplit(split) ? split[0] : DEFAULT_SPLIT[0]} min={GRAPH_MIN}>
-                <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={select} paused={paused} />
+                <FlowCanvas
+                  clusterId={clusterId}
+                  graph={data}
+                  selectedId={selected}
+                  onSelect={select}
+                  paused={paused}
+                />
               </Splitter.Pane>
               <Splitter.Pane defaultSize={validSplit(split) ? split[1] : DEFAULT_SPLIT[1]} min={PANE_MIN} collapsible>
                 <FlowMonitorPane
@@ -438,7 +443,9 @@ function FlowBody({
         ) : null}
         <Text size="xs" c="dimmed">
           Totals cover every path.{' '}
-          {data.sampledAt ? `Clients sampled ${elapsedLabel(now - Date.parse(data.sampledAt))} ago.` : 'Clients not sampled yet.'}
+          {data.sampledAt
+            ? `Clients sampled ${elapsedLabel(now - Date.parse(data.sampledAt))} ago.`
+            : 'Clients not sampled yet.'}
         </Text>
       </div>
 

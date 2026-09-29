@@ -63,9 +63,7 @@ describe('CreateQueueForm', () => {
     await user.click(await screen.findByRole('button', { name: 'Create queue' }));
 
     // Address is the first field, so it is the one that gets focus.
-    await waitFor(() =>
-      expect(screen.getByRole('textbox', { name: /address/i })).toHaveFocus(),
-    );
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /address/i })).toHaveFocus());
   });
 
   it('previews the per-node outcome without creating anything', async () => {
@@ -100,9 +98,7 @@ describe('CreateQueueForm', () => {
     await user.type(screen.getByRole('textbox', { name: /queue name/i }), 'orders');
     await user.click(screen.getByRole('button', { name: 'Preview' }));
 
-    expect(
-      await screen.findByText('Would apply to 1 of 2 nodes, 1 not live and will be skipped'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Would apply to 1 of 2 nodes, 1 not live and will be skipped')).toBeInTheDocument();
     expect(screen.getByText('Nothing has been created yet. This is what would happen:')).toBeInTheDocument();
   });
 });

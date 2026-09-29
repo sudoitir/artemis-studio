@@ -1,5 +1,17 @@
 import { useState } from 'react';
-import { Alert, Button, Center, Divider, Paper, PasswordInput, Select, Stack, Text, TextInput, Title } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Center,
+  Divider,
+  Paper,
+  PasswordInput,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
@@ -108,8 +120,8 @@ export function LoginView() {
 
           {listed && !showForm && redirect.length === 0 ? (
             <Alert color="yellow">
-              No sign-in method is configured on this installation. An administrator needs to enable local
-              login or configure an identity provider.
+              No sign-in method is configured on this installation. An administrator needs to enable local login or
+              configure an identity provider.
             </Alert>
           ) : null}
         </Stack>

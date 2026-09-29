@@ -59,7 +59,15 @@ function OpenIn({
   );
 }
 
-function Copy({ value, what, host }: { value: string | null | undefined; what: string; host: ActionProps<unknown>['host'] }) {
+function Copy({
+  value,
+  what,
+  host,
+}: {
+  value: string | null | undefined;
+  what: string;
+  host: ActionProps<unknown>['host'];
+}) {
   return (
     <ActionMenuItem
       label={`Copy ${what}`}
@@ -268,7 +276,17 @@ export function AddressCloseConsumers({ clusterId, target, host }: ActionProps<A
 }
 
 // ── Links ────────────────────────────────────────────────────────────────────
-function FilteredLink({ clusterId, view, q, children }: { clusterId: string; view: View; q: string; children: React.ReactNode }) {
+function FilteredLink({
+  clusterId,
+  view,
+  q,
+  children,
+}: {
+  clusterId: string;
+  view: View;
+  q: string;
+  children: React.ReactNode;
+}) {
   return (
     <Link to={`/clusters/${clusterId}/${view}`} search={{ q }} className={linkClasses.link}>
       {children}

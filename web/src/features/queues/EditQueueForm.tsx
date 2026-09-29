@@ -119,10 +119,7 @@ export function EditQueueForm({
   };
 
   const submit = (dryRun: boolean) =>
-    update.mutate(
-      { body: body(), dryRun },
-      { onSuccess: (o) => (o.dryRun ? setPreview(o) : setResult(o)) },
-    );
+    update.mutate({ body: body(), dryRun }, { onSuccess: (o) => (o.dryRun ? setPreview(o) : setResult(o)) });
 
   return (
     <Modal opened={opened} onClose={close} title={`Edit ${queue.queueName}`} size="lg">
@@ -144,8 +141,8 @@ export function EditQueueForm({
           </div>
         </dl>
         <Text size="xs" c="dimmed">
-          These are fixed for the life of the queue — the broker refuses to change them on a queue
-          that exists. To change one, delete this queue and create a new one.
+          These are fixed for the life of the queue — the broker refuses to change them on a queue that exists. To
+          change one, delete this queue and create a new one.
         </Text>
 
         {configuration.isError ? (

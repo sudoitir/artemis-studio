@@ -8,8 +8,7 @@
 export const branding = {
   productName: 'Artemis Studio',
   productShortName: 'Studio',
-  tagline:
-    'Cluster-wide management and observability for Apache ActiveMQ Artemis',
+  tagline: 'Cluster-wide management and observability for Apache ActiveMQ Artemis',
   trademarkNotice:
     'Apache ActiveMQ and Apache ActiveMQ Artemis are trademarks of the Apache ' +
     'Software Foundation. Artemis Studio is an independent project and is not ' +

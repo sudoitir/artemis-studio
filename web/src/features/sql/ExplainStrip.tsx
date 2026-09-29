@@ -1,19 +1,11 @@
-import { Alert, Stack, Text } from "@mantine/core";
+import { Alert, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import type { SqlPlanView } from './api.ts';
-import { noticeWords } from "./notices.ts";
-import classes from "./ExplainStrip.module.css";
+import { noticeWords } from './notices.ts';
+import classes from './ExplainStrip.module.css';
 
-function Fact({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "warning";
-}) {
+function Fact({ label, value, tone }: { label: string; value: string; tone?: 'warning' }) {
   return (
     <div className={classes.fact}>
       <span className={classes.label}>{label}</span>
@@ -30,14 +22,8 @@ function syntaxDetail(error: ApiError): {
   suggestion?: string;
 } {
   return {
-    offending:
-      typeof error.problem.offending === "string"
-        ? error.problem.offending
-        : undefined,
-    suggestion:
-      typeof error.problem.suggestion === "string"
-        ? error.problem.suggestion
-        : undefined,
+    offending: typeof error.problem.offending === 'string' ? error.problem.offending : undefined,
+    suggestion: typeof error.problem.suggestion === 'string' ? error.problem.suggestion : undefined,
   };
 }
 
@@ -69,9 +55,7 @@ export function ExplainStrip({
               The problem is at <code>{offending}</code>.
             </Text>
           ) : null}
-          {suggestion ? (
-            <Text size="sm">Did you mean {suggestion}?</Text>
-          ) : null}
+          {suggestion ? <Text size="sm">Did you mean {suggestion}?</Text> : null}
         </Stack>
       </Alert>
     );
@@ -81,9 +65,7 @@ export function ExplainStrip({
     return (
       <div className={classes.strip}>
         <Text size="sm" c="dimmed">
-          {pending
-            ? "Working out what this query will do…"
-            : "Type a query and its plan appears here."}
+          {pending ? 'Working out what this query will do…' : 'Type a query and its plan appears here.'}
         </Text>
       </div>
     );
@@ -98,46 +80,40 @@ export function ExplainStrip({
   return (
     <Stack gap="xs">
       <div className={classes.strip}>
-        <Fact
-          label="Source"
-          value={plan.source === "INDEX" ? "historical index" : "live brokers"}
-        />
+        <Fact label="Source" value={plan.source === 'INDEX' ? 'historical index' : 'live brokers'} />
         <Fact
           label="Reads"
-          value={`${queues} queue${queues === 1 ? "" : "s"} on ${nodes} node${nodes === 1 ? "" : "s"}`}
+          value={`${queues} queue${queues === 1 ? '' : 's'} on ${nodes} node${nodes === 1 ? '' : 's'}`}
         />
         <Fact
           label="Cost"
           value={
             plan.requiresScan
               ? `scan — examines about ${(plan.estimatedMessagesExamined ?? 0).toLocaleString()} messages`
-              : "no scan — the broker filters"
+              : 'no scan — the broker filters'
           }
-          tone={plan.requiresScan ? "warning" : undefined}
+          tone={plan.requiresScan ? 'warning' : undefined}
         />
-        <Fact
-          label="Row limit"
-          value={(plan.effectiveLimit ?? 0).toLocaleString()}
-        />
+        <Fact label="Row limit" value={(plan.effectiveLimit ?? 0).toLocaleString()} />
 
         {pushedDown.length > 0 || scanned.length > 0 ? (
           <div className={classes.predicates}>
             {pushedDown.length > 0 ? (
               <span>
-                Pushed down:{" "}
+                Pushed down:{' '}
                 {pushedDown.map((p) => (
                   <span key={p} className={classes.predicate}>
-                    {p}{" "}
+                    {p}{' '}
                   </span>
                 ))}
               </span>
             ) : null}
             {scanned.length > 0 ? (
               <span>
-                Scanned by Studio:{" "}
+                Scanned by Studio:{' '}
                 {scanned.map((p) => (
                   <span key={p} className={classes.predicate}>
-                    {p}{" "}
+                    {p}{' '}
                   </span>
                 ))}
               </span>
@@ -149,11 +125,7 @@ export function ExplainStrip({
       {(plan.notices ?? []).map((notice, i) => {
         const { text, tone } = noticeWords(notice);
         return (
-          <Alert
-            key={`${notice.kind}-${i}`}
-            variant="light"
-            color={tone === "warning" ? "yellow" : "gray"}
-          >
+          <Alert key={`${notice.kind}-${i}`} variant="light" color={tone === 'warning' ? 'yellow' : 'gray'}>
             <Text size="sm">{text}</Text>
           </Alert>
         );

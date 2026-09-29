@@ -23,7 +23,14 @@ import type { ElkNode } from 'elkjs/lib/elk-api';
 import { ActionMenuItem } from './ActionMenuItem.tsx';
 import { AnchoredMenu } from './AnchoredMenu.tsx';
 import { runLayout } from './graph/elk.ts';
-import { layoutSignature, nodeName, type DiagramAction, type DiagramChoice, type DiagramEdge, type DiagramNode } from './diagram.ts';
+import {
+  layoutSignature,
+  nodeName,
+  type DiagramAction,
+  type DiagramChoice,
+  type DiagramEdge,
+  type DiagramNode,
+} from './diagram.ts';
 import classes from './DiagramView.module.css';
 import { anchorBelow, clampToViewport, type MenuAnchor } from './menuAnchor.ts';
 
@@ -101,7 +108,9 @@ function useLayout(nodes: DiagramNode[], edges: DiagramEdge[], direction: string
 }
 
 /** A menu the diagram has open: a box's actions, or what can be inserted on the arrows into a box or on one arrow. */
-type OpenMenu = { kind: 'actions'; nodeId: string; anchor: MenuAnchor; opener: HTMLElement } | { kind: 'insert'; edgeIds: string[]; anchor: MenuAnchor; opener: HTMLElement };
+type OpenMenu =
+  | { kind: 'actions'; nodeId: string; anchor: MenuAnchor; opener: HTMLElement }
+  | { kind: 'insert'; edgeIds: string[]; anchor: MenuAnchor; opener: HTMLElement };
 
 interface Roving {
   tabStop: string | null;
@@ -113,7 +122,14 @@ interface Roving {
   /** Opens the insert choices of these arrows, or null when the diagram offers none. */
   openInsert: ((edgeIds: string[], anchor: MenuAnchor, opener: HTMLElement) => void) | null;
 }
-const RovingContext = createContext<Roving>({ tabStop: null, register: () => {}, focus: () => {}, select: () => {}, openActions: null, openInsert: null });
+const RovingContext = createContext<Roving>({
+  tabStop: null,
+  register: () => {},
+  focus: () => {},
+  select: () => {},
+  openActions: null,
+  openInsert: null,
+});
 
 type CardData = {
   node: DiagramNode;
@@ -137,7 +153,12 @@ const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
   const keys = [actions ? 'Shift+F10' : null, insert ? 'Insert' : null].filter(Boolean).join(' ');
   return (
     <div className={classes.card}>
-      <Handle type="target" position={data.vertical ? Position.Top : Position.Left} className={classes.handle} isConnectable={false} />
+      <Handle
+        type="target"
+        position={data.vertical ? Position.Top : Position.Left}
+        className={classes.handle}
+        isConnectable={false}
+      />
       <button
         ref={(el) => register(id, el)}
         type="button"
@@ -198,7 +219,12 @@ const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
           <IconDots size={14} stroke={1.75} />
         </ActionIcon>
       ) : null}
-      <Handle type="source" position={data.vertical ? Position.Bottom : Position.Right} className={classes.handle} isConnectable={false} />
+      <Handle
+        type="source"
+        position={data.vertical ? Position.Bottom : Position.Right}
+        className={classes.handle}
+        isConnectable={false}
+      />
     </div>
   );
 });
@@ -209,17 +235,45 @@ type LineData = { dashed?: boolean; insert?: string };
  * A line with its label as a chip. The label is also in the target's accessible name, so the chip is
  * hidden from it. An insertable line carries a "+" beside the chip, named after the boxes it joins.
  */
-const Line = memo(function Line({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, label, data }: EdgeProps) {
+const Line = memo(function Line({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  label,
+  data,
+}: EdgeProps) {
   const { openInsert } = useContext(RovingContext);
-  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 8 });
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: 8,
+  });
   const d = (data ?? {}) as LineData;
   const insert = d.insert && openInsert ? openInsert : null;
   return (
     <>
-      <BaseEdge id={id} path={path} className={d.dashed ? classes.dashed : classes.edge} markerEnd={markerEnd} interactionWidth={0} />
+      <BaseEdge
+        id={id}
+        path={path}
+        className={d.dashed ? classes.dashed : classes.edge}
+        markerEnd={markerEnd}
+        interactionWidth={0}
+      />
       {label || insert ? (
         <EdgeLabelRenderer>
-          <div className={`${classes.labels} nodrag nopan`} style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
+          <div
+            className={`${classes.labels} nodrag nopan`}
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          >
             {label ? (
               <span className={classes.chip} aria-hidden="true">
                 {label}
@@ -255,7 +309,13 @@ const edgeTypes = { line: Line };
  * panel that is resized, or shown again after being collapsed, would otherwise keep a view of where
  * its boxes were, or were laid out at no size at all.
  */
-function FitOnLayout({ signature, frame }: { signature: string | null; frame: React.RefObject<HTMLDivElement | null> }) {
+function FitOnLayout({
+  signature,
+  frame,
+}: {
+  signature: string | null;
+  frame: React.RefObject<HTMLDivElement | null>;
+}) {
   const flow = useReactFlow();
   useEffect(() => {
     if (!signature) return;
@@ -289,7 +349,11 @@ function ViewControls() {
   const controls = [
     { label: 'Zoom in', icon: IconZoomIn, run: () => void flow.zoomIn({ duration: 0 }) },
     { label: 'Zoom out', icon: IconZoomOut, run: () => void flow.zoomOut({ duration: 0 }) },
-    { label: 'Fit the diagram to the view', icon: IconFocusCentered, run: () => void flow.fitView({ ...FIT, duration: 0 }) },
+    {
+      label: 'Fit the diagram to the view',
+      icon: IconFocusCentered,
+      run: () => void flow.fitView({ ...FIT, duration: 0 }),
+    },
   ];
   return (
     <ActionIcon.Group orientation="vertical" className={classes.controls}>
@@ -344,7 +408,12 @@ export function DiagramView({
     [nodes, layout.positions, vertical],
   );
   const [focused, setFocused] = useState<string | null>(null);
-  const tabStop = focused && order.includes(focused) ? focused : selectedId && order.includes(selectedId) ? selectedId : (order[0] ?? null);
+  const tabStop =
+    focused && order.includes(focused)
+      ? focused
+      : selectedId && order.includes(selectedId)
+        ? selectedId
+        : (order[0] ?? null);
   const elements = useRef(new Map<string, HTMLButtonElement>());
   const frameRef = useRef<HTMLDivElement>(null);
   const [announce, setAnnounce] = useState('');
@@ -394,7 +463,10 @@ export function DiagramView({
         position: layout.positions[n.id],
         data: {
           node: n,
-          name: nodeName(n, edges.filter((e) => e.target === n.id && e.label).map((e) => e.label as string)),
+          name: nodeName(
+            n,
+            edges.filter((e) => e.target === n.id && e.label).map((e) => e.label as string),
+          ),
           selected: n.id === selectedId,
           vertical,
           actions: (actionsOf.get(n.id)?.length ?? 0) > 0,
@@ -433,7 +505,14 @@ export function DiagramView({
 
   return (
     <ReactFlowProvider>
-      <div ref={frameRef} className={classes.frame} style={{ blockSize: height }} role="group" aria-label={ariaLabel} onKeyDown={onKeyDown}>
+      <div
+        ref={frameRef}
+        className={classes.frame}
+        style={{ blockSize: height }}
+        role="group"
+        aria-label={ariaLabel}
+        onKeyDown={onKeyDown}
+      >
         {!layout.ready ? (
           <div className={classes.overlay} aria-busy="true" aria-label="Laying out the diagram">
             <Loader size="sm" />
@@ -472,7 +551,13 @@ export function DiagramView({
       <AnchoredMenu
         opened={menu !== null}
         anchor={menu?.anchor ?? null}
-        label={menuNode ? `Actions for ${menuNode.label}` : menuEdges.length === 1 ? insertName(menuEdges[0], nodes) : 'Insert'}
+        label={
+          menuNode
+            ? `Actions for ${menuNode.label}`
+            : menuEdges.length === 1
+              ? insertName(menuEdges[0], nodes)
+              : 'Insert'
+        }
         onClose={closeMenu}
       >
         {menuNode

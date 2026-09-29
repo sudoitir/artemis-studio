@@ -79,7 +79,9 @@ function shell(reviewBody: () => Record<string, unknown>) {
       }),
     ),
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
-    http.get(`*/api/v1/clusters/${CLUSTER}/queues`, () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
+    http.get(`*/api/v1/clusters/${CLUSTER}/queues`, () =>
+      HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 }),
+    ),
     http.get(`*/api/v1/clusters/${CLUSTER}/setup-review`, () => HttpResponse.json(reviewBody())),
     http.get(`*/api/v1/clusters/${CLUSTER}`, () =>
       HttpResponse.json({
@@ -119,7 +121,9 @@ describe('Setup review', () => {
     expect(within(card).getByRole('table', { name: 'Evidence for HA_SINGLE_PAIR_QUORUM' })).toHaveTextContent(
       'Replication Primary w/quorum voting',
     );
-    expect(within(card).getByRole('button', { name: 'Copy the broker.xml fix for HA_SINGLE_PAIR_QUORUM' })).toBeInTheDocument();
+    expect(
+      within(card).getByRole('button', { name: 'Copy the broker.xml fix for HA_SINGLE_PAIR_QUORUM' }),
+    ).toBeInTheDocument();
     expect(within(card).getByText(/Note: network-check-list/)).toBeInTheDocument();
     expect(screen.getByText('Open: 1 critical, 0 warnings, 1 info.')).toBeInTheDocument();
     const info = screen.getByRole('article', { name: /No expiry address/ });
@@ -209,19 +213,25 @@ describe('Setup review', () => {
     expect(within(accepted).getByRole('button', { name: 'Revoke acceptance' })).toBeInTheDocument();
     expect(body).toMatchObject({ code: 'HA_SINGLE_PAIR_QUORUM', subject: 'cluster', reason: 'dev only' });
     expect((body as unknown as { expiresAt: string }).expiresAt).toBeTruthy();
-    expect(screen.getByRole('status', { name: 'Setup review outcome' })).toHaveTextContent('HA_SINGLE_PAIR_QUORUM accepted as a known risk.');
+    expect(screen.getByRole('status', { name: 'Setup review outcome' })).toHaveTextContent(
+      'HA_SINGLE_PAIR_QUORUM accepted as a known risk.',
+    );
   });
 
   it('reports a review that was too soon, in words', async () => {
     server.use(
       http.post(`*/api/v1/clusters/${CLUSTER}/setup-review/run`, () =>
-        HttpResponse.json(review({ notice: 'Reviewed 3s ago; the next review can run in 27s. Showing the last review.' })),
+        HttpResponse.json(
+          review({ notice: 'Reviewed 3s ago; the next review can run in 27s. Showing the last review.' }),
+        ),
       ),
     );
     const user = userEvent.setup();
     renderAppAt(`/clusters/${CLUSTER}/setup-review`);
 
     await user.click(await screen.findByRole('button', { name: 'Review now' }));
-    expect(await screen.findByRole('status', { name: 'Setup review outcome' })).toHaveTextContent(/the next review can run in 27s/);
+    expect(await screen.findByRole('status', { name: 'Setup review outcome' })).toHaveTextContent(
+      /the next review can run in 27s/,
+    );
   });
 });

@@ -26,9 +26,7 @@ function mockAccountApis() {
       }),
     ),
     http.get('*/api/v1/tokens', () => HttpResponse.json([])),
-    http.get('*/api/v1/permissions', () =>
-      HttpResponse.json([{ action: 'cluster:read', label: 'Read clusters' }]),
-    ),
+    http.get('*/api/v1/permissions', () => HttpResponse.json([{ action: 'cluster:read', label: 'Read clusters' }])),
     http.get('*/api/v1/clusters', () => HttpResponse.json([])),
   );
 }
@@ -41,10 +39,7 @@ describe('AccountView', () => {
     expect(await screen.findByText('ada')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'API keys' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'MCP connection' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute(
-      'href',
-      '/change-password',
-    );
+    expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute('href', '/change-password');
   });
 
   it('shows the MCP endpoint and never a real key', async () => {

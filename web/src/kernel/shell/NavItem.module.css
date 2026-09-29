@@ -54,14 +54,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: opacity 120ms ease, max-inline-size 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition:
+    opacity 120ms ease,
+    max-inline-size 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .trailing {
   font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   font-variant-numeric: tabular-nums;
-  transition: opacity 120ms ease, max-inline-size 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition:
+    opacity 120ms ease,
+    max-inline-size 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Collapsed: icon-only, centered — the label and trailing count fade out on a

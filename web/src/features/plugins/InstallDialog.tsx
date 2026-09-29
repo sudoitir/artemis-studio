@@ -174,7 +174,9 @@ export function InstallDialog({ source, onClose }: { source: Source | null; onCl
           {plan && inspected ? (
             <Stack gap="md" mt="md">
               <Text size="sm">
-                {plan.fromVersion ? `Replaces ${plan.info.title} ${plan.fromVersion} for everyone using Studio.` : `Adds ${plan.info.title} for everyone using Studio.`}{' '}
+                {plan.fromVersion
+                  ? `Replaces ${plan.info.title} ${plan.fromVersion} for everyone using Studio.`
+                  : `Adds ${plan.info.title} for everyone using Studio.`}{' '}
                 {plan.activationClass === 'RESTART' && plan.restart === 'AUTOMATIC'
                   ? 'Studio restarts, disconnecting everyone briefly.'
                   : plan.activationClass === 'BRIEF_MAINTENANCE' && plan.fromVersion
@@ -189,7 +191,9 @@ export function InstallDialog({ source, onClose }: { source: Source | null; onCl
               <StepUp returnTo={returnTo} />
               {activate.error && !needsReauthentication(activate.error) ? (
                 <Alert variant="light" color="red" title="Not activated" role="alert">
-                  {violationsOf(activate.error).map((v) => v.message).join(' ') || activate.error.message}
+                  {violationsOf(activate.error)
+                    .map((v) => v.message)
+                    .join(' ') || activate.error.message}
                 </Alert>
               ) : null}
               <ConfirmByTyping

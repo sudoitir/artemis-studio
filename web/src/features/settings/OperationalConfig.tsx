@@ -17,10 +17,7 @@ export function OperationalConfig() {
   const reset = useResetSetting();
   const [draft, setDraft] = useState<Record<string, string>>({});
 
-  const entries = useMemo(
-    () => Object.entries(settings.data?.settings ?? {}),
-    [settings.data],
-  );
+  const entries = useMemo(() => Object.entries(settings.data?.settings ?? {}), [settings.data]);
 
   // Group in first-seen order: the server sends the registry order on purpose.
   const groups = useMemo(() => {
@@ -86,10 +83,8 @@ export function OperationalConfig() {
                       update.mutate(
                         { key, value },
                         {
-                          onSuccess: () =>
-                            notifications.show({ message: `${current.label} saved` }),
-                          onError: (err) =>
-                            notifications.show({ color: 'red', message: err.message }),
+                          onSuccess: () => notifications.show({ message: `${current.label} saved` }),
+                          onError: (err) => notifications.show({ color: 'red', message: err.message }),
                         },
                       )
                     }

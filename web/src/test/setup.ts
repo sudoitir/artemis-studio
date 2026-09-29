@@ -101,8 +101,7 @@ class EventSourceStub {
   }
   /** Test helper: deliver a named frame to every open stub (or one, by index). */
   static emit(type: string, data: unknown, index?: number) {
-    const targets =
-      index === undefined ? EventSourceStub.instances : [EventSourceStub.instances[index]];
+    const targets = index === undefined ? EventSourceStub.instances : [EventSourceStub.instances[index]];
     for (const es of targets) {
       const frame = {
         data: typeof data === 'string' ? data : JSON.stringify(data),

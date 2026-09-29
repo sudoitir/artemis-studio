@@ -33,7 +33,11 @@ function PreviewCanvas({ topology, stale }: { topology: TopologyView; stale: boo
   const model = layout(topology, EXAMPLE_HEALTH);
   return (
     <Stack gap="xs">
-      <Alert color={stale ? 'yellow' : 'pine'} variant="light" title={stale ? 'Changed since you checked' : 'Discovered topology'}>
+      <Alert
+        color={stale ? 'yellow' : 'pine'}
+        variant="light"
+        title={stale ? 'Changed since you checked' : 'Discovered topology'}
+      >
         <Text size="sm">
           {stale
             ? 'Run Check connection again to preview the current values before registering.'
@@ -57,8 +61,8 @@ function ExampleCards({
   return (
     <Stack gap="xs">
       <Text size="sm" c="dimmed">
-        Which of these looks like your setup? These are examples for orientation —
-        nothing is registered until you press Register cluster.
+        Which of these looks like your setup? These are examples for orientation — nothing is registered until you press
+        Register cluster.
       </Text>
       <div className={styles.cards}>
         {EXAMPLES.map((ex) => {

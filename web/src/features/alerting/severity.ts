@@ -55,7 +55,7 @@ export const METRIC_NOTES: Record<string, string> = {
   consumerHealth:
     'Fires on the same verdict the Consumer health screen shows, so an alert and the screen can never disagree. A queue whose verdict cannot be computed yet — too few samples — is excluded entirely, so it neither fires nor resolves a firing that is still true. A paused queue ranks below every threshold offered here and never pages.',
   ackRatePerConsumer:
-    'Only queues with consumers attached, a non-zero backlog, and not paused are evaluated — an idle or paused queue is not a slow consumer. Studio resolves this to a queue on a node; naming the individual consumer needs the broker\'s own slow-consumer detection.',
+    "Only queues with consumers attached, a non-zero backlog, and not paused are evaluated — an idle or paused queue is not a slow consumer. Studio resolves this to a queue on a node; naming the individual consumer needs the broker's own slow-consumer detection.",
 };
 
 /**

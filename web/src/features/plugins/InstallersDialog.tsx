@@ -22,8 +22,8 @@ export function InstallersDialog({ opened, onClose }: { opened: boolean; onClose
     <Modal opened={opened} onClose={onClose} title="Who can install plugins" size="lg">
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Installing a plugin runs its code inside Studio, so this is kept apart from roles: no role, however
-          broad, lets anyone install. Changes take effect on the person's next request.
+          Installing a plugin runs its code inside Studio, so this is kept apart from roles: no role, however broad,
+          lets anyone install. Changes take effect on the person's next request.
         </Text>
         <Table>
           <Table.Thead>
@@ -66,7 +66,9 @@ export function InstallersDialog({ opened, onClose }: { opened: boolean; onClose
         <StepUp returnTo={`${window.location.pathname}?tab=plugins`} />
         {error && !stale ? (
           <Alert color="red" variant="light" role="alert">
-            {violationsOf(error).map((v) => v.message).join(' ') || error.message}
+            {violationsOf(error)
+              .map((v) => v.message)
+              .join(' ') || error.message}
           </Alert>
         ) : null}
         <form

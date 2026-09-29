@@ -37,9 +37,7 @@ function detail(over: Record<string, unknown> = {}) {
 }
 
 function mockDetail(body: Record<string, unknown>) {
-  server.use(
-    http.get('*/api/v1/clusters/:c/queues/:q/messages/:id', () => HttpResponse.json(body)),
-  );
+  server.use(http.get('*/api/v1/clusters/:c/queues/:q/messages/:id', () => HttpResponse.json(body)));
 }
 
 describe('MessageDetailPanel', () => {

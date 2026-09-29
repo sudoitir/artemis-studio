@@ -22,9 +22,9 @@ function CoverageHint({ clusterId, addresses, purpose }: { clusterId: string; ad
   return (
     <Alert color="gray" variant="light" title="Only sampled">
       <Text size="sm">
-        {missing.join(', ')} {missing.length === 1 ? 'is' : 'are'} not captured, so {purpose} sees only the
-        messages a sample happened to catch. Turn on &ldquo;Capture everything&rdquo; for{' '}
-        {missing.length === 1 ? 'it' : 'them'} under{' '}
+        {missing.join(', ')} {missing.length === 1 ? 'is' : 'are'} not captured, so {purpose} sees only the messages a
+        sample happened to catch. Turn on &ldquo;Capture everything&rdquo; for {missing.length === 1 ? 'it' : 'them'}{' '}
+        under{' '}
         <Anchor component={Link} to={`/clusters/${clusterId}/settings`} size="sm">
           Settings → Message index
         </Anchor>

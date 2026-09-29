@@ -297,8 +297,7 @@ export function absoluteLabel(value: string | number | null | undefined): string
       minute: '2-digit',
       second: '2-digit',
     }).formatToParts(new Date(ms));
-    const at = (type: Intl.DateTimeFormatPartTypes) =>
-      parts.find((p) => p.type === type)?.value ?? '';
+    const at = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
     const date = `${at('year')}-${at('month')}-${at('day')}`;
     const time = `${at('hour')}:${at('minute')}:${at('second')}`;
     return `${date} ${time} ${zoneSuffix(ms, zone)}`.trimEnd();

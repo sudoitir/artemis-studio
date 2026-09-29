@@ -21,7 +21,14 @@ function graph(over: Record<string, unknown> = {}) {
   return {
     nodes: [
       { id: 'address:orders', kind: 'ADDRESS', label: 'orders', routingTypes: ['ANYCAST'], faults: [] },
-      { id: 'queue:ORDERS.inbound', kind: 'QUEUE', label: 'orders', messageCount: 1200, consumerCount: 0, faults: ['NO_CONSUMER'] },
+      {
+        id: 'queue:ORDERS.inbound',
+        kind: 'QUEUE',
+        label: 'orders',
+        messageCount: 1200,
+        consumerCount: 0,
+        faults: ['NO_CONSUMER'],
+      },
       { id: 'producer:order-svc', kind: 'PRODUCER', label: 'order-svc', members: 2, faults: [] },
     ],
     edges: [
@@ -89,8 +96,24 @@ function splitGraph() {
           ...n,
           byNode: [
             { nodeId: 'a', node: 'artemis-a', messageCount: 10, consumerCount: 3, inRate: 5, outRate: 5, stale: false },
-            { nodeId: 'b', node: 'artemis-b', messageCount: 9000, consumerCount: 0, inRate: 5, outRate: 0, stale: false },
-            { nodeId: 'c', node: 'artemis-c', messageCount: null, consumerCount: null, inRate: null, outRate: null, stale: true },
+            {
+              nodeId: 'b',
+              node: 'artemis-b',
+              messageCount: 9000,
+              consumerCount: 0,
+              inRate: 5,
+              outRate: 0,
+              stale: false,
+            },
+            {
+              nodeId: 'c',
+              node: 'artemis-c',
+              messageCount: null,
+              consumerCount: null,
+              inRate: null,
+              outRate: null,
+              stale: true,
+            },
           ],
         }
       : n,
@@ -111,7 +134,12 @@ function serveHistory() {
         series: [],
         splitBy: 'NODE',
         byNode: [
-          { nodeId: 'a', nodeName: 'artemis-a', sampled: true, series: ['messageCount', 'messagesAdded', 'messagesAcked'].map(series) },
+          {
+            nodeId: 'a',
+            nodeName: 'artemis-a',
+            sampled: true,
+            series: ['messageCount', 'messagesAdded', 'messagesAcked'].map(series),
+          },
           { nodeId: 'b', nodeName: 'artemis-b', sampled: false, series: [] },
         ],
       }),
@@ -134,7 +162,9 @@ describe('FlowView', () => {
     expect(totals).toHaveTextContent('Messages outmeasuring…');
     expect(totals).toHaveTextContent('2 faults');
     expect(screen.getByText('Showing 2 of 5 paths, ranked by messages in.')).toBeInTheDocument();
-    expect(screen.getByText('Raise the limit, or focus a client, address or queue to reach the rest.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Raise the limit, or focus a client, address or queue to reach the rest.'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Measuring client rates/)).toBeInTheDocument();
   });
 
@@ -199,7 +229,11 @@ describe('FlowView', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Clear focus' })[0]);
 
     const call = routerState.navigate.mock.calls.at(-1)?.[0] as { search: (prev: object) => Record<string, unknown> };
-    expect(call.search({ focus: 'queue:ARCHIVE.gone', rank: 'OUT' })).toEqual({ focus: undefined, hops: undefined, rank: 'OUT' });
+    expect(call.search({ focus: 'queue:ARCHIVE.gone', rank: 'OUT' })).toEqual({
+      focus: undefined,
+      hops: undefined,
+      rank: 'OUT',
+    });
   });
 
   it('draws no moving dots when the system asks for reduced motion, and says why', async () => {
@@ -287,7 +321,9 @@ describe('FlowView', () => {
 
     const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
     expect(seen.at(-1)).toContain('byNode=true');
-    expect(pane).toHaveTextContent('artemis-b holds 9,000 messages and has no consumer; the consumers are on artemis-a.');
+    expect(pane).toHaveTextContent(
+      'artemis-b holds 9,000 messages and has no consumer; the consumers are on artemis-a.',
+    );
     expect(pane).toHaveTextContent('artemis-c did not answer, so its share is unknown and left out.');
     const grid = screen.getByRole('grid', { name: 'orders per node' });
     const silent = (await within(grid).findByText('artemis-c')).closest('[role="row"]') as HTMLElement;
@@ -296,7 +332,9 @@ describe('FlowView', () => {
 
     // The trends are the metrics feature's, per node; a node without samples says so.
     expect(await screen.findByRole('region', { name: 'History on artemis-a' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'History on artemis-b' })).toHaveTextContent('Not sampled in this window');
+    expect(screen.getByRole('region', { name: 'History on artemis-b' })).toHaveTextContent(
+      'Not sampled in this window',
+    );
   });
 
   it('clears the selection through the address', async () => {

@@ -249,18 +249,7 @@ function layoutLogicalNode(
     const top = serving[0] ?? null;
     const bottom = others[0] ?? null;
     if (top) {
-      children.push(
-        brokerNode(
-          top.id,
-          groupId,
-          GROUP_PAD,
-          LIVE_Y,
-          top,
-          true,
-          false,
-          logical.artemisNodeId ?? null,
-        ),
-      );
+      children.push(brokerNode(top.id, groupId, GROUP_PAD, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
     }
     if (bottom) {
       children.push(
@@ -316,11 +305,7 @@ function layoutLogicalNode(
  * replication behind — is true. A collapsed pair that hides a split brain would
  * be worse than no graph at all.
  */
-function collapsedNode(
-  logical: LogicalNodeView,
-  x: number,
-  y: number,
-): Node<BrokerNodeData> {
+function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<BrokerNodeData> {
   const axisStatus = axisStatusOf(logical);
   const serving = logical.endpoints.filter((e) => e.active && !e.lastError);
   const others = logical.endpoints.filter((e) => !(e.active && !e.lastError));
@@ -372,13 +357,8 @@ function collapsedNode(
   };
 }
 
-export function layout(
-  topology: TopologyView,
-  health: HealthView,
-): TopologyLayout {
-  const ordered = [...topology.nodes].sort((a, b) =>
-    (a.artemisNodeId ?? '').localeCompare(b.artemisNodeId ?? ''),
-  );
+export function layout(topology: TopologyView, health: HealthView): TopologyLayout {
+  const ordered = [...topology.nodes].sort((a, b) => (a.artemisNodeId ?? '').localeCompare(b.artemisNodeId ?? ''));
 
   const nodes: TopologyNode[] = [];
   const edges: Edge[] = [];
@@ -411,9 +391,7 @@ function summarise(topology: TopologyView, health: HealthView): string {
     const id = (n.artemisNodeId ?? 'unknown').slice(0, 8);
     const live = n.endpoints.filter((e) => e.active && !e.lastError).map((e) => e.name);
     const standby = n.endpoints.filter((e) => !(e.active && !e.lastError)).map((e) => e.name);
-    return `node ${id}: ${live.join(', ') || 'none'} live${
-      standby.length ? `, ${standby.join(', ')} standby` : ''
-    }`;
+    return `node ${id}: ${live.join(', ') || 'none'} live${standby.length ? `, ${standby.join(', ')} standby` : ''}`;
   });
   const rollUp =
     health.splitBrain === 'CRITICAL'

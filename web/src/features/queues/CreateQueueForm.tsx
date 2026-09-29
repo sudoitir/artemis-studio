@@ -91,8 +91,7 @@ export function CreateQueueForm({
 
   // Shown only once the field has been left, or once a submit was attempted —
   // never while the operator is still typing into an empty form.
-  const errorFor = (field: keyof Errors) =>
-    touched[field] || submitted ? errors[field] : undefined;
+  const errorFor = (field: keyof Errors) => (touched[field] || submitted ? errors[field] : undefined);
 
   const body = (): CreateQueueRequest => ({
     address: form.address.trim(),
@@ -187,13 +186,7 @@ export function CreateQueueForm({
         />
 
         <div>
-          <Button
-            variant="subtle"
-            size="xs"
-            px={0}
-            onClick={() => setAdvanced((a) => !a)}
-            aria-expanded={advanced}
-          >
+          <Button variant="subtle" size="xs" px={0} onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced}>
             {advanced ? 'Hide advanced configuration' : 'Advanced configuration'}
           </Button>
           <Collapse expanded={advanced}>

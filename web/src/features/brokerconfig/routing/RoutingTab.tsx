@@ -166,8 +166,8 @@ export function RoutingTab({
           <Stack gap="xs" align="flex-start">
             <Text size="sm">
               The builder draws this cluster's declared routing — addresses, their queues, and the diverts and bridges
-              between them — beside what the brokers report. Nothing is declared yet, and no node has reported
-              anything that is not. Add a queue to start, or adopt what the cluster runs from the Configuration screen.
+              between them — beside what the brokers report. Nothing is declared yet, and no node has reported anything
+              that is not. Add a queue to start, or adopt what the cluster runs from the Configuration screen.
             </Text>
             <div>{addQueueButton}</div>
           </Stack>

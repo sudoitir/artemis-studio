@@ -19,7 +19,10 @@ import type {
 export function prettyKey(jsonName: string, catalogue?: ConfigCatalogueView): string {
   const known = catalogue?.addressSettingKeys.find((k) => k.jsonName === jsonName);
   if (known) return known.xmlName;
-  return jsonName.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2').toLowerCase();
+  return jsonName
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+    .toLowerCase();
 }
 
 const BYTES = /Bytes$/;
@@ -100,7 +103,9 @@ export function securitySettingRows(item: ConfigSecuritySettingView): Row[] {
       byRole.set(role, [...(byRole.get(role) ?? []), type]);
     }
   }
-  return [...byRole.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([role, types]) => ({ key: role, value: types.join(', ') }));
+  return [...byRole.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([role, types]) => ({ key: role, value: types.join(', ') }));
 }
 
 export function divertRows(item: ConfigDivertView): Row[] {

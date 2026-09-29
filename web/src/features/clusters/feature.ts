@@ -33,7 +33,15 @@ export const clustersFeature = defineFeature({
   id: 'clusters',
   routes: { cluster: [clusterIndexRoute, topologyRoute] },
   nav: [
-    { group: 'observe', order: 10, label: 'Topology', icon: IconSitemap, path: 'topology', hotkey: 't', permission: 'cluster:read' },
+    {
+      group: 'observe',
+      order: 10,
+      label: 'Topology',
+      icon: IconSitemap,
+      path: 'topology',
+      hotkey: 't',
+      permission: 'cluster:read',
+    },
   ],
   palette: ClusterPalette,
   slots: {
@@ -42,8 +50,20 @@ export const clustersFeature = defineFeature({
     'cluster.header': [{ id: 'clusters-header', order: 10, Component: ClusterHeader }],
     'settings.sections': [
       { id: 'clusters-register', order: 30, group: 'studio', title: 'Clusters', Component: RegisterSection },
-      { id: 'clusters-credentials', order: 40, group: 'cluster', title: 'Broker credentials', Component: CredentialsSection },
-      { id: 'clusters-capabilities', order: 50, group: 'cluster', title: 'Connection capabilities', Component: CapabilitiesSection },
+      {
+        id: 'clusters-credentials',
+        order: 40,
+        group: 'cluster',
+        title: 'Broker credentials',
+        Component: CredentialsSection,
+      },
+      {
+        id: 'clusters-capabilities',
+        order: 50,
+        group: 'cluster',
+        title: 'Connection capabilities',
+        Component: CapabilitiesSection,
+      },
     ],
     'admin.tabs': [{ id: 'environments', order: 30, title: 'Environments', Component: EnvironmentsPanel }],
   },

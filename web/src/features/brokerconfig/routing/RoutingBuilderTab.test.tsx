@@ -153,7 +153,9 @@ describe('the Routing screen’s Builder tab', () => {
 
     // Again, and this time a bad name is refused beside its field, on blur.
     await user.keyboard('{ArrowDown}');
-    await waitFor(() => expect(screen.getByRole('option', { name: /Create queue/, ...opt })).toHaveAttribute('data-combobox-selected'));
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: /Create queue/, ...opt })).toHaveAttribute('data-combobox-selected'),
+    );
     await user.keyboard('{Enter}');
     const again = await within(drawer).findByRole('group', { name: 'Create queue on address orders.spool' });
     const name = within(again).getByRole('textbox', { name: /Queue name/ });
@@ -161,7 +163,9 @@ describe('the Routing screen’s Builder tab', () => {
     await user.clear(name);
     await user.keyboard('orders.request');
     await user.tab();
-    expect(await within(again).findByText('Queue "orders.request" is already declared, on address orders.request.')).toBeInTheDocument();
+    expect(
+      await within(again).findByText('Queue "orders.request" is already declared, on address orders.request.'),
+    ).toBeInTheDocument();
 
     // Fixed, and Enter in the section adds it to the declaration as its own revision.
     await user.tab({ shift: true });
@@ -188,8 +192,6 @@ describe('the Routing screen’s Builder tab', () => {
     expect(await within(drawer).findByRole('button', { name: 'Save as revision 5' })).toBeInTheDocument();
 
     // The canvas draws it at once, as declared and not yet applied.
-    expect(
-      await screen.findByRole('button', { name: /^Queue orders\.spool\./, hidden: true }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Queue orders\.spool\./, hidden: true })).toBeInTheDocument();
   }, 20_000);
 });

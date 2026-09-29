@@ -11,7 +11,10 @@ describe('imbalance', () => {
   it.each<[string, FlowNodeShare[], string[]]>([
     [
       'a stranded backlog names where the consumers are',
-      [share('artemis-a', { messageCount: 10, consumerCount: 3 }), share('artemis-b', { messageCount: 9000, consumerCount: 0 })],
+      [
+        share('artemis-a', { messageCount: 10, consumerCount: 3 }),
+        share('artemis-b', { messageCount: 9000, consumerCount: 0 }),
+      ],
       [
         '100% of the backlog is on artemis-b.',
         'artemis-b holds 9,000 messages and has no consumer; the consumers are on artemis-a.',
@@ -22,8 +25,16 @@ describe('imbalance', () => {
       [share('a', { messageCount: 75 }), share('b', { messageCount: 25 })],
       ['75% of the backlog is on a.'],
     ],
-    ['no concentration below 100 messages', [share('a', { messageCount: 90 }), share('b', { messageCount: 5 })], ['Balanced across 2 nodes.']],
-    ['no concentration just under 75%', [share('a', { messageCount: 74 }), share('b', { messageCount: 26 })], ['Balanced across 2 nodes.']],
+    [
+      'no concentration below 100 messages',
+      [share('a', { messageCount: 90 }), share('b', { messageCount: 5 })],
+      ['Balanced across 2 nodes.'],
+    ],
+    [
+      'no concentration just under 75%',
+      [share('a', { messageCount: 74 }), share('b', { messageCount: 26 })],
+      ['Balanced across 2 nodes.'],
+    ],
     [
       'skew of 40 points or more',
       [share('a', { inRate: 9, outRate: 5 }), share('b', { inRate: 1, outRate: 5 })],
@@ -42,7 +53,11 @@ describe('imbalance', () => {
     ['one node is not called balanced across one', [share('a', { messageCount: 500 })], ['Served by one node, a.']],
     [
       'an unanswered node is unknown and out of the percentages',
-      [share('a', { messageCount: 80 }), share('b', { messageCount: 30 }), share('c', { stale: true, messageCount: null })],
+      [
+        share('a', { messageCount: 80 }),
+        share('b', { messageCount: 30 }),
+        share('c', { stale: true, messageCount: null }),
+      ],
       ['c did not answer, so its share is unknown and left out.', 'Balanced across 2 nodes.'],
     ],
   ])('%s', (_, shares, expected) => {

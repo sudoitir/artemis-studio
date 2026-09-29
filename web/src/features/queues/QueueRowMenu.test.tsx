@@ -98,7 +98,9 @@ describe('the queue row menu (ADR-0107)', () => {
           overCap: false,
           partial: false,
           totalAffected: 12,
-          nodes: [{ nodeId: 'n1', nodeName: 'node-a', status: dryRun ? 'WOULD_APPLY' : 'APPLIED', affected: 12, error: null }],
+          nodes: [
+            { nodeId: 'n1', nodeName: 'node-a', status: dryRun ? 'WOULD_APPLY' : 'APPLIED', affected: 12, error: null },
+          ],
         });
       }),
     );

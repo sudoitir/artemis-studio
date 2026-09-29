@@ -1,23 +1,13 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-  ActionIcon,
-  Checkbox,
-  CopyButton,
-  Portal,
-  VisuallyHidden,
-} from "@mantine/core";
-import { IconDots } from "@tabler/icons-react";
-import { tableFeatures, useTable, type ColumnDef } from "@tanstack/react-table";
-import {
-  defaultRangeExtractor,
-  useVirtualizer,
-  type Range,
-} from "@tanstack/react-virtual";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ActionIcon, Checkbox, CopyButton, Portal, VisuallyHidden } from '@mantine/core';
+import { IconDots } from '@tabler/icons-react';
+import { tableFeatures, useTable, type ColumnDef } from '@tanstack/react-table';
+import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/react-virtual';
 
-import { AnchoredMenu } from "./AnchoredMenu.tsx";
-import { anchorBelow, clampToViewport, type MenuAnchor } from "./menuAnchor.ts";
-import { nextCell, resolveRow, type GridPos } from "./rovingGrid.ts";
-import styles from "./VirtualTable.module.css";
+import { AnchoredMenu } from './AnchoredMenu.tsx';
+import { anchorBelow, clampToViewport, type MenuAnchor } from './menuAnchor.ts';
+import { nextCell, resolveRow, type GridPos } from './rovingGrid.ts';
+import styles from './VirtualTable.module.css';
 
 /** No client-side row features — sorting / filtering / paging are all server-side (URL params). */
 const features = tableFeatures({});
@@ -79,28 +69,24 @@ const WIDGETS = 'a[href], button, input, select, textarea, [role="button"], [rol
 
 /** The hover title for a cell, when its value is something a tooltip can say. */
 function plainText(value: unknown): string | undefined {
-  if (typeof value === "string") return value || undefined;
-  if (typeof value === "number" || typeof value === "bigint")
-    return String(value);
+  if (typeof value === 'string') return value || undefined;
+  if (typeof value === 'number' || typeof value === 'bigint') return String(value);
   return undefined;
 }
 
 function isRtl(): boolean {
-  return (
-    document.dir === "rtl" ||
-    getComputedStyle(document.documentElement).direction === "rtl"
-  );
+  return document.dir === 'rtl' || getComputedStyle(document.documentElement).direction === 'rtl';
 }
 
 /** Widths a viewer set, as stored: only current columns, only sane numbers. */
 function readWidths(storageKey: string | undefined, ids: string[]): Record<string, number> {
   if (!storageKey) return {};
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(`as.grid.${storageKey}`) ?? "{}");
-    if (!raw || typeof raw !== "object") return {};
+    const raw: unknown = JSON.parse(localStorage.getItem(`as.grid.${storageKey}`) ?? '{}');
+    if (!raw || typeof raw !== 'object') return {};
     const out: Record<string, number> = {};
     for (const [id, w] of Object.entries(raw as Record<string, unknown>)) {
-      if (ids.includes(id) && typeof w === "number" && Number.isFinite(w) && w >= RESIZE_MIN_WIDTH && w <= 4000) {
+      if (ids.includes(id) && typeof w === 'number' && Number.isFinite(w) && w >= RESIZE_MIN_WIDTH && w <= 4000) {
         out[id] = Math.round(w);
       }
     }
@@ -121,7 +107,7 @@ function writeWidths(storageKey: string | undefined, widths: Record<string, numb
 
 /** The width a cell's content needs, padding included; a header's sort button is measured itself. */
 function contentWidth(cell: HTMLElement): number {
-  const button = cell.querySelector<HTMLElement>(":scope > button");
+  const button = cell.querySelector<HTMLElement>(':scope > button');
   const style = getComputedStyle(cell);
   const padding = (parseFloat(style.paddingInlineStart) || 0) + (parseFloat(style.paddingInlineEnd) || 0);
   return button ? button.scrollWidth + padding : cell.scrollWidth;
@@ -129,9 +115,7 @@ function contentWidth(cell: HTMLElement): number {
 
 /** A cell's single enabled control, which then takes the cell's focus; otherwise the cell itself. */
 function focusTarget(cell: HTMLElement): HTMLElement {
-  const widgets = [...cell.querySelectorAll<HTMLElement>(WIDGETS)].filter(
-    (el) => !(el as HTMLButtonElement).disabled,
-  );
+  const widgets = [...cell.querySelectorAll<HTMLElement>(WIDGETS)].filter((el) => !(el as HTMLButtonElement).disabled);
   return widgets.length === 1 ? widgets[0] : cell;
 }
 
@@ -244,7 +228,7 @@ export function VirtualTable<T>({
   // `widths` are what the viewer set, and make a column a fixed track; `fits` are
   // the floors measured from content, for the columns the viewer has not sized.
   const columnIds = columns.map((c) => c.id);
-  const columnKey = columnIds.join("\u0000");
+  const columnKey = columnIds.join('\u0000');
   const [widths, setWidths] = useState<Record<string, number>>(() => readWidths(storageKey, columnIds));
   const [fits, setFits] = useState<Record<string, number>>({});
   const fittedFor = useRef<string | null>(null);
@@ -254,8 +238,7 @@ export function VirtualTable<T>({
   // key rather than an index, so that a refresh that reorders rows keeps focus
   // on the row the operator was on.
   const firstDataCol = selectable ? 1 : 0;
-  const colCount =
-    (selectable ? 1 : 0) + columns.length + (rowMenu ? 1 : 0);
+  const colCount = (selectable ? 1 : 0) + columns.length + (rowMenu ? 1 : 0);
   const [active, setActive] = useState<{ key: string | null; col: number }>({
     key: HEADER,
     col: firstDataCol,
@@ -302,15 +285,12 @@ export function VirtualTable<T>({
   const [announcement, setAnnouncement] = useState<string | null>(null);
 
   /** The widest header or rendered cell of a column, within `cap`. */
-  const measure = useCallback(
-    (col: number, cap: number): number => {
-      const cells = gridRef.current?.querySelectorAll<HTMLElement>(`[data-grid-row] > [data-grid-col="${col}"]`) ?? [];
-      let need = 0;
-      for (const cell of cells) need = Math.max(need, contentWidth(cell));
-      return Math.round(Math.min(need + 2, cap));
-    },
-    [],
-  );
+  const measure = useCallback((col: number, cap: number): number => {
+    const cells = gridRef.current?.querySelectorAll<HTMLElement>(`[data-grid-row] > [data-grid-col="${col}"]`) ?? [];
+    let need = 0;
+    for (const cell of cells) need = Math.max(need, contentWidth(cell));
+    return Math.round(Math.min(need + 2, cap));
+  }, []);
 
   const setWidth = useCallback(
     (id: string, width: number) => {
@@ -332,22 +312,25 @@ export function VirtualTable<T>({
     const x0 = e.clientX;
     const sign = isRtl() ? -1 : 1;
     handle.setPointerCapture(e.pointerId);
-    handle.dataset.active = "true";
+    handle.dataset.active = 'true';
     const move = (ev: PointerEvent) =>
-      setWidths((prev) => ({ ...prev, [id]: Math.round(Math.max(RESIZE_MIN_WIDTH, start + (ev.clientX - x0) * sign)) }));
+      setWidths((prev) => ({
+        ...prev,
+        [id]: Math.round(Math.max(RESIZE_MIN_WIDTH, start + (ev.clientX - x0) * sign)),
+      }));
     const end = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", end);
-      handle.removeEventListener("pointercancel", end);
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
       delete handle.dataset.active;
       setWidths((prev) => {
         writeWidths(storageKey, prev);
         return prev;
       });
     };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", end);
-    handle.addEventListener("pointercancel", end);
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
   };
 
   const fitColumn = (id: string, col: number) => {
@@ -396,22 +379,18 @@ export function VirtualTable<T>({
   }, [columnKey, rowsRendered, measure, firstDataCol]);
 
   const cellAt = useCallback((row: number, col: number): HTMLElement | null => {
-    return (
-      gridRef.current?.querySelector<HTMLElement>(
-        `[data-grid-row="${row}"] > [data-grid-col="${col}"]`,
-      ) ?? null
-    );
+    return gridRef.current?.querySelector<HTMLElement>(`[data-grid-row="${row}"] > [data-grid-col="${col}"]`) ?? null;
   }, []);
 
   const moveTo = useCallback(
     (pos: GridPos) => {
       touched.current = true;
       pendingFocus.current = true;
-      const key = pos.row === 0 ? HEADER : loadedKeys[pos.row - 1] ?? HEADER;
+      const key = pos.row === 0 ? HEADER : (loadedKeys[pos.row - 1] ?? HEADER);
       setActive({ key, col: pos.col });
       if (pos.row > 0) {
         quietScrollUntil.current = performance.now() + 250;
-        virtualizer.scrollToIndex(pos.row - 1, { align: "auto" });
+        virtualizer.scrollToIndex(pos.row - 1, { align: 'auto' });
       }
     },
     [loadedKeys, virtualizer],
@@ -424,7 +403,7 @@ export function VirtualTable<T>({
     const grid = gridRef.current;
     if (!grid) return;
     let target: HTMLElement | null = null;
-    for (const cell of grid.querySelectorAll<HTMLElement>("[data-grid-col]")) {
+    for (const cell of grid.querySelectorAll<HTMLElement>('[data-grid-col]')) {
       const row = Number(cell.parentElement?.dataset.gridRow);
       const col = Number(cell.dataset.gridCol);
       const isActive = row === activeRow && col === activeCol;
@@ -435,9 +414,7 @@ export function VirtualTable<T>({
       }
       if (isActive) target = focusable;
     }
-    const lost =
-      focusWithin.current &&
-      (document.activeElement === document.body || document.activeElement === null);
+    const lost = focusWithin.current && (document.activeElement === document.body || document.activeElement === null);
     if (target && (pendingFocus.current || lost)) {
       pendingFocus.current = false;
       target.focus({ preventScroll: true });
@@ -463,18 +440,15 @@ export function VirtualTable<T>({
         return;
       }
       setActive({ key, col: colCount - 1 });
-      virtualizer.scrollToIndex(index, { align: "auto" });
+      virtualizer.scrollToIndex(index, { align: 'auto' });
     },
     [colCount, virtualizer],
   );
 
-  const openMenu = useCallback(
-    (key: string, anchor: MenuAnchor) => {
-      setReveal(null);
-      setMenu({ key, anchor });
-    },
-    [],
-  );
+  const openMenu = useCallback((key: string, anchor: MenuAnchor) => {
+    setReveal(null);
+    setMenu({ key, anchor });
+  }, []);
 
   const menuRef = useRef(menu);
   menuRef.current = menu;
@@ -487,13 +461,11 @@ export function VirtualTable<T>({
     [restoreFocusTo],
   );
 
-  const menuRow = menu
-    ? (rows[loadedKeys.indexOf(menu.key)]?.original as T | undefined)
-    : undefined;
+  const menuRow = menu ? (rows[loadedKeys.indexOf(menu.key)]?.original as T | undefined) : undefined;
 
   // ── Events ─────────────────────────────────────────────────────────────────
   const posOf = (el: Element | null): GridPos | null => {
-    const cell = el?.closest<HTMLElement>("[data-grid-col]");
+    const cell = el?.closest<HTMLElement>('[data-grid-col]');
     const row = cell?.parentElement?.dataset.gridRow;
     if (!cell || row === undefined) return null;
     return { row: Number(row), col: Number(cell.dataset.gridCol) };
@@ -504,12 +476,12 @@ export function VirtualTable<T>({
     const pos = posOf(e.target);
     if (!pos) return;
     touched.current = true;
-    const key = pos.row === 0 ? HEADER : loadedKeys[pos.row - 1] ?? HEADER;
+    const key = pos.row === 0 ? HEADER : (loadedKeys[pos.row - 1] ?? HEADER);
     if (key !== active.key || pos.col !== active.col) setActive({ key, col: pos.col });
     // The reveal follows focus: it closes on the cell focus left, and opens on the one it reached
     // if that cell's value is clipped.
     setReveal(null);
-    const cell = e.target.closest<HTMLElement>("[data-grid-col]");
+    const cell = e.target.closest<HTMLElement>('[data-grid-col]');
     if (cell && e.target === cell) openReveal(cell);
   };
 
@@ -524,10 +496,10 @@ export function VirtualTable<T>({
   const copyCell = (cell: HTMLElement) => {
     const text = cell.dataset.full;
     if (!text || !navigator.clipboard) return false;
-    setAnnouncement((prev) => (prev === null ? "" : prev));
+    setAnnouncement((prev) => (prev === null ? '' : prev));
     void navigator.clipboard.writeText(text).then(
       () => setAnnouncement(`Copied ${text}`),
-      () => setAnnouncement("Copy failed: the browser refused access to the clipboard."),
+      () => setAnnouncement('Copy failed: the browser refused access to the clipboard.'),
     );
     return true;
   };
@@ -536,40 +508,40 @@ export function VirtualTable<T>({
     const pos = posOf(e.target as Element);
     if (!pos) return;
     const target = e.target as HTMLElement;
-    const cell = target.closest<HTMLElement>("[data-grid-col]")!;
+    const cell = target.closest<HTMLElement>('[data-grid-col]')!;
     const onWidget = target !== cell;
     const body = pos.row > 0;
     const row = body ? (rows[pos.row - 1]?.original as T | undefined) : undefined;
     const key = body ? loadedKeys[pos.row - 1] : undefined;
 
     // The row menu, from the keyboard: Shift+F10 or the ContextMenu key.
-    if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+    if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') {
       if (!rowMenu || !key) return;
       e.preventDefault();
       suppressContextMenuUntil.current = performance.now() + 500;
-      const trigger = cellAt(pos.row, colCount - 1)?.querySelector("button");
+      const trigger = cellAt(pos.row, colCount - 1)?.querySelector('button');
       openMenu(key, anchorBelow(trigger ?? cell));
       return;
     }
 
-    if (e.key === "Escape" && reveal) {
+    if (e.key === 'Escape' && reveal) {
       setReveal(null);
       return;
     }
 
-    if ((e.key === "c" || e.key === "C") && (e.ctrlKey || e.metaKey) && !e.altKey) {
+    if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && !e.altKey) {
       if (window.getSelection()?.toString()) return;
       if (copyCell(cell)) e.preventDefault();
       return;
     }
 
-    if (e.key === "Enter" && body && !onWidget && row !== undefined && onRowClick) {
+    if (e.key === 'Enter' && body && !onWidget && row !== undefined && onRowClick) {
       e.preventDefault();
       onRowClick(row);
       return;
     }
 
-    if (e.key === " " && body && !onWidget && selectable && key !== undefined) {
+    if (e.key === ' ' && body && !onWidget && selectable && key !== undefined) {
       e.preventDefault();
       onToggleRow?.(key);
       return;
@@ -583,28 +555,25 @@ export function VirtualTable<T>({
       e.ctrlKey &&
       e.shiftKey &&
       !e.altKey &&
-      (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+      (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
       dataIndex >= 0 &&
       dataIndex < columns.length
     ) {
       e.preventDefault();
       const column = columns[dataIndex];
-      const grow = (e.key === "ArrowRight") !== isRtl();
+      const grow = (e.key === 'ArrowRight') !== isRtl();
       const current = widths[column.id] ?? cell.getBoundingClientRect().width;
       const width = Math.round(Math.max(RESIZE_MIN_WIDTH, current + (grow ? RESIZE_STEP : -RESIZE_STEP)));
       setWidth(column.id, width);
       // Mounted empty first when it is new, like a copy's announcement, so it is read out.
-      setAnnouncement((prev) => (prev === null ? "" : prev));
+      setAnnouncement((prev) => (prev === null ? '' : prev));
       requestAnimationFrame(() => setAnnouncement(`${column.header} column, ${width} pixels`));
       return;
     }
 
     if (e.altKey) return;
     const scroll = scrollRef.current;
-    const page = Math.max(
-      1,
-      Math.floor(((scroll?.clientHeight ?? ROW_HEIGHT * 10) - headerHeight) / ROW_HEIGHT) - 1,
-    );
+    const page = Math.max(1, Math.floor(((scroll?.clientHeight ?? ROW_HEIGHT * 10) - headerHeight) / ROW_HEIGHT) - 1);
     const next = nextCell(pos, e, {
       rows: rows.length,
       cols: colCount,
@@ -628,7 +597,7 @@ export function VirtualTable<T>({
     // in a field, when Shift asks for it, and when text is selected (copy).
     if (
       e.shiftKey ||
-      target.closest("a[href], input, textarea, select, [contenteditable]") ||
+      target.closest('a[href], input, textarea, select, [contenteditable]') ||
       window.getSelection()?.toString()
     ) {
       return;
@@ -658,20 +627,18 @@ export function VirtualTable<T>({
     widths[c.id] ?? (c.width ? Math.max(c.width, fits[c.id] ?? 0) : Math.max(FLEX_MIN_WIDTH, fits[c.id] ?? 0));
   const template = [
     selectable ? `${SELECT_COL_WIDTH}px` : null,
-    ...columns.map((c) =>
-      widths[c.id] || c.width ? `${floorOf(c)}px` : `minmax(${floorOf(c)}px, 1fr)`,
-    ),
+    ...columns.map((c) => (widths[c.id] || c.width ? `${floorOf(c)}px` : `minmax(${floorOf(c)}px, 1fr)`)),
     rowMenu ? `${ACTIONS_COL_WIDTH}px` : null,
   ]
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
   const minInline =
     (selectable ? SELECT_COL_WIDTH : 0) +
     columns.reduce((sum, c) => sum + floorOf(c), 0) +
     (rowMenu ? ACTIONS_COL_WIDTH : 0);
 
-  const sortField = sort?.replace(/^-/, "");
-  const sortDesc = sort?.startsWith("-");
+  const sortField = sort?.replace(/^-/, '');
+  const sortDesc = sort?.startsWith('-');
 
   const nextSort = (key: string): string | undefined => {
     if (sortField !== key) return key;
@@ -694,13 +661,10 @@ export function VirtualTable<T>({
     return <div className={styles.empty}>{emptyLabel}</div>;
   }
 
-  const selectedCount = selected
-    ? loadedKeys.filter((k) => selected.has(k)).length
-    : 0;
-  const allSelected =
-    loadedKeys.length > 0 && selectedCount === loadedKeys.length;
+  const selectedCount = selected ? loadedKeys.filter((k) => selected.has(k)).length : 0;
+  const allSelected = loadedKeys.length > 0 && selectedCount === loadedKeys.length;
   const actionsCol = colCount - 1;
-  const rtl = typeof document !== "undefined" && document.dir === "rtl";
+  const rtl = typeof document !== 'undefined' && document.dir === 'rtl';
 
   return (
     <div
@@ -724,9 +688,9 @@ export function VirtualTable<T>({
         onKeyDown={onGridKeyDown}
         style={
           {
-            "--as-cols": template,
-            "--as-min-inline": `${minInline}px`,
-            "--as-row-h": `${ROW_HEIGHT}px`,
+            '--as-cols': template,
+            '--as-min-inline': `${minInline}px`,
+            '--as-row-h': `${ROW_HEIGHT}px`,
           } as React.CSSProperties
         }
       >
@@ -748,11 +712,7 @@ export function VirtualTable<T>({
             >
               <Checkbox
                 size="xs"
-                aria-label={
-                  allSelected
-                    ? "Deselect all on this page"
-                    : "Select all on this page"
-                }
+                aria-label={allSelected ? 'Deselect all on this page' : 'Select all on this page'}
                 checked={allSelected}
                 indeterminate={selectedCount > 0 && !allSelected}
                 onChange={() => onToggleAll?.(loadedKeys, allSelected)}
@@ -765,9 +725,9 @@ export function VirtualTable<T>({
               ? undefined
               : sortField === c.sortKey
                 ? sortDesc
-                  ? "descending"
-                  : "ascending"
-                : "none";
+                  ? 'descending'
+                  : 'ascending'
+                : 'none';
             return (
               <div
                 key={c.id}
@@ -785,9 +745,7 @@ export function VirtualTable<T>({
                     onClick={() => onSortChange?.(nextSort(c.sortKey!))}
                   >
                     {c.header}
-                    <span aria-hidden="true">
-                      {sortField === c.sortKey ? (sortDesc ? " ▾" : " ▴") : ""}
-                    </span>
+                    <span aria-hidden="true">{sortField === c.sortKey ? (sortDesc ? ' ▾' : ' ▴') : ''}</span>
                   </button>
                 ) : (
                   c.header
@@ -807,11 +765,7 @@ export function VirtualTable<T>({
             );
           })}
           {rowMenu ? (
-            <div
-              role="columnheader"
-              data-grid-col={actionsCol}
-              className={`${styles.cell} ${styles.headCell}`}
-            >
+            <div role="columnheader" data-grid-col={actionsCol} className={`${styles.cell} ${styles.headCell}`}>
               <VisuallyHidden>Actions</VisuallyHidden>
             </div>
           ) : null}
@@ -832,11 +786,11 @@ export function VirtualTable<T>({
                 key={key}
                 role="row"
                 aria-rowindex={vi.index + 2}
-                aria-selected={selectable ? selected?.has(key) ?? false : undefined}
+                aria-selected={selectable ? (selected?.has(key) ?? false) : undefined}
                 data-grid-row={vi.index + 1}
                 data-selected={selected?.has(key) || undefined}
                 data-menu-open={menu?.key === key || undefined}
-                className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ""} ${rowClassName?.(original) ?? ""}`}
+                className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ''} ${rowClassName?.(original) ?? ''}`}
                 onClick={
                   onRowClick
                     ? (e) => {
@@ -873,7 +827,7 @@ export function VirtualTable<T>({
                       data-numeric={c.numeric || undefined}
                       data-full={full}
                       data-grid-col={firstDataCol + i}
-                      className={`${styles.cell} ${c.numeric ? styles.num : ""}`}
+                      className={`${styles.cell} ${c.numeric ? styles.num : ''}`}
                       // An ellipsized cell still has to be readable in full: the
                       // title is the always-there fallback; the shared panel
                       // (hover / keyboard focus) adds copy.
@@ -881,16 +835,12 @@ export function VirtualTable<T>({
                       onPointerEnter={(e) => openReveal(e.currentTarget)}
                       onPointerLeave={closeReveal}
                     >
-                      {c.cell ? c.cell(original) : String(value ?? "")}
+                      {c.cell ? c.cell(original) : String(value ?? '')}
                     </div>
                   );
                 })}
                 {rowMenu ? (
-                  <div
-                    role="gridcell"
-                    data-grid-col={actionsCol}
-                    className={`${styles.cell} ${styles.actionsCell}`}
-                  >
+                  <div role="gridcell" data-grid-col={actionsCol} className={`${styles.cell} ${styles.actionsCell}`}>
                     <ActionIcon
                       variant="subtle"
                       color="gray"
@@ -952,13 +902,8 @@ export function VirtualTable<T>({
             <span className={styles.revealText}>{reveal.text}</span>
             <CopyButton value={reveal.text} timeout={1500}>
               {({ copied, copy }) => (
-                <button
-                  type="button"
-                  className={styles.revealCopy}
-                  onClick={copy}
-                  onBlur={closeReveal}
-                >
-                  {copied ? "Copied" : "Copy"}
+                <button type="button" className={styles.revealCopy} onClick={copy} onBlur={closeReveal}>
+                  {copied ? 'Copied' : 'Copy'}
                 </button>
               )}
             </CopyButton>

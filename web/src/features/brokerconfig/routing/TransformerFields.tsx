@@ -77,7 +77,9 @@ export function TransformerFields({
                     size="xs"
                     aria-label={`Value of transformer property ${k}`}
                     value={v}
-                    onChange={(e) => onChange({ ...value, properties: { ...value.properties, [k]: e.currentTarget.value } })}
+                    onChange={(e) =>
+                      onChange({ ...value, properties: { ...value.properties, [k]: e.currentTarget.value } })
+                    }
                   />
                 </Table.Td>
                 <Table.Td>

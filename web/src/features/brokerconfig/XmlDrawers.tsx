@@ -1,9 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, CopyButton, Drawer, FileButton, Group, List, Radio, Stack, Text, Textarea } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  CopyButton,
+  Drawer,
+  FileButton,
+  Group,
+  List,
+  Radio,
+  Stack,
+  Text,
+  Textarea,
+} from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchBrokerConfigXml, useAdoptBrokerConfig, useImportBrokerConfigXml, type ConfigDeclarationView, type ConfigDocumentView, type ConfigImportResultView } from './api.ts';
+import {
+  fetchBrokerConfigXml,
+  useAdoptBrokerConfig,
+  useImportBrokerConfigXml,
+  type ConfigDeclarationView,
+  type ConfigDocumentView,
+  type ConfigImportResultView,
+} from './api.ts';
 import { type ApiError } from '../../kernel/api/request.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { mergeDocuments } from './document.ts';
@@ -107,16 +126,20 @@ export function ImportXmlDrawer({
       <Stack gap="md">
         {initialNote ? (
           <Alert variant="light" color="gray" title={initialNote}>
-            This is the snippet the capability ledger shows. Preview it: the parts that are address or security
-            settings become declared entries you can apply over the management API; anything static — a plugin, an
-            acceptor — is listed under “Not applied” and still needs broker.xml.
+            This is the snippet the capability ledger shows. Preview it: the parts that are address or security settings
+            become declared entries you can apply over the management API; anything static — a plugin, an acceptor — is
+            listed under “Not applied” and still needs broker.xml.
           </Alert>
         ) : null}
         <Group justify="space-between" align="center" gap="xs">
           <Text size="xs" c="dimmed" aria-live="polite">
             {loaded ? `Loaded ${loaded}` : 'Paste below, or load a file.'}
           </Text>
-          <FileButton onChange={load} accept=".xml,application/xml,text/xml" inputProps={{ 'aria-label': 'broker.xml file' }}>
+          <FileButton
+            onChange={load}
+            accept=".xml,application/xml,text/xml"
+            inputProps={{ 'aria-label': 'broker.xml file' }}
+          >
             {(props) => (
               <Button {...props} variant="default" size="xs">
                 Load a file…
@@ -192,7 +215,12 @@ export function ImportXmlDrawer({
               </Stack>
 
               {result.errors.length > 0 ? (
-                <Alert color="red" variant="light" title={`${result.errors.length} error(s) — fix them to save`} role="alert">
+                <Alert
+                  color="red"
+                  variant="light"
+                  title={`${result.errors.length} error(s) — fix them to save`}
+                  role="alert"
+                >
                   <List size="xs" spacing={2}>
                     {result.errors.map((e, i) => (
                       <List.Item key={i}>
@@ -261,8 +289,8 @@ export function ExportXmlDrawer({
     <Drawer opened={opened} onClose={onClose} title="broker.xml fragment" position="right" size="xl" padding="md">
       <Stack gap="md">
         <Text size="xs" c="dimmed">
-          Revision {declaration.revision} as the four sections of a <code>&lt;core&gt;</code> element. Deploy it
-          through your own tooling; the next drift evaluation shows whether the running brokers match.
+          Revision {declaration.revision} as the four sections of a <code>&lt;core&gt;</code> element. Deploy it through
+          your own tooling; the next drift evaluation shows whether the running brokers match.
         </Text>
         {xml.isError ? (
           <Alert color="red" variant="light" title={xml.error.title}>
@@ -357,11 +385,15 @@ export function AdoptDrawer({
                 </Alert>
               ) : null}
               {closes.length > 0 ? (
-                <Alert color="yellow" variant="light" title={`Closes ${closes.length} open drift finding${closes.length === 1 ? '' : 's'} with zero broker writes`}>
+                <Alert
+                  color="yellow"
+                  variant="light"
+                  title={`Closes ${closes.length} open drift finding${closes.length === 1 ? '' : 's'} with zero broker writes`}
+                >
                   <Text size="xs" mb={4}>
-                    Adopting declares what the cluster already runs, so these findings disappear because the
-                    declaration moved — not because anything was fixed. Apply the current declaration instead if
-                    the cluster is what is wrong.
+                    Adopting declares what the cluster already runs, so these findings disappear because the declaration
+                    moved — not because anything was fixed. Apply the current declaration instead if the cluster is what
+                    is wrong.
                   </Text>
                   <List size="xs" spacing={2}>
                     {closes.map((c, i) => (

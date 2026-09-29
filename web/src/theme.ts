@@ -33,10 +33,8 @@ export const theme = createTheme({
   // the operating system says to reduce motion. Doing it here rather than per
   // component means a new component honours it by default rather than by review.
   respectReducedMotion: true,
-  fontFamily:
-    'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  fontFamilyMonospace:
-    'ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+  fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  fontFamilyMonospace: 'ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
   headings: {
     fontWeight: '600',
   },

@@ -39,9 +39,7 @@ const { RootLayout } = await import('./RootLayout.tsx');
 // even with no active cluster — a pre-existing behavior, not introduced here.
 function mockEmptyQueues() {
   server.use(
-    http.get(/\/api\/v1\/clusters\/.*\/queues/, () =>
-      HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 }),
-    ),
+    http.get(/\/api\/v1\/clusters\/.*\/queues/, () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
     // ClusterRailNav groups clusters by environment (authorization spec).
     http.get('*/api/v1/environments', () => HttpResponse.json([])),

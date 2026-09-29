@@ -124,9 +124,7 @@ export function RuleForm({
   const valid =
     name.trim() &&
     severity &&
-    (kind === 'METRIC_THRESHOLD'
-      ? metric && comparator && threshold !== ''
-      : Boolean(stateCondition));
+    (kind === 'METRIC_THRESHOLD' ? metric && comparator && threshold !== '' : Boolean(stateCondition));
 
   const submit = () => {
     if (!valid) return;
@@ -261,8 +259,8 @@ export function RuleForm({
       ) : null}
       {kind === 'METRIC_THRESHOLD' && pluginMetric ? (
         <Text size="xs" c="dimmed" maw={720}>
-          {pluginMetric.description} Published by the {pluginMetric.plugin} plugin and sampled on every
-          queue scrape; the rule fires per {pluginMetric.subject}.
+          {pluginMetric.description} Published by the {pluginMetric.plugin} plugin and sampled on every queue scrape;
+          the rule fires per {pluginMetric.subject}.
         </Text>
       ) : null}
 
@@ -276,12 +274,7 @@ export function RuleForm({
           w={320}
           disabled={channels.length === 0}
         />
-        <Checkbox
-          label="Enabled"
-          checked={enabled}
-          onChange={(e) => setEnabled(e.currentTarget.checked)}
-          mb={8}
-        />
+        <Checkbox label="Enabled" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} mb={8} />
         <Group gap="xs">
           <Button onClick={submit} loading={submitting} disabled={!valid}>
             {initial ? 'Save' : 'Add rule'}

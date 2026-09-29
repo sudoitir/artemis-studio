@@ -65,9 +65,9 @@ export function FindingsInbox() {
 
       <Stack gap={4}>
         <Text size="sm">
-          A finding is personal data the detectors recognised in a field no masking rule names. Those values are
-          already masked. Confirm a finding to make it a rule, or dismiss it as a false positive so that field is no
-          longer masked for that class.
+          A finding is personal data the detectors recognised in a field no masking rule names. Those values are already
+          masked. Confirm a finding to make it a rule, or dismiss it as a false positive so that field is no longer
+          masked for that class.
         </Text>
         {canWrite ? null : (
           <Text size="sm" c="dimmed">
@@ -86,7 +86,13 @@ export function FindingsInbox() {
       />
 
       {failure ? (
-        <Alert variant="light" color="red" title="The decision did not apply" withCloseButton onClose={() => setFailure(null)}>
+        <Alert
+          variant="light"
+          color="red"
+          title="The decision did not apply"
+          withCloseButton
+          onClose={() => setFailure(null)}
+        >
           {failure}
         </Alert>
       ) : null}

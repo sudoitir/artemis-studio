@@ -1,15 +1,4 @@
-import {
-  Anchor,
-  Badge,
-  Button,
-  Code,
-  CopyButton,
-  Group,
-  Paper,
-  Stack,
-  Table,
-  Text,
-} from '@mantine/core';
+import { Anchor, Badge, Button, Code, CopyButton, Group, Paper, Stack, Table, Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import { absoluteLabel } from '../../kernel/time/time.ts';
@@ -72,12 +61,14 @@ export function FindingCard({
               Accepted as a known risk
             </Text>{' '}
             by {accepted.acceptedBy} on {absoluteLabel(accepted.createdAt)}
-            {accepted.expiresAt ? `, until ${absoluteLabel(accepted.expiresAt)}` : ', until revoked'}: “{accepted.reason}”
+            {accepted.expiresAt ? `, until ${absoluteLabel(accepted.expiresAt)}` : ', until revoked'}: “
+            {accepted.reason}”
           </Text>
         ) : null}
         {expired ? (
           <Text size="sm" c="var(--as-warning)">
-            An acceptance by {expired.acceptedBy} expired on {absoluteLabel(expired.expiresAt)}; the finding is open again.
+            An acceptance by {expired.acceptedBy} expired on {absoluteLabel(expired.expiresAt)}; the finding is open
+            again.
           </Text>
         ) : null}
 
@@ -97,7 +88,9 @@ export function FindingCard({
                 <Table.Tr key={`${e.node}|${e.key}|${i}`}>
                   <Table.Td>{e.node ?? 'cluster'}</Table.Td>
                   <Table.Td>{e.key}</Table.Td>
-                  <Table.Td style={{ fontFamily: 'var(--mantine-font-family-monospace)', fontVariantNumeric: 'tabular-nums' }}>
+                  <Table.Td
+                    style={{ fontFamily: 'var(--mantine-font-family-monospace)', fontVariantNumeric: 'tabular-nums' }}
+                  >
                     {e.value ?? '—'}
                   </Table.Td>
                 </Table.Tr>
@@ -120,7 +113,12 @@ export function FindingCard({
               </Text>
               <CopyButton value={f.snippet} timeout={1500}>
                 {({ copied, copy }) => (
-                  <Button size="compact-xs" variant="subtle" onClick={copy} aria-label={`Copy the broker.xml fix for ${f.code}`}>
+                  <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    onClick={copy}
+                    aria-label={`Copy the broker.xml fix for ${f.code}`}
+                  >
                     {copied ? 'Copied' : 'Copy'}
                   </Button>
                 )}

@@ -1,13 +1,6 @@
 import { memo, useContext, useEffect, useRef } from 'react';
 import { Handle, Position, useConnection, type NodeProps } from '@xyflow/react';
-import {
-  IconArrowFork,
-  IconBuildingBridge2,
-  IconInbox,
-  IconServer2,
-  IconStack2,
-  type Icon,
-} from '@tabler/icons-react';
+import { IconArrowFork, IconBuildingBridge2, IconInbox, IconServer2, IconStack2, type Icon } from '@tabler/icons-react';
 
 import { RoutingCanvasContext } from './canvasContext.ts';
 import { composes, ENDS, KIND_WORDS, nodeSentence, STARTS, STATE_SHORT, type RoutingKind } from './routingGraph.ts';

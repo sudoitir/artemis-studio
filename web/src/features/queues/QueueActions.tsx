@@ -76,7 +76,11 @@ function WithQueue({
         {isPending ? (
           <Text size="sm">Looking the queue up…</Text>
         ) : (
-          <Alert color="yellow" variant="light" title={isError ? 'The queue could not be read' : 'The queue is not there'}>
+          <Alert
+            color="yellow"
+            variant="light"
+            title={isError ? 'The queue could not be read' : 'The queue is not there'}
+          >
             {isError
               ? 'Studio could not read the queue list just now. Try again in a moment.'
               : `No queue named ${target.queueName} is on this cluster now. It may have been deleted since this view was loaded.`}
@@ -120,8 +124,8 @@ function PauseQueueDialog({
           {setPaused.isPending ? <Text size="sm">{paused ? 'Resuming' : 'Pausing'} on every live node…</Text> : null}
           {setPaused.isError ? (
             <Alert color="red" variant="light" title={setPaused.error.title} role="alert">
-              {setPaused.error.message} Nothing was changed where the request failed; try again, or check the
-              node in Topology.
+              {setPaused.error.message} Nothing was changed where the request failed; try again, or check the node in
+              Topology.
             </Alert>
           ) : null}
           {outcome ? <NodeOutcomeSummary outcome={outcome} /> : null}
@@ -237,9 +241,7 @@ export function DeleteQueue({ clusterId, target, host }: ActionProps<QueueTarget
         host.open(WithQueue, {
           clusterId,
           target,
-          render: (q, dialog) => (
-            <DeleteQueueDialog {...dialog} clusterId={clusterId} queue={q} onDeleted={() => {}} />
-          ),
+          render: (q, dialog) => <DeleteQueueDialog {...dialog} clusterId={clusterId} queue={q} onDeleted={() => {}} />,
         })
       }
     />

@@ -86,12 +86,7 @@ export function ConfigurationView() {
 
   return (
     <Stack gap="md">
-      <StatusBar
-        declaration={d}
-        applyGate={applyGate}
-        studioManaged={studioManaged}
-        onReview={() => setScope({})}
-      />
+      <StatusBar declaration={d} applyGate={applyGate} studioManaged={studioManaged} onReview={() => setScope({})} />
 
       <Group justify="space-between" align="flex-start" wrap="wrap">
         {d.declared ? <ModeControl declaration={d} canWrite={canWrite} /> : <div />}
@@ -122,8 +117,8 @@ export function ConfigurationView() {
             <Stack gap="xs">
               <Text size="sm">
                 A declaration is the configuration Studio can apply over the management API and measure every live node
-                against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is declared
-                for this cluster yet, so there is nothing to compare the nodes with.
+                against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is
+                declared for this cluster yet, so there is nothing to compare the nodes with.
               </Text>
               <Text size="sm">
                 Start with <b>Adopt from cluster</b> to take what the brokers run today, <b>Import XML</b> to paste a

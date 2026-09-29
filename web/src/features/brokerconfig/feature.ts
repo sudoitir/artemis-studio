@@ -60,7 +60,14 @@ export const brokerconfigFeature = defineFeature({
       hotkey: 'k',
       permission: 'cluster:read',
     },
-    { group: 'configuration', order: 20, label: 'Config diff', icon: IconGitCompare, path: 'config-diff', permission: 'cluster:read' },
+    {
+      group: 'configuration',
+      order: 20,
+      label: 'Config diff',
+      icon: IconGitCompare,
+      path: 'config-diff',
+      permission: 'cluster:read',
+    },
   ],
   slots: {
     'cluster.registration.afterProbe': [

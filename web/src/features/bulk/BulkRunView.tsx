@@ -9,7 +9,13 @@ import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
-import { useBulkRun, useBulkStop, type BulkItemView, type BulkRunView as Run, type LifecycleOutcomeView } from './api.ts';
+import {
+  useBulkRun,
+  useBulkStop,
+  type BulkItemView,
+  type BulkRunView as Run,
+  type LifecycleOutcomeView,
+} from './api.ts';
 import { itemStatus, OPERATIONS, plural, runStatus } from './words.ts';
 
 /** An acted-on queue's per-node result, in the single-queue command's shape. */
@@ -166,11 +172,7 @@ export function BulkRunView() {
 
       {/* Announced as it changes; the terminal outcome is what a screen-reader user waits for. */}
       <div role="status" aria-live="polite" aria-label="Run outcome">
-        <Text
-          size="sm"
-          fw={600}
-          c={toneColor(status.tone)}
-        >
+        <Text size="sm" fw={600} c={toneColor(status.tone)}>
           {TERMINAL.has(run.status) ? `This run finished. ${status.text}.` : `${status.text}.`}
         </Text>
         <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -192,7 +194,13 @@ export function BulkRunView() {
         </Alert>
       ) : null}
 
-      <VirtualTable label="Queues in this run" storageKey="bulk.run" columns={columns} data={items} rowKey={(i) => i.queueName} />
+      <VirtualTable
+        label="Queues in this run"
+        storageKey="bulk.run"
+        columns={columns}
+        data={items}
+        rowKey={(i) => i.queueName}
+      />
 
       {opened ? (
         <Stack gap="xs">
@@ -217,8 +225,8 @@ export function BulkRunView() {
       <Modal opened={stopOpen} onClose={() => setStopOpen(false)} title="Stop this run?">
         <Stack gap="sm">
           <Text size="sm">
-            The queue being acted on now finishes; every queue after it is cancelled and left as it is. What has
-            already been done is not undone.
+            The queue being acted on now finishes; every queue after it is cancelled and left as it is. What has already
+            been done is not undone.
           </Text>
           <Group justify="flex-end">
             <Button

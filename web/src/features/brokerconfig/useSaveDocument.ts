@@ -17,11 +17,7 @@ export function useSaveDocument(declaration: ConfigDeclarationView, onSaved: () 
       document: ConfigDocumentView,
       note: string,
       provenance?: { source: 'EDIT' | 'IMPORT_XML' | 'ADOPT'; confirm?: string },
-    ) =>
-      save.mutate(
-        { document, expectedRevision: declaration.revision, note, ...provenance },
-        { onSuccess: onSaved },
-      ),
+    ) => save.mutate({ document, expectedRevision: declaration.revision, note, ...provenance }, { onSuccess: onSaved }),
     isPending: save.isPending,
     error: save.isError ? save.error : null,
     reset: save.reset,

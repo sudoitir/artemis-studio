@@ -13,60 +13,52 @@ import type { SqlRowView } from './api.ts';
 
 /** The columns an export carries, in the order they appear. */
 const FIELDS: { key: string; of: (row: SqlRowView) => unknown }[] = [
-  { key: "source", of: (r) => r.source },
-  { key: "origin", of: (r) => r.origin },
-  { key: "node", of: (r) => r.nodeName },
-  { key: "queue", of: (r) => r.queueName },
-  { key: "address", of: (r) => r.address },
-  { key: "messageId", of: (r) => r.messageId },
-  { key: "sourceMessageId", of: (r) => r.sourceMessageId },
+  { key: 'source', of: (r) => r.source },
+  { key: 'origin', of: (r) => r.origin },
+  { key: 'node', of: (r) => r.nodeName },
+  { key: 'queue', of: (r) => r.queueName },
+  { key: 'address', of: (r) => r.address },
+  { key: 'messageId', of: (r) => r.messageId },
+  { key: 'sourceMessageId', of: (r) => r.sourceMessageId },
   {
-    key: "timestamp",
-    of: (r) => (r.timestamp ? new Date(r.timestamp).toISOString() : ""),
+    key: 'timestamp',
+    of: (r) => (r.timestamp ? new Date(r.timestamp).toISOString() : ''),
   },
-  { key: "priority", of: (r) => r.priority },
-  { key: "durable", of: (r) => r.durable },
-  { key: "size", of: (r) => r.size },
-  { key: "correlationId", of: (r) => r.correlationId },
-  { key: "groupId", of: (r) => r.groupId },
-  { key: "replyTo", of: (r) => r.replyTo },
-  { key: "body", of: (r) => r.body },
-  { key: "bodyTruncated", of: (r) => r.bodyTruncated },
-  { key: "properties", of: (r) => JSON.stringify(r.properties ?? {}) },
+  { key: 'priority', of: (r) => r.priority },
+  { key: 'durable', of: (r) => r.durable },
+  { key: 'size', of: (r) => r.size },
+  { key: 'correlationId', of: (r) => r.correlationId },
+  { key: 'groupId', of: (r) => r.groupId },
+  { key: 'replyTo', of: (r) => r.replyTo },
+  { key: 'body', of: (r) => r.body },
+  { key: 'bodyTruncated', of: (r) => r.bodyTruncated },
+  { key: 'properties', of: (r) => JSON.stringify(r.properties ?? {}) },
 ];
 
 /** RFC 4180: quote everything, double the quotes inside. Bodies contain commas and newlines. */
 function csvCell(value: unknown): string {
-  if (value === null || value === undefined) return "";
+  if (value === null || value === undefined) return '';
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
 export function toCsv(rows: SqlRowView[]): string {
-  const header = FIELDS.map((f) => f.key).join(",");
-  const body = rows.map((row) =>
-    FIELDS.map((f) => csvCell(f.of(row))).join(","),
-  );
-  return [header, ...body].join("\r\n");
+  const header = FIELDS.map((f) => f.key).join(',');
+  const body = rows.map((row) => FIELDS.map((f) => csvCell(f.of(row))).join(','));
+  return [header, ...body].join('\r\n');
 }
 
 export function toJson(rows: SqlRowView[]): string {
   return JSON.stringify(
-    rows.map((row) =>
-      Object.fromEntries(FIELDS.map((f) => [f.key, f.of(row)])),
-    ),
+    rows.map((row) => Object.fromEntries(FIELDS.map((f) => [f.key, f.of(row)]))),
     null,
     2,
   );
 }
 
 /** Hand the file to the browser. Same-document blob, nothing leaves the machine. */
-export function download(
-  filename: string,
-  contents: string,
-  type: string,
-): void {
+export function download(filename: string, contents: string, type: string): void {
   const url = URL.createObjectURL(new Blob([contents], { type }));
-  const link = document.createElement("a");
+  const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);

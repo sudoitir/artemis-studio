@@ -116,8 +116,8 @@ export function ActivationProgress({
             <Alert variant="light" title="Studio is restarting">
               <Text size="sm">
                 <Loader size="xs" mr={6} />
-                {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is
-                back, usually under a minute.
+                {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is back,
+                usually under a minute.
               </Text>
             </Alert>
           ) : (

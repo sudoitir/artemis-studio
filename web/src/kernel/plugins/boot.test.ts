@@ -26,9 +26,15 @@ describe('plugin boot', () => {
   });
 
   it('loads an active plugin with a UI and leaves the others alone', async () => {
-    const fed = federation({ [remoteName('acme-notes')]: async () => ({ default: { contract: CONTRACT, id: 'acme-notes' } }) });
+    const fed = federation({
+      [remoteName('acme-notes')]: async () => ({ default: { contract: CONTRACT, id: 'acme-notes' } }),
+    });
     const result = await loadPlugins(
-      [withUi('acme-notes'), pluginEntry('acme-headless'), withUi('acme-off') && { ...withUi('acme-off'), status: 'disabled' }],
+      [
+        withUi('acme-notes'),
+        pluginEntry('acme-headless'),
+        withUi('acme-off') && { ...withUi('acme-off'), status: 'disabled' },
+      ],
       fed.load as never,
     );
     expect(fed.registered).toEqual(['plugin_acme_notes']);

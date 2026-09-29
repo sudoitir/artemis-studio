@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -61,7 +67,14 @@ function inventory(plugins: PluginView[], overrides: Partial<PluginsView> = {}):
     safeMode: false,
     safeModeReason: null,
     budget: { maxConnections: 100, inUse: 13, limit: 80, perPlugin: 3 },
-    restart: { supervised: true, needed: false, restarting: false, allowedAt: null, command: 'docker compose restart studio', unreleased: [] },
+    restart: {
+      supervised: true,
+      needed: false,
+      restarting: false,
+      allowedAt: null,
+      command: 'docker compose restart studio',
+      unreleased: [],
+    },
     plugins,
     ...overrides,
   } as PluginsView;
@@ -76,8 +89,14 @@ const PLAN: PluginPlanView = {
   updateSql: 'CREATE TABLE note (id uuid);',
   reversible: false,
   diff: {
-    permissionsAdded: [], permissionsRemoved: [], settingKeysAdded: [], settingKeysRemoved: [],
-    streamTopicsAdded: [], streamTopicsRemoved: [], mcpToolsAdded: [], mcpToolsRemoved: [],
+    permissionsAdded: [],
+    permissionsRemoved: [],
+    settingKeysAdded: [],
+    settingKeysRemoved: [],
+    streamTopicsAdded: [],
+    streamTopicsRemoved: [],
+    mcpToolsAdded: [],
+    mcpToolsRemoved: [],
   },
   rolesLosingPermission: {},
   compatible: true,
@@ -117,7 +136,10 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('Administration → Plugins', () => {
   it('teaches what plugins are when there are none, and where to start', async () => {
-    server.use(me(), http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([]))));
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([]))),
+    );
     renderPanel();
     expect(await screen.findByText('No plugins yet')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Build a plugin →' })).toBeInTheDocument();
@@ -131,7 +153,10 @@ describe('Administration → Plugins', () => {
         HttpResponse.json(
           inventory([], {
             canInstall: false,
-            cannotInstall: { code: 'plugin-installer-required', message: 'Only someone who can install plugins can do this.' },
+            cannotInstall: {
+              code: 'plugin-installer-required',
+              message: 'Only someone who can install plugins can do this.',
+            },
           }),
         ),
       ),
@@ -143,7 +168,10 @@ describe('Administration → Plugins', () => {
   });
 
   it('says so when installing is switched off', async () => {
-    server.use(me(), http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([], { uploadEnabled: false }))));
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([], { uploadEnabled: false }))),
+    );
     renderPanel();
     expect(await screen.findByText(/switched off on this installation/)).toBeInTheDocument();
   });
@@ -180,7 +208,12 @@ describe('Administration → Plugins', () => {
             status: 422,
             detail: 'refused',
             violations: [
-              { code: 'manifest-attribute', message: 'Class-Path is not allowed.', fix: 'Shade dependencies instead.', severity: 'ERROR' },
+              {
+                code: 'manifest-attribute',
+                message: 'Class-Path is not allowed.',
+                fix: 'Shade dependencies instead.',
+                severity: 'ERROR',
+              },
               { code: 'denied-call', message: 'Calls System.exit.', fix: 'Remove the call.', severity: 'ERROR' },
             ],
           },
@@ -208,7 +241,17 @@ describe('Administration → Plugins', () => {
       me(),
       http.get('*/api/v1/admin/plugins', () =>
         HttpResponse.json(
-          inventory(activated ? [plugin({ status, progress: status === 'activating' ? 'migrating' : null, activatedAt: new Date().toISOString() })] : []),
+          inventory(
+            activated
+              ? [
+                  plugin({
+                    status,
+                    progress: status === 'activating' ? 'migrating' : null,
+                    activatedAt: new Date().toISOString(),
+                  }),
+                ]
+              : [],
+          ),
         ),
       ),
       http.put('*/api/v1/admin/plugins/upload', () =>
@@ -251,17 +294,32 @@ describe('Administration → Plugins', () => {
       me(new Date(Date.now() - 10 * 60_000).toISOString()),
       http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([]))),
       http.put('*/api/v1/admin/plugins/upload', () =>
-        HttpResponse.json({ sha256: 'b'.repeat(64), plan: { ...PLAN, activationClass: 'INSTANT', pendingChangesets: [], updateSql: '' }, warnings: [] }, { status: 201 }),
+        HttpResponse.json(
+          {
+            sha256: 'b'.repeat(64),
+            plan: { ...PLAN, activationClass: 'INSTANT', pendingChangesets: [], updateSql: '' },
+            warnings: [],
+          },
+          { status: 201 },
+        ),
       ),
       http.post('*/api/v1/auth/reauthenticate', async () => {
         reauthenticated = true;
-        return HttpResponse.json({ method: 'PASSWORD', startPath: null, authenticatedAt: new Date().toISOString(), windowSeconds: 300 });
+        return HttpResponse.json({
+          method: 'PASSWORD',
+          startPath: null,
+          authenticatedAt: new Date().toISOString(),
+          windowSeconds: 300,
+        });
       }),
     );
     const user = userEvent.setup();
     const { container } = renderPanel();
     await screen.findByText('No plugins yet');
-    await user.upload(container.ownerDocument.querySelector('input[type="file"]') as HTMLInputElement, new File(['PK'], 'n.jar'));
+    await user.upload(
+      container.ownerDocument.querySelector('input[type="file"]') as HTMLInputElement,
+      new File(['PK'], 'n.jar'),
+    );
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
 
     expect(screen.getByText('Confirm it is you')).toBeInTheDocument();
@@ -279,7 +337,9 @@ describe('Administration → Plugins', () => {
     let purged = false;
     server.use(
       me(),
-      http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([plugin({ status: 'uninstalled', activatedAt: null })]))),
+      http.get('*/api/v1/admin/plugins', () =>
+        HttpResponse.json(inventory([plugin({ status: 'uninstalled', activatedAt: null })])),
+      ),
       http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])),
       http.post('*/api/v1/admin/plugins/acme-notes/purge', ({ request }) => {
         if (new URL(request.url).searchParams.get('dryRun') === 'false') purged = true;
@@ -330,7 +390,9 @@ describe('Administration → Plugins', () => {
 
     server.use(
       http.get('*/api/v1/admin/plugins', () =>
-        HttpResponse.json(inventory([waiting], { restart: { ...inventory([]).restart, needed: true, supervised: false } })),
+        HttpResponse.json(
+          inventory([waiting], { restart: { ...inventory([]).restart, needed: true, supervised: false } }),
+        ),
       ),
     );
     renderPanel();
@@ -339,7 +401,10 @@ describe('Administration → Plugins', () => {
   });
 
   it('shows what a drop will do before anything is installed', async () => {
-    server.use(me(), http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([]))));
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory([]))),
+    );
     renderPanel();
     const empty = await screen.findByText('No plugins yet');
     fireEvent.dragOver(empty);

@@ -123,10 +123,12 @@ async function encode(webm: string, name: string, skip: number, size: typeof SIZ
   await run('ffmpeg', [
     '-y',
     ...trim,
-    '-i', palette,
+    '-i',
+    palette,
     // No dithering: this is a flat, dark UI with large areas of one colour, so
     // dithering buys nothing visible and roughly doubles the file.
-    '-lavfi', `${filters}[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle`,
+    '-lavfi',
+    `${filters}[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle`,
     join(OUT, `${name}.gif`),
   ]);
   // The MP4 is a fraction of the size and is what a page with a player should
@@ -134,8 +136,17 @@ async function encode(webm: string, name: string, skip: number, size: typeof SIZ
   await run('ffmpeg', [
     '-y',
     ...trim,
-    '-vf', `scale=${size.width}:-2`,
-    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '26', '-movflags', '+faststart', '-an',
+    '-vf',
+    `scale=${size.width}:-2`,
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
+    '-crf',
+    '26',
+    '-movflags',
+    '+faststart',
+    '-an',
     join(OUT, `${name}.mp4`),
   ]);
   console.log(`wrote docs/img/${name}.gif and ${name}.mp4`);
@@ -204,13 +215,18 @@ await clip('demo', async (page, clusterId, mark) => {
   await navigate(page, 'DLQ');
   // The DLQ view is cards, not a grid — waiting for a row here waits for a
   // timeout and puts twelve dead seconds in the middle of the clip.
-  await page.getByText(/dead-letter queues/i).first().waitFor({ timeout: 20_000 });
+  await page
+    .getByText(/dead-letter queues/i)
+    .first()
+    .waitFor({ timeout: 20_000 });
   await hold(page, 1_800);
 
   // Who produces where and who consumes it, moving: the view no other Artemis console has.
   await navigate(page, 'Flow');
   const queue = page.locator('.react-flow__node-queue').first();
-  await queue.waitFor({ timeout: 60_000 }).catch(() => console.warn('demo: flow graph not drawn — let the seed run longer'));
+  await queue
+    .waitFor({ timeout: 60_000 })
+    .catch(() => console.warn('demo: flow graph not drawn — let the seed run longer'));
   await hold(page, 2_400);
   // Hovering a queue keeps its whole path bright and fades the rest.
   await point(page, queue).catch(() => {});
@@ -226,50 +242,68 @@ await clip('demo', async (page, clusterId, mark) => {
 });
 
 // ── 2. Flow, on its own ──────────────────────────────────────────────────────
-await clip('flow', async (page, clusterId, mark) => {
-  // Every routing layer the seed builds: diverts, the bridge, cluster hops and Studio's capture tap.
-  await page.goto(`${BASE}/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`);
-  // Client rates come from the sampler's second sweep; a clip without them is a screenshot. Reload once
-  // they exist, so the layout orders every column busiest first. All before `mark()`.
-  await page
-    .locator('.react-flow__node-client')
-    .first()
-    .waitFor({ timeout: 90_000 })
-    .catch(() => console.warn('flow: no sampled clients — is the seed still driving traffic?'));
-  // Collapse the sidebar before the reload, so the graph is fitted to the wider canvas it is filmed in.
-  await page.keyboard.press('ControlOrMeta+b');
-  await page.waitForTimeout(35_000);
-  await page.reload();
-  await page.locator('.react-flow__node-client').first().waitFor({ timeout: 60_000 });
-  await page.locator('animateMotion').first().waitFor({ state: 'attached', timeout: 30_000 }).catch(() => {});
-  await streamLive(page, 'flow');
-  mark();
-  await hold(page, 3_000);
+await clip(
+  'flow',
+  async (page, clusterId, mark) => {
+    // Every routing layer the seed builds: diverts, the bridge, cluster hops and Studio's capture tap.
+    await page.goto(`${BASE}/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`);
+    // Client rates come from the sampler's second sweep; a clip without them is a screenshot. Reload once
+    // they exist, so the layout orders every column busiest first. All before `mark()`.
+    await page
+      .locator('.react-flow__node-client')
+      .first()
+      .waitFor({ timeout: 90_000 })
+      .catch(() => console.warn('flow: no sampled clients — is the seed still driving traffic?'));
+    // Collapse the sidebar before the reload, so the graph is fitted to the wider canvas it is filmed in.
+    await page.keyboard.press('ControlOrMeta+b');
+    await page.waitForTimeout(35_000);
+    await page.reload();
+    await page.locator('.react-flow__node-client').first().waitFor({ timeout: 60_000 });
+    await page
+      .locator('animateMotion')
+      .first()
+      .waitFor({ state: 'attached', timeout: 30_000 })
+      .catch(() => {});
+    await streamLive(page, 'flow');
+    mark();
+    await hold(page, 3_000);
 
-  // Hovering a queue keeps its whole path bright and fades the rest. The canvas clips its nodes, so a
-  // queue outside the visible part is covered by the pane: pick the first one wholly inside it.
-  await page.locator('.react-flow').scrollIntoViewIfNeeded();
-  const canvas = (await page.locator('.react-flow').boundingBox())!;
-  let target: { x: number; y: number } | null = null;
-  for (const box of await Promise.all((await page.locator('.react-flow__node-queue').all()).map((q) => q.boundingBox()))) {
-    if (box && box.y > canvas.y + 40 && box.y + box.height < canvas.y + canvas.height - 40 && box.x + box.width < canvas.x + canvas.width) {
-      target = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-      break;
+    // Hovering a queue keeps its whole path bright and fades the rest. The canvas clips its nodes, so a
+    // queue outside the visible part is covered by the pane: pick the first one wholly inside it.
+    await page.locator('.react-flow').scrollIntoViewIfNeeded();
+    const canvas = (await page.locator('.react-flow').boundingBox())!;
+    let target: { x: number; y: number } | null = null;
+    for (const box of await Promise.all(
+      (await page.locator('.react-flow__node-queue').all()).map((q) => q.boundingBox()),
+    )) {
+      if (
+        box &&
+        box.y > canvas.y + 40 &&
+        box.y + box.height < canvas.y + canvas.height - 40 &&
+        box.x + box.width < canvas.x + canvas.width
+      ) {
+        target = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+        break;
+      }
     }
-  }
-  if (!target) throw new Error('flow: no queue is wholly on screen');
-  await page.mouse.move(target.x, target.y, { steps: 12 });
-  await hold(page, 2_400);
+    if (!target) throw new Error('flow: no queue is wholly on screen');
+    await page.mouse.move(target.x, target.y, { steps: 12 });
+    await hold(page, 2_400);
 
-  // Selecting it opens the inspector: rates, members and routing for that one node.
-  await page.mouse.click(target.x, target.y);
-  await page.getByRole('complementary', { name: /^Details of / }).waitFor({ timeout: 10_000 }).catch(() => {});
-  await hold(page, 3_000);
-  await page.keyboard.press('Escape');
-  await page.mouse.move(4, 4);
-  await hold(page, 1_600);
-  // Wider than the other clips, and without the sidebar: five columns only fit legibly side by side.
-}, { size: { width: 1600, height: 1000 }, gifWidth: 1200 });
+    // Selecting it opens the inspector: rates, members and routing for that one node.
+    await page.mouse.click(target.x, target.y);
+    await page
+      .getByRole('complementary', { name: /^Details of / })
+      .waitFor({ timeout: 10_000 })
+      .catch(() => {});
+    await hold(page, 3_000);
+    await page.keyboard.press('Escape');
+    await page.mouse.move(4, 4);
+    await hold(page, 1_600);
+    // Wider than the other clips, and without the sidebar: five columns only fit legibly side by side.
+  },
+  { size: { width: 1600, height: 1000 }, gifWidth: 1200 },
+);
 
 // ── 3. The SQL Console, on its own ───────────────────────────────────────────
 await clip('sql-console', async (page, _clusterId, mark) => {
@@ -295,7 +329,11 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   await type(page, 'SELECT * FROM "ORDERS.*"\nWHERE props.tenant = \'acme\'\nLIMIT 200');
   await hold(page, 1_400); // let the plan strip classify it
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }).catch(() => {});
+  await page
+    .getByRole('row')
+    .nth(1)
+    .waitFor({ timeout: 60_000 })
+    .catch(() => {});
   await page.mouse.wheel(0, 260);
   await hold(page, 2_200);
 
@@ -303,10 +341,14 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   await page.mouse.wheel(0, -260);
   await editor.click();
   await page.keyboard.press('ControlOrMeta+a');
-  await type(page, 'SELECT * FROM "ORDERS.*"\nWHERE body->>\'orderId\' = \'4471\'\nLIMIT 50');
+  await type(page, "SELECT * FROM \"ORDERS.*\"\nWHERE body->>'orderId' = '4471'\nLIMIT 50");
   await hold(page, 1_600); // the plan strip now says "scan", which is the point
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await page.getByRole('row').nth(1).waitFor({ timeout: 60_000 }).catch(() => {});
+  await page
+    .getByRole('row')
+    .nth(1)
+    .waitFor({ timeout: 60_000 })
+    .catch(() => {});
   await page.mouse.wheel(0, 260);
   await hold(page, 2_800);
 });
@@ -315,55 +357,59 @@ await clip('sql-console', async (page, _clusterId, mark) => {
 // What an administrator sees before anything runs: what the plugin may do, the database changes it
 // brings (the SQL itself, one click away), and a typed confirmation. Then it is live without a restart.
 if (PLUGIN_JAR) {
-  await clip('plugin-install', async (page, clusterId, mark) => {
-    await page.goto(`${BASE}/admin?tab=plugins`);
-    const install = page.getByRole('button', { name: 'Install plugin…' });
-    await install.waitFor({ timeout: 30_000 });
-    mark();
-    await hold(page, 1_200);
+  await clip(
+    'plugin-install',
+    async (page, clusterId, mark) => {
+      await page.goto(`${BASE}/admin?tab=plugins`);
+      const install = page.getByRole('button', { name: 'Install plugin…' });
+      await install.waitFor({ timeout: 30_000 });
+      mark();
+      await hold(page, 1_200);
 
-    // The file chooser is the browser's own; Playwright answers it the moment it opens.
-    await point(page, install);
-    const chooser = page.waitForEvent('filechooser');
-    await install.click();
-    await (await chooser).setFiles(PLUGIN_JAR);
+      // The file chooser is the browser's own; Playwright answers it the moment it opens.
+      await point(page, install);
+      const chooser = page.waitForEvent('filechooser');
+      await install.click();
+      await (await chooser).setFiles(PLUGIN_JAR);
 
-    // Inspect, then Review: checked before it is stored, then what it will be able to do.
-    const dialog = page.getByRole('dialog');
-    await dialog.getByText('What this plugin will be able to do').waitFor({ timeout: 60_000 });
-    await hold(page, 2_600);
-    const sql = dialog.getByRole('button', { name: 'Show the SQL' });
-    if (await sql.count()) {
-      await click(page, sql);
-      await hold(page, 800);
-      // Through the SQL at reading pace: the schema this plugin creates is the part worth reading.
-      for (let i = 0; i < 6; i++) {
-        await page.mouse.wheel(0, 180);
-        await hold(page, 450);
+      // Inspect, then Review: checked before it is stored, then what it will be able to do.
+      const dialog = page.getByRole('dialog');
+      await dialog.getByText('What this plugin will be able to do').waitFor({ timeout: 60_000 });
+      await hold(page, 2_600);
+      const sql = dialog.getByRole('button', { name: 'Show the SQL' });
+      if (await sql.count()) {
+        await click(page, sql);
+        await hold(page, 800);
+        // Through the SQL at reading pace: the schema this plugin creates is the part worth reading.
+        for (let i = 0; i < 6; i++) {
+          await page.mouse.wheel(0, 180);
+          await hold(page, 450);
+        }
+        await hold(page, 1_000);
       }
-      await hold(page, 1_000);
-    }
-    await click(page, dialog.getByRole('button', { name: 'Continue' }));
+      await click(page, dialog.getByRole('button', { name: 'Continue' }));
 
-    const confirm = dialog.getByRole('textbox', { name: /to confirm/ });
-    await click(page, confirm);
-    await type(page, 'acme-notes');
-    await hold(page, 500);
-    await click(page, dialog.getByRole('button', { name: /^Install/ }).last());
-    await dialog.getByText(/is active/).waitFor({ timeout: 90_000 });
-    await hold(page, 1_800);
+      const confirm = dialog.getByRole('textbox', { name: /to confirm/ });
+      await click(page, confirm);
+      await type(page, 'acme-notes');
+      await hold(page, 500);
+      await click(page, dialog.getByRole('button', { name: /^Install/ }).last());
+      await dialog.getByText(/is active/).waitFor({ timeout: 90_000 });
+      await hold(page, 1_800);
 
-    // Its screen, loaded into the running Studio: a reload picks up the new bundle, then the plugin's
-    // page is one sidebar link like any other.
-    await click(page, dialog.getByRole('button', { name: 'Reload Studio' }));
-    await page.waitForLoadState();
-    await page.goto(`${BASE}/clusters/${clusterId}/topology`);
-    await navigate(page, 'Notes');
-    await page.getByRole('heading').first().waitFor({ timeout: 30_000 });
-    await hold(page, 2_400);
-    // Smaller than the other clips: the story is one dialog, and at this size its text stays legible
-    // in the GIF without scaling it down.
-  }, { size: { width: 1024, height: 720 }, gifWidth: 1024 });
+      // Its screen, loaded into the running Studio: a reload picks up the new bundle, then the plugin's
+      // page is one sidebar link like any other.
+      await click(page, dialog.getByRole('button', { name: 'Reload Studio' }));
+      await page.waitForLoadState();
+      await page.goto(`${BASE}/clusters/${clusterId}/topology`);
+      await navigate(page, 'Notes');
+      await page.getByRole('heading').first().waitFor({ timeout: 30_000 });
+      await hold(page, 2_400);
+      // Smaller than the other clips: the story is one dialog, and at this size its text stays legible
+      // in the GIF without scaling it down.
+    },
+    { size: { width: 1024, height: 720 }, gifWidth: 1024 },
+  );
 } else if (!ONLY || ONLY.includes('plugin-install')) {
   console.warn('plugin-install: skipped — set PLUGIN_JAR to a built plugin-template jar that is not installed yet');
 }

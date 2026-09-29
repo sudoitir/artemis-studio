@@ -1,17 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Accordion,
-  Alert,
-  Badge,
-  Group,
-  Loader,
-  Select,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Accordion, Alert, Badge, Group, Loader, Select, Stack, Switch, Table, Text, Title } from '@mantine/core';
 import { useParams } from '@tanstack/react-router';
 
 import { useConfigDiff, type ConfigEntryView, type ConfigSectionView } from './api.ts';
@@ -29,7 +17,11 @@ function classificationBadge(entry: ConfigEntryView) {
   }
   if (entry.classification === 'UNCLASSIFIED') {
     return (
-      <Badge size="xs" variant="default" title="Not known to be configuration — a runtime counter, or an attribute Studio has not classified">
+      <Badge
+        size="xs"
+        variant="default"
+        title="Not known to be configuration — a runtime counter, or an attribute Studio has not classified"
+      >
         unclassified
       </Badge>
     );
@@ -148,12 +140,7 @@ export function ConfigDiffView() {
             w={200}
           />
         </Group>
-        <Switch
-          label="Drift only"
-          checked={driftOnly}
-          onChange={(e) => setDriftOnly(e.currentTarget.checked)}
-          mb={8}
-        />
+        <Switch label="Drift only" checked={driftOnly} onChange={(e) => setDriftOnly(e.currentTarget.checked)} mb={8} />
       </Group>
 
       {diff.isPending ? <Loader size="sm" /> : null}

@@ -3,8 +3,7 @@ import type { components } from '../kernel/api/schema.d.ts';
 type CapabilityView = components['schemas']['CapabilityView'];
 
 export type GateVerdict =
-  | { kind: 'allowed'; uncertain: boolean }
-  | { kind: 'blocked'; reason: string; snippet?: string | null };
+  { kind: 'allowed'; uncertain: boolean } | { kind: 'blocked'; reason: string; snippet?: string | null };
 
 /**
  * Whether a lifecycle control may act, and why not when it may not.

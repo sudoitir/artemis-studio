@@ -37,9 +37,7 @@ export function RecommendedConfiguration({
   const [taken, setTaken] = useState<string[]>(() => appliable.map((r) => r.capability));
   const [roles, setRoles] = useState<Record<string, string[]>>(() =>
     Object.fromEntries(
-      appliable
-        .filter((r) => r.section === 'SECURITY_SETTING' && r.match)
-        .map((r) => [r.match as string, rolesOf(r)]),
+      appliable.filter((r) => r.section === 'SECURITY_SETTING' && r.match).map((r) => [r.match as string, rolesOf(r)]),
     ),
   );
 
@@ -159,8 +157,7 @@ export function RecommendedConfiguration({
                 Declare &amp; review the plan
               </Button>
               <Text size="xs" c="dimmed">
-                {blocked ??
-                  'Saves a revision. Nothing reaches a broker until you confirm the plan.'}
+                {blocked ?? 'Saves a revision. Nothing reaches a broker until you confirm the plan.'}
               </Text>
             </Group>
           ) : (

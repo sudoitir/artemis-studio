@@ -78,7 +78,5 @@ export function trendPhrase(row: ConsumerHealthView): string {
   const slope = row.depthSlopePerSecond;
   if (slope === null || slope === undefined) return 'trend not measured';
   if (Math.abs(slope) < 0.01) return 'depth steady';
-  return slope > 0
-    ? `depth rising ${slope.toFixed(2)}/s`
-    : `depth falling ${Math.abs(slope).toFixed(2)}/s`;
+  return slope > 0 ? `depth rising ${slope.toFixed(2)}/s` : `depth falling ${Math.abs(slope).toFixed(2)}/s`;
 }

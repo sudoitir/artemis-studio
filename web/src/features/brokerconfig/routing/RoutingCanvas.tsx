@@ -29,7 +29,13 @@ import { RoutingEdge } from './RoutingEdge.tsx';
 import { AddressNode, BridgeNode, DivertNode, QueueNode, TargetNode } from './RoutingNodes.tsx';
 import classes from './RoutingCanvas.module.css';
 
-const nodeTypes = { address: AddressNode, queue: QueueNode, divert: DivertNode, bridge: BridgeNode, target: TargetNode };
+const nodeTypes = {
+  address: AddressNode,
+  queue: QueueNode,
+  divert: DivertNode,
+  bridge: BridgeNode,
+  target: TargetNode,
+};
 const edgeTypes = { routing: RoutingEdge };
 
 /** Above this many drawn elements React Flow renders only what is on screen (ADR-0056). */
@@ -77,8 +83,10 @@ const CanvasToolbar = forwardRef<
       <div className={classes.toolbarGroup}>
         {view('Zoom out', <IconZoomOut size={16} stroke={1.75} />, () => void flow.zoomOut(zoom))}
         {view('Zoom in', <IconZoomIn size={16} stroke={1.75} />, () => void flow.zoomIn(zoom))}
-        {view('Fit the graph to the view', <IconFocusCentered size={16} stroke={1.75} />, () =>
-          void flow.fitView({ ...FIT, ...zoom }),
+        {view(
+          'Fit the graph to the view',
+          <IconFocusCentered size={16} stroke={1.75} />,
+          () => void flow.fitView({ ...FIT, ...zoom }),
         )}
       </div>
       {leading}
@@ -241,10 +249,7 @@ export function RoutingCanvas({
   const elements = useRef(new Map<string, HTMLElement>());
   const entry = useRef<HTMLButtonElement>(null);
 
-  const model = useMemo(
-    () => toReactFlow(graph, layout.positions, selectedId),
-    [graph, layout.positions, selectedId],
-  );
+  const model = useMemo(() => toReactFlow(graph, layout.positions, selectedId), [graph, layout.positions, selectedId]);
 
   /** Reading order: left to right, then down. Entry lands on its first element. */
   const order = useMemo(() => readingOrder(model.nodes), [model.nodes]);
@@ -338,13 +343,7 @@ export function RoutingCanvas({
 
       <ReactFlowProvider>
         <div className={classes.frame}>
-          <CanvasToolbar
-            ref={entry}
-            onEnter={enter}
-            canEnter={order.length > 0}
-            leading={leading}
-            actions={actions}
-          />
+          <CanvasToolbar ref={entry} onEnter={enter} canEnter={order.length > 0} leading={leading} actions={actions} />
           <div
             ref={wrapper}
             className={classes.wrapper}
@@ -394,7 +393,9 @@ export function RoutingCanvas({
 
       <Text component="p" className={classes.legend}>
         <span>Arrow keys move between elements; Enter opens one; Escape leaves the graph.</span>
-        {canWrite ? <span>Drag address to address to propose a divert, queue to target to propose a bridge.</span> : null}
+        {canWrite ? (
+          <span>Drag address to address to propose a divert, queue to target to propose a bridge.</span>
+        ) : null}
         <span>Nothing here is written to a broker until a saved revision is applied.</span>
       </Text>
     </div>

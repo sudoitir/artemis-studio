@@ -42,4 +42,3 @@ export function usePluginSeries(
   });
   return Object.assign(query, { window });
 }
-

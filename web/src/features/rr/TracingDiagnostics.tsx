@@ -15,13 +15,7 @@ function ago(iso: string | null | undefined, now: number): string {
  * The interesting states are all "Studio looked and found nothing" versus "Studio
  * never looked", which the flows list alone cannot distinguish.
  */
-export function ExpectationStatus({
-  status,
-  now,
-}: {
-  status: ExpectationDiagnosticsView | undefined;
-  now: number;
-}) {
+export function ExpectationStatus({ status, now }: { status: ExpectationDiagnosticsView | undefined; now: number }) {
   if (!status) {
     return (
       <Text size="xs" c="dimmed">
@@ -98,7 +92,10 @@ export function TracingDiagnostics({ clusterId }: { clusterId: string }) {
           <List size="sm" spacing={4}>
             {d.reasons.map((r) => (
               <List.Item key={r.code}>
-                {r.summary} <Text span size="xs" c="dimmed">— {r.remedy}</Text>
+                {r.summary}{' '}
+                <Text span size="xs" c="dimmed">
+                  — {r.remedy}
+                </Text>
               </List.Item>
             ))}
           </List>
@@ -154,8 +151,7 @@ export function TracingDiagnostics({ clusterId }: { clusterId: string }) {
         >
           ADR-0030
         </Anchor>{' '}
-        explains the coverage ceiling and why browsing every message would not be
-        broker-friendly.
+        explains the coverage ceiling and why browsing every message would not be broker-friendly.
       </Text>
     </Stack>
   );

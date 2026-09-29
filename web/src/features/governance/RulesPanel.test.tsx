@@ -62,14 +62,18 @@ describe('RulesPanel', () => {
     expect(screen.queryByRole('button', { name: 'Delete the rule for authorization' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete the rule for customerEmail' })).toBeEnabled();
     expect(screen.getByRole('switch', { name: 'Enabled: authorization' })).toBeEnabled();
-    expect(await screen.findByText(/1,200 stored messages are still masked under an earlier policy/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/1,200 stored messages are still masked under an earlier policy/),
+    ).toBeInTheDocument();
   });
 
   it('keeps change controls visible but disabled, with the reason, for a read-only user', async () => {
     mockApis(['governance:read']);
     renderWithProviders(<RulesPanel />);
 
-    expect(await screen.findByText('Changing masking rules needs the governance:write permission.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Changing masking rules needs the governance:write permission.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New rule' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Enabled: customerEmail' })).toBeDisabled();
   });

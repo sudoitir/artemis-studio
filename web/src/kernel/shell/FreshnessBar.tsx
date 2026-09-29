@@ -5,12 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import styles from './FreshnessBar.module.css';
 
-import {
-  refreshActiveQueries,
-  setPollingPaused,
-  usePendingChange,
-  usePollingPaused,
-} from '../api/polling.ts';
+import { refreshActiveQueries, setPollingPaused, usePendingChange, usePollingPaused } from '../api/polling.ts';
 import { useStreamStatus } from '../stream/useClusterStream.ts';
 import { absoluteLabel, elapsedLabel, toServerMs, useServerNow } from '../time/time.ts';
 import { useDisplayZone } from '../time/timezone.ts';

@@ -27,7 +27,13 @@ function draw(onSelect = vi.fn(), selectedId: string | null = null) {
   return onSelect;
 }
 
-function drawEditable({ onInsert = vi.fn(), onNodeAction = vi.fn() }: { onInsert?: (e: string, v: string) => void; onNodeAction?: (n: string, a: string) => void }) {
+function drawEditable({
+  onInsert = vi.fn(),
+  onNodeAction = vi.fn(),
+}: {
+  onInsert?: (e: string, v: string) => void;
+  onNodeAction?: (n: string, a: string) => void;
+}) {
   render(
     <MantineProvider>
       <DiagramView
@@ -43,7 +49,11 @@ function drawEditable({ onInsert = vi.fn(), onNodeAction = vi.fn() }: { onInsert
           n.kind === 'Queue'
             ? []
             : [
-                { id: 'up', label: 'Move up', disabledReason: n.id === 'a' ? 'It is already the first step.' : undefined },
+                {
+                  id: 'up',
+                  label: 'Move up',
+                  disabledReason: n.id === 'a' ? 'It is already the first step.' : undefined,
+                },
                 { id: 'remove', label: 'Remove', danger: true },
               ]
         }
@@ -56,7 +66,9 @@ function drawEditable({ onInsert = vi.fn(), onNodeAction = vi.fn() }: { onInsert
 describe('DiagramView', () => {
   it('names each box with its kind, label and problem in words', async () => {
     draw();
-    expect(await screen.findByRole('button', { name: 'Call a service, charge. Invalid: Choose a connection.' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Call a service, charge. Invalid: Choose a connection.' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Invalid')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Flow orders' })).toBeInTheDocument();
     // An arrow's label reaches a screen reader through the box it points at.
@@ -67,7 +79,11 @@ describe('DiagramView', () => {
     const onSelect = draw();
     const user = userEvent.setup();
     await screen.findByRole('button', { name: /^Queue, orders/ });
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /^(Queue|Call|Undo)/ }).filter((b) => b.tabIndex === 0)).toHaveLength(1));
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: /^(Queue|Call|Undo)/ }).filter((b) => b.tabIndex === 0),
+      ).toHaveLength(1),
+    );
     await user.tab();
     expect(screen.getByRole('button', { name: /^Queue, orders/ })).toHaveFocus();
     await user.keyboard('{ArrowDown}');
@@ -145,7 +161,10 @@ describe('DiagramView', () => {
     await user.click(await screen.findByRole('button', { name: 'Actions for charge' }));
     await user.click(await screen.findByRole('menuitem', { name: /Remove/ }));
     expect(onNodeAction).toHaveBeenCalledWith('b', 'remove');
-    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: /^Call a service, reserve/ }) });
+    await user.pointer({
+      keys: '[MouseRight]',
+      target: screen.getByRole('button', { name: /^Call a service, reserve/ }),
+    });
     await user.click(await screen.findByRole('menuitem', { name: /Remove/ }));
     expect(onNodeAction).toHaveBeenLastCalledWith('a', 'remove');
     // A box without actions has no menu.

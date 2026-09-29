@@ -2,7 +2,13 @@ import { useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Code, CopyButton, Group, Modal, Stack, Switch, Text, TextInput } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
-import { useCreateDivert, useDeleteDivert, type DivertMutationView, type DivertView, type LifecycleOutcomeView } from './api.ts';
+import {
+  useCreateDivert,
+  useDeleteDivert,
+  type DivertMutationView,
+  type DivertView,
+  type LifecycleOutcomeView,
+} from './api.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';

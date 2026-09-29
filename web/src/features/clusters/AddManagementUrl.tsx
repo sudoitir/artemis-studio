@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
@@ -42,9 +34,8 @@ export function AddManagementUrl({
     >
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
-          Its pair reported <code>{endpoint?.coreUrl}</code>. That is a
-          broker-to-broker connector, not a management URL, so Studio cannot reach
-          it yet. Enter the Jolokia URL you can reach this broker on.
+          Its pair reported <code>{endpoint?.coreUrl}</code>. That is a broker-to-broker connector, not a management
+          URL, so Studio cannot reach it yet. Enter the Jolokia URL you can reach this broker on.
         </Text>
         <TextInput
           label="Management URL"
@@ -124,8 +115,7 @@ export function RemoveCluster({
     <Modal opened={opened} onClose={onClose} title={`Remove ${clusterName}?`} size="md">
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
-          This removes Studio's registration and stored credentials. It does not
-          touch the broker.
+          This removes Studio's registration and stored credentials. It does not touch the broker.
         </Text>
         {/* The shared typed-confirmation, not a fourth hand-rolled copy. */}
         <ConfirmByTyping

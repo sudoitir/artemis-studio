@@ -170,11 +170,7 @@
 /* half-filled */
 .mark[data-kind='behind'] {
   border-color: var(--as-axis-broken);
-  background: linear-gradient(
-    to bottom,
-    var(--as-axis-broken) 0 50%,
-    transparent 50% 100%
-  );
+  background: linear-gradient(to bottom, var(--as-axis-broken) 0 50%, transparent 50% 100%);
 }
 
 /* filled, amber */

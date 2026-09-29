@@ -37,9 +37,12 @@ export function ConfirmAction({
   onConfirm: () => void;
 }) {
   const fresh = useFreshSignIn();
-  const refusal = error && !needsReauthentication(error)
-    ? violationsOf(error).map((v) => [v.message, v.fix].filter(Boolean).join(' ')).join(' ') || error.message
-    : null;
+  const refusal =
+    error && !needsReauthentication(error)
+      ? violationsOf(error)
+          .map((v) => [v.message, v.fix].filter(Boolean).join(' '))
+          .join(' ') || error.message
+      : null;
   return (
     <Modal opened={opened} onClose={onClose} title={title}>
       <Stack gap="md">

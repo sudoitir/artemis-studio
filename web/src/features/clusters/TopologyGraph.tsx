@@ -33,9 +33,7 @@ export function TopologyGraph({ clusterId }: { clusterId: string }) {
   if (!model) return null;
 
   const endpoint =
-    (addingFor &&
-      topology.data?.nodes.flatMap((n) => n.endpoints).find((e) => e.id === addingFor)) ||
-    null;
+    (addingFor && topology.data?.nodes.flatMap((n) => n.endpoints).find((e) => e.id === addingFor)) || null;
 
   return (
     <TopologyActions value={actions}>

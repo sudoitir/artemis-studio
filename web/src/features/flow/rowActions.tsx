@@ -96,10 +96,34 @@ export function FlowNodeActions({
   const label = node.label ?? '';
   switch (node.kind) {
     case 'QUEUE':
-      return <ResourceActions kind="queue" clusterId={clusterId} target={{ queueName: label }} mode="navigate" restoreFocus={restoreFocus} />;
+      return (
+        <ResourceActions
+          kind="queue"
+          clusterId={clusterId}
+          target={{ queueName: label }}
+          mode="navigate"
+          restoreFocus={restoreFocus}
+        />
+      );
     case 'ADDRESS':
-      return <ResourceActions kind="address" clusterId={clusterId} target={{ address: label }} mode="navigate" restoreFocus={restoreFocus} />;
+      return (
+        <ResourceActions
+          kind="address"
+          clusterId={clusterId}
+          target={{ address: label }}
+          mode="navigate"
+          restoreFocus={restoreFocus}
+        />
+      );
     default:
-      return <ResourceActions kind="client" clusterId={clusterId} target={{ label }} mode="navigate" restoreFocus={restoreFocus} />;
+      return (
+        <ResourceActions
+          kind="client"
+          clusterId={clusterId}
+          target={{ label }}
+          mode="navigate"
+          restoreFocus={restoreFocus}
+        />
+      );
   }
 }

@@ -71,7 +71,8 @@ export function usePluginHistory(id: string | undefined): UseQueryResult<AuditEv
 export function usePurgePlan(id: string | undefined, enabled: boolean): UseQueryResult<PluginPurgePlanView, ApiError> {
   return useQuery({
     queryKey: [...keys.one(id ?? ''), 'purge-plan'],
-    queryFn: () => request<PluginPurgePlanView>(`${BASE}/${encodeURIComponent(id!)}/purge?dryRun=true`, { method: 'POST' }),
+    queryFn: () =>
+      request<PluginPurgePlanView>(`${BASE}/${encodeURIComponent(id!)}/purge?dryRun=true`, { method: 'POST' }),
     enabled: !!id && enabled,
   });
 }

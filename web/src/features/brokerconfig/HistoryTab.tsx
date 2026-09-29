@@ -2,7 +2,15 @@ import { useState } from 'react';
 import { Anchor, Button, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
-import { useBrokerConfigApplies, useBrokerConfigApply, useBrokerConfigRevisions, type ConfigCatalogueView, type ConfigDeclarationView, type ConfigDocumentView, type ConfigRevisionView } from './api.ts';
+import {
+  useBrokerConfigApplies,
+  useBrokerConfigApply,
+  useBrokerConfigRevisions,
+  type ConfigCatalogueView,
+  type ConfigDeclarationView,
+  type ConfigDocumentView,
+  type ConfigRevisionView,
+} from './api.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { ApplyResult } from './ApplyResult.tsx';
@@ -30,11 +38,21 @@ function diffDocuments(a: ConfigDocumentView, b: ConfigDocumentView, catalogue?:
     const l = left.get(item);
     const r = right.get(item);
     if (!l) {
-      out.push({ item, key: '', left: 'not declared', right: `declared (${r!.length} ${r!.length === 1 ? 'key' : 'keys'})` });
+      out.push({
+        item,
+        key: '',
+        left: 'not declared',
+        right: `declared (${r!.length} ${r!.length === 1 ? 'key' : 'keys'})`,
+      });
       continue;
     }
     if (!r) {
-      out.push({ item, key: '', left: `declared (${l.length} ${l.length === 1 ? 'key' : 'keys'})`, right: 'not declared' });
+      out.push({
+        item,
+        key: '',
+        left: `declared (${l.length} ${l.length === 1 ? 'key' : 'keys'})`,
+        right: 'not declared',
+      });
       continue;
     }
     const lm = new Map(l.map((x) => [x.key, x.value]));

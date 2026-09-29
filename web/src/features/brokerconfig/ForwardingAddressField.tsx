@@ -87,7 +87,12 @@ export function ForwardingAddressField({
     setAnnouncement(`Queue ${queue} added to the declaration — apply to create it on the brokers.`);
     field.current?.focus();
   };
-  const { save, isPending, error: saveError, reset } = useSaveDocument(declaration, () => added(creating!, queueName.trim()));
+  const {
+    save,
+    isPending,
+    error: saveError,
+    reset,
+  } = useSaveDocument(declaration, () => added(creating!, queueName.trim()));
 
   const openCreate = () => {
     setQueueName(typed);
@@ -184,7 +189,9 @@ export function ForwardingAddressField({
                 </Text>
               </Combobox.Option>
             ) : null}
-            {matching.length === 0 && !typed ? <Combobox.Empty>No address is declared yet. Type one.</Combobox.Empty> : null}
+            {matching.length === 0 && !typed ? (
+              <Combobox.Empty>No address is declared yet. Type one.</Combobox.Empty>
+            ) : null}
           </Combobox.Options>
         </Combobox.Dropdown>
       </Combobox>
@@ -209,11 +216,7 @@ export function ForwardingAddressField({
               error={problem ?? undefined}
               required
             />
-            <Radio.Group
-              label="Routing type"
-              value={routingType}
-              onChange={(v) => setRoutingType(v as RoutingType)}
-            >
+            <Radio.Group label="Routing type" value={routingType} onChange={(v) => setRoutingType(v as RoutingType)}>
               <Group gap="lg" mt={4}>
                 <Radio value="ANYCAST" label="Anycast — each message to one consumer" />
                 <Radio value="MULTICAST" label="Multicast — to every subscriber" />

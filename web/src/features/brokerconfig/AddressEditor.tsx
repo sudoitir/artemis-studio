@@ -87,7 +87,10 @@ export function AddressEditor({
   };
 
   const remove = () =>
-    save(removeItem(declaration.document, 'addresses', item!.name), `Removed address ${item!.name} from the declaration`);
+    save(
+      removeItem(declaration.document, 'addresses', item!.name),
+      `Removed address ${item!.name} from the declaration`,
+    );
 
   const setQueue = (index: number, patch: Partial<ConfigQueueView>) =>
     setQueues((qs) => qs.map((q, i) => (i === index ? { ...q, ...patch } : q)));

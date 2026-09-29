@@ -27,7 +27,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '104857600 — 100 MiB in memory, then page or block.',
   },
   maxSizeMessages: {
-    summary: 'The message count an address may hold in memory before the full policy applies. -1 disables the count limit.',
+    summary:
+      'The message count an address may hold in memory before the full policy applies. -1 disables the count limit.',
     example: '100000 — after a hundred thousand messages, page or block.',
   },
   maxSizeBytesRejectThreshold: {
@@ -69,7 +70,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '1000000 — stop paging past a million messages.',
   },
   pageFullMessagePolicy: {
-    summary: 'What happens to new messages once a page limit is reached: DROP discards them, FAIL refuses them with an error.',
+    summary:
+      'What happens to new messages once a page limit is reached: DROP discards them, FAIL refuses them with an error.',
     example: 'FAIL — producers see an error instead of silent loss.',
   },
   maxDeliveryAttempts: {
@@ -99,7 +101,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '60000 — never wait more than a minute.',
   },
   deadLetterAddress: {
-    summary: 'Where messages go after the last failed delivery attempt. Declare the address, or the messages are dropped.',
+    summary:
+      'Where messages go after the last failed delivery attempt. Declare the address, or the messages are dropped.',
     example: 'DLQ — one dead-letter address for the whole match.',
   },
   expiryAddress: {
@@ -163,11 +166,13 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '0 — redistribute as soon as the last consumer leaves.',
   },
   sendToDLAOnNoRoute: {
-    summary: 'When true, a message that matches no queue at all goes to the dead-letter address instead of being dropped.',
+    summary:
+      'When true, a message that matches no queue at all goes to the dead-letter address instead of being dropped.',
     example: 'true — never lose a message to a typo in the address.',
   },
   slowConsumerThreshold: {
-    summary: 'The consumption rate below which a consumer counts as slow, in the unit chosen next. -1 disables detection.',
+    summary:
+      'The consumption rate below which a consumer counts as slow, in the unit chosen next. -1 disables detection.',
     example: '1 — slower than one message per unit is slow.',
   },
   slowConsumerThresholdMeasurementUnit: {
@@ -179,11 +184,13 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '5 — check every five seconds.',
   },
   slowConsumerPolicy: {
-    summary: 'What to do with a slow consumer: NOTIFY emits a management notification Studio can alert on; KILL also disconnects it.',
+    summary:
+      'What to do with a slow consumer: NOTIFY emits a management notification Studio can alert on; KILL also disconnects it.',
     example: 'NOTIFY — see it in Studio before deciding.',
   },
   autoCreateQueues: {
-    summary: 'Whether the broker creates a queue on first use, when a client sends to or subscribes on one that does not exist.',
+    summary:
+      'Whether the broker creates a queue on first use, when a client sends to or subscribes on one that does not exist.',
     example: 'true — convenient in development; false to make every queue deliberate.',
   },
   autoDeleteQueues: {
@@ -191,7 +198,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: 'false — keep queues until someone deletes them.',
   },
   autoDeleteCreatedQueues: {
-    summary: 'Whether the broker also removes queues that were created explicitly, not just auto-created ones, once idle.',
+    summary:
+      'Whether the broker also removes queues that were created explicitly, not just auto-created ones, once idle.',
     example: 'false — explicit queues stay.',
   },
   autoDeleteQueuesDelay: {
@@ -207,11 +215,13 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '0 — only empty queues are removed.',
   },
   defaultRingSize: {
-    summary: 'The ring size for auto-created queues: keep only the newest N messages, dropping the oldest. -1 disables.',
+    summary:
+      'The ring size for auto-created queues: keep only the newest N messages, dropping the oldest. -1 disables.',
     example: '100 — a rolling window of the last hundred messages.',
   },
   retroactiveMessageCount: {
-    summary: 'How many recent messages the broker keeps per address so a new subscriber receives them retroactively. 0 disables.',
+    summary:
+      'How many recent messages the broker keeps per address so a new subscriber receives them retroactively. 0 disables.',
     example: '10 — late joiners get the last ten messages.',
   },
   autoCreateAddresses: {
@@ -252,7 +262,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '2 — wait for a pair of workers.',
   },
   defaultDelayBeforeDispatch: {
-    summary: 'How long (milliseconds) to wait for the consumers-before-dispatch count before delivering anyway. -1 waits forever.',
+    summary:
+      'How long (milliseconds) to wait for the consumers-before-dispatch count before delivering anyway. -1 waits forever.',
     example: '5000 — deliver after five seconds regardless.',
   },
   defaultQueueRoutingType: {
@@ -268,7 +279,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '1048576 — 1 MiB of prefetch.',
   },
   autoCreateDeadLetterResources: {
-    summary: 'Whether the broker creates a per-address dead-letter queue automatically, named with the prefix and suffix below.',
+    summary:
+      'Whether the broker creates a per-address dead-letter queue automatically, named with the prefix and suffix below.',
     example: 'true — orders.request gets DLQ.orders.request.',
   },
   deadLetterQueuePrefix: {
@@ -280,7 +292,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: '.dead — orders.request.dead.',
   },
   autoCreateExpiryResources: {
-    summary: 'Whether the broker creates a per-address expiry queue automatically, named with the prefix and suffix below.',
+    summary:
+      'Whether the broker creates a per-address expiry queue automatically, named with the prefix and suffix below.',
     example: 'true — one expiry queue per address.',
   },
   expiryQueuePrefix: {
@@ -300,7 +313,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: 'true — measure end-to-end latency from the broker in.',
   },
   idCacheSize: {
-    summary: 'How many message IDs the broker remembers per address to detect duplicates sent with a duplicate-detection ID.',
+    summary:
+      'How many message IDs the broker remembers per address to detect duplicates sent with a duplicate-detection ID.',
     example: '20000 — the broker default.',
   },
   initialQueueBufferSize: {

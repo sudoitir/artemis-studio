@@ -103,12 +103,19 @@ describe('flow layout', () => {
 
   it('leaves out a node that has no position yet, with its edges', () => {
     const g = graph();
-    const model = toReactFlow(g, { 'producer:web': { x: 0, y: 0 }, 'address:ORDERS': { x: 300, y: 0 } }, new Map(), null);
+    const model = toReactFlow(
+      g,
+      { 'producer:web': { x: 0, y: 0 }, 'address:ORDERS': { x: 300, y: 0 } },
+      new Map(),
+      null,
+    );
 
-    expect(model.nodes.filter((n) => n.type !== 'lane').map((n) => n.id).sort()).toEqual([
-      'address:ORDERS',
-      'producer:web',
-    ]);
+    expect(
+      model.nodes
+        .filter((n) => n.type !== 'lane')
+        .map((n) => n.id)
+        .sort(),
+    ).toEqual(['address:ORDERS', 'producer:web']);
     expect(model.edges.map((e) => e.id)).toEqual(['PRODUCE:producer:web->address:ORDERS']);
   });
 });

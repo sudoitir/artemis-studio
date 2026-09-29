@@ -202,7 +202,10 @@ describe('the close outcome outlives its row (ADR-0107)', () => {
 
     await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(await within(dialog).findByRole('textbox', { name: /type "orders-worker-7" to confirm/i }), 'orders-worker-7');
+    await user.type(
+      await within(dialog).findByRole('textbox', { name: /type "orders-worker-7" to confirm/i }),
+      'orders-worker-7',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Close this connection' }));
     await within(dialog).findByRole('button', { name: 'Close' });
 

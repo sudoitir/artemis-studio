@@ -6,7 +6,7 @@
  * feature's `api.ts` names the DTOs it uses and holds its own hooks and query
  * keys, every cluster-scoped key under {@link clusterKey}.
  */
-export const BASE = "/api/v1";
+export const BASE = '/api/v1';
 
 /** A parsed `application/problem+json` body. */
 export class ApiError extends Error {
@@ -24,18 +24,13 @@ export class ApiError extends Error {
   readonly problem: Record<string, unknown>;
 
   constructor(status: number, body: Record<string, unknown>) {
-    super(
-      (body.detail as string) ??
-        (body.title as string) ??
-        `Request failed (${status})`,
-    );
-    this.name = "ApiError";
+    super((body.detail as string) ?? (body.title as string) ?? `Request failed (${status})`);
+    this.name = 'ApiError';
     this.status = status;
-    this.type = (body.type as string) ?? "about:blank";
-    this.title = (body.title as string) ?? "Error";
+    this.type = (body.type as string) ?? 'about:blank';
+    this.title = (body.title as string) ?? 'Error';
     this.brokerErrorKind = body.brokerErrorKind as string | undefined;
-    this.fieldErrors =
-      (body.errors as { field: string; message: string }[] | undefined) ?? [];
+    this.fieldErrors = (body.errors as { field: string; message: string }[] | undefined) ?? [];
     this.problem = body;
   }
 }
@@ -43,32 +38,32 @@ export class ApiError extends Error {
 /** Reads the `XSRF-TOKEN` cookie Spring Security's `CookieCsrfTokenRepository` sets (identity-and-sessions spec). */
 function csrfToken(): string | undefined {
   return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="))
-    ?.split("=")[1];
+    .split('; ')
+    .find((row) => row.startsWith('XSRF-TOKEN='))
+    ?.split('=')[1];
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = (init?.method ?? "GET").toUpperCase();
+  const method = (init?.method ?? 'GET').toUpperCase();
   const headers: Record<string, string> = {
-    "content-type": "application/json",
+    'content-type': 'application/json',
   };
-  if (method !== "GET" && method !== "HEAD") {
+  if (method !== 'GET' && method !== 'HEAD') {
     const token = csrfToken();
-    if (token) headers["X-XSRF-TOKEN"] = token;
+    if (token) headers['X-XSRF-TOKEN'] = token;
   }
   // The caller's headers add to these, never replace them: replacing dropped the CSRF token.
   const merged = new Headers(headers);
   new Headers(init?.headers).forEach((value, key) => merged.set(key, value));
   const res = await fetch(`${BASE}${path}`, {
-    credentials: "same-origin",
+    credentials: 'same-origin',
     ...init,
     headers: merged,
   });
-  if (res.status === 401 && !window.location.pathname.startsWith("/login")) {
+  if (res.status === 401 && !window.location.pathname.startsWith('/login')) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
-    window.location.assign("/login");
+    window.location.assign('/login');
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
@@ -78,7 +73,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** The root every cluster-scoped query key starts from, so invalidating a cluster reaches all of it. */
-export const clusterKey = (id: string, ...parts: unknown[]) => ["clusters", id, ...parts] as const;
+export const clusterKey = (id: string, ...parts: unknown[]) => ['clusters', id, ...parts] as const;
 
 /** The path a cluster-wide command is issued under. */
 export const lifecycleBase = (clusterId: string) => `/clusters/${clusterId}`;
@@ -97,8 +92,8 @@ export interface LifecycleVars {
 
 export function lifecycleQuery(dryRun?: boolean, override?: boolean): string {
   const params = new URLSearchParams();
-  if (dryRun !== undefined) params.set("dryRun", String(dryRun));
-  if (override) params.set("override", "true");
+  if (dryRun !== undefined) params.set('dryRun', String(dryRun));
+  if (override) params.set('override', 'true');
   const q = params.toString();
-  return q ? `?${q}` : "";
+  return q ? `?${q}` : '';
 }

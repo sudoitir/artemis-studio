@@ -103,7 +103,10 @@ export async function loadPlugins(
   settled.forEach((result, index) => {
     const id = withUi[index].id;
     if (result.status === 'rejected') {
-      failures.set(id, `its screens did not load: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+      failures.set(
+        id,
+        `its screens did not load: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+      );
     } else if (!result.value.ok) {
       failures.set(id, `its screens were refused: ${result.value.reason}`);
     } else {

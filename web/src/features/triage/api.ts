@@ -25,9 +25,7 @@ export function useConsumerHealth(
     // The palette mounts outside a cluster, where there is no id to ask about.
     enabled: clusterId !== '',
     queryFn: () =>
-      request<PagedView<ConsumerHealthView>>(
-        `/clusters/${clusterId}/consumer-health${resourceSearch(params)}`,
-      ),
+      request<PagedView<ConsumerHealthView>>(`/clusters/${clusterId}/consumer-health${resourceSearch(params)}`),
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });

@@ -35,9 +35,7 @@ describe('ExpectationsView', () => {
   });
 
   it('lists declared expectations', async () => {
-    server.use(
-      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([expectation()])),
-    );
+    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([expectation()])));
     renderWithProviders(<ExpectationsView clusterId="c1" />);
 
     expect(await screen.findByText('orders.request')).toBeInTheDocument();
@@ -53,9 +51,7 @@ describe('ExpectationsView', () => {
   it('creates a new expectation from the form', async () => {
     let created = false;
     server.use(
-      http.get('*/api/v1/clusters/c1/rr/expectations', () =>
-        HttpResponse.json(created ? [expectation()] : []),
-      ),
+      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(created ? [expectation()] : [])),
       http.post('*/api/v1/clusters/c1/rr/expectations', () => {
         created = true;
         return HttpResponse.json(expectation(), { status: 201 });
@@ -75,12 +71,8 @@ describe('ExpectationsView', () => {
     const sent: { replyAddresses?: string[] }[] = [];
     let created = false;
     server.use(
-      http.get('*/api/v1/clusters/c1/queues', () =>
-        HttpResponse.json({ data: [], page: 1, size: 300, total: 0 }),
-      ),
-      http.get('*/api/v1/clusters/c1/rr/expectations', () =>
-        HttpResponse.json(created ? [expectation()] : []),
-      ),
+      http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json({ data: [], page: 1, size: 300, total: 0 })),
+      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(created ? [expectation()] : [])),
       http.post('*/api/v1/clusters/c1/rr/expectations', async ({ request }) => {
         sent.push((await request.json()) as { replyAddresses?: string[] });
         created = true;
@@ -97,10 +89,7 @@ describe('ExpectationsView', () => {
     // input carrying the value, and the visible one that takes typing.
     const replies = screen
       .getAllByLabelText('Reply addresses')
-      .find(
-        (el): el is HTMLInputElement =>
-          el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'hidden',
-      )!;
+      .find((el): el is HTMLInputElement => el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'hidden')!;
     await user.type(replies, 'orders.reply.a{enter}');
     await user.type(replies, 'orders.reply.*{enter}');
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -128,10 +117,7 @@ describe('ExpectationsView', () => {
     const help = await screen.findByText(/temporary queue/);
     const field = screen
       .getAllByLabelText('Reply addresses')
-      .find(
-        (el): el is HTMLInputElement =>
-          el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'hidden',
-      )!;
+      .find((el): el is HTMLInputElement => el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'hidden')!;
     // The nearest common ancestor is the form grid, never the field's own wrapper.
     expect(field.closest('.mantine-TagsInput-root')?.contains(help)).toBe(false);
   });
@@ -139,9 +125,7 @@ describe('ExpectationsView', () => {
   it('says when a declared pattern matches nothing on the cluster yet', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/rr/expectations', () =>
-        HttpResponse.json([
-          expectation({ replyAddresses: ['orders.reply.*'], resolvedReplyAddresses: [] }),
-        ]),
+        HttpResponse.json([expectation({ replyAddresses: ['orders.reply.*'], resolvedReplyAddresses: [] })]),
       ),
     );
     renderWithProviders(<ExpectationsView clusterId="c1" />);

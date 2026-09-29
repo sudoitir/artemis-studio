@@ -32,9 +32,7 @@ describe('declared content type', () => {
   });
 
   it('is read from an application property when the field is absent', () => {
-    const d = detectPayload(
-      input({ body: '{"a":1}', stringProperties: { _AMQ_CONTENT_TYPE: 'application/json' } }),
-    );
+    const d = detectPayload(input({ body: '{"a":1}', stringProperties: { _AMQ_CONTENT_TYPE: 'application/json' } }));
     expect(d.format).toBe('json');
     expect(d.source).toBe('declared');
     expect(d.formatted).toBe('{\n  "a": 1\n}');
@@ -89,9 +87,7 @@ describe('structural inference', () => {
 
 describe('truncated bodies', () => {
   it('says the broker truncated it, not that the body is malformed', () => {
-    const d = detectPayload(
-      input({ body: '{"orders":[{"id":1},{"id":2', bodyTruncated: true }),
-    );
+    const d = detectPayload(input({ body: '{"orders":[{"id":1},{"id":2', bodyTruncated: true }));
     expect(d.format).toBe('json');
     expect(d.unavailable).toBe('truncated');
     expect(unavailableMessage(d)).toContain('truncated');
@@ -99,9 +95,7 @@ describe('truncated bodies', () => {
   });
 
   it('applies to a declared type too', () => {
-    const d = detectPayload(
-      input({ body: '{"a":', contentType: 'application/json', bodyTruncated: true }),
-    );
+    const d = detectPayload(input({ body: '{"a":', contentType: 'application/json', bodyTruncated: true }));
     expect(d.unavailable).toBe('truncated');
   });
 

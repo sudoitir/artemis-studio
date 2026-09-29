@@ -123,8 +123,8 @@ export function MessageActions({
               role="alert"
               title={`${LABEL[confirm]}d ${partial.affectedCount} of ${ids.length} messages, then stopped`}
             >
-              {partial.error} Not {LABEL[confirm].toLowerCase()}d: {partial.notDone.join(', ')}. Close this
-              and select them again to retry.
+              {partial.error} Not {LABEL[confirm].toLowerCase()}d: {partial.notDone.join(', ')}. Close this and select
+              them again to retry.
             </Alert>
           ) : null}
           {confirm === 'move' ? (

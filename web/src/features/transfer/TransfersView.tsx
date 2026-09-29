@@ -43,13 +43,14 @@ function Orphans({ clusterId }: { clusterId: string }) {
     <Stack gap="xs">
       <Title order={4}>Staging queues with no run</Title>
       <Text size="sm">
-        These hold messages a transfer took off a queue before Studio lost the run. Nothing is lost: return each
-        one to the queue the messages came from, and Studio removes the staging queue afterwards.
+        These hold messages a transfer took off a queue before Studio lost the run. Nothing is lost: return each one to
+        the queue the messages came from, and Studio removes the staging queue afterwards.
       </Text>
       {query.data.map((orphan) => (
         <Group key={`${orphan.nodeId}:${orphan.stagingQueue}`} gap="sm">
           <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {orphan.stagingQueue} on {orphan.nodeName} — {orphan.depth == null ? 'depth unknown' : plural(orphan.depth, 'message')}
+            {orphan.stagingQueue} on {orphan.nodeName} —{' '}
+            {orphan.depth == null ? 'depth unknown' : plural(orphan.depth, 'message')}
           </Text>
           <CapabilityGate verdict={gate} what="returning these messages">
             <Button
@@ -189,9 +190,8 @@ export function TransfersView() {
             <Stack gap={4} align="flex-start">
               <Text fw={600}>No transfers yet</Text>
               <Text size="sm">
-                A transfer moves or copies messages from a queue to a queue on another node or another cluster,
-                after a preview that checks the target can accept them. Select messages on the Messages screen to
-                start one.
+                A transfer moves or copies messages from a queue to a queue on another node or another cluster, after a
+                preview that checks the target can accept them. Select messages on the Messages screen to start one.
               </Text>
               <Anchor component={Link} to={`/clusters/${clusterId}/queues`} size="sm">
                 Go to Queues

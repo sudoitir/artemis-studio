@@ -13,9 +13,7 @@ export function Breadcrumb() {
   const { cluster, resource } = useTitleParts();
   if (!view) return null;
 
-  const crumbs: { label: string; to?: string }[] = [
-    { label: cluster ?? 'Cluster', to: `/clusters/${view.clusterId}` },
-  ];
+  const crumbs: { label: string; to?: string }[] = [{ label: cluster ?? 'Cluster', to: `/clusters/${view.clusterId}` }];
   if (view.item) {
     if (view.groupLabel) crumbs.push({ label: view.groupLabel });
     crumbs.push({ label: view.item.label, to: `/clusters/${view.clusterId}/${view.item.path}` });

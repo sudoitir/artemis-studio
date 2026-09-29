@@ -102,7 +102,10 @@ describe('single-key shortcuts (ADR-0109)', () => {
 
 describe('view letters', () => {
   it("ignore a plugin's letter", () => {
-    const plugin = { id: 'acme-notes', nav: [{ group: 'observe', order: 1, label: 'Notes', icon: () => null, path: 'p/acme-notes', hotkey: 'z' }] };
+    const plugin = {
+      id: 'acme-notes',
+      nav: [{ group: 'observe', order: 1, label: 'Notes', icon: () => null, path: 'p/acme-notes', hotkey: 'z' }],
+    };
     expect(viewHotkeys([plugin as never]).has('z')).toBe(false);
   });
 });

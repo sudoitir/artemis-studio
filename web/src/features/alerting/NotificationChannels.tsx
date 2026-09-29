@@ -34,7 +34,9 @@ export function NotificationChannels() {
   const [creating, setCreating] = useState(false);
   const [logFor, setLogFor] = useState<NotificationChannelView | null>(null);
   const [deleting, setDeleting] = useState<NotificationChannelView | null>(null);
-  const [tested, setTested] = useState<{ channel: NotificationChannelView; result: ChannelTestResultView } | null>(null);
+  const [tested, setTested] = useState<{ channel: NotificationChannelView; result: ChannelTestResultView } | null>(
+    null,
+  );
   const [announcement, setAnnouncement] = useState('');
 
   const writeReason = 'Changing channels needs the alert:write permission.';
@@ -166,7 +168,11 @@ export function NotificationChannels() {
                       >
                         <IconSend size={16} />
                       </ActionIcon>
-                      <ActionIcon variant="subtle" onClick={() => setLogFor(c)} aria-label={`Delivery log of ${c.name}`}>
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={() => setLogFor(c)}
+                        aria-label={`Delivery log of ${c.name}`}
+                      >
                         <IconHistory size={16} />
                       </ActionIcon>
                       <ActionIcon

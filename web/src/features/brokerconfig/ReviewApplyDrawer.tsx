@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Checkbox, Drawer, Group, Select, Skeleton, Stack, Switch, Text, VisuallyHidden } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Drawer,
+  Group,
+  Select,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+  VisuallyHidden,
+} from '@mantine/core';
 
 import {
   useApplyBrokerConfig,
@@ -183,9 +195,7 @@ export function ReviewApplyDrawer({
     loading || cluster.isPending,
   );
   const gate: GateVerdict =
-    declaration.applyMode === 'CONFIG_MANAGED'
-      ? { kind: 'blocked', reason: CONFIG_MANAGED_REASON }
-      : permissionGate;
+    declaration.applyMode === 'CONFIG_MANAGED' ? { kind: 'blocked', reason: CONFIG_MANAGED_REASON } : permissionGate;
 
   const blockers: string[] = [];
   if (gate.kind === 'blocked') blockers.push(gate.reason);
@@ -199,7 +209,8 @@ export function ReviewApplyDrawer({
       `The plan has ${previewed.plan.stepCount} steps, over the cap of ${previewed.stepCap}. Override it above to continue.`,
     );
   }
-  if (previewed && previewed.plan.stepCount === 0) blockers.push('Nothing to apply: every targeted node already matches.');
+  if (previewed && previewed.plan.stepCount === 0)
+    blockers.push('Nothing to apply: every targeted node already matches.');
   const running = apply.isPending && apply.variables?.dryRun === false;
   const announcement =
     stage === 'result' && result
@@ -236,7 +247,9 @@ export function ReviewApplyDrawer({
 
           {stage !== 'result' ? (
             <Stack gap="md">
-              {apply.isPending && apply.variables?.dryRun ? <Text size="sm">Planning — reading every live node…</Text> : null}
+              {apply.isPending && apply.variables?.dryRun ? (
+                <Text size="sm">Planning — reading every live node…</Text>
+              ) : null}
               {!previewed && apply.isPending ? <Skeleton height={120} /> : null}
               {planError ? (
                 <Alert color="red" variant="light" title="Could not plan" role="alert">
@@ -283,8 +296,8 @@ export function ReviewApplyDrawer({
 
               {noNodes ? (
                 <Alert color="yellow" variant="light" title="Select at least one node" role="alert">
-                  No node is selected, so there is nothing to plan. Tick the nodes this apply should write to — an
-                  empty selection is not a shortcut for all of them.
+                  No node is selected, so there is nothing to plan. Tick the nodes this apply should write to — an empty
+                  selection is not a shortcut for all of them.
                 </Alert>
               ) : null}
               {previewed ? (

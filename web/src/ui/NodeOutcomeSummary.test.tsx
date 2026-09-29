@@ -86,9 +86,7 @@ describe('NodeOutcomeSummary', () => {
         })}
       />,
     );
-    expect(
-      screen.getByText('Would apply to 1 of 2 nodes, 1 not live and will be skipped'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Would apply to 1 of 2 nodes, 1 not live and will be skipped')).toBeInTheDocument();
   });
 
   it('shows the per-node message counts only for a destructive command', () => {
@@ -98,9 +96,7 @@ describe('NodeOutcomeSummary', () => {
       nodes: [node({ nodeId: 'a', status: 'WOULD_APPLY', affected: 42 })],
     });
 
-    const { unmount } = renderWithProviders(
-      <NodeOutcomeSummary outcome={destructive} destructive />,
-    );
+    const { unmount } = renderWithProviders(<NodeOutcomeSummary outcome={destructive} destructive />);
     expect(screen.getByText('would destroy 42 messages')).toBeInTheDocument();
     unmount();
 

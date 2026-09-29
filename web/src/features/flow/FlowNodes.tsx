@@ -86,10 +86,14 @@ function Frame({
       onFocus={() => emphasize(id)}
       onBlur={() => emphasize(null)}
     >
-      {inbound ? <Handle type="target" position={Position.Left} className={classes.handle} isConnectable={false} /> : null}
+      {inbound ? (
+        <Handle type="target" position={Position.Left} className={classes.handle} isConnectable={false} />
+      ) : null}
       {children}
       {faults.length ? <span className={classes.fault}>{faults.join(', ')}</span> : null}
-      {outbound ? <Handle type="source" position={Position.Right} className={classes.handle} isConnectable={false} /> : null}
+      {outbound ? (
+        <Handle type="source" position={Position.Right} className={classes.handle} isConnectable={false} />
+      ) : null}
     </div>
   );
 }
@@ -182,7 +186,9 @@ export const RemoteNode = memo(function RemoteNode({ id, data }: NodeProps) {
           {v.label}
         </span>
       </div>
-      <span className={classes.meta}>{v.role === 'CLUSTER_NODE' ? 'another node of this cluster' : 'outside this cluster'}</span>
+      <span className={classes.meta}>
+        {v.role === 'CLUSTER_NODE' ? 'another node of this cluster' : 'outside this cluster'}
+      </span>
     </Frame>
   );
 });

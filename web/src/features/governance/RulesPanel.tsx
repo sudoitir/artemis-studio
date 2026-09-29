@@ -78,7 +78,12 @@ const ACTIONS = [
   { value: 'REDACT', label: 'Redact — whole value' },
 ];
 
-const ACTION_WORDS: Record<string, string> = { DROP: 'Drop', PARTIAL: 'Partial', REDACT: 'Redact', CLEAR: 'Leave clear' };
+const ACTION_WORDS: Record<string, string> = {
+  DROP: 'Drop',
+  PARTIAL: 'Partial',
+  REDACT: 'Redact',
+  CLEAR: 'Leave clear',
+};
 
 const WRITE_REASON = 'Changing masking rules needs the governance:write permission.';
 
@@ -225,9 +230,9 @@ export function RulesPanel() {
 
       <Stack gap={4}>
         <Text size="sm">
-          A rule masks a header, a property or a JSON body value wherever message content leaves Studio or is
-          stored. Values the detectors recognise are masked even without a rule. Credentials are never shown, and
-          users with <code>message:clear</code> see every other value in clear.
+          A rule masks a header, a property or a JSON body value wherever message content leaves Studio or is stored.
+          Values the detectors recognise are masked even without a rule. Credentials are never shown, and users with{' '}
+          <code>message:clear</code> see every other value in clear.
         </Text>
         {canWrite ? null : (
           <Text size="sm" c="dimmed">
@@ -247,7 +252,13 @@ export function RulesPanel() {
       </Group>
 
       {failure ? (
-        <Alert variant="light" color="red" title="The change did not apply" withCloseButton onClose={() => setFailure(null)}>
+        <Alert
+          variant="light"
+          color="red"
+          title="The change did not apply"
+          withCloseButton
+          onClose={() => setFailure(null)}
+        >
           {failure}
         </Alert>
       ) : null}

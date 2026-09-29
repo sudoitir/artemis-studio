@@ -1,37 +1,32 @@
-import { useMemo } from "react";
-import { Badge, Group, Text } from "@mantine/core";
+import { useMemo } from 'react';
+import { Badge, Group, Text } from '@mantine/core';
 
 import type { SqlRowView } from './api.ts';
-import { absoluteLabel } from "../../kernel/time/time.ts";
-import { useDisplayZone } from "../../kernel/time/timezone.ts";
-import { RedactionMarks } from "../../ui/RedactedValue.tsx";
-import { redactionsAt } from "../../ui/redactions.ts";
-import { VirtualTable, type GridColumn } from "../../ui/VirtualTable.tsx";
-import { VerifyOnBroker } from "./VerifyOnBroker.tsx";
-import { rowKey } from "./useSqlTail.ts";
-import classes from "./ResultGrid.module.css";
+import { absoluteLabel } from '../../kernel/time/time.ts';
+import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { RedactionMarks } from '../../ui/RedactedValue.tsx';
+import { redactionsAt } from '../../ui/redactions.ts';
+import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { VerifyOnBroker } from './VerifyOnBroker.tsx';
+import { rowKey } from './useSqlTail.ts';
+import classes from './ResultGrid.module.css';
 
 function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
   return [
     {
-      id: "source",
-      header: "Source",
-      accessor: (r) =>
-        r.source === "INDEX" ? (r.origin ?? "INDEX") : "BROKER",
+      id: 'source',
+      header: 'Source',
+      accessor: (r) => (r.source === 'INDEX' ? (r.origin ?? 'INDEX') : 'BROKER'),
       width: 110,
       // Three provenances, not two, and each in its own words. "Indexed" covers a
       // sampled row and a captured one, which make different claims: a sampled row
       // says a poll saw this message, a captured one says the address routed it.
       cell: (r) =>
-        r.source !== "INDEX" ? (
-          <Badge
-            size="xs"
-            variant="default"
-            title="Read from the live broker just now"
-          >
+        r.source !== 'INDEX' ? (
+          <Badge size="xs" variant="default" title="Read from the live broker just now">
             live
           </Badge>
-        ) : r.origin === "CAPTURED" ? (
+        ) : r.origin === 'CAPTURED' ? (
           <Badge
             size="xs"
             variant="light"
@@ -52,42 +47,42 @@ function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
         ),
     },
     {
-      id: "node",
-      header: "Node",
-      accessor: (r) => r.nodeName ?? "",
+      id: 'node',
+      header: 'Node',
+      accessor: (r) => r.nodeName ?? '',
       width: 150,
     },
-    { id: "queue", header: "Queue", accessor: (r) => r.queueName ?? "" },
+    { id: 'queue', header: 'Queue', accessor: (r) => r.queueName ?? '' },
     {
-      id: "messageId",
-      header: "Message ID",
-      accessor: (r) => r.messageId ?? "",
+      id: 'messageId',
+      header: 'Message ID',
+      accessor: (r) => r.messageId ?? '',
       width: 150,
     },
     {
-      id: "timestamp",
-      header: "Enqueued",
+      id: 'timestamp',
+      header: 'Enqueued',
       accessor: (r) => absoluteLabel(r.timestamp),
       width: 200,
     },
     {
-      id: "priority",
-      header: "Prio",
+      id: 'priority',
+      header: 'Prio',
       accessor: (r) => r.priority ?? 0,
       numeric: true,
       width: 70,
     },
     {
-      id: "size",
-      header: "Size",
+      id: 'size',
+      header: 'Size',
       accessor: (r) => r.size ?? 0,
       numeric: true,
       width: 90,
     },
     {
-      id: "body",
-      header: "Body",
-      accessor: (r) => r.body ?? "",
+      id: 'body',
+      header: 'Body',
+      accessor: (r) => r.body ?? '',
       cell: (r) => (
         <Group gap={6} wrap="nowrap">
           <Text size="xs" truncate>
@@ -98,12 +93,7 @@ function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
             )}
           </Text>
           {r.bodyTruncated ? (
-            <Badge
-              size="xs"
-              color="yellow"
-              variant="light"
-              title="Cut by the management channel"
-            >
+            <Badge size="xs" color="yellow" variant="light" title="Cut by the management channel">
               truncated
             </Badge>
           ) : null}
@@ -113,26 +103,23 @@ function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
               variant="outline"
               color="gray"
               tt="none"
-              title={(r.withheld ?? []).map((w) => w.reason).join(" ")}
+              title={(r.withheld ?? []).map((w) => w.reason).join(' ')}
             >
               withheld
             </Badge>
           ) : null}
-          <RedactionMarks redactions={redactionsAt(r.redactions ?? [], "BODY")} />
+          <RedactionMarks redactions={redactionsAt(r.redactions ?? [], 'BODY')} />
         </Group>
       ),
     },
     {
-      id: "verify",
-      header: "On broker",
-      accessor: () => "",
+      id: 'verify',
+      header: 'On broker',
+      accessor: () => '',
       width: 120,
       // Only an indexed row raises the question. A live row was read from the
       // broker moments ago, so offering to re-ask would be theatre.
-      cell: (r) =>
-        r.source === "INDEX" ? (
-          <VerifyOnBroker clusterId={clusterId} row={r} />
-        ) : null,
+      cell: (r) => (r.source === 'INDEX' ? <VerifyOnBroker clusterId={clusterId} row={r} /> : null),
     },
   ];
 }
@@ -185,9 +172,7 @@ export function ResultGrid({
       rowKey={rowKey}
       onRowClick={onOpen}
       emptyLabel={emptyLabel}
-      rowClassName={(r) =>
-        freshKeys?.has(rowKey(r)) ? classes.fresh : undefined
-      }
+      rowClassName={(r) => (freshKeys?.has(rowKey(r)) ? classes.fresh : undefined)}
       onAtTopChange={onAtTopChange}
     />
   );
