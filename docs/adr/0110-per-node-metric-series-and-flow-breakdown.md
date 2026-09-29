@@ -1,6 +1,6 @@
 # ADR-0110: Per-node metric series and the flow breakdown
 
-- **Status**: accepted
+- **Status**: accepted; decision 4 superseded by [ADR-0127](0127-cluster-gauge-is-a-total-at-each-bucket-end.md)
 - **Date**: 2026-09-24
 - **Deciders**: Artemis Studio maintainers
 

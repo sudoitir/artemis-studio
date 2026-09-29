@@ -110,8 +110,7 @@ public class MetricQueryService {
             if (!SPLIT_BY_NODE.equals(splitBy)) {
                 throw new IllegalArgumentException("splitBy must be NODE");
             }
-            // A cluster-scope gauge is an average across queues and nodes, not a total (ADR-0110 D4):
-            // split, it would put that average on screen per node as though it were each node's load.
+            // The per-node read is per queue (ADR-0110); a cluster-wide split per node is not built.
             if (subjectName == null) {
                 throw new IllegalArgumentException("a split by node needs one queue: subjectType=QUEUE and a subject");
             }

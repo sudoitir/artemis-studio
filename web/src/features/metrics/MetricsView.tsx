@@ -174,7 +174,7 @@ export function MetricsView() {
         isEmpty={empty(depth)}
         emptyLabel={`No depth samples for ${scope} in this window. Depth is recorded on the queue sweep, so a cluster registered within the last few minutes has none yet.`}
       >
-        <DepthChart series={depth} range={range} from={fromMs} to={toMs} syncId={syncId} />
+        <DepthChart series={depth} range={range} from={fromMs} to={toMs} syncId={syncId} total={!subject} />
       </ChartPanel>
 
       <ChartPanel

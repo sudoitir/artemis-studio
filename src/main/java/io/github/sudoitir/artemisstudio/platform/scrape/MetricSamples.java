@@ -187,9 +187,60 @@ public class MetricSamples {
         return out;
     }
 
+    /**
+     * A queue gauge's buckets: one queue's average and peak when {@code subjectName} is given, and
+     * the cluster's total when it is not ({@link #clusterGaugeTotal}).
+     */
     public List<Bucket> gaugeSeries(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
-        return gaugeSeries("QUEUE", clusterId, metric, subjectName, from, to, step);
+        return subjectName == null
+                ? clusterGaugeTotal(clusterId, metric, from, to, step)
+                : gaugeSeries("QUEUE", clusterId, metric, subjectName, from, to, step);
+    }
+
+    /**
+     * A cluster's gauge total at each bucket's end: the sum, over every queue on every node, of
+     * that queue's last sample at or before the end, while that sample is still within the queue's
+     * own sampling interval (ADR-0127, issue #72). Averaging every sample in a bucket, as before,
+     * read 10,000 messages over 50 queues as about 200, and a queue on the slow sweep, absent from
+     * most fine buckets, dropped out of them entirely.
+     *
+     * <p>Each sample holds from its own time until the queue's next sample, and for at most one and
+     * a half of the gap since the previous one, so a deleted queue stops counting. A sample with no
+     * previous one uses two slow-tier intervals. There is no peak: the total's maximum inside a
+     * bucket is not a sum of the queues' maxima. A bucket with no sample at all is left out.
+     */
+    public List<Bucket> clusterGaugeTotal(UUID clusterId, String metric, Instant from, Instant to, Duration step) {
+        String sql = """
+                WITH samples AS (
+                  SELECT ts, value,
+                         lead(ts) OVER w AS next_ts,
+                         ts - lag(ts) OVER w AS gap
+                    FROM metric_sample
+                   WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
+                     AND ts >= :lookbackFrom AND ts < :to
+                  WINDOW w AS (PARTITION BY subject_name, node_id ORDER BY ts)
+                ), spans AS (
+                  -- The bucket ends at which this sample is the queue's latest, still-fresh value.
+                  SELECT value,
+                         date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01')
+                             + make_interval(secs => :stepSeconds) AS first_end,
+                         LEAST(COALESCE(next_ts, 'infinity'),
+                               ts + COALESCE(gap, make_interval(secs => :fallbackSeconds)) * 1.5,
+                               CAST(:to AS timestamptz) + make_interval(secs => :stepSeconds)) AS last_end
+                    FROM samples
+                )
+                SELECT bucket_end - make_interval(secs => :stepSeconds) AS bucket, sum(value) AS v
+                  FROM spans, generate_series(first_end, last_end, make_interval(secs => :stepSeconds)) AS bucket_end
+                 WHERE bucket_end - make_interval(secs => :stepSeconds)
+                           >= date_bin(make_interval(secs => :stepSeconds), CAST(:from AS timestamptz), TIMESTAMPTZ '2000-01-01')
+                   AND bucket_end - make_interval(secs => :stepSeconds) < :to
+                 GROUP BY bucket_end ORDER BY bucket_end
+                """;
+        MapSqlParameterSource p = rateParams(clusterId, metric, null, from, to, step)
+                .addValue("fallbackSeconds", (double) lookback().toSeconds());
+        return jdbc.query(
+                sql, p, (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
     }
 
     /** A plugin metric's gauge buckets for one subject (ADR-0113). */
@@ -260,9 +311,12 @@ public class MetricSamples {
      */
     private MapSqlParameterSource rateParams(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
-        Duration lookback = settings.duration(ScrapeSettings.TIER_C).multipliedBy(2);
         return params(clusterId, metric, subjectName, from, to, step)
-                .addValue("lookbackFrom", Timestamp.from(from.minus(lookback)));
+                .addValue("lookbackFrom", Timestamp.from(from.minus(lookback())));
+    }
+
+    private Duration lookback() {
+        return settings.duration(ScrapeSettings.TIER_C).multipliedBy(2);
     }
 
     /**
