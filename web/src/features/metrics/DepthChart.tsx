@@ -15,7 +15,8 @@ import type { MetricRange } from './ranges.ts';
 
 /**
  * Average queue depth for each bucket, with the bucket's peak as an envelope
- * above it.
+ * above it. With `total`, the cluster's depth at each bucket's end instead: the sum
+ * of every queue's latest sample, which has no bucket peak (ADR-0127).
  *
  * The two marks share one hue on purpose. Peak is not a second identity — it is
  * the same measurement's upper bound — so this is an envelope, not a categorical
@@ -31,12 +32,14 @@ export function DepthChart({
   from,
   to,
   syncId,
+  total = false,
 }: {
   series: MetricSeries | undefined;
   range: MetricRange;
   from: number;
   to: number;
   syncId: string;
+  total?: boolean;
 }) {
   // Axis ticks and tooltips are formatted in the display zone (`app/timezone.ts`).
   useDisplayZone();
@@ -59,16 +62,20 @@ export function DepthChart({
       yAxisProps={yAxisProps()}
       gridProps={gridProps()}
       tooltipProps={{ labelFormatter: (label) => labelFormatter(range)(Number(label)) }}
-      series={[
-        {
-          name: 'peak',
-          label: 'Bucket peak',
-          color: 'var(--as-chart-1)',
-          type: 'area',
-          strokeDasharray: '4 4',
-        },
-        { name: 'depth', label: 'Depth (avg)', color: 'var(--as-chart-1)', type: 'line' },
-      ]}
+      series={
+        total
+          ? [{ name: 'depth', label: 'Depth (total)', color: 'var(--as-chart-1)', type: 'line' }]
+          : [
+              {
+                name: 'peak',
+                label: 'Bucket peak',
+                color: 'var(--as-chart-1)',
+                type: 'area',
+                strokeDasharray: '4 4',
+              },
+              { name: 'depth', label: 'Depth (avg)', color: 'var(--as-chart-1)', type: 'line' },
+            ]
+      }
       gridAxis="y"
     />
   );

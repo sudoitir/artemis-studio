@@ -106,11 +106,50 @@ class MetricSamplesTest extends PostgresIntegrationTest {
         sample("messageCount", base.plusSeconds(10), 20.0);
 
         List<MetricSamples.Bucket> buckets = repository.gaugeSeries(
-                clusterId, "messageCount", null, base, base.plusSeconds(60), Duration.ofSeconds(60));
+                clusterId, "messageCount", "Q", base, base.plusSeconds(60), Duration.ofSeconds(60));
 
         assertThat(buckets).hasSize(1);
         assertThat(buckets.get(0).value()).isEqualTo(15.0);
         assertThat(buckets.get(0).peak()).isEqualTo(20.0);
+    }
+
+    @Test
+    void aClusterGaugeIsTheTotalOfEveryQueuesLastSampleIncludingASlowTierQueueAbsentFromTheBucket() {
+        // Issue #72: two fast queues sampled every 15 s, and a queue on the 5-minute slow sweep,
+        // on another node, last sampled before the window. Its sample still stands at every bucket end.
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        UUID otherNode = UUID.randomUUID();
+        sample("messageCount", "slow", otherNode, base.minusSeconds(590), 5_000.0);
+        sample("messageCount", "slow", otherNode, base.minusSeconds(290), 7_000.0);
+        for (int i = 0; i < 8; i++) {
+            Instant ts = base.plusSeconds(15L * i);
+            sample("messageCount", "a", ts, 100.0 + i);
+            sample("messageCount", "b", ts, 200.0);
+        }
+
+        List<MetricSamples.Bucket> buckets = repository.gaugeSeries(
+                clusterId, "messageCount", null, base, base.plusSeconds(60), Duration.ofSeconds(30));
+
+        // Bucket [0, 30): at its end, a's last sample is 101 (t=15), b's 200, slow's 7,000.
+        assertThat(buckets).hasSize(2);
+        assertThat(buckets.get(0).value()).isEqualTo(101.0 + 200.0 + 7_000.0);
+        assertThat(buckets.get(1).value()).isEqualTo(103.0 + 200.0 + 7_000.0);
+        assertThat(buckets).allSatisfy(b -> assertThat(b.peak()).isNull());
+    }
+
+    @Test
+    void aQueueThatStopsBeingSampledStopsCountingAfterItsOwnInterval() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sample("messageCount", "gone", base, 50.0);
+        sample("messageCount", "gone", base.plusSeconds(10), 60.0); // last sample, 10 s interval
+        sample("messageCount", "kept", base, 1.0);
+        sample("messageCount", "kept", base.plusSeconds(55), 1.0);
+
+        List<MetricSamples.Bucket> buckets = repository.gaugeSeries(
+                clusterId, "messageCount", null, base, base.plusSeconds(60), Duration.ofSeconds(20));
+
+        // End 20 s: gone's t=10 sample is 10 s old, within 1.5 × its 10 s gap. End 40 s: 30 s old, not.
+        assertThat(buckets).extracting(MetricSamples.Bucket::value).containsExactly(61.0, 1.0, 1.0);
     }
 
     @Test
