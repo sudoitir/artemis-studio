@@ -2,13 +2,23 @@
 
 ## Reporting a vulnerability
 
-Do **not** open a public issue for a security problem.
+Do **not** open a public issue, discussion or pull request for a security problem.
 
-Use GitHub's **private vulnerability reporting** on this repository
-(Security → Report a vulnerability), or email the maintainers if that is not
-available. Include a description, affected version/commit, and a minimal
-reproduction. Please give us a reasonable window to respond before any public
-disclosure.
+Report it privately through GitHub's private vulnerability reporting:
+<https://github.com/sudoitir/artemis-studio/security/advisories/new>. Include a description,
+the affected version (the image tag or the About dialog) or commit, and a minimal
+reproduction.
+
+What happens next:
+
+1. **Within 3 working days**, we acknowledge the report.
+2. **Within 10 working days**, we confirm the vulnerability or explain why it is not one, and
+   agree a disclosure date with you.
+3. The fix ships in a release, and we publish a
+   [GitHub security advisory](https://github.com/sudoitir/artemis-studio/security/advisories)
+   crediting you, unless you prefer otherwise. We aim to disclose within 90 days of the report.
+
+Please give us that window before any public disclosure.
 
 ## Scope
 
@@ -25,5 +35,6 @@ message brokers. Of particular interest:
 
 ## Supported versions
 
-Pre-alpha: only the `main` branch is supported. Once releases exist, this section
-will list supported version ranges.
+Before the first stable release, only the latest release is supported: fixes ship in the next
+release, and there are no backports. See the
+[releases](https://github.com/sudoitir/artemis-studio/releases).
