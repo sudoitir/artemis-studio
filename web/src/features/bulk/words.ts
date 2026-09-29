@@ -7,14 +7,37 @@ export const OPERATIONS: Record<
   BulkOperation,
   { verb: string; gerund: string; permission: string; permissionLabel: string; destructive: boolean }
 > = {
-  PAUSE: { verb: 'Pause', gerund: 'pausing', permission: 'queue:pause', permissionLabel: 'Pause and resume queues', destructive: false },
-  RESUME: { verb: 'Resume', gerund: 'resuming', permission: 'queue:pause', permissionLabel: 'Pause and resume queues', destructive: false },
-  PURGE: { verb: 'Purge', gerund: 'purging', permission: 'queue:purge', permissionLabel: 'Purge queues', destructive: true },
-  DELETE: { verb: 'Delete', gerund: 'deleting', permission: 'queue:delete', permissionLabel: 'Destroy queues and addresses', destructive: true },
+  PAUSE: {
+    verb: 'Pause',
+    gerund: 'pausing',
+    permission: 'queue:pause',
+    permissionLabel: 'Pause and resume queues',
+    destructive: false,
+  },
+  RESUME: {
+    verb: 'Resume',
+    gerund: 'resuming',
+    permission: 'queue:pause',
+    permissionLabel: 'Pause and resume queues',
+    destructive: false,
+  },
+  PURGE: {
+    verb: 'Purge',
+    gerund: 'purging',
+    permission: 'queue:purge',
+    permissionLabel: 'Purge queues',
+    destructive: true,
+  },
+  DELETE: {
+    verb: 'Delete',
+    gerund: 'deleting',
+    permission: 'queue:delete',
+    permissionLabel: 'Destroy queues and addresses',
+    destructive: true,
+  },
 };
 
-export const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n.toLocaleString()} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /** The run's status in words; colour only where something went wrong. */
 export function runStatus(status: BulkRunView['status']): { text: string; tone: Tone } {

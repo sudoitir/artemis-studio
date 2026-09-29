@@ -1,16 +1,5 @@
 import { useState } from 'react';
-import {
-  ActionIcon,
-  Button,
-  Group,
-  Modal,
-  NumberInput,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-  TextInput,
-} from '@mantine/core';
+import { ActionIcon, Button, Group, Modal, NumberInput, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
@@ -59,11 +48,7 @@ export function SendMessage({
       <Stack gap="sm">
         <Group gap="sm" align="flex-end">
           <NumberInput label="Type" value={type} onChange={(v) => setType(Number(v) || 0)} w={100} size="xs" />
-          <Switch
-            label="Durable"
-            checked={durable}
-            onChange={(e) => setDurable(e.currentTarget.checked)}
-          />
+          <Switch label="Durable" checked={durable} onChange={(e) => setDurable(e.currentTarget.checked)} />
         </Group>
         <Textarea
           label="Body (text)"

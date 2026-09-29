@@ -7,7 +7,8 @@ const NODE_SUBJECT_PREFIX = 'node:';
 export function FiringNodeMark({ clusterId, nodeIds }: { clusterId: string; nodeIds: string[] }) {
   const firing = useFiringAlerts(clusterId);
   const on = (firing.data ?? []).some(
-    (f) => f.subjectKey.startsWith(NODE_SUBJECT_PREFIX) && nodeIds.includes(f.subjectKey.slice(NODE_SUBJECT_PREFIX.length)),
+    (f) =>
+      f.subjectKey.startsWith(NODE_SUBJECT_PREFIX) && nodeIds.includes(f.subjectKey.slice(NODE_SUBJECT_PREFIX.length)),
   );
   return on ? (
     <span className={styles.dot} role="img" aria-label="Alert firing" title="An alert is firing on this node" />

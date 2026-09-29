@@ -18,11 +18,7 @@ const TONE_CLASS = {
 export function HealthVerdict({ row }: { row: ConsumerHealthView }) {
   const copy = verdictCopy(row.verdict);
   const unmeasured = isUnmeasured(row);
-  const className = unmeasured
-    ? styles.unmeasured
-    : copy.tone
-      ? TONE_CLASS[copy.tone]
-      : undefined;
+  const className = unmeasured ? styles.unmeasured : copy.tone ? TONE_CLASS[copy.tone] : undefined;
 
   return (
     <span className={styles.verdict}>

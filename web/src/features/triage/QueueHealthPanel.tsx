@@ -29,8 +29,8 @@ export function QueueHealthPanel({
     // Unreachable is not healthy, and not empty either.
     return (
       <Alert color="gray" title="Consumer health is unavailable">
-        {query.error.message} — the verdict for this queue could not be read, so nothing here
-        says whether its consumers are keeping up.
+        {query.error.message} — the verdict for this queue could not be read, so nothing here says whether its consumers
+        are keeping up.
       </Alert>
     );
   }
@@ -74,8 +74,7 @@ export function QueueHealthPanel({
 
         {row.nodesPresent < row.nodesTotal ? (
           <Text size="xs" c="dimmed">
-            Present on {row.nodesPresent} of {row.nodesTotal} nodes; these numbers cover only the
-            nodes reporting it.
+            Present on {row.nodesPresent} of {row.nodesTotal} nodes; these numbers cover only the nodes reporting it.
           </Text>
         ) : null}
 

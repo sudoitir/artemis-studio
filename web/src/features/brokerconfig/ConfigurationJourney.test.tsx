@@ -23,9 +23,7 @@ function shell() {
     http.get('*/api/v1/clusters', () => HttpResponse.json([{ id: 'c1', name: 'prod', health: 'OK', nodeCount: 2 }])),
     http.get('*/api/v1/environments', () => HttpResponse.json([])),
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
-    http.get('*/api/v1/clusters/c1/queues', () =>
-      HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 }),
-    ),
+    http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
     http.get('*/api/v1/clusters/c1/dlq', () => HttpResponse.json({ settingsAvailable: true, addresses: [] })),
     http.get('*/api/v1/clusters/c1', () =>
       HttpResponse.json({
@@ -85,7 +83,11 @@ async function open(path = '/clusters/c1/configuration') {
 
 describe('the configuration screen', () => {
   it('states the revision and how far it has got, and names the item that differs on its own row', async () => {
-    server.use(...shell(), ...baseHandlers(drifted), applyHandler(() => plan()));
+    server.use(
+      ...shell(),
+      ...baseHandlers(drifted),
+      applyHandler(() => plan()),
+    );
     await open();
 
     // The sentence a save produces: a revision exists, and a broker has not been written.
@@ -159,7 +161,11 @@ describe('the configuration screen', () => {
 
   it('applies one row on its own, naming that item’s steps and nothing else', async () => {
     const seen = vi.fn();
-    server.use(...shell(), ...baseHandlers(drifted), applyHandler(() => plan({ dryRun: false, outcome: 'APPLIED' }), seen));
+    server.use(
+      ...shell(),
+      ...baseHandlers(drifted),
+      applyHandler(() => plan({ dryRun: false, outcome: 'APPLIED' }), seen),
+    );
     const user = userEvent.setup();
     await open();
 
@@ -179,7 +185,11 @@ describe('the configuration screen', () => {
 
   it('refuses an apply with no node selected instead of sending an empty target set', async () => {
     const seen = vi.fn();
-    server.use(...shell(), ...baseHandlers(drifted), applyHandler(() => plan(), seen));
+    server.use(
+      ...shell(),
+      ...baseHandlers(drifted),
+      applyHandler(() => plan(), seen),
+    );
     const user = userEvent.setup();
     await open();
 
@@ -221,7 +231,11 @@ describe('the configuration screen', () => {
   });
 
   it('is operable from the keyboard: escape leaves the drawer and focus returns to the control that opened it', async () => {
-    server.use(...shell(), ...baseHandlers(drifted), applyHandler(() => plan()));
+    server.use(
+      ...shell(),
+      ...baseHandlers(drifted),
+      applyHandler(() => plan()),
+    );
     const user = userEvent.setup();
     await open();
 

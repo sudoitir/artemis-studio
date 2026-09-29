@@ -1,46 +1,46 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { ApiError, BASE, clusterKey, lifecycleQuery, type LifecycleVars, request } from "../../kernel/api/request.ts";
-import { type ResourceParams } from "../../kernel/api/paging.ts";
-import type { components } from "../../kernel/api/schema.d.ts";
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { ApiError, BASE, clusterKey, lifecycleQuery, type LifecycleVars, request } from '../../kernel/api/request.ts';
+import { type ResourceParams } from '../../kernel/api/paging.ts';
+import type { components } from '../../kernel/api/schema.d.ts';
 
-type Schemas = components["schemas"];
+type Schemas = components['schemas'];
 
-export type ConfigAddressSettingKeyView = Schemas["ConfigAddressSettingKeyView"];
-export type ConfigAddressSettingView = Schemas["ConfigAddressSettingView"];
-export type ConfigAddressView = Schemas["ConfigAddressView"];
-export type ConfigAdoptionView = Schemas["ConfigAdoptionView"];
-export type ConfigBridgeCredentialView = Schemas["ConfigBridgeCredentialView"];
-export type ConfigBridgeView = Schemas["ConfigBridgeView"];
-export type BridgeCredentialRequest = Schemas["BridgeCredentialRequest"];
-export type ConfigApplyDetailView = Schemas["ConfigApplyDetailView"];
-export type ConfigApplyHistoryView = Schemas["ConfigApplyHistoryView"];
-export type ConfigApplyOutcomeView = Schemas["ConfigApplyOutcomeView"];
-export type ConfigApplyRequest = Schemas["ApplyRequest"];
-export type ConfigCatalogueView = Schemas["ConfigCatalogueView"];
-export type ConfigDeclarationView = Schemas["ConfigDeclarationView"];
-export type ConfigDiffView = Schemas["ConfigDiffView"];
-export type ConfigDivertView = Schemas["ConfigDivertView"];
-export type ConfigDocumentView = Schemas["ConfigDocumentView"];
-export type ConfigDriftFindingView = Schemas["ConfigDriftFindingView"];
-export type ConfigDriftReportView = Schemas["ConfigDriftReportView"];
-export type ConfigEntryView = Schemas["ConfigEntryView"];
-export type ConfigHazardView = Schemas["ConfigHazardView"];
-export type ConfigImportResultView = Schemas["ConfigImportResultView"];
-export type ConfigNodeApplyView = Schemas["ConfigNodeApplyView"];
-export type ConfigNodeConnectorsView = Schemas["ConfigNodeConnectorsView"];
-export type ConfigNodeStateView = Schemas["ConfigNodeStateView"];
-export type ConfigQueueView = Schemas["ConfigQueueView"];
-export type ConfigRecommendationView = Schemas["ConfigRecommendationView"];
-export type ConfigRecommendationsView = Schemas["ConfigRecommendationsView"];
-export type ConfigRevisionView = Schemas["ConfigRevisionView"];
-export type ConfigSectionView = Schemas["ConfigSectionView"];
-export type ConfigSecuritySettingView = Schemas["ConfigSecuritySettingView"];
-export type ConfigStepApplyView = Schemas["ConfigStepApplyView"];
-export type ConfigTransformerView = Schemas["ConfigTransformerView"];
-export type ConfigureRequest = Schemas["ConfigureRequest"];
-export type DeclareRecommendedRequest = Schemas["DeclareRecommendedRequest"];
-export type NodeConfigView = Schemas["NodeConfigView"];
-export type SaveDeclarationRequest = Schemas["SaveDeclarationRequest"];
+export type ConfigAddressSettingKeyView = Schemas['ConfigAddressSettingKeyView'];
+export type ConfigAddressSettingView = Schemas['ConfigAddressSettingView'];
+export type ConfigAddressView = Schemas['ConfigAddressView'];
+export type ConfigAdoptionView = Schemas['ConfigAdoptionView'];
+export type ConfigBridgeCredentialView = Schemas['ConfigBridgeCredentialView'];
+export type ConfigBridgeView = Schemas['ConfigBridgeView'];
+export type BridgeCredentialRequest = Schemas['BridgeCredentialRequest'];
+export type ConfigApplyDetailView = Schemas['ConfigApplyDetailView'];
+export type ConfigApplyHistoryView = Schemas['ConfigApplyHistoryView'];
+export type ConfigApplyOutcomeView = Schemas['ConfigApplyOutcomeView'];
+export type ConfigApplyRequest = Schemas['ApplyRequest'];
+export type ConfigCatalogueView = Schemas['ConfigCatalogueView'];
+export type ConfigDeclarationView = Schemas['ConfigDeclarationView'];
+export type ConfigDiffView = Schemas['ConfigDiffView'];
+export type ConfigDivertView = Schemas['ConfigDivertView'];
+export type ConfigDocumentView = Schemas['ConfigDocumentView'];
+export type ConfigDriftFindingView = Schemas['ConfigDriftFindingView'];
+export type ConfigDriftReportView = Schemas['ConfigDriftReportView'];
+export type ConfigEntryView = Schemas['ConfigEntryView'];
+export type ConfigHazardView = Schemas['ConfigHazardView'];
+export type ConfigImportResultView = Schemas['ConfigImportResultView'];
+export type ConfigNodeApplyView = Schemas['ConfigNodeApplyView'];
+export type ConfigNodeConnectorsView = Schemas['ConfigNodeConnectorsView'];
+export type ConfigNodeStateView = Schemas['ConfigNodeStateView'];
+export type ConfigQueueView = Schemas['ConfigQueueView'];
+export type ConfigRecommendationView = Schemas['ConfigRecommendationView'];
+export type ConfigRecommendationsView = Schemas['ConfigRecommendationsView'];
+export type ConfigRevisionView = Schemas['ConfigRevisionView'];
+export type ConfigSectionView = Schemas['ConfigSectionView'];
+export type ConfigSecuritySettingView = Schemas['ConfigSecuritySettingView'];
+export type ConfigStepApplyView = Schemas['ConfigStepApplyView'];
+export type ConfigTransformerView = Schemas['ConfigTransformerView'];
+export type ConfigureRequest = Schemas['ConfigureRequest'];
+export type DeclareRecommendedRequest = Schemas['DeclareRecommendedRequest'];
+export type NodeConfigView = Schemas['NodeConfigView'];
+export type SaveDeclarationRequest = Schemas['SaveDeclarationRequest'];
 
 export const keys = {
   brokerConfig: (id: string) => clusterKey(id, 'config'),
@@ -49,14 +49,10 @@ export const keys = {
 };
 
 /** One node's effective broker configuration (ADR-0043 + ADR-0049). */
-export function useNodeConfig(
-  clusterId: string,
-  nodeId: string | undefined,
-): UseQueryResult<NodeConfigView, ApiError> {
+export function useNodeConfig(clusterId: string, nodeId: string | undefined): UseQueryResult<NodeConfigView, ApiError> {
   return useQuery({
-    queryKey: ["clusters", clusterId, "nodes", nodeId, "config"] as const,
-    queryFn: () =>
-      request<NodeConfigView>(`/clusters/${clusterId}/nodes/${nodeId}/config`),
+    queryKey: ['clusters', clusterId, 'nodes', nodeId, 'config'] as const,
+    queryFn: () => request<NodeConfigView>(`/clusters/${clusterId}/nodes/${nodeId}/config`),
     enabled: Boolean(nodeId),
   });
 }
@@ -72,15 +68,12 @@ export function useConfigDiff(
   right: string | null,
 ): UseQueryResult<ConfigDiffView, ApiError> {
   const params = new URLSearchParams();
-  if (left) params.set("left", left);
-  if (right) params.set("right", right);
+  if (left) params.set('left', left);
+  if (right) params.set('right', right);
   const query = params.toString();
   return useQuery({
-    queryKey: ["clusters", clusterId, "config-diff", left, right],
-    queryFn: () =>
-      request<ConfigDiffView>(
-        `/clusters/${clusterId}/config-diff${query ? `?${query}` : ""}`,
-      ),
+    queryKey: ['clusters', clusterId, 'config-diff', left, right],
+    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${query ? `?${query}` : ''}`),
     staleTime: 30_000,
   });
 }
@@ -88,9 +81,7 @@ export function useConfigDiff(
 const configBase = (clusterId: string) => `/clusters/${clusterId}/config`;
 
 /** The declaration with each node's last evaluation; `declared: false` is the empty state, not an error. */
-export function useBrokerConfig(
-  clusterId: string,
-): UseQueryResult<ConfigDeclarationView, ApiError> {
+export function useBrokerConfig(clusterId: string): UseQueryResult<ConfigDeclarationView, ApiError> {
   return useQuery({
     queryKey: keys.brokerConfig(clusterId),
     queryFn: () => request<ConfigDeclarationView>(configBase(clusterId)),
@@ -106,34 +97,25 @@ export function useBrokerConfig(
   });
 }
 
-export function useBrokerConfigCatalogue(
-  clusterId: string,
-): UseQueryResult<ConfigCatalogueView, ApiError> {
+export function useBrokerConfigCatalogue(clusterId: string): UseQueryResult<ConfigCatalogueView, ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "catalogue"],
-    queryFn: () =>
-      request<ConfigCatalogueView>(`${configBase(clusterId)}/catalogue`),
+    queryKey: [...keys.brokerConfig(clusterId), 'catalogue'],
+    queryFn: () => request<ConfigCatalogueView>(`${configBase(clusterId)}/catalogue`),
     staleTime: Infinity,
   });
 }
 
-export function useBrokerConfigRevisions(
-  clusterId: string,
-): UseQueryResult<ConfigRevisionView[], ApiError> {
+export function useBrokerConfigRevisions(clusterId: string): UseQueryResult<ConfigRevisionView[], ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "revisions"],
-    queryFn: () =>
-      request<ConfigRevisionView[]>(`${configBase(clusterId)}/revisions`),
+    queryKey: [...keys.brokerConfig(clusterId), 'revisions'],
+    queryFn: () => request<ConfigRevisionView[]>(`${configBase(clusterId)}/revisions`),
   });
 }
 
-export function useBrokerConfigApplies(
-  clusterId: string,
-): UseQueryResult<ConfigApplyHistoryView[], ApiError> {
+export function useBrokerConfigApplies(clusterId: string): UseQueryResult<ConfigApplyHistoryView[], ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "applies"],
-    queryFn: () =>
-      request<ConfigApplyHistoryView[]>(`${configBase(clusterId)}/applies`),
+    queryKey: [...keys.brokerConfig(clusterId), 'applies'],
+    queryFn: () => request<ConfigApplyHistoryView[]>(`${configBase(clusterId)}/applies`),
   });
 }
 
@@ -142,22 +124,18 @@ export function useBrokerConfigApply(
   id: number | null,
 ): UseQueryResult<ConfigApplyDetailView, ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "applies", id],
-    queryFn: () =>
-      request<ConfigApplyDetailView>(`${configBase(clusterId)}/applies/${id}`),
+    queryKey: [...keys.brokerConfig(clusterId), 'applies', id],
+    queryFn: () => request<ConfigApplyDetailView>(`${configBase(clusterId)}/applies/${id}`),
     enabled: id !== null,
   });
 }
 
 /** The exported `<core>` fragment, as text. Fetched on demand: it is a copy target, not a view. */
-export async function fetchBrokerConfigXml(
-  clusterId: string,
-  revision?: number,
-): Promise<string> {
-  const query = revision ? `?revision=${revision}` : "";
+export async function fetchBrokerConfigXml(clusterId: string, revision?: number): Promise<string> {
+  const query = revision ? `?revision=${revision}` : '';
   const res = await fetch(`${BASE}${configBase(clusterId)}/export-xml${query}`, {
-    credentials: "same-origin",
-    headers: { accept: "application/xml" },
+    credentials: 'same-origin',
+    headers: { accept: 'application/xml' },
   });
   if (!res.ok) {
     const text = await res.text();
@@ -183,7 +161,7 @@ export function useSaveBrokerConfig(clusterId: string) {
   return useMutation<ConfigDeclarationView, ApiError, SaveDeclarationRequest>({
     mutationFn: (body) =>
       request(configBase(clusterId), {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify(body),
       }),
     // The saved declaration is the response: it is in the cache at once, so an editor that stays
@@ -201,11 +179,10 @@ export function useConfigureBrokerConfig(clusterId: string) {
   return useMutation<ConfigDeclarationView, ApiError, ConfigureRequest>({
     mutationFn: (body) =>
       request(`${configBase(clusterId)}/mode`, {
-        method: "PATCH",
+        method: 'PATCH',
         body: JSON.stringify(body),
       }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
   });
 }
 
@@ -214,8 +191,8 @@ export function useImportBrokerConfigXml(clusterId: string) {
   return useMutation<ConfigImportResultView, ApiError, string>({
     mutationFn: (xml) =>
       request(`${configBase(clusterId)}/import-xml`, {
-        method: "POST",
-        headers: { "content-type": "application/xml" },
+        method: 'POST',
+        headers: { 'content-type': 'application/xml' },
         body: xml,
       }),
   });
@@ -231,11 +208,8 @@ export function useBrokerConfigRecommendations(
   enabled = true,
 ): UseQueryResult<ConfigRecommendationsView, ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "recommendations"],
-    queryFn: () =>
-      request<ConfigRecommendationsView>(
-        `${configBase(clusterId)}/recommendations`,
-      ),
+    queryKey: [...keys.brokerConfig(clusterId), 'recommendations'],
+    queryFn: () => request<ConfigRecommendationsView>(`${configBase(clusterId)}/recommendations`),
     enabled,
   });
 }
@@ -247,26 +221,20 @@ export function useBrokerConfigRecommendations(
  */
 export function useDeclareRecommended(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<
-    ConfigDeclarationView,
-    ApiError,
-    DeclareRecommendedRequest
-  >({
+  return useMutation<ConfigDeclarationView, ApiError, DeclareRecommendedRequest>({
     mutationFn: (body) =>
       request(`${configBase(clusterId)}/recommendations/declare`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(body),
       }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
   });
 }
 
 /** Build a declaration from what the live nodes run. Nothing is saved. */
 export function useAdoptBrokerConfig(clusterId: string) {
   return useMutation<ConfigAdoptionView, ApiError, void>({
-    mutationFn: () =>
-      request(`${configBase(clusterId)}/adopt`, { method: "POST" }),
+    mutationFn: () => request(`${configBase(clusterId)}/adopt`, { method: 'POST' }),
   });
 }
 
@@ -274,10 +242,8 @@ export function useAdoptBrokerConfig(clusterId: string) {
 export function useEvaluateBrokerConfigDrift(clusterId: string) {
   const qc = useQueryClient();
   return useMutation<ConfigDriftReportView, ApiError, void>({
-    mutationFn: () =>
-      request(`${configBase(clusterId)}/drift/evaluate`, { method: "POST" }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
+    mutationFn: () => request(`${configBase(clusterId)}/drift/evaluate`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) }),
   });
 }
 
@@ -290,22 +256,18 @@ export function useEvaluateBrokerConfigDrift(clusterId: string) {
  */
 export function useApplyBrokerConfig(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<
-    ConfigApplyOutcomeView,
-    ApiError,
-    LifecycleVars & { body: ConfigApplyRequest }
-  >({
+  return useMutation<ConfigApplyOutcomeView, ApiError, LifecycleVars & { body: ConfigApplyRequest }>({
     mutationFn: ({ body, dryRun, override }) =>
-      request(
-        `${configBase(clusterId)}/apply${lifecycleQuery(dryRun, override)}`,
-        { method: "POST", body: JSON.stringify(body) },
-      ),
+      request(`${configBase(clusterId)}/apply${lifecycleQuery(dryRun, override)}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     onSuccess: (result) => {
       if (result.dryRun) return;
       qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, "queues") });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "addresses") });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, "diverts") });
+      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
+      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
     },
   });
 }
@@ -324,7 +286,7 @@ export function useConfigConnectors(
   enabled = true,
 ): UseQueryResult<ConfigNodeConnectorsView[], ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "connectors"],
+    queryKey: [...keys.brokerConfig(clusterId), 'connectors'],
     queryFn: () => request<ConfigNodeConnectorsView[]>(`${configBase(clusterId)}/connectors`),
     staleTime: 60_000,
     enabled,
@@ -337,7 +299,7 @@ export function useBridgeCredentials(
   enabled = true,
 ): UseQueryResult<ConfigBridgeCredentialView[], ApiError> {
   return useQuery({
-    queryKey: [...keys.brokerConfig(clusterId), "bridge-credentials"],
+    queryKey: [...keys.brokerConfig(clusterId), 'bridge-credentials'],
     queryFn: () => request<ConfigBridgeCredentialView[]>(`${configBase(clusterId)}/bridge-credentials`),
     enabled,
   });
@@ -349,10 +311,9 @@ export function useSetBridgeCredential(clusterId: string) {
   return useMutation<void, ApiError, { ref: string; body: BridgeCredentialRequest }>({
     mutationFn: ({ ref, body }) =>
       request(`${configBase(clusterId)}/bridge-credentials/${encodeURIComponent(ref)}`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify(body),
       }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: [...keys.brokerConfig(clusterId), "bridge-credentials"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.brokerConfig(clusterId), 'bridge-credentials'] }),
   });
 }

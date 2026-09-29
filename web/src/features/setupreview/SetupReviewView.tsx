@@ -1,15 +1,5 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Anchor,
-  Button,
-  Chip,
-  Group,
-  Stack,
-  Switch,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Anchor, Button, Chip, Group, Stack, Switch, Text, Title } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -136,8 +126,8 @@ export function SetupReviewView() {
       {live}
 
       <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        Reviewed {elapsedLabel(now - Date.parse(v.reviewedAt))} ago ({absoluteLabel(v.reviewedAt)}) ·{' '}
-        {v.nodesReviewed} of {plural(v.nodesTotal, 'node')} read · {v.rulesInCatalogue} rules checked
+        Reviewed {elapsedLabel(now - Date.parse(v.reviewedAt))} ago ({absoluteLabel(v.reviewedAt)}) · {v.nodesReviewed}{' '}
+        of {plural(v.nodesTotal, 'node')} read · {v.rulesInCatalogue} rules checked
       </Text>
       {v.notice ? (
         <Text size="sm" c="dimmed">
@@ -175,7 +165,9 @@ export function SetupReviewView() {
       <Group gap="sm" align="center">
         <Chip.Group
           value={search.severity ?? 'ALL'}
-          onChange={(value) => setSearch({ severity: value === 'ALL' ? undefined : (value as SetupReviewSearch['severity']) })}
+          onChange={(value) =>
+            setSearch({ severity: value === 'ALL' ? undefined : (value as SetupReviewSearch['severity']) })
+          }
         >
           <Group gap={6} role="radiogroup" aria-label="Severity">
             <Chip value="ALL" size="xs">
@@ -201,7 +193,12 @@ export function SetupReviewView() {
           <Text size="sm" c="dimmed">
             No findings match this filter
             {v.findings.length > 0 ? ` (${plural(v.findings.length, 'finding')} in the review)` : ''}.{' '}
-            <Anchor component="button" type="button" size="sm" onClick={() => setSearch({ severity: undefined, accepted: undefined })}>
+            <Anchor
+              component="button"
+              type="button"
+              size="sm"
+              onClick={() => setSearch({ severity: undefined, accepted: undefined })}
+            >
               Clear the filter
             </Anchor>
           </Text>

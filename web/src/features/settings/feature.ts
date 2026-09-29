@@ -21,12 +21,25 @@ export const settingsFeature = defineFeature({
   id: 'settings',
   routes: { cluster: [settingsRoute] },
   nav: [
-    { group: 'configuration', order: 30, label: 'Settings', icon: IconSettings, path: 'settings', permission: 'settings:read' },
+    {
+      group: 'configuration',
+      order: 30,
+      label: 'Settings',
+      icon: IconSettings,
+      path: 'settings',
+      permission: 'settings:read',
+    },
   ],
   slots: {
     'settings.sections': [
       { id: 'settings-display', order: 10, group: 'personal', title: 'Display', Component: DisplaySection },
-      { id: 'settings-operational', order: 20, group: 'studio', title: 'Operational configuration', Component: OperationalSection },
+      {
+        id: 'settings-operational',
+        order: 20,
+        group: 'studio',
+        title: 'Operational configuration',
+        Component: OperationalSection,
+      },
     ],
   },
 });

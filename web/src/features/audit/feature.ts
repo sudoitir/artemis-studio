@@ -32,6 +32,14 @@ export const auditFeature = defineFeature({
   id: 'audit',
   routes: { cluster: [auditRoute] },
   nav: [
-    { group: 'activity', order: 20, label: 'Audit', icon: IconClipboardList, path: 'audit', hotkey: 'u', permission: 'cluster:read' },
+    {
+      group: 'activity',
+      order: 20,
+      label: 'Audit',
+      icon: IconClipboardList,
+      path: 'audit',
+      hotkey: 'u',
+      permission: 'cluster:read',
+    },
   ],
 });

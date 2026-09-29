@@ -15,7 +15,14 @@ import { readRecents } from './recents.ts';
 type Report = (feature: ModuleId, groups: SpotlightActionGroupData[]) => void;
 
 /** Mounts one feature's palette source, with a `report` that stays the same across renders. */
-function Source({ feature, Palette, clusterId, query, opened, onReport }: {
+function Source({
+  feature,
+  Palette,
+  clusterId,
+  query,
+  opened,
+  onReport,
+}: {
   feature: ModuleId;
   Palette: PaletteSource;
   clusterId?: string;

@@ -79,8 +79,7 @@ export function AddressPicker({
   }, [queues.data, types]);
 
   const matchesKnownAddress = options.some((o) => o.address === value);
-  const unknown =
-    Boolean(unknownHint) && value.trim() !== '' && !queues.isFetching && !matchesKnownAddress;
+  const unknown = Boolean(unknownHint) && value.trim() !== '' && !queues.isFetching && !matchesKnownAddress;
 
   return (
     <div ref={root} className={styles.root}>
@@ -145,8 +144,8 @@ export function AddressPicker({
             <div className={styles.options}>
               {queues.isError ? (
                 <Combobox.Empty>
-                  Could not read this cluster&rsquo;s queues: {queues.error.message} You can still
-                  type an address by hand.
+                  Could not read this cluster&rsquo;s queues: {queues.error.message} You can still type an address by
+                  hand.
                 </Combobox.Empty>
               ) : queues.isPending ? (
                 <Combobox.Empty>Loading addresses…</Combobox.Empty>

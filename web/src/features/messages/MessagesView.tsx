@@ -19,12 +19,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 
 import { useCluster } from '../clusters/index.ts';
-import {
-  useMessages,
-  usePurgeQueue,
-  type DryRunView,
-  type MessageSummaryView,
-} from './api.ts';
+import { useMessages, usePurgeQueue, type DryRunView, type MessageSummaryView } from './api.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { CapabilityLedger } from '../clusters/index.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
@@ -60,7 +55,11 @@ const columns: GridColumn<MessageSummaryView>[] = [
     cell: (m) => (
       <Group gap={6} wrap="nowrap">
         <Text size="xs" truncate>
-          {m.bodyPreview ?? <Text span c="dimmed">(empty)</Text>}
+          {m.bodyPreview ?? (
+            <Text span c="dimmed">
+              (empty)
+            </Text>
+          )}
         </Text>
         {m.bodyTruncated ? (
           <Badge size="xs" color="yellow" variant="light">
@@ -144,10 +143,7 @@ export function MessagesView() {
   }, [debounced, navigate, search.filter]);
 
   const endpoints = useMemo(
-    () =>
-      (cluster.data?.topology.nodes ?? [])
-        .flatMap((n) => n.endpoints)
-        .filter((e) => e.manageable),
+    () => (cluster.data?.topology.nodes ?? []).flatMap((n) => n.endpoints).filter((e) => e.manageable),
     [cluster.data],
   );
 
@@ -181,8 +177,7 @@ export function MessagesView() {
               {messages.data.count == null
                 ? `total unavailable — ${messages.data.countUnavailable ?? 'the broker did not report it'}`
                 : `${messages.data.count} message${messages.data.count === 1 ? '' : 's'}`}{' '}
-              · read from{' '}
-              {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
+              · read from {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
             </Text>
           ) : null}
           <Button size="xs" variant="light" onClick={() => setSendOpen(true)}>
@@ -214,8 +209,8 @@ export function MessagesView() {
 
   const uncertainty = unproven ? (
     <Alert color="gray" variant="light" title="Not yet established for this connection">
-      No management write has been attempted here yet, so Studio cannot say for certain that message
-      operations will work. They are offered anyway — the first one settles it.
+      No management write has been attempted here yet, so Studio cannot say for certain that message operations will
+      work. They are offered anyway — the first one settles it.
     </Alert>
   ) : null;
 
@@ -224,8 +219,7 @@ export function MessagesView() {
       <Stack gap="md">
         {header}
         <Alert color="yellow" variant="light" title="Message operations are not available here">
-          This connection cannot browse messages. The reason and the exact{' '}
-          <code>broker.xml</code> change are below.
+          This connection cannot browse messages. The reason and the exact <code>broker.xml</code> change are below.
         </Alert>
         <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} />
       </Stack>
@@ -257,10 +251,14 @@ export function MessagesView() {
         ? { kind: 'filter', filter: search.filter }
         : { kind: 'all' };
   // A selector's match count is the preview's to establish; the page's total is the whole queue.
-  const selectionTotal = selection.kind === 'ids' ? pickedIds.length : selection.kind === 'all' ? (total ?? null) : null;
+  const selectionTotal =
+    selection.kind === 'ids' ? pickedIds.length : selection.kind === 'all' ? (total ?? null) : null;
 
   const setNode = (node: string | null) =>
-    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, node: node || undefined, page: undefined }) });
+    navigate({
+      to: '.',
+      search: (prev: Record<string, unknown>) => ({ ...prev, node: node || undefined, page: undefined }),
+    });
 
   return (
     <Stack gap="sm">
@@ -350,8 +348,8 @@ export function MessagesView() {
             <Stack gap={4}>
               <Text fw={600}>No messages match</Text>
               <Text size="sm">
-                This queue is empty, or your selector excluded every message. Messages here are read
-                over Jolokia as text — faithful binary bodies need the Core client.
+                This queue is empty, or your selector excluded every message. Messages here are read over Jolokia as
+                text — faithful binary bodies need the Core client.
               </Text>
             </Stack>
           }
@@ -381,9 +379,9 @@ export function MessagesView() {
               as zero, and a confirmation disabled with no reason reads as a bug. */}
           {purgeFailed ? (
             <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
-              {purgeFailed} The purge can still proceed, but Studio cannot tell you how many
-              messages it would destroy. This cannot be undone. The broker's bulk safety cap
-              still applies: if the depth turns out to be over it, the purge is refused.
+              {purgeFailed} The purge can still proceed, but Studio cannot tell you how many messages it would destroy.
+              This cannot be undone. The broker's bulk safety cap still applies: if the depth turns out to be over it,
+              the purge is refused.
             </Alert>
           ) : (
             <Text size="sm">
@@ -396,9 +394,9 @@ export function MessagesView() {
               is being overridden for — never on an unknown depth. */}
           {purgeOverCap && purgePreview ? (
             <Alert color="yellow" variant="light" title="Over the safety cap">
-              This would remove {purgePreview.affectedCount.toLocaleString()} messages, over the cap
-              of {purgePreview.cap.toLocaleString()}. Confirming will override the cap for this
-              operation, and the override is recorded in the audit log.
+              This would remove {purgePreview.affectedCount.toLocaleString()} messages, over the cap of{' '}
+              {purgePreview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override
+              is recorded in the audit log.
             </Alert>
           ) : null}
           <ConfirmByTyping

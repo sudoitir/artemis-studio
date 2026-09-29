@@ -15,9 +15,15 @@ import peers from './peers.json' with { type: 'json' };
  * @param {{ id: string, entry?: string, outDir?: string }} options
  * @returns {import('vite').PluginOption[]}
  */
-export function studioPlugin({ id, entry = './src/feature.tsx', outDir = 'target/classes/META-INF/artemis-studio/ui' }) {
+export function studioPlugin({
+  id,
+  entry = './src/feature.tsx',
+  outDir = 'target/classes/META-INF/artemis-studio/ui',
+}) {
   if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)+$/.test(id)) {
-    throw new Error(`studioPlugin: "${id}" is not a plugin id (lowercase kebab-case, at least two segments, as in plugin.json)`);
+    throw new Error(
+      `studioPlugin: "${id}" is not a plugin id (lowercase kebab-case, at least two segments, as in plugin.json)`,
+    );
   }
   const shared = Object.fromEntries([
     ...SHARED_LIBRARIES.map((name) => [

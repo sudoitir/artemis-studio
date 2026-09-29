@@ -27,8 +27,8 @@ export function FiringPanel({ clusterId }: { clusterId: string }) {
           Nothing is firing
         </Text>
         <Text size="sm" c="dimmed">
-          Every enabled rule is currently OK. A rule debounces through a "pending" state for its
-          configured duration before it fires here.
+          Every enabled rule is currently OK. A rule debounces through a "pending" state for its configured duration
+          before it fires here.
         </Text>
       </Stack>
     );

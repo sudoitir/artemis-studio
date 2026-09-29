@@ -53,10 +53,7 @@ export interface ReplyAddressResolution {
  * and its help text render in different rows of the form grid and have to agree about
  * what is traced, and a hook exported alongside a component costs fast refresh.
  */
-export function useReplyAddressResolution(
-  clusterId: string,
-  value: string[],
-): ReplyAddressResolution {
+export function useReplyAddressResolution(clusterId: string, value: string[]): ReplyAddressResolution {
   // The address list is a background fact, not a per-keystroke query: matches are
   // computed here, so typing costs nothing over the wire.
   const queues = useQueues(clusterId, { size: SUGGESTION_LIMIT });

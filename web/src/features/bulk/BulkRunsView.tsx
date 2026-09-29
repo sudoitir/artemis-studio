@@ -52,8 +52,8 @@ export function BulkRunsView() {
             <Stack gap={4} align="flex-start">
               <Text fw={600}>No bulk runs yet</Text>
               <Text size="sm">
-                A bulk run pauses, resumes, purges or deletes many queues at once, one queue at a time, after a
-                preview you confirm. Select queues on the Queues screen to start one.
+                A bulk run pauses, resumes, purges or deletes many queues at once, one queue at a time, after a preview
+                you confirm. Select queues on the Queues screen to start one.
               </Text>
               <Anchor component={Link} to={`/clusters/${clusterId}/queues`} size="sm">
                 Go to Queues

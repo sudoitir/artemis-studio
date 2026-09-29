@@ -163,13 +163,7 @@ export function UsersPanel() {
 
       <Modal opened={grantingFor !== null} onClose={() => setGrantingFor(null)} title="Grant a role">
         <Stack gap="sm">
-          <Select
-            label="Role"
-            data={roleOptions}
-            value={roleId}
-            onChange={setRoleId}
-            placeholder="Select a role"
-          />
+          <Select label="Role" data={roleOptions} value={roleId} onChange={setRoleId} placeholder="Select a role" />
           <Text size="xs" c="dimmed">
             Granted globally. Use the API to scope a grant to one environment or cluster.
           </Text>

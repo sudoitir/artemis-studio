@@ -62,7 +62,8 @@ export function checkPlugin(entry: ManifestFeatureView, exported: unknown): Chec
   }
   const declaredTopics = new Set(entry.topics);
   for (const topic of Object.keys(feature.streamTopics ?? {})) {
-    if (!declaredTopics.has(topic)) return { ok: false, reason: `it handles stream topic "${topic}", which it never declared` };
+    if (!declaredTopics.has(topic))
+      return { ok: false, reason: `it handles stream topic "${topic}", which it never declared` };
   }
 
   const slots: SlotContributions = {};

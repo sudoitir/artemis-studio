@@ -1,0 +1,5 @@
+# Mechanical reformatting commits, skipped by `git blame` (GitHub reads this file too).
+# Locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(web): format the web code with Prettier (ADR-0131)
+2fd7caf3e5442d6fc4b464eb4f06a5893a4c4ae9

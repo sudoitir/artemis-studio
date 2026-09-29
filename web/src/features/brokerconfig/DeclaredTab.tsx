@@ -178,46 +178,46 @@ export function DeclaredTab({
           {heading('addresses', doc.addresses.length)}
           {doc.addresses.length > 0 ? (
             <Table.ScrollContainer minWidth={760} type="native">
-            <Table fz="xs" verticalSpacing={4} layout="fixed">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w="18%">Address</Table.Th>
-                  <Table.Th w="36%">Routing and queues</Table.Th>
-                  <Table.Th w="30%">On the live nodes</Table.Th>
-                  <Table.Th w={150} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {doc.addresses.map((a) => (
-                  <Table.Tr key={a.name}>
-                    <Table.Td>{a.name}</Table.Td>
-                    <Table.Td>
-                      <KeyValueList rows={addressRows(a)} />
-                    </Table.Td>
-                    <Table.Td>
-                      <LiveState
-                        declaration={declaration}
-                        section="addresses"
-                        itemKey={a.name}
-                        queueKeys={a.queues.map((q) => q.name)}
-                        catalogue={catalogue}
-                      />
-                    </Table.Td>
-                    <Table.Td className={classes.actionCell}>
-                      {actions('addresses', a.name, `address ${a.name}`, {
-                        label: `address ${a.name}`,
-                        // The address and every queue declared on it: applying the
-                        // address without its queues would leave the row half done.
-                        stepIds: stepIdsFor([
-                          { section: 'ADDRESS', key: a.name },
-                          ...a.queues.map((q) => ({ section: 'QUEUE' as const, key: q.name })),
-                        ]),
-                      })}
-                    </Table.Td>
+              <Table fz="xs" verticalSpacing={4} layout="fixed">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w="18%">Address</Table.Th>
+                    <Table.Th w="36%">Routing and queues</Table.Th>
+                    <Table.Th w="30%">On the live nodes</Table.Th>
+                    <Table.Th w={150} />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {doc.addresses.map((a) => (
+                    <Table.Tr key={a.name}>
+                      <Table.Td>{a.name}</Table.Td>
+                      <Table.Td>
+                        <KeyValueList rows={addressRows(a)} />
+                      </Table.Td>
+                      <Table.Td>
+                        <LiveState
+                          declaration={declaration}
+                          section="addresses"
+                          itemKey={a.name}
+                          queueKeys={a.queues.map((q) => q.name)}
+                          catalogue={catalogue}
+                        />
+                      </Table.Td>
+                      <Table.Td className={classes.actionCell}>
+                        {actions('addresses', a.name, `address ${a.name}`, {
+                          label: `address ${a.name}`,
+                          // The address and every queue declared on it: applying the
+                          // address without its queues would leave the row half done.
+                          stepIds: stepIdsFor([
+                            { section: 'ADDRESS', key: a.name },
+                            ...a.queues.map((q) => ({ section: 'QUEUE' as const, key: q.name })),
+                          ]),
+                        })}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
             </Table.ScrollContainer>
           ) : null}
           <div>{addButton('addresses', 'Add address')}</div>
@@ -227,43 +227,43 @@ export function DeclaredTab({
           {heading('addressSettings', doc.addressSettings.length)}
           {doc.addressSettings.length > 0 ? (
             <Table.ScrollContainer minWidth={760} type="native">
-            <Table fz="xs" verticalSpacing={4} layout="fixed">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w="18%">Match</Table.Th>
-                  <Table.Th w="36%">Declared keys</Table.Th>
-                  <Table.Th w="30%">On the live nodes</Table.Th>
-                  <Table.Th w={150} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {doc.addressSettings.map((s) => (
-                  <Table.Tr key={s.match}>
-                    <Table.Td>{s.match}</Table.Td>
-                    <Table.Td>
-                      <KeyValueList
-                        rows={addressSettingRows(s, catalogue)}
-                        empty="no keys — applying resets the entry to the parent match"
-                      />
-                    </Table.Td>
-                    <Table.Td>
-                      <LiveState
-                        declaration={declaration}
-                        section="addressSettings"
-                        itemKey={s.match}
-                        catalogue={catalogue}
-                      />
-                    </Table.Td>
-                    <Table.Td className={classes.actionCell}>
-                      {actions('addressSettings', s.match, `address setting ${s.match}`, {
-                        label: `address setting ${s.match}`,
-                        stepIds: stepIdsFor([{ section: 'ADDRESS_SETTING', key: s.match }]),
-                      })}
-                    </Table.Td>
+              <Table fz="xs" verticalSpacing={4} layout="fixed">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w="18%">Match</Table.Th>
+                    <Table.Th w="36%">Declared keys</Table.Th>
+                    <Table.Th w="30%">On the live nodes</Table.Th>
+                    <Table.Th w={150} />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {doc.addressSettings.map((s) => (
+                    <Table.Tr key={s.match}>
+                      <Table.Td>{s.match}</Table.Td>
+                      <Table.Td>
+                        <KeyValueList
+                          rows={addressSettingRows(s, catalogue)}
+                          empty="no keys — applying resets the entry to the parent match"
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <LiveState
+                          declaration={declaration}
+                          section="addressSettings"
+                          itemKey={s.match}
+                          catalogue={catalogue}
+                        />
+                      </Table.Td>
+                      <Table.Td className={classes.actionCell}>
+                        {actions('addressSettings', s.match, `address setting ${s.match}`, {
+                          label: `address setting ${s.match}`,
+                          stepIds: stepIdsFor([{ section: 'ADDRESS_SETTING', key: s.match }]),
+                        })}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
             </Table.ScrollContainer>
           ) : null}
           <div>{addButton('addressSettings', 'Add address setting')}</div>
@@ -273,40 +273,40 @@ export function DeclaredTab({
           {heading('securitySettings', doc.securitySettings.length)}
           {doc.securitySettings.length > 0 ? (
             <Table.ScrollContainer minWidth={760} type="native">
-            <Table fz="xs" verticalSpacing={4} layout="fixed">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w="18%">Match</Table.Th>
-                  <Table.Th w="36%">Role: permissions</Table.Th>
-                  <Table.Th w="30%">On the live nodes</Table.Th>
-                  <Table.Th w={150} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {doc.securitySettings.map((s) => (
-                  <Table.Tr key={s.match}>
-                    <Table.Td>{s.match}</Table.Td>
-                    <Table.Td>
-                      <KeyValueList rows={securitySettingRows(s)} empty="no roles" />
-                    </Table.Td>
-                    <Table.Td>
-                      <LiveState
-                        declaration={declaration}
-                        section="securitySettings"
-                        itemKey={s.match}
-                        catalogue={catalogue}
-                      />
-                    </Table.Td>
-                    <Table.Td className={classes.actionCell}>
-                      {actions('securitySettings', s.match, `security setting ${s.match}`, {
-                        label: `security setting ${s.match}`,
-                        stepIds: stepIdsFor([{ section: 'SECURITY_SETTING', key: s.match }]),
-                      })}
-                    </Table.Td>
+              <Table fz="xs" verticalSpacing={4} layout="fixed">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w="18%">Match</Table.Th>
+                    <Table.Th w="36%">Role: permissions</Table.Th>
+                    <Table.Th w="30%">On the live nodes</Table.Th>
+                    <Table.Th w={150} />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {doc.securitySettings.map((s) => (
+                    <Table.Tr key={s.match}>
+                      <Table.Td>{s.match}</Table.Td>
+                      <Table.Td>
+                        <KeyValueList rows={securitySettingRows(s)} empty="no roles" />
+                      </Table.Td>
+                      <Table.Td>
+                        <LiveState
+                          declaration={declaration}
+                          section="securitySettings"
+                          itemKey={s.match}
+                          catalogue={catalogue}
+                        />
+                      </Table.Td>
+                      <Table.Td className={classes.actionCell}>
+                        {actions('securitySettings', s.match, `security setting ${s.match}`, {
+                          label: `security setting ${s.match}`,
+                          stepIds: stepIdsFor([{ section: 'SECURITY_SETTING', key: s.match }]),
+                        })}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
             </Table.ScrollContainer>
           ) : null}
           <div>{addButton('securitySettings', 'Add security setting')}</div>
@@ -316,37 +316,37 @@ export function DeclaredTab({
           {heading('diverts', doc.diverts.length)}
           {doc.diverts.length > 0 ? (
             <Table.ScrollContainer minWidth={760} type="native">
-            <Table fz="xs" verticalSpacing={4} layout="fixed">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w="16%">Name</Table.Th>
-                  <Table.Th w="28%">Routes</Table.Th>
-                  <Table.Th w="16%">Effect</Table.Th>
-                  <Table.Th w="24%">On the live nodes</Table.Th>
-                  <Table.Th w={150} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {doc.diverts.map((d) => (
-                  <Table.Tr key={d.name}>
-                    <Table.Td>{d.name}</Table.Td>
-                    <Table.Td aria-label={`from ${d.address} to ${d.forwardingAddress}`}>
-                      {d.address} → {d.forwardingAddress}
-                    </Table.Td>
-                    <Table.Td>{d.exclusive ? 'takes the message' : 'copies the message'}</Table.Td>
-                    <Table.Td>
-                      <LiveState declaration={declaration} section="diverts" itemKey={d.name} catalogue={catalogue} />
-                    </Table.Td>
-                    <Table.Td className={classes.actionCell}>
-                      {actions('diverts', d.name, `divert ${d.name}`, {
-                        label: `divert ${d.name}`,
-                        stepIds: stepIdsFor([{ section: 'DIVERT', key: d.name }]),
-                      })}
-                    </Table.Td>
+              <Table fz="xs" verticalSpacing={4} layout="fixed">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w="16%">Name</Table.Th>
+                    <Table.Th w="28%">Routes</Table.Th>
+                    <Table.Th w="16%">Effect</Table.Th>
+                    <Table.Th w="24%">On the live nodes</Table.Th>
+                    <Table.Th w={150} />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {doc.diverts.map((d) => (
+                    <Table.Tr key={d.name}>
+                      <Table.Td>{d.name}</Table.Td>
+                      <Table.Td aria-label={`from ${d.address} to ${d.forwardingAddress}`}>
+                        {d.address} → {d.forwardingAddress}
+                      </Table.Td>
+                      <Table.Td>{d.exclusive ? 'takes the message' : 'copies the message'}</Table.Td>
+                      <Table.Td>
+                        <LiveState declaration={declaration} section="diverts" itemKey={d.name} catalogue={catalogue} />
+                      </Table.Td>
+                      <Table.Td className={classes.actionCell}>
+                        {actions('diverts', d.name, `divert ${d.name}`, {
+                          label: `divert ${d.name}`,
+                          stepIds: stepIdsFor([{ section: 'DIVERT', key: d.name }]),
+                        })}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
             </Table.ScrollContainer>
           ) : null}
           <div>{addButton('diverts', 'Add divert')}</div>
@@ -356,39 +356,39 @@ export function DeclaredTab({
           {heading('bridges', doc.bridges.length)}
           {doc.bridges.length > 0 ? (
             <Table.ScrollContainer minWidth={760} type="native">
-            <Table fz="xs" verticalSpacing={4} layout="fixed">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w="16%">Name</Table.Th>
-                  <Table.Th w="28%">Routes</Table.Th>
-                  <Table.Th w="20%">Declared</Table.Th>
-                  <Table.Th w="24%">On the live nodes</Table.Th>
-                  <Table.Th w={150} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {doc.bridges.map((b) => (
-                  <Table.Tr key={b.name}>
-                    <Table.Td>{b.name}</Table.Td>
-                    <Table.Td aria-label={`from queue ${b.queueName} to address ${b.forwardingAddress}`}>
-                      {b.queueName} → {b.forwardingAddress}
-                    </Table.Td>
-                    <Table.Td>
-                      <KeyValueList rows={bridgeRows(b)} />
-                    </Table.Td>
-                    <Table.Td>
-                      <LiveState declaration={declaration} section="bridges" itemKey={b.name} catalogue={catalogue} />
-                    </Table.Td>
-                    <Table.Td className={classes.actionCell}>
-                      {actions('bridges', b.name, `bridge ${b.name}`, {
-                        label: `bridge ${b.name}`,
-                        stepIds: stepIdsFor([{ section: 'BRIDGE', key: b.name }]),
-                      })}
-                    </Table.Td>
+              <Table fz="xs" verticalSpacing={4} layout="fixed">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w="16%">Name</Table.Th>
+                    <Table.Th w="28%">Routes</Table.Th>
+                    <Table.Th w="20%">Declared</Table.Th>
+                    <Table.Th w="24%">On the live nodes</Table.Th>
+                    <Table.Th w={150} />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {doc.bridges.map((b) => (
+                    <Table.Tr key={b.name}>
+                      <Table.Td>{b.name}</Table.Td>
+                      <Table.Td aria-label={`from queue ${b.queueName} to address ${b.forwardingAddress}`}>
+                        {b.queueName} → {b.forwardingAddress}
+                      </Table.Td>
+                      <Table.Td>
+                        <KeyValueList rows={bridgeRows(b)} />
+                      </Table.Td>
+                      <Table.Td>
+                        <LiveState declaration={declaration} section="bridges" itemKey={b.name} catalogue={catalogue} />
+                      </Table.Td>
+                      <Table.Td className={classes.actionCell}>
+                        {actions('bridges', b.name, `bridge ${b.name}`, {
+                          label: `bridge ${b.name}`,
+                          stepIds: stepIdsFor([{ section: 'BRIDGE', key: b.name }]),
+                        })}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
             </Table.ScrollContainer>
           ) : null}
           <div>{addButton('bridges', 'Add bridge')}</div>

@@ -107,7 +107,11 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
         ) : r.owner === 'OPERATOR' ? (
           <StudioOwned divert={r} />
         ) : (
-          <Text size="xs" c="dimmed" title="Studio has no record of creating this divert. That is not a claim about where it came from.">
+          <Text
+            size="xs"
+            c="dimmed"
+            title="Studio has no record of creating this divert. That is not a claim about where it came from."
+          >
             not recorded
           </Text>
         ),
@@ -119,10 +123,7 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
       width: 90,
       numeric: true,
       cell: (r) => (
-        <Text
-          size="xs"
-          title={r.perNode.map((n) => n.nodeName).join(', ')}
-        >
+        <Text size="xs" title={r.perNode.map((n) => n.nodeName).join(', ')}>
           {r.nodesPresent}/{r.nodesTotal}
         </Text>
       ),
@@ -148,7 +149,9 @@ const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
     id: 'direction',
     header: 'Routes',
     accessor: (r) => `${r.queueName ?? ''} ${r.forwardingAddress ?? ''}`,
-    cell: (r) => <Direction from={r.queueName ?? '(unnamed queue)'} to={r.forwardingAddress ?? '(the target broker)'} />,
+    cell: (r) => (
+      <Direction from={r.queueName ?? '(unnamed queue)'} to={r.forwardingAddress ?? '(the target broker)'} />
+    ),
   },
   {
     id: 'state',
@@ -160,11 +163,7 @@ const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
     // about, and collapsing the two would answer the wrong question.
     cell: (r) => (
       <Text size="xs" c={r.started && !r.connected ? undefined : 'dimmed'}>
-        {r.connected
-          ? 'running and connected'
-          : r.started
-            ? 'started, not connected to its target'
-            : 'not started'}
+        {r.connected ? 'running and connected' : r.started ? 'started, not connected to its target' : 'not started'}
       </Text>
     ),
   },
@@ -182,7 +181,11 @@ const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
     accessor: (r) => `${r.nodesPresent}/${r.nodesTotal}`,
     width: 90,
     numeric: true,
-    cell: (r) => <Text size="xs" title={r.perNode.map((n) => n.nodeName).join(', ')}>{r.nodesPresent}/{r.nodesTotal}</Text>,
+    cell: (r) => (
+      <Text size="xs" title={r.perNode.map((n) => n.nodeName).join(', ')}>
+        {r.nodesPresent}/{r.nodesTotal}
+      </Text>
+    ),
   },
 ];
 

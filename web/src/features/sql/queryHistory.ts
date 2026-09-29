@@ -14,7 +14,7 @@ import type { SqlRowView } from './api.ts';
  * console must render exactly the same without it.
  */
 
-const KEY = "artemis-studio.sql.history";
+const KEY = 'artemis-studio.sql.history';
 
 /** Enough to cover an incident, small enough to stay inside a storage quota. */
 const MAX_ENTRIES = 40;
@@ -44,10 +44,7 @@ export function readHistory(): HistoryEntry[] {
  * appearing twice — a history of one repeated query is not a history.
  */
 export function recordHistory(entry: HistoryEntry): HistoryEntry[] {
-  const next = [
-    entry,
-    ...readHistory().filter((e) => e.sql !== entry.sql),
-  ].slice(0, MAX_ENTRIES);
+  const next = [entry, ...readHistory().filter((e) => e.sql !== entry.sql)].slice(0, MAX_ENTRIES);
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
@@ -66,10 +63,6 @@ export function clearHistory(): HistoryEntry[] {
 }
 
 /** What a finished run contributes to the history. */
-export function entryFor(
-  sql: string,
-  rows: SqlRowView[],
-  source?: string,
-): HistoryEntry {
+export function entryFor(sql: string, rows: SqlRowView[], source?: string): HistoryEntry {
   return { sql, at: new Date().toISOString(), rowCount: rows.length, source };
 }

@@ -52,10 +52,7 @@ export function DlqView() {
   // Flattened so the bound is over queues rather than over addresses: one address
   // holding four hundred queues is the shape this view actually meets.
   const rows = useMemo<QueueRow[]>(
-    () =>
-      (addresses ?? []).flatMap((a) =>
-        a.queues.map((queue) => ({ address: a.address, kind: a.kind, queue })),
-      ),
+    () => (addresses ?? []).flatMap((a) => a.queues.map((queue) => ({ address: a.address, kind: a.kind, queue }))),
     [addresses],
   );
 
@@ -73,9 +70,9 @@ export function DlqView() {
       <Stack gap="sm">
         <Title order={3}>Dead-letter queues</Title>
         <Alert color="yellow" variant="light" title="Dead-letter configuration unavailable">
-          Studio could not read this broker's address settings, so it will not guess which queues
-          are dead-letter queues from their names. Grant the connection management-read access, or
-          check <code>getAddressSettingsAsJSON</code> is permitted, then reload.
+          Studio could not read this broker's address settings, so it will not guess which queues are dead-letter queues
+          from their names. Grant the connection management-read access, or check <code>getAddressSettingsAsJSON</code>{' '}
+          is permitted, then reload.
         </Alert>
       </Stack>
     );
@@ -90,19 +87,12 @@ export function DlqView() {
 
       {rows.length === 0 ? (
         <Text size="sm" c="dimmed">
-          The broker's dead-letter address is{' '}
-          <code>{dlq.data.addresses.map((a) => a.address).join(', ') || '—'}</code>, but no queue on
-          it currently holds messages.
+          The broker's dead-letter address is <code>{dlq.data.addresses.map((a) => a.address).join(', ') || '—'}</code>,
+          but no queue on it currently holds messages.
         </Text>
       ) : (
         <>
-          <Pager
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={rows.length}
-            onChange={setPage}
-            label="dead-lettered queues"
-          />
+          <Pager page={page} pageSize={PAGE_SIZE} total={rows.length} onChange={setPage} label="dead-lettered queues" />
           {visible.map(({ address, kind, queue: q }) => {
             const key = `${address}/${q.queueName}`;
             const open = expanded === key;
@@ -126,18 +116,15 @@ export function DlqView() {
                       </Badge>
                     </Group>
                     <Text size="xs" c="dimmed">
-                      {q.totalDepth} message{q.totalDepth === 1 ? '' : 's'} across{' '}
-                      {q.perNode.length} node{q.perNode.length === 1 ? '' : 's'}
+                      {q.totalDepth} message{q.totalDepth === 1 ? '' : 's'} across {q.perNode.length} node
+                      {q.perNode.length === 1 ? '' : 's'}
                     </Text>
                   </Stack>
                   <Group gap="xs">
                     {/* The per-node breakdown is opened one card at a time: rendering
                         it for every card multiplies the page by the node count, which
                         is the number that grows. */}
-                    <UnstyledButton
-                      onClick={() => setExpanded(open ? null : key)}
-                      aria-expanded={open}
-                    >
+                    <UnstyledButton onClick={() => setExpanded(open ? null : key)} aria-expanded={open}>
                       <Text size="xs" c="dimmed" td="underline">
                         {open ? 'Hide breakdown' : 'Per-node breakdown'}
                       </Text>

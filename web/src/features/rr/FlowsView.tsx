@@ -116,14 +116,7 @@ export function FlowsView() {
                   }),
                 })
               }
-              data={[
-                'AWAITING_REPLY',
-                'COMPLETED',
-                'TIMED_OUT',
-                'ORPHANED',
-                'RESPONDER_DROPPED',
-                'ORPHANED_REPLY',
-              ]}
+              data={['AWAITING_REPLY', 'COMPLETED', 'TIMED_OUT', 'ORPHANED', 'RESPONDER_DROPPED', 'ORPHANED_REPLY']}
             />
             {flows.isError ? (
               <Alert color="red" variant="light" title={flows.error.title}>

@@ -38,13 +38,7 @@ export interface TopologyActionsValue {
 
 const ActionsContext = createContext<TopologyActionsValue>({});
 
-export function TopologyActions({
-  value,
-  children,
-}: {
-  value: TopologyActionsValue;
-  children: React.ReactNode;
-}) {
+export function TopologyActions({ value, children }: { value: TopologyActionsValue; children: React.ReactNode }) {
   return <ActionsContext.Provider value={value}>{children}</ActionsContext.Provider>;
 }
 
@@ -175,9 +169,8 @@ function EmptyCanvas({ height }: { height?: string }) {
       <div className={styles.empty}>
         <Text fw={600}>No nodes yet</Text>
         <Text size="sm" c="dimmed">
-          Studio learns the topology from the first broker it reaches. Nothing has
-          answered on this cluster's seed address yet; Studio keeps looking and shows
-          the nodes here as they answer.
+          Studio learns the topology from the first broker it reaches. Nothing has answered on this cluster's seed
+          address yet; Studio keeps looking and shows the nodes here as they answer.
         </Text>
       </div>
     </div>
@@ -242,11 +235,9 @@ export function TopologyCanvas({
       </div>
       {model.dense ? (
         <Alert color="gray" variant="light" title="Showing reduced detail" mt="xs">
-          This cluster has more logical nodes than can be drawn legibly at once, so
-          each live/backup pair is collapsed to a single box carrying its summary —
-          serving endpoint, standby count, and whether replication is behind or a
-          split brain is present. Open a node's row in the queues or resources view
-          for its endpoints.
+          This cluster has more logical nodes than can be drawn legibly at once, so each live/backup pair is collapsed
+          to a single box carrying its summary — serving endpoint, standby count, and whether replication is behind or a
+          split brain is present. Open a node's row in the queues or resources view for its endpoints.
         </Alert>
       ) : null}
       {interactive ? <Legend /> : null}

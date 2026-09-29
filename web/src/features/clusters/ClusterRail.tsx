@@ -54,7 +54,11 @@ export function ClusterRail({ collapsed }: { collapsed: boolean }) {
               pt="sm"
               style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              <span className={styles.envDot} style={{ background: env.colour ?? 'var(--as-border)' }} aria-hidden="true" />
+              <span
+                className={styles.envDot}
+                style={{ background: env.colour ?? 'var(--as-border)' }}
+                aria-hidden="true"
+              />
               {env.name}
             </Text>
           ) : null}

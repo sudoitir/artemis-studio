@@ -48,7 +48,13 @@ const graph = {
 describe('FlowInspector', () => {
   it('explains a queue: figures, faults in words, and the flow into it', () => {
     renderWithProviders(
-      <FlowInspector graph={graph} nodeId="queue:ORDERS.inbound" clusterId="c1" onClose={() => {}} onFocus={() => {}} />,
+      <FlowInspector
+        graph={graph}
+        nodeId="queue:ORDERS.inbound"
+        clusterId="c1"
+        onClose={() => {}}
+        onFocus={() => {}}
+      />,
     );
 
     const details = screen.getByRole('complementary', { name: 'Details of Queue ORDERS.inbound' });

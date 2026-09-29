@@ -224,9 +224,7 @@ describe('topology layout', () => {
         artemisNodeId: null,
         splitBrain: 'NONE',
         replicationBehind: false,
-        endpoints: [
-          endpoint({ id: 'x', name: 'broker-2:61616', jolokiaUrl: null, manageable: false }),
-        ],
+        endpoints: [endpoint({ id: 'x', name: 'broker-2:61616', jolokiaUrl: null, manageable: false })],
       }),
       health(),
     );

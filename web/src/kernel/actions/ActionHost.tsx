@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ComponentType,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { Button, Group, Modal, Stack } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
@@ -96,9 +88,7 @@ export function ActionHostProvider({ children }: { children: ReactNode }) {
           href: window.location.href,
         },
       ]);
-      requestAnimationFrame(() =>
-        setEntries((all) => all.map((e) => (e.id === id ? { ...e, opened: true } : e))),
-      );
+      requestAnimationFrame(() => setEntries((all) => all.map((e) => (e.id === id ? { ...e, opened: true } : e))));
     };
     return {
       open,

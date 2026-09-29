@@ -26,12 +26,7 @@ export function HexDump({ bytes, max = 512 }: { bytes: Uint8Array; max?: number 
 
   return (
     <>
-      <Text
-        component="pre"
-        size="xs"
-        ff="monospace"
-        style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre' }}
-      >
+      <Text component="pre" size="xs" ff="monospace" style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre' }}>
         {rows.join('\n')}
       </Text>
       {bytes.length > max ? (

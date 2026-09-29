@@ -50,9 +50,7 @@ describe('QueueHealthPanel', () => {
     renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" onClose={() => {}} />);
 
     expect(await screen.findByText('Stalled')).toBeInTheDocument();
-    expect(
-      screen.getByText('Consumers are holding messages and acknowledging none'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Consumers are holding messages and acknowledging none')).toBeInTheDocument();
     // The evidence, not just the label.
     expect(screen.getByText('In flight')).toBeInTheDocument();
     expect(screen.getByText(/depth rising 1.50\/s/)).toBeInTheDocument();

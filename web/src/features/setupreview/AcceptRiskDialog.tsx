@@ -29,7 +29,15 @@ export function AcceptRiskDialog({
 }) {
   return (
     <Modal opened={finding !== null} onClose={onClose} title="Accept as a known risk" size="lg">
-      {finding ? <Form key={`${finding.code}|${finding.subject}`} clusterId={clusterId} finding={finding} onClose={onClose} announce={announce} /> : null}
+      {finding ? (
+        <Form
+          key={`${finding.code}|${finding.subject}`}
+          clusterId={clusterId}
+          finding={finding}
+          onClose={onClose}
+          announce={announce}
+        />
+      ) : null}
     </Modal>
   );
 }

@@ -47,4 +47,6 @@
 .figures {
   font-variant-numeric: tabular-nums;
 }
-[dir='rtl'] .arrow { transform: scaleX(-1); }
+[dir='rtl'] .arrow {
+  transform: scaleX(-1);
+}

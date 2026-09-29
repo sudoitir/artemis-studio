@@ -103,9 +103,7 @@ describe('creating a divert', () => {
     expect(screen.queryByText(/lost when the broker restarts/)).not.toBeInTheDocument();
     expect(screen.getByText(/Add this to broker.xml/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Create on every live node' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create on every live node' })).toBeInTheDocument();
   });
 });
 
@@ -136,7 +134,10 @@ describe('the divert form', () => {
             type: 'validation',
             title: 'Invalid request',
             detail: 'One or more fields are invalid.',
-            errors: [{ field: 'routingName', message: 'ignored' }, { field: 'forwardingAddressDistinct', message: 'Forwards to itself.' }],
+            errors: [
+              { field: 'routingName', message: 'ignored' },
+              { field: 'forwardingAddressDistinct', message: 'Forwards to itself.' },
+            ],
           },
           { status: 400 },
         ),
@@ -163,7 +164,15 @@ describe('the divert form', () => {
         HttpResponse.json({
           outcome: {
             ...outcome(true),
-            nodes: [{ nodeId: 'n1', nodeName: 'node-a', status: 'FAILED', affected: null, error: 'This divert would complete a cycle of diverts: A → B → A.' }],
+            nodes: [
+              {
+                nodeId: 'n1',
+                nodeName: 'node-a',
+                status: 'FAILED',
+                affected: null,
+                error: 'This divert would complete a cycle of diverts: A → B → A.',
+              },
+            ],
           },
           brokerXml: BROKER_XML,
         }),
@@ -208,9 +217,7 @@ describe('the divert dialog on the keyboard', () => {
 describe('deleting a divert', () => {
   it('is not offered for a divert message capture owns', async () => {
     server.use(clusterHandler(), meHandler());
-    renderWithProviders(
-      <DeleteDivertAction clusterId="c1" divert={{ ...DIVERT, owner: 'MESSAGE_CAPTURE' }} />,
-    );
+    renderWithProviders(<DeleteDivertAction clusterId="c1" divert={{ ...DIVERT, owner: 'MESSAGE_CAPTURE' }} />);
     expect(await screen.findByText('Owned by message capture')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Delete divert/ })).not.toBeInTheDocument();
   });

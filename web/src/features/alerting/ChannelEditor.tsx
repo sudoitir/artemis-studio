@@ -109,8 +109,7 @@ function ChannelForm({
   const hasSecret = channel?.hasSecret ?? false;
 
   const valueOf = (f: Field): string => (f === 'name' ? name : f === 'secret' ? secret : String(fields[f]));
-  const check = (f: Field, value = valueOf(f)) =>
-    validateField(kind, f, value, { editing, hasSecret, fields });
+  const check = (f: Field, value = valueOf(f)) => validateField(kind, f, value, { editing, hasSecret, fields });
   const blur = (f: Field) => () => setErrors((e) => ({ ...e, [f]: check(f) ?? undefined }));
   const set = (f: keyof ChannelFields) => (value: string) => {
     setFields((prev) => ({ ...prev, [f]: value }));
@@ -282,8 +281,8 @@ function ChannelForm({
           </SimpleGrid>
           {fields.security === 'NONE' ? (
             <Text size="xs" c="var(--as-warning)">
-              Without TLS the password and the alert cross the network in clear. STARTTLS, when chosen, is required —
-              a server that does not offer it fails the delivery rather than receiving it unencrypted.
+              Without TLS the password and the alert cross the network in clear. STARTTLS, when chosen, is required — a
+              server that does not offer it fails the delivery rather than receiving it unencrypted.
             </Text>
           ) : null}
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">

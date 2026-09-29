@@ -29,8 +29,8 @@ export class PluginBoundary extends Component<Props, { failed: boolean }> {
     if (this.props.quiet) return null;
     return (
       <Text size="sm" c="dimmed" role="status">
-        The {this.props.pluginId} plugin could not show this part of the screen. The rest of the page is
-        unaffected; an administrator can see the plugin's state under Administration → Plugins.
+        The {this.props.pluginId} plugin could not show this part of the screen. The rest of the page is unaffected; an
+        administrator can see the plugin's state under Administration → Plugins.
       </Text>
     );
   }

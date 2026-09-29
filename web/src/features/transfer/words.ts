@@ -2,8 +2,7 @@ import type { TransferMode, TransferRunView, TransferState } from './api.ts';
 
 export type Tone = 'warning' | 'danger' | undefined;
 
-export const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n.toLocaleString()} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 export const MODE: Record<TransferMode, { verb: string; gerund: string; past: string }> = {
   MOVE: { verb: 'Move', gerund: 'moving', past: 'moved' },
@@ -20,7 +19,9 @@ export function bytes(n: number | null | undefined): string {
     value /= 1000;
     unit += 1;
   }
-  return unit === 0 ? plural(n, 'byte') : `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${units[unit]}`;
+  return unit === 0
+    ? plural(n, 'byte')
+    : `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
 
 /** The run's state in words; colour only where something went wrong or needs the operator. */

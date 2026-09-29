@@ -1,4 +1,4 @@
-import { Button, Text, Tooltip } from "@mantine/core";
+import { Button, Text, Tooltip } from '@mantine/core';
 
 import { useVerifyOnBroker, type SqlRowView } from './api.ts';
 
@@ -17,16 +17,10 @@ import { useVerifyOnBroker, type SqlRowView } from './api.ts';
  * given, never hidden: a missing button would teach the operator that the product
  * cannot verify captured rows at all.
  */
-export function VerifyOnBroker({
-  clusterId,
-  row,
-}: {
-  clusterId: string;
-  row: SqlRowView;
-}) {
+export function VerifyOnBroker({ clusterId, row }: { clusterId: string; row: SqlRowView }) {
   const verify = useVerifyOnBroker(clusterId);
   const verdict = verify.data;
-  const unverifiable = row.origin === "CAPTURED" && row.sourceMessageId == null;
+  const unverifiable = row.origin === 'CAPTURED' && row.sourceMessageId == null;
 
   if (verify.isError) {
     return (
@@ -39,17 +33,12 @@ export function VerifyOnBroker({
   if (verdict) {
     // Colour is redundant emphasis here; the word carries the meaning.
     const tone =
-      verdict.presence === "GONE"
-        ? "var(--as-warning)"
-        : verdict.presence === "UNKNOWN"
-          ? "var(--as-text-dimmed)"
+      verdict.presence === 'GONE'
+        ? 'var(--as-warning)'
+        : verdict.presence === 'UNKNOWN'
+          ? 'var(--as-text-dimmed)'
           : undefined;
-    const words =
-      verdict.presence === "PRESENT"
-        ? "still there"
-        : verdict.presence === "GONE"
-          ? "gone"
-          : "unknown";
+    const words = verdict.presence === 'PRESENT' ? 'still there' : verdict.presence === 'GONE' ? 'gone' : 'unknown';
     return (
       <Text size="xs" c={tone} title={verdict.detail ?? undefined}>
         {words}
@@ -63,8 +52,8 @@ export function VerifyOnBroker({
     return (
       <Tooltip
         label={
-          "This broker did not record which message this copy came from, so there is nothing " +
-          "to look up on the queue. Artemis copies _AMQ_ORIG_MESSAGE_ID onto a diverted message."
+          'This broker did not record which message this copy came from, so there is nothing ' +
+          'to look up on the queue. Artemis copies _AMQ_ORIG_MESSAGE_ID onto a diverted message.'
         }
         multiline
         w={300}

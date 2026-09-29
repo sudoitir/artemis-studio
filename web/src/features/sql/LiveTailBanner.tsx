@@ -1,12 +1,12 @@
-import { Alert, Badge, Button, Group, Stack, Text } from "@mantine/core";
+import { Alert, Badge, Button, Group, Stack, Text } from '@mantine/core';
 
 import type { SqlTailStatusView } from './api.ts';
-import classes from "./LiveTailBanner.module.css";
+import classes from './LiveTailBanner.module.css';
 
 function time(iso?: string): string {
-  if (!iso) return "not yet";
+  if (!iso) return 'not yet';
   const at = new Date(iso);
-  return Number.isNaN(at.getTime()) ? "not yet" : at.toLocaleTimeString();
+  return Number.isNaN(at.getTime()) ? 'not yet' : at.toLocaleTimeString();
 }
 
 /**
@@ -21,7 +21,7 @@ function time(iso?: string): string {
  */
 function gapWords(tail: SqlTailStatusView | null): string {
   if (!tail || (tail.enqueued ?? 0) === 0) {
-    return "No message has been enqueued on these queues since the tail started.";
+    return 'No message has been enqueued on these queues since the tail started.';
   }
   const enqueued = (tail.enqueued ?? 0).toLocaleString();
   const shown = (tail.shown ?? 0).toLocaleString();
@@ -75,34 +75,33 @@ export function LiveTailBanner({
   return (
     <div className={classes.pinned}>
       <Alert
-        color={captured ? "gray" : "yellow"}
+        color={captured ? 'gray' : 'yellow'}
         variant="light"
         title={
           captured
-            ? "Live tail — capturing everything these addresses route"
-            : "Live tail — this is a sample, not a capture"
+            ? 'Live tail — capturing everything these addresses route'
+            : 'Live tail — this is a sample, not a capture'
         }
       >
         <Stack gap={6}>
           <Text size="sm">
             {captured
-              ? "A divert copies every message these addresses route into a queue Studio drains, so a message that is consumed the instant it arrives still appears here. It is address-scoped: for an address with several bound queues, which queue received a message is not recorded."
-              : "Studio re-reads these queues every few seconds. A message that arrives and is consumed between two reads is never seen, so an empty tail is not evidence that nothing was sent."}
+              ? 'A divert copies every message these addresses route into a queue Studio drains, so a message that is consumed the instant it arrives still appears here. It is address-scoped: for an address with several bound queues, which queue received a message is not recorded.'
+              : 'Studio re-reads these queues every few seconds. A message that arrives and is consumed between two reads is never seen, so an empty tail is not evidence that nothing was sent.'}
           </Text>
           <Text size="sm">{gapWords(tail)}</Text>
           {paused ? (
             <Text size="sm">
-              The view is paused. The tail is still running and still reading —{" "}
-              {buffered.toLocaleString()} row{buffered === 1 ? "" : "s"}{" "}
-              {buffered === 1 ? "is" : "are"} waiting. Pausing the view and
-              stopping the query are different things, and this is the first.
+              The view is paused. The tail is still running and still reading — {buffered.toLocaleString()} row
+              {buffered === 1 ? '' : 's'} {buffered === 1 ? 'is' : 'are'} waiting. Pausing the view and stopping the
+              query are different things, and this is the first.
             </Text>
           ) : null}
           <Group gap="xs" justify="space-between" wrap="wrap">
             <Group gap="xs">
               <Badge size="sm" variant="light" color="gray">
-                {shown.toLocaleString()} row{shown === 1 ? "" : "s"}
-                {discarding ? " held" : " so far"}
+                {shown.toLocaleString()} row{shown === 1 ? '' : 's'}
+                {discarding ? ' held' : ' so far'}
               </Badge>
               {/* ADR-0056: a bounded view says so. A tail left running would
                   otherwise silently drop its oldest rows, and an operator
@@ -114,15 +113,14 @@ export function LiveTailBanner({
               ) : null}
               <Text size="xs" c="dimmed">
                 {(tail?.polls ?? 0).toLocaleString()} read
-                {(tail?.polls ?? 0) === 1 ? "" : "s"} · last at{" "}
-                {time(tail?.lastPollAt)}
+                {(tail?.polls ?? 0) === 1 ? '' : 's'} · last at {time(tail?.lastPollAt)}
               </Text>
             </Group>
             <Group gap="xs">
               {paused ? (
                 <Button size="compact-xs" onClick={onResume}>
                   Show {buffered.toLocaleString()} new row
-                  {buffered === 1 ? "" : "s"}
+                  {buffered === 1 ? '' : 's'}
                 </Button>
               ) : (
                 <Button size="compact-xs" variant="default" onClick={onPause}>

@@ -47,9 +47,7 @@ export function MetricsTable({
         <Table.Tbody>
           {rows.map((row) => (
             <Table.Tr key={row.ts}>
-              <Table.Td className={styles.value}>
-                {formatInZone(row.ts, 'MMM D HH:mm:ss')}
-              </Table.Td>
+              <Table.Td className={styles.value}>{formatInZone(row.ts, 'MMM D HH:mm:ss')}</Table.Td>
               {columns.map((c) => (
                 <Table.Td key={c.name} ta="end" className={styles.value}>
                   {row[c.name] === undefined ? '—' : format(c.name, row[c.name])}

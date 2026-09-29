@@ -1,13 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { Text, VisuallyHidden } from '@mantine/core';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  indentWithTab,
-  temporarilySetTabFocusMode,
-} from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, temporarilySetTabFocusMode } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
 import { yaml } from '@codemirror/lang-yaml';
 import {
@@ -163,7 +157,12 @@ export function CodeEditor({
   useEffect(() => {
     const editor = view.current;
     if (!editor) return;
-    editor.dispatch(setDiagnostics(editor.state, diagnostics.map((d) => toCodeMirror(editor.state, d))));
+    editor.dispatch(
+      setDiagnostics(
+        editor.state,
+        diagnostics.map((d) => toCodeMirror(editor.state, d)),
+      ),
+    );
   }, [diagnostics, value]);
 
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
@@ -176,9 +175,7 @@ export function CodeEditor({
       </Text>
       <div ref={host} style={{ minInlineSize: 0 }} />
       <Text id={hintId} size="xs" c="dimmed" mt={4}>
-        {editable
-          ? 'Tab indents. Press Escape, then Tab, to leave the editor. Ctrl+F searches.'
-          : 'Ctrl+F searches.'}
+        {editable ? 'Tab indents. Press Escape, then Tab, to leave the editor. Ctrl+F searches.' : 'Ctrl+F searches.'}
       </Text>
       <VisuallyHidden aria-live="polite">
         {diagnostics.length === 0

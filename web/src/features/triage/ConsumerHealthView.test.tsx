@@ -53,11 +53,7 @@ function page(rows: unknown[]) {
 }
 
 function withCluster() {
-  server.use(
-    http.get('*/api/v1/clusters/c1', () =>
-      HttpResponse.json({ topology: { nodes: [] } }),
-    ),
-  );
+  server.use(http.get('*/api/v1/clusters/c1', () => HttpResponse.json({ topology: { nodes: [] } })));
 }
 
 describe('ConsumerHealthView', () => {
@@ -151,9 +147,7 @@ describe('ConsumerHealthView', () => {
   it('offers to clear a filter that matched nothing', async () => {
     currentSearch = { q: 'nope' };
     withCluster();
-    server.use(
-      http.get('*/api/v1/clusters/c1/consumer-health', () => HttpResponse.json(page([]))),
-    );
+    server.use(http.get('*/api/v1/clusters/c1/consumer-health', () => HttpResponse.json(page([]))));
 
     renderWithProviders(<ConsumerHealthView />);
 

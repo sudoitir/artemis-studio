@@ -45,7 +45,8 @@ async function call(api: APIRequestContext, method: string, path: string, body?:
 }
 
 async function expectStatus(result: { status: number; body: unknown }, want: number, what: string) {
-  if (result.status !== want) throw new Error(`${what}: expected ${want}, got ${result.status} ${JSON.stringify(result.body)}`);
+  if (result.status !== want)
+    throw new Error(`${what}: expected ${want}, got ${result.status} ${JSON.stringify(result.body)}`);
   return result.body as never;
 }
 
@@ -67,7 +68,11 @@ async function fresh(api: APIRequestContext, password: string) {
 }
 
 async function install(api: APIRequestContext, jar: string, expectedClass: string) {
-  const upload = await expectStatus(await call(api, 'PUT', '/admin/plugins/upload', undefined, await readFile(jar)), 201, `upload ${jar}`) as {
+  const upload = (await expectStatus(
+    await call(api, 'PUT', '/admin/plugins/upload', undefined, await readFile(jar)),
+    201,
+    `upload ${jar}`,
+  )) as {
     sha256: string;
     plan: { activationClass: string; toVersion: string };
   };
@@ -85,12 +90,20 @@ async function main() {
 
   step('sign in');
   await api.get('/api/v1/auth/providers');
-  const me = await expectStatus(await call(api, 'POST', '/auth/login', { username: USER, password }), 200, 'login') as {
+  const me = (await expectStatus(
+    await call(api, 'POST', '/auth/login', { username: USER, password }),
+    200,
+    'login',
+  )) as {
     mustChangePassword: boolean;
   };
   if (me.mustChangePassword) {
     const next = need('NEW_PASSWORD');
-    await expectStatus(await call(api, 'POST', '/auth/password', { currentPassword: password, newPassword: next }), 204, 'change password');
+    await expectStatus(
+      await call(api, 'POST', '/auth/password', { currentPassword: password, newPassword: next }),
+      204,
+      'change password',
+    );
     password = next;
     await expectStatus(await call(api, 'POST', '/auth/login', { username: USER, password }), 200, 'login again');
   }
@@ -100,8 +113,16 @@ async function main() {
 
   step("use the plugin's own API");
   const cluster = randomUUID();
-  await expectStatus(await call(api, 'POST', `/clusters/${cluster}/p/${ID}/queues/orders/notes`, { body: 'owned by payments' }), 201, 'add a note');
-  const notes = await expectStatus(await call(api, 'GET', `/clusters/${cluster}/p/${ID}/queues/orders/notes`), 200, 'list notes') as unknown[];
+  await expectStatus(
+    await call(api, 'POST', `/clusters/${cluster}/p/${ID}/queues/orders/notes`, { body: 'owned by payments' }),
+    201,
+    'add a note',
+  );
+  const notes = (await expectStatus(
+    await call(api, 'GET', `/clusters/${cluster}/p/${ID}/queues/orders/notes`),
+    200,
+    'list notes',
+  )) as unknown[];
   if (notes.length !== 1) throw new Error(`expected 1 note, got ${notes.length}`);
 
   step('its UI bundle is served where the manifest says');
@@ -151,7 +172,11 @@ async function main() {
   step('roll back to 1.0.0; the data is still there');
   await expectStatus(await call(api, 'POST', `/admin/plugins/${ID}/rollback`), 202, 'rollback');
   await awaitPlugin(api, { status: 'active', version: '1.0.0' });
-  const kept = await expectStatus(await call(api, 'GET', `/clusters/${cluster}/p/${ID}/queues/orders/notes`), 200, 'notes after rollback') as unknown[];
+  const kept = (await expectStatus(
+    await call(api, 'GET', `/clusters/${cluster}/p/${ID}/queues/orders/notes`),
+    200,
+    'notes after rollback',
+  )) as unknown[];
   if (kept.length !== 1) throw new Error('rollback lost data');
 
   step('disable: its API is gone');
@@ -162,14 +187,21 @@ async function main() {
 
   step('disabled: its permissions leave the catalogue and the role keeps them');
   const catalogue = (await call(api, 'GET', '/permissions')).body as { action: string }[];
-  if (catalogue.some((p) => p.action.startsWith(`${ID}:`))) throw new Error('a disabled plugin is still in the catalogue');
-  const kept2 = ((await call(api, 'GET', '/roles')).body as { id: string; permissions: string[] }[]).find((r) => r.id === role.id);
+  if (catalogue.some((p) => p.action.startsWith(`${ID}:`)))
+    throw new Error('a disabled plugin is still in the catalogue');
+  const kept2 = ((await call(api, 'GET', '/roles')).body as { id: string; permissions: string[] }[]).find(
+    (r) => r.id === role.id,
+  );
   if (kept2?.permissions.length !== 2) throw new Error(`the role lost its permissions: ${JSON.stringify(kept2)}`);
   await expectStatus(await call(api, 'DELETE', `/roles/${role.id}`), 204, 'delete role');
 
   step('uninstall, then purge after a dry run');
   await expectStatus(await call(api, 'POST', `/admin/plugins/${ID}/uninstall`), 204, 'uninstall');
-  const estimate = await expectStatus(await call(api, 'POST', `/admin/plugins/${ID}/purge?dryRun=true`), 200, 'purge dry run') as {
+  const estimate = (await expectStatus(
+    await call(api, 'POST', `/admin/plugins/${ID}/purge?dryRun=true`),
+    200,
+    'purge dry run',
+  )) as {
     tables: { name: string }[];
   };
   if (!estimate.tables.some((t) => t.name === 'note')) throw new Error('the dry run does not name the note table');

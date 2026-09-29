@@ -5,7 +5,13 @@ import { useNavigate } from '@tanstack/react-router';
 import type { QueueSelection } from '../../kernel/slots.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
-import { useBulkExecute, useBulkPreview, type BulkItemView, type BulkOperation, type BulkRunDetailView } from './api.ts';
+import {
+  useBulkExecute,
+  useBulkPreview,
+  type BulkItemView,
+  type BulkOperation,
+  type BulkRunDetailView,
+} from './api.ts';
 import { OPERATIONS, plural } from './words.ts';
 
 const hasProblem = (i: BulkItemView) => i.status === 'REFUSED' || Boolean(i.warning);
@@ -155,14 +161,14 @@ export function BulkPreviewDialog({
               </Text>
               {unknown > 0 ? (
                 <Text size="sm">
-                  {plural(unknown, 'queue')} {unknown === 1 ? 'has a figure' : 'have figures'} Studio does not
-                  know, because a node has not answered recently; the total is a floor.
+                  {plural(unknown, 'queue')} {unknown === 1 ? 'has a figure' : 'have figures'} Studio does not know,
+                  because a node has not answered recently; the total is a floor.
                 </Text>
               ) : null}
               {refused > 0 ? (
                 <Text size="sm">
-                  {plural(refused, 'queue')} {refused === 1 ? 'is' : 'are'} refused and will not be touched. The
-                  reason is beside each one below.
+                  {plural(refused, 'queue')} {refused === 1 ? 'is' : 'are'} refused and will not be touched. The reason
+                  is beside each one below.
                 </Text>
               ) : null}
             </Stack>
@@ -174,8 +180,8 @@ export function BulkPreviewDialog({
             <Stack gap="xs">
               <Text size="sm">
                 This run would destroy {data.run.estimate?.toLocaleString()} messages, over the cap of{' '}
-                {data.run.cap.toLocaleString()}. It can run only with the cap overridden for this run, and the
-                override is recorded in the audit log.
+                {data.run.cap.toLocaleString()}. It can run only with the cap overridden for this run, and the override
+                is recorded in the audit log.
               </Text>
               <Checkbox
                 label="Override the safety cap for this run"
@@ -215,11 +221,7 @@ export function BulkPreviewDialog({
               <ConfirmByTyping
                 // One queue is confirmed by its name, as a single-queue destroy is everywhere else;
                 // many are confirmed by the action and the count.
-                token={
-                  acting.length === 1
-                    ? acting[0].queueName
-                    : `${op.verb.toLowerCase()} ${acting.length} queues`
-                }
+                token={acting.length === 1 ? acting[0].queueName : `${op.verb.toLowerCase()} ${acting.length} queues`}
                 confirmLabel={confirmLabel}
                 loading={execute.isPending}
                 disabled={(overCap && !override) || execute.isPending}
@@ -236,7 +238,9 @@ export function BulkPreviewDialog({
         ) : null}
 
         {data && acting.length === 0 ? (
-          <Text size="sm">Every selected queue is refused, so there is nothing to run. Close this and change the selection.</Text>
+          <Text size="sm">
+            Every selected queue is refused, so there is nothing to run. Close this and change the selection.
+          </Text>
         ) : null}
 
         {data ? (

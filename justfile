@@ -171,6 +171,7 @@ verify-web:
 [group('quality')]
 fmt:
     {{mvn}} spotless:apply
+    {{npm}} run format
     {{npm}} run lint -- --fix
 
 # ── changelog ────────────────────────────────────────────────────────────────

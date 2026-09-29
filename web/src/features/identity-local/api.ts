@@ -1,10 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, request } from "../../kernel/api/request.ts";
-import type { components } from "../../kernel/api/schema.d.ts";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ApiError, request } from '../../kernel/api/request.ts';
+import type { components } from '../../kernel/api/schema.d.ts';
 
-type Schemas = components["schemas"];
+type Schemas = components['schemas'];
 
-export type ChangePasswordRequest = Schemas["ChangePasswordRequest"];
+export type ChangePasswordRequest = Schemas['ChangePasswordRequest'];
 
 export const keys = {
   me: ['auth', 'me'] as const,
@@ -14,8 +14,8 @@ export function useChangePassword() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, ChangePasswordRequest>({
     mutationFn: (body) =>
-      request<void>("/auth/password", {
-        method: "POST",
+      request<void>('/auth/password', {
+        method: 'POST',
         body: JSON.stringify(body),
       }),
     // The server clears `mustChangePassword` and re-authenticates the same

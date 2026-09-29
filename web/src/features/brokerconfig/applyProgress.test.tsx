@@ -40,7 +40,16 @@ describe('the config topic handler', () => {
       });
     });
     expect(result.current.progress).toEqual([
-      { kind: 'apply-progress', applyId: 7, nodeId: 'n-a', nodeName: 'broker-1', canary: true, phase: 'VERIFYING', done: 2, total: 2 },
+      {
+        kind: 'apply-progress',
+        applyId: 7,
+        nodeId: 'n-a',
+        nodeName: 'broker-1',
+        canary: true,
+        phase: 'VERIFYING',
+        done: 2,
+        total: 2,
+      },
     ]);
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['clusters', 'c1', 'config'] });
 

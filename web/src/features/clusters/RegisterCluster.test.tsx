@@ -78,9 +78,7 @@ function preview() {
 
 describe('RegisterClusterForm', () => {
   it('swaps the canvas from examples to the real discovered topology after a successful check', async () => {
-    server.use(
-      http.post('*/api/v1/clusters', () => HttpResponse.json(preview())),
-    );
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
@@ -94,9 +92,7 @@ describe('RegisterClusterForm', () => {
   });
 
   it('marks the preview stale once the seeds are edited after a check', async () => {
-    server.use(
-      http.post('*/api/v1/clusters', () => HttpResponse.json(preview())),
-    );
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
@@ -166,9 +162,7 @@ describe('RegisterClusterButton', () => {
 
     await user.click(screen.getByRole('button', { name: 'Register cluster' }));
 
-    expect(
-      await screen.findByText(/one cluster is already registered\. this adds another\./i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/one cluster is already registered\. this adds another\./i)).toBeInTheDocument();
   });
 
   it('renders an icon-only trigger with an accessible name when the rail is collapsed', () => {

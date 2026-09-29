@@ -175,8 +175,8 @@ export function DivertEditor({
       />
       {item ? (
         <Text size="xs" c="dimmed">
-          A changed divert is applied as a delete and a create, in that order; there is a moment between the two
-          when nothing is diverted. The plan lists it as a Medium hazard.
+          A changed divert is applied as a delete and a create, in that order; there is a moment between the two when
+          nothing is diverted. The plan lists it as a Medium hazard.
         </Text>
       ) : null}
 

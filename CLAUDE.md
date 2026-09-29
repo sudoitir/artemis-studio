@@ -60,6 +60,9 @@ one is missing.
 - **Java formatting**: Palantir Java Format via Spotless, applied at
   `process-sources` (every `mvn compile`) and checked at `verify`. Never
   hand-fight it; run `just fmt`.
+- **Web formatting**: Prettier (`web/.prettierrc.json`, 120 columns like the Java),
+  checked by CI's frontend job (`npm run format:check`); `just fmt` applies it
+  (ADR-0131).
 - **Frontend**: React 19 + Vite + TypeScript + **Mantine 9** (no Tailwind, no shadcn).
   TanStack Router/Query/Table, `@mantine/charts`, `@xyflow/react` for topology.
   `typescript` is pinned to `5.9.3` for tool compatibility; bump to 7.x once the
@@ -125,7 +128,7 @@ just up / just down  # Studio + Postgres from the published image (runs `just se
 just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + studio, built locally
 just dev             # backend :8080 + vite :5173 (proxied), together
 just verify          # everything CI runs: verify-api + verify-web
-just fmt             # Palantir (Spotless) + eslint --fix
+just fmt             # Palantir (Spotless) + Prettier + eslint --fix
 just db-status / db-sql / db-rollback [n] / db-shell
 
 ./mvnw verify                  # backend: format-check, Liquibase vs Testcontainers PG, tests

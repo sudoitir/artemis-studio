@@ -94,9 +94,7 @@ describe('QueueLifecycleActions capability gating', () => {
     renderWithProviders(<Harness />);
 
     // The uncertainty is stated once the capability ledger has loaded...
-    expect(
-      await screen.findByText(/has not yet seen a management write on this connection/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/has not yet seen a management write on this connection/i)).toBeInTheDocument();
     // ...and absence of evidence still does not block the operator.
     expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
@@ -115,33 +113,24 @@ describe('QueueLifecycleActions capability gating', () => {
     renderWithProviders(<Harness />);
 
     // Visible and disabled — never silently absent (non-negotiable #5).
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled());
 
     // And the reason is reachable without a pointer hover: the wrapper is a real
     // focusable control carrying the explanation.
     const why = screen.getAllByRole('button', { name: 'Why this is unavailable' })[0];
     await user.click(why);
 
-    expect(
-      await screen.findByText('The broker refused a management write for these credentials.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('The broker refused a management write for these credentials.')).toBeInTheDocument();
     expect(screen.getByText(/security-setting match/)).toBeInTheDocument();
   });
 
   it('disables an action the caller has no permission for, and says which permission', async () => {
     // Every lifecycle permission except delete.
-    server.use(
-      meHandler(['queue:create', 'queue:update', 'queue:pause', 'cluster:read']),
-      clusterHandler(AVAILABLE),
-    );
+    server.use(meHandler(['queue:create', 'queue:update', 'queue:pause', 'cluster:read']), clusterHandler(AVAILABLE));
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
 
     await user.click(screen.getByRole('button', { name: 'Why this is unavailable' }));
@@ -161,9 +150,7 @@ describe('the destructive flow is keyboard-complete', () => {
           overCap: false,
           partial: false,
           totalAffected: 12,
-          nodes: [
-            { nodeId: 'n1', nodeName: 'node-a', status: 'WOULD_APPLY', affected: 12, error: null },
-          ],
+          nodes: [{ nodeId: 'n1', nodeName: 'node-a', status: 'WOULD_APPLY', affected: 12, error: null }],
         }),
       ),
     );
@@ -171,9 +158,7 @@ describe('the destructive flow is keyboard-complete', () => {
     renderWithProviders(<Harness />);
 
     // Wait for the gate to settle so the control is the real, ungated button.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Delete queue' }));
 
     const dialog = await screen.findByRole('dialog');
@@ -190,9 +175,7 @@ describe('the destructive flow is keyboard-complete', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toBeDisabled();
 
     await user.type(field, 's');
-    await waitFor(() =>
-      expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toBeEnabled(),
-    );
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toBeEnabled());
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -238,11 +221,7 @@ describe('the destructive flow is keyboard-complete', () => {
     );
     const user = userEvent.setup();
     renderWithProviders(
-      <QueueLifecycleActions
-        clusterId="c1"
-        queue={queue({ totalConsumerCount: 2 })}
-        onClose={() => {}}
-      />,
+      <QueueLifecycleActions clusterId="c1" queue={queue({ totalConsumerCount: 2 })} onClose={() => {}} />,
     );
 
     const trigger = screen.getByRole('button', { name: 'Delete queue' });
@@ -314,9 +293,7 @@ describe('the destructive flow is keyboard-complete', () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Delete queue' }));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();

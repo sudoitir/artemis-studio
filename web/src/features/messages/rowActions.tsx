@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
-import { IconArrowBackUp, IconArrowsRightLeft, IconClipboard, IconFileText, IconLink, IconMail, IconTrash } from '@tabler/icons-react';
+import {
+  IconArrowBackUp,
+  IconArrowsRightLeft,
+  IconClipboard,
+  IconFileText,
+  IconLink,
+  IconMail,
+  IconTrash,
+} from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -67,7 +75,10 @@ export function CopyMessage({ clusterId, target, host }: ActionProps<MessageTarg
         label="Copy link to this message"
         icon={<IconLink size={16} aria-hidden />}
         onSelect={() =>
-          host.copy(absoluteHref(clusterHref(clusterId, messagePath(target), messageSearch(target))), 'link to the message')
+          host.copy(
+            absoluteHref(clusterHref(clusterId, messagePath(target), messageSearch(target))),
+            'link to the message',
+          )
         }
       />
     </>
@@ -79,7 +90,12 @@ type OneAction = 'move' | 'retry' | 'delete';
 const ONE: Record<OneAction, { verb: string; permission: string; label: string; what: string }> = {
   move: { verb: 'Move', permission: 'message:move', label: 'Move or retry messages', what: 'moving this message' },
   retry: { verb: 'Retry', permission: 'message:move', label: 'Move or retry messages', what: 'retrying this message' },
-  delete: { verb: 'Delete', permission: 'message:delete', label: 'Delete or expire messages', what: 'deleting this message' },
+  delete: {
+    verb: 'Delete',
+    permission: 'message:delete',
+    label: 'Delete or expire messages',
+    what: 'deleting this message',
+  },
 };
 
 function useMessageGate(clusterId: string, action: OneAction): GateVerdict {
@@ -141,7 +157,9 @@ function OneMessageDialog({
           />
         ) : null}
         <div aria-live="polite">
-          {run.isPending ? <Text size="sm">{one.verb === 'Retry' ? 'Retrying' : `${one.verb.slice(0, -1)}ing`}…</Text> : null}
+          {run.isPending ? (
+            <Text size="sm">{one.verb === 'Retry' ? 'Retrying' : `${one.verb.slice(0, -1)}ing`}…</Text>
+          ) : null}
           {run.isError ? (
             <Alert color="red" variant="light" title={run.error.title} role="alert">
               {run.error.message} Nothing was changed; check the node in Topology and try again.
@@ -149,11 +167,13 @@ function OneMessageDialog({
           ) : null}
           {result ? (
             affected === 1 ? (
-              <Text size="sm">Done: the message was {action === 'delete' ? 'deleted' : action === 'move' ? 'moved' : 'retried'}.</Text>
+              <Text size="sm">
+                Done: the message was {action === 'delete' ? 'deleted' : action === 'move' ? 'moved' : 'retried'}.
+              </Text>
             ) : (
               <Alert color="yellow" variant="light" title="Nothing was changed">
-                The message was not found on the node. It may have been consumed, expired or moved since this
-                page was read.
+                The message was not found on the node. It may have been consumed, expired or moved since this page was
+                read.
               </Alert>
             )
           ) : null}

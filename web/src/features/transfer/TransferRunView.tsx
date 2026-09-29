@@ -19,7 +19,8 @@ const n = (v: number) => v.toLocaleString();
 
 /** The state as a sentence that says where the messages are and what the operator can do next. */
 function sentence(run: Run): string {
-  const held = stages(run) && run.held > 0 ? ` ${plural(run.held, 'message')} held in staging on ${run.source.nodeName}.` : '';
+  const held =
+    stages(run) && run.held > 0 ? ` ${plural(run.held, 'message')} held in staging on ${run.source.nodeName}.` : '';
   switch (run.state) {
     case 'PREVIEWED':
       return 'Previewed and never started. Nothing was moved or sent.';
@@ -55,9 +56,7 @@ function pace(run: Run, rate: number | null | undefined, left: string | null): s
       : 'No rate yet.';
   }
   const seconds =
-    run.startedAt && run.finishedAt
-      ? (Date.parse(run.finishedAt) - Date.parse(run.startedAt)) / 1000
-      : null;
+    run.startedAt && run.finishedAt ? (Date.parse(run.finishedAt) - Date.parse(run.startedAt)) / 1000 : null;
   if (run.delivered === 0 || seconds == null || seconds <= 0) {
     return `${plural(run.delivered, 'message')} ${MODE[run.mode].past}.`;
   }
@@ -70,7 +69,9 @@ function eta(run: Run): string | null {
   if (!ACTIVE.has(run.state) || run.estimate == null || !rate) return null;
   const left = Math.max(0, run.estimate - run.delivered - run.notTransferred);
   const seconds = Math.ceil(left / rate);
-  return seconds < 90 ? `about ${plural(seconds, 'second')} left` : `about ${plural(Math.ceil(seconds / 60), 'minute')} left`;
+  return seconds < 90
+    ? `about ${plural(seconds, 'second')} left`
+    : `about ${plural(Math.ceil(seconds / 60), 'minute')} left`;
 }
 
 /**
@@ -231,7 +232,10 @@ export function TransferRunView() {
           <dd>{run.estimate == null ? 'unknown' : n(run.estimate)}</dd>
         </div>
         <IconArrowRight className={classes.arrow} aria-hidden size={16} />
-        <div className={classes.stage} data-tone={staging && run.held > 0 && !ACTIVE.has(run.state) ? 'warning' : undefined}>
+        <div
+          className={classes.stage}
+          data-tone={staging && run.held > 0 && !ACTIVE.has(run.state) ? 'warning' : undefined}
+        >
           <dt>Held in staging</dt>
           <dd>{staging ? n(run.held) : 'not used'}</dd>
         </div>
@@ -262,7 +266,9 @@ export function TransferRunView() {
 
       {/* The theme honours reduced motion, so the bar's transition drops out for those who ask. */}
       {run.estimate == null ? (
-        <Text size="sm">How far along this is cannot be shown: the selection&rsquo;s size was not known at preview.</Text>
+        <Text size="sm">
+          How far along this is cannot be shown: the selection&rsquo;s size was not known at preview.
+        </Text>
       ) : (
         <Progress
           aria-label="Messages delivered"
@@ -282,7 +288,12 @@ export function TransferRunView() {
             key: 'source',
             name: `${run.source.nodeName}, source (${clusterName(run.source.clusterId)})`,
             count: n(run.mode === 'MOVE' ? run.staged : run.delivered),
-            status: run.mode === 'MOVE' ? (staging ? 'taken off into staging' : 'moved by the broker') : 'read, left in place',
+            status:
+              run.mode === 'MOVE'
+                ? staging
+                  ? 'taken off into staging'
+                  : 'moved by the broker'
+                : 'read, left in place',
           },
           {
             key: 'target',
@@ -309,26 +320,35 @@ export function TransferRunView() {
       <Modal opened={dialog === 'stop'} onClose={() => setDialog(null)} title="Stop this transfer?">
         <Stack gap="sm">
           <Text size="sm">
-            The batch in flight finishes, then the run stops. Nothing is lost: {staging ? 'held messages stay in staging, and ' : ''}
+            The batch in flight finishes, then the run stops. Nothing is lost:{' '}
+            {staging ? 'held messages stay in staging, and ' : ''}
             the run can be resumed{staging ? ' or returned' : ''} later.
           </Text>
           <Group justify="flex-end">
             <Button size="xs" variant="default" onClick={() => setDialog(null)}>
               Keep running
             </Button>
-            <Button size="xs" loading={stop.isPending} onClick={() => stop.mutate(undefined, { onSettled: () => setDialog(null) })}>
+            <Button
+              size="xs"
+              loading={stop.isPending}
+              onClick={() => stop.mutate(undefined, { onSettled: () => setDialog(null) })}
+            >
               Stop
             </Button>
           </Group>
         </Stack>
       </Modal>
 
-      <Modal opened={dialog === 'return'} onClose={() => setDialog(null)} title="Return the held messages to the source?">
+      <Modal
+        opened={dialog === 'return'}
+        onClose={() => setDialog(null)}
+        title="Return the held messages to the source?"
+      >
         <Stack gap="sm">
           <Text size="sm">
             Every message held in staging, {plural(run.held, 'message')} now, goes back on {run.source.queue} on{' '}
-            {run.source.nodeName}, and the staging queue is removed. Messages already delivered to {run.target.queue} stay
-            there. The run ends as returned and cannot be resumed.
+            {run.source.nodeName}, and the staging queue is removed. Messages already delivered to {run.target.queue}{' '}
+            stay there. The run ends as returned and cannot be resumed.
           </Text>
           <ConfirmByTyping
             token={run.source.queue}

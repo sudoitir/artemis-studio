@@ -51,7 +51,8 @@ export function PluginUnavailable() {
     detail = `Its ${loadFailure}. The rest of ${branding.productShortName} is unaffected.`;
   } else {
     heading = reasonFor(entry.status, title);
-    detail = entry.status === 'active' ? 'The address may be mistyped, or from another version of the plugin.' : undefined;
+    detail =
+      entry.status === 'active' ? 'The address may be mistyped, or from another version of the plugin.' : undefined;
   }
 
   return (

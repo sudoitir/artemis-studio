@@ -437,7 +437,12 @@ export function BridgeEditor({
               />
             </Group>
             <Group grow align="flex-start">
-              <NumberInput label="Max retry interval (ms)" min={1} value={maxRetryInterval} onChange={setMaxRetryInterval} />
+              <NumberInput
+                label="Max retry interval (ms)"
+                min={1}
+                value={maxRetryInterval}
+                onChange={setMaxRetryInterval}
+              />
               <NumberInput
                 label="Initial connect attempts"
                 description="-1 retries forever."

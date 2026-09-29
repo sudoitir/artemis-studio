@@ -73,13 +73,7 @@ export function QueueHistoryPanels({
         <Text size="xs" fw={600} c="dimmed">
           Depth · last hour
         </Text>
-        <DepthChart
-          series={byName('messageCount')}
-          range={DRAWER_RANGE}
-          from={fromMs}
-          to={toMs}
-          syncId={syncId}
-        />
+        <DepthChart series={byName('messageCount')} range={DRAWER_RANGE} from={fromMs} to={toMs} syncId={syncId} />
       </Stack>
       <Stack gap={4}>
         <Text size="xs" fw={600} c="dimmed">

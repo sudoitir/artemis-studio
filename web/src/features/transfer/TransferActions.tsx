@@ -21,7 +21,14 @@ function withSelection(gate: GateVerdict, total: number | null): GateVerdict {
  * (`messages.selection`). Each opens its preview; nothing acts from here. The dialogs stay mounted,
  * so a closed modal hands focus back to the button that opened it.
  */
-export function TransferActions({ clusterId, queueName, node, selection, total, clear }: SlotProps['messages.selection']) {
+export function TransferActions({
+  clusterId,
+  queueName,
+  node,
+  selection,
+  total,
+  clear,
+}: SlotProps['messages.selection']) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const [opened, setOpened] = useState<'transfer' | 'redistribute' | null>(null);
@@ -66,7 +73,12 @@ export function TransferActions({ clusterId, queueName, node, selection, total, 
   return (
     <>
       <CapabilityGate verdict={transferGate} what="transferring these messages">
-        <Button size="xs" variant="light" disabled={transferGate.kind === 'blocked'} onClick={() => setOpened('transfer')}>
+        <Button
+          size="xs"
+          variant="light"
+          disabled={transferGate.kind === 'blocked'}
+          onClick={() => setOpened('transfer')}
+        >
           Transfer…
         </Button>
       </CapabilityGate>

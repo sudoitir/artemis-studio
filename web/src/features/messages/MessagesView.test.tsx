@@ -129,9 +129,7 @@ describe('MessagesView', () => {
     renderWithProviders(<MessagesView />);
 
     expect(await screen.findByText('PHASE3.SRC')).toBeInTheDocument();
-    await vi.waitFor(() =>
-      expect(screen.getAllByLabelText('Node to browse').length).toBeGreaterThan(0),
-    );
+    await vi.waitFor(() => expect(screen.getAllByLabelText('Node to browse').length).toBeGreaterThan(0));
   });
 
   it('states an unavailable total instead of showing zero', async () => {
@@ -150,7 +148,9 @@ describe('MessagesView', () => {
     );
     renderWithProviders(<MessagesView />);
 
-    expect(await screen.findByText(/total unavailable — the broker did not answer the count in time/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/total unavailable — the broker did not answer the count in time/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/page 1 · total unavailable/)).toBeInTheDocument();
     expect(screen.queryByText(/^0 messages/)).not.toBeInTheDocument();
   });
@@ -224,7 +224,6 @@ describe('MessagesView', () => {
   });
 });
 
-
 describe('the purge estimate', () => {
   it('states an estimate that could not be taken, and still lets the purge be armed', async () => {
     mockCluster([endpoint('n1', 'primary')]);
@@ -248,9 +247,7 @@ describe('the purge estimate', () => {
 
     // And the confirmation is not left disabled with no reason given.
     await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
-    await vi.waitFor(() =>
-      expect(within(dialog).getByRole('button', { name: 'Purge queue' })).toBeEnabled(),
-    );
+    await vi.waitFor(() => expect(within(dialog).getByRole('button', { name: 'Purge queue' })).toBeEnabled());
   });
 });
 

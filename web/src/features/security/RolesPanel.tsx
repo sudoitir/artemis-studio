@@ -17,7 +17,14 @@ import {
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
-import { useCreateRole, useDeleteRole, usePermissionsCatalogue, useRoles, useUpdateRole, type RoleView } from './api.ts';
+import {
+  useCreateRole,
+  useDeleteRole,
+  usePermissionsCatalogue,
+  useRoles,
+  useUpdateRole,
+  type RoleView,
+} from './api.ts';
 import { diffRoles } from './diffRoles.ts';
 import { PermissionPicker } from './PermissionPicker.tsx';
 
@@ -98,7 +105,11 @@ export function RolesPanel() {
                     <ActionIcon
                       variant="subtle"
                       color="red"
-                      onClick={() => remove.mutate(r.id, { onError: (e) => notifications.show({ message: e.message, color: 'red' }) })}
+                      onClick={() =>
+                        remove.mutate(r.id, {
+                          onError: (e) => notifications.show({ message: e.message, color: 'red' }),
+                        })
+                      }
                       aria-label={`Delete ${r.name}`}
                     >
                       <IconTrash size={16} />

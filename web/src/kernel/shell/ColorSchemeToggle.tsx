@@ -15,11 +15,7 @@ export function ColorSchemeToggle() {
   return (
     <Tooltip label={label}>
       <ActionIcon variant="subtle" color="gray" aria-label={label} onClick={toggle}>
-        {label === 'Switch to light theme' ? (
-          <IconSun size={18} aria-hidden />
-        ) : (
-          <IconMoon size={18} aria-hidden />
-        )}
+        {label === 'Switch to light theme' ? <IconSun size={18} aria-hidden /> : <IconMoon size={18} aria-hidden />}
       </ActionIcon>
     </Tooltip>
   );

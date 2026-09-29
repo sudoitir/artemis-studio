@@ -75,10 +75,7 @@ export function ApiKeysPanel() {
       scopeType: scope === GLOBAL ? GLOBAL : 'CLUSTER',
       scopeId: scope === GLOBAL ? null : scope,
     }));
-    create.mutate(
-      { name, expiresAt: undefined, grants },
-      { onSuccess: (created) => setMintedValue(created.value) },
-    );
+    create.mutate({ name, expiresAt: undefined, grants }, { onSuccess: (created) => setMintedValue(created.value) });
   };
 
   return (
@@ -153,17 +150,9 @@ export function ApiKeysPanel() {
       <Modal opened={creating} onClose={close} title="New API key">
         {mintedValue ? (
           <Stack gap="sm">
-            <Alert color="yellow">
-              This value is shown once. Copy it now — it cannot be retrieved again.
-            </Alert>
+            <Alert color="yellow">This value is shown once. Copy it now — it cannot be retrieved again.</Alert>
             <Group>
-              <TextInput
-                value={mintedValue}
-                readOnly
-                style={{ flex: 1 }}
-                ff="monospace"
-                aria-label="API key"
-              />
+              <TextInput value={mintedValue} readOnly style={{ flex: 1 }} ff="monospace" aria-label="API key" />
               <CopyButton value={mintedValue}>
                 {({ copy }) => (
                   <ActionIcon onClick={copy} aria-label="Copy key">
@@ -175,12 +164,7 @@ export function ApiKeysPanel() {
           </Stack>
         ) : (
           <Stack gap="sm">
-            <TextInput
-              label="Name"
-              value={name}
-              onChange={(e) => setName(e.currentTarget.value)}
-              required
-            />
+            <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
             <Select
               label="Scope"
               description="Where the key's permissions apply."
@@ -213,11 +197,7 @@ export function ApiKeysPanel() {
                 </Stack>
               </ScrollArea.Autosize>
             </Checkbox.Group>
-            <Button
-              loading={create.isPending}
-              disabled={!name || chosen.length === 0}
-              onClick={submit}
-            >
+            <Button loading={create.isPending} disabled={!name || chosen.length === 0} onClick={submit}>
               Create
             </Button>
           </Stack>

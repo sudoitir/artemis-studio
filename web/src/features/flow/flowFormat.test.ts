@@ -47,19 +47,45 @@ describe('routing edge text', () => {
 
   it('names a bridge that is down, a bypassed route and a wildcard match in words', () => {
     expect(
-      edgeText({ kind: 'BRIDGE', rate: 5, rateSource: 'SAMPLER', stale: false, bypassed: false, studio: false, faults: ['BRIDGE_DOWN'] }),
+      edgeText({
+        kind: 'BRIDGE',
+        rate: 5,
+        rateSource: 'SAMPLER',
+        stale: false,
+        bypassed: false,
+        studio: false,
+        faults: ['BRIDGE_DOWN'],
+      }),
     ).toBe('bridge · 5 msg/s · not connected');
     expect(
-      edgeText({ kind: 'ROUTE', delivery: 'SHARED', rateSource: 'QUEUE_METRIC', rate: 2, stale: false, bypassed: true, studio: false, faults: [] }),
+      edgeText({
+        kind: 'ROUTE',
+        delivery: 'SHARED',
+        rateSource: 'QUEUE_METRIC',
+        rate: 2,
+        stale: false,
+        bypassed: true,
+        studio: false,
+        faults: [],
+      }),
     ).toBe('shared · bypassed by an exclusive divert · 2 msg/s');
-    expect(edgeText({ kind: 'WILDCARD', rateSource: 'NONE', stale: false, bypassed: false, studio: false, faults: [] })).toBe('matches');
+    expect(
+      edgeText({ kind: 'WILDCARD', rateSource: 'NONE', stale: false, bypassed: false, studio: false, faults: [] }),
+    ).toBe('matches');
   });
 });
 
 describe('flow search', () => {
   it('keeps only valid, non-default values', () => {
     expect(
-      validateFlowSearch({ focus: 'queue:ORDERS.inbound', rank: 'IN', limit: '100', groupBy: 'HOST', hops: '9', sort: 'bad sort' }),
+      validateFlowSearch({
+        focus: 'queue:ORDERS.inbound',
+        rank: 'IN',
+        limit: '100',
+        groupBy: 'HOST',
+        hops: '9',
+        sort: 'bad sort',
+      }),
     ).toEqual({ focus: 'queue:ORDERS.inbound', limit: 100, groupBy: 'HOST' });
     expect(validateFlowSearch({ focus: 'orders' })).toEqual({});
   });

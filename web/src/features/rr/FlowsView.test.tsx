@@ -76,7 +76,10 @@ describe('FlowsView', () => {
         HttpResponse.json({ data: [flow()], count: 1, page: 1, pageSize: 100 }),
       ),
       http.get('*/api/v1/clusters/c1/rr/flows/f1', () =>
-        HttpResponse.json({ ...flow(), events: [{ seq: 1, ts: '2026-09-04T10:00:00.000Z', kind: 'REQUEST_SEEN', nodeId: null, detail: null }] }),
+        HttpResponse.json({
+          ...flow(),
+          events: [{ seq: 1, ts: '2026-09-04T10:00:00.000Z', kind: 'REQUEST_SEEN', nodeId: null, detail: null }],
+        }),
       ),
     );
     const user = userEvent.setup();

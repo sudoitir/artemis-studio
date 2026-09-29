@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, request as apiRequest } from '../../kernel/api/request.ts';
 import { type SqlNodeOutcomeView, type SqlResultView, type SqlRowView, type SqlTailStatusView } from './api.ts';
@@ -35,8 +35,7 @@ export function rowKey(row: SqlRowView): string {
  *   reconnecting would re-run a fan-out the operator did not ask for a second
  *   time, and would write a second audit record for one intent.
  */
-export type RunStatus =
-  "idle" | "running" | "done" | "tailing" | "failed" | "disconnected";
+export type RunStatus = 'idle' | 'running' | 'done' | 'tailing' | 'failed' | 'disconnected';
 
 export interface SqlRun {
   rows: SqlRowView[];
@@ -94,7 +93,7 @@ export function useSqlTail(clusterId: string): SqlRun {
   const [progress, setProgress] = useState<SqlNodeOutcomeView[]>([]);
   const [tail, setTail] = useState<SqlTailStatusView | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  const [status, setStatus] = useState<RunStatus>("idle");
+  const [status, setStatus] = useState<RunStatus>('idle');
 
   // A Set, not an array: each entry removes itself when it fires, so a tail left
   // running for an hour does not accumulate one dead handle per row it delivered.
@@ -122,9 +121,7 @@ export function useSqlTail(clusterId: string): SqlRun {
     if (release.length > 0) {
       setRows((prev) => {
         const next = [...release, ...prev];
-        return next.length > MAX_TAIL_ROWS
-          ? next.slice(0, MAX_TAIL_ROWS)
-          : next;
+        return next.length > MAX_TAIL_ROWS ? next.slice(0, MAX_TAIL_ROWS) : next;
       });
     }
   }, []);
@@ -144,9 +141,7 @@ export function useSqlTail(clusterId: string): SqlRun {
     // Stopping does not discard what arrived. A static query stopped part-way has a
     // partial result the operator asked to keep; reporting it as idle would throw
     // away rows they are already reading (7.2).
-    setStatus((prev) =>
-      prev === "tailing" || prev === "running" ? "done" : "idle",
-    );
+    setStatus((prev) => (prev === 'tailing' || prev === 'running' ? 'done' : 'idle'));
   }, []);
 
   useEffect(() => {
@@ -158,7 +153,7 @@ export function useSqlTail(clusterId: string): SqlRun {
     setProgress([]);
     setTail(null);
     setError(null);
-    setStatus("running");
+    setStatus('running');
     held.current = [];
     pausedRef.current = false;
     setPaused(false);
@@ -184,7 +179,7 @@ export function useSqlTail(clusterId: string): SqlRun {
     };
 
     const listen = (stream: EventSource) => {
-      stream.addEventListener("row", (e) => {
+      stream.addEventListener('row', (e) => {
         const row = parse<SqlRowView>(e);
         if (!row) return;
         const key = rowKey(row);
@@ -200,9 +195,7 @@ export function useSqlTail(clusterId: string): SqlRun {
         setRows((prev) => {
           if (!tailing) return [...prev, row];
           const next = [row, ...prev];
-          return next.length > MAX_TAIL_ROWS
-            ? next.slice(0, MAX_TAIL_ROWS)
-            : next;
+          return next.length > MAX_TAIL_ROWS ? next.slice(0, MAX_TAIL_ROWS) : next;
         });
         if (tailing) {
           setFreshKeys((prev) => new Set(prev).add(key));
@@ -218,59 +211,51 @@ export function useSqlTail(clusterId: string): SqlRun {
         }
       });
 
-      stream.addEventListener("node", (e) => {
+      stream.addEventListener('node', (e) => {
         const node = parse<SqlNodeOutcomeView>(e);
         if (node) setProgress((prev) => [...prev, node]);
       });
 
-      stream.addEventListener("done", (e) => {
+      stream.addEventListener('done', (e) => {
         const done = parse<SqlResultView>(e);
         if (done) setResult(done);
         if (request.tail) {
           tailing = true;
-          setStatus("tailing");
+          setStatus('tailing');
         } else {
           settled = true;
-          setStatus("done");
+          setStatus('done');
         }
       });
 
-      stream.addEventListener("tail", (e) => {
+      stream.addEventListener('tail', (e) => {
         const status = parse<SqlTailStatusView>(e);
         if (status) setTail(status);
       });
 
-      stream.addEventListener("failed", (e) => {
+      stream.addEventListener('failed', (e) => {
         // A refusal the server sent. Deliberately not named `error`: an EventSource
         // dispatches its own connection failures under that name, and the two must
         // not be confused for one another.
         const problem = parse<Record<string, unknown>>(e);
         if (!problem) return;
         settled = true;
-        setError(
-          new ApiError(
-            typeof problem.status === "number" ? problem.status : 500,
-            problem,
-          ),
-        );
-        setStatus("failed");
+        setError(new ApiError(typeof problem.status === 'number' ? problem.status : 500, problem));
+        setStatus('failed');
       });
 
       stream.onerror = () => {
         stream.close();
-        if (!settled) setStatus("disconnected");
+        if (!settled) setStatus('disconnected');
       };
     };
 
     void (async () => {
       try {
-        const ticket = await apiRequest<{ queryId: string }>(
-          `/clusters/${clusterId}/sql/query`,
-          {
-            method: "POST",
-            body: JSON.stringify({ sql: request.sql, tail: request.tail }),
-          },
-        );
+        const ticket = await apiRequest<{ queryId: string }>(`/clusters/${clusterId}/sql/query`, {
+          method: 'POST',
+          body: JSON.stringify({ sql: request.sql, tail: request.tail }),
+        });
         if (abandoned) return;
         source = new EventSource(
           `/api/v1/clusters/${clusterId}/sql/stream?queryId=${encodeURIComponent(ticket.queryId)}`,
@@ -279,10 +264,8 @@ export function useSqlTail(clusterId: string): SqlRun {
       } catch (e) {
         if (abandoned) return;
         settled = true;
-        setError(
-          e instanceof ApiError ? e : new ApiError(500, { detail: String(e) }),
-        );
-        setStatus("failed");
+        setError(e instanceof ApiError ? e : new ApiError(500, { detail: String(e) }));
+        setStatus('failed');
       }
     })();
 
@@ -301,7 +284,7 @@ export function useSqlTail(clusterId: string): SqlRun {
   // Derived, not tracked: the list is trimmed to exactly the cap, so holding the cap
   // while tailing is the same fact as having discarded something. One less piece of
   // state to reset on the next run.
-  const discarding = status === "tailing" && rows.length >= MAX_TAIL_ROWS;
+  const discarding = status === 'tailing' && rows.length >= MAX_TAIL_ROWS;
 
   return {
     rows,

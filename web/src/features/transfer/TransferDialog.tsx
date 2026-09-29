@@ -21,7 +21,13 @@ import type { MessageSelection } from '../../kernel/slots.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { useTransferExecute, useTransferPreview, type Finding, type TransferMode, type TransferRunView } from './api.ts';
+import {
+  useTransferExecute,
+  useTransferPreview,
+  type Finding,
+  type TransferMode,
+  type TransferRunView,
+} from './api.ts';
 import { endpointsOf, nodeOptions, serving } from './nodes.ts';
 import { bytes, MODE, plural } from './words.ts';
 
@@ -205,7 +211,9 @@ export function TransferDialog({
   const warnings = findings.filter((f) => f.kind === 'WARN');
   const unacked = warnings.filter((f) => !acked.has(f.code)).length;
   const typed = data ? data.mode === 'MOVE' || data.overCap : false;
-  const confirmLabel = data ? `${MODE[data.mode].verb} ${data.estimate == null ? 'messages' : plural(data.estimate, 'message')}` : '';
+  const confirmLabel = data
+    ? `${MODE[data.mode].verb} ${data.estimate == null ? 'messages' : plural(data.estimate, 'message')}`
+    : '';
 
   const start = () => {
     if (!data) return;
@@ -253,8 +261,8 @@ export function TransferDialog({
           <Stack gap="sm">
             {!sourceNode && source.data ? (
               <Alert color="yellow" variant="light" title="No source node to read from" role="alert">
-                No node of this cluster is live and managed by Studio now, so there is nothing to transfer from.
-                Wait for a node to come back, then open this again.
+                No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait
+                for a node to come back, then open this again.
               </Alert>
             ) : null}
             {redistribute ? (
@@ -332,7 +340,10 @@ export function TransferDialog({
               <Button variant="default" size="xs" onClick={close}>
                 Cancel
               </Button>
-              <CapabilityGate verdict={blocked ?? { kind: 'allowed', uncertain: false }} what="previewing this transfer">
+              <CapabilityGate
+                verdict={blocked ?? { kind: 'allowed', uncertain: false }}
+                what="previewing this transfer"
+              >
                 <Button
                   size="xs"
                   loading={preview.isPending}

@@ -160,7 +160,12 @@ describe('MetricsView', () => {
             ? {
                 splitBy: 'NODE',
                 byNode: [
-                  { nodeId: 'a', nodeName: 'artemis-a', sampled: true, series: [series('messagesAdded', 'RATE', points)] },
+                  {
+                    nodeId: 'a',
+                    nodeName: 'artemis-a',
+                    sampled: true,
+                    series: [series('messagesAdded', 'RATE', points)],
+                  },
                   { nodeId: 'b', nodeName: 'artemis-b', sampled: false, series: [] },
                 ],
               }
@@ -180,7 +185,9 @@ describe('MetricsView', () => {
     currentSearch = { range: '1h', subject: 'orders', split: 'node' };
     renderWithProviders(<MetricsView />);
     expect(await screen.findByRole('region', { name: 'History on artemis-a' })).toHaveTextContent('in 30 msg/s');
-    expect(screen.getByRole('region', { name: 'History on artemis-b' })).toHaveTextContent('Not sampled in this window');
+    expect(screen.getByRole('region', { name: 'History on artemis-b' })).toHaveTextContent(
+      'Not sampled in this window',
+    );
     expect(urls.at(-1)).toContain('splitBy=NODE');
   });
 
@@ -189,7 +196,13 @@ describe('MetricsView', () => {
     server.use(
       http.get('*/api/v1/clusters/c1/metrics', ({ request }) => {
         expect(request.url).not.toContain('splitBy');
-        return HttpResponse.json({ from: '2026-09-04T09:00:00.000Z', to: '2026-09-04T10:00:00.000Z', step: 'PT1M', truncated: false, series: [] });
+        return HttpResponse.json({
+          from: '2026-09-04T09:00:00.000Z',
+          to: '2026-09-04T10:00:00.000Z',
+          step: 'PT1M',
+          truncated: false,
+          series: [],
+        });
       }),
       http.get('*/api/v1/clusters/c1/rr/stats', () => HttpResponse.json({ addresses: [] })),
     );

@@ -66,19 +66,18 @@ export function DisplayPreferences() {
 
       {preference === AUTO ? (
         <Text size="xs" c="dimmed">
-          Detected from this browser, currently <strong>{localZone()}</strong>, and it follows the
-          machine if that changes. Choose a zone above to pin it instead &mdash; a pinned choice is
-          kept and is never reset back to automatic.
+          Detected from this browser, currently <strong>{localZone()}</strong>, and it follows the machine if that
+          changes. Choose a zone above to pin it instead &mdash; a pinned choice is kept and is never reset back to
+          automatic.
         </Text>
       ) : resolved === 'UTC' ? (
         <Text size="xs" c="dimmed">
-          UTC, which is what Studio&rsquo;s container and the broker logs you are likely correlating
-          against are in.
+          UTC, which is what Studio&rsquo;s container and the broker logs you are likely correlating against are in.
         </Text>
       ) : (
         <Text size="xs" c="dimmed">
-          Pinned to <strong>{resolved}</strong>, so it stays put wherever this browser is. Every
-          timestamp names its offset, so a screen can still be lined up against a UTC log.
+          Pinned to <strong>{resolved}</strong>, so it stays put wherever this browser is. Every timestamp names its
+          offset, so a screen can still be lined up against a UTC log.
         </Text>
       )}
 

@@ -40,7 +40,13 @@ describe('RulesPanel', () => {
       http.get('*/api/v1/channels', () => HttpResponse.json([])),
       http.get('*/api/v1/clusters/c1/alerts/plugin-metrics', () =>
         HttpResponse.json([
-          { metric: 'acme-notes:edits', plugin: 'acme-notes', description: 'Edits per note.', unit: 'count', subject: 'note' },
+          {
+            metric: 'acme-notes:edits',
+            plugin: 'acme-notes',
+            description: 'Edits per note.',
+            unit: 'count',
+            subject: 'note',
+          },
         ]),
       ),
     );

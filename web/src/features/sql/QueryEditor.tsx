@@ -1,20 +1,8 @@
-import { useEffect, useId, useRef } from "react";
-import {
-  EditorState,
-  Prec,
-  StateEffect,
-  StateField,
-  type Extension,
-} from "@codemirror/state";
-import {
-  Decoration,
-  EditorView,
-  keymap,
-  placeholder,
-  type DecorationSet,
-} from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { syntaxHighlighting } from "@codemirror/language";
+import { useEffect, useId, useRef } from 'react';
+import { EditorState, Prec, StateEffect, StateField, type Extension } from '@codemirror/state';
+import { Decoration, EditorView, keymap, placeholder, type DecorationSet } from '@codemirror/view';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { syntaxHighlighting } from '@codemirror/language';
 import {
   autocompletion,
   closeBrackets,
@@ -22,13 +10,13 @@ import {
   completionKeymap,
   type CompletionContext,
   type CompletionResult,
-} from "@codemirror/autocomplete";
-import { sql } from "@codemirror/lang-sql";
-import { Text } from "@mantine/core";
+} from '@codemirror/autocomplete';
+import { sql } from '@codemirror/lang-sql';
+import { Text } from '@mantine/core';
 
-import { codeHighlight as highlight, codeTheme as theme } from "../../ui/codeMirrorTheme.ts";
+import { codeHighlight as highlight, codeTheme as theme } from '../../ui/codeMirrorTheme.ts';
 
-import { COLUMNS, EVALUATION_WORDS, FUNCTIONS } from "./catalogue.ts";
+import { COLUMNS, EVALUATION_WORDS, FUNCTIONS } from './catalogue.ts';
 
 /**
  * The completion source. Written by hand rather than handed to `lang-sql`'s
@@ -39,40 +27,35 @@ import { COLUMNS, EVALUATION_WORDS, FUNCTIONS } from "./catalogue.ts";
 function completions(queues: string[]) {
   const columnOptions = COLUMNS.map((c) => ({
     label: c.name,
-    type: "property",
+    type: 'property',
     detail: EVALUATION_WORDS[c.evaluation],
     info: c.indexOnly ? `${c.description} Index only.` : c.description,
   }));
   const functionOptions = FUNCTIONS.map((f) => ({
     label: `${f}(`,
-    type: "function",
-    detail: "function",
+    type: 'function',
+    detail: 'function',
   }));
   const sourceOptions = [
-    { label: "broker.", type: "namespace", detail: "read the live brokers" },
-    { label: "index.", type: "namespace", detail: "read the historical index" },
+    { label: 'broker.', type: 'namespace', detail: 'read the live brokers' },
+    { label: 'index.', type: 'namespace', detail: 'read the historical index' },
   ];
 
   return (context: CompletionContext): CompletionResult | null => {
     // After FROM, the only useful completion is a queue name — quoted, because
     // that is the only spelling the parser accepts.
-    const from = context.matchBefore(
-      /from\s+(?:broker\.|index\.)?"?[\w.*#$-]*/i,
-    );
+    const from = context.matchBefore(/from\s+(?:broker\.|index\.)?"?[\w.*#$-]*/i);
     if (from) {
       const openQuote = from.text.lastIndexOf('"');
-      const start =
-        openQuote >= 0
-          ? from.from + openQuote
-          : from.to - wordAfterFrom(from.text).length;
+      const start = openQuote >= 0 ? from.from + openQuote : from.to - wordAfterFrom(from.text).length;
       return {
         from: start,
         options: [
           ...(openQuote >= 0 ? [] : sourceOptions),
           ...queues.map((q) => ({
             label: `"${q}"`,
-            type: "class",
-            detail: "queue",
+            type: 'class',
+            detail: 'queue',
           })),
         ],
         validFor: /^["\w.*#$-]*$/,
@@ -87,9 +70,9 @@ function completions(queues: string[]) {
         ...columnOptions,
         ...functionOptions,
         {
-          label: "props.",
-          type: "property",
-          detail: "an application property, by name",
+          label: 'props.',
+          type: 'property',
+          detail: 'an application property, by name',
         },
       ],
       validFor: /^[\w.]*$/,
@@ -107,7 +90,7 @@ function completions(queues: string[]) {
  */
 const setErrorToken = StateEffect.define<string | null>();
 
-const errorMark = Decoration.mark({ class: "cm-as-error-token" });
+const errorMark = Decoration.mark({ class: 'cm-as-error-token' });
 
 const errorField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
@@ -125,16 +108,14 @@ const errorField = StateField.define<DecorationSet>({
     // The first occurrence, case-insensitively: the server reports the token as the
     // parser saw it, which may differ in case from what was typed.
     const at = text.toLowerCase().indexOf(token.toLowerCase());
-    return at < 0
-      ? Decoration.none
-      : Decoration.set([errorMark.range(at, at + token.length)]);
+    return at < 0 ? Decoration.none : Decoration.set([errorMark.range(at, at + token.length)]);
   },
   provide: (field) => EditorView.decorations.from(field),
 });
 
 /** The token after `FROM `, so the completion replaces it rather than appending to it. */
 function wordAfterFrom(text: string): string {
-  return /from\s+(.*)$/i.exec(text)?.[1] ?? "";
+  return /from\s+(.*)$/i.exec(text)?.[1] ?? '';
 }
 
 /**
@@ -150,7 +131,7 @@ export function QueryEditor({
   onChange,
   onRun,
   queues,
-  label = "Query",
+  label = 'Query',
   errorToken = null,
 }: {
   value: string;
@@ -182,7 +163,7 @@ export function QueryEditor({
       Prec.high(
         keymap.of([
           {
-            key: "Mod-Enter",
+            key: 'Mod-Enter',
             preventDefault: true,
             run: () => {
               latest.current.onRun();
@@ -191,12 +172,7 @@ export function QueryEditor({
           },
         ]),
       ),
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...completionKeymap,
-        ...defaultKeymap,
-        ...historyKeymap,
-      ]),
+      keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap]),
       closeBrackets(),
       sql({ upperCaseKeywords: true }),
       syntaxHighlighting(highlight),
@@ -210,13 +186,12 @@ export function QueryEditor({
       // <label for> cannot reach it. The visible label below is its accessible
       // name through aria-labelledby — a placeholder is not a label.
       EditorView.contentAttributes.of({
-        "aria-labelledby": labelId,
-        role: "textbox",
+        'aria-labelledby': labelId,
+        role: 'textbox',
       }),
       theme,
       EditorView.updateListener.of((update) => {
-        if (update.docChanged)
-          latest.current.onChange(update.state.doc.toString());
+        if (update.docChanged) latest.current.onChange(update.state.doc.toString());
       }),
     ];
 
@@ -252,15 +227,7 @@ export function QueryEditor({
 
   return (
     <div>
-      <Text
-        id={labelId}
-        component="label"
-        size="xs"
-        fw={600}
-        c="dimmed"
-        display="block"
-        mb={4}
-      >
+      <Text id={labelId} component="label" size="xs" fw={600} c="dimmed" display="block" mb={4}>
         {label}
       </Text>
       <div ref={host} />

@@ -24,7 +24,10 @@ export function BootNotice() {
       notifications.show({
         id: 'boot-plugins',
         color: 'yellow',
-        title: failures.size === 1 ? 'A plugin could not show its screens' : `${failures.size} plugins could not show their screens`,
+        title:
+          failures.size === 1
+            ? 'A plugin could not show its screens'
+            : `${failures.size} plugins could not show their screens`,
         message: `${[...failures.keys()].join(', ')}. The rest of ${branding.productShortName} is unaffected; their addresses explain why.`,
         autoClose: false,
       });

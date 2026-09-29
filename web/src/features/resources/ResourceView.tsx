@@ -3,7 +3,18 @@ import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
-import { useAddresses, useConnections, useConsumers, useProducers, useSessions, type AddressView, type ConnectionView, type ConsumerView, type ProducerView, type SessionView } from './api.ts';
+import {
+  useAddresses,
+  useConnections,
+  useConsumers,
+  useProducers,
+  useSessions,
+  type AddressView,
+  type ConnectionView,
+  type ConsumerView,
+  type ProducerView,
+  type SessionView,
+} from './api.ts';
 import { type PagedView, type ResourceParams } from '../../kernel/api/paging.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
@@ -76,10 +87,7 @@ interface RowMenuConfig<T> {
 }
 
 /** The trailing action column. Fixed width; the action names itself, the header does not. */
-const ACTION_COL = <T,>(
-  render: (row: T, ctx: RowContext) => React.ReactNode,
-  ctx: RowContext,
-): GridColumn<T> => ({
+const ACTION_COL = <T,>(render: (row: T, ctx: RowContext) => React.ReactNode, ctx: RowContext): GridColumn<T> => ({
   id: 'action',
   header: 'Action',
   accessor: () => '',
@@ -406,20 +414,14 @@ export function ResourceView({ kind }: { kind: Kind }) {
           }}
           emptyLabel={
             <Text size="sm">
-              No {config.noun}s right now. This view is a live read across every serving node — one
-              request per node per load.
+              No {config.noun}s right now. This view is a live read across every serving node — one request per node per
+              load.
             </Text>
           }
         />
       )}
 
-      <Pager
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={total}
-        onChange={setPage}
-        label={`${config.noun}s`}
-      />
+      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={`${config.noun}s`} />
     </Stack>
   );
 }

@@ -1,9 +1,26 @@
 import { useState } from 'react';
-import { ActionIcon, Button, ColorSwatch, Group, Modal, NumberInput, Stack, Table, Text, TextInput } from '@mantine/core';
+import {
+  ActionIcon,
+  Button,
+  ColorSwatch,
+  Group,
+  Modal,
+  NumberInput,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+} from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
-import { useCreateEnvironment, useDeleteEnvironment, useEnvironments, useUpdateEnvironment, type EnvironmentView } from './api.ts';
+import {
+  useCreateEnvironment,
+  useDeleteEnvironment,
+  useEnvironments,
+  useUpdateEnvironment,
+  type EnvironmentView,
+} from './api.ts';
 
 /** Environment grouping CRUD (environments spec). Cluster assignment happens from the cluster's own settings. */
 export function EnvironmentsPanel() {
@@ -81,10 +98,19 @@ export function EnvironmentsPanel() {
         </Table.Tbody>
       </Table>
 
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'New environment' : `Edit "${name}"`}>
+      <Modal
+        opened={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editing === 'new' ? 'New environment' : `Edit "${name}"`}
+      >
         <Stack gap="sm">
           <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
-          <TextInput label="Colour" value={colour} onChange={(e) => setColour(e.currentTarget.value)} placeholder="#4c6ef5" />
+          <TextInput
+            label="Colour"
+            value={colour}
+            onChange={(e) => setColour(e.currentTarget.value)}
+            placeholder="#4c6ef5"
+          />
           <NumberInput label="Sort order" value={sortOrder} onChange={(v) => setSortOrder(Number(v) || 0)} />
           <Button
             loading={create.isPending || update.isPending}

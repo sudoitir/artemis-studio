@@ -55,12 +55,11 @@ describe('ClusterViewNav', () => {
       'Activity',
     ]);
     const messaging = screen.getByRole('group', { name: 'Messaging' });
-    expect(within(messaging).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Queues',
-      'DLQ',
-      'Transfers',
-      'SQL Console',
-    ]);
+    expect(
+      within(messaging)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Queues', 'DLQ', 'Transfers', 'SQL Console']);
   });
 
   it("leaves out a disabled feature's views, and a group left with none", async () => {

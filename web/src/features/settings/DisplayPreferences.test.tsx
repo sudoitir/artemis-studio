@@ -52,9 +52,7 @@ describe('DisplayPreferences', () => {
 
     // The preview is the point of the control: it must show a real, zone-suffixed
     // timestamp rather than a bare IANA name the operator cannot verify.
-    await waitFor(() =>
-      expect(screen.getByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z$/)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z$/)).toBeInTheDocument());
   });
 
   it('is reachable and operable from the keyboard alone', async () => {

@@ -39,12 +39,7 @@ export function QueueLifecycleActions({
 
   const pending = loading || cluster.isPending;
   const pauseGate = gateFor(can('queue:pause', clusterId), 'Pause and resume queues', write, pending);
-  const updateGate = gateFor(
-    can('queue:update', clusterId),
-    "Change a queue's configuration",
-    write,
-    pending,
-  );
+  const updateGate = gateFor(can('queue:update', clusterId), "Change a queue's configuration", write, pending);
   const deleteGate = gateFor(can('queue:delete', clusterId), 'Destroy queues and addresses', write, pending);
 
   // What the queue runs, from the scrape snapshot the listing is built from — and,
@@ -67,24 +62,14 @@ export function QueueLifecycleActions({
             variant="light"
             disabled={pauseGate.kind === 'blocked'}
             loading={setPaused.isPending}
-            onClick={() =>
-              setPaused.mutate(
-                { paused: !paused },
-                { onSuccess: setPauseOutcome },
-              )
-            }
+            onClick={() => setPaused.mutate({ paused: !paused }, { onSuccess: setPauseOutcome })}
           >
             {paused ? 'Resume' : 'Pause'}
           </Button>
         </CapabilityGate>
 
         <CapabilityGate verdict={updateGate}>
-          <Button
-            size="xs"
-            variant="light"
-            disabled={updateGate.kind === 'blocked'}
-            onClick={() => setEditOpen(true)}
-          >
+          <Button size="xs" variant="light" disabled={updateGate.kind === 'blocked'} onClick={() => setEditOpen(true)}>
             Edit
           </Button>
         </CapabilityGate>
@@ -106,16 +91,15 @@ export function QueueLifecycleActions({
           the operator has already scrolled past. */}
       {write?.status === 'UNKNOWN' ? (
         <Text size="xs" c="dimmed">
-          Studio has not yet seen a management write on this connection, so it cannot promise these
-          will work. The first one settles it.
+          Studio has not yet seen a management write on this connection, so it cannot promise these will work. The first
+          one settles it.
         </Text>
       ) : null}
 
       <div aria-live="polite">
         {awaitingSweep ? (
           <Text size="xs" c="dimmed">
-            {paused ? 'Paused' : 'Resumed'} on every live node. The listing says so once the next sweep
-            reads it back.
+            {paused ? 'Paused' : 'Resumed'} on every live node. The listing says so once the next sweep reads it back.
           </Text>
         ) : null}
         {setPaused.isError ? (
@@ -126,12 +110,7 @@ export function QueueLifecycleActions({
         {pauseOutcome ? <NodeOutcomeSummary outcome={pauseOutcome} /> : null}
       </div>
 
-      <EditQueueForm
-        clusterId={clusterId}
-        queue={queue}
-        opened={editOpen}
-        onClose={() => setEditOpen(false)}
-      />
+      <EditQueueForm clusterId={clusterId} queue={queue} opened={editOpen} onClose={() => setEditOpen(false)} />
 
       <DeleteQueueDialog
         clusterId={clusterId}
@@ -202,22 +181,16 @@ export function DeleteQueueDialog({
   const overCap = preview?.overCap ?? false;
 
   return (
-    <Modal
-      opened={opened}
-      onClose={close}
-      onEnterTransitionEnd={onOpen}
-      title={`Delete ${queue.queueName}`}
-      size="lg"
-    >
+    <Modal opened={opened} onClose={close} onEnterTransitionEnd={onOpen} title={`Delete ${queue.queueName}`} size="lg">
       <Stack gap="md">
         <Text size="sm">
-          This destroys the queue on every live node of the cluster, along with every message it
-          holds. Nothing here can be undone, and a queue recreated afterwards is a new, empty one.
+          This destroys the queue on every live node of the cluster, along with every message it holds. Nothing here can
+          be undone, and a queue recreated afterwards is a new, empty one.
         </Text>
         <Text size="sm">
-          A divert that forwards into this queue&apos;s address is removed with it when the delete
-          leaves nothing bound there — otherwise the divert would bring the queue back, or break its
-          producers. Each node below names the diverts it removes and the ones it keeps.
+          A divert that forwards into this queue&apos;s address is removed with it when the delete leaves nothing bound
+          there — otherwise the divert would bring the queue back, or break its producers. Each node below names the
+          diverts it removes and the ones it keeps.
         </Text>
 
         <Checkbox
@@ -247,8 +220,8 @@ export function DeleteQueueDialog({
               reads as zero, which is exactly the wrong thing to infer here. */}
           {previewFailed ? (
             <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
-              {previewFailed} The delete can still proceed, but Studio cannot tell you how many
-              messages it would destroy.
+              {previewFailed} The delete can still proceed, but Studio cannot tell you how many messages it would
+              destroy.
             </Alert>
           ) : null}
 
@@ -259,8 +232,8 @@ export function DeleteQueueDialog({
         {overCap && preview ? (
           <Alert color="yellow" variant="light" title="Over the safety cap">
             This would destroy {preview.totalAffected.toLocaleString()} messages, over the cap of{' '}
-            {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and
-            the override is recorded in the audit log.
+            {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override is
+            recorded in the audit log.
           </Alert>
         ) : null}
 
@@ -292,10 +265,7 @@ export function DeleteQueueDialog({
             loading={remove.isPending && preview !== null}
             disabled={remove.isPending}
             onConfirm={() =>
-              remove.mutate(
-                { dryRun: false, override: overCap, disconnectConsumers },
-                { onSuccess: setResult },
-              )
+              remove.mutate({ dryRun: false, override: overCap, disconnectConsumers }, { onSuccess: setResult })
             }
           />
         )}

@@ -35,10 +35,9 @@
    is precisely when an operator needs to see both. */
 .split {
   display: grid;
-  grid-template-rows: minmax(
-      0,
-      calc(var(--as-editor-fraction) * 100%)
-    ) auto minmax(0, 1fr);
+  grid-template-rows:
+    minmax(0, calc(var(--as-editor-fraction) * 100%))
+    auto minmax(0, 1fr);
   block-size: calc(100dvh - 12rem);
   min-block-size: 24rem;
   gap: 0.5rem;
@@ -62,7 +61,7 @@
 }
 
 .handle::before {
-  content: "";
+  content: '';
   position: absolute;
   inset-inline: 0;
   inset-block-start: 50%;

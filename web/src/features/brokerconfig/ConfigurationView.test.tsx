@@ -227,8 +227,17 @@ describe('ConfigurationView', () => {
       ...baseHandlers(),
       http.post('*/api/v1/clusters/c1/config/import-xml', () =>
         HttpResponse.json({
-          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [], bridges: [] },
-          unsupported: [{ path: 'core/global-max-size', reason: 'a static setting; it cannot be applied over the management API' }],
+          document: {
+            version: 1,
+            addresses: [],
+            addressSettings: [{ match: 'orders.#', values: {} }],
+            securitySettings: [],
+            diverts: [],
+            bridges: [],
+          },
+          unsupported: [
+            { path: 'core/global-max-size', reason: 'a static setting; it cannot be applied over the management API' },
+          ],
           errors: [],
         }),
       ),
@@ -253,7 +262,14 @@ describe('ConfigurationView', () => {
       http.post('*/api/v1/clusters/c1/config/import-xml', async ({ request }) => {
         posted = await request.text();
         return HttpResponse.json({
-          document: { version: 1, addresses: [], addressSettings: [{ match: 'x', values: {} }], securitySettings: [], diverts: [], bridges: [] },
+          document: {
+            version: 1,
+            addresses: [],
+            addressSettings: [{ match: 'x', values: {} }],
+            securitySettings: [],
+            diverts: [],
+            bridges: [],
+          },
           unsupported: [],
           errors: [],
         });
@@ -265,7 +281,10 @@ describe('ConfigurationView', () => {
     await user.click(await screen.findByRole('button', { name: 'Import XML' }));
     const dialog = await screen.findByRole('dialog', { name: 'Import broker.xml' });
     const xml = '<address-setting match="x"><max-delivery-attempts>2</max-delivery-attempts></address-setting>';
-    await user.upload(within(dialog).getByLabelText('broker.xml file'), new File([xml], 'broker.xml', { type: 'application/xml' }));
+    await user.upload(
+      within(dialog).getByLabelText('broker.xml file'),
+      new File([xml], 'broker.xml', { type: 'application/xml' }),
+    );
 
     await waitFor(() => expect(within(dialog).getByRole('textbox')).toHaveValue(xml));
     expect(within(dialog).getByText('Loaded broker.xml')).toBeInTheDocument();
@@ -383,7 +402,9 @@ describe('ConfigurationView', () => {
 
     // Adoption and a verified apply both read "in sync"; only one of them means
     // Studio wrote anything, so the difference is on the screen.
-    expect(await screen.findByRole('link', { name: /Adopted as revision 3; no broker was written/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('link', { name: /Adopted as revision 3; no broker was written/ }),
+    ).toBeInTheDocument();
     expect(screen.getByText('No record of why it agrees.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Evaluate now' }));
   });
@@ -393,7 +414,14 @@ describe('ConfigurationView', () => {
       ...baseHandlers(),
       http.post('*/api/v1/clusters/c1/config/adopt', () =>
         HttpResponse.json({
-          document: { version: 1, addresses: [], addressSettings: [{ match: 'orders.#', values: {} }], securitySettings: [], diverts: [], bridges: [] },
+          document: {
+            version: 1,
+            addresses: [],
+            addressSettings: [{ match: 'orders.#', values: {} }],
+            securitySettings: [],
+            diverts: [],
+            bridges: [],
+          },
           notes: ['1 open drift finding(s) will be closed by adopting this document, and no broker will be written'],
           disagreements: [],
           closes: [
@@ -430,7 +458,7 @@ describe('ConfigurationView', () => {
     expect(save).toBeEnabled();
   });
 
-  it('offers address-setting templates built from the cluster\'s own DLQ, and saves nothing until asked', async () => {
+  it("offers address-setting templates built from the cluster's own DLQ, and saves nothing until asked", async () => {
     server.use(
       ...baseHandlers(),
       http.get('*/api/v1/clusters/c1/dlq', () =>
@@ -455,8 +483,9 @@ describe('ConfigurationView', () => {
     expect(within(dialog).getByRole('textbox', { name: /dead-letter-address/ })).toHaveValue('ORDERS.DLQ');
     // The other keys of the template land too; only the ones this fixture's
     // catalogue knows are rendered as fields.
-    expect(within(dialog).getByText(/Fills the fields below from this cluster's own ORDERS.DLQ and ORDERS.EXPIRY/))
-        .toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/Fills the fields below from this cluster's own ORDERS.DLQ and ORDERS.EXPIRY/),
+    ).toBeInTheDocument();
     delete search.section;
   });
 
@@ -507,7 +536,10 @@ describe('ConfigurationView', () => {
       ...baseHandlers(
         declaration({
           driftIntervalSeconds: 300,
-          nodes: [{ ...NODE_A, evaluatedAt: fourMinutesAgo }, { ...NODE_B, evaluatedAt: fourMinutesAgo }],
+          nodes: [
+            { ...NODE_A, evaluatedAt: fourMinutesAgo },
+            { ...NODE_B, evaluatedAt: fourMinutesAgo },
+          ],
         }),
       ),
     );

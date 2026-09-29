@@ -75,8 +75,7 @@ export function MetricsView() {
     live ? Math.max(15_000, spec.stepMs) : false,
   );
 
-  const byName = (name: string): MetricSeries | undefined =>
-    metrics.data?.series.find((s) => s.metric === name);
+  const byName = (name: string): MetricSeries | undefined => metrics.data?.series.find((s) => s.metric === name);
   const depth = byName('messageCount');
   const added = byName('messagesAdded');
   const acked = byName('messagesAcked');
@@ -158,9 +157,8 @@ export function MetricsView() {
 
       {metrics.data?.truncated ? (
         <Alert color="gray" variant="light" title="Window adjusted">
-          The requested resolution or range was wider than this cluster's retention or
-          sampling cadence allows; the charts below show the {metrics.data.step} bucket
-          Studio actually used.
+          The requested resolution or range was wider than this cluster's retention or sampling cadence allows; the
+          charts below show the {metrics.data.step} bucket Studio actually used.
         </Alert>
       ) : null}
 
@@ -185,14 +183,7 @@ export function MetricsView() {
         isEmpty={empty(added) && empty(acked)}
         emptyLabel={`No throughput samples for ${scope} in this window. A rate needs two samples in the window to exist at all, so a very narrow range on a newly registered cluster is empty rather than zero.`}
       >
-        <ThroughputChart
-          added={added}
-          acked={acked}
-          range={range}
-          from={fromMs}
-          to={toMs}
-          syncId={syncId}
-        />
+        <ThroughputChart added={added} acked={acked} range={range} from={fromMs} to={toMs} syncId={syncId} />
       </ChartPanel>
 
       <ChartPanel
@@ -210,8 +201,8 @@ export function MetricsView() {
         <Stack gap="xs">
           <Title order={4}>Per broker node</Title>
           <Text size="sm" c="dimmed">
-            One chart per node, on one scale, so a node's share is read by comparing heights. The nodes add up
-            to the totals above.
+            One chart per node, on one scale, so a node's share is read by comparing heights. The nodes add up to the
+            totals above.
           </Text>
           <NodeSplitCharts response={metrics.data} range={range} from={fromMs} to={toMs} syncId={syncId} />
         </Stack>
@@ -227,11 +218,7 @@ export function MetricsView() {
               { name: 'consumers', label: 'Consumers', series: consumers },
             ]}
             format={(name, value) =>
-              name === 'depth'
-                ? formatCount(value)
-                : name === 'consumers'
-                  ? formatExact(value)
-                  : formatRate(value)
+              name === 'depth' ? formatCount(value) : name === 'consumers' ? formatExact(value) : formatRate(value)
             }
           />
         </Spoiler>

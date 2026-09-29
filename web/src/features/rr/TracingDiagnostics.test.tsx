@@ -54,9 +54,7 @@ describe('TracingDiagnostics', () => {
   it('explains an empty Flows tab instead of leaving it blank', async () => {
     // "0 flows" reads identically whether nothing was sent, nothing could be
     // browsed, or the requests were consumed faster than the sampler ticks.
-    server.use(
-      http.get('*/api/v1/clusters/c1/rr/diagnostics', () => HttpResponse.json(diagnostics())),
-    );
+    server.use(http.get('*/api/v1/clusters/c1/rr/diagnostics', () => HttpResponse.json(diagnostics())));
     renderWithProviders(<TracingDiagnostics clusterId="c1" />);
 
     expect(await screen.findByText(/consumed faster than that is never seen/)).toBeInTheDocument();

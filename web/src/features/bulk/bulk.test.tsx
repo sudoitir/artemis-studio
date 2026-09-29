@@ -352,9 +352,7 @@ describe('BulkPreviewDialog', () => {
     await user.type(field, 's');
     await user.click(within(dialog).getByRole('button', { name: 'Delete 2 queues' }));
 
-    await waitFor(() =>
-      expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/bulk/r1' }),
-    );
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/bulk/r1' }));
     expect(executed).toEqual({ planHash: 'h1', override: false, continueOnFailure: false });
   });
 

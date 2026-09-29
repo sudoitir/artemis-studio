@@ -26,8 +26,7 @@ export function StepUp({ returnTo }: { returnTo: string }) {
       <Alert variant="light" title="Confirm it is you">
         <Stack gap="xs">
           <Text size="sm">
-            Sign in again with your identity provider to continue. You come back here, and nothing you
-            reviewed is lost.
+            Sign in again with your identity provider to continue. You come back here, and nothing you reviewed is lost.
           </Text>
           <Button component="a" href={href} w="fit-content">
             Sign in again
@@ -54,8 +53,8 @@ export function StepUp({ returnTo }: { returnTo: string }) {
           Confirm it is you
         </Text>
         <Text size="sm" c="dimmed">
-          Your last sign-in was more than five minutes ago. Re-enter your password; after five wrong
-          attempts you are signed out.
+          Your last sign-in was more than five minutes ago. Re-enter your password; after five wrong attempts you are
+          signed out.
         </Text>
         <Group align="flex-end" gap="xs">
           <PasswordInput

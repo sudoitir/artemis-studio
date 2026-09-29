@@ -19,9 +19,7 @@ function mockShell() {
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
       }),
     ),
-    http.get('*/api/v1/clusters', () =>
-      HttpResponse.json([{ id: 'c1', name: 'prod-eu', health: 'OK', nodeCount: 2 }]),
-    ),
+    http.get('*/api/v1/clusters', () => HttpResponse.json([{ id: 'c1', name: 'prod-eu', health: 'OK', nodeCount: 2 }])),
     http.get('*/api/v1/environments', () => HttpResponse.json([])),
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
     http.get('*/api/v1/clusters/c1', () =>
@@ -38,9 +36,7 @@ function mockShell() {
         },
       }),
     ),
-    http.get('*/api/v1/clusters/c1/queues', () =>
-      HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 }),
-    ),
+    http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
   );
 }
 

@@ -11,13 +11,7 @@ import { STUCK_STATES } from './rrState.ts';
  * the flow volume this screen deals with is small by construction (Phase 5
  * traces a handful of declared addresses, not a whole broker's traffic).
  */
-export function StuckPanel({
-  clusterId,
-  onSelect,
-}: {
-  clusterId: string;
-  onSelect: (flowId: string) => void;
-}) {
+export function StuckPanel({ clusterId, onSelect }: { clusterId: string; onSelect: (flowId: string) => void }) {
   const query = useRrFlows(clusterId, { size: 500 });
 
   if (query.isPending) {
@@ -35,8 +29,7 @@ export function StuckPanel({
   return (
     <Stack gap="sm">
       <Text size="xs" c="dimmed">
-        {stuck.length} flow{stuck.length === 1 ? '' : 's'} timed out, orphaned, or dropped — oldest
-        first.
+        {stuck.length} flow{stuck.length === 1 ? '' : 's'} timed out, orphaned, or dropped — oldest first.
       </Text>
       <FlowsTable flows={stuck} onSelect={onSelect} />
     </Stack>

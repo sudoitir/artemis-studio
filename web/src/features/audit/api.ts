@@ -1,11 +1,11 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ApiError, request } from "../../kernel/api/request.ts";
-import type { components } from "../../kernel/api/schema.d.ts";
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { ApiError, request } from '../../kernel/api/request.ts';
+import type { components } from '../../kernel/api/schema.d.ts';
 
-type Schemas = components["schemas"];
+type Schemas = components['schemas'];
 
-export type AuditEventView = Schemas["AuditEventView"];
-export type AuditPageView = Schemas["AuditPageView"];
+export type AuditEventView = Schemas['AuditEventView'];
+export type AuditPageView = Schemas['AuditPageView'];
 
 export interface AuditFilter {
   user?: string;
@@ -23,34 +23,25 @@ export interface AuditFilter {
  * One audit event by its id, for a link to an event that is not on the loaded page. A 404 is the
  * answer, not a failure to retry.
  */
-export function useAuditEvent(
-  clusterId: string,
-  id: number | undefined,
-): UseQueryResult<AuditEventView, ApiError> {
+export function useAuditEvent(clusterId: string, id: number | undefined): UseQueryResult<AuditEventView, ApiError> {
   return useQuery({
-    queryKey: ["clusters", clusterId, "audit", "one", id],
+    queryKey: ['clusters', clusterId, 'audit', 'one', id],
     queryFn: () => request<AuditEventView>(`/clusters/${clusterId}/audit/${id}`),
-    enabled: clusterId !== "" && id !== undefined,
+    enabled: clusterId !== '' && id !== undefined,
     retry: false,
   });
 }
 
-export function useAudit(
-  clusterId: string,
-  filter: AuditFilter = {},
-): UseQueryResult<AuditPageView, ApiError> {
+export function useAudit(clusterId: string, filter: AuditFilter = {}): UseQueryResult<AuditPageView, ApiError> {
   return useQuery({
-    queryKey: ["clusters", clusterId, "audit", filter],
+    queryKey: ['clusters', clusterId, 'audit', filter],
     queryFn: () => {
       const sp = new URLSearchParams();
       for (const [k, v] of Object.entries(filter)) {
-        if (v !== undefined && v !== "" && !(k === "page" && v === 1))
-          sp.set(k, String(v));
+        if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
       }
       const qs = sp.toString();
-      return request<AuditPageView>(
-        `/clusters/${clusterId}/audit${qs ? `?${qs}` : ""}`,
-      );
+      return request<AuditPageView>(`/clusters/${clusterId}/audit${qs ? `?${qs}` : ''}`);
     },
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,

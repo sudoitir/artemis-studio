@@ -38,9 +38,21 @@ const features: StudioFeature[] = [
     routes: { root: [route] },
     slots: {
       'settings.sections': [
-        { id: 'credentials', order: 40, group: 'cluster', title: 'Broker credentials', Component: section('Rotate them') },
+        {
+          id: 'credentials',
+          order: 40,
+          group: 'cluster',
+          title: 'Broker credentials',
+          Component: section('Rotate them'),
+        },
         { id: 'display', order: 10, group: 'personal', title: 'Display', Component: section('Yours alone') },
-        { id: 'operational', order: 20, group: 'studio', title: 'Operational configuration', Component: section('Shared') },
+        {
+          id: 'operational',
+          order: 20,
+          group: 'studio',
+          title: 'Operational configuration',
+          Component: section('Shared'),
+        },
         { id: 'from-a-plugin', order: 5, title: 'Notes', Component: section('A plugin section') },
       ],
     },
@@ -72,12 +84,11 @@ describe('the Settings page', () => {
     expect(list.textContent).toBe(
       'YoursDisplayStudioOperational configurationThis clusterBroker credentialsPluginsNotes',
     );
-    expect(within(list).getAllByRole('tab').map((t) => t.textContent)).toEqual([
-      'Display',
-      'Operational configuration',
-      'Broker credentials',
-      'Notes',
-    ]);
+    expect(
+      within(list)
+        .getAllByRole('tab')
+        .map((t) => t.textContent),
+    ).toEqual(['Display', 'Operational configuration', 'Broker credentials', 'Notes']);
     expect(screen.getByText('Yours alone')).toBeInTheDocument();
   });
 

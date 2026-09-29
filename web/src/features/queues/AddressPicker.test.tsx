@@ -70,9 +70,7 @@ describe('AddressPicker', () => {
         { timeout: 4000 },
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('option', { name: /^orders\.events, multicast,/, ...opt }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^orders\.events, multicast,/, ...opt })).toBeInTheDocument();
   });
 
   it('shows an address in full rather than truncating it to fit the field', async () => {
@@ -80,11 +78,7 @@ describe('AddressPicker', () => {
     // 240px dropdown, so `flex: none` meta won and every long address rendered as
     // an ellipsis — useless for exactly the names this picker exists to tell apart.
     const long = 'orders.reply.responder-with-a-rather-long-node-name.v1';
-    server.use(
-      http.get('*/api/v1/clusters/c1/queues', () =>
-        HttpResponse.json(page([queue({ address: long })])),
-      ),
-    );
+    server.use(http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json(page([queue({ address: long })]))));
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
 
@@ -128,12 +122,8 @@ describe('AddressPicker', () => {
       />,
     );
 
-    expect(
-      await screen.findByText('No address on this cluster has that name yet.'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: /request address/i })).toHaveValue(
-      'not.a.real.address',
-    );
+    expect(await screen.findByText('No address on this cluster has that name yet.')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /request address/i })).toHaveValue('not.a.real.address');
   });
 
   it('stays usable when the queue list cannot be read', async () => {

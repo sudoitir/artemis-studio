@@ -19,7 +19,11 @@ export function FlowKpis({ kpis }: { kpis: Kpis }) {
     { label: 'Messages out', value: totalRateLabel(kpis.outRate) },
     { label: 'Backlog', value: `${formatCount(kpis.backlog ?? 0)} waiting` },
     { label: 'Clients', value: `${formatCount(kpis.clients ?? 0)} connected` },
-    { label: 'Faults', value: faults === 0 ? 'none' : `${faults} ${faults === 1 ? 'fault' : 'faults'}`, alarm: faults > 0 },
+    {
+      label: 'Faults',
+      value: faults === 0 ? 'none' : `${faults} ${faults === 1 ? 'fault' : 'faults'}`,
+      alarm: faults > 0,
+    },
   ];
   return (
     <section aria-label="Totals across every path">

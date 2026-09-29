@@ -165,14 +165,7 @@ const ALL: MessageSelection = { kind: 'all' };
 
 function Actions({ selection = ALL, total = 1200 }: { selection?: MessageSelection; total?: number | null }) {
   return (
-    <TransferActions
-      clusterId="c1"
-      queueName="orders"
-      node="n1"
-      selection={selection}
-      total={total}
-      clear={() => {}}
-    />
+    <TransferActions clusterId="c1" queueName="orders" node="n1" selection={selection} total={total} clear={() => {}} />
   );
 }
 
@@ -267,7 +260,9 @@ describe('TransferDialog', () => {
     expect(await screen.findByRole('option', { name: /node-a: the source node/, ...opt })).toHaveAttribute(
       'data-combobox-disabled',
     );
-    expect(screen.getByRole('option', { name: /node-b-backup: a backup/, ...opt })).toHaveAttribute('data-combobox-disabled');
+    expect(screen.getByRole('option', { name: /node-b-backup: a backup/, ...opt })).toHaveAttribute(
+      'data-combobox-disabled',
+    );
   });
 
   it('lists a cluster the operator may not send to, disabled, saying why', async () => {
@@ -277,9 +272,9 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target cluster' }));
-    expect(await screen.findByRole('option', { name: /dr-site: you do not have the "Send messages" permission/, ...opt })).toHaveAttribute(
-      'data-combobox-disabled',
-    );
+    expect(
+      await screen.findByRole('option', { name: /dr-site: you do not have the "Send messages" permission/, ...opt }),
+    ).toHaveAttribute('data-combobox-disabled');
   });
 
   it('will not preview without a target node, and puts focus on the field', async () => {
@@ -570,7 +565,10 @@ describe('TransfersView', () => {
 
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('textbox', { name: /Return them to/ }), 'orders');
-    await user.type(within(dialog).getByRole('textbox', { name: /Type the staging queue's name/ }), 'studio.transfer.r9');
+    await user.type(
+      within(dialog).getByRole('textbox', { name: /Type the staging queue's name/ }),
+      'studio.transfer.r9',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Return the messages' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));

@@ -5,25 +5,25 @@
 
 /** Every column the result grid can show, in its default order. */
 export const ALL_COLUMN_IDS = [
-  "source",
-  "node",
-  "queue",
-  "messageId",
-  "timestamp",
-  "priority",
-  "size",
-  "body",
-  "verify",
+  'source',
+  'node',
+  'queue',
+  'messageId',
+  'timestamp',
+  'priority',
+  'size',
+  'body',
+  'verify',
 ] as const;
 
 export const COLUMN_LABELS: Record<string, string> = {
-  source: "Source",
-  node: "Node",
-  queue: "Queue",
-  messageId: "Message ID",
-  timestamp: "Enqueued",
-  priority: "Prio",
-  size: "Size",
-  body: "Body",
-  verify: "On broker",
+  source: 'Source',
+  node: 'Node',
+  queue: 'Queue',
+  messageId: 'Message ID',
+  timestamp: 'Enqueued',
+  priority: 'Prio',
+  size: 'Size',
+  body: 'Body',
+  verify: 'On broker',
 };

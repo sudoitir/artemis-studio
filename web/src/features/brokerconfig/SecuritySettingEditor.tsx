@@ -214,9 +214,9 @@ export function SecuritySettingEditor({
       </Group>
 
       <Text size="xs" c="dimmed">
-        <b>view</b> and <b>edit</b> are sent to the broker but it does not report them back over management
-        (measured on 2.44), so the plan, the verification and the drift check cannot see them. Confirm those two in
-        the broker's own configuration.
+        <b>view</b> and <b>edit</b> are sent to the broker but it does not report them back over management (measured on
+        2.44), so the plan, the verification and the drift check cannot see them. Confirm those two in the broker's own
+        configuration.
       </Text>
 
       {roles.length > 0 ? (

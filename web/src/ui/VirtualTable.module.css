@@ -210,7 +210,7 @@
 }
 
 .resizeHandle::after {
-  content: "";
+  content: '';
   position: absolute;
   inset-block: 6px;
   inset-inline-end: 0;

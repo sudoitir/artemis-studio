@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Chip, Collapse, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
 
 import { useDlq } from '../messages/index.ts';
-import type { ConfigAddressSettingKeyView, ConfigAddressSettingView, ConfigCatalogueView, ConfigDeclarationView } from './api.ts';
+import type {
+  ConfigAddressSettingKeyView,
+  ConfigAddressSettingView,
+  ConfigCatalogueView,
+  ConfigDeclarationView,
+} from './api.ts';
 import { keyTaken, removeItem, upsertAddressSetting } from './document.ts';
 import { EditorDrawer, MATCH_HINT } from './EditorDrawer.tsx';
 import { keyHelp } from './keyHelp.ts';
@@ -220,7 +225,11 @@ export function AddressSettingEditor({
     const value = values[key.jsonName] ?? '';
     const set = (v: string) => setValues((prev) => ({ ...prev, [key.jsonName]: v }));
     const note = hazardNote(key.jsonName, value);
-    const description = note ?? (key.hazardClass === 'HIGH' ? 'Changing this is a High hazard; the plan will ask for acknowledgement.' : undefined);
+    const description =
+      note ??
+      (key.hazardClass === 'HIGH'
+        ? 'Changing this is a High hazard; the plan will ask for acknowledgement.'
+        : undefined);
     const help = keyHelp(key.jsonName);
     const label = key.xmlName;
     // The explanation sits beside the input, not inside the label, so it is a
@@ -340,23 +349,25 @@ export function AddressSettingEditor({
             ))}
           </Group>
           <Text size="xs" c="dimmed">
-            Fills the fields below from this cluster's own{' '}
-            {[deadLetter, expiry].filter(Boolean).join(' and ')} — nothing is saved until you do.
+            Fills the fields below from this cluster's own {[deadLetter, expiry].filter(Boolean).join(' and ')} —
+            nothing is saved until you do.
           </Text>
         </Stack>
       ) : null}
 
       <Text size="xs" c="dimmed">
-        Applying replaces the broker's whole entry for this match. A key not declared here is not kept — it falls
-        back to the parent match. The plan lists every such change before anything is written. Keys the broker does
-        not report back cannot be seen or kept; re-declare them here if your broker.xml sets them.
+        Applying replaces the broker's whole entry for this match. A key not declared here is not kept — it falls back
+        to the parent match. The plan lists every such change before anything is written. Keys the broker does not
+        report back cannot be seen or kept; re-declare them here if your broker.xml sets them.
       </Text>
 
       <Stack gap="sm">{common.map(field)}</Stack>
 
       <div>
         <Button variant="subtle" size="xs" px={0} onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced}>
-          {advanced ? 'Hide the other keys' : `Other keys (${rest.length}${declaredInRest ? `, ${declaredInRest} declared` : ''})`}
+          {advanced
+            ? 'Hide the other keys'
+            : `Other keys (${rest.length}${declaredInRest ? `, ${declaredInRest} declared` : ''})`}
         </Button>
         <Collapse expanded={advanced}>
           <Stack gap="sm" mt="sm">
@@ -369,8 +380,8 @@ export function AddressSettingEditor({
             />
             {shownRest.length === 0 ? (
               <Text size="xs" c="dimmed">
-                No key matches “{filter}”. A key Studio does not know cannot be declared: the broker would accept it
-                and silently ignore it.
+                No key matches “{filter}”. A key Studio does not know cannot be declared: the broker would accept it and
+                silently ignore it.
               </Text>
             ) : (
               shownRest.map(field)

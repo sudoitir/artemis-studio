@@ -75,7 +75,13 @@ export const FlowEdge = memo(function FlowEdge({
       {double ? (
         // A second, narrower stroke in the canvas colour turns one line into two: forwarding
         // between brokers reads differently from routing inside one.
-        <path d={path} fill="none" className={classes.edgeInner} data-dimmed={d.dimmed || undefined} style={lineStyle} />
+        <path
+          d={path}
+          fill="none"
+          className={classes.edgeInner}
+          data-dimmed={d.dimmed || undefined}
+          style={lineStyle}
+        />
       ) : null}
       {showText && motion !== 'off' && d.dots > 0 && !d.dimmed ? (
         <FlowDots

@@ -47,8 +47,20 @@ export function FlowTable({
   const rows = useMemo(() => sortRows(toRows(graph), sort), [graph, sort]);
 
   const columns: GridColumn<Row>[] = [
-    { id: 'from', header: 'From', sortKey: 'from', accessor: (r) => r.from?.label, cell: (r) => <NodeName node={r.from} /> },
-    { id: 'relation', header: 'Relation', sortKey: 'relation', width: 120, accessor: (r) => RELATION[r.edge.kind ?? ''] },
+    {
+      id: 'from',
+      header: 'From',
+      sortKey: 'from',
+      accessor: (r) => r.from?.label,
+      cell: (r) => <NodeName node={r.from} />,
+    },
+    {
+      id: 'relation',
+      header: 'Relation',
+      sortKey: 'relation',
+      width: 120,
+      accessor: (r) => RELATION[r.edge.kind ?? ''],
+    },
     { id: 'to', header: 'To', sortKey: 'to', accessor: (r) => r.to?.label, cell: (r) => <NodeName node={r.to} /> },
     {
       id: 'rate',
@@ -83,7 +95,11 @@ export function FlowTable({
       numeric: true,
       width: 90,
       accessor: (r) => r.edge.members ?? '',
-      cell: (r) => <Text size="sm" className={classes.figure}>{r.edge.members ?? ''}</Text>,
+      cell: (r) => (
+        <Text size="sm" className={classes.figure}>
+          {r.edge.members ?? ''}
+        </Text>
+      ),
     },
     {
       id: 'faults',
@@ -142,7 +158,8 @@ function NodeName({ node }: { node: FlowNodeView | undefined }) {
       {node.label}
       {node.members && node.members > 1 ? (
         <Text span size="xs" c="dimmed">
-          {' '}×{node.members}
+          {' '}
+          ×{node.members}
         </Text>
       ) : null}
     </Text>

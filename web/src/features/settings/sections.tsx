@@ -8,8 +8,8 @@ export function DisplaySection() {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        Yours alone. Stored in this browser, applied immediately, and never sent to the server —
-        changing it needs no permission and affects nobody else&rsquo;s screen.
+        Yours alone. Stored in this browser, applied immediately, and never sent to the server — changing it needs no
+        permission and affects nobody else&rsquo;s screen.
       </Text>
       <DisplayPreferences />
     </>
@@ -21,9 +21,8 @@ export function OperationalSection() {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        Overrides the packaged defaults. Stored in Postgres, not the container, and
-        applied without a restart. Reset clears the override and the packaged default
-        takes over again.
+        Overrides the packaged defaults. Stored in Postgres, not the container, and applied without a restart. Reset
+        clears the override and the packaged default takes over again.
       </Text>
       <OperationalConfig />
     </>

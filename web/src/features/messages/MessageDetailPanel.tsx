@@ -260,9 +260,7 @@ export function MessageDetailPanel({
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="xs">
-                    {absoluteLabel(m.timestamp)}
-                  </Text>
+                  <Text size="xs">{absoluteLabel(m.timestamp)}</Text>
                 </Table.Td>
               </Table.Tr>
               <Table.Tr>
@@ -272,9 +270,7 @@ export function MessageDetailPanel({
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="xs">
-                    {m.expiration > 0 ? absoluteLabel(m.expiration) : 'never'}
-                  </Text>
+                  <Text size="xs">{m.expiration > 0 ? absoluteLabel(m.expiration) : 'never'}</Text>
                 </Table.Td>
               </Table.Tr>
               {m.groupId ? (
@@ -319,11 +315,27 @@ export function MessageDetailPanel({
             </Table.Tbody>
           </Table>
 
-          <PropertyTable title="String properties" entries={Object.entries(m.stringProperties)} redactions={m.redactions} />
-          <PropertyTable title="Integer properties" entries={Object.entries(m.intProperties)} redactions={m.redactions} />
+          <PropertyTable
+            title="String properties"
+            entries={Object.entries(m.stringProperties)}
+            redactions={m.redactions}
+          />
+          <PropertyTable
+            title="Integer properties"
+            entries={Object.entries(m.intProperties)}
+            redactions={m.redactions}
+          />
           <PropertyTable title="Long properties" entries={Object.entries(m.longProperties)} redactions={m.redactions} />
-          <PropertyTable title="Double properties" entries={Object.entries(m.doubleProperties)} redactions={m.redactions} />
-          <PropertyTable title="Boolean properties" entries={Object.entries(m.booleanProperties)} redactions={m.redactions} />
+          <PropertyTable
+            title="Double properties"
+            entries={Object.entries(m.doubleProperties)}
+            redactions={m.redactions}
+          />
+          <PropertyTable
+            title="Boolean properties"
+            entries={Object.entries(m.booleanProperties)}
+            redactions={m.redactions}
+          />
 
           <MessageBody
             body={m.body ?? null}
@@ -340,11 +352,9 @@ export function MessageDetailPanel({
             <Alert color="yellow" variant="light" title="This message is truncated">
               <Stack gap="xs">
                 <Text size="sm">
-                  The broker clipped this message's body and property values at{' '}
-                  {m.observedLimitBytes ?? 'its'} bytes
-                  (<code>management-message-attribute-size-limit</code>). To see the whole message,
-                  raise the limit in <code>broker.xml</code> and re-browse, or connect the Core
-                  client so Studio can read it faithfully:
+                  The broker clipped this message's body and property values at {m.observedLimitBytes ?? 'its'} bytes (
+                  <code>management-message-attribute-size-limit</code>). To see the whole message, raise the limit in{' '}
+                  <code>broker.xml</code> and re-browse, or connect the Core client so Studio can read it faithfully:
                 </Text>
                 <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
               </Stack>

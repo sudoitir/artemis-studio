@@ -17,9 +17,7 @@ async function fresh() {
  */
 function browserIn(zone: string) {
   const real = Intl.DateTimeFormat.prototype.resolvedOptions;
-  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(function (
-    this: Intl.DateTimeFormat,
-  ) {
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(function (this: Intl.DateTimeFormat) {
     return { ...real.call(this), timeZone: zone };
   });
 }

@@ -88,8 +88,8 @@ export function BulkActionPreview({
       <Stack gap="sm">
         {action === 'retry' ? (
           <Text size="sm" c="dimmed">
-            Artemis has no by-selector retry — this replays <strong>every</strong> message on the
-            queue. Preview to see how many.
+            Artemis has no by-selector retry — this replays <strong>every</strong> message on the queue. Preview to see
+            how many.
           </Text>
         ) : (
           <TextInput
@@ -101,12 +101,7 @@ export function BulkActionPreview({
           />
         )}
         {action === 'move' ? (
-          <TextInput
-            label="Target queue"
-            value={target}
-            onChange={(e) => setTarget(e.currentTarget.value)}
-            size="xs"
-          />
+          <TextInput label="Target queue" value={target} onChange={(e) => setTarget(e.currentTarget.value)} size="xs" />
         ) : null}
 
         <Group>
@@ -114,9 +109,7 @@ export function BulkActionPreview({
             size="xs"
             variant="default"
             loading={run.isPending}
-            disabled={
-              (action !== 'retry' && !filter) || (action === 'move' && !target)
-            }
+            disabled={(action !== 'retry' && !filter) || (action === 'move' && !target)}
             onClick={doPreview}
           >
             Preview
@@ -130,9 +123,7 @@ export function BulkActionPreview({
             title={`≈ ${preview.affectedCount} messages (estimate)`}
           >
             <Stack gap="xs">
-              <Text size="sm">
-                Point-in-time count from the broker. Safety cap: {preview.cap}.
-              </Text>
+              <Text size="sm">Point-in-time count from the broker. Safety cap: {preview.cap}.</Text>
               {preview.overCap ? (
                 <ConfirmByTyping
                   token={queueName}

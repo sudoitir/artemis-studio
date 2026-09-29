@@ -11,16 +11,7 @@
  * is fine.
  */
 
-export type PayloadFormat =
-  | 'json'
-  | 'xml'
-  | 'text'
-  | 'gzip'
-  | 'zip'
-  | 'java-serialized'
-  | 'avro'
-  | 'binary'
-  | 'empty';
+export type PayloadFormat = 'json' | 'xml' | 'text' | 'gzip' | 'zip' | 'java-serialized' | 'avro' | 'binary' | 'empty';
 
 /** Why a body could not be pretty-printed. `null` means it was. */
 export type UnavailableReason = 'truncated' | 'unparseable' | 'too-large' | 'binary' | null;
@@ -303,12 +294,7 @@ export function detectPayload(input: PayloadInput): DetectedPayload {
 
   if (declaredFormat === 'json' || declaredFormat === 'xml') {
     const text = isBase64 ? new TextDecoder().decode(decodeBase64(body, sizeBytes)) : body;
-    const { formatted, unavailable } = tryFormat(
-      declaredFormat,
-      text,
-      input.bodyTruncated,
-      sizeBytes,
-    );
+    const { formatted, unavailable } = tryFormat(declaredFormat, text, input.bodyTruncated, sizeBytes);
     return textResult(
       declaredFormat,
       'declared',
@@ -374,14 +360,7 @@ export function detectPayload(input: PayloadInput): DetectedPayload {
     }
     const doc = parseXml(body);
     if (doc) {
-      return textResult(
-        'xml',
-        'inferred',
-        sizeBytes,
-        null,
-        formatXmlDocument(doc),
-        languageFor('xml', sizeBytes),
-      );
+      return textResult('xml', 'inferred', sizeBytes, null, formatXmlDocument(doc), languageFor('xml', sizeBytes));
     }
     if (input.bodyTruncated) {
       return textResult('xml', 'inferred', sizeBytes, 'truncated', null, null);

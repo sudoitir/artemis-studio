@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 
-import { useCloseAddressConsumers, useCloseNodeTarget, type ConnectionCloseKind, type ConnectionCloseView } from './api.ts';
+import {
+  useCloseAddressConsumers,
+  useCloseNodeTarget,
+  type ConnectionCloseKind,
+  type ConnectionCloseView,
+} from './api.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
@@ -114,10 +119,7 @@ export function CloseDialog({
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
-    close.mutate(
-      { dryRun: true },
-      { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) },
-    );
+    close.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
   };
 
   const dismiss = () => {
@@ -132,25 +134,19 @@ export function CloseDialog({
   const target = preview?.target ?? null;
 
   return (
-    <Modal
-      opened={opened}
-      onClose={dismiss}
-      onEnterTransitionEnd={start}
-      title={`Close this ${NOUN[kind]}`}
-      size="lg"
-    >
+    <Modal opened={opened} onClose={dismiss} onEnterTransitionEnd={start} title={`Close this ${NOUN[kind]}`} size="lg">
       <Stack gap="md">
         <Text size="sm">
-          This disconnects a running application from {nodeName}. It cannot be undone from here —
-          a healthy client will reconnect on its own, and a wedged one will not.
+          This disconnects a running application from {nodeName}. It cannot be undone from here — a healthy client will
+          reconnect on its own, and a wedged one will not.
         </Text>
 
         {/* The action depends on how current the row is, so the age is stated
             where the decision is made rather than only in the header. */}
         {fetchedAt ? (
           <Text size="xs" c="dimmed">
-            This row was read {elapsedLabel(now - toServerMs(fetchedAt))} ago. The check below is taken now,
-            against the broker.
+            This row was read {elapsedLabel(now - toServerMs(fetchedAt))} ago. The check below is taken now, against the
+            broker.
           </Text>
         ) : null}
 
@@ -165,8 +161,8 @@ export function CloseDialog({
               reads as zero, which is the most dangerous thing to infer here. */}
           {previewFailed ? (
             <Alert color="yellow" variant="light" title="The target could not be read" role="alert">
-              {previewFailed} Studio cannot tell you what this would disconnect, so the close is
-              not offered until the read succeeds.
+              {previewFailed} Studio cannot tell you what this would disconnect, so the close is not offered until the
+              read succeeds.
             </Alert>
           ) : null}
 
@@ -174,8 +170,8 @@ export function CloseDialog({
             // The sentence is the whole outcome. A per-node summary beside it would
             // add nothing and read as a second, different verdict.
             <Text size="sm">
-              Nothing to close — this {NOUN[kind]} had already gone. That is the state you asked
-              for, so nothing was done and nothing failed.
+              Nothing to close — this {NOUN[kind]} had already gone. That is the state you asked for, so nothing was
+              done and nothing failed.
             </Text>
           ) : settled ? (
             <NodeOutcomeSummary
@@ -218,13 +214,7 @@ export function CloseDialog({
 }
 
 /** Who is about to be disconnected, and what it costs the messages they hold. */
-function TargetSummary({
-  target,
-  nodeName,
-}: {
-  target: NonNullable<ConnectionCloseView['target']>;
-  nodeName: string;
-}) {
+function TargetSummary({ target, nodeName }: { target: NonNullable<ConnectionCloseView['target']>; nodeName: string }) {
   const rows: [string, string][] = [
     ['Client id', target.clientId || 'none reported'],
     ['Remote address', target.remoteAddress || 'not reported'],
@@ -252,16 +242,15 @@ function TargetSummary({
       <Alert color="yellow" variant="light" title="Messages in flight return to their queue">
         {target.messagesInTransit == null ? (
           <>
-            This broker did not report how many messages this client is holding. Any that are in
-            flight return to their queue with an increased delivery count, which can push a
-            message past its maximum delivery attempts and into the dead-letter queue.
+            This broker did not report how many messages this client is holding. Any that are in flight return to their
+            queue with an increased delivery count, which can push a message past its maximum delivery attempts and into
+            the dead-letter queue.
           </>
         ) : (
           <>
             {target.messagesInTransit.toLocaleString()} in-flight message
-            {target.messagesInTransit === 1 ? '' : 's'} will return to their queue with an
-            increased delivery count. A message already near its maximum delivery attempts can be
-            moved to the dead-letter queue by that increase.
+            {target.messagesInTransit === 1 ? '' : 's'} will return to their queue with an increased delivery count. A
+            message already near its maximum delivery attempts can be moved to the dead-letter queue by that increase.
           </>
         )}
       </Alert>
@@ -270,13 +259,7 @@ function TargetSummary({
 }
 
 /** The addresses view's row action: the trigger and its gate, around the dialog below. */
-export function CloseAddressConsumersAction({
-  clusterId,
-  address,
-}: {
-  clusterId: string;
-  address: string;
-}) {
+export function CloseAddressConsumersAction({ clusterId, address }: { clusterId: string; address: string }) {
   const gate = useCloseAddressGate(clusterId);
   const host = useActionHost();
 
@@ -328,10 +311,7 @@ export function CloseAddressConsumers({
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
-    close.mutate(
-      { dryRun: true },
-      { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) },
-    );
+    close.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
   };
 
   const dismiss = () => {
@@ -354,8 +334,8 @@ export function CloseAddressConsumers({
     >
       <Stack gap="md">
         <Text size="sm">
-          This disconnects every application consuming from {address}, on every live node. The
-          messages those consumers hold return to their queues with an increased delivery count.
+          This disconnects every application consuming from {address}, on every live node. The messages those consumers
+          hold return to their queues with an increased delivery count.
         </Text>
 
         <div aria-live="polite">
@@ -367,8 +347,8 @@ export function CloseAddressConsumers({
 
           {previewFailed ? (
             <Alert color="yellow" variant="light" title="The count could not be taken" role="alert">
-              {previewFailed} The close can still proceed, but Studio cannot tell you how many
-              consumers it would disconnect.
+              {previewFailed} The close can still proceed, but Studio cannot tell you how many consumers it would
+              disconnect.
             </Alert>
           ) : null}
 
@@ -396,9 +376,9 @@ export function CloseAddressConsumers({
 
         {overCap && preview ? (
           <Alert color="yellow" variant="light" title="Over the safety cap">
-            This would disconnect {preview.outcome.totalAffected.toLocaleString()} consumers, over
-            the cap of {preview.outcome.cap.toLocaleString()}. Confirming will override the cap for
-            this operation, and the override is recorded in the audit log.
+            This would disconnect {preview.outcome.totalAffected.toLocaleString()} consumers, over the cap of{' '}
+            {preview.outcome.cap.toLocaleString()}. Confirming will override the cap for this operation, and the
+            override is recorded in the audit log.
           </Alert>
         ) : null}
 

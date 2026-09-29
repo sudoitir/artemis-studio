@@ -199,9 +199,7 @@ export function ConsumerHealthView() {
             search.q ? (
               <Stack gap={4} align="flex-start">
                 <Text fw={600}>No queue matches "{search.q}"</Text>
-                <Text size="sm">
-                  There may still be queues on this cluster — none of them match this filter.
-                </Text>
+                <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
               </Stack>
             ) : unreachable.length > 0 ? (
               <Stack gap={4} align="flex-start">
@@ -212,8 +210,8 @@ export function ConsumerHealthView() {
                 </Text>
                 <Text size="sm">
                   There may be queues here that Studio cannot currently see —
-                  {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the
-                  last scrape, so this is an incomplete view rather than a healthy cluster.
+                  {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is
+                  an incomplete view rather than a healthy cluster.
                   {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
                 </Text>
               </Stack>
@@ -221,9 +219,9 @@ export function ConsumerHealthView() {
               <Stack gap={4} align="flex-start">
                 <Text fw={600}>No queues to report on yet</Text>
                 <Text size="sm">
-                  Consumer health ranks every queue by whether its consumers are keeping up —
-                  whether anything is attached, whether it is acknowledging, and whether the
-                  backlog is growing. Queues appear here within a scrape tick of being created.
+                  Consumer health ranks every queue by whether its consumers are keeping up — whether anything is
+                  attached, whether it is acknowledging, and whether the backlog is growing. Queues appear here within a
+                  scrape tick of being created.
                 </Text>
               </Stack>
             )

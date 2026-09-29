@@ -69,11 +69,7 @@ export function RootLayout() {
   );
 
   // Every place visited feeds the palette's Recent group: a view, or the resource open in it.
-  const recentLabel = view?.item
-    ? titleParts.resource
-      ? `${titleParts.resource}`
-      : view.item.label
-    : undefined;
+  const recentLabel = view?.item ? (titleParts.resource ? `${titleParts.resource}` : view.item.label) : undefined;
   useEffect(() => {
     if (!view?.item || !recentLabel) return;
     recordRecent(view.clusterId, {

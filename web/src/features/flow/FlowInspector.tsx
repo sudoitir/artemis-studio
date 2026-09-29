@@ -74,9 +74,13 @@ export function FlowInspector({
         ? 'not swept yet'
         : `${formatCount(node.messageCount)} waiting`,
     ]);
-    facts.push(['Consumers', node.consumerCount === null || node.consumerCount === undefined ? 'not swept yet' : String(node.consumerCount)]);
+    facts.push([
+      'Consumers',
+      node.consumerCount === null || node.consumerCount === undefined ? 'not swept yet' : String(node.consumerCount),
+    ]);
   }
-  if (node.kind === 'ADDRESS' && node.routingTypes?.length) facts.push(['Routing', node.routingTypes.join(', ').toLowerCase()]);
+  if (node.kind === 'ADDRESS' && node.routingTypes?.length)
+    facts.push(['Routing', node.routingTypes.join(', ').toLowerCase()]);
   if (node.members) facts.push(['Connections', String(node.members)]);
   if (node.protocols?.length) facts.push(['Protocols', node.protocols.join(', ')]);
   if (node.hosts?.length) facts.push(['Hosts', node.hosts.join(', ')]);

@@ -114,9 +114,7 @@ export function PermissionPicker({
           leftSection={<IconSearch size={16} />}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
-          rightSection={
-            query ? <CloseButton aria-label="Clear search" onClick={() => setQuery('')} size="sm" /> : null
-          }
+          rightSection={query ? <CloseButton aria-label="Clear search" onClick={() => setQuery('')} size="sm" /> : null}
           style={{ flex: 1 }}
         />
         <Text size="sm" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -186,7 +184,9 @@ export function PermissionPicker({
                           </Group>
                         }
                         description={
-                          e.globalOnly ? `${e.label}. Has no effect when granted on an environment or cluster.` : e.label
+                          e.globalOnly
+                            ? `${e.label}. Has no effect when granted on an environment or cluster.`
+                            : e.label
                         }
                         checked={selected.has(e.action)}
                         onChange={() => toggle(e.action)}

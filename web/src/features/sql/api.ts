@@ -1,20 +1,20 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { ApiError, clusterKey, request } from "../../kernel/api/request.ts";
-import type { components } from "../../kernel/api/schema.d.ts";
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
+import type { components } from '../../kernel/api/schema.d.ts';
 
-type Schemas = components["schemas"];
+type Schemas = components['schemas'];
 
-export type SqlBoundView = Schemas["BoundView"];
-export type SqlCapturePreviewView = Schemas["CapturePreviewView"];
-export type SqlIndexSubscriptionRequest = Schemas["IndexSubscriptionRequest"];
-export type SqlIndexSubscriptionView = Schemas["IndexSubscriptionView"];
-export type SqlNodeOutcomeView = Schemas["SqlNodeOutcomeView"];
-export type SqlNoticeView = Schemas["NoticeView"];
-export type SqlPlanView = Schemas["PlanView"];
-export type SqlResultView = Schemas["ResultView"];
-export type SqlRowView = Schemas["RowView"];
-export type SqlTailStatusView = Schemas["TailStatusView"];
-export type SqlVerifyView = Schemas["VerifyView"];
+export type SqlBoundView = Schemas['BoundView'];
+export type SqlCapturePreviewView = Schemas['CapturePreviewView'];
+export type SqlIndexSubscriptionRequest = Schemas['IndexSubscriptionRequest'];
+export type SqlIndexSubscriptionView = Schemas['IndexSubscriptionView'];
+export type SqlNodeOutcomeView = Schemas['SqlNodeOutcomeView'];
+export type SqlNoticeView = Schemas['NoticeView'];
+export type SqlPlanView = Schemas['PlanView'];
+export type SqlResultView = Schemas['ResultView'];
+export type SqlRowView = Schemas['RowView'];
+export type SqlTailStatusView = Schemas['TailStatusView'];
+export type SqlVerifyView = Schemas['VerifyView'];
 
 export const keys = {
   sqlIndex: (id: string) => clusterKey(id, 'sql', 'index'),
@@ -29,15 +29,12 @@ export const keys = {
  * point of calling this: it is how the editor reports a syntax error inline. It
  * is never retried, because the same text will be rejected the same way.
  */
-export function useSqlPlan(
-  clusterId: string,
-  sql: string,
-): UseQueryResult<SqlPlanView, ApiError> {
+export function useSqlPlan(clusterId: string, sql: string): UseQueryResult<SqlPlanView, ApiError> {
   return useQuery({
     queryKey: keys.sqlPlan(clusterId, sql),
     queryFn: () =>
       request<SqlPlanView>(`/clusters/${clusterId}/sql/plan`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({ sql }),
       }),
     enabled: sql.trim().length > 0,
@@ -58,45 +55,36 @@ export function useVerifyOnBroker(clusterId: string) {
   return useMutation<SqlVerifyView, ApiError, SqlRowView>({
     mutationFn: (row) =>
       request<SqlVerifyView>(`/clusters/${clusterId}/sql/verify`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({
           nodeId: row.nodeId,
           queueName: row.queueName,
           // A captured row's own messageId belongs to the diverted copy, which never
           // existed on the source queue. The id to ask the broker about is the source
           // one the divert copied across (ADR-0062 D2).
-          messageId:
-            row.origin === "CAPTURED" ? row.sourceMessageId : row.messageId,
+          messageId: row.origin === 'CAPTURED' ? row.sourceMessageId : row.messageId,
           timestamp: row.timestamp,
         }),
       }),
   });
 }
 
-export function useIndexSubscriptions(
-  clusterId: string,
-): UseQueryResult<SqlIndexSubscriptionView[], ApiError> {
+export function useIndexSubscriptions(clusterId: string): UseQueryResult<SqlIndexSubscriptionView[], ApiError> {
   return useQuery({
     queryKey: keys.sqlIndex(clusterId),
-    queryFn: () =>
-      request<SqlIndexSubscriptionView[]>(`/clusters/${clusterId}/sql/index`),
+    queryFn: () => request<SqlIndexSubscriptionView[]>(`/clusters/${clusterId}/sql/index`),
   });
 }
 
 export function useCreateIndexSubscription(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<
-    SqlIndexSubscriptionView,
-    ApiError,
-    SqlIndexSubscriptionRequest
-  >({
+  return useMutation<SqlIndexSubscriptionView, ApiError, SqlIndexSubscriptionRequest>({
     mutationFn: (body) =>
       request(`/clusters/${clusterId}/sql/index`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(body),
       }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
   });
 }
 
@@ -105,7 +93,7 @@ export function usePreviewIndexSubscription(clusterId: string) {
   return useMutation<SqlCapturePreviewView, ApiError, SqlIndexSubscriptionRequest>({
     mutationFn: (body) =>
       request(`/clusters/${clusterId}/sql/index?dryRun=true`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(body),
       }),
   });
@@ -113,18 +101,13 @@ export function usePreviewIndexSubscription(clusterId: string) {
 
 export function useUpdateIndexSubscription(clusterId: string) {
   const qc = useQueryClient();
-  return useMutation<
-    SqlIndexSubscriptionView,
-    ApiError,
-    { id: string; body: SqlIndexSubscriptionRequest }
-  >({
+  return useMutation<SqlIndexSubscriptionView, ApiError, { id: string; body: SqlIndexSubscriptionRequest }>({
     mutationFn: ({ id, body }) =>
       request(`/clusters/${clusterId}/sql/index/${id}`, {
-        method: "PATCH",
+        method: 'PATCH',
         body: JSON.stringify(body),
       }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
   });
 }
 
@@ -132,10 +115,8 @@ export function useUpdateIndexSubscription(clusterId: string) {
 export function useDeleteIndexSubscription(clusterId: string) {
   const qc = useQueryClient();
   return useMutation<{ messagesDestroyed: number }, ApiError, string>({
-    mutationFn: (id) =>
-      request(`/clusters/${clusterId}/sql/index/${id}`, { method: "DELETE" }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
+    mutationFn: (id) => request(`/clusters/${clusterId}/sql/index/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sqlIndex(clusterId) }),
   });
 }
 

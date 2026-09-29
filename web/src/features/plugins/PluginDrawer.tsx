@@ -81,10 +81,18 @@ export function PluginDrawer({
 
   const actions: { key: Exclude<Pending, null>; label: string; show: boolean }[] = plugin
     ? [
-        { key: 'enable', label: plugin.status === 'failed' ? 'Retry' : 'Enable', show: ['disabled', 'failed'].includes(plugin.status) },
+        {
+          key: 'enable',
+          label: plugin.status === 'failed' ? 'Retry' : 'Enable',
+          show: ['disabled', 'failed'].includes(plugin.status),
+        },
         { key: 'rollback', label: 'Roll back to the previous version', show: plugin.rollbackAvailable },
         { key: 'disable', label: 'Disable', show: ['active', 'needs_restart'].includes(plugin.status) },
-        { key: 'uninstall', label: 'Uninstall', show: plugin.status !== 'uninstalled' && plugin.status !== 'activating' },
+        {
+          key: 'uninstall',
+          label: 'Uninstall',
+          show: plugin.status !== 'uninstalled' && plugin.status !== 'activating',
+        },
         { key: 'purge', label: 'Purge its data', show: plugin.status === 'uninstalled' },
       ]
     : [];
@@ -220,8 +228,8 @@ export function PluginDrawer({
             ) : purgePlan.data ? (
               <Stack gap="xs">
                 <Text size="sm">
-                  Its data lives in schema <Code>{purgePlan.data.schema}</Code>, which only it uses. Figures are estimates from
-                  table statistics.
+                  Its data lives in schema <Code>{purgePlan.data.schema}</Code>, which only it uses. Figures are
+                  estimates from table statistics.
                 </Text>
                 {purgePlan.data.tables.length === 0 ? (
                   <Text size="sm" c="dimmed">
@@ -281,9 +289,16 @@ export function PluginDrawer({
                     <Table.Tr key={e.id}>
                       <Table.Td className={styles.num}>{new Date(e.ts).toLocaleString()}</Table.Td>
                       <Table.Td>{e.username ?? '—'}</Table.Td>
-                      <Table.Td>{e.action.replace(/^PLUGIN_/, '').replace(/_/g, ' ').toLowerCase()}</Table.Td>
                       <Table.Td>
-                        <span className={e.outcome === 'FAILED' ? styles.danger : undefined}>{e.outcome.toLowerCase()}</span>
+                        {e.action
+                          .replace(/^PLUGIN_/, '')
+                          .replace(/_/g, ' ')
+                          .toLowerCase()}
+                      </Table.Td>
+                      <Table.Td>
+                        <span className={e.outcome === 'FAILED' ? styles.danger : undefined}>
+                          {e.outcome.toLowerCase()}
+                        </span>
                         {e.error ? (
                           <Text size="xs" c="dimmed">
                             {e.error}
@@ -389,7 +404,14 @@ export function PluginDrawer({
             danger
             pending={purge.isPending}
             error={purge.error}
-            onConfirm={() => purge.mutate(plugin.id, { onSuccess: () => { setPending(null); onClose(); } })}
+            onConfirm={() =>
+              purge.mutate(plugin.id, {
+                onSuccess: () => {
+                  setPending(null);
+                  onClose();
+                },
+              })
+            }
           >
             {purgePlan.data ? (
               <Stack gap="xs">
@@ -401,13 +423,17 @@ export function PluginDrawer({
                     {purgePlan.data.tables.reduce((n, t) => n + Math.max(t.estimatedRows, 0), 0).toLocaleString()} rows,{' '}
                     {bytes(purgePlan.data.tables.reduce((n, t) => n + t.bytes, 0))}
                   </List.Item>
-                  <List.Item>{count(purgePlan.data.grants, 'role grant') ?? 'no role grants'} of its permissions</List.Item>
+                  <List.Item>
+                    {count(purgePlan.data.grants, 'role grant') ?? 'no role grants'} of its permissions
+                  </List.Item>
                   <List.Item>{count(purgePlan.data.settings, 'saved setting') ?? 'no saved settings'}</List.Item>
                   <List.Item>{count(purgePlan.data.artifacts, 'stored jar') ?? 'no stored jars'}</List.Item>
                 </List>
               </Stack>
             ) : (
-              <Text size="sm">{purgePlan.error ? `The estimate is unavailable: ${purgePlan.error.message}` : 'Estimating…'}</Text>
+              <Text size="sm">
+                {purgePlan.error ? `The estimate is unavailable: ${purgePlan.error.message}` : 'Estimating…'}
+              </Text>
             )}
           </ConfirmAction>
         </>

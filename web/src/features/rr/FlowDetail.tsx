@@ -134,9 +134,7 @@ export function FlowDetail({
                     <Stack gap={2}>
                       <Text size="xs" ff="monospace">
                         {f.latencyMs}ms
-                        {f.latencySource === 'OBSERVED' && f.latencyBoundMs != null
-                          ? ` ± ${f.latencyBoundMs}ms`
-                          : ''}
+                        {f.latencySource === 'OBSERVED' && f.latencyBoundMs != null ? ` ± ${f.latencyBoundMs}ms` : ''}
                       </Text>
                       {/* Which clock measured it is part of the measurement: an
                           OBSERVED figure is the gap between two sample ticks and
@@ -163,9 +161,7 @@ export function FlowDetail({
                         ? `the request claimed to be produced ${f.requestSkewMs}ms in the future`
                         : ''}
                       {f.requestSkewMs != null && f.replySkewMs != null ? '; ' : ''}
-                      {f.replySkewMs != null
-                        ? `the reply claimed to be produced ${f.replySkewMs}ms in the future`
-                        : ''}
+                      {f.replySkewMs != null ? `the reply claimed to be produced ${f.replySkewMs}ms in the future` : ''}
                     </Text>
                   </Table.Td>
                 </Table.Tr>

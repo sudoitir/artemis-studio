@@ -26,8 +26,7 @@ export const CHANNEL_KINDS: Record<ChannelKind, KindInfo> = {
   },
   TEAMS: {
     label: 'Microsoft Teams',
-    description:
-      'A Teams Workflows webhook ("When a Teams webhook request is received"). Posts an Adaptive Card.',
+    description: 'A Teams Workflows webhook ("When a Teams webhook request is received"). Posts an Adaptive Card.',
     secretLabel: 'Workflow webhook URL',
     secretDescription: 'Copy it from the workflow’s trigger. Legacy connector webhooks accept the same card.',
     secretPlaceholder: 'https://…logic.azure.com/workflows/…',
@@ -53,7 +52,8 @@ export const CHANNEL_KINDS: Record<ChannelKind, KindInfo> = {
     description:
       'A JSON POST signed per Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature), for your own receiver.',
     secretLabel: 'Signing secret',
-    secretDescription: 'Base64, optionally prefixed whsec_, at least 16 bytes. The receiver verifies with the same secret.',
+    secretDescription:
+      'Base64, optionally prefixed whsec_, at least 16 bytes. The receiver verifies with the same secret.',
     secretPlaceholder: 'whsec_…',
     secretOptional: false,
   },
@@ -120,7 +120,9 @@ export function fieldsFromConfig(kind: string, config: string): ChannelFields {
   if (kind === 'EMAIL') {
     fields.host = str(c.host);
     fields.port = c.port === undefined ? '587' : str(c.port);
-    fields.security = (['STARTTLS', 'TLS', 'NONE'].includes(str(c.security)) ? str(c.security) : 'STARTTLS') as ChannelFields['security'];
+    fields.security = (
+      ['STARTTLS', 'TLS', 'NONE'].includes(str(c.security)) ? str(c.security) : 'STARTTLS'
+    ) as ChannelFields['security'];
     fields.username = str(c.username);
     fields.from = str(c.from);
     fields.to = Array.isArray(c.to) ? c.to.map(str).join(', ') : str(c.to);
@@ -164,10 +166,14 @@ export function destination(kind: string, config: string): string {
     case 'WEBHOOK':
       return hostOf(f.url) ?? 'no URL';
     case 'PAGERDUTY':
-      return f.pagerDutyEndpoint === 'custom' ? (hostOf(f.url) ?? 'custom receiver') : (PAGERDUTY_ENDPOINTS.find((e) => e.value === f.pagerDutyEndpoint)?.label ?? 'PagerDuty');
+      return f.pagerDutyEndpoint === 'custom'
+        ? (hostOf(f.url) ?? 'custom receiver')
+        : (PAGERDUTY_ENDPOINTS.find((e) => e.value === f.pagerDutyEndpoint)?.label ?? 'PagerDuty');
     case 'EMAIL': {
       const to = recipients(f.to);
-      return to.length === 0 ? 'no recipients' : `${to[0]}${to.length > 1 ? ` +${to.length - 1}` : ''} via ${f.host || '?'}`;
+      return to.length === 0
+        ? 'no recipients'
+        : `${to[0]}${to.length > 1 ? ` +${to.length - 1}` : ''} via ${f.host || '?'}`;
     }
     default:
       return 'webhook URL stored as a secret';
@@ -205,7 +211,9 @@ export function validateField(
     case 'secret': {
       const info = CHANNEL_KINDS[kind as ChannelKind];
       if (!v) {
-        return info?.secretOptional || (ctx.editing && ctx.hasSecret) ? null : `${info?.secretLabel ?? 'The secret'} is required.`;
+        return info?.secretOptional || (ctx.editing && ctx.hasSecret)
+          ? null
+          : `${info?.secretLabel ?? 'The secret'} is required.`;
       }
       if (kind === 'SLACK' || kind === 'TEAMS') return isHttpUrl(v) ? null : 'An http or https URL.';
       if (kind === 'PAGERDUTY' && ctx.fields.pagerDutyEndpoint !== 'custom' && v.length !== 32) {

@@ -137,7 +137,12 @@ describe('NotificationChannels', () => {
     server.use(
       http.get('*/api/v1/channels', () => HttpResponse.json([])),
       http.post('*/api/v1/channels/test', () =>
-        HttpResponse.json({ delivered: false, permanent: true, error: 'Teams responded 404 NOT_FOUND', durationMs: 40 }),
+        HttpResponse.json({
+          delivered: false,
+          permanent: true,
+          error: 'Teams responded 404 NOT_FOUND',
+          durationMs: 40,
+        }),
       ),
     );
     const user = userEvent.setup();

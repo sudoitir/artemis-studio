@@ -37,7 +37,9 @@ export function PluginsPanel() {
   const checkUpdates = useCheckUpdates();
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { plugin?: string; upload?: string };
-  const [source, setSource] = useState<Source | null>(() => (search.upload ? { kind: 'resume', sha: search.upload } : null));
+  const [source, setSource] = useState<Source | null>(() =>
+    search.upload ? { kind: 'resume', sha: search.upload } : null,
+  );
   const [installersOpen, setInstallersOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const view = plugins.data;
@@ -250,8 +252,8 @@ export function PluginsPanel() {
           {checkUpdates.data.length === 0
             ? 'No installed plugin names an update URL to check.'
             : checkUpdates.data.filter((u) => u.availableVersion).length === 0
-            ? 'Every plugin with an update URL is up to date.'
-            : `${checkUpdates.data.filter((u) => u.availableVersion).length} update(s) available.`}
+              ? 'Every plugin with an update URL is up to date.'
+              : `${checkUpdates.data.filter((u) => u.availableVersion).length} update(s) available.`}
           {checkUpdates.data
             .filter((u) => u.error)
             .map((u) => ` ${u.id}: could not check (${u.error}).`)

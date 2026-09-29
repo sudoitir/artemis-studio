@@ -35,7 +35,14 @@ function cluster(notifStatus: string, extra: Record<string, unknown> = {}) {
         ...extra,
       },
     },
-    health: { clusterId: 'c1', level: 'OK', liveEndpointNames: [], splitBrain: 'NONE', replicationBehind: false, notes: [] },
+    health: {
+      clusterId: 'c1',
+      level: 'OK',
+      liveEndpointNames: [],
+      splitBrain: 'NONE',
+      replicationBehind: false,
+      notes: [],
+    },
   };
 }
 

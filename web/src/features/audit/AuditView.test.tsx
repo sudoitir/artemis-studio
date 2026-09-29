@@ -151,7 +151,9 @@ describe('AuditView', () => {
     renderWithProviders(<AuditView />);
 
     expect(await screen.findByRole('dialog', { name: 'DELETE_MESSAGES' })).toBeInTheDocument();
-    await user.click(await screen.findByRole('button', { name: 'Show the operation this belongs to, with all its parts' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Show the operation this belongs to, with all its parts' }),
+    );
     const call = navigate.mock.calls.at(-1)![0] as { search: (p: object) => Record<string, unknown> };
     expect(call.search({ event: 8 })).toEqual({ parentId: 7, event: undefined, page: undefined });
   });

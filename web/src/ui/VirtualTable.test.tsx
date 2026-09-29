@@ -31,9 +31,7 @@ const columns: GridColumn<Q>[] = [
 
 describe('VirtualTable', () => {
   it('renders a row per datum', () => {
-    renderWithProviders(
-      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />,
-    );
+    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />);
     expect(screen.getByText('ORDERS')).toBeInTheDocument();
     expect(screen.getByText('SHIPMENTS')).toBeInTheDocument();
     expect(screen.getByText('DLQ')).toBeInTheDocument();
@@ -41,12 +39,7 @@ describe('VirtualTable', () => {
 
   it('shows the empty label when there is no data', () => {
     renderWithProviders(
-      <VirtualTable
-        columns={columns}
-        data={[]}
-        rowKey={(r) => r.name}
-        emptyLabel="No queues match"
-      />,
+      <VirtualTable columns={columns} data={[]} rowKey={(r) => r.name} emptyLabel="No queues match" />,
     );
     expect(screen.getByText('No queues match')).toBeInTheDocument();
   });
@@ -241,7 +234,7 @@ describe('VirtualTable', () => {
       );
     }
 
-    it('opens from the row\'s Actions control and returns focus to it', async () => {
+    it("opens from the row's Actions control and returns focus to it", async () => {
       const user = userEvent.setup();
       renderWithProviders(<WithMenu />);
       const trigger = screen.getByRole('button', { name: 'Actions for SHIPMENTS' });
@@ -284,9 +277,7 @@ describe('VirtualTable', () => {
   });
 
   it('reveals the full value with a copy control when a cell is actually clipped', async () => {
-    renderWithProviders(
-      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />,
-    );
+    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />);
     const cell = screen.getByText('SHIPMENTS').closest('[role="gridcell"]') as HTMLElement;
 
     // Not clipped yet → focusing it shows nothing.
@@ -306,20 +297,16 @@ describe('VirtualTable', () => {
   it('calls onRowClick with the row', async () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
-    renderWithProviders(
-      <VirtualTable
-        columns={columns}
-        data={rows}
-        rowKey={(r) => r.name}
-        onRowClick={onRowClick}
-      />,
-    );
+    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} onRowClick={onRowClick} />);
     await user.click(screen.getByText('DLQ'));
     expect(onRowClick).toHaveBeenCalledWith({ name: 'DLQ', depth: 431 });
   });
 
   describe('selection', () => {
-    function Selectable({ onToggleRow = () => {}, onToggleAll = () => {} }: {
+    function Selectable({
+      onToggleRow = () => {},
+      onToggleAll = () => {},
+    }: {
       onToggleRow?: (key: string) => void;
       onToggleAll?: (keys: string[], allSelected: boolean) => void;
     }) {
@@ -427,12 +414,16 @@ describe('VirtualTable', () => {
       vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
         return (this.textContent ?? '').length * 10;
       });
-      renderWithProviders(<VirtualTable label="Queues" columns={columns} data={[...rows, long]} rowKey={(r) => r.name} />);
+      renderWithProviders(
+        <VirtualTable label="Queues" columns={columns} data={[...rows, long]} rowKey={(r) => r.name} />,
+      );
       expect(colsOf()).toContain('minmax(302px, 1fr)');
     });
 
     it('never fits a column below the free-text floor or past the cap', () => {
-      const spy = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      const spy = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
         return (this.textContent ?? '').length;
       });
       const { unmount } = renderWithProviders(
@@ -451,7 +442,14 @@ describe('VirtualTable', () => {
     it('resizes a column from its header with Ctrl+Shift+Arrow, announces it and remembers it', async () => {
       localStorage.setItem('as.grid.queues', JSON.stringify({ name: 200 }));
       renderWithProviders(
-        <VirtualTable label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} onSortChange={vi.fn()} />,
+        <VirtualTable
+          label="Queues"
+          storageKey="queues"
+          columns={columns}
+          data={rows}
+          rowKey={(r) => r.name}
+          onSortChange={vi.fn()}
+        />,
       );
       expect(colsOf()).toContain('200px');
       const header = screen.getByRole('button', { name: /queue/i });
@@ -476,11 +474,15 @@ describe('VirtualTable', () => {
 
     it('ignores stored widths it cannot trust', () => {
       localStorage.setItem('as.grid.queues', JSON.stringify({ name: 'wide', gone: 300, depth: 1e9 }));
-      renderWithProviders(<VirtualTable label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+      renderWithProviders(
+        <VirtualTable label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} />,
+      );
       expect(colsOf()).not.toMatch(/(^|\s)\d+px/);
 
       localStorage.setItem('as.grid.other', '{not json');
-      renderWithProviders(<VirtualTable label="Other" storageKey="other" columns={columns} data={rows} rowKey={(r) => r.name} />);
+      renderWithProviders(
+        <VirtualTable label="Other" storageKey="other" columns={columns} data={rows} rowKey={(r) => r.name} />,
+      );
       expect(screen.getByRole('grid', { name: 'Other' })).toBeInTheDocument();
     });
   });

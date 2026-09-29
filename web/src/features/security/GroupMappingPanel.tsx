@@ -16,8 +16,8 @@ export function GroupMappingPanel() {
   if (providers.isSuccess && external.length === 0) {
     return (
       <Text size="sm" c="dimmed">
-        No external identity provider is configured, so there are no groups to map. An OpenID Connect provider
-        appears here once
+        No external identity provider is configured, so there are no groups to map. An OpenID Connect provider appears
+        here once
         <Text component="span" ff="monospace" size="sm">
           {' '}
           spring.security.oauth2.client.registration.*
@@ -128,12 +128,7 @@ function ProviderMappings({ providerId }: { providerId: string }) {
 
       <Modal opened={adding} onClose={() => setAdding(false)} title="New group mapping">
         <Stack gap="sm">
-          <TextInput
-            label="Group"
-            value={groupName}
-            onChange={(e) => setGroupName(e.currentTarget.value)}
-            required
-          />
+          <TextInput label="Group" value={groupName} onChange={(e) => setGroupName(e.currentTarget.value)} required />
           <Select label="Role" data={roleOptions} value={roleId} onChange={setRoleId} required />
           {invalid ? (
             <Text size="sm" c="red" role="alert">

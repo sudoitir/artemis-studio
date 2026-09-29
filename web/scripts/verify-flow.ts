@@ -81,7 +81,9 @@ async function main() {
   const timings: number[] = [];
   for (let i = 0; i < 10; i++) {
     const started = Date.now();
-    const response = await page.request.get(`${BASE}/api/v1/clusters/${clusterId}/flow?limit=200&rank=IN&groupBy=CLIENT_ID`);
+    const response = await page.request.get(
+      `${BASE}/api/v1/clusters/${clusterId}/flow?limit=200&rank=IN&groupBy=CLIENT_ID`,
+    );
     await response.body();
     timings.push(Date.now() - started);
   }
@@ -113,7 +115,11 @@ async function main() {
         page.requestAnimationFrame(tick);
       }),
   );
-  record('frame rate at the largest bound', fps >= 50, `${fps.toFixed(1)} fps over ${counts.nodes} nodes, ${counts.edges} edges`);
+  record(
+    'frame rate at the largest bound',
+    fps >= 50,
+    `${fps.toFixed(1)} fps over ${counts.nodes} nodes, ${counts.edges} edges`,
+  );
 
   await context.close();
   await browser.close();

@@ -11,8 +11,8 @@ export function RegisterSection() {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        Register another cluster, or remove this one from its header (removing needs its typed
-        name). Studio finds brokers that join a registered cluster on its own.
+        Register another cluster, or remove this one from its header (removing needs its typed name). Studio finds
+        brokers that join a registered cluster on its own.
       </Text>
       <RegisterClusterButton />
     </>
@@ -69,18 +69,8 @@ function CredentialRotation({ clusterId, clusterName }: { clusterId: string; clu
           {CREDENTIAL_KINDS[kind].hint}
         </Text>
       </div>
-      <TextInput
-        label="Username"
-        value={username}
-        onChange={(e) => setUsername(e.currentTarget.value)}
-        size="xs"
-      />
-      <PasswordInput
-        label="Password"
-        value={password}
-        onChange={(e) => setPassword(e.currentTarget.value)}
-        size="xs"
-      />
+      <TextInput label="Username" value={username} onChange={(e) => setUsername(e.currentTarget.value)} size="xs" />
+      <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} size="xs" />
       <TextInput
         label={`Type "${clusterName}" to confirm`}
         value={confirm}
@@ -112,9 +102,8 @@ function CredentialRotation({ clusterId, clusterName }: { clusterId: string; clu
         Save {CREDENTIAL_KINDS[kind].label.toLowerCase()} credentials
       </Button>
       <Text size="xs" c="dimmed">
-        The new secret is AES-GCM sealed and the change is audited. It replaces this cluster’s
-        stored {CREDENTIAL_KINDS[kind].label.toLowerCase()} account on every node; the other account
-        is left alone.
+        The new secret is AES-GCM sealed and the change is audited. It replaces this cluster’s stored{' '}
+        {CREDENTIAL_KINDS[kind].label.toLowerCase()} account on every node; the other account is left alone.
       </Text>
     </Stack>
   );
@@ -126,9 +115,9 @@ export function CredentialsSection({ clusterId }: { clusterId: string }) {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        The accounts Studio uses to reach every node of{' '}
-        <strong>{cluster.data?.name ?? 'this cluster'}</strong>. Management and Core are stored
-        separately, so a cluster whose management account is its <code>&lt;cluster-user&gt;</code>
+        The accounts Studio uses to reach every node of <strong>{cluster.data?.name ?? 'this cluster'}</strong>.
+        Management and Core are stored separately, so a cluster whose management account is its{' '}
+        <code>&lt;cluster-user&gt;</code>
         can still open a Core connection.
       </Text>
       {cluster.data ? <CredentialRotation clusterId={clusterId} clusterName={cluster.data.name} /> : null}
@@ -142,8 +131,8 @@ export function CapabilitiesSection({ clusterId }: { clusterId: string }) {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm">
-        What this connection can and cannot do over Jolokia. Rows that are not plainly available
-        expand with the reason and the exact <code>broker.xml</code> change to close the gap.
+        What this connection can and cannot do over Jolokia. Rows that are not plainly available expand with the reason
+        and the exact <code>broker.xml</code> change to close the gap.
       </Text>
       {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} /> : null}
     </>

@@ -1,15 +1,5 @@
 import { useState } from 'react';
-import {
-  ActionIcon,
-  Button,
-  Checkbox,
-  NumberInput,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { ActionIcon, Button, Checkbox, NumberInput, Stack, Switch, Table, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
 import styles from './ExpectationsView.module.css';
@@ -18,7 +8,14 @@ import { useServerNow } from '../../kernel/time/time.ts';
 import { AddressPicker } from '../queues/index.ts';
 import { CaptureHint } from '../sql/index.ts';
 import { ReplyAddressesHelp, ReplyAddressesInput } from './ReplyAddressesInput.tsx';
-import { useCreateRrExpectation, useDeleteRrExpectation, useRrDiagnostics, useRrExpectations, useUpdateRrExpectation, type ExpectationView } from './api.ts';
+import {
+  useCreateRrExpectation,
+  useDeleteRrExpectation,
+  useRrDiagnostics,
+  useRrExpectations,
+  useUpdateRrExpectation,
+  type ExpectationView,
+} from './api.ts';
 import { ExpectationStatus } from './TracingDiagnostics.tsx';
 
 /**
@@ -127,8 +124,8 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
     <Stack gap="md">
       <Title order={4}>Traced addresses</Title>
       <Text size="sm" c="dimmed">
-        Declare which request-reply addresses Studio should reconstruct flows for. Tracing is
-        sampled — see the Latency tab for what that means for reported numbers.
+        Declare which request-reply addresses Studio should reconstruct flows for. Tracing is sampled — see the Latency
+        tab for what that means for reported numbers.
       </Text>
 
       <div className={styles.form}>
@@ -141,12 +138,7 @@ export function ExpectationsView({ clusterId }: { clusterId: string }) {
           unknownHint="No address on this cluster has that name yet."
           w="100%"
         />
-        <ReplyAddressesInput
-          clusterId={clusterId}
-          value={replyAddresses}
-          onChange={setReplyAddresses}
-          w="100%"
-        />
+        <ReplyAddressesInput clusterId={clusterId} value={replyAddresses} onChange={setReplyAddresses} w="100%" />
         <NumberInput
           label="Deadline (ms)"
           placeholder="from message"

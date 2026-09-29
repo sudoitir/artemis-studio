@@ -125,8 +125,7 @@ async function main() {
     {
       file: 'settings.png',
       path: `/clusters/${clusterId}/settings?tab=settings-operational`,
-      ready: () =>
-        page.getByRole('heading', { name: 'Operational configuration' }).waitFor({ timeout: 30_000 }),
+      ready: () => page.getByRole('heading', { name: 'Operational configuration' }).waitFor({ timeout: 30_000 }),
     },
     // ── declared configuration (ADR-0067) ────────────────────────────────
     // Ordered on purpose: the first-run offer only exists while the cluster has

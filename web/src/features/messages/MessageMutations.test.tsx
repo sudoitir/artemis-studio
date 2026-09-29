@@ -19,9 +19,7 @@ describe('ConfirmByTyping', () => {
   it('arms the button only on an exact token match', async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
-    renderWithProviders(
-      <ConfirmByTyping token="ORDERS" confirmLabel="Do it" onConfirm={onConfirm} />,
-    );
+    renderWithProviders(<ConfirmByTyping token="ORDERS" confirmLabel="Do it" onConfirm={onConfirm} />);
     const btn = screen.getByRole('button', { name: 'Do it' });
     expect(btn).toBeDisabled();
 

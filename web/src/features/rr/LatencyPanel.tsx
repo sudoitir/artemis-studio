@@ -18,8 +18,7 @@ export function LatencyPanel({ clusterId }: { clusterId: string }) {
   if (stats.isError) {
     return (
       <Alert color="red" variant="light" title={stats.error.title}>
-        {stats.error.message} — latency could not be read, which is not the same as
-        there being no traced flows.
+        {stats.error.message} — latency could not be read, which is not the same as there being no traced flows.
       </Alert>
     );
   }
@@ -35,8 +34,7 @@ export function LatencyPanel({ clusterId }: { clusterId: string }) {
   if (addresses.length === 0) {
     return (
       <Text size="sm" c="dimmed">
-        No completed flows yet — latency appears once at least one traced request has been
-        answered.
+        No completed flows yet — latency appears once at least one traced request has been answered.
       </Text>
     );
   }
@@ -54,9 +52,8 @@ export function LatencyPanel({ clusterId }: { clusterId: string }) {
   return (
     <Stack gap="md">
       <Alert color="blue" variant="light" title="Sampled, not exhaustive">
-        Latency is measured only on requests Studio happened to observe — a request that completes
-        faster than the sample interval is never seen, which biases these numbers toward slower
-        flows.{' '}
+        Latency is measured only on requests Studio happened to observe — a request that completes faster than the
+        sample interval is never seen, which biases these numbers toward slower flows.{' '}
         <Spoiler
           maxHeight={COVERAGE_VISIBLE * 22}
           showLabel={`Show coverage for all ${addresses.length} addresses`}

@@ -81,19 +81,16 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
         ? `Couldn't make sense of: ${unparseable.map((s) => s.original).join(', ')}`
         : null;
   const credError =
-    (touched.username || touched.password) &&
-    Boolean(f.username) !== Boolean(f.password)
+    (touched.username || touched.password) && Boolean(f.username) !== Boolean(f.password)
       ? 'Provide both a username and a password, or neither.'
       : null;
 
   const coreCredError =
-    (touched.coreUsername || touched.corePassword) &&
-    Boolean(f.coreUsername) !== Boolean(f.corePassword)
+    (touched.coreUsername || touched.corePassword) && Boolean(f.coreUsername) !== Boolean(f.corePassword)
       ? 'Provide both a Core username and password, or neither.'
       : null;
 
-  const valid =
-    seedList.length > 0 && !seedsError && !credError && !coreCredError;
+  const valid = seedList.length > 0 && !seedsError && !credError && !coreCredError;
 
   // Everything the check's verdict depends on, credentials included — a check that
   // stayed valid across a password edit would vouch for credentials it never saw,
@@ -142,12 +139,8 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
     return {
       seedUrls: seedList,
       name: f.name || undefined,
-      credentials: f.username
-        ? { username: f.username, password: f.password }
-        : undefined,
-      coreCredentials: f.coreUsername
-        ? { username: f.coreUsername, password: f.corePassword }
-        : undefined,
+      credentials: f.username ? { username: f.username, password: f.password } : undefined,
+      coreCredentials: f.coreUsername ? { username: f.coreUsername, password: f.corePassword } : undefined,
       tlsBundle: f.tlsBundle || undefined,
     };
   }
@@ -194,21 +187,11 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
             {...field('name')}
           />
           <Group grow align="flex-start">
-            <TextInput
-              label="Username"
-              autoComplete="off"
-              error={credError}
-              {...field('username')}
-            />
+            <TextInput label="Username" autoComplete="off" error={credError} {...field('username')} />
             <PasswordInput label="Password" autoComplete="off" {...field('password')} />
           </Group>
 
-          <UnstyledButton
-            onClick={() => setAdvancedOpen((o) => !o)}
-            aria-expanded={advancedOpen}
-            c="dimmed"
-            fz="xs"
-          >
+          <UnstyledButton onClick={() => setAdvancedOpen((o) => !o)} aria-expanded={advancedOpen} c="dimmed" fz="xs">
             {advancedOpen ? '⌄' : '›'} Advanced — Core protocol and TLS
           </UnstyledButton>
           <Collapse expanded={advancedOpen}>
@@ -221,11 +204,7 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
                   error={coreCredError}
                   {...field('coreUsername')}
                 />
-                <PasswordInput
-                  label="Core password"
-                  autoComplete="off"
-                  {...field('corePassword')}
-                />
+                <PasswordInput label="Core password" autoComplete="off" {...field('corePassword')} />
               </Group>
               <TextInput
                 label="TLS bundle"
@@ -262,9 +241,7 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
           {/* What the enabled features make of the check, such as the configuration it
               recommends; each reads its own part of the check's contributions. */}
           {check.isSuccess
-            ? afterProbe.map(({ id, Component }) => (
-                <Component key={id} contributions={check.data.contributions} />
-              ))
+            ? afterProbe.map(({ id, Component }) => <Component key={id} contributions={check.data.contributions} />)
             : null}
 
           <Group justify="flex-end" gap="sm" align="center">
@@ -308,12 +285,7 @@ export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => voi
         </Stack>
       </Grid.Col>
       <Grid.Col span={{ base: 12, md: 6 }}>
-        <RegisterCanvas
-          preview={check.data}
-          stale={stale}
-          shape={shape}
-          onSelectShape={setShape}
-        />
+        <RegisterCanvas preview={check.data} stale={stale} shape={shape} onSelectShape={setShape} />
       </Grid.Col>
     </Grid>
   );
@@ -325,8 +297,7 @@ export function EmptyState() {
     <Stack gap="xs">
       <Text fw={600}>No clusters yet.</Text>
       <Text size="sm" c="dimmed">
-        Point Studio at one broker and it will find the rest of the cluster from
-        there.
+        Point Studio at one broker and it will find the rest of the cluster from there.
       </Text>
       <RegisterClusterForm />
     </Stack>
@@ -343,12 +314,7 @@ export function RegisterClusterButton({ collapsed }: { collapsed?: boolean }) {
     <>
       {collapsed ? (
         <Tooltip label="Register cluster" position="right" withArrow openDelay={350}>
-          <ActionIcon
-            variant="default"
-            size="md"
-            aria-label="Register cluster"
-            onClick={() => setOpen(true)}
-          >
+          <ActionIcon variant="default" size="md" aria-label="Register cluster" onClick={() => setOpen(true)}>
             <IconPlus size={18} stroke={1.5} />
           </ActionIcon>
         </Tooltip>
