@@ -2,21 +2,13 @@
 #
 # Deliberately separate from ci.yml: the release job there commits, tags and
 # pushes atomically before the image reaches Docker Hub, and a documentation
-# build that can fail must not be able to interleave with that.
+# build that can fail must not be able to interleave with that. Pull requests
+# build the site in ci.yml's `site` job, behind the required `ci-ok` check.
 name: Pages
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'site/**'
-      - 'docs/**'
-      - 'changelog/**'
-      - 'web/public/favicon.svg'
-      - '.github/workflows/pages.yml'
-  # A PR that touches the site only builds it, so a broken build is caught before
-  # merge; deploy stays on main.
-  pull_request:
     paths:
       - 'site/**'
       - 'docs/**'
@@ -33,19 +25,20 @@ permissions:
 # One deployment at a time, and never cancelled mid-flight: a cancelled deploy
 # leaves the live site on whichever half finished.
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.ref) || 'pages' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-26.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # `lastUpdated` reads each page's git commit time; a shallow clone
           # gives every page the same date.
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           cache: npm
@@ -54,15 +47,12 @@ jobs:
         working-directory: site
       - run: npm run build
         working-directory: site
-      - if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v6
-      - if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site/src/.vitepress/dist
 
   deploy:
-    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-26.04
     environment:
@@ -70,4 +60,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

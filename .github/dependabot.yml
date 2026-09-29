@@ -5,6 +5,8 @@ version: 2
 #  * Minor + patch are grouped and auto-raised; every PR still runs full CI
 #    (Spotless check, Liquibase vs Testcontainers Postgres, tests, web build,
 #    image build) — nothing merges without that passing.
+#  * A cooldown lets a fresh release settle before a version update proposes it;
+#    security updates ignore the cooldown and arrive as soon as an advisory does.
 #  * MAJOR bumps of the framework-defining dependencies are ignored here, so
 #    moving Spring Boot, React, Vite, Mantine, or the DB driver across a major
 #    is always a deliberate, human-authored change (and usually an ADR).
@@ -13,6 +15,9 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     open-pull-requests-limit: 10
     labels: ["dependencies"]
     commit-message:
@@ -34,6 +39,9 @@ updates:
     directory: "/web"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     open-pull-requests-limit: 10
     labels: ["dependencies"]
     versioning-strategy: increase
@@ -62,6 +70,9 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     ignore:
       # Node moves LTS to LTS on purpose (CI, the poms and this image together); odd majors never ship.
       - dependency-name: "node"
@@ -74,9 +85,28 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     labels: ["dependencies"]
     commit-message:
       prefix: "ci(deps)"
     groups:
       actions:
+        patterns: ["*"]
+
+  # Not the plugin template: it pins the versions Studio runs a plugin on, so it moves with
+  # Studio's own pom and SDK, never on its own.
+  - package-ecosystem: npm
+    directory: "/site"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "docs(deps)"
+    groups:
+      site-npm:
         patterns: ["*"]

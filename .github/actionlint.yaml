@@ -1,0 +1,4 @@
+# actionlint's built-in runner list trails GitHub's; declare the hosted labels it does not know yet.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
