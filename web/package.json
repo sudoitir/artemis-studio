@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "shots": "node --experimental-strip-types scripts/shots.ts",
     "demo": "node --experimental-strip-types scripts/demo.ts",
     "ui-review": "node --experimental-strip-types scripts/ui-review.ts"
@@ -63,6 +64,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "@vitest/coverage-v8": "5.0.1",
     "eslint": "10.11.0",
     "eslint-plugin-boundaries": "7.2.0",
     "eslint-plugin-react-hooks": "7.1.1",
