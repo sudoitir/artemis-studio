@@ -37,7 +37,7 @@ All list endpoints SHALL paginate the same way, all errors SHALL be problem+json
 - **THEN** the page size is bounded and the next page is discoverable
 
 ### Requirement: Mutating endpoints accept idempotency keys
-A mutating endpoint SHALL accept an idempotency key and SHALL return the original result for a repeat of the same key and request.
+A mutating endpoint SHALL accept an idempotency key, scoped to the calling identity, and SHALL return the original result for a repeat of the same key and request within a stated retention period.
 
 #### Scenario: Retry
 - **WHEN** a client repeats a request with the same key
@@ -46,6 +46,10 @@ A mutating endpoint SHALL accept an idempotency key and SHALL return the origina
 #### Scenario: Key reuse with other body
 - **WHEN** the same key is sent with a different request
 - **THEN** it is refused
+
+#### Scenario: Another caller's key
+- **WHEN** a second user sends a request with a key the first user already used
+- **THEN** the key is treated as the second user's own, and the first user's result is never returned
 
 ### Requirement: TypeScript and Java clients are generated and published
 Each release SHALL publish generated TypeScript and Java clients that match the API document.

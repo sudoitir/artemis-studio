@@ -7,6 +7,10 @@ The system SHALL assemble the known path of a message across queues, diverts, br
 - **WHEN** a message is diverted and later dead-lettered
 - **THEN** its path shows the source queue, the divert and the DLQ with times
 
+#### Scenario: A transferred message
+- **WHEN** a message was moved by a cross-broker transfer
+- **THEN** the path links the source and target through the provenance the transfer stamped
+
 #### Scenario: A bridged message
 - **WHEN** a message crosses a bridge to another registered cluster
 - **THEN** the path continues on the target cluster

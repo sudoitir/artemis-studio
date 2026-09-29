@@ -1,7 +1,7 @@
 ## How to run this change
 This change states **requirements only**. Run it in a fresh Claude session, in number order:
 
-1. `git pull --ff-only` on `main`; branch for this change.
+1. `git fetch`, then create a git worktree for this change on a new branch off `origin/main` (`.claude/rules/00-workflow.md`). Work only there, and remove it after the merge.
 2. Read this proposal, its specs, the capabilities it names in `openspec/specs/`, and the ADRs they cite.
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
@@ -10,7 +10,7 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-Studio serves a springdoc-generated OpenAPI document under `/api/v1` and generates frontend types from it. That is enough for the UI but not a contract for other users. There is no versioning or deprecation policy, nothing detects a breaking change, pagination, errors and rate-limit headers vary by endpoint, retries of mutations are not safe, and no clients are published. The CLI (14) and automation need a stable, documented surface.
+Studio serves a springdoc-generated OpenAPI document under `/api/v1` and generates frontend types from it. That is enough for the UI but not a contract for other users. There is no versioning or deprecation policy, nothing detects a breaking change, pagination varies by endpoint, errors are problem details in many places but not all, rate-limit headers are new with change 05, retries of mutations are not safe, and no clients are published. The CLI (14) and automation need a stable, documented surface.
 
 ## What Changes
 - The OpenAPI document is a published, versioned release artifact.
@@ -34,7 +34,7 @@ Studio serves a springdoc-generated OpenAPI document under `/api/v1` and generat
 - A GraphQL or gRPC surface.
 
 ## Depends on
-none
+05-api-tokens-and-mcp-scopes (the rate-limit headers this change standardises)
 
 ## Execution
 **Subagent-driven**: versioning policy, CI breaking-change checks, cross-cutting conventions and client generation are separable.

@@ -5,7 +5,7 @@ Every grid that can list more than a few hundred rows SHALL render only what is 
 
 #### Scenario: A very large grid opens
 - **WHEN** a grid receives the largest size in the guide
-- **THEN** it becomes interactive within the guide's stated time and scrolling stays smooth
+- **THEN** it becomes interactive within the guide's stated time and scrolling holds the guide's stated frame rate
 
 #### Scenario: Keyboard and selection still work
 - **WHEN** a user selects or searches in a large grid

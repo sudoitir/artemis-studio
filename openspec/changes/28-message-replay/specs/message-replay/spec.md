@@ -57,3 +57,21 @@ Each replay SHALL be audited with the user, source, target, count and transforma
 #### Scenario: Replay completes
 - **WHEN** a replay finishes
 - **THEN** an audit event exists and lineage shows the replay hop from the original
+
+### Requirement: A replay never sends masked values as if they were real
+Captured content is stored masked, with originals of sensitive values sealed. A replay SHALL send sealed originals only for a user holding the clear-content permission on the source cluster, and SHALL audit that as a clear view. For any other user, or for a credential, which is never sealed, the replay SHALL refuse the message and name the field, unless the user replaces the value by an edit.
+
+#### Scenario: A user without clear access
+- **WHEN** a user without the clear-content permission replays a message whose email field was masked
+- **THEN** that message is refused naming the field, and nothing carrying the mask placeholder is sent
+
+#### Scenario: A user with clear access
+- **WHEN** a user with the clear-content permission replays the same message
+- **THEN** the original value is sent and a clear-view audit record is written
+
+### Requirement: A replay survives interruption without loss or duplicates and carries provenance
+A replay SHALL follow the guarantees of a cross-broker transfer: an interruption SHALL neither lose nor duplicate a message, and each replayed message SHALL carry provenance naming the original.
+
+#### Scenario: Studio restarts mid-replay
+- **WHEN** Studio stops after sending half of a batch and starts again
+- **THEN** the replay resumes and each message is sent exactly once in total

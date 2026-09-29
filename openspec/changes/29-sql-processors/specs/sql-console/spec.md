@@ -41,7 +41,7 @@ Joins SHALL be offered only if a model is proven that bounds their cost on the b
 - **THEN** every join is planned, costed and bounded like other queries
 
 ### Requirement: Processors run within resource guards
-Every processor SHALL run within limits on time, rows and memory, and a query that exceeds one SHALL stop and say which.
+Every processor SHALL run within the existing execution bounds and within a new memory limit, and a query that exceeds one SHALL stop and say which.
 
 #### Scenario: Memory limit
 - **WHEN** an aggregation exceeds its memory limit
@@ -51,9 +51,13 @@ Every processor SHALL run within limits on time, rows and memory, and a query th
 - **WHEN** a query exceeds the row limit
 - **THEN** it stops and marks the result truncated
 
-### Requirement: A query shows an explain plan
-The console SHALL show, before running and on request, the plan for a query including processors, what is pushed to the broker, what is scanned and the estimated cost.
+### Requirement: The query plan covers processors and aggregations
+The existing plan operation SHALL also list each processor and aggregation stage with its estimated cost and memory, and SHALL refuse a query whose estimate exceeds a ceiling before any broker call, as it does for scans today.
 
-#### Scenario: Explain
-- **WHEN** a user requests the plan
-- **THEN** the plan lists each stage and its estimated cost without executing the query
+#### Scenario: Plan with an aggregation
+- **WHEN** a user plans a query that groups by a header
+- **THEN** the plan lists the aggregation stage with its estimated cost and memory, and no broker is contacted
+
+#### Scenario: Too many groups
+- **WHEN** a group-by would produce more groups than the memory limit allows
+- **THEN** the plan or the run refuses it naming the limit, and memory stays bounded

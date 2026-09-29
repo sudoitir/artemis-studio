@@ -22,6 +22,10 @@ A report SHALL be delivered to a distribution list over the notification channel
 - **WHEN** the chosen channel cannot carry a file
 - **THEN** the definition is refused with the reason
 
+#### Scenario: An outside recipient
+- **WHEN** a distribution list names an address outside the domains an administrator allows
+- **THEN** the definition is refused naming the address, so reports cannot be sent out of the organisation
+
 ### Requirement: A report can be attached to an alert
 A firing alert SHALL be able to include a chosen report generated at that time.
 

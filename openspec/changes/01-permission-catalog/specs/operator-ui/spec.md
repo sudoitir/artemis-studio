@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: The role editor's permission picker is grouped, searchable and explained
-The picker SHALL group permissions by module or plugin, filter them by a search box, show each description and scope chip, and offer select-all and clear per group.
+The picker SHALL group permissions by module or plugin, filter them by a search box, show each description and the scopes at which it takes effect, and offer select-all and clear per group.
 
 #### Scenario: Search narrows the list
 - **WHEN** the operator types in the search box

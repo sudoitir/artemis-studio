@@ -11,6 +11,10 @@ Each stored secret SHALL be encrypted with its own data key, and each data key S
 - **WHEN** the database is read without the key-encryption key
 - **THEN** no secret can be recovered
 
+#### Scenario: A ciphertext moved to another row
+- **WHEN** a stored secret and its wrapped key are copied into another cluster's or another kind's row
+- **THEN** decryption fails there, as it does today under the row binding of ADR-0009
+
 ### Requirement: The key-encryption key can be rotated online
 An administrator SHALL be able to start a rotation that re-wraps every data key with a new key-encryption key while Studio keeps serving, and SHALL see its progress and result.
 
@@ -21,6 +25,14 @@ An administrator SHALL be able to start a rotation that re-wraps every data key 
 #### Scenario: Rotation interrupted
 - **WHEN** Studio stops during a rotation
 - **THEN** the rotation resumes and no secret becomes unreadable
+
+#### Scenario: Rotation with several replicas
+- **WHEN** two replicas serve while a rotation runs
+- **THEN** both read every secret throughout, and the rotation runs on one of them only
+
+#### Scenario: Rotation without permission
+- **WHEN** a caller without the settings-write permission or without fresh authentication starts a rotation
+- **THEN** it is refused and audited
 
 ### Requirement: Secret providers are selected by configuration
 Studio SHALL obtain the key-encryption key from a provider chosen by configuration: environment or file, HashiCorp Vault, or Kubernetes Secrets.

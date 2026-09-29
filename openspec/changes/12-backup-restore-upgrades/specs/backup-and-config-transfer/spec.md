@@ -8,11 +8,15 @@ The documentation SHALL describe backing up and restoring the Studio database in
 - **THEN** Studio starts and shows the restored clusters, roles and plugin data
 
 ### Requirement: Configuration can be exported as a versioned document
-Studio SHALL export clusters, environments, roles, alert rules and settings as a document that states its format version, and SHALL exclude secrets or re-encrypt them for the target.
+Studio SHALL export clusters with their current declarations, environments, roles and group mappings, alert rules, notification channels and settings as a document that states its format version. Secrets SHALL be left out and listed as needing re-entry, unless the administrator supplies a key for the target, in which case they SHALL be encrypted to that key.
 
 #### Scenario: Export
 - **WHEN** an administrator exports
 - **THEN** the document lists the configuration and contains no readable secret
+
+#### Scenario: Export without permission
+- **WHEN** a caller without the global settings-read permission exports
+- **THEN** it is refused, and a permitted export is audited
 
 ### Requirement: Configuration import has a dry run
 Import SHALL offer a dry run that reports what would be created, changed or rejected, and SHALL apply nothing until confirmed; a document of an unknown format version SHALL be refused.
@@ -33,8 +37,8 @@ Import SHALL offer a dry run that reports what would be created, changed or reje
 Each database migration SHALL work with both the previous and the new release running together, by expanding first and contracting in a later release.
 
 #### Scenario: Mixed versions
-- **WHEN** old and new replicas run against the migrated schema
-- **THEN** both work correctly
+- **WHEN** a CI upgrade test runs the previous release and the new one against the migrated schema
+- **THEN** both serve reads and writes on every screen the test covers, and the test fails otherwise
 
 ### Requirement: An upgrade and rollback guide exists
 The documentation SHALL describe how to upgrade, what to back up first and how to roll back.

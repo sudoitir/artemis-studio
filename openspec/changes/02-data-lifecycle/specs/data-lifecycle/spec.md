@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Every store has one retention policy in one place
-Studio SHALL expose a retention policy for each of metrics, broker events, request-reply flows, captured payloads, the message index and audit, each with a default and enforced minimum and maximum, editable from one settings page.
+Studio SHALL expose a retention policy for each of metrics, broker events, request-reply flows, captured payloads, the message index, audit, and every other store that grows with use, such as bulk runs, transfer staging, notification deliveries, alert history and expired sessions, each with a default and enforced minimum and maximum, editable from one settings page.
 
 #### Scenario: Set a policy
 - **WHEN** an administrator sets retention within bounds
@@ -10,6 +10,10 @@ Studio SHALL expose a retention policy for each of metrics, broker events, reque
 #### Scenario: Out of bounds
 - **WHEN** a value outside the bounds is submitted
 - **THEN** it is rejected with the allowed range
+
+#### Scenario: No unbounded store
+- **WHEN** the list of stores is compared with the tables that grow with use
+- **THEN** every such table belongs to a store with a retention policy, and a test fails when a new one lacks it
 
 ### Requirement: A policy change can be previewed before it applies
 Studio SHALL offer a dry run that reports, per store, how many rows or partitions and how much space a proposed policy would purge, without deleting anything.
@@ -49,3 +53,7 @@ A purge SHALL run on exactly one instance at a time and SHALL write an audit eve
 #### Scenario: Two instances
 - **WHEN** two instances share the database
 - **THEN** each scheduled purge runs once
+
+#### Scenario: Purge under load
+- **WHEN** a purge removes a large backlog while the store keeps receiving writes
+- **THEN** it deletes in bounded batches and the writes are not blocked for longer than one batch

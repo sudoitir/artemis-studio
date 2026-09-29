@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: The repository contains an installable Claude Code plugin
-The repository SHALL contain a Claude Code plugin in `claude-plugin/` that installs from a marketplace entry and loads its skills and connector.
+The repository SHALL contain a Claude Code plugin, in a directory of its own, that installs from a marketplace entry and loads its skills and connector.
 
 #### Scenario: Install
 - **WHEN** a user adds the marketplace and installs the plugin
@@ -32,6 +32,10 @@ The connector SHALL let the user point to their Studio and authenticate with an 
 #### Scenario: Leak check
 - **WHEN** the repository is scanned
 - **THEN** no token or credential is present
+
+#### Scenario: Least privilege by default
+- **WHEN** a user follows the documented setup
+- **THEN** it mints a token limited to read permissions and to the tools the skills use, and the skills work with it
 
 ### Requirement: The plugin is versioned with Studio
 Each Studio release SHALL publish the plugin at the same version, and the plugin SHALL name the Studio versions it works with.

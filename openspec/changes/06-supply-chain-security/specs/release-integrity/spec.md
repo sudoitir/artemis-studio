@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Release images and jars carry a verifiable signature
-Every released container image and jar SHALL be signed keylessly, and the documentation SHALL show how to verify the signature and the expected identity.
+Every released container image and jar SHALL be signed with an identity tied to this project's release workflow, needing no long-lived signing key, and the documentation SHALL show how to verify the signature and the expected identity.
 
 #### Scenario: Verify an image
 - **WHEN** a user verifies a released image with the documented command
@@ -49,3 +49,14 @@ The documentation SHALL state the triage target time, how advisories are publish
 #### Scenario: Advisory published
 - **WHEN** a confirmed vulnerability is fixed
 - **THEN** an advisory and a patched release are published under the stated policy
+
+### Requirement: The plugin kit packages carry provenance
+The plugin kit published to Maven Central and npm SHALL carry a signature and a provenance attestation that name the source revision and the release workflow, so plugin authors can check what they build against.
+
+#### Scenario: Checking the npm package
+- **WHEN** a plugin author checks the provenance of the published kit package
+- **THEN** it names this project's repository, the tagged revision and the release workflow
+
+#### Scenario: A package published from elsewhere
+- **WHEN** a package version was published outside the release workflow
+- **THEN** it carries no valid provenance and the documented check fails

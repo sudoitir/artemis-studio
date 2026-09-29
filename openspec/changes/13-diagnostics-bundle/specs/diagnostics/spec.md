@@ -25,6 +25,10 @@ Every section of the bundle SHALL be redacted by the product's redaction rules, 
 - **WHEN** a known secret exists in logs and settings
 - **THEN** it is not in the bundle
 
+#### Scenario: Message content
+- **WHEN** logs or state hold message bodies or property values
+- **THEN** the bundle contains none of them, whatever the governance policy
+
 ### Requirement: The bundle can be previewed and trimmed
 Before download Studio SHALL show exactly what each section contains and let the administrator exclude sections; the download SHALL contain only what was previewed.
 

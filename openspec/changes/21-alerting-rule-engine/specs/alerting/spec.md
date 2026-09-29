@@ -22,8 +22,8 @@ The engine SHALL support a condition that fires when expected data or consumptio
 - **WHEN** no samples arrive for a subject
 - **THEN** the rule fires as no-data, not as a zero value
 
-### Requirement: A rule can require a duration and use hysteresis
-A rule SHALL be able to require its condition for a duration before firing and use separate thresholds to fire and to resolve, so a value near the limit does not flap.
+### Requirement: A rule can use hysteresis
+A rule SHALL be able to use separate thresholds to fire and to resolve, on top of the existing PENDING debounce, so a value near the limit does not flap.
 
 #### Scenario: A value oscillates around the limit
 - **WHEN** it crosses the fire threshold and returns between the fire and resolve thresholds
@@ -50,6 +50,14 @@ A user with the matching permission SHALL be able to silence alerts matching lab
 #### Scenario: A silence expires
 - **WHEN** its end time passes
 - **THEN** later firings notify normally
+
+#### Scenario: A silence too broad
+- **WHEN** a user creates a silence whose labels match clusters they may not write alert rules for
+- **THEN** it is refused, so nobody silences alerts outside their scope
+
+#### Scenario: A silence without an end
+- **WHEN** a silence is submitted without an end time or beyond the administrator's maximum length
+- **THEN** it is refused with the maximum
 
 ### Requirement: Related alerts are deduplicated and grouped
 Repeated firings of one alert SHALL notify once, and firings sharing chosen labels within a period SHALL be delivered as one grouped notification.

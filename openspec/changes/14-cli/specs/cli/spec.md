@@ -5,7 +5,7 @@ Each Studio release SHALL publish the CLI as a single binary for Linux, macOS an
 
 #### Scenario: Release
 - **WHEN** a version is released
-- **THEN** all six binaries are attached
+- **THEN** all six binaries are attached, each with a signature and an SBOM verifiable as the release documentation describes
 
 ### Requirement: The CLI covers the everyday operations
 The CLI SHALL provide commands for clusters, queues, addresses, messages (browse, send, move, purge), SQL queries, tokens, configuration export and import, and a drift check.
@@ -60,3 +60,14 @@ The CLI SHALL call only endpoints in the published API contract and SHALL report
 #### Scenario: Old Studio
 - **WHEN** the server lacks an endpoint the CLI needs
 - **THEN** the CLI reports the required Studio version
+
+### Requirement: The CLI verifies Studio's TLS certificate
+The CLI SHALL verify Studio's certificate against the system trust store or a CA file named in the profile, and SHALL NOT turn verification off unless a flag that names the risk is given, which it SHALL warn about on every run.
+
+#### Scenario: Private CA
+- **WHEN** a profile names the CA that signed Studio's certificate
+- **THEN** the connection verifies without disabling anything
+
+#### Scenario: Wrong certificate
+- **WHEN** the certificate does not verify
+- **THEN** the CLI exits with the documented authentication-failure code and sends no token

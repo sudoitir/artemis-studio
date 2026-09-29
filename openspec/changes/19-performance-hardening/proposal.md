@@ -1,7 +1,7 @@
 ## How to run this change
 This change states **requirements only**. Run it in a fresh Claude session, in number order:
 
-1. `git pull --ff-only` on `main`; branch for this change.
+1. `git fetch`, then create a git worktree for this change on a new branch off `origin/main` (`.claude/rules/00-workflow.md`). Work only there, and remove it after the merge.
 2. Read this proposal, its specs, the capabilities it names in `openspec/specs/`, and the ADRs they cite.
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
@@ -18,16 +18,14 @@ Studio has no stated limits. Operators cannot tell how many clusters, nodes, que
 - Backpressure on the event stream so a slow client cannot grow memory
 - Virtualized rendering wherever a list can be large
 - Batched broker calls where several are made for one view
-- Time and cost budgets on the SQL console and other heavy endpoints
-- Per-user concurrency limits on heavy operations
+- Time, size and per-user concurrency bounds on the heavy endpoints that lack them (exports, bulk previews, flow and topology reads, audit and alert history), as the SQL console already has
 - Measured results recorded in the sizing guide
 
 ## Capabilities
 ### New Capabilities
-- `performance-sizing`: Published targets, a repeatable load test and the sizing guide.
+- `performance-sizing`: Published targets, a repeatable load test, the sizing guide and bounds on heavy endpoints.
 ### Modified Capabilities
 - `realtime-stream`: Backpressure for slow subscribers.
-- `sql-console`: Budgets and per-user limits on heavy queries.
 - `operator-ui`: Large lists render without cost proportional to their length.
 
 ## Out of scope
@@ -36,10 +34,10 @@ Studio has no stated limits. Operators cannot tell how many clusters, nodes, que
 - Mobile viewports
 
 ## Depends on
-- none
+- 11-high-availability (targets are stated per replica, and both changes touch the event stream)
 
 ## Execution
-**Workflow**: profiling needs parallel lenses (backend, database, event stream, UI) and the result of each feeds one guide.
+**Subagent-driven, with the `planner` agent for the design**: the load test comes first, then the backend, database, event stream and UI fixes are independent tasks whose results feed one guide. Nothing here is adversarial, so a workflow is not worth its cost.
 
 ## Impact
-Event stream, SQL console, admin UI grids, broker call paths, documentation, a load-test harness in the repo.
+Event stream, admin UI grids, heavy read endpoints, broker call paths, documentation, a load-test harness in the repo.

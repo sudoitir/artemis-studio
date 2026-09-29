@@ -31,3 +31,14 @@ The repository and each release SHALL include Grafana dashboards and Prometheus 
 #### Scenario: Renamed metric
 - **WHEN** a metric used by a dashboard is renamed
 - **THEN** CI fails
+
+### Requirement: Logs can be written as structured JSON with trace identifiers
+Studio SHALL be able to write its logs as one JSON object per line, carrying the trace and span identifiers of the request that produced them, chosen by configuration.
+
+#### Scenario: A log line joins its trace
+- **WHEN** JSON logging is on and a traced request logs an error
+- **THEN** the line is valid JSON and carries the trace identifier that the exported trace has
+
+#### Scenario: Redaction holds in JSON
+- **WHEN** a log line would carry a credential
+- **THEN** the JSON line is redacted like the plain one

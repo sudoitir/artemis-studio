@@ -28,3 +28,14 @@ Each run that changes a published figure SHALL update the guide with the new fig
 #### Scenario: A figure moves
 - **WHEN** a later run produces a different result
 - **THEN** the guide shows the new figure with its version and date
+
+### Requirement: Heavy endpoints are bounded like the SQL console
+Every endpoint whose cost grows with the data it covers, such as exports, bulk previews, flow and topology reads and audit and alert history, SHALL have a time bound, a size bound and a per-user concurrency limit, and SHALL say which bound it reached. The SQL console already meets this and is the model.
+
+#### Scenario: An export too large
+- **WHEN** an export would exceed its size bound
+- **THEN** it stops at the bound and states that the result is incomplete
+
+#### Scenario: One user floods an endpoint
+- **WHEN** a user starts more heavy requests than the limit
+- **THEN** the extra ones are refused with a message naming the limit, and other users are unaffected
