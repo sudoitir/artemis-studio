@@ -3664,6 +3664,36 @@
         }
       }
     },
+    "/api/v1/users/{userId}/effective-permissions" : {
+      "get" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "effectivePermissions",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EffectivePermissionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/time" : {
       "get" : {
         "tags" : [ "time-controller" ],
@@ -10225,6 +10255,41 @@
         },
         "required" : [ "applyMode", "reportUndeclared", "undeclaredExclusions" ]
       },
+      "EffectivePermissionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "via" : {
+            "type" : "string"
+          },
+          "effective" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "action", "effective", "roleId", "roleName", "scopeType", "via" ]
+      },
       "TimeView" : {
         "type" : "object",
         "properties" : {
@@ -10343,9 +10408,18 @@
           },
           "label" : {
             "type" : "string"
+          },
+          "featureId" : {
+            "type" : "string"
+          },
+          "featureTitle" : {
+            "type" : "string"
+          },
+          "globalOnly" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "action", "label" ]
+        "required" : [ "action", "featureId", "featureTitle", "globalOnly", "label" ]
       },
       "ManifestFeatureView" : {
         "type" : "object",

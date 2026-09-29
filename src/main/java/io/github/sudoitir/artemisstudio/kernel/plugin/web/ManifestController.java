@@ -81,11 +81,8 @@ public class ManifestController {
         List<ManifestFeatureView> features = java.util.stream.Stream.concat(builtins.stream(), plugins.stream())
                 .toList();
 
-        List<ManifestPermissionView> catalogue = java.util.stream.Stream.concat(
-                        registry.enabled().stream()
-                                .flatMap(d -> d.permissions().stream().map(p -> permission(d, p))),
-                        registry.plugins().stream()
-                                .flatMap(d -> d.permissions().stream().map(p -> permission(d, p))))
+        List<ManifestPermissionView> catalogue = registry.catalogue().stream()
+                .map(e -> new ManifestPermissionView(e.action(), e.description(), e.featureId()))
                 .toList();
 
         return new ManifestView(
@@ -133,9 +130,5 @@ public class ManifestController {
             log.warn("Stored descriptor for plugin '{}' could not be parsed for the manifest", entity.getId(), e);
             return null;
         }
-    }
-
-    private static ManifestPermissionView permission(FeatureDescriptor d, PermissionDef p) {
-        return new ManifestPermissionView(p.action(), p.label(), d.id());
     }
 }

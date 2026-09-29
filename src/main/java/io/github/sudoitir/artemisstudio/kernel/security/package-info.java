@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Security",
-        allowedDependencies = {"kernel.core", "kernel.plugin"})
+        allowedDependencies = {"kernel.core", "kernel.plugin", "kernel.plugin :: descriptor"})
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import org.springframework.modulith.ApplicationModule;

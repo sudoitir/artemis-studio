@@ -1284,6 +1284,22 @@ export interface paths {
         patch: operations["configure"];
         trace?: never;
     };
+    "/api/v1/users/{userId}/effective-permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["effectivePermissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/time": {
         parameters: {
             query?: never;
@@ -3989,6 +4005,19 @@ export interface components {
             reportUndeclared: boolean;
             undeclaredExclusions: string[];
         };
+        EffectivePermissionView: {
+            action: string;
+            description?: string | null;
+            scopeType: string;
+            /** Format: uuid */
+            scopeId?: string | null;
+            /** Format: uuid */
+            roleId: string;
+            roleName: string;
+            via: string;
+            effective: boolean;
+            reason?: string | null;
+        };
         TimeView: {
             /** Format: int64 */
             nowMs: number;
@@ -4046,6 +4075,9 @@ export interface components {
         PermissionView: {
             action: string;
             label: string;
+            featureId: string;
+            featureTitle: string;
+            globalOnly: boolean;
         };
         ManifestFeatureView: {
             id: string;
@@ -7989,6 +8021,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+        };
+    };
+    effectivePermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EffectivePermissionView"][];
                 };
             };
         };

@@ -51,5 +51,24 @@ public final class UserViews {
 
     public record PermissionView(
             @Schema(requiredMode = REQUIRED) String action,
-            @Schema(requiredMode = REQUIRED) String label) {}
+            @Schema(requiredMode = REQUIRED) String label,
+            @Schema(requiredMode = REQUIRED) String featureId,
+            @Schema(requiredMode = REQUIRED) String featureTitle,
+            @Schema(requiredMode = REQUIRED) boolean globalOnly) {}
+
+    /**
+     * One permission a user holds at one grant scope, through one role. {@code via} is the stored
+     * permission it came through (itself, or the wildcard that expanded to it). {@code effective}
+     * is false, with {@code reason}, when it grants nothing at that scope.
+     */
+    public record EffectivePermissionView(
+            @Schema(requiredMode = REQUIRED) String action,
+            @Schema(nullable = true) String description,
+            @Schema(requiredMode = REQUIRED) String scopeType,
+            @Schema(nullable = true) UUID scopeId,
+            @Schema(requiredMode = REQUIRED) UUID roleId,
+            @Schema(requiredMode = REQUIRED) String roleName,
+            @Schema(requiredMode = REQUIRED) String via,
+            @Schema(requiredMode = REQUIRED) boolean effective,
+            @Schema(nullable = true) String reason) {}
 }

@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
+import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
 import { useAddGrant, useCreateUser, useRemoveGrant, useRoles, useSetUserDisabled, useUsers } from './api.ts';
 
 /** User accounts and their role grants (authorization spec). Requires `user:admin`. */
@@ -32,6 +33,7 @@ export function UsersPanel() {
 
   const [grantingFor, setGrantingFor] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState<{ id: string; username: string } | null>(null);
 
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
@@ -113,11 +115,17 @@ export function UsersPanel() {
                   aria-label={`${u.disabled ? 'Enable' : 'Disable'} ${u.username}`}
                 />
               </Table.Td>
-              <Table.Td />
+              <Table.Td>
+                <Button size="xs" variant="subtle" onClick={() => setPreviewing(u)}>
+                  Effective permissions
+                </Button>
+              </Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
       </Table>
+
+      <EffectivePermissionsDrawer user={previewing} onClose={() => setPreviewing(null)} />
 
       <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="New user">
         <Stack gap="sm">

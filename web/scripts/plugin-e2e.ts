@@ -126,6 +126,22 @@ async function main() {
   await page.getByRole('row', { name: /Notes/ }).getByText('Active').waitFor({ timeout: 30_000 });
   if (await page.getByText(/could not show (its|their) screens/).count()) throw new Error('the plugin UI did not load');
   if (errors.length) throw new Error(`page errors: ${errors.join('; ')}`);
+
+  step("the role editor offers the plugin's permissions, and a role saves them");
+  const roleName = `e2e-notes-${randomUUID().slice(0, 8)}`;
+  await page.goto('/admin?tab=roles');
+  await page.getByRole('button', { name: 'New role' }).click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('textbox', { name: /^Name/ }).fill(roleName);
+  await editor.getByRole('textbox', { name: 'Search permissions' }).fill(ID);
+  await editor.getByRole('checkbox', { name: 'Select all in Notes' }).check();
+  await editor.getByRole('button', { name: 'Save' }).click();
+  await editor.waitFor({ state: 'hidden' });
+  const roles = (await call(api, 'GET', '/roles')).body as { id: string; name: string; permissions: string[] }[];
+  const role = roles.find((r) => r.name === roleName);
+  if (!role || [...role.permissions].sort().join() !== `${ID}:read,${ID}:write`) {
+    throw new Error(`role saved with ${JSON.stringify(role?.permissions)}`);
+  }
   await browser.close();
 
   step('update to 1.0.1 — no database change, so no downtime');
@@ -143,6 +159,13 @@ async function main() {
   await expectStatus(await call(api, 'POST', `/admin/plugins/${ID}/disable`), 204, 'disable');
   const gone = await call(api, 'GET', `/clusters/${cluster}/p/${ID}/queues/orders/notes`);
   if (gone.status !== 404) throw new Error(`disabled plugin answered ${gone.status}`);
+
+  step('disabled: its permissions leave the catalogue and the role keeps them');
+  const catalogue = (await call(api, 'GET', '/permissions')).body as { action: string }[];
+  if (catalogue.some((p) => p.action.startsWith(`${ID}:`))) throw new Error('a disabled plugin is still in the catalogue');
+  const kept2 = ((await call(api, 'GET', '/roles')).body as { id: string; permissions: string[] }[]).find((r) => r.id === role.id);
+  if (kept2?.permissions.length !== 2) throw new Error(`the role lost its permissions: ${JSON.stringify(kept2)}`);
+  await expectStatus(await call(api, 'DELETE', `/roles/${role.id}`), 204, 'delete role');
 
   step('uninstall, then purge after a dry run');
   await expectStatus(await call(api, 'POST', `/admin/plugins/${ID}/uninstall`), 204, 'uninstall');

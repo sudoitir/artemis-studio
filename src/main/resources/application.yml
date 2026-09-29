@@ -126,7 +126,7 @@ management:
           out-of-service: 503
       group:
         studio:
-          include: jobs,brokers,subscriptions
+          include: jobs,brokers,subscriptions,permissions
           show-details: when-authorized
   info:
     build:
