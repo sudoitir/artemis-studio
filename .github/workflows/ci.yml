@@ -324,10 +324,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The released image, pinned by digest: nothing is downloaded and run unverified.
       - name: Lint the workflows
         run: |
-          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
-          ./actionlint -color
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
 
   # The one required status check. A job skipped by its path filter counts as passed; a failed
   # or cancelled one does not. Requiring this instead of each job keeps path filtering safe.
@@ -447,11 +448,13 @@ jobs:
           # tried again: the image built here is still exactly what the tag names. When it is an
           # image input, that push's own run releases everything, and this one stops without
           # having published anything.
-          for attempt in 1 2 3 4 5; do
+          # The paths are the `release` filter's: a CI- or Docker Hub description-only merge releases
+          # nothing of its own, so it does not stop this one either.
+          for _ in 1 2 3 4 5; do
             git push --atomic origin HEAD:main "refs/tags/$V" && exit 0
             git fetch -q origin main
             if git diff --name-only "${{ github.sha }}" origin/main -- src pom.xml mvnw .mvn web \
-                Dockerfile .dockerignore docs/dockerhub.md .github/workflows/ci.yml | grep -q .; then
+                Dockerfile .dockerignore | grep -q .; then
               echo "::error::main gained image inputs since this run started; the run for that push releases them."
               exit 1
             fi
