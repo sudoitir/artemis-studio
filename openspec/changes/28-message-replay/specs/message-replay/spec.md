@@ -1,0 +1,59 @@
+## ADDED Requirements
+
+### Requirement: Captured messages can be replayed to a chosen target
+The system SHALL let a user replay one captured message, a selection or a filtered batch to a queue or address they choose, preserving the original headers unless edited.
+
+#### Scenario: Single replay
+- **WHEN** a user replays one captured message to a queue
+- **THEN** the message is sent with its original body and headers
+
+#### Scenario: Batch replay
+- **WHEN** a user replays a filtered set
+- **THEN** every message in the set is sent once, in capture order
+
+### Requirement: A replay can transform the message
+The user SHALL be able to edit headers and body before replay, per message or by a rule over a batch, and see the result before sending.
+
+#### Scenario: A header is corrected
+- **WHEN** a rule sets a header on a batch
+- **THEN** the preview shows the new value and the sent messages carry it
+
+#### Scenario: A masked body
+- **WHEN** governance masks a field
+- **THEN** the user cannot read or edit the masked value
+
+### Requirement: A replay can be dry-run
+A replay SHALL support a dry run that validates every message and the target and reports the outcome without sending.
+
+#### Scenario: Dry run
+- **WHEN** a batch is dry-run
+- **THEN** nothing is sent and the report lists messages that would fail and why
+
+### Requirement: A replay is rate limited and stoppable
+A replay SHALL send within a configurable rate limit, be stoppable, and report sent, failed and remaining counts.
+
+#### Scenario: Stopped midway
+- **WHEN** a user stops a replay
+- **THEN** no further messages are sent and the counts are reported
+
+#### Scenario: Abuse by flooding
+- **WHEN** a user sets an extreme rate
+- **THEN** the rate is capped at the administrator's maximum
+
+### Requirement: The target is validated before anything is sent
+Studio SHALL check that the target exists, the user has permission to send to it and each message fits its size limit, and SHALL refuse the replay otherwise.
+
+#### Scenario: Target missing
+- **WHEN** the queue does not exist
+- **THEN** the replay is refused before sending
+
+#### Scenario: No permission
+- **WHEN** the user may not send to the target
+- **THEN** the replay is refused
+
+### Requirement: Every replay is audited and linked to lineage
+Each replay SHALL be audited with the user, source, target, count and transformation, and each replayed message SHALL be linked to its original in lineage.
+
+#### Scenario: Replay completes
+- **WHEN** a replay finishes
+- **THEN** an audit event exists and lineage shows the replay hop from the original
