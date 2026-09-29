@@ -47,3 +47,11 @@ The system SHALL export a view as a JSON document and import one, validating it 
 #### Scenario: A malformed document is imported
 - **WHEN** the JSON is invalid or names unknown fields
 - **THEN** nothing is saved and the errors are listed
+
+#### Scenario: A hostile view name
+- **WHEN** an imported or shared view's name or filter holds markup or script
+- **THEN** it is shown as plain text and nothing runs
+
+#### Scenario: An oversized document
+- **WHEN** an imported document exceeds the size or filter-count limit
+- **THEN** it is refused before parsing its content

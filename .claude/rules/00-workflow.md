@@ -21,9 +21,32 @@ Planned work is queued in `openspec/changes/` as **numbered, requirements-only**
 letter suffix (`08b-<slug>`), so numbers never shift. A queued change states what and why,
 not how. Each one runs in its own fresh session, following the "How to run this change"
 block in its proposal: brainstorm, `/opsx:update` (design, sharpened specs, real tasks),
-`/opsx:apply` with the harness its **Execution** line names, verify, merge, archive. Only
-one change is applied at a time. Unplanned work (a bug fix that grows into a feature, for
-example) gets a plain `<slug>` name.
+`/opsx:apply` with the harness its **Execution** line names, verify, merge, archive.
+Unplanned work (a bug fix that grows into a feature, for example) gets a plain `<slug>` name.
+
+## One git worktree per change
+
+Changes run in parallel sessions, so each one works in its own git worktree and never in
+the main checkout, which stays on `main` for whoever else is using it:
+
+```bash
+git fetch
+git worktree add -b <branch> ../worktrees/artemis-studio-<NN-slug> origin/main
+# … work, verify, PR, merge …
+git worktree remove ../worktrees/artemis-studio-<NN-slug> && git branch -D <branch>
+```
+
+Two changes run in parallel only when neither depends on the other. Before the PR, rebase
+onto the latest `main`. When two parallel changes both bump `Contract.VERSION` or add
+Liquibase changesets, the second to merge rebases and renumbers its own. A session that
+runs Studio for screenshots uses its own ports and compose project name, so parallel
+sessions do not share a dev stack.
+
+**A change is finished only when it is cleaned up:** the PR is merged, the worktree is
+removed, the branch is deleted locally and on the remote, anything it started is stopped
+(its compose stack, dev servers, test containers), and the main checkout is pulled with
+`git pull --ff-only` when it is on `main` and clean. `git worktree list` no longer shows the
+worktree.
 
 Bug fixes and pure refactors do not need a proposal. Anything that changes what
 the product does, does.

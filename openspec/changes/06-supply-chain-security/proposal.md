@@ -1,7 +1,7 @@
 ## How to run this change
 This change states **requirements only**. Run it in a fresh Claude session, in number order:
 
-1. `git pull --ff-only` on `main`; branch for this change.
+1. `git fetch`, then create a git worktree for this change on a new branch off `origin/main` (`.claude/rules/00-workflow.md`). Work only there, and remove it after the merge.
 2. Read this proposal, its specs, the capabilities it names in `openspec/specs/`, and the ADRs they cite.
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
@@ -13,7 +13,8 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 Studio publishes multi-arch images and a jar, and already runs an OSV scan and CodeQL default setup. Users cannot yet verify that an image or jar came from this project's pipeline, there is no software bill of materials, no provenance, and the container image itself is not scanned in CI. `SECURITY.md` and the response to a vulnerability are not written down in enough detail to rely on.
 
 ## What Changes
-- Keyless signatures on container images and the jar.
+- Signatures on container images and the jar, tied to the release workflow's identity so users need no key of ours.
+- Signatures and provenance on the published plugin kit (the Maven Central and npm packages) and on every other released binary.
 - A CycloneDX SBOM attached to the image and to the release.
 - A SLSA provenance attestation for release artifacts.
 - A CI container image vulnerability scan that fails on fixable critical or high findings.

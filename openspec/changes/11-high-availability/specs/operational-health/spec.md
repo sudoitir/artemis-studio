@@ -1,7 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: Replicas share caches and leadership coherently
-Cached state SHALL be coherent across replicas, and every poller or scheduled duty SHALL run on one leader or be partitioned so that no work is done twice or skipped.
+### Requirement: Replicas share caches and broker work coherently
+Cached state SHALL be coherent across replicas. Broker polling, scrapes, subscriptions and capture reconciliation SHALL run on one replica per cluster or be partitioned between replicas, so that adding a replica does not multiply the load on a broker and no cluster is left unpolled. Installation-wide jobs keep running once, as they already do.
+
+#### Scenario: Broker load does not double
+- **WHEN** a second replica joins
+- **THEN** the management requests per node per interval stay what one replica issued
 
 #### Scenario: Leader lost
 - **WHEN** the leader replica stops
@@ -12,11 +16,11 @@ Cached state SHALL be coherent across replicas, and every poller or scheduled du
 - **THEN** the other replicas serve the new value within a stated time
 
 ### Requirement: Probes report what an orchestrator needs
-Studio SHALL expose startup, liveness and readiness probes: liveness fails only when the process cannot recover itself, readiness fails while the instance cannot serve or is draining, and neither depends on a broker being reachable.
+Studio SHALL expose startup, liveness and readiness probes: liveness fails only when the process cannot recover itself, readiness fails while the instance cannot serve or is draining, and neither depends on a broker being reachable, as the existing operational health rule already requires.
 
-#### Scenario: Broker down
-- **WHEN** a broker is unreachable
-- **THEN** readiness and liveness stay healthy and the cluster shows degraded
+#### Scenario: Startup
+- **WHEN** an instance is still running migrations or joining the stream fan-out
+- **THEN** the startup probe fails, and liveness is not evaluated until it passes
 
 #### Scenario: Draining
 - **WHEN** shutdown begins

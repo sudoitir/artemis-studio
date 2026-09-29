@@ -1,7 +1,7 @@
 ## How to run this change
 This change states **requirements only**. Run it in a fresh Claude session, in number order:
 
-1. `git pull --ff-only` on `main`; branch for this change.
+1. `git fetch`, then create a git worktree for this change on a new branch off `origin/main` (`.claude/rules/00-workflow.md`). Work only there, and remove it after the merge.
 2. Read this proposal, its specs, the capabilities it names in `openspec/specs/`, and the ADRs they cite.
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
@@ -14,7 +14,7 @@ Studio keeps its state in Postgres, including plugin schemas, but backup and res
 
 ## What Changes
 - Documented and tested backup and restore of the Studio database including plugin schemas, with a restore test in CI.
-- Export and import of Studio configuration (clusters, environments, roles, alert rules, settings) as a versioned document, with a dry-run import; secrets excluded or re-encrypted.
+- Export and import of Studio configuration (clusters with their declarations, environments, roles and group mappings, alert rules, notification channels, settings) as a versioned document, with a dry-run import; secrets excluded or re-encrypted.
 - Database migrations follow expand and contract so a rolling upgrade across replicas works.
 - An upgrade and rollback guide.
 
@@ -30,10 +30,11 @@ Studio keeps its state in Postgres, including plugin schemas, but backup and res
 - Automatic rollback of a failed upgrade.
 
 ## Depends on
-none
+- 03-secrets-hardening (secrets in an export are handled under the envelope scheme)
+- 11-high-availability (rolling upgrades across replicas)
 
 ## Execution
-**Inline**: documentation, one export format and migration discipline that fit a single context.
+**Subagent-driven**: backup and restore with its CI test, configuration export and import, and the migration discipline with its upgrade test are separable slices.
 
 ## Impact
 Database migrations, settings, admin UI or API for export and import, CI, documentation.

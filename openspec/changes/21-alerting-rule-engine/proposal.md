@@ -1,7 +1,7 @@
 ## How to run this change
 This change states **requirements only**. Run it in a fresh Claude session, in number order:
 
-1. `git pull --ff-only` on `main`; branch for this change.
+1. `git fetch`, then create a git worktree for this change on a new branch off `origin/main` (`.claude/rules/00-workflow.md`). Work only there, and remove it after the merge.
 2. Read this proposal, its specs, the capabilities it names in `openspec/specs/`, and the ADRs they cite.
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
@@ -14,13 +14,13 @@ Alerting today covers thresholds, cluster-state conditions, drift, a debounce th
 
 ## What Changes
 - Rate-of-change and absence conditions (no data, no consumption)
-- For-duration and hysteresis so a rule does not flap
+- Hysteresis, separate fire and resolve thresholds, so a rule does not flap (the for-duration already exists as the PENDING debounce)
 - Routing trees that pick channels by labels such as cluster, environment and severity
 - An Opsgenie channel kind
 - Silences and maintenance windows
 - Deduplication and grouping of related alerts
 - Escalation policies with acknowledgement
-- An alert history that can be searched
+- An alert history that can be searched beyond today's list
 
 ## Capabilities
 ### New Capabilities

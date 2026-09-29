@@ -50,3 +50,14 @@ Inference, catalog display and drift reports SHALL follow masking and PII rules,
 #### Scenario: No permission
 - **WHEN** a user cannot read an address
 - **THEN** its schema is not shown to them
+
+### Requirement: Inference is safe against hostile payloads
+Inference SHALL bound the depth, size and element count it reads from one payload, SHALL NOT resolve external entities or fetch anything a payload refers to, and SHALL treat a payload that exceeds a bound as unrecognized.
+
+#### Scenario: An XML payload with an external entity
+- **WHEN** a sampled XML payload declares an external entity or expands entities recursively
+- **THEN** no entity is resolved, no request leaves Studio, and memory stays bounded
+
+#### Scenario: Deeply nested JSON
+- **WHEN** a JSON payload nests beyond the depth bound
+- **THEN** inference stops at the bound and marks the sample unrecognized

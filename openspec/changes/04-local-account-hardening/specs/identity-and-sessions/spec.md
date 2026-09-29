@@ -22,6 +22,28 @@ Studio SHALL let an administrator mark a role as requiring MFA, and a user holdi
 - **WHEN** someone has only the password of an MFA account
 - **THEN** sign-in does not complete
 
+#### Scenario: A token minted around MFA
+- **WHEN** a user whose role requires MFA tries to mint an API token from a session that has not completed the second factor
+- **THEN** minting is refused
+
+### Requirement: Step-up re-authentication uses the second factor
+When an account has a second factor, step-up re-authentication for a sensitive action SHALL require it as well as the password.
+
+#### Scenario: Step-up with a password only
+- **WHEN** a user with an enrolled factor re-enters only their password for a sensitive action
+- **THEN** the action is still refused until the factor is verified
+
+### Requirement: An administrator can reset a user's second factors
+An administrator with the right permission and fresh authentication SHALL be able to remove a user's factors, which ends that user's sessions and makes them enrol again at next sign-in if their role requires MFA.
+
+#### Scenario: Lost device
+- **WHEN** an administrator resets a user's factors
+- **THEN** the user's sessions end, the reset is audited, and the next sign-in leads to enrolment
+
+#### Scenario: Resetting one's own factors
+- **WHEN** an administrator tries to reset their own factors through the administration surface
+- **THEN** it is refused, and they use their own recovery codes instead
+
 ### Requirement: Passwords meet a policy
 Studio SHALL enforce a minimum length and reject passwords found in the breached-password list; the online k-anonymity lookup SHALL be optional and off by default.
 
@@ -34,7 +56,7 @@ Studio SHALL enforce a minimum length and reject passwords found in the breached
 - **THEN** the offline list alone is used and no password data leaves Studio
 
 ### Requirement: Repeated failures lock and slow down sign-in
-Studio SHALL lock an account after repeated failures and SHALL rate-limit login attempts per IP address and per account, without revealing whether the account exists.
+Studio SHALL lock an account after repeated failures, and SHALL extend today's throttle per username and source with limits per IP address across accounts, without revealing whether the account exists.
 
 #### Scenario: Lockout
 - **WHEN** failures exceed the limit
@@ -43,6 +65,17 @@ Studio SHALL lock an account after repeated failures and SHALL rate-limit login 
 #### Scenario: Spraying
 - **WHEN** one address tries many accounts
 - **THEN** the per-IP limit applies and responses are identical for unknown and known accounts
+
+### Requirement: Sessions expire when idle and after an absolute lifetime
+Studio SHALL end a session after a configurable idle period and after a configurable absolute lifetime, whichever comes first.
+
+#### Scenario: Idle session
+- **WHEN** a session is not used for longer than the idle period
+- **THEN** its next request is unauthenticated
+
+#### Scenario: Long-lived session
+- **WHEN** a session stays active past the absolute lifetime
+- **THEN** its next request is unauthenticated and the user signs in again
 
 ### Requirement: Users manage their own sessions
 A user SHALL see their active sessions (start, last use, address, client) and end any of them.

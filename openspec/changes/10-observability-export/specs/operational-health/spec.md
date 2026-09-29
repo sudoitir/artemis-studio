@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Studio shows its own health in one view
-Studio SHALL show poller and scrape lag, management call latency, database pool use, event stream client count and each job's status.
+Studio SHALL show on one screen poller and scrape lag, management call latency, database pool use and event stream client count, next to the job status and broker connection health it already reports.
 
 #### Scenario: Lag rising
 - **WHEN** the poller falls behind

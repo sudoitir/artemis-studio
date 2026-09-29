@@ -11,6 +11,10 @@ A token owner SHALL be able to rotate a token, receiving a new secret while the 
 - **WHEN** the old secret is used after the window
 - **THEN** the request is rejected and audited
 
+#### Scenario: Rotation does not extend lifetime
+- **WHEN** a token is rotated
+- **THEN** the new secret keeps the token's grants and expiry and cannot exceed the lifetime cap
+
 ### Requirement: Administrators cap token lifetime
 An administrator SHALL be able to set a maximum lifetime; Studio SHALL refuse longer tokens and SHALL apply the cap to existing tokens as stated in the policy.
 
@@ -35,3 +39,18 @@ Studio SHALL provide, per token, a summary of use over a period: request counts,
 #### Scenario: Summary
 - **WHEN** an owner or administrator opens a token's usage
 - **THEN** the summary for the chosen period is shown
+
+### Requirement: Administrators can see and revoke any user's tokens
+An administrator with the right permission SHALL see every token's owner, name, grants, expiry and last use, never its value, and SHALL be able to revoke any token. Minting and managing one's own tokens SHALL stay on the account page. Tokens unused for an administrator-set period SHALL be flagged.
+
+#### Scenario: A leaked token is revoked
+- **WHEN** an administrator revokes another user's token
+- **THEN** the next request with it is rejected, the owner sees it as revoked, and the revocation is audited
+
+#### Scenario: Without permission
+- **WHEN** a caller without the permission lists all tokens
+- **THEN** the request is refused
+
+#### Scenario: A stale token
+- **WHEN** a token has not been used for longer than the set period
+- **THEN** the inventory flags it

@@ -51,6 +51,10 @@ A custom resource SHALL let a cluster be registered, updated and removed declara
 - **WHEN** it references a missing Secret
 - **THEN** registration fails and the status says why
 
+#### Scenario: A Secret in another namespace
+- **WHEN** a resource references a Secret outside its own namespace
+- **THEN** registration is refused, so a resource cannot borrow credentials it could not read itself
+
 #### Scenario: A resource is deleted
 - **WHEN** the resource is removed
 - **THEN** the registration is removed and no broker data is touched

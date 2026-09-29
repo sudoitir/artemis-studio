@@ -22,8 +22,8 @@ For broker kill, network partition and database restart, the expected Studio beh
 - **WHEN** the network between Studio and a broker is cut
 - **THEN** the node is reported unreachable, not empty, and recovers when restored
 
-### Requirement: The interface meets WCAG 2.1 AA
-The interface SHALL pass an audit against WCAG 2.1 AA, and automated axe checks over its main screens SHALL run in CI and fail on new violations.
+### Requirement: The interface meets WCAG 2.2 AA
+The interface SHALL pass an audit against WCAG 2.2 AA, and automated axe checks over its main screens SHALL run in CI and fail on new violations.
 
 #### Scenario: A violation is introduced
 - **WHEN** a change adds an unlabeled control
