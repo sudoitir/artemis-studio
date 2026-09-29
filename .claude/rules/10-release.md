@@ -21,26 +21,41 @@ See [ADR-0042](../../docs/adr/0042-calver-releases-on-docker-hub.md) for why.
 
 ## Every source push to `main` is a release
 
+Pull requests carry the whole verification; `main` does not re-test ([ADR-0126](../../docs/adr/0126-pull-requests-verify-main-releases-what-changed.md)).
+The ruleset requires the one `ci-ok` check on a branch that is up to date with `main`,
+so the merge commit is the tree CI verified.
+
 A push to `main` releases when it changes what the image is built from
-(`src/`, `web/`, `pom.xml`, the Maven wrapper, `Dockerfile`, `docs/dockerhub.md`,
-`ci.yml`). A docs- or site-only push runs no CI job and releases nothing; its
-commits appear in the next release's changelog. The path lists live in the
-`changes` job of `ci.yml` ([ADR-0088](../../docs/adr/0088-path-filtered-ci-and-releases.md)).
+(`src/`, `web/`, `pom.xml`, the Maven wrapper, `Dockerfile`, `.dockerignore`). A docs-,
+site- or CI-only push releases nothing; its commits appear in the next release's
+changelog. The path lists live in the `changes` job of `ci.yml`
+([ADR-0088](../../docs/adr/0088-path-filtered-ci-and-releases.md)).
 
 The `release` job in `.github/workflows/ci.yml` does all of it, with no manual step:
 
 - writes `changelog/<version>.md` from the commits in the release, commits
-  it, and creates the annotated git tag on that release commit;
+  it, and creates the annotated git tag on that release commit. It pushes over SSH
+  with the `RELEASE_DEPLOY_KEY` deploy key, the ruleset's bypass actor; the workflow
+  token cannot push past the required check;
 - pushes the image to Docker Hub — `sudoit1/artemis-studio`, `linux/amd64` +
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
 - creates a GitHub Release with that version's changelog file as the body and the
-  `artemis-studio-<version>.jar` + its `.sha256` attached;
-- pushes `docs/dockerhub.md` as the Docker Hub repository description. That file
-  is the Hub's landing page and is **not** `README.md` — edit it when the run
-  instructions or the screenshots change. `DOCKERHUB_TOKEN` must be a PAT with
-  **read, write and delete** scope: the description endpoint rejects a
-  repo-scoped token with `Forbidden`, and the step no longer hides that.
+  `artemis-studio-<version>.jar` + its `.sha256` attached.
+
+After it, each registry gets the release only when its inputs changed since the newest
+version already there, so a failed publish is retried by the next release:
+
+- `publish-api`: the plugin API to Maven Central, when `src/main` or `pom.xml` changed;
+- `publish-sdk`: `@artemis-studio/plugin-sdk` to npm, when `web/packages`, `web/src/sdk`,
+  `web/src/kernel` or the web manifests changed. Its job stays in `ci.yml`: npm trusted
+  publishing is bound to that file name.
+
+`hub-description` pushes `docs/dockerhub.md` as the Docker Hub repository description
+whenever that file changes, with or without a release. That file is the Hub's landing
+page and is **not** `README.md`; edit it when the run instructions or the screenshots
+change. `DOCKERHUB_TOKEN` must be a PAT with **read, write and delete** scope: the
+description endpoint rejects a repo-scoped token with `Forbidden`.
 
 ## Dev channel (pre-stable)
 

@@ -136,9 +136,11 @@ just db-status / db-sql / db-rollback [n] / db-shell
 `frontend` Maven profile so day-to-day `./mvnw test` stays fast. Compose files
 live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
 
-Every push to `main` that changes a build input cuts a CalVer release to Docker Hub
-(image, git tag, GitHub pre-release); docs- and site-only pushes release nothing
-(ADR-0088). See `.claude/rules/10-release.md` for the versioning. There is no
+Pull requests carry the verification: parallel, path-filtered jobs behind the one required
+`ci-ok` check, on a branch up to date with `main`. `main` does not re-test. Every push to `main`
+that changes a build input cuts a CalVer release to Docker Hub (image, git tag, GitHub
+pre-release), and Central and npm get it only when their inputs changed; docs-, site- and
+CI-only pushes release nothing (ADR-0088, ADR-0126). See `.claude/rules/10-release.md` for the versioning. There is no
 `CHANGELOG.md`: `changelog/` holds one generated file per version, and the commit
 message is the release note — `.claude/rules/05-commits.md` (Conventional Commits,
 ADR-0051). `just changelog` previews the pending release.

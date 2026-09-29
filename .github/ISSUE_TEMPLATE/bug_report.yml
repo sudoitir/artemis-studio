@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in Artemis Studio is broken or wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. A security problem does not belong here: see
+        [SECURITY.md](https://github.com/sudoitir/artemis-studio/security/policy).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, including any error message in full.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Artemis Studio version
+      description: Shown in the About dialog, or the image tag you run.
+      placeholder: 2026.09.57
+    validations:
+      required: true
+  - type: input
+    id: broker
+    attributes:
+      label: Artemis broker version and HA setup
+      placeholder: 2.44.0, replication pair
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options: [Docker Compose, Docker image, Runnable jar, Kubernetes, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Studio's log around the failure. Remove secrets and message contents you cannot share.
+      render: text

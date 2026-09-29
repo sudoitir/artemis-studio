@@ -1,6 +1,7 @@
 # ADR-0088: CI jobs and releases run only for the paths a change touches
 
-- **Status**: accepted; supersedes the release trigger of
+- **Status**: accepted, superseded in part by [ADR-0126](0126-pull-requests-verify-main-releases-what-changed.md);
+  supersedes the release trigger of
   [ADR-0042](0042-calver-releases-on-docker-hub.md)
 - **Date**: 2026-09-19
 - **Deciders**: Mahdi Amirabdollahi

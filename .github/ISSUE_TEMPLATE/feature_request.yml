@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose something Artemis Studio should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Not sure it is a feature yet? Start in
+        [Discussions → Ideas](https://github.com/sudoitir/artemis-studio/discussions/categories/ideas).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What can't you do today while operating Artemis?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What should Studio do? Note if it needs broker capabilities beyond Jolokia read (the Core client, notifications, extra permissions).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
