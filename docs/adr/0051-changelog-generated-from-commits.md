@@ -1,6 +1,6 @@
 # ADR-0051: The changelog is generated from commit messages, one file per release
 
-- **Status**: accepted
+- **Status**: accepted; per-release file superseded by [ADR-0129](0129-releases-tag-the-merge-commit-and-commit-nothing.md)
 - **Date**: 2026-09-06
 - **Deciders**: maintainer
 

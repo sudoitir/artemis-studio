@@ -141,8 +141,8 @@ Pull requests carry the verification: parallel, path-filtered jobs behind the on
 that changes a build input cuts a CalVer release to Docker Hub (image, git tag, GitHub
 pre-release), and Central and npm get it only when their inputs changed; docs-, site- and
 CI-only pushes release nothing (ADR-0088, ADR-0126). See `.claude/rules/10-release.md` for the versioning. There is no
-`CHANGELOG.md`: `changelog/` holds one generated file per version, and the commit
-message is the release note — `.claude/rules/05-commits.md` (Conventional Commits,
+`CHANGELOG.md`: each release's notes are its GitHub release body (tag only, nothing is
+committed; ADR-0129), and the commit message is the release note — `.claude/rules/05-commits.md` (Conventional Commits,
 ADR-0051). `just changelog` previews the pending release.
 
 ## Trademark

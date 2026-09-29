@@ -1,7 +1,7 @@
 # git-cliff — the changelog is generated from the commit history.
 #
-# Every released version gets its own file under `changelog/`, written by CI from
-# the commits between the previous tag and the one being cut. There is no
+# Every release's notes are rendered by CI from the commits between the previous tag
+# and the one being cut, and become its GitHub release body (ADR-0129). There is no
 # hand-maintained `[Unreleased]` section to merge into and no monolithic
 # `CHANGELOG.md`: the commit message IS the changelog entry, which is the only
 # version of the note that cannot drift from the change it describes.
@@ -10,8 +10,8 @@
 # .claude/rules/05-commits.md.
 
 [changelog]
-# Each generated file is one version's section, so it carries no preamble of its
-# own — `changelog/README.md` is the index that explains the scheme.
+# Each rendering is one version's section, so it carries no preamble of its own —
+# `changelog/README.md` is the index that explains the scheme.
 header = ""
 
 body = """

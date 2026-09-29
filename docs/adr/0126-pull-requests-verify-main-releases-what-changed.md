@@ -2,7 +2,7 @@
 
 - **Status**: accepted; supersedes in part [ADR-0088](0088-path-filtered-ci-and-releases.md)
   (the site's pull-request build and the release trigger's path list) and
-  [ADR-0124](0124-codeql-and-osv-scanner-run-in-ci.md) (OSV on every pull request)
+  [ADR-0124](0124-codeql-and-osv-scanner-run-in-ci.md) (OSV on every pull request); decision 5 superseded by [ADR-0129](0129-releases-tag-the-merge-commit-and-commit-nothing.md)
 - **Date**: 2026-09-29
 - **Deciders**: Mahdi Amirabdollahi
 

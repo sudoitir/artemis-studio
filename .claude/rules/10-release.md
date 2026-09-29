@@ -13,8 +13,8 @@ See [ADR-0042](../../docs/adr/0042-calver-releases-on-docker-hub.md) for why.
   highest `PATCH`, and the computed version is re-checked against that same pattern
   before anything is published. A tag of any other shape is ignored, not parsed.
 - A version tag is **immutable on Docker Hub**, so it is never reused: CI refuses to
-  release when the computed tag already exists on `origin`, and it commits, tags and
-  pushes — atomically — *before* pushing the image. A failure after that burns the
+  release when the computed tag already exists on `origin`, and it tags the merge commit
+  and pushes the tag *before* pushing the image. A failure after that burns the
   version number and the next push to `main` takes the following one. A gap in the
   sequence is expected and fine; a republished tag is not.
 - Do not tag manually and do not add a version-bump commit.
@@ -33,15 +33,17 @@ changelog. The path lists live in the `changes` job of `ci.yml`
 
 The `release` job in `.github/workflows/ci.yml` does all of it, with no manual step:
 
-- writes `changelog/<version>.md` from the commits in the release, commits
-  it, and creates the annotated git tag on that release commit. It pushes over SSH
-  with the `RELEASE_DEPLOY_KEY` deploy key, the ruleset's bypass actor; the workflow
-  token cannot push past the required check;
+- renders the release notes from the commits since the previous tag, then tags the
+  merge commit and pushes only the tag. It commits nothing, so `main` never moves on a
+  release and no open pull request falls behind because of one
+  ([ADR-0129](../../docs/adr/0129-releases-tag-the-merge-commit-and-commit-nothing.md));
 - pushes the image to Docker Hub — `sudoit1/artemis-studio`, `linux/amd64` +
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
-- creates a GitHub Release with that version's changelog file as the body and the
-  `artemis-studio-<version>.jar` + its `.sha256` attached.
+- creates a GitHub Release with the notes as its body and the
+  `artemis-studio-<version>.jar` + its `.sha256` attached, then dispatches `pages.yml`
+  so the site's changelog lists it (a release made with the workflow token triggers
+  no workflow on its own).
 
 After it, each registry gets the release only when its inputs changed since the newest
 version already there, so a failed publish is retried by the next release:
@@ -75,15 +77,18 @@ When the project cuts its first stable release, three edits flip the channel:
 
 ## Changelog
 
-`changelog/`, one file per released version, generated from the commit messages
-in that release. There is no `CHANGELOG.md` and no `## [Unreleased]` section.
+Each release's notes are its GitHub release body, generated from the commit messages
+in that release. `changelog/` keeps the files of the releases up to 2026.09.60 as the
+historical record, and the site's changelog lists every release: it fetches the notes
+of those without a file from GitHub Releases when it builds. There is no
+`CHANGELOG.md` and no `## [Unreleased]` section.
 
 - The obligation moved to the **commit message**: see
   [`05-commits.md`](05-commits.md) for the Conventional Commits format, which
   types produce an entry, and how a breaking change announces itself.
 - `just changelog` renders what the next release will say.
-- CI writes `changelog/<version>.md` with `git-cliff` (pinned in `cliff.toml` and
-  `.github/workflows/ci.yml`), splices `changelog/unreleased.md` if it exists,
-  refreshes `changelog/README.md`, and uses the same text as the GitHub release
-  body. Never hand-edit a released file — it is a historical record.
+- CI renders the notes with `git-cliff` (pinned in `cliff.toml` and
+  `.github/workflows/ci.yml`) and splices `changelog/unreleased.md` when it changed
+  since the previous release. Never hand-edit a released file or a release body — each
+  is a historical record.
 

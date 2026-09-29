@@ -296,6 +296,8 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - run: npm ci
       - run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
   # A pull request fails when it introduces a known vulnerability (ADR-0124). osv-scanner.yml
   # scans main and the whole tree weekly.
@@ -349,7 +351,7 @@ jobs:
 
   # A push to main that changes what the image is built from cuts a CalVer release.
   # A docs- or CI-only push releases nothing; its commits land in the next release's
-  # changelog. See .claude/rules/10-release.md, ADR-0088 and ADR-0126.
+  # notes. See .claude/rules/10-release.md, ADR-0088 and ADR-0126.
   release:
     needs: changes
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.release == 'true'
@@ -357,18 +359,19 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: write
+      # To rebuild the site's changelog once the release exists (ADR-0129).
+      actions: write
     outputs:
       version: ${{ steps.ver.outputs.version }}
     concurrency:
       group: release
       cancel-in-progress: false
     steps:
-      # The deploy key is the ruleset's bypass actor for the release commit and tag; the
-      # workflow token cannot push to a main that requires pull requests and status checks.
+      # The release tags the merge commit and commits nothing, so main never moves and no
+      # open pull request falls behind because of a release (ADR-0129).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       # Version = date + one past the highest PATCH already tagged this month.
       # Only tags matching the canonical CalVer shape are candidates, so a stray
@@ -417,51 +420,29 @@ jobs:
         with:
           node-version: "24"
 
-      # The changelog is generated from the commit messages in this release, one
-      # file per version. See ADR-0051 and .claude/rules/05-commits.md.
-      - name: Write the release's changelog entry
-        id: notes
+      # The release notes are generated from the commit messages since the previous tag and
+      # become the GitHub release body, their one home (ADR-0051, ADR-0129).
+      - name: Write the release notes
         run: |
           set -euo pipefail
           V=${{ steps.ver.outputs.version }}
-          npx -y "$GIT_CLIFF" --config cliff.toml --unreleased --tag "$V" -o "changelog/$V.md"
-          python3 scripts/release-notes.py "$V"
-          python3 scripts/changelog-index.py
+          npx -y "$GIT_CLIFF" --config cliff.toml --unreleased --tag "$V" -o "$RUNNER_TEMP/cliff.md"
+          python3 scripts/release-notes.py "$RUNNER_TEMP/cliff.md" release-notes.md
           echo "→ release body:"; cat release-notes.md
 
-      # Reserve the version in git BEFORE anything immutable is published. If the
-      # image push were first and this step then failed, the next run would compute
-      # the same version and overwrite an already-published Docker Hub tag. Burning
-      # a version number on a later failure is the cheaper outcome. The push is
-      # atomic so main can never carry a release commit without its tag.
-      - name: Commit and tag
+      # Reserve the version BEFORE anything immutable is published. If the image push were
+      # first and this step then failed, the next run would compute the same version and
+      # overwrite an already-published Docker Hub tag. Burning a version number on a later
+      # failure is the cheaper outcome. Only the tag is pushed: tags are outside the main
+      # ruleset, and the tagged commit is the merge commit CI verified.
+      - name: Tag the release
         run: |
           set -euo pipefail
           V=${{ steps.ver.outputs.version }}
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add changelog
-          git commit -m "Release $V [skip ci]"
-          git tag -a "$V" -m "Release $V"
-          # Another pull request can merge while this run builds. When what landed is no image
-          # input (docs, the site, OpenSpec), the release commit moves on top of it and the push is
-          # tried again: the image built here is still exactly what the tag names. When it is an
-          # image input, that push's own run releases everything, and this one stops without
-          # having published anything.
-          # The paths are the `release` filter's: a CI- or Docker Hub description-only merge releases
-          # nothing of its own, so it does not stop this one either.
-          for _ in 1 2 3 4 5; do
-            git push --atomic origin HEAD:main "refs/tags/$V" && exit 0
-            git fetch -q origin main
-            if git diff --name-only "${{ github.sha }}" origin/main -- src pom.xml mvnw .mvn web \
-                Dockerfile .dockerignore | grep -q .; then
-              echo "::error::main gained image inputs since this run started; the run for that push releases them."
-              exit 1
-            fi
-            git rebase -q origin/main
-            git tag -f -a "$V" -m "Release $V"
-          done
-          exit 1
+          git tag -a "$V" -m "Release $V" "${{ github.sha }}"
+          git push origin "refs/tags/$V"
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -510,6 +491,13 @@ jobs:
           files: |
             artemis-studio-${{ steps.ver.outputs.version }}.jar
             artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
+
+      # A release made with the workflow token triggers no workflow, so the site that lists the
+      # release notes is rebuilt explicitly.
+      - name: Rebuild the site's changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
 
   # The Docker Hub landing page, whenever its source changes; no release needed for that. The
   # credential needs read, write AND delete scope: the description API rejects a repo-scoped PAT.
