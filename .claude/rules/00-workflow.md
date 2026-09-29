@@ -2,11 +2,12 @@
 
 ## OpenSpec for every feature
 
-No feature or behaviour change is implemented without an approved OpenSpec change.
+No feature or behaviour change is implemented without an OpenSpec change. A change runs
+from propose to merged PR in one go, with no pause for review (`openspec-git-discipline`).
 
 1. `/opsx:propose` — create `openspec/changes/<name>/` with `proposal.md`,
    `tasks.md`, `design.md` (when it has design weight), and `specs/` deltas.
-2. `/opsx:apply` — implement the checklist in `tasks.md`.
+2. `/opsx:apply` — implement the checklist in `tasks.md`, straight after propose.
 3. `/opsx:archive` — move the change to `openspec/changes/archive/` and merge its
    deltas into `openspec/specs/`.
 
