@@ -385,6 +385,7 @@ jobs:
             -DoutputDirectory="$RUNNER_TEMP" -Dmdep.stripVersion=true
           CLI="java -jar $RUNNER_TEMP/org.jacoco.cli-nodeps.jar"
           $CLI merge "$RUNNER_TEMP"/jacoco/*/jacoco.exec --destfile target/jacoco.exec
+          mkdir -p target/site/jacoco
           $CLI report target/jacoco.exec --classfiles target/classes --sourcefiles src/main/java \
             --html target/site/jacoco --csv target/site/jacoco/jacoco.csv --name "Artemis Studio"
       - name: Coverage summary
