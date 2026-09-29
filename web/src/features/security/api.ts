@@ -6,6 +6,7 @@ type Schemas = components["schemas"];
 
 export type CreateUserRequest = Schemas["CreateUserRequest"];
 export type DefaultRoleRequest = Schemas["DefaultRoleRequest"];
+export type EffectivePermissionView = Schemas["EffectivePermissionView"];
 export type GrantRequest = Schemas["GrantRequest"];
 export type GroupMappingRequest = Schemas["GroupMappingRequest"];
 export type GroupMappingView = Schemas["GroupMappingView"];
@@ -21,6 +22,7 @@ export const keys = {
   permissions: ['permissions'] as const,
   roles: ['roles'] as const,
   users: ['users'] as const,
+  effectivePermissions: (userId: string) => ['users', userId, 'effective-permissions'] as const,
 };
 
 export function useUsers(enabled = true): UseQueryResult<UserView[], ApiError> {
@@ -28,6 +30,14 @@ export function useUsers(enabled = true): UseQueryResult<UserView[], ApiError> {
     queryKey: keys.users,
     queryFn: () => request<UserView[]>("/users"),
     enabled,
+  });
+}
+
+export function useEffectivePermissions(userId: string | null): UseQueryResult<EffectivePermissionView[], ApiError> {
+  return useQuery({
+    queryKey: keys.effectivePermissions(userId ?? ''),
+    queryFn: () => request<EffectivePermissionView[]>(`/users/${userId}/effective-permissions`),
+    enabled: userId !== null,
   });
 }
 

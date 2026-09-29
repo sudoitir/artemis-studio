@@ -13,9 +13,9 @@ public final class ClustersModule {
             .kind(FeatureDescriptor.Kind.PLATFORM)
             .required(true)
             .permission(new PermissionDef(ClusterPermissions.CLUSTER_WRITE, "Register or remove clusters"))
-            .permission(new PermissionDef(ClusterPermissions.ENVIRONMENT_READ, "View environments"))
-            .permission(
-                    new PermissionDef(ClusterPermissions.ENVIRONMENT_WRITE, "Create, rename, or remove environments"))
+            .permission(new PermissionDef(ClusterPermissions.ENVIRONMENT_READ, "View environments", true))
+            .permission(new PermissionDef(
+                    ClusterPermissions.ENVIRONMENT_WRITE, "Create, rename, or remove environments", true))
             .streamTopic(TopicDef.signal("topology"))
             .streamTopic(TopicDef.signal("health"))
             .build();

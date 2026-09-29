@@ -189,7 +189,7 @@ public class FeatureRegistry implements PluginBridge {
                 .required(false)
                 .requires(d.requires())
                 .permissions(d.permissions().stream()
-                        .map(p -> new PermissionDef(p.action(), p.description()))
+                        .map(p -> new PermissionDef(p.action(), p.description(), p.isGlobalOnly()))
                         .toList())
                 .settingKeys(d.settingKeys())
                 .streamTopics(d.streamTopics().stream().map(TopicDef::signal).toList())
@@ -225,11 +225,20 @@ public class FeatureRegistry implements PluginBridge {
         return List.copyOf(byId.values());
     }
 
-    /** Every currently active plugin's namespaced {@link FeatureDescriptor} (task 6.9's manifest
-     * reads this for the permission catalogue, which — like this list — reflects active plugins
-     * only: a plugin's entry exists here only between {@link #addPlugin} and {@link #removePlugin}). */
+    /** Every currently active plugin's namespaced {@link FeatureDescriptor}: a plugin's entry exists
+     * here only between {@link #addPlugin} and {@link #removePlugin}. */
     public List<FeatureDescriptor> plugins() {
         return List.copyOf(plugins.values());
+    }
+
+    /**
+     * The permission catalogue: the enabled modules' permissions, then every active plugin's. The
+     * one source for every reader (role editor, API-key picker, manifest), so they cannot drift.
+     */
+    public List<CatalogueEntry> catalogue() {
+        return java.util.stream.Stream.concat(enabled().stream(), plugins.values().stream())
+                .flatMap(d -> d.permissions().stream().map(p -> CatalogueEntry.of(d, p)))
+                .toList();
     }
 
     public List<FeatureDescriptor> enabled() {

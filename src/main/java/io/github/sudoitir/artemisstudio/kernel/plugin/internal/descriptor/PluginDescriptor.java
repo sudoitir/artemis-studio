@@ -47,7 +47,13 @@ public record PluginDescriptor(
 
     public record Studio(String since, String until) {}
 
-    public record Permission(String action, String description) {}
+    /** @param globalOnly checked without a cluster, so only a global grant makes it take effect */
+    public record Permission(String action, String description, Boolean globalOnly) {
+
+        public boolean isGlobalOnly() {
+            return Boolean.TRUE.equals(globalOnly);
+        }
+    }
 
     /**
      * An assistant tool the plugin registers. Studio checks {@code permission} before the tool runs:

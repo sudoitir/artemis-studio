@@ -58,7 +58,11 @@
         "required": ["action", "description"],
         "properties": {
           "action": { "type": "string", "description": "Namespaced <id>:<action>." },
-          "description": { "type": "string" }
+          "description": { "type": "string" },
+          "globalOnly": {
+            "type": "boolean",
+            "description": "True when the plugin checks it without a cluster, so only a global grant makes it take effect. Defaults to false."
+          }
         }
       }
     },

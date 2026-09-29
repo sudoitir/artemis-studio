@@ -14,9 +14,11 @@ public final class GovernanceModule {
             .permission(new PermissionDef(
                     GovernancePermissions.MESSAGE_CLEAR, "See sensitive message values in clear (never credentials)"))
             .permission(new PermissionDef(
-                    GovernancePermissions.GOVERNANCE_READ, "View masking rules and the classification inbox"))
+                    GovernancePermissions.GOVERNANCE_READ, "View masking rules and the classification inbox", true))
             .permission(new PermissionDef(
-                    GovernancePermissions.GOVERNANCE_WRITE, "Change masking rules and confirm or dismiss findings"))
+                    GovernancePermissions.GOVERNANCE_WRITE,
+                    "Change masking rules and confirm or dismiss findings",
+                    true))
             .settingKey(GovernanceSettings.SCAN_LIMIT)
             .apiPrefix("/api/v1/governance")
             .build();

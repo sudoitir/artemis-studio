@@ -49,9 +49,9 @@ public class RoleService {
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     public List<PermissionView> catalogue() {
-        return features.enabled().stream()
-                .flatMap(d -> d.permissions().stream())
-                .map(p -> new PermissionView(p.action(), p.label()))
+        return features.catalogue().stream()
+                .map(e -> new PermissionView(
+                        e.action(), e.description(), e.featureId(), e.featureTitle(), e.globalOnly()))
                 .toList();
     }
 

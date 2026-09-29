@@ -12,10 +12,12 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.artemisstudio.support.McpFixture;
@@ -82,6 +84,9 @@ class PluginBridgesIT extends PostgresIntegrationTest {
 
     @Autowired
     CoreEventPluginBridge coreEventBridge;
+
+    @Autowired
+    RoleService roleService;
 
     private PluginRuntime activeRuntime;
 
@@ -253,6 +258,37 @@ class PluginBridgesIT extends PostgresIntegrationTest {
 
         JsonNode listedAfter = McpFixture.rpc(mvc, key, "tools/list", null);
         assertThat(listedAfter.path("result").path("tools").toString()).doesNotContain(toolName);
+    }
+
+    @Test
+    void anActivePluginsPermissionsAreInTheRoleCatalogueAndLeaveItOnDeactivation() throws Exception {
+        String id = "acme-bridges-" + Math.abs(new SecureRandom().nextInt());
+        Path jar = bridgesJar(id).build();
+        activeRuntime = runtimeFactory.activate(descriptorOf(jar), jar, webContext.getServletContext());
+        registry.set(id, new PluginRuntimeRegistry.Active(activeRuntime));
+        administrate();
+
+        assertThat(roleService.catalogue())
+                .filteredOn(p -> p.action().equals(id + ":read"))
+                .singleElement()
+                .satisfies(p -> {
+                    assertThat(p.featureId()).isEqualTo(id);
+                    assertThat(p.globalOnly()).isFalse();
+                });
+        UUID roleId = roleService
+                .create(new UserViews.RoleRequest("role-" + id, List.of(id + ":read")))
+                .id();
+
+        activeRuntime.close();
+        registry.remove(id);
+        activeRuntime = null;
+
+        assertThat(roleService.catalogue()).noneMatch(p -> p.action().equals(id + ":read"));
+        assertThat(roleService.list())
+                .filteredOn(r -> r.id().equals(roleId))
+                .singleElement()
+                .satisfies(r -> assertThat(r.permissions()).containsExactly(id + ":read"));
+        roleService.delete(roleId);
     }
 
     @Test

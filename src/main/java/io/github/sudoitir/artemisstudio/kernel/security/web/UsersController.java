@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
+import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.CreateUserRequest;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.EffectivePermissionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.SetDisabledRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
@@ -28,6 +30,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsersController {
 
     private final UserService users;
+    private final EffectiveAccess effectivePermissions;
+
+    @GetMapping("/{userId}/effective-permissions")
+    public List<EffectivePermissionView> effectivePermissions(@PathVariable UUID userId) {
+        return effectivePermissions.of(userId);
+    }
 
     @GetMapping
     public List<UserView> list() {

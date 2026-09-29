@@ -12,7 +12,7 @@ public final class SecurityModule {
             .kind(FeatureDescriptor.Kind.KERNEL)
             .required(true)
             .permission(new PermissionDef(Permissions.CLUSTER_READ, "View clusters and topology"))
-            .permission(new PermissionDef(Permissions.USER_ADMIN, "Manage users, roles, and grants"))
+            .permission(new PermissionDef(Permissions.USER_ADMIN, "Manage users, roles, and grants", true))
             .build();
 
     private SecurityModule() {}

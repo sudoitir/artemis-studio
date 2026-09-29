@@ -14,7 +14,7 @@ public final class SettingsModule {
             .title("Settings")
             .kind(FeatureDescriptor.Kind.KERNEL)
             .required(true)
-            .permission(new PermissionDef(SettingsPermissions.SETTINGS_READ, "View operational settings"))
+            .permission(new PermissionDef(SettingsPermissions.SETTINGS_READ, "View operational settings", true))
             .permission(new PermissionDef(
                     SettingsPermissions.SETTINGS_WRITE, "Change operational settings and rotate credentials"))
             .mcpTool(new McpToolDef(
