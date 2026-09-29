@@ -4,6 +4,9 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.plugin.StudioVersion;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +37,19 @@ public class StudioInfo {
             return Optional.empty();
         }
         return clusters.cluster(clusterId).map(RegisteredCluster::getName);
+    }
+
+    /**
+     * The clusters the current caller holds {@code cluster:read} on, by id, with their display
+     * names, ordered by name. Names are not unique, so a plugin that accepts a name must say when
+     * it matches more than one cluster.
+     */
+    public Map<UUID, String> clusters() {
+        Map<UUID, String> visible = new LinkedHashMap<>();
+        clusters.clusters().stream()
+                .filter(c -> perm.can(c.getId(), Permissions.CLUSTER_READ))
+                .sorted(Comparator.comparing(RegisteredCluster::getName, String.CASE_INSENSITIVE_ORDER))
+                .forEach(c -> visible.put(c.getId(), c.getName()));
+        return visible;
     }
 }

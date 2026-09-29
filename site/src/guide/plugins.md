@@ -411,6 +411,9 @@ exports:
 - `version()` is the running version, such as `2026.10.1`, and is empty for a development build.
 - `clusterName(clusterId)` is the cluster's display name. It is empty when the current caller holds
   no `cluster:read` on that cluster, exactly as for an id that does not exist.
+- `clusters()` maps the id of every cluster the current caller holds `cluster:read` on to its
+  display name, ordered by name. Use it to let a document name clusters and store their ids. Names
+  are not unique, so say so when a name matches more than one.
 
 **The SDK's UI components** are the ones Studio's own screens use:
 
