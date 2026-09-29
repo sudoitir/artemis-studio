@@ -15,7 +15,3 @@ labels: enhancement
      Jolokia read (Core client, notifications, extra permissions). -->
 
 **Alternatives / workarounds**
-
-**Roadmap fit**
-
-<!-- Does this fit the Roadmap in README.md (v1.0 / Beyond), or is it new? -->

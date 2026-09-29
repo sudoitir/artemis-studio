@@ -11,8 +11,19 @@ from propose to merged PR in one go, with no pause for review (`openspec-git-dis
 3. `/opsx:archive` — move the change to `openspec/changes/archive/` and merge its
    deltas into `openspec/specs/`.
 
-`openspec/specs/` is the living source of truth. `openspec/changes/` is in-flight
-work only — one change at a time. `/opsx:explore` is for no-stakes thinking first.
+`openspec/specs/` is the living source of truth. `openspec/changes/` holds in-flight
+work and the queue of planned work. `/opsx:explore` is for no-stakes thinking first.
+
+## Numbered changes
+
+Planned work is queued in `openspec/changes/` as **numbered, requirements-only** changes,
+`NN-<slug>`. The number is the run order. A change added between two existing ones takes a
+letter suffix (`08b-<slug>`), so numbers never shift. A queued change states what and why,
+not how. Each one runs in its own fresh session, following the "How to run this change"
+block in its proposal: brainstorm, `/opsx:update` (design, sharpened specs, real tasks),
+`/opsx:apply` with the harness its **Execution** line names, verify, merge, archive. Only
+one change is applied at a time. Unplanned work (a bug fix that grows into a feature, for
+example) gets a plain `<slug>` name.
 
 Bug fixes and pure refactors do not need a proposal. Anything that changes what
 the product does, does.

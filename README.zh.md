@@ -18,8 +18,7 @@
 [**文档**](https://sudoitir.github.io/artemis-studio/zh/) ·
 [快速开始](https://sudoitir.github.io/artemis-studio/zh/guide/quickstart) ·
 [SQL 控制台](https://sudoitir.github.io/artemis-studio/zh/guide/sql-console) ·
-[MCP](https://sudoitir.github.io/artemis-studio/zh/guide/mcp) ·
-[路线图](README.md#roadmap)
+[MCP](https://sudoitir.github.io/artemis-studio/zh/guide/mcp)
 
 </div>
 
@@ -124,10 +123,6 @@ Java 25 · Spring Boot 4.1 · PostgreSQL + Liquibase · React 19 + Vite + Mantin
 ## 版本发布
 
 每次推送到 `main` 都会自动发布一个版本。版本号采用 CalVer（`YYYY.MM.PATCH`），Docker Hub 上同时打三个标签：`2026.09.3`（固定不变）、`2026.09`（当月最新）和 `dev`（总是最新）。首个稳定版之前不提供 `:latest`。每个版本都附带可直接运行的 jar 及其 `.sha256`，发布说明由提交信息自动生成（见 [`changelog/`](changelog/)）。
-
-## 路线图
-
-完整的路线图见[英文 README](README.md#roadmap)。
 
 ## 许可证
 

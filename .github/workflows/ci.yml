@@ -370,7 +370,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
           # Its own file, not README.md: the repository landing page carries a
-          # roadmap, contributing notes and a trademark section that mean nothing
+          # contributing notes and a trademark section that mean nothing
           # to someone reading a tag list.
           readme-filepath: docs/dockerhub.md
           short-description: Cluster-wide management and observability for Apache ActiveMQ Artemis

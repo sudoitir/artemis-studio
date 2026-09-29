@@ -14,8 +14,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * probe, cluster registration and topology discovery, HA / split-brain
  * detection, cross-node views over SSE, message operations with audit, the Core
  * client and request-reply tracing, metrics and charts, alerting, and
- * governance (auth, RBAC, environments). Remaining work is the Roadmap in
- * {@code README.md}; the living specs are under {@code openspec/}.
+ * governance (auth, RBAC, environments). Planned work is queued as numbered
+ * changes in {@code openspec/changes/}; the living specs are under {@code openspec/specs/}.
  */
 @SpringBootApplication(
         scanBasePackages = {

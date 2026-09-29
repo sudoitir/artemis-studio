@@ -18,8 +18,7 @@
 [**مستندات**](https://sudoitir.github.io/artemis-studio/fa/) ·
 [شروع سریع](https://sudoitir.github.io/artemis-studio/fa/guide/quickstart) ·
 [کنسول SQL](https://sudoitir.github.io/artemis-studio/fa/guide/sql-console) ·
-[MCP](https://sudoitir.github.io/artemis-studio/fa/guide/mcp) ·
-[نقشهٔ راه](README.md#roadmap)
+[MCP](https://sudoitir.github.io/artemis-studio/fa/guide/mcp)
 
 </div>
 
@@ -146,10 +145,6 @@ Java 25 · Spring Boot 4.1 · PostgreSQL با Liquibase · React 19 + Vite + Man
 ## انتشار نسخه‌ها
 
 هر push به `main` یک نسخهٔ جدید منتشر می‌کند. شمارهٔ نسخه به شکل CalVer (`YYYY.MM.PATCH`) است و روی Docker Hub سه تگ می‌گیرد: `2026.09.3` (ثابت و تغییرناپذیر)، `2026.09` (آخرین نسخهٔ همان ماه) و `dev` (همیشه آخرین نسخه). تا اولین نسخهٔ پایدار، تگ `:latest` نداریم. فایل jar قابل‌اجرا همراه `.sha256` به هر نسخه پیوست می‌شود و یادداشت‌های انتشار از پیام‌های commit ساخته می‌شوند ([`changelog/`](changelog/)).
-
-## نقشهٔ راه
-
-نقشهٔ راه کامل را در [README انگلیسی](README.md#roadmap) ببینید.
 
 ## مجوز
 
