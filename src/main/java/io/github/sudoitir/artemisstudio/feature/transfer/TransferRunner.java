@@ -215,7 +215,9 @@ class TransferRunner {
                 int batch = settings.intValue(TransferSettings.BATCH_SIZE);
                 JolokiaBrokerClient source = nodes.client(s.source);
                 // The larger of what the broker counts in staging and what the run has put there and not
-                // yet delivered: the bound holds even when either is off for a moment.
+                // yet delivered: the bound holds even when either is off for a moment. The bound is on
+                // held(): it never exceeds twice the batch. The broker's count can read higher for an
+                // instant, because it double-counts messages moving to the relay's consumer (issue #75).
                 long depth = Math.max(messages.messageCount(source, s.stagingMbean(source)), held(s.run));
                 if (!exhausted && depth < 2L * batch) {
                     exhausted = refill(s, source, (int) (2L * batch - depth), stagingQueue);
