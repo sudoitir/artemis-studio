@@ -31,15 +31,8 @@ beyond enabling those endpoints.
 
 ## Roadmap
 
-The Roadmap in `README.md`. Current phase: 8 complete
-(governance — session-cookie auth for the browser and API tokens for
-automation, both landing on one `StudioPrincipal` shape; a fully dynamic
-`resource:verb` permission model resolved once per request via a
-cluster→environment→global scope walk; environments as a first-class
-grouping; optional OIDC/SSO with JIT provisioning and claim→role mapping
-re-applied every login; a reworked audit actor carrying real identity and
-token attribution — ADR-0037 through ADR-0041, superseding ADR-0023);
-v1.0 (hardening and reach) next.
+Planned work is queued as numbered, requirements-only changes in `openspec/changes/`
+(`NN-<slug>`), run in number order, one at a time.
 
 ## How to work a change
 

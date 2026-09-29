@@ -26,8 +26,7 @@ safe message operations, and SQL over your messages — all from a single instan
 [Quickstart](https://sudoitir.github.io/artemis-studio/guide/quickstart) ·
 [Flow](https://sudoitir.github.io/artemis-studio/guide/flow) ·
 [SQL Console](https://sudoitir.github.io/artemis-studio/guide/sql-console) ·
-[MCP](https://sudoitir.github.io/artemis-studio/guide/mcp) ·
-[Roadmap](#roadmap)
+[MCP](https://sudoitir.github.io/artemis-studio/guide/mcp)
 
 </div>
 
@@ -218,35 +217,6 @@ tagged three ways on Docker Hub: `2026.09.3` (immutable), `2026.09` (that month)
 `dev` (the latest). There is no `:latest` until the first stable release. Each
 release attaches the runnable jar with its `.sha256`, and its notes are generated
 from the commit messages ([`changelog/`](changelog/)).
-
-## Roadmap
-
-|     |                                                                                                                                                                                                  |
-|-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [x] | **A · Improve CI/CD:** Optimize CI/CD so source changes trigger image publishing, site changes trigger site deployment, and relevant checks run only when needed.                                |
-| [x] | **A · Cross-broker message transfer:** move messages between queues on different brokers, forced redistribution of specific messages, and arbitrary queue-to-queue transfers across remote nodes |
-| [x] | **A · Alert delivery:** webhook, email, Slack/Teams, and PagerDuty-compatible webhook channels                                                                                                   |
-| [ ] | **A · Observability export:** OpenTelemetry metrics                                                                                                                                              |
-| [ ] | **A · Message lineage:** track messages across queues, diverts, bridges, DLQs, and captured payloads                                                                                             |
-| [x] | **A · Consumer health:** depth trends, consumption velocity, and slow-consumer root-cause context                                                                                                |
-| [ ] | **B · CLI:** automation for clusters, queues, SQL queries, message operations, and API tokens                                                                                                    |
-| [ ] | **B · Saved views:** shareable views with role visibility and cluster-scoped defaults                                                                                                            |
-| [x] | **B · Routing builder:** visual builder for diverts, bridges, and transformers                                                                                                                   |
-| [x] | **B · Bulk operations:** multi-queue operations with dry-run, capped execution, typed confirmation, and audit                                                                                    |
-| [x] | **B · Operator UX:** row context menus, navigation enhancements, and flow-split monitoring views                                                                                                 |
-| [ ] | **B · Performance hardening:** SQL pushdown, SSE backpressure, virtualized grids, batched broker calls, and retention tuning                                                                     |
-| [ ] | **C · Compliance tooling:** content/PII search and predicate-based message deletion with audit                                                                                                   |
-| [ ] | **C · SLA tracking:** queue depth, request-reply latency, and consumption-violation tracking                                                                                                     |
-| [ ] | **C · Environment promotion:** compare and promote queues, addresses, and routing definitions across environments                                                                                |
-| [ ] | **C · Static configuration verification:** compare the parts of `broker.xml` the management API cannot apply — `global-max-size`, `<ha-policy>`, acceptors — against a declared expectation      |
-| [ ] | **C · Capacity forecasting:** predict queue growth and broker pressure from metric history                                                                                                       |
-| [ ] | **C · Audit export:** filtered audit-trail export and retention controls                                                                                                                         |
-| [ ] | **D · SQL processors:** filter and transform, aggregation; joins only if a safe Artemis model is proven                                                                                          |
-| [ ] | **D · Message replay:** replay captured payloads as single, batch, or transformed messages                                                                                                       |
-| [ ] | **D · ArkMQ operator:** Kubernetes-native cluster discovery and registration                                                                                                                     |
-| [ ] | **E · Schema detection:** message schema inference and payload structure catalog                                                                                                                 |
-| [ ] | **E · Scheduled reports:** CSV/JSON reports with distribution lists and alert-attached reports                                                                                                   |
-| [ ] | **E · Claude Plugin:** Code plugin with skills and MCP to assist in developing Artemis-based applications                                                                                        |
 
 ## Licence
 
