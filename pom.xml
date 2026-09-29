@@ -46,10 +46,11 @@
              (GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6, GHSA-h3x4-894j-xpx5). Drop once the
              Boot BOM manages 11.0.25 or later; OSV-Scanner in CI flags any regression. -->
         <tomcat.version>11.0.25</tomcat.version>
-        <!-- Above Spring Boot 4.1.1's managed Jackson 3.1.5, which carries three advisories
+        <!-- Above Spring Boot 4.1.1's managed Jackson 3.1.5 and 2.21.5, which carry three advisories
              (GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf). Drop once the Boot BOM
-             manages 3.1.6 or later. -->
+             manages 3.1.6 and 2.21.6 or later. -->
         <jackson-bom.version>3.1.6</jackson-bom.version>
+        <jackson-2-bom.version>2.21.6</jackson-2-bom.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 

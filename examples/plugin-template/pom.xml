@@ -51,6 +51,22 @@
                 <version>${tomcat.version}</version>
             </dependency>
             <!-- Studio's own dependency versions: the plugin runs on these. -->
+            <!-- Above the Spring Boot BOM's Jackson 3.1.5 and 2.21.5 (three advisories), matching
+                 Studio; imported first so they win. -->
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>3.1.6</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>2.21.6</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
