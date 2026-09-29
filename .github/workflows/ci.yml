@@ -307,7 +307,23 @@ jobs:
           git add changelog
           git commit -m "Release $V [skip ci]"
           git tag -a "$V" -m "Release $V"
-          git push --atomic origin HEAD:main "refs/tags/$V"
+          # Another pull request can merge while this run builds. When what landed is no image
+          # input (docs, the site, OpenSpec), the release commit moves on top of it and the push is
+          # tried again: the image built here is still exactly what the tag names. When it is an
+          # image input, that push's own run releases everything, and this one stops without
+          # having published anything.
+          for attempt in 1 2 3 4 5; do
+            git push --atomic origin HEAD:main "refs/tags/$V" && exit 0
+            git fetch -q origin main
+            if git diff --name-only "${{ github.sha }}" origin/main -- src pom.xml mvnw .mvn web \
+                Dockerfile .dockerignore docs/dockerhub.md .github/workflows/ci.yml | grep -q .; then
+              echo "::error::main gained image inputs since this run started; the run for that push releases them."
+              exit 1
+            fi
+            git rebase -q origin/main
+            git tag -f -a "$V" -m "Release $V"
+          done
+          exit 1
 
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
