@@ -18,11 +18,14 @@ import org.springframework.stereotype.Repository;
  *
  * <p>A gauge (point-in-time quantity, e.g. {@code messageCount}) is averaged per
  * bucket with its maximum reported as a peak. A counter (broker-lifetime monotonic,
- * e.g. {@code messagesAdded}) is converted to a per-second rate from the change in
- * value across the bucket, computed per subject first and summed — collapsing
- * multiple queues' independent counters into one cluster-wide max/min would produce
- * a meaningless number. {@code GREATEST(..., 0)} clamps a broker-restart counter
- * reset to zero rather than a negative spike.
+ * e.g. {@code messagesAdded}) is converted to a per-second rate: each sample's increase
+ * over the same subject's previous sample on the same node ({@code lag()}), summed into
+ * the bucket the sample falls in. Taking the delta from the previous sample, not from
+ * the first sample inside the bucket, counts what was added between two buckets too, so
+ * a bucket holding a single sample still reads the traffic (issue #73). Computed per
+ * subject and node first — one queue's independent counters on several nodes would
+ * make a meaningless cluster-wide difference. {@code GREATEST(..., 0)} clamps a
+ * broker-restart counter reset to zero rather than a negative spike.
  */
 @Repository
 @RequiredArgsConstructor
@@ -34,6 +37,7 @@ public class MetricSamples {
     public record NodeBucket(UUID nodeId, Instant ts, double value, Double peak) {}
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final io.github.sudoitir.artemisstudio.kernel.settings.SettingsService settings;
 
     /**
      * A subject's counter rate between its oldest and newest sample in a window.
@@ -222,22 +226,43 @@ public class MetricSamples {
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
         String sql = """
                 SELECT bucket, sum(delta) / :stepSeconds AS v
-                  FROM (
-                    SELECT date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
-                           GREATEST(max(value) - min(value), 0) AS delta
+                  FROM (%s) deltas
+                 GROUP BY bucket ORDER BY bucket
+                """.formatted(DELTAS);
+        return jdbc.query(
+                sql,
+                rateParams(clusterId, metric, subjectName, from, to, step),
+                (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
+    }
+
+    /**
+     * Each counter sample's increase over its subject's previous sample on the same node, with the
+     * bucket it falls in. The previous sample may predate {@code :from}, so rows are read from
+     * {@code :lookbackFrom}; a sample with no predecessor there has no delta and counts nothing.
+     */
+    private static final String DELTAS = """
+            SELECT node_id, bucket, GREATEST(value - previous, 0) AS delta
+              FROM (SELECT node_id, ts, value,
+                           date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
+                           lag(value) OVER (PARTITION BY subject_name, node_id ORDER BY ts) AS previous
                       FROM metric_sample
                      WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
                        AND (:subjectName::text IS NULL OR subject_name = :subjectName)
-                       AND ts >= :from AND ts < :to
-                     -- Per node too: the same queue on two nodes is two unrelated lifetime counters.
-                     GROUP BY bucket, subject_name, node_id
-                  ) delta_per_subject
-                 GROUP BY bucket ORDER BY bucket
-                """;
-        return jdbc.query(
-                sql,
-                params(clusterId, metric, subjectName, from, to, step),
-                (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
+                       AND ts >= :lookbackFrom AND ts < :to) samples
+             -- Tested before the clamp: GREATEST skips NULLs, so it would read "no predecessor" as 0.
+             WHERE ts >= :from AND previous IS NOT NULL
+            """;
+
+    /**
+     * {@link #params} plus how far before {@code from} a counter's previous sample is looked for:
+     * two slow-tier intervals, so a queue on the slowest sweep still finds its last sample after
+     * one missed scrape.
+     */
+    private MapSqlParameterSource rateParams(
+            UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        Duration lookback = settings.duration(ScrapeSettings.TIER_C).multipliedBy(2);
+        return params(clusterId, metric, subjectName, from, to, step)
+                .addValue("lookbackFrom", Timestamp.from(from.minus(lookback)));
     }
 
     /**
@@ -275,21 +300,12 @@ public class MetricSamples {
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
         String sql = """
                 SELECT node_id, bucket, sum(delta) / :stepSeconds AS v
-                  FROM (
-                    SELECT node_id,
-                           date_bin(make_interval(secs => :stepSeconds), ts, TIMESTAMPTZ '2000-01-01') AS bucket,
-                           GREATEST(max(value) - min(value), 0) AS delta
-                      FROM metric_sample
-                     WHERE cluster_id = :clusterId AND subject_type = 'QUEUE' AND metric = :metric
-                       AND subject_name = :subjectName
-                       AND ts >= :from AND ts < :to
-                     GROUP BY node_id, bucket
-                  ) delta_per_node
+                  FROM (%s) deltas
                  GROUP BY node_id, bucket ORDER BY node_id, bucket
-                """;
+                """.formatted(DELTAS);
         return jdbc.query(
                 sql,
-                params(clusterId, metric, subjectName, from, to, step),
+                rateParams(clusterId, metric, subjectName, from, to, step),
                 (rs, i) -> new NodeBucket(
                         rs.getObject("node_id", UUID.class),
                         rs.getTimestamp("bucket").toInstant(),
