@@ -38,7 +38,11 @@ just fmt        # Palantir Java Format (Spotless) + eslint --fix
 ## Pull requests
 
 - One logical change per PR. Reference the issue and any ADR/OpenSpec change.
-- `just verify` green.
+- `just verify` green locally. On the PR, CI runs only the checks your change
+  touches, in parallel: backend (three shards), frontend, the plugin template end to
+  end, the image, the site, OSV for changed manifests and actionlint for changed
+  workflows. The one required check is `ci-ok`, and the branch must be up to date
+  with `main`. After the merge, `main` releases without re-testing (ADR-0126).
 - New behaviour comes with a test at the user's altitude (Testing Library by
   role, MSW for the network; integration tests against the dev broker pair for
   backend broker code).

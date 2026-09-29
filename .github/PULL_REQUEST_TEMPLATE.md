@@ -8,7 +8,8 @@ Closes #
 
 ## Checklist
 
-- [ ] `just verify` is green
+<!-- CI checks formatting, tests, the image, the site and new vulnerabilities; these it cannot. -->
+
 - [ ] Commit subject follows Conventional Commits, and the body is written for
       someone upgrading — it is published as the release note (`just changelog`)
 - [ ] Behaviour change went through OpenSpec (`openspec/changes/...`), or this is

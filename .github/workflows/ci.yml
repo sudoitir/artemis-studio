@@ -1,5 +1,8 @@
 name: CI
 
+# Pull requests carry the whole verification; main only releases (ADR-0126). The ruleset requires
+# `ci-ok` on a branch that is up to date with main, so the merge commit is the commit CI tested.
+# This file's name is load-bearing: npm trusted publishing is bound to `ci.yml`.
 on:
   push:
     branches: [main]
@@ -23,29 +26,43 @@ env:
   GIT_CLIFF: git-cliff@2.13.1
 
 jobs:
-  # Which parts of the tree this push or PR touches (ADR-0088). A push compares
-  # against the commit before it, a PR against its base. Every later job keys off
-  # these outputs, so a docs- or site-only change runs nothing here and releases
-  # nothing; pages.yml owns the site.
+  # Which parts of the tree this push or PR touches (ADR-0088, ADR-0126). A push compares
+  # against the commit before it, a PR against its base. Every later job keys off these outputs.
   changes:
     runs-on: ubuntu-26.04
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       web: ${{ steps.filter.outputs.web }}
-      image: ${{ steps.filter.outputs.image }}
       plugin: ${{ steps.filter.outputs.plugin }}
+      image: ${{ steps.filter.outputs.image }}
+      release: ${{ steps.filter.outputs.release }}
+      site: ${{ steps.filter.outputs.site }}
+      manifests: ${{ steps.filter.outputs.manifests }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+      hub: ${{ steps.filter.outputs.hub }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           base: ${{ github.event_name == 'push' && github.ref || '' }}
           filters: |
             ci: &ci
               - '.github/workflows/ci.yml'
+            build: &build
+              - 'src/**'
+              - 'pom.xml'
+              - 'mvnw'
+              - '.mvn/**'
+              - 'web/**'
+              - 'Dockerfile'
+              - '.dockerignore'
             backend:
               - *ci
               - 'src/**'
@@ -60,46 +77,87 @@ jobs:
               - *ci
               - 'examples/plugin-template/**'
               - 'web/packages/**'
+            # The PR image build: what the image is built from, or a change to how CI builds it.
             image:
               - *ci
-              - 'src/**'
+              - *build
+            # A release: only what the image is built from. A CI-only merge releases nothing.
+            release:
+              - *build
+            site:
+              - *ci
+              - 'site/**'
+              - 'docs/**'
+              - 'changelog/**'
+              - 'web/public/favicon.svg'
+            manifests:
+              - *ci
               - 'pom.xml'
-              - 'mvnw'
-              - '.mvn/**'
-              - 'web/**'
-              - 'Dockerfile'
-              - '.dockerignore'
+              - 'web/package-lock.json'
+              - 'site/package-lock.json'
+              - 'examples/plugin-template/pom.xml'
+            workflows:
+              - '.github/**'
+            hub:
               - 'docs/dockerhub.md'
+
+  # ---------------------------------------------------------------------------------------------
+  # Pull requests: every check in parallel, each only when its inputs changed.
+  # ---------------------------------------------------------------------------------------------
 
   # Backend and frontend are coupled through the OpenAPI snapshot (web/openapi.json,
   # written by a backend test) and the schema generated from it, so a change on
-  # either side runs both.
+  # either side runs both. The suite runs as three shards on separate runners.
   backend:
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
+    if: >-
+      github.event_name == 'pull_request'
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true')
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: "25"
           cache: maven
+      # Round-robin over the sorted paths of every class Surefire would run by default, so each
+      # shard gets a third and neighbouring heavy suites (Transfer*) land on different runners.
+      # ponytail: count-balanced, not time-balanced; weigh by surefire report times if a shard lags.
+      - name: Pick shard ${{ matrix.shard }} of 3
+        run: |
+          find src/test/java -type f \
+            \( -name '*Test.java' -o -name '*Tests.java' -o -name 'Test*.java' -o -name '*TestCase.java' \) \
+            | sed 's|^src/test/java/||' | sort \
+            | awk -v n=3 -v i=${{ matrix.shard }} 'NR % n == i' > "$RUNNER_TEMP/shard.txt"
+          echo "$(wc -l < "$RUNNER_TEMP/shard.txt") test classes in this shard"
       - name: Verify (Spotless check, Liquibase vs Testcontainers Postgres, tests)
-        run: ./mvnw -B verify
+        run: ./mvnw -B verify -Dsurefire.includesFile="$RUNNER_TEMP/shard.txt"
       - name: Fail on unformatted sources or a stale OpenAPI snapshot
         run: git diff --exit-code
 
   frontend:
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
+    if: >-
+      github.event_name == 'pull_request'
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true')
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           cache: npm
@@ -117,9 +175,11 @@ jobs:
   plugin-template:
     needs: changes
     if: >-
-      needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
-      || needs.changes.outputs.plugin == 'true'
+      github.event_name == 'pull_request'
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
+      || needs.changes.outputs.plugin == 'true')
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18
@@ -131,13 +191,15 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U artemis_studio" --health-interval 5s --health-retries 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: "25"
           cache: maven
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           cache: npm
@@ -188,20 +250,19 @@ jobs:
         if: failure()
         run: tail -300 "$RUNNER_TEMP/studio.log"
 
-  # Pull requests: prove the Dockerfile still builds. Single-arch, no push.
-  # A skipped check counts as passed, so `!failure() && !cancelled()` lets this run
-  # when only one side changed and the other job was skipped.
+  # The Dockerfile still builds. Single-arch, no push, in parallel with the tests.
   image:
-    if: >-
-      !failure() && !cancelled() && github.event_name == 'pull_request'
-      && needs.changes.outputs.image == 'true'
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.image == 'true'
     runs-on: ubuntu-26.04
-    needs: [changes, backend, frontend]
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build image (no push)
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: false
@@ -213,15 +274,86 @@ jobs:
             type=gha
           cache-to: type=gha,mode=max
 
-  # Pushes to main that change what the image is built from: cut a CalVer release.
-  # A docs-only push releases nothing; its commits land in the next release's
-  # changelog. See .claude/rules/10-release.md and ADR-0088.
-  release:
-    if: >-
-      !failure() && !cancelled() && github.event_name == 'push'
-      && github.ref == 'refs/heads/main' && needs.changes.outputs.image == 'true'
+  # The documentation site builds (ADR-0061 D5). pages.yml deploys it from main.
+  site:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.site == 'true'
     runs-on: ubuntu-26.04
-    needs: [changes, backend, frontend]
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # `lastUpdated` reads each page's git commit time.
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # A pull request fails when it introduces a known vulnerability (ADR-0124). osv-scanner.yml
+  # scans main and the whole tree weekly.
+  osv:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.manifests == 'true'
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+    with:
+      runs-on: ubuntu-26.04
+      scan-args: |-
+        -L pom.xml
+        -L web/package-lock.json
+        -L site/package-lock.json
+        -L examples/plugin-template/pom.xml
+
+  actionlint:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint the workflows
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
+  # The one required status check. A job skipped by its path filter counts as passed; a failed
+  # or cancelled one does not. Requiring this instead of each job keeps path filtering safe.
+  ci-ok:
+    if: always()
+    needs: [changes, backend, frontend, plugin-template, image, site, osv, actionlint]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Every required job passed or was skipped
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "CI is green."
+
+  # ---------------------------------------------------------------------------------------------
+  # Main: no re-test. Release what the merge changed, and only that.
+  # ---------------------------------------------------------------------------------------------
+
+  # A push to main that changes what the image is built from cuts a CalVer release.
+  # A docs- or CI-only push releases nothing; its commits land in the next release's
+  # changelog. See .claude/rules/10-release.md, ADR-0088 and ADR-0126.
+  release:
+    needs: changes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.release == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
     permissions:
       contents: write
     outputs:
@@ -230,9 +362,12 @@ jobs:
       group: release
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
+      # The deploy key is the ruleset's bypass actor for the release commit and tag; the
+      # workflow token cannot push to a main that requires pull requests and status checks.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       # Version = date + one past the highest PATCH already tagged this month.
       # Only tags matching the canonical CalVer shape are candidates, so a stray
@@ -260,7 +395,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "→ releasing $VERSION"
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: "25"
@@ -277,7 +412,7 @@ jobs:
           cp target/artemis-studio-exec.jar "artemis-studio-$V.jar"
           sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
 
@@ -325,15 +460,15 @@ jobs:
           done
           exit 1
 
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
@@ -363,7 +498,7 @@ jobs:
             org.opencontainers.image.licenses=Apache-2.0
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.ver.outputs.version }}
           name: ${{ steps.ver.outputs.version }}
@@ -373,21 +508,25 @@ jobs:
             artemis-studio-${{ steps.ver.outputs.version }}.jar
             artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
 
-      # Last in the job on purpose: the image and the GitHub release are already
-      # published by now, so a failure here cannot burn a version number — which
-      # is why it does not need `continue-on-error`, and why it had it. This
-      # step failed with `Forbidden` on every release while that flag reported
-      # the job green. The description API rejects a repo-scoped PAT: the
-      # credential needs read, write AND delete scope.
-      - name: Push README to Docker Hub
-        uses: peter-evans/dockerhub-description@v5
+  # The Docker Hub landing page, whenever its source changes; no release needed for that. The
+  # credential needs read, write AND delete scope: the description API rejects a repo-scoped PAT.
+  hub-description:
+    needs: changes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.hub == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
-          # Its own file, not README.md: the repository landing page carries a
-          # contributing notes and a trademark section that mean nothing
-          # to someone reading a tag list.
+          # Its own file, not README.md: the repository landing page carries
+          # contributing notes and a trademark section that mean nothing to
+          # someone reading a tag list.
           readme-filepath: docs/dockerhub.md
           short-description: Cluster-wide management and observability for Apache ActiveMQ Artemis
           # Docker Hub does not resolve repo-relative paths, so without this the
@@ -395,20 +534,38 @@ jobs:
           enable-url-completion: true
 
   # The plugin API on Maven Central (ADR-0102): the plain jar of the release just tagged, with its
-  # sources and javadoc, signed. Its own job, after the release: a Central problem never holds back
-  # the image. japicmp refuses an incompatible change to @PluginApi types first, unless this release
-  # raised Contract.VERSION: that is a deliberate break, announced by the contract (ADR-0102, ADR-0112).
+  # sources and javadoc, signed. Only when the backend changed since the newest version on Central
+  # (ADR-0126), so a UI-only release publishes nothing here and a failed publish is retried by the
+  # next release. japicmp refuses an incompatible change to @PluginApi types first, unless this
+  # release raised Contract.VERSION: that is a deliberate break (ADR-0102, ADR-0112).
   publish-api:
     needs: release
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release.outputs.version }}
-          # Every tag, to read the contract version of the release before this one.
+          # Every tag: the last published version and the contract of the release before this one.
           fetch-depth: 0
+          persist-credentials: false
+      - name: Did the backend change since the newest version on Central?
+        id: needed
+        run: |
+          V="${{ needs.release.outputs.version }}"
+          LAST=$(curl -sf https://repo1.maven.org/maven2/io/github/sudoitir/artemis-studio/maven-metadata.xml \
+            | sed -n 's:.*<release>\(.*\)</release>.*:\1:p' || true)
+          if [ -n "$LAST" ] && git rev-parse -q --verify "refs/tags/$LAST" >/dev/null \
+            && git diff --quiet "$LAST" "$V" -- src/main pom.xml; then
+            echo "Backend unchanged since $LAST on Central: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Backend changed since ${LAST:-nothing on Central}: publishing $V."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Compare the contract version with the previous release
         id: contract
+        if: steps.needed.outputs.publish == 'true'
         run: |
           V="${{ needs.release.outputs.version }}"
           PREV=$(git tag -l | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | awk -v v="$V" '$0 == v { print p; exit } { p = $0 }')
@@ -425,6 +582,7 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Check the publishing secrets are set
+        if: steps.needed.outputs.publish == 'true'
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -436,7 +594,8 @@ jobs:
             if [ -z "${!name}" ]; then echo "::error::repository secret $name is not set"; missing=1; fi
           done
           exit $missing
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        if: steps.needed.outputs.publish == 'true'
         with:
           distribution: temurin
           java-version: "25"
@@ -444,6 +603,7 @@ jobs:
           server-username-env-var: MAVEN_USERNAME
           server-password-env-var: MAVEN_PASSWORD
       - name: Publish io.github.sudoitir:artemis-studio:${{ needs.release.outputs.version }}
+        if: steps.needed.outputs.publish == 'true'
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -454,29 +614,50 @@ jobs:
           ./mvnw -B -Prelease,api-check -DskipTests -Dspring-boot.repackage.skip=true -Dgpg.signer=bc \
             -Djapicmp.skip=${{ steps.contract.outputs.skip }} deploy
 
-  # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Trusted
-  # publishing through GitHub's OIDC: npmjs.com trusts this workflow, so no npm token is stored.
+  # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Only when
+  # what the SDK is built from changed since the newest version on npm (ADR-0126). Trusted
+  # publishing through GitHub's OIDC: npmjs.com trusts this workflow file, so no npm token is stored.
   publish-sdk:
     needs: release
     runs-on: ubuntu-26.04
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release.outputs.version }}
-      - uses: actions/setup-node@v7
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
+      - name: Did the SDK's inputs change since the newest version on npm?
+        id: needed
+        run: |
+          V="${{ needs.release.outputs.version }}"
+          NPM=$(npm view @artemis-studio/plugin-sdk version 2>/dev/null || true)
+          # npm drops the month's leading zero: 2026.9.3 is the tag 2026.09.3.
+          LAST=$([ -n "$NPM" ] && echo "$NPM" | awk -F. '{ printf "%d.%02d.%d", $1, $2, $3 }' || true)
+          if [ -n "$LAST" ] && git rev-parse -q --verify "refs/tags/$LAST" >/dev/null \
+            && git diff --quiet "$LAST" "$V" -- web/packages web/src/sdk web/src/kernel web/package.json web/package-lock.json; then
+            echo "SDK unchanged since $LAST on npm: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "SDK changed since ${LAST:-nothing on npm}: publishing $V."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build @artemis-studio/plugin-sdk
+        if: steps.needed.outputs.publish == 'true'
         working-directory: web
         run: |
           npm ci
           node packages/plugin-sdk/build.mjs "${{ needs.release.outputs.version }}"
       - name: Publish
+        if: steps.needed.outputs.publish == 'true'
         working-directory: web/packages/plugin-sdk/dist
         # Trusted publishing (OIDC) needs npm 11.5.1 or later.
         run: |

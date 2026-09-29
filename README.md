@@ -17,16 +17,15 @@ safe message operations, and SQL over your messages — all from a single instan
 [![CI](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudoitir/artemis-studio/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/sudoitir/artemis-studio?include_prereleases&sort=semver&label=release)](https://github.com/sudoitir/artemis-studio/releases)
 [![Docker pulls](https://img.shields.io/docker/pulls/sudoit1/artemis-studio?logo=docker&label=pulls)](https://hub.docker.com/r/sudoit1/artemis-studio)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sudoitir/artemis-studio/badge)](https://scorecard.dev/viewer/?uri=github.com/sudoitir/artemis-studio)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
-[![Last commit](https://img.shields.io/github/last-commit/sudoitir/artemis-studio)](https://github.com/sudoitir/artemis-studio/commits/main)
-[![Stars](https://img.shields.io/github/stars/sudoitir/artemis-studio?style=flat)](https://github.com/sudoitir/artemis-studio/stargazers)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sudoitir/artemis-studio)
 
 [Docs](https://sudoitir.github.io/artemis-studio/guide/) ·
-[Quickstart](https://sudoitir.github.io/artemis-studio/guide/quickstart) ·
+[Quickstart](#quickstart) ·
 [Flow](https://sudoitir.github.io/artemis-studio/guide/flow) ·
 [SQL Console](https://sudoitir.github.io/artemis-studio/guide/sql-console) ·
-[MCP](https://sudoitir.github.io/artemis-studio/guide/mcp)
+[MCP](https://sudoitir.github.io/artemis-studio/guide/mcp) ·
+[Discussions](https://github.com/sudoitir/artemis-studio/discussions)
 
 </div>
 
@@ -34,6 +33,48 @@ safe message operations, and SQL over your messages — all from a single instan
 > **Alpha.** Under active development and not yet feature-complete. Published images
 > are pre-stable dev builds (`sudoit1/artemis-studio:dev`; there is no `:latest` yet).
 > Expect breaking changes.
+
+![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue, message flow and the charts](docs/img/demo.gif)
+
+## Quickstart
+
+Studio and its Postgres, from the published image. Your brokers stay as they are: you
+register them in the UI, and nothing here starts one.
+
+```bash
+base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
+curl -sO "$base/compose.prod.yaml"
+curl -s "$base/.env.example" | sed \
+  -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
+  -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" > .env
+docker compose -f compose.prod.yaml --env-file .env up -d
+docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrator'
+```
+
+Open <http://localhost:8080> and sign in as `admin` with the password the last line
+prints. It is shown once, and you choose your own at the first sign-in.
+
+<details>
+<summary>From a clone with <code>just</code>, or a bare container against your own Postgres</summary>
+
+```bash
+git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
+just up          # the same stack, pinned to the latest release
+```
+
+```bash
+docker run -p 8080:8080 \
+  -e ARTEMIS_STUDIO_DB_URL=jdbc:postgresql://db:5432/artemis_studio \
+  -e ARTEMIS_STUDIO_DB_USER=artemis_studio \
+  -e ARTEMIS_STUDIO_DB_PASSWORD=... \
+  -e ARTEMIS_STUDIO_SECRET_KEY="$(openssl rand -base64 32)" \
+  sudoit1/artemis-studio:dev
+```
+
+</details>
+
+Every variable, what a reverse proxy needs for the SSE stream, and how to recover a lost
+first login are in the [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration).
 
 ## Why
 
@@ -44,16 +85,12 @@ open a tab per node, walk a JMX tree in each one, and read attributes until you 
 Artemis Studio treats **the cluster as the unit of everything**. Every node of every
 cluster is on one topology, with HA roles polled live, and every queue on every node is in
 one table, sorted by depth, so the queue you were hunting for is the first row. One
-instance serves as many clusters as you run. It works against your **existing** brokers:
-beyond the management endpoints you almost certainly have already, `broker.xml` stays as it
-is, and it never starts a broker of its own.
+instance serves as many clusters as you run, against the brokers you already have.
 
 <a href="https://sudoitir.github.io/artemis-studio/"><img src="docs/img/story.webp" width="1600" height="900" alt="The story opens at 03:07 with an alert: ORDERS.DLQ depth rising somewhere across 8 brokers in 2 clusters. Play it in your browser."></a>
 
 **[▶ Play the story](https://sudoitir.github.io/artemis-studio/)**: hunt for the queue yourself, one tab per broker, then watch
 Studio find it on one screen.
-
-![Artemis Studio: topology, the cross-node queue grid, the dead-letter queue, message flow and the charts](docs/img/demo.gif)
 
 ## What it does
 
@@ -131,42 +168,9 @@ Studio find it on one screen.
   Updates show what changes and roll back; a failing plugin never stops Studio. Start
   a plugin from [the template](examples/plugin-template).
 
-## Run it
+## How it works
 
-```bash
-git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # Studio + Postgres, secrets generated, pinned to the latest release
-```
-
-Then open <http://localhost:8080>. `just up` prints the generated `admin` password
-once, and you must change it when you first sign in.
-
-<details>
-<summary>Without <code>just</code>, or against your own Postgres</summary>
-
-```bash
-base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
-curl -sO "$base/compose.prod.yaml"
-curl -s "$base/.env.example" -o .env   # then edit it
-docker compose -f compose.prod.yaml --env-file .env up -d
-```
-
-```bash
-docker run -p 8080:8080 \
-  -e ARTEMIS_STUDIO_DB_URL=jdbc:postgresql://db:5432/artemis_studio \
-  -e ARTEMIS_STUDIO_DB_USER=artemis_studio \
-  -e ARTEMIS_STUDIO_DB_PASSWORD=... \
-  -e ARTEMIS_STUDIO_SECRET_KEY="$(openssl rand -base64 32)" \
-  sudoit1/artemis-studio:dev
-```
-
-Every variable, what a reverse proxy needs for the SSE stream, and how to recover a
-lost first login are in the
-[configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration).
-
-</details>
-
-## Built on four rules
+Four rules hold everywhere in the product:
 
 - **Broker-friendly by construction.** Batched reads (one Jolokia POST per node,
   never one per queue), tiered polling and a per-node rate limiter. Studio must never
@@ -178,10 +182,19 @@ lost first login are in the
 - **Honest capability gating.** An unavailable feature says so and shows the exact
   `broker.xml` that enables it. Nothing silently disappears.
 
-## Develop
+Java 25 · Spring Boot 4.1 · PostgreSQL with Liquibase · React 19 + Vite + Mantine 9 ·
+TanStack Router/Query/Table · React Flow · Jolokia over HTTP first, the Artemis Core
+client second · SSE · one container image. Read the
+[architecture](https://sudoitir.github.io/artemis-studio/reference/architecture) and
+[every recorded decision](https://sudoitir.github.io/artemis-studio/reference/adr/).
 
-You need JDK 25, Node 22, Docker and [`just`](https://github.com/casey/just#packages).
-A dev container is included (`.devcontainer/`).
+## Contributing
+
+Questions and ideas go to [Discussions](https://github.com/sudoitir/artemis-studio/discussions),
+bugs to [issues](https://github.com/sudoitir/artemis-studio/issues/new/choose), and
+vulnerabilities to [private reporting](https://github.com/sudoitir/artemis-studio/security/advisories/new)
+([SECURITY.md](SECURITY.md)). To build it, you need JDK 25, Node 24, Docker and
+[`just`](https://github.com/casey/just#packages); a dev container is included.
 
 ```bash
 just dev-up          # Postgres + a real Artemis primary/backup pair + Studio, from source
@@ -189,34 +202,22 @@ just dev             # or: backend :8080 + Vite :5173 together, with live reload
 just verify          # everything CI runs
 ```
 
-`ADMIN_PASSWORD=… just demo` adds a second and a third live/backup pair (three
-primaries, so quorum voting keeps a majority when one pair is lost) and fills all
-six nodes with realistic traffic: applications behind diverts, a bridge and cluster
-hops, an address with no consumer whose backlog keeps growing, a real dead-letter
-backlog and one stopped node. On a fresh stack the printed password is one-time, so
-add `NEW_ADMIN_PASSWORD=…` on the first run and use that password afterwards. The
-screenshots and clips above are recorded from this stack by `just shots` and
-`just demo-gif`; nothing is staged.
+`ADMIN_PASSWORD=… just demo` adds two more live/backup pairs and fills all six nodes
+with realistic traffic: diverts, a bridge, cluster hops, a growing backlog with no
+consumer, a real dead-letter backlog and one stopped node. The screenshots above are
+recorded from that stack by `just shots` and `just demo-gif`; nothing is staged.
 
-Every feature goes through **OpenSpec** (`/opsx:propose` → `apply` → `archive`), and
-significant decisions are recorded as [**ADRs**](docs/adr/). See
-[`CLAUDE.md`](CLAUDE.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Stack
-
-Java 25 · Spring Boot 4.1 · PostgreSQL with Liquibase · React 19 + Vite + Mantine 9 ·
-TanStack Router/Query/Table · React Flow · Jolokia over HTTP first, the Artemis Core
-client second · SSE · one container image.
-[Architecture](https://sudoitir.github.io/artemis-studio/reference/architecture) ·
-[all 88 decisions](https://sudoitir.github.io/artemis-studio/reference/adr/).
+Every feature goes through **OpenSpec** and significant decisions are recorded as
+[**ADRs**](docs/adr/). Start with [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Releases
 
-Every push to `main` that changes the application publishes a release, versioned with CalVer `YYYY.MM.PATCH` and
-tagged three ways on Docker Hub: `2026.09.3` (immutable), `2026.09` (that month) and
-`dev` (the latest). There is no `:latest` until the first stable release. Each
-release attaches the runnable jar with its `.sha256`, and its notes are generated
-from the commit messages ([`changelog/`](changelog/)).
+A merge that changes the application publishes a release, versioned with CalVer
+`YYYY.MM.PATCH` and tagged three ways on Docker Hub: `2026.09.3` (immutable), `2026.09`
+(that month) and `dev` (the latest). There is no `:latest` until the first stable
+release. Each release attaches the runnable jar with its `.sha256`, and its notes are
+generated from the commit messages ([`changelog/`](changelog/)). The plugin API
+(Maven Central) and SDK (npm) are published with the releases that change them.
 
 ## Licence
 

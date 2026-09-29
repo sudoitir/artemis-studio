@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help
+    url: https://github.com/sudoitir/artemis-studio/discussions/categories/q-a
+    about: Ask how to do something, or share how you run Studio.
+  - name: Documentation
+    url: https://sudoitir.github.io/artemis-studio/guide/
+    about: Quickstart, guides and the configuration reference.
+  - name: Report a vulnerability
+    url: https://github.com/sudoitir/artemis-studio/security/advisories/new
+    about: Privately, never in a public issue.
