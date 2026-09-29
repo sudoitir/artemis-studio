@@ -142,6 +142,12 @@ jobs:
         run: ./mvnw -B verify -Dsurefire.includesFile="$RUNNER_TEMP/shard.txt"
       - name: Fail on unformatted sources or a stale OpenAPI snapshot
         run: git diff --exit-code
+      # This shard's coverage; the `coverage` job merges the three (ADR-0128).
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jacoco-${{ matrix.shard }}
+          path: target/jacoco.exec
+          retention-days: 7
 
   frontend:
     needs: changes
@@ -167,7 +173,24 @@ jobs:
       - name: Fail on a stale generated API schema
         run: git diff --exit-code src/kernel/api/schema.d.ts
       - run: npm run lint
-      - run: npm test
+      - run: npm run test:coverage
+      - name: Coverage summary
+        if: always()
+        run: |
+          [ -f coverage/coverage-summary.json ] || exit 0
+          python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          total = json.load(open("coverage/coverage-summary.json"))["total"]
+          print("### Frontend coverage\n\n| | Covered | |\n|---|---|---|")
+          for k in ("lines", "branches", "functions", "statements"):
+              print(f"| {k} | {total[k]['pct']}% | {total[k]['covered']} / {total[k]['total']} |")
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: frontend-coverage
+          path: web/coverage
+          retention-days: 14
 
   # The plugin kit, end to end (ADR-0102): build the template plugin against this Studio's API
   # jar and SDK, check it exactly as an upload would, then install, use, update, roll back and
@@ -334,9 +357,58 @@ jobs:
 
   # The one required status check. A job skipped by its path filter counts as passed; a failed
   # or cancelled one does not. Requiring this instead of each job keeps path filtering safe.
+  # The backend shards' coverage as one report: merged with the JaCoCo CLI (resolved through Maven,
+  # so its checksum is verified) against the compiled classes. Informational (ADR-0128).
+  coverage:
+    needs: backend
+    if: needs.backend.result == 'success'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: jacoco-*
+          path: ${{ runner.temp }}/jacoco
+      - name: Merge the shards and write the report
+        run: |
+          set -euo pipefail
+          ./mvnw -B -q compile -Dspotless.apply.skip
+          ./mvnw -B -q dependency:copy -Dartifact=org.jacoco:org.jacoco.cli:0.8.15:jar:nodeps \
+            -DoutputDirectory="$RUNNER_TEMP" -Dmdep.stripVersion=true
+          CLI="java -jar $RUNNER_TEMP/org.jacoco.cli-nodeps.jar"
+          $CLI merge "$RUNNER_TEMP"/jacoco/*/jacoco.exec --destfile target/jacoco.exec
+          mkdir -p target/site/jacoco
+          $CLI report target/jacoco.exec --classfiles target/classes --sourcefiles src/main/java \
+            --html target/site/jacoco --csv target/site/jacoco/jacoco.csv --name "Artemis Studio"
+      - name: Coverage summary
+        run: |
+          python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import csv
+          rows = list(csv.DictReader(open("target/site/jacoco/jacoco.csv")))
+          def pct(kind):
+              c = sum(int(r[f"{kind}_COVERED"]) for r in rows)
+              m = sum(int(r[f"{kind}_MISSED"]) for r in rows)
+              return f"| {kind.lower()} | {100 * c / (c + m):.1f}% | {c} / {c + m} |"
+          print("### Backend coverage\n\n| | Covered | |\n|---|---|---|")
+          print("\n".join(pct(k) for k in ("LINE", "BRANCH", "METHOD", "INSTRUCTION")))
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-coverage
+          path: target/site/jacoco
+          retention-days: 14
+
   ci-ok:
     if: always()
-    needs: [changes, backend, frontend, plugin-template, image, site, osv, actionlint]
+    needs: [changes, backend, coverage, frontend, plugin-template, image, site, osv, actionlint]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:

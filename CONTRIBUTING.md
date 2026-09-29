@@ -43,6 +43,9 @@ just fmt        # Palantir Java Format (Spotless) + eslint --fix
   end, the image, the site, OSV for changed manifests and actionlint for changed
   workflows. The one required check is `ci-ok`, and the branch must be up to date
   with `main`. After the merge, `main` releases without re-testing (ADR-0126).
+- Coverage: `./mvnw verify` writes `target/site/jacoco/index.html`, and
+  `npm run test:coverage` in `web/` writes `web/coverage/index.html`. CI reports both
+  in the job summary (ADR-0128).
 - New behaviour comes with a test at the user's altitude (Testing Library by
   role, MSW for the network; integration tests against the dev broker pair for
   backend broker code).

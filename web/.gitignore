@@ -3,3 +3,4 @@ dist/
 .vite/
 *.local
 node_modules/.tmp/
+coverage/

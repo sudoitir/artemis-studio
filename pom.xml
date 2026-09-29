@@ -415,6 +415,29 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <!-- Test coverage (ADR-0128): the agent records every test run into target/jacoco.exec,
+                 and verify writes the HTML, XML and CSV report to target/site/jacoco. CI merges
+                 the shards' exec files into one report. Informational: no threshold fails a build. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.15</version>
+                <executions>
+                    <execution>
+                        <id>agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
