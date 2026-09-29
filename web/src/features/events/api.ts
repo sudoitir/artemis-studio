@@ -17,6 +17,22 @@ export interface EventFilter {
   size?: number;
 }
 
+/**
+ * One event by its id, for a link to an event that is not on the loaded page. A 404 is the
+ * answer (retention reaped it), not a failure to retry.
+ */
+export function useEvent(
+  clusterId: string,
+  seq: number | undefined,
+): UseQueryResult<BrokerEventView, ApiError> {
+  return useQuery({
+    queryKey: ["clusters", clusterId, "events", "one", seq],
+    queryFn: () => request<BrokerEventView>(`/clusters/${clusterId}/events/${seq}`),
+    enabled: clusterId !== "" && seq !== undefined,
+    retry: false,
+  });
+}
+
 export function useEvents(
   clusterId: string,
   filter: EventFilter = {},

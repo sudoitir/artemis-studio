@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,11 +7,13 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server, EventSourceStub } from '../../test/setup.ts';
 import { waitFor } from '@testing-library/react';
 
+let search: Record<string, unknown> = {};
+const navigate = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useParams: () => ({ clusterId: 'c1' }),
-  useSearch: () => ({}),
-  useNavigate: () => () => {},
+  useSearch: () => search,
+  useNavigate: () => navigate,
 }));
 
 const { EventsView } = await import('./EventsView.tsx');
@@ -56,8 +58,17 @@ function event(over: Record<string, unknown> = {}) {
   };
 }
 
+function page(data: unknown[]) {
+  return { data, count: data.length, page: 1, pageSize: 100, dropped: 0, oldestRetained: null };
+}
+
 describe('EventsView', () => {
-  it('lists events and opens a row to show the raw props', async () => {
+  beforeEach(() => {
+    search = {};
+    navigate.mockClear();
+  });
+
+  it('lists events and a click on a row puts it in the address', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
       http.get('*/api/v1/clusters/c1/events', () =>
@@ -79,7 +90,67 @@ describe('EventsView', () => {
     // row expanded underneath. Row 1 is the header.
     const rows = await screen.findAllByRole('row');
     await user.click(rows[1]);
+    const update = navigate.mock.calls[0][0].search as (prev: object) => object;
+    expect(update({})).toEqual({ event: 1 });
+  });
+
+  it('shows the raw props of the event the address names', async () => {
+    search = { event: 1 };
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([event()]))),
+    );
+    renderWithProviders(<EventsView />);
+
+    expect(await screen.findByRole('dialog', { name: 'CONSUMER_CREATED' })).toBeInTheDocument();
     expect(await screen.findByText(/_AMQ_Address/)).toBeInTheDocument();
+  });
+
+  it('opens an event that is not on the loaded page by asking for it', async () => {
+    search = { event: 7 };
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([event()]))),
+      http.get('*/api/v1/clusters/c1/events/7', () =>
+        HttpResponse.json(event({ seq: 7, type: 'SESSION_CLOSED', props: { _AMQ_Reason: 'aged out' } })),
+      ),
+    );
+    renderWithProviders(<EventsView />);
+
+    expect(await screen.findByRole('dialog', { name: 'SESSION_CLOSED' })).toBeInTheDocument();
+    expect(await screen.findByText(/aged out/)).toBeInTheDocument();
+  });
+
+  it('says an unknown event no longer exists', async () => {
+    search = { event: 404 };
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([event()]))),
+      http.get('*/api/v1/clusters/c1/events/404', () =>
+        HttpResponse.json(
+          { type: 'about:blank', title: 'Resource not found', status: 404, detail: 'event 404 does not exist.' },
+          { status: 404 },
+        ),
+      ),
+    );
+    renderWithProviders(<EventsView />);
+
+    expect(await screen.findByText('This event no longer exists')).toBeInTheDocument();
+    expect(screen.getByText(/retention may have removed it/)).toBeInTheDocument();
+  });
+
+  it('copies a link to the event from its row menu', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([event()]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<EventsView />);
+
+    await user.click(await screen.findByRole('button', { name: /^Actions for CONSUMER_CREATED/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Copy link' }));
+
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/clusters/c1/events?event=1`);
   });
 
   it('shows the reason and broker.xml snippet when notifications are unavailable', async () => {

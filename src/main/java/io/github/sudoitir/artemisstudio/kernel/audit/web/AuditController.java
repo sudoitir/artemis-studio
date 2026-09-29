@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.web;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
+import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageView;
 import java.time.Instant;
 import java.util.UUID;
@@ -36,5 +37,11 @@ public class AuditController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
         return audit.page(clusterId, user, action, outcome, parentId, from, to, page, size);
+    }
+
+    /** One audit event by id, for a shared link. */
+    @GetMapping("/{id}")
+    public AuditEventView get(@PathVariable UUID clusterId, @PathVariable long id) {
+        return audit.get(clusterId, id);
     }
 }

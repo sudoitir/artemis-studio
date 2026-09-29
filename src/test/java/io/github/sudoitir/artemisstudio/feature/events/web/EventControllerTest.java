@@ -5,17 +5,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -83,6 +87,44 @@ class EventControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{c}/events", clusterId).param("address", "payments"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
+    void readsOneEventById() throws Exception {
+        long seq = jdbc.queryForObject(
+                "SELECT max(seq) FROM broker_event WHERE cluster_id = :c", Map.of("c", clusterId), Long.class);
+
+        mvc.perform(get("/api/v1/clusters/{c}/events/{seq}", clusterId, seq))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seq").value(seq))
+                .andExpect(jsonPath("$.type").exists());
+    }
+
+    @Test
+    void anUnknownEventIsA404() throws Exception {
+        mvc.perform(get("/api/v1/clusters/{c}/events/{seq}", clusterId, Long.MAX_VALUE))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void anotherClustersEventIsA404() throws Exception {
+        long seq = jdbc.queryForObject(
+                "SELECT max(seq) FROM broker_event WHERE cluster_id = :c", Map.of("c", clusterId), Long.class);
+
+        mvc.perform(get("/api/v1/clusters/{c}/events/{seq}", UUID.randomUUID(), seq))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void aCallerWithoutAGrantGetsA404() throws Exception {
+        long seq = jdbc.queryForObject(
+                "SELECT max(seq) FROM broker_event WHERE cluster_id = :c", Map.of("c", clusterId), Long.class);
+        StudioPrincipal nobody = new StudioPrincipal(null, "nobody", Set.of(), false);
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(nobody, null, nobody.getAuthorities()));
+
+        mvc.perform(get("/api/v1/clusters/{c}/events/{seq}", clusterId, seq)).andExpect(status().isNotFound());
     }
 
     @Test

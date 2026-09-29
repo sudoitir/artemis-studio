@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -13,12 +13,16 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
-import { useAudit, type AuditEventView } from './api.ts';
+import { useAudit, useAuditEvent, type AuditEventView } from './api.ts';
 import { useUsers } from '../security/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
+import { useActionHost } from '../../kernel/actions/hostContext.ts';
+import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
+import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { absoluteLabel } from '../../kernel/time/time.ts';
@@ -99,6 +103,19 @@ const columns: GridColumn<AuditEventView>[] = [
   },
 ];
 
+function CopyAuditLink({ clusterId, id }: { clusterId: string; id: number }) {
+  const host = useActionHost();
+  return (
+    <ActionMenuItem
+      label="Copy link"
+      icon={<IconLink size={16} aria-hidden />}
+      onSelect={() =>
+        host.copy(absoluteHref(clusterHref(clusterId, 'audit', { event: id })), 'link to the audit event')
+      }
+    />
+  );
+}
+
 /** The audit-log screen (non-negotiable #3): every mutating call, filterable, newest first. */
 export function AuditView() {
   // `/` focuses this view's filter (ADR-0109).
@@ -113,6 +130,7 @@ export function AuditView() {
     action?: string;
     outcome?: string;
     parentId?: number;
+    event?: number;
     page?: number;
   };
   const navigate = useNavigate();
@@ -120,7 +138,6 @@ export function AuditView() {
   const canListUsers = can('user:admin');
   const users = useUsers(canListUsers);
 
-  const [selected, setSelected] = useState<AuditEventView | null>(null);
   const [user, setUser] = useState(search.user ?? '');
   const [debouncedUser] = useDebouncedValue(user, 250);
   const page = search.page ?? 1;
@@ -144,6 +161,17 @@ export function AuditView() {
   });
 
   const rows = query.data?.data ?? [];
+  // The open event is held in the URL as its id and looked up in the rows each render. A shared
+  // link can name an event that is not on the loaded page; it is fetched by id then, rather than
+  // the link silently opening nothing.
+  const setOpen = (e: AuditEventView | null) =>
+    navigate({
+      to: '.',
+      search: (prev: Record<string, unknown>) => ({ ...prev, event: e?.id }),
+    });
+  const onPage = rows.find((e) => e.id === search.event);
+  const offPage = useAuditEvent(clusterId, !onPage ? search.event : undefined);
+  const selected = onPage ?? offPage.data ?? null;
   const total = query.data?.count ?? 0;
 
   return (
@@ -238,7 +266,11 @@ export function AuditView() {
           columns={columns}
           data={rows}
           rowKey={auditKey}
-          onRowClick={setSelected}
+          onRowClick={setOpen}
+          rowMenu={{
+            label: (e) => `${e.action} at ${at(e)}`,
+            render: (e) => <CopyAuditLink clusterId={clusterId} id={e.id} />,
+          }}
         />
       )}
 
@@ -256,13 +288,24 @@ export function AuditView() {
       />
 
       <Drawer
-        opened={selected !== null}
-        onClose={() => setSelected(null)}
+        opened={search.event !== undefined}
+        onClose={() => setOpen(null)}
         position="right"
         size="lg"
-        title={selected ? selected.action : ''}
+        title={selected ? selected.action : 'Audit event'}
       >
-        {selected ? (
+        {search.event === undefined ? null : !selected && offPage.isPending ? (
+          <Skeleton height={28} />
+        ) : !selected && offPage.error?.status === 404 ? (
+          <Alert color="blue" variant="light" title="This audit event no longer exists">
+            No audit event with this id exists on this cluster. Check the link, or ask whoever shared it
+            to copy it again.
+          </Alert>
+        ) : !selected && offPage.isError ? (
+          <Alert color="red" variant="light" title={offPage.error.title}>
+            {offPage.error.message}
+          </Alert>
+        ) : selected ? (
           <Stack gap="xs">
             <Text size="xs" c="dimmed">
               {at(selected)} · {selected.username ?? 'anonymous'} ·{' '}
@@ -280,8 +323,7 @@ export function AuditView() {
                 size="xs"
                 variant="light"
                 onClick={() => {
-                  setSelected(null);
-                  setParam({ parentId: selected.parentId });
+                  setParam({ parentId: selected.parentId, event: undefined });
                 }}
               >
                 Show the operation this belongs to, with all its parts
@@ -292,8 +334,7 @@ export function AuditView() {
                 size="xs"
                 variant="light"
                 onClick={() => {
-                  setSelected(null);
-                  setParam({ parentId: selected.id });
+                  setParam({ parentId: selected.id, event: undefined });
                 }}
               >
                 Show the event for each queue in this run

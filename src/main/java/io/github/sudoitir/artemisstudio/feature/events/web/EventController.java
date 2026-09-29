@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.events.web;
 
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
+import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +37,11 @@ public class EventController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
         return events.page(clusterId, type, nodeId, address, from, to, page, size);
+    }
+
+    /** One event by its seq, for a shared link; 404 once retention has reaped it. */
+    @GetMapping("/{seq}")
+    public BrokerEventView get(@PathVariable UUID clusterId, @PathVariable long seq) {
+        return events.get(clusterId, seq);
     }
 }

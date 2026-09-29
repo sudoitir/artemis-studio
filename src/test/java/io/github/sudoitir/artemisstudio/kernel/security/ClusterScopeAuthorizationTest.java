@@ -97,7 +97,10 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
             // A bulk run the fixture does not create.
             "/api/v1/clusters/{clusterId}/bulk/runs/{runId}",
             // A transfer run the fixture does not create.
-            "/api/v1/clusters/{clusterId}/transfers/runs/{runId}");
+            "/api/v1/clusters/{clusterId}/transfers/runs/{runId}",
+            // A broker event and an audit event the fixture does not create.
+            "/api/v1/clusters/{clusterId}/events/{seq}",
+            "/api/v1/clusters/{clusterId}/audit/{id}");
 
     private UUID visible;
     private UUID hidden;
@@ -220,6 +223,7 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
                 // is a UUID — so they are listed rather than pattern-matched.
                 .replace("{messageId}", "1")
                 .replace("{number}", "1")
+                .replace("{seq}", "1")
                 .replace("{id}", "1")
                 // Everything else takes a UUID: parses as a UUID where one is expected,
                 // and is a harmless string where a name is.

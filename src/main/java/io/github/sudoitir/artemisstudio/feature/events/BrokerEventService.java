@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.Brok
 import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventRepository;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
@@ -36,7 +37,7 @@ public class BrokerEventService {
     private final ObjectMapper mapper;
 
     /**
-     * Guards {@link #page} only. {@link #since} is reached solely from
+     * Guards {@link #page} and {@link #get} only. {@link #since} is reached solely from
      * {@code StreamController}, which applies the same check before subscribing.
      */
     private final ClusterAccessGuard clusterAccess;
@@ -65,6 +66,14 @@ public class BrokerEventService {
                 s,
                 writer.droppedFor(clusterId),
                 events.oldestRetained(clusterId));
+    }
+
+    @Transactional(readOnly = true)
+    public BrokerEventView get(UUID clusterId, long seq) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        return events.findByClusterIdAndSeq(clusterId, seq)
+                .map(this::toView)
+                .orElseThrow(() -> new NotFoundException("event", seq));
     }
 
     /**

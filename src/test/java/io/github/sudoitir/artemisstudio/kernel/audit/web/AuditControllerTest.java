@@ -11,16 +11,20 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -117,6 +121,43 @@ class AuditControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{c}/audit", clusterId).param("action", "bulk.pause"))
                 .andExpect(jsonPath("$.data[0].id").value(parent.getId()))
                 .andExpect(jsonPath("$.data[0].parentId").doesNotExist());
+    }
+
+    private long lastId() {
+        return audit.findByClusterIdOrderByTsDesc(clusterId).getFirst().getId();
+    }
+
+    @Test
+    void readsOneEventById() throws Exception {
+        long id = lastId();
+
+        mvc.perform(get("/api/v1/clusters/{c}/audit/{id}", clusterId, id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.action").exists());
+    }
+
+    @Test
+    void anUnknownEventIsA404() throws Exception {
+        mvc.perform(get("/api/v1/clusters/{c}/audit/{id}", clusterId, Long.MAX_VALUE))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void anotherClustersEventIsA404() throws Exception {
+        mvc.perform(get("/api/v1/clusters/{c}/audit/{id}", UUID.randomUUID(), lastId()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void aCallerWithoutAGrantGetsA404() throws Exception {
+        long id = lastId();
+        StudioPrincipal nobody = new StudioPrincipal(null, "nobody", Set.of(), false);
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(nobody, null, nobody.getAuthorities()));
+
+        mvc.perform(get("/api/v1/clusters/{c}/audit/{id}", clusterId, id)).andExpect(status().isNotFound());
     }
 
     @Test

@@ -19,6 +19,22 @@ export interface AuditFilter {
   size?: number;
 }
 
+/**
+ * One audit event by its id, for a link to an event that is not on the loaded page. A 404 is the
+ * answer, not a failure to retry.
+ */
+export function useAuditEvent(
+  clusterId: string,
+  id: number | undefined,
+): UseQueryResult<AuditEventView, ApiError> {
+  return useQuery({
+    queryKey: ["clusters", clusterId, "audit", "one", id],
+    queryFn: () => request<AuditEventView>(`/clusters/${clusterId}/audit/${id}`),
+    enabled: clusterId !== "" && id !== undefined,
+    retry: false,
+  });
+}
+
 export function useAudit(
   clusterId: string,
   filter: AuditFilter = {},

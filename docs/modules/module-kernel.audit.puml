@@ -17,6 +17,7 @@ top to bottom direction
 
 System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
   Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Security, "Security", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "Audit log", $techn="Module", $descr="", $tags="", $link="")
@@ -24,8 +25,11 @@ System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication",
 
 }
 
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
 
