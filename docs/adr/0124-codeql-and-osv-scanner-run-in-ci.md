@@ -17,8 +17,9 @@ development-only packages. They had shipped unnoticed.
   `web/package-lock.json`, `site/package-lock.json` and the plugin template's `pom.xml`:
   - on pull requests, it fails when the PR introduces a vulnerability;
   - on pushes to `main` and every Monday, it fails on any vulnerability.
-- **CodeQL** with the `security-extended` queries analyses Java (build mode `none`) and
-  TypeScript on pull requests, on `main` and weekly. Results go to Security > Code scanning.
+- **CodeQL** runs through the repository's code-scanning *default setup* (Java, TypeScript, Actions,
+  Python) on pull requests and `main`. It is a repository setting, not a workflow file: GitHub
+  refuses results from an advanced workflow while default setup is on.
 - A finding is fixed: update the dependency, override a transitive version (a Maven property or
   npm `overrides`), or fix the code. A false positive is dismissed in GitHub with a written reason,
   never silenced in the workflow.
@@ -28,8 +29,8 @@ development-only packages. They had shipped unnoticed.
 - A new CVE against a shipped dependency surfaces within a week, and a PR cannot add a known one.
 - Some fixes run ahead of the Spring Boot BOM (`tomcat.version`). Each carries a comment saying
   when to drop it.
-- CodeQL on a public repository is free. Both jobs run in parallel with CI and add no time to
-  it.
+- CodeQL on a public repository is free, and both scans run in parallel with CI, adding no time
+  to it. Keep default setup enabled; turning it off would leave static analysis without a runner.
 
 ## Alternatives considered
 
