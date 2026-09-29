@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditE
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageView;
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.time.Instant;
@@ -48,6 +49,14 @@ public class AuditQueryService {
                 PageRequest.of(p - 1, s));
         return new AuditPageView(
                 result.getContent().stream().map(AuditQueryService::toView).toList(), result.getTotalElements(), p, s);
+    }
+
+    @Transactional(readOnly = true)
+    public AuditEventView get(UUID clusterId, long id) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        return events.findByIdAndClusterId(id, clusterId)
+                .map(AuditQueryService::toView)
+                .orElseThrow(() -> new NotFoundException("audit event", id));
     }
 
     /**

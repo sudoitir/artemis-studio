@@ -14,12 +14,16 @@ import {
   Title,
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
+import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useCluster } from '../clusters/index.ts';
-import { useEvents, type BrokerEventView } from './api.ts';
+import { useEvent, useEvents, type BrokerEventView } from './api.ts';
+import { useActionHost } from '../../kernel/actions/hostContext.ts';
+import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { useClusterStream } from '../../kernel/stream/useClusterStream.ts';
+import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import styles from './EventsView.module.css';
@@ -100,6 +104,19 @@ const columns: GridColumn<BrokerEventView>[] = [
   { id: 'remote', header: 'Remote', accessor: (e) => e.remoteAddress ?? '—', width: 180 },
 ];
 
+function CopyEventLink({ clusterId, seq }: { clusterId: string; seq: number }) {
+  const host = useActionHost();
+  return (
+    <ActionMenuItem
+      label="Copy link"
+      icon={<IconLink size={16} aria-hidden />}
+      onSelect={() =>
+        host.copy(absoluteHref(clusterHref(clusterId, 'events', { event: seq })), 'link to the event')
+      }
+    />
+  );
+}
+
 /** The events screen: this cluster's activemq.notifications history, newest first. */
 export function EventsView() {
   // `/` focuses this view's filter (ADR-0109).
@@ -112,6 +129,7 @@ export function EventsView() {
   const search = useSearch({ strict: false }) as {
     type?: string;
     address?: string;
+    event?: number;
     page?: number;
   };
   const navigate = useNavigate();
@@ -123,7 +141,6 @@ export function EventsView() {
   const [debouncedAddress] = useDebouncedValue(address, 250);
   const page = search.page ?? 1;
 
-  const [selected, setSelected] = useState<BrokerEventView | null>(null);
   const [live, setLive] = useState(true);
   const [buffer, setBuffer] = useState<BrokerEventView[]>([]);
   // The events topic carries each event itself: there is no resource behind the
@@ -155,6 +172,15 @@ export function EventsView() {
     size: PAGE_SIZE,
   });
 
+  // The open event is an address, not a copy: held in the URL as its id and looked up in the rows
+  // each render. A shared link can name an event that is not on the loaded page; it is fetched by
+  // id then, rather than the link silently opening nothing.
+  const setOpen = (e: BrokerEventView | null) =>
+    navigate({
+      to: '.',
+      search: (prev: Record<string, unknown>) => ({ ...prev, event: e?.seq }),
+    });
+
   const total = query.data?.count ?? 0;
   const dropped = query.data?.dropped ?? 0;
 
@@ -168,6 +194,10 @@ export function EventsView() {
     const seen = new Set(buffer.map((e) => e.seq));
     return [...buffer, ...history.filter((e) => !seen.has(e.seq))];
   }, [buffer, historyData, page, search.type, debouncedAddress]);
+
+  const onPage = rows.find((e) => e.seq === search.event);
+  const offPage = useEvent(clusterId, !onPage ? search.event : undefined);
+  const selected = onPage ?? offPage.data ?? null;
 
   // Notifications not available: name the gap, show the broker.xml, infer nothing
   // (same stance as DlqView on address settings). All hooks run above this.
@@ -256,7 +286,11 @@ export function EventsView() {
           columns={columns}
           data={rows}
           rowKey={(e) => String(e.seq)}
-          onRowClick={setSelected}
+          onRowClick={setOpen}
+          rowMenu={{
+            label: (e) => `${e.type} at ${occurredAt(e)}`,
+            render: (e) => <CopyEventLink clusterId={clusterId} seq={e.seq} />,
+          }}
         />
       )}
 
@@ -274,13 +308,24 @@ export function EventsView() {
       />
 
       <Drawer
-        opened={selected !== null}
-        onClose={() => setSelected(null)}
+        opened={search.event !== undefined}
+        onClose={() => setOpen(null)}
         position="right"
         size="lg"
-        title={selected ? selected.type : ''}
+        title={selected ? selected.type : 'Event'}
       >
-        {selected ? (
+        {search.event === undefined ? null : !selected && offPage.isPending ? (
+          <Skeleton height={28} />
+        ) : !selected && offPage.error?.status === 404 ? (
+          <Alert color="blue" variant="light" title="This event no longer exists">
+            Broker events are kept for a limited time, so retention may have removed it, or the link
+            names an event of another cluster.
+          </Alert>
+        ) : !selected && offPage.isError ? (
+          <Alert color="red" variant="light" title={offPage.error.title}>
+            {offPage.error.message}
+          </Alert>
+        ) : selected ? (
           <Stack gap="xs">
             <Text size="xs" c="dimmed">
               {occurredAt(selected)} · {selected.address ?? 'no address'} ·{' '}

@@ -17,6 +17,9 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
     /** The just-inserted rows a flush produced, in seq order, for the SSE fan-out. */
     List<BrokerEventEntity> findBySeqGreaterThanOrderBySeqAsc(long seq);
 
+    /** One event of a cluster by its seq; empty when it never existed or was reaped. */
+    Optional<BrokerEventEntity> findByClusterIdAndSeq(UUID clusterId, Long seq);
+
     /** Highest seq currently persisted, or empty when the table is empty. */
     Optional<BrokerEventEntity> findFirstByOrderBySeqDesc();
 

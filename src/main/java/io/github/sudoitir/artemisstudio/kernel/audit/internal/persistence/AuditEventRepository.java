@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,8 @@ import org.springframework.data.repository.query.Param;
 public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Long> {
 
     List<AuditEventEntity> findByClusterIdOrderByTsDesc(UUID clusterId);
+
+    Optional<AuditEventEntity> findByIdAndClusterId(Long id, UUID clusterId);
 
     List<AuditEventEntity> findByTargetTypeAndTargetNameOrderByTsDesc(
             String targetType, String targetName, org.springframework.data.domain.Pageable page);

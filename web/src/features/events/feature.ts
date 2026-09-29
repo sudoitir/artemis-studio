@@ -5,10 +5,23 @@ import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { EventsView } from './EventsView.tsx';
 
+function validateEventsSearch(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of ['type', 'address'] as const) {
+    if (typeof raw[k] === 'string' && raw[k]) out[k] = raw[k];
+  }
+  const event = Number(raw.event);
+  if (Number.isInteger(event) && event > 0) out.event = event;
+  const page = Number(raw.page);
+  if (Number.isFinite(page) && page > 1) out.page = Math.floor(page);
+  return out;
+}
+
 const eventsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'events',
   component: featureView('events', EventsView),
+  validateSearch: validateEventsSearch,
 });
 
 /**

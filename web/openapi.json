@@ -4794,6 +4794,41 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/events/{seq}" : {
+      "get" : {
+        "tags" : [ "event-controller" ],
+        "operationId" : "get_3",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "seq",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BrokerEventView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/dlq" : {
       "get" : {
         "tags" : [ "dlq-controller" ],
@@ -5371,7 +5406,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs/{runId}" : {
       "get" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "get_3",
+        "operationId" : "get_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -5520,6 +5555,41 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/AuditPageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/audit/{id}" : {
+      "get" : {
+        "tags" : [ "audit-controller" ],
+        "operationId" : "get_5",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuditEventView"
                 }
               }
             }
@@ -5752,7 +5822,7 @@
     "/api/v1/admin/plugins/{id}" : {
       "get" : {
         "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "get_4",
+        "operationId" : "get_6",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
