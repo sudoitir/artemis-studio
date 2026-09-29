@@ -24,4 +24,4 @@
 
 ## 6. Finish
 - [x] 6.1 ADR for declared reach and the declaration check
-- [ ] 6.2 `just verify` green; screenshots light/dark; PR merged; change archived
+- [x] 6.2 `just verify` green; screenshots light/dark; PR merged; change archived
