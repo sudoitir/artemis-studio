@@ -3,8 +3,8 @@
 See [ADR-0051](../../docs/adr/0051-changelog-generated-from-commits.md) for why.
 
 There is no `CHANGELOG.md` and no `## [Unreleased]` section to edit. When CI cuts
-a release it runs `git-cliff` over the commits since the previous tag and writes
-`changelog/<version>.md`. **The commit message is the release note**, so write it
+a release it runs `git-cliff` over the commits since the previous tag, and the result
+is the GitHub release body. **The commit message is the release note**, so write it
 for the person upgrading, not only for the person reading the diff.
 
 Preview what the next release will say at any time:
@@ -59,13 +59,16 @@ only warning an upgrader gets.
 
 Optional, usually absent. It holds a note **no single commit can carry**: a
 migration step several commits add up to, or a warning about the release as a
-whole. CI splices it above the generated entries and deletes it.
+whole. CI splices it above the generated entries of the next release when the file
+changed since the previous one. A release commits nothing, so the file stays; overwrite
+it for the next note, or delete it.
 
 Reach for it rarely. A note in a commit body cannot drift from the change it
 describes; a note in this file can.
 
 ## What is in `changelog/`
 
-One file per released version, plus `README.md` — an index rewritten from the
-files beside it by `scripts/changelog-index.py`, never by hand. A released file is
-a historical record: never edit one.
+The notes of every release up to 2026.09.60, one file each, plus `README.md`, the index.
+Later releases commit nothing: their notes are their GitHub release bodies, and the site
+builds its changelog from both. A released file or release body is a historical record:
+never edit one.

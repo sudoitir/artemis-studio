@@ -180,10 +180,6 @@ fmt:
 changelog:
     npx -y {{git_cliff}} --config cliff.toml --unreleased
 
-# Rewrite the release table in changelog/README.md from the files beside it.
-[group('changelog')]
-changelog-index:
-    python3 scripts/changelog-index.py
 
 # ── database ─────────────────────────────────────────────────────────────────
 

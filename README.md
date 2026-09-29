@@ -216,7 +216,7 @@ A merge that changes the application publishes a release, versioned with CalVer
 `YYYY.MM.PATCH` and tagged three ways on Docker Hub: `2026.09.3` (immutable), `2026.09`
 (that month) and `dev` (the latest). There is no `:latest` until the first stable
 release. Each release attaches the runnable jar with its `.sha256`, and its notes are
-generated from the commit messages ([`changelog/`](changelog/)). The plugin API
+generated from the commit messages ([releases](https://github.com/sudoitir/artemis-studio/releases), [changelog](https://sudoitir.github.io/artemis-studio/reference/changelog/)). The plugin API
 (Maven Central) and SDK (npm) are published with the releases that change them.
 
 ## Licence

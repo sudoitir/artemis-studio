@@ -140,7 +140,7 @@ just verify          # 运行 CI 的全部检查
 
 ## 版本发布
 
-每次改动应用本身的合并都会自动发布一个版本。版本号采用 CalVer（`YYYY.MM.PATCH`），Docker Hub 上同时打三个标签：`2026.09.3`（固定不变）、`2026.09`（当月）和 `dev`（最新）。首个稳定版之前不提供 `:latest`。每个版本都附带可直接运行的 jar 及其 `.sha256`，发布说明由提交信息自动生成（见 [`changelog/`](changelog/)）。插件 API（Maven Central）和 SDK（npm）随改动它们的版本一同发布。
+每次改动应用本身的合并都会自动发布一个版本。版本号采用 CalVer（`YYYY.MM.PATCH`），Docker Hub 上同时打三个标签：`2026.09.3`（固定不变）、`2026.09`（当月）和 `dev`（最新）。首个稳定版之前不提供 `:latest`。每个版本都附带可直接运行的 jar 及其 `.sha256`，发布说明由提交信息自动生成（见 [GitHub Releases](https://github.com/sudoitir/artemis-studio/releases)）。插件 API（Maven Central）和 SDK（npm）随改动它们的版本一同发布。
 
 ## 许可证
 
