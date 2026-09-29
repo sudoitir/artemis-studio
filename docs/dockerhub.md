@@ -43,9 +43,14 @@ through the UI — nothing here starts a broker.
 ```bash
 base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
 curl -sO "$base/compose.prod.yaml"
-curl -s "$base/.env.example" -o .env   # then edit: see the table below
+curl -s "$base/.env.example" | sed \
+  -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
+  -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" > .env
 docker compose -f compose.prod.yaml --env-file .env up -d
 ```
+
+The `sed` fills in a fresh secret key and database password; every other setting in
+`.env` has a working default. The table below lists what the container reads.
 
 Or a bare container against your own Postgres:
 
