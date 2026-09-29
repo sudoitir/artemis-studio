@@ -5,7 +5,7 @@
 
 ## 2. Headers
 
-- [ ] 2.1 The Content-Security-Policy in `SecurityConfig`; a header test; the template's Playwright run fails on any `securitypolicyviolation`; ADR-0122
+- [x] 2.1 The Content-Security-Policy in `SecurityConfig`; a header test; the template's Playwright run fails on any `securitypolicyviolation`; ADR-0122
 - [x] 2.2 `Content-Security-Policy: sandbox` on every SVG asset a plugin serves; test
 
 ## 3. Scans
@@ -19,4 +19,4 @@
 
 ## 5. Ship
 
-- [ ] 5.1 `just verify` green; PR; merge on green CI
+- [x] 5.1 `just verify` green; PR; merge on green CI
