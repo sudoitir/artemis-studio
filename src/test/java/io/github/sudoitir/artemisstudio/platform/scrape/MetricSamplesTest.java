@@ -237,6 +237,41 @@ class MetricSamplesTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aBucketHoldingOneSampleReadsTheRateBetweenBucketsOnEveryNode() {
+        // Issue #73: at a 15 s step with 15 s sampling a bucket holds one sample, and max - min
+        // inside it read 0 msg/s for a busy queue. Both nodes add 10 messages a second.
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        UUID otherNode = UUID.randomUUID();
+        for (int i = 0; i < 6; i++) {
+            Instant ts = base.plusSeconds(15L * i);
+            sample("messagesAdded", "orders", ts, 1_000.0 + 150.0 * i);
+            sample("messagesAdded", "orders", otherNode, ts, 50_000.0 + 150.0 * i);
+        }
+        Instant to = base.plusSeconds(90);
+        Duration step = Duration.ofSeconds(15);
+
+        List<MetricSamples.Bucket> total = repository.rateSeries(clusterId, "messagesAdded", "orders", base, to, step);
+        List<MetricSamples.NodeBucket> byNode =
+                repository.rateSeriesByNode(clusterId, "messagesAdded", "orders", base, to, step);
+
+        // The first bucket's samples have no earlier sample to count from; every later one does.
+        assertThat(total).hasSize(5).allSatisfy(b -> assertThat(b.value()).isEqualTo(20.0));
+        assertThat(byNode).hasSize(10).allSatisfy(b -> assertThat(b.value()).isEqualTo(10.0));
+    }
+
+    @Test
+    void aCounterSampledBeforeTheWindowCountsTheFirstBucket() {
+        Instant base = Instant.parse("2026-01-01T00:00:00Z");
+        sample("messagesAdded", base.minusSeconds(15), 100.0);
+        sample("messagesAdded", base, 250.0);
+
+        List<MetricSamples.Bucket> buckets = repository.rateSeries(
+                clusterId, "messagesAdded", null, base, base.plusSeconds(15), Duration.ofSeconds(15));
+
+        assertThat(buckets).singleElement().satisfies(b -> assertThat(b.value()).isEqualTo(10.0));
+    }
+
+    @Test
     void perNodeRateSeriesAddUpToTheTotalSeries() {
         Instant base = Instant.parse("2026-01-01T00:00:00Z");
         sampleOnTwoNodes(base);
