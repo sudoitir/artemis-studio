@@ -1,0 +1,10 @@
+# Generated, vendored or not source.
+dist/
+coverage/
+node_modules/
+packages/plugin-sdk/dist/
+src/kernel/api/schema.d.ts
+openapi.json
+manifest.snapshot.json
+package-lock.json
+*.md
