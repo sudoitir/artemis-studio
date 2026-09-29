@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.transfer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunRepository;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferRunView;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.broker.StagingQueues;
@@ -17,6 +18,12 @@ import org.springframework.beans.factory.annotation.Autowired;
  * 5.8: a whole queue of 100,000 messages moves to another cluster. The messages parked in staging never
  * exceed twice the batch size, and Studio's management calls to each node stay within its limiter.
  * Small bodies keep the suite's runtime down; the size of a message is not what is under test.
+ *
+ * <p>The bound is checked on the run's own count of what it holds in staging (staged, less delivered,
+ * expired and returned), which is exact. The broker's {@code MessageCount} is not: it adds its
+ * pending, scheduled and delivering counters without a lock ({@code QueueImpl.getMessageCount}), so
+ * every message it hands to the relay's consumer between those reads is counted twice. With a 64 KiB
+ * consumer window and small bodies, that is a burst of messages, not one (issue #75).
  */
 @Tag("large")
 class TransferLargeQueueTest extends TransferTestSupport {
@@ -29,6 +36,14 @@ class TransferLargeQueueTest extends TransferTestSupport {
 
     @Autowired
     NodeCallLimiter limiter;
+
+    @Autowired
+    TransferRunRepository runs;
+
+    /** What the run holds in staging by its own count: the service's figure, read without its access check. */
+    private long held(TransferRunView run) {
+        return runs.findById(run.id()).map(transfers::view).orElseThrow().held();
+    }
 
     private double requests(String node) {
         var counter = meters.find("studio.broker.requests").tag("node", node).counter();
@@ -47,22 +62,31 @@ class TransferLargeQueueTest extends TransferTestSupport {
         assertThat(preview.estimate()).isEqualTo(COUNT);
         String stagingQueue = StagingQueues.queueName(preview.id());
         AtomicBoolean sampling = new AtomicBoolean(true);
-        AtomicLong deepest = new AtomicLong();
-        Thread sampler = Thread.ofVirtual().start(() -> {
-            while (sampling.get()) {
-                try {
-                    deepest.accumulateAndGet(p.depth(stagingQueue), Math::max);
-                } catch (RuntimeException notYetCreated) {
-                    // before the run creates staging, and after it removes it
-                }
-            }
-        });
+        AtomicLong mostHeld = new AtomicLong();
+        AtomicLong brokerSaw = new AtomicLong();
         double sourceCallsBefore = requests(p.jolokiaUrl());
         double targetCallsBefore = requests(d.jolokiaUrl());
         long started = System.nanoTime();
+        TransferRunView executing = execute(preview, true);
+        // Paced: the run saves its counts once per batch, and an unpaced loop would compete with it.
+        Thread sampler = Thread.ofVirtual().start(() -> {
+            while (sampling.get()) {
+                mostHeld.accumulateAndGet(held(executing), Math::max);
+                try {
+                    brokerSaw.accumulateAndGet(p.depth(stagingQueue), Math::max);
+                } catch (RuntimeException notYetCreated) {
+                    // before the run creates staging, and after it removes it
+                }
+                try {
+                    Thread.sleep(5);
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+        });
         TransferRunView run;
         try {
-            run = awaitEnded(execute(preview, true), Duration.ofMinutes(5));
+            run = awaitEnded(executing, Duration.ofMinutes(5));
         } finally {
             sampling.set(false);
             sampler.join();
@@ -73,13 +97,11 @@ class TransferLargeQueueTest extends TransferTestSupport {
         assertThat(run.delivered()).isEqualTo(COUNT);
         assertThat(d.depth(dst)).isEqualTo(COUNT);
         assertThat(p.depth(src)).isZero();
-        // The broker's MessageCount sums its pending, delivering and scheduled counts without a lock
-        // (QueueImpl.getMessageCount), so a message being handed to the relay can be counted twice
-        // for an instant. The bound is twice the batch; one more is that double count.
-        assertThat(deepest.get())
+        assertThat(mostHeld.get())
                 .as("messages parked in staging at once")
                 .isPositive()
-                .isLessThanOrEqualTo(2L * BATCH + 1);
+                .isLessThanOrEqualTo(2L * BATCH);
+        assertThat(brokerSaw.get()).as("staging was used on the broker").isPositive();
         // A node's bucket holds a second's permits and is refilled once a second.
         double ceiling = limiter.permitsPerSecond() * (Math.ceil(seconds) + 1);
         assertThat(requests(p.jolokiaUrl()) - sourceCallsBefore).isPositive().isLessThanOrEqualTo(ceiling);
