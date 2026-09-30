@@ -212,10 +212,12 @@ class HaReplicasIntegrationTest {
         long twoReplicasCalls = managementCalls(a, WINDOW);
 
         assertThat(oneReplicaCalls).as("calls of one replica alone").isGreaterThan(20);
-        // Duplicated scraping would double the count; the margin absorbs where a tier falls in the window.
+        // Duplicated scraping would double the count. The tiers are fixed-delay loops over a replica's own
+        // clusters, so two replicas with half the clusters each finish a loop sooner and fit a few more passes
+        // into the window on a slow machine (about 1.3x in CI); the bound leaves room for that, not for 2x.
         assertThat(twoReplicasCalls)
                 .as("calls of two replicas together, one alone made %d", oneReplicaCalls)
-                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.3));
+                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.5));
     }
 
     @Test
