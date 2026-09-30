@@ -85,7 +85,6 @@ public class LifecycleRegistry {
             }
         }
         add(added);
-        settings.applyRuntime();
     }
 
     public synchronized void removePlugin(String pluginId) {

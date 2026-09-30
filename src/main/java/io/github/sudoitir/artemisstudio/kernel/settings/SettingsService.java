@@ -130,6 +130,9 @@ public class SettingsService {
      * and the exception rethrown, so this plugin's activation fails alone and the registry is left
      * exactly as it was.
      *
+     * <p>A key's stored override, if an operator set one while it was last registered, takes effect
+     * at once, without re-applying any other setting.
+     *
      * <p>{@code writePermission} is what {@link #put} and {@link #reset} demand for these keys.
      *
      * <p>A second call for the same {@code namespace} supersedes the first rather than colliding
@@ -160,6 +163,13 @@ public class SettingsService {
         }
         registry = java.util.Collections.unmodifiableMap(next);
         writePermissions = Map.copyOf(nextPermissions);
+        Map<String, String> previousOverrides = overrides;
+        Map<String, String> withStored = new LinkedHashMap<>(previousOverrides);
+        for (StudioSettingEntity row :
+                repo.findAllById(defs.stream().map(SettingDef::key).toList())) {
+            withStored.put(row.getKey(), unquote(row.getValue()));
+        }
+        overrides = Map.copyOf(withStored);
         try {
             for (SettingDef def : defs) {
                 if (def.apply() != null) {
@@ -169,6 +179,7 @@ public class SettingsService {
         } catch (RuntimeException e) {
             registry = previous;
             writePermissions = previousPermissions;
+            overrides = previousOverrides;
             throw e;
         }
     }

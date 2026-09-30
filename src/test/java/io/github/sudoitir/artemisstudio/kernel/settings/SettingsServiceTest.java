@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.tuple;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
@@ -158,5 +160,17 @@ class SettingsServiceTest extends PostgresIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(auditEvents.findAll()).isEmpty();
+    }
+
+    @Test
+    void aSettingRegisteredAtRuntimeTakesItsStoredOverride() {
+        repo.save(new StudioSettingEntity("acme.retention", "\"30d\""));
+        SettingDef def = new SettingDef(
+                "acme.retention", "g", "l", "h", SettingDef.Kind.DURATION, () -> "7d", null, "1d", "90d");
+
+        settings.addSettings("acme", java.util.List.of(def), SettingsPermissions.SETTINGS_WRITE);
+
+        assertThat(settings.value("acme.retention")).isEqualTo("30d");
+        settings.removeSettings("acme");
     }
 }
