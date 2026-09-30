@@ -24,9 +24,15 @@ class GovernanceAuditParamsFilter implements AuditParamsFilter {
 
     static final String REDACTED_LITERAL = "'[redacted]'";
 
-    /** A name, or {@code props->>'name'}, compared with a quoted literal. */
-    private static final Pattern COMPARISON = Pattern.compile(
-            "(?i)(?:props\\s*->>?\\s*'([^']+)'|\\b([a-z_][\\w$.-]*))\\s*(?:=|<>|!=|\\bLIKE\\b)\\s*('[^']*+(?:''[^']*+)*')");
+    /** The operator and the quoted literal that follow a compared name; the literal is group 2. */
+    private static final String COMPARED_TO_LITERAL = "\\s*(?:=|<>|!=|\\bLIKE\\b)\\s*('[^']*+(?:''[^']*+)*')";
+
+    /** {@code props->>'name'} compared with a quoted literal; the name is group 1. */
+    private static final Pattern PROPS_COMPARISON =
+            Pattern.compile("(?i)props\\s*->>?\\s*'([^']+)'" + COMPARED_TO_LITERAL);
+
+    /** A bare name compared with a quoted literal; the name is group 1. */
+    private static final Pattern NAME_COMPARISON = Pattern.compile("(?i)\\b([a-z_][\\w$.-]*)" + COMPARED_TO_LITERAL);
 
     private final ContentPolicy policy;
 
@@ -55,17 +61,22 @@ class GovernanceAuditParamsFilter implements AuditParamsFilter {
     }
 
     String text(String text) {
-        Matcher m = COMPARISON.matcher(text);
+        return policy.governText(redactComparisons(NAME_COMPARISON, redactComparisons(PROPS_COMPARISON, text)));
+    }
+
+    private String redactComparisons(Pattern comparison, String text) {
+        Matcher m = comparison.matcher(text);
         StringBuilder out = new StringBuilder();
         while (m.find()) {
-            String name = m.group(1) != null ? m.group(1) : m.group(2);
             m.appendReplacement(
                     out,
                     Matcher.quoteReplacement(
-                            classified(name) ? text.substring(m.start(), m.start(3)) + REDACTED_LITERAL : m.group()));
+                            classified(m.group(1))
+                                    ? text.substring(m.start(), m.start(2)) + REDACTED_LITERAL
+                                    : m.group()));
         }
         m.appendTail(out);
-        return policy.governText(out.toString());
+        return out.toString();
     }
 
     private boolean classified(String name) {
