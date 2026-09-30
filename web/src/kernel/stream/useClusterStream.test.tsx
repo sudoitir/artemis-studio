@@ -110,6 +110,90 @@ describe('useClusterStream', () => {
   });
 });
 
+describe('useClusterStream resuming and refetching', () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const invalidate = vi.spyOn(qc, 'invalidateQueries');
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={qc}>
+      <FeatureProvider features={[]}>{children}</FeatureProvider>
+    </QueryClientProvider>
+  );
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    EventSourceStub.reset();
+    invalidate.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function open(topics = ['events']) {
+    const hook = renderHook(() => useClusterStream('c1', topics), { wrapper });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    return hook;
+  }
+
+  it('presents the last event id it saw on every new connection', async () => {
+    await open();
+    expect(EventSourceStub.instances[0]?.url).not.toContain('lastEventId');
+
+    await act(async () => {
+      EventSourceStub.emit('events', { seq: 41 }, undefined, '41');
+      EventSourceStub.emit('events', { seq: 42 }, undefined, '42');
+    });
+    await failCurrent();
+    await runBackoff();
+
+    expect(EventSourceStub.instances[1]?.url).toContain('&lastEventId=42');
+  });
+
+  it('reconnects at once when the server says so, without counting a failure or refetching', async () => {
+    const { result } = await open();
+    await act(async () => {
+      EventSourceStub.emit('events', { seq: 7 }, undefined, '7');
+      EventSourceStub.emit('reconnect', Date.now(), 0);
+    });
+
+    // No timer has advanced: there was no backoff.
+    expect(EventSourceStub.instances).toHaveLength(2);
+    expect(EventSourceStub.instances[0]?.readyState).toBe(2);
+    expect(EventSourceStub.instances[1]?.url).toContain('&lastEventId=7');
+    expect(result.current).toBe('live');
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('refetches the cluster on a resync', async () => {
+    await open();
+
+    await act(async () => {
+      EventSourceStub.emit('resync', Date.now());
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['clusters', 'c1'] });
+  });
+
+  it('refetches the cluster once after it reconnects from a failure, not on the first connect', async () => {
+    await open();
+    expect(invalidate).not.toHaveBeenCalled();
+
+    await failCurrent();
+    await runBackoff();
+
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['clusters', 'c1'] });
+  });
+
+  it('opens no stream for a view that asks for no topics', async () => {
+    await open([]);
+
+    expect(EventSourceStub.instances).toHaveLength(0);
+  });
+});
+
 describe('useClusterStream topic dispatch', () => {
   it("hands each frame to the handler its feature contributes, and none to a disabled feature's", async () => {
     server.use(manifestHandler(['rr']));
