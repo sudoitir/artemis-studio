@@ -10,6 +10,33 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/users/{userId}/unlock" : {
+      "put" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "unlock",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{userId}/disabled" : {
       "put" : {
         "tags" : [ "users-controller" ],
@@ -6568,15 +6595,6 @@
   },
   "components" : {
     "schemas" : {
-      "SetDisabledRequest" : {
-        "type" : "object",
-        "properties" : {
-          "disabled" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "disabled" ]
-      },
       "GrantSummary" : {
         "type" : "object",
         "properties" : {
@@ -6619,6 +6637,11 @@
           "mustChangePassword" : {
             "type" : "boolean"
           },
+          "lockedUntil" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "When repeated failed sign-ins stop blocking this account; null when it is not locked."
+          },
           "grants" : {
             "type" : "array",
             "items" : {
@@ -6627,6 +6650,15 @@
           }
         },
         "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "username" ]
+      },
+      "SetDisabledRequest" : {
+        "type" : "object",
+        "properties" : {
+          "disabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "disabled" ]
       },
       "UpdateSettingRequest" : {
         "type" : "object",

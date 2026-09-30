@@ -14,7 +14,7 @@
 - [x] 4.1 Trusted proxies: `forward-headers-strategy: native` + `internal-proxies`; forged-header test
 - [x] 4.2 `LoginAttemptLimiter` on Caffeine with per-username+source and per-IP keys
 - [x] 4.3 DB account lock (`REQUIRES_NEW`, atomic SQL), success only after the full sign-in, identical responses, dummy-hash timing, throttled attempts audited, `ACCOUNT_LOCK`
-- [ ] 4.4 Admin unlock endpoint + `ACCOUNT_UNLOCK`
+- [x] 4.4 Admin unlock endpoint + `ACCOUNT_UNLOCK`
 
 ## 5. Sessions (C)
 - [ ] 5.1 Idle and absolute settings; `SessionLifetimeFilter` with activity header; `maxInactiveInterval` backstop

@@ -90,6 +90,11 @@ public class LoginAttemptLimiter {
         byAccount.invalidate(new Key(username, source(sourceIp)));
     }
 
+    /** Forget every username-and-source entry of the user, whatever the source; an administrator unlocked them. */
+    public void forget(String username) {
+        byAccount.asMap().keySet().removeIf(key -> key.username().equals(username));
+    }
+
     private static String source(String sourceIp) {
         return sourceIp == null ? "?" : sourceIp;
     }

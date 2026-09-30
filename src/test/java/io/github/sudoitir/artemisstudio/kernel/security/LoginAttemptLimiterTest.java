@@ -102,6 +102,19 @@ class LoginAttemptLimiterTest {
     }
 
     @Test
+    void forgettingAUsernameClearsItForEverySourceButNotTheAddressCount() {
+        fail("alice", "10.0.0.1", 5);
+        fail("alice", "10.0.0.2", 5);
+        fail("bob", "10.0.0.1", 5);
+
+        limiter.forget("alice");
+
+        assertThat(limiter.isLocked("alice", "10.0.0.1")).isFalse();
+        assertThat(limiter.isLocked("alice", "10.0.0.2")).isFalse();
+        assertThat(limiter.isLocked("bob", "10.0.0.1")).isTrue();
+    }
+
+    @Test
     void anUnknownSourceIsKeyedTogether() {
         fail("alice", null, 5);
 

@@ -4,6 +4,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,6 +38,13 @@ public final class UserViews {
             @Schema(requiredMode = REQUIRED) String providerId,
             @Schema(requiredMode = REQUIRED) boolean disabled,
             @Schema(requiredMode = REQUIRED) boolean mustChangePassword,
+
+            @Schema(
+                    nullable = true,
+                    description =
+                            "When repeated failed sign-ins stop blocking this account; null when it is not locked.")
+            Instant lockedUntil,
+
             @Schema(requiredMode = REQUIRED) List<GrantSummary> grants) {}
 
     public record RoleRequest(

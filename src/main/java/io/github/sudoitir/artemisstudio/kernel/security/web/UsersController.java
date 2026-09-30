@@ -53,6 +53,11 @@ public class UsersController {
         return users.setDisabled(userId, request.disabled());
     }
 
+    @PutMapping("/{userId}/unlock")
+    public UserView unlock(@PathVariable UUID userId) {
+        return users.unlock(userId);
+    }
+
     @PostMapping("/{userId}/grants")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addGrant(@PathVariable UUID userId, @Valid @RequestBody GrantRequest request) {

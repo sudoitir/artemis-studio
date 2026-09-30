@@ -1,10 +1,12 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -12,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -21,6 +24,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -48,6 +54,9 @@ class AccountLockoutIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     AccountLockout lockout;
+
+    @Autowired
+    UserService userService;
 
     @Autowired
     JdbcClient jdbc;
@@ -261,5 +270,62 @@ class AccountLockoutIntegrationTest extends PostgresIntegrationTest {
                         .query(Long.class)
                         .single())
                 .isEqualTo(1);
+    }
+
+    private void signInAs(Set<String> permissions) {
+        var admin = new StudioPrincipal(
+                UUID.randomUUID(),
+                "lock-admin",
+                Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, permissions)),
+                false);
+        var context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(admin, null, admin.getAuthorities()));
+        SecurityContextHolder.setContext(context);
+    }
+
+    @Test
+    void anAdministratorUnlockCleansTheLockTheCountAndTheThrottleAndIsAudited() throws Exception {
+        UUID id = newUser("lock-unlock");
+        fail("lock-unlock", 10);
+        for (int i = 0; i < 5; i++) {
+            assertThat(login("lock-unlock", "wrong", "10.7.0.1").getResponse().getStatus())
+                    .isEqualTo(401);
+        }
+        assertThat(login("lock-unlock", PASSWORD, "10.7.0.1").getResponse().getStatus())
+                .isEqualTo(429);
+        signInAs(Set.of(Permissions.USER_ADMIN));
+        try {
+            assertThat(userService.list())
+                    .filteredOn(u -> u.id().equals(id))
+                    .singleElement()
+                    .satisfies(u -> assertThat(u.lockedUntil()).isAfter(Instant.now()));
+
+            assertThat(userService.unlock(id).lockedUntil()).isNull();
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+
+        assertThat(row("lock-unlock").getLockedUntil()).isNull();
+        assertThat(row("lock-unlock").getFailedLoginCount()).isZero();
+        assertThat(audited("ACCOUNT_UNLOCK", "lock-unlock")).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT username FROM audit_event WHERE action = 'ACCOUNT_UNLOCK' AND target_name = ?")
+                        .param("lock-unlock")
+                        .query(String.class)
+                        .single())
+                .isEqualTo("lock-admin");
+        assertThat(login("lock-unlock", PASSWORD, "10.7.0.1").getResponse().getStatus())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void unlockingNeedsUserAdministration() throws Exception {
+        UUID id = newUser("lock-unlock-denied");
+        signInAs(Set.of(Permissions.CLUSTER_READ));
+        try {
+            assertThatThrownBy(() -> userService.unlock(id)).isInstanceOf(AccessDeniedException.class);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 }

@@ -65,6 +65,15 @@ export function useSetUserDisabled() {
   });
 }
 
+/** Lift an account's lock (repeated failed sign-ins) so its user can sign in again at once. */
+export function useUnlockUser() {
+  const qc = useQueryClient();
+  return useMutation<UserView, ApiError, string>({
+    mutationFn: (userId) => request<UserView>(`/users/${userId}/unlock`, { method: 'PUT' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
 export function useAddGrant() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, { userId: string; body: GrantRequest }>({

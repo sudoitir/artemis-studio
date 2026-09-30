@@ -15,7 +15,15 @@ import {
 import { notifications } from '@mantine/notifications';
 
 import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
-import { useAddGrant, useCreateUser, useRemoveGrant, useRoles, useSetUserDisabled, useUsers } from './api.ts';
+import {
+  useAddGrant,
+  useCreateUser,
+  useRemoveGrant,
+  useRoles,
+  useSetUserDisabled,
+  useUnlockUser,
+  useUsers,
+} from './api.ts';
 
 /** User accounts and their role grants (authorization spec). Requires `user:admin`. */
 export function UsersPanel() {
@@ -25,6 +33,8 @@ export function UsersPanel() {
   const setDisabled = useSetUserDisabled();
   const addGrant = useAddGrant();
   const removeGrant = useRemoveGrant();
+  const unlock = useUnlockUser();
+  const [unlockOutcome, setUnlockOutcome] = useState<{ text: string; failed: boolean } | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [username, setUsername] = useState('');
@@ -69,6 +79,11 @@ export function UsersPanel() {
                   <Text size="xs" c="dimmed">
                     must change password
                   </Text>
+                ) : null}
+                {u.lockedUntil ? (
+                  <Badge size="xs" variant="light" color="red">
+                    Locked until {new Date(u.lockedUntil).toLocaleTimeString([], { timeStyle: 'short' })}
+                  </Badge>
                 ) : null}
               </Table.Td>
               <Table.Td>
@@ -118,14 +133,50 @@ export function UsersPanel() {
                 />
               </Table.Td>
               <Table.Td>
-                <Button size="xs" variant="subtle" onClick={() => setPreviewing(u)}>
-                  Effective permissions
-                </Button>
+                <Group gap="xs" wrap="nowrap">
+                  {u.lockedUntil ? (
+                    <Button
+                      size="xs"
+                      variant="light"
+                      aria-label={`Unlock ${u.username}`}
+                      loading={unlock.isPending && unlock.variables === u.id}
+                      disabled={unlock.isPending}
+                      onClick={() => {
+                        setUnlockOutcome(null);
+                        unlock.mutate(u.id, {
+                          onSuccess: () => setUnlockOutcome({ text: `Unlocked ${u.username}.`, failed: false }),
+                          onError: (e) =>
+                            setUnlockOutcome({
+                              text: `Could not unlock ${u.username}. ${e.message} Try again.`,
+                              failed: true,
+                            }),
+                        });
+                      }}
+                    >
+                      Unlock
+                    </Button>
+                  ) : null}
+                  <Button size="xs" variant="subtle" onClick={() => setPreviewing(u)}>
+                    Effective permissions
+                  </Button>
+                </Group>
               </Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
       </Table>
+
+      <div aria-live="polite">
+        {unlock.isPending ? (
+          <Text size="sm" c="dimmed">
+            Unlocking {(users.data ?? []).find((u) => u.id === unlock.variables)?.username}…
+          </Text>
+        ) : unlockOutcome ? (
+          <Text size="sm" c={unlockOutcome.failed ? 'red' : 'dimmed'}>
+            {unlockOutcome.text}
+          </Text>
+        ) : null}
+      </div>
 
       <EffectivePermissionsDrawer user={previewing} onClose={() => setPreviewing(null)} />
 

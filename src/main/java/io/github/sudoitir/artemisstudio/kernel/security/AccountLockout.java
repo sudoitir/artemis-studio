@@ -109,6 +109,12 @@ public class AccountLockout {
         reset(userId);
     }
 
+    /** An administrator lifts the lock and the count, and the limiter's entries for the username. */
+    public void unlock(UUID userId, String username) {
+        reset(userId);
+        limiter.forget(username);
+    }
+
     private void reset(UUID userId) {
         ownTransaction.executeWithoutResult(
                 status -> jdbc.sql(RESET).param("id", userId).update());

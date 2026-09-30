@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
@@ -16,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.CreateUser
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantSummary;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +46,7 @@ public class UserService {
     private final UserRoleRepository userRoles;
     private final PasswordEncoder passwordEncoder;
     private final AdministrationAudit audit;
+    private final AccountLockout lockout;
     private final SessionTerminator sessions;
     private final Optional<PasswordRules> passwordRules;
 
@@ -83,6 +86,17 @@ public class UserService {
             sessions.endSessionsOf(List.of(user.getUsername()));
         }
         return toView(user);
+    }
+
+    /** Lift the account lock and the sign-in throttle for the user, so they can try again at once. */
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional
+    public UserView unlock(UUID userId) {
+        AppUserEntity user = requireUser(userId);
+        lockout.unlock(user.getId(), user.getUsername());
+        audit.changed("ACCOUNT_UNLOCK", "user", user.getUsername(), null);
+        // The entity still holds the lock it was loaded with; the columns are written by SQL, not through it.
+        return toView(user, null);
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -150,6 +164,11 @@ public class UserService {
     }
 
     private UserView toView(AppUserEntity user) {
+        Instant lock = user.getLockedUntil();
+        return toView(user, lock != null && lock.isAfter(Instant.now()) ? lock : null);
+    }
+
+    private UserView toView(AppUserEntity user, Instant lockedUntil) {
         List<GrantSummary> grants = userRoles.findByIdUserId(user.getId()).stream()
                 .map(ur -> new GrantSummary(
                         roles.findById(ur.getRoleId()).map(RoleEntity::getName).orElse("?"),
@@ -164,6 +183,7 @@ public class UserService {
                 user.getProviderId(),
                 user.isDisabled(),
                 user.isMustChangePassword(),
+                lockedUntil,
                 grants);
     }
 }
