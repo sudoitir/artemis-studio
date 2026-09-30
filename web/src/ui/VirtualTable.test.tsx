@@ -801,7 +801,7 @@ describe('VirtualTable: remaining interactions', () => {
     fireEvent.keyDown(header, { key: 'ArrowRight', ctrlKey: true, shiftKey: true });
 
     expect(screen.getByRole('grid').style.getPropertyValue('--as-cols')).toMatch(/^\d+px /);
-    expect(localStorage.length).toBe(0);
+    expect(localStorage).toHaveLength(0);
   });
 
   it('copies with Cmd+C as well as Ctrl+C, but not with Alt held', async () => {

@@ -460,7 +460,7 @@ describe('ReviewApplyDrawer: the result', () => {
     expect(d.queryByText(/Re-running the same revision converges/)).not.toBeInTheDocument();
     const before = calls.length;
     await user.click(d.getByRole('button', { name: 'Plan again' }));
-    await waitFor(() => expect(calls.length).toBe(before + 1));
+    await waitFor(() => expect(calls).toHaveLength(before + 1));
     expect(await d.findByRole('button', { name: 'Continue to confirm' })).toBeInTheDocument();
   });
 
