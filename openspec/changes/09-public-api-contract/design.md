@@ -27,8 +27,8 @@ See proposal.md for why. Current state that shapes the approach:
 ## Decisions
 
 ### D1. A break is flagged by the Conventional Commit marker
-The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show <latest CalVer tag>:web/openapi.json` and the PR's `web/openapi.json`. On an ERR-level change it passes only when a commit in `origin/main..HEAD` has `!:` in the subject or a `BREAKING CHANGE:` footer. Otherwise it fails, printing oasdiff's list, which names each change. The marker is the same act that puts the break under `### Breaking`, so "flagged in CI" and "flagged in release notes" cannot disagree.
-- Baseline from the tag, not a release download: the snapshot is committed, every tag has it, and the job needs no network or asset.
+The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show $(git merge-base origin/main HEAD):web/openapi.json` (the document where the PR left main) and the PR's `web/openapi.json`. On an ERR-level change it passes only when a commit in `origin/main..HEAD` has `!:` in the subject or a `BREAKING CHANGE:` footer. Otherwise it fails, printing oasdiff's list, which names each change. The marker is the same act that puts the break under `### Breaking`, so "flagged in CI" and "flagged in release notes" cannot disagree.
+- Baseline from the PR's merge base with main, not the latest tag and not a release download: every merge that touches `web/` releases, so main's document is the last release's for API purposes. Only the breaks the PR itself introduces count, so a break that is already released never keeps later PRs red. The snapshot is committed, so the job needs no network or asset.
 - oasdiff over openapi-diff: it is maintained, supports OpenAPI 3.1 (GA since 1.15.0), and has stable exit codes. It runs pinned by version. `just api-diff` runs the same comparison locally.
 - Alternatives: an `ApiContract.VERSION` integer like `Contract.VERSION`. It was rejected because it is a second version number beside CalVer that says nothing in the release notes.
 
@@ -80,11 +80,11 @@ The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show 
 - Key: 1–255 printable ASCII. Scope: the caller's user id. Tokens and sessions of one user share a namespace, and different users never do.
 - Fingerprint: SHA-256 over method, path, sorted query string and body bytes. `dryRun=true` and the real run therefore differ.
 - Table `idempotency_record`:
-  - columns: `user_id, idem_key` (primary key), `fingerprint, state (PENDING|DONE), status, content_type, body bytea, created_at`;
-  - claimed with `INSERT … ON CONFLICT DO NOTHING` through `JdbcClient`.
+  - columns: `user_id, idem_key` (primary key), `fingerprint, state (PENDING|DONE), status, content_type, headers, body bytea, created_at`;
+  - claimed with one atomic `INSERT … ON CONFLICT DO UPDATE … WHERE <row is not live>` through `JdbcClient`. A row is live while it is `DONE` and younger than 24 hours, or `PENDING` and younger than a 10 minute lease; any other row is overwritten by the claim, so an expired key is absent and a claim abandoned by a crash is taken over.
 - Outcomes:
-  - **Claimed:** run the chain with a caching response wrapper. On 2xx–4xx, store the result as `DONE`. On 5xx or an exception, delete the row so the retry runs.
-  - **Existing `DONE`, same fingerprint:** replay status, `Content-Type` and body, with `Idempotent-Replayed: true`. Nothing runs.
+  - **Claimed:** run the chain with a caching response wrapper. On 2xx–4xx, store the result as `DONE`. On 5xx, an exception, 401, 403, 429 or a response body over 8 MiB, delete the row so the retry runs.
+  - **Existing `DONE`, same fingerprint:** replay status, `Content-Type`, the `Location` and `ETag` headers (an allowlist; never `Set-Cookie`) and body, with `Idempotent-Replayed: true`. Nothing runs.
   - **Existing, different fingerprint:** 422 `idempotency-key-reused`.
   - **Existing `PENDING`:** 409 `idempotency-in-progress`, with `Retry-After: 1`.
 - Retention is 24 hours. An `IdempotencyStore` `ManagedStore` (ADR-0134) purges expired rows, so it appears on the data-lifecycle page like every other store. SSE and streaming responses are GETs and never pass the filter.
@@ -116,8 +116,8 @@ The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show 
 
 - [Wrapping ~30 bare lists breaks every UI caller] → The frontend is updated in the same change. `schema.d.ts` makes each broken caller a type error, so `tsc -b` finds them all.
 - [The idempotency filter buffers request and response bodies] → Multipart is excluded. JSON bodies here are small, and bulk bodies are already capped (ADR-0022).
-- [A crash mid-request leaves a `PENDING` key that answers 409 until the 24 h purge] → Taking over a live claim could run a mutation twice. Long work is asynchronous (202 plus a run id), so a stuck claim only blocks a retry that should use a new key.
-- [Replays carry only the status, content type and body, not headers such as `Location`] → The body already names what was created. 401, 403 and 429 are not recorded (like 5xx), so a refusal is never replayed. Bodies over 8 MiB with a key are refused with `idempotency-unsupported`.
+- [A crash mid-request leaves a `PENDING` key] → The claim has a 10 minute lease: after it the key is taken over atomically. A mutation that legitimately runs longer than the lease can run twice on a retry, so long work is asynchronous (202 plus a run id).
+- [Replays carry only the status, content type, `Location`, `ETag` and body] → Other headers are not stored, so a cookie is never replayed. The body already names what was created. 401, 403 and 429 are not recorded (like 5xx), so a refusal is never replayed. Bodies over 8 MiB with a key are refused with `idempotency-unsupported`, and a response over 8 MiB is not recorded.
 - [Spring keeps one deprecation spec per API version, so `v1` can carry one endpoint-level deprecation at a time] → Several endpoints share one declaration through a combined predicate. Deprecations with different sunsets are the case a new version exists for.
 - [Replaying a stored 4xx means a fixed request needs a new key] → This is the documented semantics (same key = same result). Clients mint a key per logical attempt.
 - [Strict `additionalProperties: false` validation will surface existing undocumented fields] → Each one is fixed by documenting it or removing it. That is the point.

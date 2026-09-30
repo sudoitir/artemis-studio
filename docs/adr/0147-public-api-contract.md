@@ -19,7 +19,7 @@ so the need is that a break is visible, not that it is avoided.
 ## Decision
 
 - **A break is flagged by the Conventional Commit marker.** The `api-compat` job of pull requests runs
-  `oasdiff breaking --fail-on ERR` between the latest CalVer tag's `web/openapi.json` and the PR's. It
+  `oasdiff breaking --fail-on ERR` between `web/openapi.json` where the PR left main and the PR's (every merge that touches `web/` releases, so main's document is the last release's). It
   passes an ERR-level change only when a commit in `origin/main..HEAD` has `!:` in its subject or a
   `BREAKING CHANGE:` footer, and otherwise fails printing oasdiff's list. The same marker puts the
   commit under `### Breaking` in the release notes (ADR-0051), so CI and the release cannot disagree.
@@ -54,8 +54,7 @@ so the need is that a break is visible, not that it is avoided.
 - The list, error and header conventions are enforced by tests rather than review.
 - The change is itself breaking (list bodies, `limit`, 401/403 bodies), shipped with `!` commits and a
   migration note; the web UI is updated with it.
-- The baseline is the previous release, so a PR that follows a release which already contained a break
-  compares against that release, not against `main`.
+- The baseline is main, so only the breaks a PR itself introduces count: a break that is already released does not keep later PRs red.
 - The plugin gateway (`/api/v1/p/**`) and MCP (ADR-0045) keep their own conventions.
 
 ## Alternatives considered
@@ -67,5 +66,5 @@ so the need is that a break is visible, not that it is avoided.
 - **Header or media-type versioning.** URLs stay `/api/v1/...`, which the clients and `schema.d.ts` already use.
 - **Cursor pagination everywhere.** No stable cursor exists over the in-memory fan-out; an endpoint that
   needs one can add it without changing the envelope.
-- **Baseline from a release download.** The snapshot is committed at every tag, so `git show` needs no
-  network or asset.
+- **Baseline from the latest tag or a release download.** A released break would keep every later PR
+  red until the next release, and the snapshot is committed, so `git show` needs no network or asset.
