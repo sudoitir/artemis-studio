@@ -43,7 +43,7 @@ class SseHubTest {
     /** What the bus would do: hand the message back to this replica, which is how every frame arrives. */
     private void loopback() {
         doAnswer(invocation -> {
-                    hub.on((BusFrame) invocation.getArgument(0));
+                    hub.onFrame((BusFrame) invocation.getArgument(0));
                     return null;
                 })
                 .when(bus)
@@ -177,7 +177,7 @@ class SseHubTest {
         hub.register(clusterId, new Subscriber(wants, Set.of("events"), null));
         hub.register(clusterId, new Subscriber(other, Set.of("queues"), null));
 
-        hub.on(new BusFrame(clusterId, "events", mapper.readTree("{\"seq\":7}"), "7"));
+        hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("{\"seq\":7}"), "7"));
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(wants, timeout(2_000)).send(frame.capture());
@@ -195,13 +195,13 @@ class SseHubTest {
         hub.sendTo(subscriber, "events", "replayed", "11");
         hub.sendTo(subscriber, "events", "replayed", "12");
 
-        hub.on(new BusFrame(clusterId, "events", mapper.readTree("12"), "12"));
-        hub.on(new BusFrame(clusterId, "queues", null, null));
-        hub.on(new BusFrame(clusterId, "events", mapper.readTree("13"), "13"));
+        hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("12"), "12"));
+        hub.onFrame(new BusFrame(clusterId, "queues", null, null));
+        hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("13"), "13"));
         verify(emitter, times(2)).send(any(SseEmitter.SseEventBuilder.class));
 
         hub.release(clusterId, subscriber, Map.of("events", 12L));
-        hub.on(new BusFrame(clusterId, "events", mapper.readTree("14"), "14"));
+        hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("14"), "14"));
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(emitter, timeout(2_000).times(5)).send(sent.capture());
@@ -220,7 +220,7 @@ class SseHubTest {
         SseEmitter emitter = mock(SseEmitter.class);
         hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
 
-        hub.on(new BusResumed());
+        hub.onBusResumed(new BusResumed());
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(emitter, timeout(2_000)).send(frame.capture());
@@ -260,7 +260,7 @@ class SseHubTest {
 
         long start = System.nanoTime();
         for (int i = 0; i < 3; i++) {
-            hub.on(new BusFrame(clusterId, "queues", null, null));
+            hub.onFrame(new BusFrame(clusterId, "queues", null, null));
         }
 
         assertThat(Duration.ofNanos(System.nanoTime() - start)).as("dispatch").isLessThan(Duration.ofSeconds(1));
@@ -285,7 +285,7 @@ class SseHubTest {
         hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
 
         for (int i = 0; i < total; i++) {
-            hub.on(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
+            hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
         }
         stall.countDown();
 
@@ -313,7 +313,7 @@ class SseHubTest {
         hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
 
         for (int i = 0; i < 300; i++) {
-            hub.on(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
+            hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
         }
 
         await().atMost(Duration.ofSeconds(5)).until(() -> sent.size() == 300);

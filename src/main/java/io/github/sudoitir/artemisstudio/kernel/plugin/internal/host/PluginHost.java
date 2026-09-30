@@ -481,13 +481,13 @@ public class PluginHost implements SmartLifecycle {
 
     /** Another replica changed a plugin's state: bring this one's runtimes in line, off the bus thread. */
     @EventListener(condition = "#signal.kind() == 'plugins'")
-    void on(ReplicaSignal signal) {
+    void onSignal(ReplicaSignal signal) {
         reconcileInBackground();
     }
 
     /** The bus was down: a plugin may have changed in the gap. */
     @EventListener
-    void on(BusResumed resumed) {
+    void onBusResumed(BusResumed resumed) {
         reconcileInBackground();
     }
 

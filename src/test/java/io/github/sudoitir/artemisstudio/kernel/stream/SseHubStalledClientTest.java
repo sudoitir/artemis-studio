@@ -46,7 +46,7 @@ class SseHubStalledClientTest extends PostgresIntegrationTest {
         SseHub[] hub = new SseHub[1];
         StudioBus bus = new StudioBus(jdbc, mapper, datasource, event -> {
             if (event instanceof BusFrame frame) {
-                hub[0].on(frame);
+                hub[0].onFrame(frame);
             } else if (event instanceof ReplicaSignal signal) {
                 signals.add(signal);
             }

@@ -43,13 +43,13 @@ class PolicyStore {
     }
 
     @EventListener(condition = "#signal.kind() == 'policy'")
-    void on(ReplicaSignal signal) {
+    void onSignal(ReplicaSignal signal) {
         current = null;
     }
 
     /** The bus was down: a rule may have changed in the gap. */
     @EventListener
-    void on(BusResumed resumed) {
+    void onBusResumed(BusResumed resumed) {
         current = null;
     }
 

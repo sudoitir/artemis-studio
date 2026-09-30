@@ -336,14 +336,14 @@ public class SettingsService {
     /** Another replica wrote a setting: re-read the overrides and push them. */
     @EventListener(condition = "#signal.kind() == 'settings'")
     @Transactional(readOnly = true)
-    public void on(ReplicaSignal signal) {
+    public void onSignal(ReplicaSignal signal) {
         refreshOverrides();
     }
 
     /** The bus was down: a setting may have changed in the gap. */
     @EventListener
     @Transactional(readOnly = true)
-    public void on(BusResumed resumed) {
+    public void onBusResumed(BusResumed resumed) {
         refreshOverrides();
     }
 

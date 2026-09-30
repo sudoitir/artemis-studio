@@ -50,13 +50,13 @@ public class ClusterEnvironmentIndex implements ScopeHierarchy {
     }
 
     @EventListener(condition = "#signal.kind() == 'env-index'")
-    void on(ReplicaSignal signal) {
+    void onSignal(ReplicaSignal signal) {
         index = null;
     }
 
     /** The bus was down: a cluster may have moved environment in the gap. */
     @EventListener
-    void on(BusResumed resumed) {
+    void onBusResumed(BusResumed resumed) {
         index = null;
     }
 

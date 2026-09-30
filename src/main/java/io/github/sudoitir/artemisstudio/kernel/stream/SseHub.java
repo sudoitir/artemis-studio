@@ -124,13 +124,13 @@ public class SseHub {
 
     /** A frame arrived, from this replica or another: deliver it to the local subscribers. */
     @EventListener
-    void on(BusFrame frame) {
+    void onFrame(BusFrame frame) {
         deliver(frame.clusterId(), frame.topic(), frame.data(), frame.id());
     }
 
     /** The bus is back: what was sent while it was down is lost, so every client refetches. */
     @EventListener
-    void on(BusResumed resumed) {
+    void onBusResumed(BusResumed resumed) {
         toAll(RESYNC);
     }
 

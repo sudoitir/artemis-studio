@@ -22,7 +22,7 @@ _Others_
 * `i.g.s.a.k.s.SecretVault` (in Security)
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
 |Events listened to
-|* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.r.BusResumed` 
+|* `i.g.s.a.k.r.BusResumed` 
 
+* `i.g.s.a.k.r.ReplicaSignal` 
 |===

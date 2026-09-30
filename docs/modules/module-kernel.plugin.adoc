@@ -30,8 +30,8 @@ _Others_
 |* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
 |Events listened to
-|* `i.g.s.a.k.r.BusResumed` 
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `i.g.s.a.k.r.BusResumed` 
 * `i.g.s.a.k.r.ReplicaSignal` 
-* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 * `org.springframework.context.ApplicationEvent` 
 |===
