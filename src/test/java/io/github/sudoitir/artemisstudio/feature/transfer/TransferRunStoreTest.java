@@ -215,6 +215,26 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
         assertThat(runs.findById(gone.getId()).orElseThrow().getState()).isEqualTo(TransferState.INTERRUPTED);
     }
 
+    @Test
+    void stoppingARunThatExecutesElsewhereRecordsTheRequestOnTheRunUntilItIsResumed() throws Exception {
+        TransferRunEntity run = preview(TransferMode.MOVE, "elsewhere");
+        state(run, TransferState.RUNNING);
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), run.getId());
+
+        mvc.perform(post("/api/v1/clusters/{c}/transfers/runs/{r}/stop", source, run.getId()))
+                .andExpect(status().isOk());
+
+        assertThat(runs.existsByIdAndStopRequestedAtIsNotNull(run.getId()))
+                .as("a stop whose signal is lost is still on the row")
+                .isTrue();
+        state(run, TransferState.INTERRUPTED);
+        assertThat(runs.transition(run.getId(), TransferState.RESUMABLE, TransferState.RUNNING))
+                .isOne();
+        assertThat(runs.existsByIdAndStopRequestedAtIsNotNull(run.getId()))
+                .as("the resumed segment starts without it")
+                .isFalse();
+    }
+
     // ---- API refusals --------------------------------------------------------------
 
     private ResultActions execute(UUID cluster, TransferRunEntity run, String body) throws Exception {

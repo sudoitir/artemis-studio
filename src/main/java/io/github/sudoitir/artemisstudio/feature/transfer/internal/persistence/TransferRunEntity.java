@@ -163,6 +163,14 @@ public class TransferRunEntity {
     @Column(name = "error_snippet")
     private String errorSnippet;
 
+    /**
+     * When the operator asked to stop the segment in progress. Set only by
+     * {@link TransferRunRepository#requestStop} and cleared by {@link TransferRunRepository#transition}, never
+     * by the runner's own saves, which would otherwise overwrite it with what they loaded.
+     */
+    @Column(name = "stop_requested_at", updatable = false)
+    private Instant stopRequestedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

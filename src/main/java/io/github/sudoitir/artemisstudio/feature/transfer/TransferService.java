@@ -483,12 +483,15 @@ public class TransferService {
     public TransferRunView stop(UUID clusterId, UUID runId) {
         TransferRunEntity run = load(clusterId, runId);
         requireRunPermissions(run);
-        if (!runner.requestStop(runId)) {
-            if (!run.getState().active()) {
-                throw new ConflictException(
-                        "transfer-run-not-running", "This transfer is not running, so there is nothing to stop.");
-            }
-            // Executing on another replica (ADR-0152): every replica hears it, the executing one acts.
+        boolean here = runner.requestStop(runId);
+        if (!here && !run.getState().active()) {
+            throw new ConflictException(
+                    "transfer-run-not-running", "This transfer is not running, so there is nothing to stop.");
+        }
+        // Recorded on the run, so a signal that is lost cannot leave it running (ADR-0152).
+        runs.requestStop(runId, Instant.now());
+        if (!here) {
+            // Executing on another replica: every replica hears it at once, the executing one acts.
             runner.signalStop(runId);
         }
         Operator operator = handoff.capture();

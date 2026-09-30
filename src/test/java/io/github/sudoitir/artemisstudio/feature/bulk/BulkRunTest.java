@@ -439,6 +439,33 @@ class BulkRunTest extends BulkTestSupport {
     }
 
     @Test
+    void aStopWhoseSignalWasLostStillStopsTheRun() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                // What a stop on another replica leaves when its signal never arrives here: the row alone.
+                jdbc.update("UPDATE bulk_run SET stop_requested_at = now() WHERE id = ?", runId[0]);
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+
+        BulkRunDetailView run = execute(preview, false);
+
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.STOPPED);
+    }
+
+    @Test
     void stoppingARunThatExecutesElsewhereIsAcceptedAndOneThatIsNotRunningIsRefused() {
         queue(nodeA, "orders.1", 1, 0, false);
         UUID running = preview(BulkOperation.PAUSE, "orders").run().id();
@@ -446,6 +473,10 @@ class BulkRunTest extends BulkTestSupport {
         UUID previewed = preview(BulkOperation.RESUME, "orders").run().id();
 
         assertThat(bulk.stop(clusterId, running).status()).isEqualTo(BulkRunStatus.RUNNING);
+        assertThat(jdbc.queryForObject(
+                        "SELECT stop_requested_at IS NOT NULL FROM bulk_run WHERE id = ?", Boolean.class, running))
+                .as("the stop is on the run, not only in a signal")
+                .isTrue();
         assertThatThrownBy(() -> bulk.stop(clusterId, previewed)).isInstanceOf(ConflictException.class);
     }
 

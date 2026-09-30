@@ -1,9 +1,12 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -23,5 +26,25 @@ class BrokerSessionsTest {
         verify(subscriptions).forget(clusterId);
         verify(pool).forget(clusterId);
         verify(relay).forget(clusterId);
+    }
+
+    @Test
+    void afterTheBusWasDownOnlyWhatBelongsToAClusterThatIsGoneIsReleased() {
+        UUID kept = UUID.randomUUID();
+        UUID goneWithSubscriptions = UUID.randomUUID();
+        UUID goneWithAPool = UUID.randomUUID();
+        when(subscriptions.clusterIds()).thenReturn(Set.of(kept, goneWithSubscriptions));
+        when(pool.clusterIds()).thenReturn(Set.of(kept, goneWithAPool));
+        when(relay.clusterIds()).thenReturn(Set.of());
+
+        sessions.releaseAllBut(Set.of(kept));
+
+        verify(subscriptions).forget(goneWithSubscriptions);
+        verify(pool).forget(goneWithSubscriptions);
+        verify(subscriptions).forget(goneWithAPool);
+        verify(pool).forget(goneWithAPool);
+        verify(subscriptions, never()).forget(kept);
+        verify(pool, never()).forget(kept);
+        verify(relay, never()).forget(kept);
     }
 }

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.feature.transfer.TransferState;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -28,12 +29,29 @@ public interface TransferRunRepository extends JpaRepository<TransferRunEntity, 
 
     /**
      * Move a run from one of {@code from} to {@code to}, once: zero when it was in none of them any
-     * more. Fails on the partial unique index when another run is active on the same source queue.
+     * more. Fails on the partial unique index when another run is active on the same source queue. A
+     * stop asked of the previous segment is forgotten, so a resumed run is not stopped at once.
      */
     @Modifying
     @Transactional
-    @Query("update TransferRunEntity r set r.state = :to where r.id = :id and r.state in :from")
+    @Query("update TransferRunEntity r set r.state = :to, r.stopRequestedAt = null"
+            + " where r.id = :id and r.state in :from")
     int transition(@Param("id") UUID id, @Param("from") Collection<TransferState> from, @Param("to") TransferState to);
+
+    /**
+     * Record that the operator asked to stop a run that is executing, once: zero when it is not executing
+     * or a stop was already asked. The executing replica reads it, whether or not the signal reaches it.
+     */
+    @Modifying
+    @Transactional
+    @Query("update TransferRunEntity r set r.stopRequestedAt = :now where r.id = :id"
+            + " and r.state in (io.github.sudoitir.artemisstudio.feature.transfer.TransferState.RUNNING,"
+            + " io.github.sudoitir.artemisstudio.feature.transfer.TransferState.WAITING_FOR_CAPACITY,"
+            + " io.github.sudoitir.artemisstudio.feature.transfer.TransferState.RETURNING)"
+            + " and r.stopRequestedAt is null")
+    int requestStop(@Param("id") UUID id, @Param("now") Instant now);
+
+    boolean existsByIdAndStopRequestedAtIsNotNull(UUID id);
 
     /**
      * Take the row lock of a run that is still active on {@code replica}: one when it is, zero when

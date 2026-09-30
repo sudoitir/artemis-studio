@@ -77,6 +77,9 @@ class TransferRunner {
     private static final Duration FIRST_BACKOFF = Duration.ofSeconds(1);
     private static final Duration MAX_BACKOFF = Duration.ofSeconds(30);
 
+    /** How often a wait looks on the run's row for a stop whose signal did not arrive. */
+    private static final Duration ROW_CHECK = Duration.ofSeconds(2);
+
     private final TransferRunRepository runs;
     private final TransferLedger ledger;
     private final TransferNodes nodes;
@@ -632,7 +635,7 @@ class TransferRunner {
         if (!replicas.heartbeatFresh()) {
             throw new RunLost("this replica's heartbeat has lapsed");
         }
-        if (background.stopRequested(s.id())) {
+        if (stopAsked(s.id())) {
             return End.stopped("Stopped by the operator.");
         }
         String sourcePermission = s.run.getMode().sourcePermission();
@@ -738,13 +741,35 @@ class TransferRunner {
         }
     }
 
-    /** Sleep, looking for a stop four times a second. False when a stop was asked for. */
+    /**
+     * Whether the operator asked to stop this run: this replica was told, or the request is on the run's
+     * row, which is how it arrives when the signal to this replica was lost (ADR-0152).
+     */
+    private boolean stopAsked(UUID runId) {
+        if (background.stopRequested(runId)) {
+            return true;
+        }
+        if (runs.existsByIdAndStopRequestedAtIsNotNull(runId)) {
+            background.requestStop(runId);
+            return true;
+        }
+        return false;
+    }
+
+    /** Sleep, looking for a stop four times a second and on the run's row every few seconds. False when one was asked for. */
     private boolean sleep(UUID runId, Duration duration) {
         long end = System.nanoTime() + duration.toNanos();
+        long nextRowCheck = System.nanoTime() + ROW_CHECK.toNanos();
         try {
             while (System.nanoTime() < end) {
                 if (background.stopRequested(runId)) {
                     return false;
+                }
+                if (System.nanoTime() - nextRowCheck >= 0) {
+                    if (stopAsked(runId)) {
+                        return false;
+                    }
+                    nextRowCheck = System.nanoTime() + ROW_CHECK.toNanos();
                 }
                 Thread.sleep(Math.clamp((end - System.nanoTime()) / 1_000_000, 1, 250));
             }
@@ -752,7 +777,7 @@ class TransferRunner {
             Thread.currentThread().interrupt();
             return false;
         }
-        return !background.stopRequested(runId);
+        return !stopAsked(runId);
     }
 
     private Provenance provenance(Segment s, boolean staged) {

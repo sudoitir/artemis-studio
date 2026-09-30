@@ -161,6 +161,11 @@ public class CoreSubscriptionManager {
         return states;
     }
 
+    /** The clusters this holds subscriptions for. */
+    Set<UUID> clusterIds() {
+        return Set.copyOf(nodesByCluster.keySet());
+    }
+
     /** Drop all state for a removed cluster. Wired into {@code ClusterService.delete}. */
     public void forget(UUID clusterId) {
         Set<UUID> nodeIds = nodesByCluster.remove(clusterId);

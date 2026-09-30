@@ -93,6 +93,13 @@ public class BulkRunEntity {
     @Column(name = "replica_id")
     private UUID replicaId;
 
+    /**
+     * When the operator asked to stop the run. Set only by {@link BulkRunRepository#requestStop}, never by
+     * the runner's own saves, which would otherwise overwrite it with what they loaded.
+     */
+    @Column(name = "stop_requested_at", updatable = false)
+    private Instant stopRequestedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

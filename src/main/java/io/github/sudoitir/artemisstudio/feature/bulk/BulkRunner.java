@@ -102,6 +102,10 @@ class BulkRunner {
                 if (!replicas.heartbeatFresh()) {
                     throw new RunLost("this replica's heartbeat has lapsed");
                 }
+                // A stop asked on another replica whose signal did not reach this one is on the row.
+                if (!stop.getAsBoolean() && runs.existsByIdAndStopRequestedAtIsNotNull(run.getId())) {
+                    background.requestStop(run.getId());
+                }
                 if (stop.getAsBoolean() || halted) {
                     item.finish(
                             stop.getAsBoolean() ? BulkItemStatus.CANCELLED : BulkItemStatus.SKIPPED,

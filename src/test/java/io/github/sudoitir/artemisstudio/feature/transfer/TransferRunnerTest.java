@@ -323,6 +323,20 @@ class TransferRunnerTest {
         verify(audit, never()).finish(any(), anyBoolean(), anyLong(), any(), any());
     }
 
+    @Test
+    void aStopOnTheRunsRowStopsItBeforeTheNextBatchWhateverTheSignalDid() throws Exception {
+        copyOfAll(5L);
+        relaying(relayed(3, 300, 1L, 2L, 3L), empty());
+        when(runs.existsByIdAndStopRequestedAtIsNotNull(RUN)).thenReturn(true);
+
+        TransferRunEntity run = execute();
+
+        assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
+        assertThat(run.getLastError()).isEqualTo("Stopped by the operator.");
+        verify(link, never()).relay(anyInt(), any());
+        verify(background).requestStop(RUN);
+    }
+
     // ---- copy ----------------------------------------------------------------
 
     @Test
