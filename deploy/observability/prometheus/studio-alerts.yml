@@ -69,3 +69,14 @@ groups:
         annotations:
           summary: "Studio's database pool is nearly exhausted"
           description: "{{ $value | humanizePercentage }} of the pool's connections have been in use for 5 minutes."
+
+  - name: artemis-studio-resources
+    rules:
+      - alert: StudioThreadsHigh
+        expr: jvm_threads_live_threads > 500
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio is running an unusual number of threads"
+          description: "{{ $value }} live threads for 15 minutes. Studio's threads are bounded by configuration, not by time, so steady growth points at a leak."

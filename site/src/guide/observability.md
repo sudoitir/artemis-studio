@@ -100,7 +100,8 @@ waits and timeouts, Core latency, the database pool, stream clients and threads.
 **Alert rules.** Add `prometheus/studio-alerts.yml` to `rule_files` in `prometheus.yml` and reload.
 It alerts on a job past its interval or failing, a node failing more than 10% of its management
 calls, slow management calls (p95 over 2 s), permit timeouts, and a waiting or nearly exhausted
-database pool. Check a copy you edited with `promtool check rules studio-alerts.yml`.
+database pool, and more than 500 live threads for 15 minutes (Studio's threads are bounded by
+configuration, so steady growth points at a leak). Check a copy you edited with `promtool check rules studio-alerts.yml`.
 
 ## Upgrading
 
