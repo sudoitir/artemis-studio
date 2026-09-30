@@ -6,14 +6,19 @@ import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.Brok
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -40,6 +45,9 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
 
     @Autowired
     EventsProperties properties;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     private final UUID clusterId = UUID.randomUUID();
     private BrokerEventWriter writer;
@@ -102,7 +110,9 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                 .batchUpdate(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.any(
-                                org.springframework.jdbc.core.namedparam.SqlParameterSource[].class));
+                                org.springframework.jdbc.core.namedparam.SqlParameterSource[].class),
+                        org.mockito.ArgumentMatchers.any(org.springframework.jdbc.support.KeyHolder.class),
+                        org.mockito.ArgumentMatchers.any(String[].class));
         BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, repository, publisher, null, properties);
         flaky.accept(event("CONSUMER_CREATED"));
         flaky.accept(event("SESSION_CREATED"));
@@ -119,6 +129,46 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                         Map.of("c", clusterId),
                         String.class))
                 .containsExactly("CONSUMER_CREATED", "SESSION_CREATED");
+    }
+
+    @Test
+    void thePublisherGetsOnlyItsOwnRowsAfterCommit() {
+        List<String> published = new ArrayList<>();
+        ObjectProvider<BrokerEventPublisher> capturing = Mockito.mock();
+        Mockito.when(capturing.getIfAvailable()).thenReturn(events -> events.forEach(e -> published.add(e.getType())));
+        BrokerEventWriter capturingWriter =
+                new BrokerEventWriter(jdbc, mapper, repository, capturing, null, properties);
+        TransactionTemplate tx = new TransactionTemplate(transactions);
+        capturingWriter.accept(event("CONSUMER_CREATED"));
+        capturingWriter.accept(event("SESSION_CREATED"));
+
+        tx.executeWithoutResult(status -> {
+            capturingWriter.flush();
+            // Another writer's row lands between the flush and the commit; it is not ours to publish.
+            writer.accept(event("BINDING_ADDED"));
+            writer.flush();
+            assertThat(published).isEmpty();
+        });
+
+        assertThat(published).containsExactly("CONSUMER_CREATED", "SESSION_CREATED");
+    }
+
+    @Test
+    void nothingIsPublishedWhenTheFlushRollsBack() {
+        List<String> published = new ArrayList<>();
+        ObjectProvider<BrokerEventPublisher> capturing = Mockito.mock();
+        Mockito.when(capturing.getIfAvailable()).thenReturn(events -> events.forEach(e -> published.add(e.getType())));
+        BrokerEventWriter capturingWriter =
+                new BrokerEventWriter(jdbc, mapper, repository, capturing, null, properties);
+        capturingWriter.accept(event("CONSUMER_CREATED"));
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            capturingWriter.flush();
+            status.setRollbackOnly();
+        });
+
+        assertThat(published).isEmpty();
+        assertThat(persisted()).isZero();
     }
 
     @Test

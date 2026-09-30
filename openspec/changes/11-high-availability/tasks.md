@@ -3,7 +3,7 @@
 
 ## 2. Fixes found on the way (own commits)
 - [x] 2.1 `StudioInstance.mint`: concurrent first boot mints once (INSERT ON CONFLICT DO NOTHING, re-read)
-- [ ] 2.2 `BrokerEventWriter`: publish the seqs its own insert produced, after commit, not a global cursor
+- [x] 2.2 `BrokerEventWriter`: publish the seqs its own insert produced, after commit, not a global cursor
 
 ## 3. Foundation (D1, D3, D8)
 - [ ] 3.1 `studio_replica` changelog (drop `studio_boot`), `ReplicaRegistry` with DB-time heartbeat thread, states, reaping in housekeeping
