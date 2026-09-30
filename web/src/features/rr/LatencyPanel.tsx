@@ -11,7 +11,7 @@ const COVERAGE_VISIBLE = 6;
  * sit next to the chart, not in a tooltip (request-reply-tracing spec —
  * latency is never shown without its coverage).
  */
-export function LatencyPanel({ clusterId }: { clusterId: string }) {
+export function LatencyPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   const stats = useRrStats(clusterId);
   const addresses = stats.data?.addresses ?? [];
 

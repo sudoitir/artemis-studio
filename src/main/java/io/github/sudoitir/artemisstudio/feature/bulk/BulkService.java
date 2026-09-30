@@ -123,13 +123,14 @@ public class BulkService {
                 clusterId,
                 operation,
                 handoff.capture().actor().displayName(),
-                planHash(operation, options, names),
-                json.writeValueAsString(new BulkSelection(request.names() == null ? null : names, request.q())),
-                json.writeValueAsString(options),
-                names.size(),
-                (int) plan.stream().filter(p -> p.refusal() != null).count(),
-                estimate,
-                complete,
+                new BulkRunEntity.Preview(
+                        planHash(operation, options, names),
+                        json.writeValueAsString(new BulkSelection(request.names() == null ? null : names, request.q())),
+                        json.writeValueAsString(options),
+                        names.size(),
+                        (int) plan.stream().filter(p -> p.refusal() != null).count(),
+                        estimate,
+                        complete),
                 now,
                 now.plus(PREVIEW_LIFETIME)));
         List<BulkRunItemEntity> rows = new ArrayList<>();
@@ -199,7 +200,9 @@ public class BulkService {
                     warnings.add("Not paused; nothing changes.");
                 }
             }
-            case PURGE -> {}
+            case PURGE -> {
+                // A purge has nothing to warn about.
+            }
         }
         return new Planned(
                 name, refusal, new ItemEstimate(nodes, warnings.isEmpty() ? null : String.join(" ", warnings)));
@@ -265,7 +268,7 @@ public class BulkService {
                 throw new ConflictException(
                         "bulk-run-started", "This bulk run has already been executed. Preview again to run it again.");
             }
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             String running = runs.findFirstByClusterIdAndStatus(clusterId, BulkRunStatus.RUNNING)
                     .map(r -> r.getId().toString())
                     .orElse("another run");

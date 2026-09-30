@@ -6,10 +6,10 @@
  */
 import type { ComponentType, ReactElement } from 'react';
 
-import { CONTRACT, type PluginId, type StudioFeature } from '../kernel/feature.ts';
+import type { PluginId, StudioFeature } from '../kernel/feature.ts';
 import { featureView as kernelFeatureView } from '../kernel/routing/roots.ts';
 
-export { CONTRACT };
+export { CONTRACT } from '../kernel/feature.ts';
 export type {
   NavContribution,
   PaletteSource,

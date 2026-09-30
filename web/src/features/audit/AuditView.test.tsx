@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -156,5 +156,250 @@ describe('AuditView', () => {
     );
     const call = navigate.mock.calls.at(-1)![0] as { search: (p: object) => Record<string, unknown> };
     expect(call.search({ event: 8 })).toEqual({ parentId: 7, event: undefined, page: undefined });
+  });
+});
+
+function page(rows: object[], count = rows.length) {
+  return http.get('*/api/v1/clusters/c1/audit', () => HttpResponse.json({ data: rows, count, page: 1, pageSize: 100 }));
+}
+
+function grants(permissions: string[]) {
+  return http.get('*/api/v1/auth/me', () =>
+    HttpResponse.json({
+      id: 'u1',
+      username: 'admin',
+      mustChangePassword: false,
+      grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
+    }),
+  );
+}
+
+/** What the last navigate() call does to the address it starts from. */
+function nextSearch(prev: Record<string, unknown> = {}) {
+  const call = navigate.mock.lastCall![0] as { search: (p: Record<string, unknown>) => Record<string, unknown> };
+  return call.search(prev);
+}
+
+describe('AuditView rows and states', () => {
+  beforeEach(() => {
+    search = {};
+    navigate.mockReset();
+  });
+
+  it('says each outcome in a word, marks a dry run, and shows a missing count or target as a dash', async () => {
+    server.use(
+      grants([]),
+      page([
+        row({
+          id: 1,
+          username: 'ann',
+          outcome: 'SUCCESS',
+          action: 'PURGE_QUEUE',
+          dryRun: true,
+          affectedCount: 12,
+          targetName: 'ORDERS',
+        }),
+        row({ id: 2, outcome: 'PENDING', action: 'MOVE_MESSAGES', targetName: null, username: null }),
+      ]),
+    );
+    renderWithProviders(<AuditView />);
+
+    const grid = await screen.findByRole('grid', { name: 'Audit events' });
+    expect(within(grid).getByText('success')).toBeInTheDocument();
+    expect(within(grid).getByText('pending')).toBeInTheDocument();
+    expect(within(grid).getByText(/dry run/)).toBeInTheDocument();
+    expect(within(grid).getByText('12')).toBeInTheDocument();
+    expect(within(grid).getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    expect(within(grid).getByText('ann')).toBeInTheDocument();
+    expect(within(grid).getByText('anonymous')).toBeInTheDocument();
+    expect(screen.getByText('1–2 of 2 audit events')).toBeInTheDocument();
+  });
+
+  it('teaches what is recorded here when no event matches', async () => {
+    server.use(grants([]), page([]));
+    renderWithProviders(<AuditView />);
+
+    expect(await screen.findByText(/No audit events match\. Every message operation/)).toBeInTheDocument();
+    expect(screen.getByText('No audit events')).toBeInTheDocument();
+    expect(screen.queryByRole('grid', { name: 'Audit events' })).not.toBeInTheDocument();
+  });
+
+  it('states why the log could not be read instead of showing it empty', async () => {
+    server.use(
+      grants([]),
+      http.get('*/api/v1/clusters/c1/audit', () =>
+        HttpResponse.json({ title: 'Audit unavailable', detail: 'The database did not answer.' }, { status: 500 }),
+      ),
+    );
+    renderWithProviders(<AuditView />);
+
+    expect(await screen.findByText('Audit unavailable')).toBeInTheDocument();
+    expect(screen.getByText('The database did not answer.')).toBeInTheDocument();
+  });
+
+  it('pages back and forth, leaving the page out of the address on the first', async () => {
+    search = { page: 2 };
+    server.use(grants([]), page([row()], 250));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    expect(await screen.findByText('101–200 of 250 audit events')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(nextSearch({ user: 'ann' })).toEqual({ user: 'ann', page: 3 });
+    await user.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(nextSearch()).toEqual({ page: undefined });
+  });
+});
+
+describe('AuditView filters', () => {
+  beforeEach(() => {
+    search = {};
+    navigate.mockReset();
+  });
+
+  it('commits a typed user to the address on blur, for someone who cannot list users', async () => {
+    server.use(grants([]), page([row()]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    const field = await screen.findByRole('textbox', { name: 'Filter by user' });
+    await user.type(field, 'ann');
+    await waitFor(() => expect(field).toHaveValue('ann'));
+    // The value committed is the debounced one, so wait for typing to settle before leaving the field.
+    await new Promise((r) => setTimeout(r, 300));
+    await user.tab();
+
+    await waitFor(() => expect(navigate).toHaveBeenCalled());
+    expect(nextSearch({ page: 4 })).toEqual({ page: undefined, user: 'ann' });
+  });
+
+  it('offers the known users instead of a text box to someone who administers users', async () => {
+    server.use(
+      grants(['user:admin']),
+      http.get('*/api/v1/users', () =>
+        HttpResponse.json([
+          { id: 'u1', username: 'ann' },
+          { id: 'u2', username: 'bob' },
+        ]),
+      ),
+      page([row()]),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    await user.click(await screen.findByPlaceholderText('Any user'));
+    await user.click(await screen.findByRole('option', { name: 'bob', hidden: true }));
+
+    expect(nextSearch({ page: 2 })).toEqual({ page: undefined, user: 'bob' });
+    expect(screen.queryByRole('textbox', { name: 'Filter by user' })).not.toBeInTheDocument();
+  });
+
+  it('commits an action and an outcome as soon as they are chosen, showing the ones already in the address', async () => {
+    search = { action: 'PURGE_QUEUE', outcome: 'FAILURE' };
+    server.use(grants([]), page([row()]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    const action = await screen.findByPlaceholderText('Any action');
+    expect(action).toHaveValue('PURGE_QUEUE');
+    await user.click(action);
+    await user.click(await screen.findByRole('option', { name: 'MOVE_MESSAGES', hidden: true }));
+    expect(nextSearch()).toEqual({ action: 'MOVE_MESSAGES', page: undefined });
+
+    const outcome = screen.getByPlaceholderText('Any outcome');
+    expect(outcome).toHaveValue('FAILURE');
+    await user.click(outcome);
+    await user.click(await screen.findByRole('option', { name: 'SUCCESS', hidden: true }));
+    expect(nextSearch()).toEqual({ outcome: 'SUCCESS', page: undefined });
+  });
+});
+
+describe('AuditView event detail', () => {
+  beforeEach(() => {
+    search = {};
+    navigate.mockReset();
+  });
+
+  it('shows a dry run with no target, params, error or source as the facts it has, without empty blocks', async () => {
+    search = { event: 5 };
+    server.use(
+      grants([]),
+      page([
+        row({
+          dryRun: true,
+          targetName: null,
+          username: null,
+          params: null,
+          error: null,
+          requestId: null,
+          sourceIp: null,
+          parentId: null,
+        }),
+      ]),
+    );
+    renderWithProviders(<AuditView />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'DELETE_MESSAGES' });
+    expect(within(dialog).getByText(/anonymous · no target · dry run/)).toBeInTheDocument();
+    expect(within(dialog).getByText('request — · from —')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Show the operation this belongs to/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/Show the event for each queue/)).not.toBeInTheDocument();
+  });
+
+  it('offers the events of each queue for a bulk run, and closing the drawer drops the event from the address', async () => {
+    search = { event: 7 };
+    server.use(grants([]), page([row({ id: 7, action: 'bulk.delete', targetName: 'cluster' })]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Show the event for each queue in this run' }));
+    expect(nextSearch({ event: 7 })).toEqual({ parentId: 7, event: undefined, page: undefined });
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(navigate.mock.calls.length).toBeGreaterThan(1));
+    expect(nextSearch({ event: 7, parentId: 7 })).toEqual({ event: undefined, parentId: 7 });
+  });
+
+  it('states why an event that is not on the page could not be loaded', async () => {
+    search = { event: 9 };
+    server.use(
+      grants([]),
+      page([row()]),
+      http.get('*/api/v1/clusters/c1/audit/9', () =>
+        HttpResponse.json({ title: 'Audit unavailable', detail: 'The database did not answer.' }, { status: 500 }),
+      ),
+    );
+    renderWithProviders(<AuditView />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Audit event' });
+    expect(await within(dialog).findByText('Audit unavailable')).toBeInTheDocument();
+    expect(within(dialog).getByText('The database did not answer.')).toBeInTheDocument();
+  });
+
+  it('shows a placeholder while an event that is not on the page loads', async () => {
+    search = { event: 9 };
+    server.use(
+      grants([]),
+      page([row()]),
+      http.get('*/api/v1/clusters/c1/audit/9', async () => {
+        await new Promise(() => {});
+      }),
+    );
+    renderWithProviders(<AuditView />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Audit event' });
+    expect(within(dialog).queryByText(/no longer exists/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('clears the run filter with the one action that says so', async () => {
+    search = { parentId: 7 };
+    server.use(grants([]), page([row({ id: 8, parentId: 7 })]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Show every event' }));
+
+    expect(nextSearch({ parentId: 7, user: 'ann' })).toEqual({ user: 'ann', parentId: undefined, page: undefined });
   });
 });

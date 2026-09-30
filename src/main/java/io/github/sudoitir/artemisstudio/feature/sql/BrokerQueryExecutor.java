@@ -107,216 +107,218 @@ public class BrokerQueryExecutor {
             Sink sink,
             Function<Target, String> extraSelector,
             int maxPagesPerTarget) {
-        SqlProperties limits = properties;
-        Split split = planner.splitOf(plan.ast());
-        // Resolved here, on the caller's thread: the per-node threads below carry no security context.
-        // A tail poll has none either, so it evaluates over masked content — the safe side.
-        boolean clearAccess = governance.clearAccess(clusterId);
+        return new Run(clusterId, plan, transport, sink, extraSelector, maxPagesPerTarget).execute();
+    }
 
-        Map<UUID, ClusterNode> nodesById = new LinkedHashMap<>();
-        nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
+    /**
+     * One query's execution: the bounds it is measured against, and what accumulates while
+     * its nodes are read.
+     */
+    private final class Run {
+
+        private final UUID clusterId;
+        private final QueryPlan plan;
+        private final MessageTransport transport;
+        private final Sink sink;
+        private final Function<Target, String> extraSelector;
+        private final int maxPagesPerTarget;
+        private final SqlProperties limits = properties;
+        private final Split split;
+        private final boolean clearAccess;
+        private final Map<UUID, ClusterNode> nodesById = new LinkedHashMap<>();
 
         // Shared across the fan-out: rows and the examined counter are what the
         // bounds are measured against, so every node has to see the same ones.
-        List<Row> rows = java.util.Collections.synchronizedList(new ArrayList<>());
-        List<NodeOutcome> outcomes = java.util.Collections.synchronizedList(new ArrayList<>());
-        List<Bound> bounds = java.util.Collections.synchronizedList(new ArrayList<>());
-        List<Notice> notices = new ArrayList<>(plan.notices());
+        private final List<Row> rows = java.util.Collections.synchronizedList(new ArrayList<>());
+        private final List<NodeOutcome> outcomes = java.util.Collections.synchronizedList(new ArrayList<>());
+        private final List<Bound> bounds = java.util.Collections.synchronizedList(new ArrayList<>());
+        private final List<Notice> notices;
+        private final AtomicLong examined = new AtomicLong();
+        private final AtomicBoolean truncationSeen = new AtomicBoolean();
+        private final long deadline;
 
-        AtomicLong examined = new AtomicLong();
-        AtomicBoolean truncationSeen = new AtomicBoolean();
-        long deadline = System.nanoTime() + limits.timeout().toNanos();
-
-        // Grouped by node, and one virtual thread per node. Within a node the rate
-        // limiter serialises the calls anyway, so parallelism there would buy
-        // nothing; across nodes it is the difference between a wildcard query over a
-        // cluster finishing inside the timeout and not.
-        Map<UUID, List<Target>> byNode = new LinkedHashMap<>();
-        for (Target target : plan.targets()) {
-            byNode.computeIfAbsent(target.nodeId(), k -> new ArrayList<>()).add(target);
+        Run(
+                UUID clusterId,
+                QueryPlan plan,
+                MessageTransport transport,
+                Sink sink,
+                Function<Target, String> extraSelector,
+                int maxPagesPerTarget) {
+            this.clusterId = clusterId;
+            this.plan = plan;
+            this.transport = transport;
+            this.sink = sink;
+            this.extraSelector = extraSelector;
+            this.maxPagesPerTarget = maxPagesPerTarget;
+            this.split = planner.splitOf(plan.ast());
+            // Resolved here, on the caller's thread: the per-node threads below carry no security context.
+            // A tail poll has none either, so it evaluates over masked content — the safe side.
+            this.clearAccess = governance.clearAccess(clusterId);
+            nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
+            this.notices = new ArrayList<>(plan.notices());
+            this.deadline = System.nanoTime() + limits.timeout().toNanos();
         }
 
-        try (var scope = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-            List<java.util.concurrent.Future<?>> running = new ArrayList<>();
-            for (List<Target> nodeTargets : byNode.values()) {
-                running.add(scope.submit(() -> {
-                    for (Target target : nodeTargets) {
-                        if (sink.isCancelled()) {
-                            return;
-                        }
-                        Bound stop = boundReached(rows.size(), examined.get(), deadline, limits);
-                        if (stop != null) {
-                            recordBound(bounds, stop);
-                            NodeOutcome skipped = new NodeOutcome(
-                                    target.nodeId(),
-                                    target.nodeName(),
-                                    target.queueName(),
-                                    NodeOutcome.Status.NOT_READ,
-                                    0,
-                                    0,
-                                    null,
-                                    "Stopped before this queue was read: " + describe(stop) + ".");
-                            outcomes.add(skipped);
-                            sink.nodeFinished(skipped);
-                            continue;
-                        }
-                        ClusterNode node = nodesById.get(target.nodeId());
-                        if (node == null) {
-                            continue;
-                        }
-                        NodeOutcome outcome = readTarget(
-                                clusterId,
-                                plan,
-                                split,
-                                transport,
-                                node,
-                                target,
-                                sink,
-                                rows,
-                                examined,
-                                truncationSeen,
-                                deadline,
-                                limits,
-                                bounds,
-                                extraSelector,
-                                clearAccess,
-                                maxPagesPerTarget);
-                        outcomes.add(outcome);
-                        sink.nodeFinished(outcome);
-                    }
-                }));
+        QueryResult execute() {
+            // Grouped by node, and one virtual thread per node. Within a node the rate
+            // limiter serialises the calls anyway, so parallelism there would buy
+            // nothing; across nodes it is the difference between a wildcard query over a
+            // cluster finishing inside the timeout and not.
+            Map<UUID, List<Target>> byNode = new LinkedHashMap<>();
+            plan.targets()
+                    .forEach(target -> byNode.computeIfAbsent(target.nodeId(), k -> new ArrayList<>())
+                            .add(target));
+
+            try (var scope = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+                List<java.util.concurrent.Future<?>> running = byNode.values().stream()
+                        .<java.util.concurrent.Future<?>>map(nodeTargets -> scope.submit(() -> readNode(nodeTargets)))
+                        .toList();
+                awaitAll(running);
             }
+
+            if (truncationSeen.get() && split.requiresScan()) {
+                // A body predicate over a truncated body can be a false negative, and a
+                // false negative during an incident reads as "the message is not there".
+                notices.add(new Notice(
+                        Notice.Kind.BODY_TRUNCATED,
+                        "Some bodies were truncated by the broker's management-message-attribute-size-limit,"
+                                + " so a body predicate may have missed matches. A Core connection returns full"
+                                + " bodies."));
+            }
+            // Nodes race each other to the row limit, so the result can overshoot it by
+            // less than a page. Trim to exactly what was asked for, and report the bound
+            // whenever the limit was actually reached — stopping at the limit and not
+            // saying so is how a partial result gets read as a complete one.
+            List<Row> capped = new ArrayList<>(rows);
+            if (capped.size() >= plan.effectiveLimit()) {
+                capped = capped.subList(0, plan.effectiveLimit());
+                recordBound(new Bound(Bound.Kind.ROW_LIMIT, plan.effectiveLimit()));
+            }
+            return new QueryResult(
+                    List.copyOf(capped), List.copyOf(outcomes), List.copyOf(bounds), List.copyOf(notices));
+        }
+
+        private void awaitAll(List<java.util.concurrent.Future<?>> running) {
             for (java.util.concurrent.Future<?> future : running) {
                 try {
                     future.get();
-                } catch (InterruptedException e) {
+                } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
-                    recordBound(
-                            bounds,
-                            new Bound(Bound.Kind.TIMEOUT, limits.timeout().toSeconds()));
-                    break;
+                    recordBound(new Bound(Bound.Kind.TIMEOUT, limits.timeout().toSeconds()));
+                    return;
                 } catch (java.util.concurrent.ExecutionException e) {
                     log.debug("SQL console fan-out task failed", e.getCause());
                 }
             }
         }
 
-        if (truncationSeen.get() && split.requiresScan()) {
-            // A body predicate over a truncated body can be a false negative, and a
-            // false negative during an incident reads as "the message is not there".
-            notices.add(new Notice(
-                    Notice.Kind.BODY_TRUNCATED,
-                    "Some bodies were truncated by the broker's management-message-attribute-size-limit,"
-                            + " so a body predicate may have missed matches. A Core connection returns full bodies."));
-        }
-        // Nodes race each other to the row limit, so the result can overshoot it by
-        // less than a page. Trim to exactly what was asked for, and report the bound
-        // whenever the limit was actually reached — stopping at the limit and not
-        // saying so is how a partial result gets read as a complete one.
-        List<Row> capped = new ArrayList<>(rows);
-        if (capped.size() >= plan.effectiveLimit()) {
-            capped = capped.subList(0, plan.effectiveLimit());
-            recordBound(bounds, new Bound(Bound.Kind.ROW_LIMIT, plan.effectiveLimit()));
-        }
-        return new QueryResult(List.copyOf(capped), List.copyOf(outcomes), List.copyOf(bounds), List.copyOf(notices));
-    }
-
-    // ---- one target ----------------------------------------------------
-
-    private NodeOutcome readTarget(
-            UUID clusterId,
-            QueryPlan plan,
-            Split split,
-            MessageTransport transport,
-            ClusterNode node,
-            Target target,
-            Sink sink,
-            List<Row> rows,
-            AtomicLong examined,
-            AtomicBoolean truncationSeen,
-            long deadline,
-            SqlProperties limits,
-            List<Bound> bounds,
-            Function<Target, String> extraSelector,
-            boolean clearAccess,
-            int maxPagesPerTarget) {
-
-        // The selector is re-rendered per node, because a relative window means
-        // something different on a node whose clock is measurably offset (ADR-0053).
-        String selector = and(planner.selectorFor(split.pushdown(), target.brokerNow()), extraSelector.apply(target));
-        java.util.function.Predicate<BrowsedMessage> residual = residuals.compile(
-                split.scan(),
-                new EvalContext(target.queueName(), target.address(), target.nodeName(), target.brokerNow()));
-
-        TransportTarget transportTarget = new TransportTarget(
-                clusterId,
-                node.getId(),
-                target.queueName(),
-                target.address(),
-                target.routingType(),
-                node.getJolokiaUrl(),
-                node.getCoreUrl());
-
-        long matched = 0;
-        long examinedHere = 0;
-        Channel servedBy = null;
-        int page = 1;
-
-        while (true) {
-            if (sink.isCancelled()) {
-                return new NodeOutcome(
-                        node.getId(),
-                        target.nodeName(),
-                        target.queueName(),
-                        NodeOutcome.Status.NOT_READ,
-                        examinedHere,
-                        matched,
-                        servedBy,
-                        "The query was abandoned.");
+        /** One node's targets, in order, on that node's own thread. */
+        private void readNode(List<Target> nodeTargets) {
+            for (Target target : nodeTargets) {
+                if (sink.isCancelled()) {
+                    return;
+                }
+                Bound stop = boundReached();
+                if (stop != null) {
+                    recordBound(stop);
+                    finished(new NodeOutcome(
+                            target.nodeId(),
+                            target.nodeName(),
+                            target.queueName(),
+                            NodeOutcome.Status.NOT_READ,
+                            0,
+                            0,
+                            null,
+                            "Stopped before this queue was read: " + describe(stop) + "."));
+                } else if (nodesById.containsKey(target.nodeId())) {
+                    finished(readTarget(nodesById.get(target.nodeId()), target));
+                }
             }
-            Bound stop = boundReached(rows.size(), examined.get(), deadline, limits);
-            if (stop != null) {
-                recordBound(bounds, stop);
-                break;
-            }
+        }
 
-            BrowseResult result;
+        private void finished(NodeOutcome outcome) {
+            outcomes.add(outcome);
+            sink.nodeFinished(outcome);
+        }
+
+        // ---- one target ----------------------------------------------------
+
+        private NodeOutcome readTarget(ClusterNode node, Target target) {
+            // The selector is re-rendered per node, because a relative window means
+            // something different on a node whose clock is measurably offset (ADR-0053).
+            String selector =
+                    and(planner.selectorFor(split.pushdown(), target.brokerNow()), extraSelector.apply(target));
+            TargetRead read = new TargetRead(
+                    node,
+                    target,
+                    new TransportTarget(
+                            clusterId,
+                            node.getId(),
+                            target.queueName(),
+                            target.address(),
+                            target.routingType(),
+                            node.getJolokiaUrl(),
+                            node.getCoreUrl()),
+                    selector,
+                    residuals.compile(
+                            split.scan(),
+                            new EvalContext(
+                                    target.queueName(), target.address(), target.nodeName(), target.brokerNow())));
+            int page = 1;
+            boolean more = true;
+            while (more) {
+                if (sink.isCancelled()) {
+                    return read.outcome(NodeOutcome.Status.NOT_READ, "The query was abandoned.");
+                }
+                Bound stop = boundReached();
+                if (stop != null) {
+                    recordBound(stop);
+                    more = false;
+                } else {
+                    Fetched fetched = fetch(read, page);
+                    if (fetched.failure() != null) {
+                        return fetched.failure();
+                    }
+                    BrowseResult result = fetched.result();
+                    if (read.servedBy != null && read.servedBy != result.servedBy()) {
+                        // Core has no server-side offset, so a deep page silently changes
+                        // fidelity. The result says so rather than mixing two truths.
+                        log.debug("SQL console channel changed mid-query on {}", target.queueName());
+                    }
+                    read.servedBy = result.servedBy();
+                    List<BrowsedMessage> messages = result.page().messages();
+                    scan(read, messages);
+                    more = messages.size() >= PAGE_SIZE
+                            && rows.size() < plan.effectiveLimit()
+                            && page < maxPagesPerTarget;
+                    page++;
+                }
+            }
+            return read.outcome(NodeOutcome.Status.ANSWERED, null);
+        }
+
+        /** A page of one target, or the outcome that ends the target because it could not be read. */
+        private record Fetched(BrowseResult result, NodeOutcome failure) {}
+
+        private Fetched fetch(TargetRead read, int page) {
             try {
                 // Either transport waits for the node's ceiling before it reads (ADR-0076).
-                result = transport.browse(transportTarget, page, PAGE_SIZE, selector);
+                return new Fetched(transport.browse(read.transportTarget, page, PAGE_SIZE, read.selector), null);
             } catch (BrokerConnectionException e) {
-                return new NodeOutcome(
-                        node.getId(),
-                        target.nodeName(),
-                        target.queueName(),
-                        NodeOutcome.Status.FAILED,
-                        examinedHere,
-                        matched,
-                        servedBy,
-                        e.getMessage());
+                return new Fetched(null, read.outcome(NodeOutcome.Status.FAILED, e.getMessage()));
             } catch (RuntimeException e) {
-                log.debug("SQL console browse of {} failed", target.queueName(), e);
-                return new NodeOutcome(
-                        node.getId(),
-                        target.nodeName(),
-                        target.queueName(),
-                        NodeOutcome.Status.FAILED,
-                        examinedHere,
-                        matched,
-                        servedBy,
-                        e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                log.debug("SQL console browse of {} failed", read.target.queueName(), e);
+                return new Fetched(
+                        null,
+                        read.outcome(
+                                NodeOutcome.Status.FAILED,
+                                e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
             }
+        }
 
-            if (servedBy != null && servedBy != result.servedBy()) {
-                // Core has no server-side offset, so a deep page silently changes
-                // fidelity. The result says so rather than mixing two truths.
-                log.debug("SQL console channel changed mid-query on {}", target.queueName());
-            }
-            servedBy = result.servedBy();
-
-            List<BrowsedMessage> messages = result.page().messages();
+        private void scan(TargetRead read, List<BrowsedMessage> messages) {
             for (BrowsedMessage message : messages) {
-                examinedHere++;
+                read.examinedHere++;
                 examined.incrementAndGet();
                 if (message.bodyTruncated()) {
                     truncationSeen.set(true);
@@ -324,113 +326,133 @@ public class BrokerQueryExecutor {
                 // A body search over the raw body would confirm a value the caller only ever sees masked.
                 BrowsedMessage evaluated = split.scan() == null || clearAccess
                         ? message
-                        : governance.forEvaluation(clusterId, target.address(), message);
-                if (!residual.test(evaluated)) {
-                    continue;
+                        : governance.forEvaluation(clusterId, read.target.address(), message);
+                if (read.residual.test(evaluated)) {
+                    read.matched++;
+                    Row row = toRow(message, read.node, read.target);
+                    rows.add(row);
+                    sink.row(row);
+                    if (rows.size() >= plan.effectiveLimit()) {
+                        break;
+                    }
                 }
-                matched++;
-                Row row = toRow(message, node, target, result.servedBy());
-                rows.add(row);
-                sink.row(row);
-                if (rows.size() >= plan.effectiveLimit()) {
-                    break;
+            }
+        }
+
+        // ---- bounds ---------------------------------------------------------
+
+        /** One entry per kind; a bound reached on three nodes is still one bound. */
+        private void recordBound(Bound bound) {
+            synchronized (bounds) {
+                if (bounds.stream().noneMatch(b -> b.kind() == bound.kind())) {
+                    bounds.add(bound);
                 }
             }
-            if (messages.size() < PAGE_SIZE || rows.size() >= plan.effectiveLimit() || page >= maxPagesPerTarget) {
-                break;
+        }
+
+        private Bound boundReached() {
+            if (System.nanoTime() > deadline) {
+                return new Bound(Bound.Kind.TIMEOUT, limits.timeout().toSeconds());
             }
-            page++;
-        }
-
-        return new NodeOutcome(
-                node.getId(),
-                target.nodeName(),
-                target.queueName(),
-                NodeOutcome.Status.ANSWERED,
-                examinedHere,
-                matched,
-                servedBy,
-                null);
-    }
-
-    // ---- bounds ---------------------------------------------------------
-
-    /** One entry per kind; a bound reached on three nodes is still one bound. */
-    private void recordBound(List<Bound> bounds, Bound bound) {
-        synchronized (bounds) {
-            if (bounds.stream().noneMatch(b -> b.kind() == bound.kind())) {
-                bounds.add(bound);
+            if (examined.get() >= limits.scanCap()) {
+                return new Bound(Bound.Kind.SCAN_CAP, limits.scanCap());
             }
+            if (rows.size() >= limits.maxRows()) {
+                return new Bound(Bound.Kind.ROW_LIMIT, limits.maxRows());
+            }
+            return null;
+        }
+
+        /** Both clauses, parenthesised, so operator precedence cannot change either one's meaning. */
+        private String and(String selector, String extra) {
+            if (extra == null || extra.isBlank()) {
+                return selector;
+            }
+            if (selector == null || selector.isBlank()) {
+                return extra;
+            }
+            return "(" + selector + ") AND (" + extra + ")";
+        }
+
+        private String describe(Bound bound) {
+            return switch (bound.kind()) {
+                case SCAN_CAP -> "the scan cap of " + bound.value() + " messages was reached";
+                case ROW_LIMIT -> "the row limit of " + bound.value() + " was reached";
+                case TIMEOUT -> "the query timed out after " + bound.value() + "s";
+                case TARGET_CAP -> "the target cap of " + bound.value() + " queues was reached";
+            };
+        }
+
+        private Row toRow(BrowsedMessage message, ClusterNode node, Target target) {
+            Map<String, Object> merged = new HashMap<>();
+            merged.putAll(message.stringProperties());
+            merged.putAll(message.intProperties());
+            merged.putAll(message.longProperties());
+            merged.putAll(message.doubleProperties());
+            merged.putAll(message.booleanProperties());
+            return new Row(
+                    node.getId(),
+                    target.nodeName(),
+                    target.queueName(),
+                    target.address(),
+                    message.messageId(),
+                    message.type(),
+                    message.durable(),
+                    message.priority(),
+                    message.timestamp(),
+                    message.expiration(),
+                    message.size(),
+                    message.contentType(),
+                    message.correlationId(),
+                    message.groupId(),
+                    message.userId(),
+                    message.replyTo(),
+                    message.body(),
+                    message.bodyTruncated(),
+                    Map.copyOf(merged),
+                    Source.BROKER,
+                    null,
+                    null,
+                    null,
+                    null);
         }
     }
 
-    private Bound boundReached(int rows, long examined, long deadline, SqlProperties limits) {
-        if (System.nanoTime() > deadline) {
-            return new Bound(Bound.Kind.TIMEOUT, limits.timeout().toSeconds());
-        }
-        if (examined >= limits.scanCap()) {
-            return new Bound(Bound.Kind.SCAN_CAP, limits.scanCap());
-        }
-        if (rows >= limits.maxRows()) {
-            return new Bound(Bound.Kind.ROW_LIMIT, limits.maxRows());
-        }
-        return null;
-    }
+    /** Where one target's read has got to: what it is reading with, and what it has seen so far. */
+    private static final class TargetRead {
+        private final ClusterNode node;
+        private final Target target;
+        private final TransportTarget transportTarget;
+        private final String selector;
+        private final java.util.function.Predicate<BrowsedMessage> residual;
+        private long matched;
+        private long examinedHere;
+        private Channel servedBy;
 
-    /** Both clauses, parenthesised, so operator precedence cannot change either one's meaning. */
-    private String and(String selector, String extra) {
-        if (extra == null || extra.isBlank()) {
-            return selector;
+        TargetRead(
+                ClusterNode node,
+                Target target,
+                TransportTarget transportTarget,
+                String selector,
+                java.util.function.Predicate<BrowsedMessage> residual) {
+            this.node = node;
+            this.target = target;
+            this.transportTarget = transportTarget;
+            this.selector = selector;
+            this.residual = residual;
         }
-        if (selector == null || selector.isBlank()) {
-            return extra;
+
+        NodeOutcome outcome(NodeOutcome.Status status, String detail) {
+            return new NodeOutcome(
+                    node.getId(),
+                    target.nodeName(),
+                    target.queueName(),
+                    status,
+                    examinedHere,
+                    matched,
+                    servedBy,
+                    detail);
         }
-        return "(" + selector + ") AND (" + extra + ")";
-    }
-
-    private String describe(Bound bound) {
-        return switch (bound.kind()) {
-            case SCAN_CAP -> "the scan cap of " + bound.value() + " messages was reached";
-            case ROW_LIMIT -> "the row limit of " + bound.value() + " was reached";
-            case TIMEOUT -> "the query timed out after " + bound.value() + "s";
-            case TARGET_CAP -> "the target cap of " + bound.value() + " queues was reached";
-        };
-    }
-
-    // ---- mapping --------------------------------------------------------
-
-    private Row toRow(BrowsedMessage message, ClusterNode node, Target target, Channel servedBy) {
-        Map<String, Object> properties = new HashMap<>();
-        properties.putAll(message.stringProperties());
-        properties.putAll(message.intProperties());
-        properties.putAll(message.longProperties());
-        properties.putAll(message.doubleProperties());
-        properties.putAll(message.booleanProperties());
-        return new Row(
-                node.getId(),
-                target.nodeName(),
-                target.queueName(),
-                target.address(),
-                message.messageId(),
-                message.type(),
-                message.durable(),
-                message.priority(),
-                message.timestamp(),
-                message.expiration(),
-                message.size(),
-                message.contentType(),
-                message.correlationId(),
-                message.groupId(),
-                message.userId(),
-                message.replyTo(),
-                message.body(),
-                message.bodyTruncated(),
-                Map.copyOf(properties),
-                Source.BROKER,
-                null,
-                null,
-                null,
-                null);
     }
 
     /** A sink that only collects, for callers that want the whole result at once. */

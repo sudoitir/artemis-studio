@@ -33,7 +33,7 @@ function classificationBadge(entry: ConfigEntryView) {
   ) : null;
 }
 
-function SectionTable({ entries }: { entries: ConfigEntryView[] }) {
+function SectionTable({ entries }: Readonly<{ entries: ConfigEntryView[] }>) {
   if (entries.length === 0) {
     return (
       <Text size="sm" c="dimmed">
@@ -82,6 +82,91 @@ function SectionTable({ entries }: { entries: ConfigEntryView[] }) {
         </Table.Tbody>
       </Table>
     </div>
+  );
+}
+
+type DiffData = NonNullable<ReturnType<typeof useConfigDiff>['data']>;
+
+function driftLabel(count: number): string {
+  if (count === 0) return 'no drift';
+  return `${count} drift${count === 1 ? '' : 's'}`;
+}
+
+/** The comparison itself: the pair, why it cannot be compared when it cannot, and the sections. */
+function DiffResult({ data, sections }: Readonly<{ data: DiffData; sections: ConfigSectionView[] }>) {
+  return (
+    <>
+      <Group gap="xs" wrap="wrap">
+        <Title order={4}>
+          {data.left.nodeName} ↔ {data.right.nodeName}
+        </Title>
+        {data.comparable ? (
+          <Badge
+            variant="light"
+            color={data.driftCount > 0 ? 'yellow' : 'gray'}
+            title="Differences in configuration keys, excluding expected and unclassified ones"
+          >
+            {driftLabel(data.driftCount)}
+          </Badge>
+        ) : null}
+        {[data.left, data.right].map((side) =>
+          side.available ? null : (
+            <Badge key={side.nodeId} variant="light" color="red">
+              {side.nodeName} unavailable
+            </Badge>
+          ),
+        )}
+      </Group>
+
+      {/* Never a half-diff: when a side is unreachable or answers thinly, say so. */}
+      {!data.comparable ? (
+        <Alert color="yellow" variant="light" title="No comparison shown">
+          <Stack gap={4}>
+            <Text size="sm">{data.note}</Text>
+            {[data.left, data.right]
+              .filter((s) => s.unavailableReason)
+              .map((s) => (
+                <Text key={s.nodeId} size="sm">
+                  <strong>{s.nodeName}:</strong> {s.unavailableReason}
+                </Text>
+              ))}
+          </Stack>
+        </Alert>
+      ) : null}
+
+      {data.comparable && data.note ? (
+        <Text size="xs" c="dimmed">
+          {data.note}
+        </Text>
+      ) : null}
+
+      {data.comparable ? (
+        <Accordion multiple defaultValue={['broker', 'addressSettings']} variant="separated">
+          {sections.map((s) => (
+            <Accordion.Item key={s.section} value={s.section}>
+              <Accordion.Control>
+                <Group gap="xs">
+                  <Text size="sm" fw={600}>
+                    {s.label}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {s.entries.length} key{s.entries.length === 1 ? '' : 's'}
+                  </Text>
+                  {s.driftCount > 0 ? (
+                    <Badge size="xs" color="yellow" variant="light">
+                      {s.driftCount} drift
+                    </Badge>
+                  ) : null}
+                </Group>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <SectionTable entries={s.entries} />
+              </Accordion.Panel>
+            </Accordion.Item>
+          ))}
+        </Accordion>
+      ) : null}
+    </>
   );
 }
 
@@ -151,82 +236,7 @@ export function ConfigDiffView() {
         </Alert>
       ) : null}
 
-      {diff.data ? (
-        <>
-          <Group gap="xs" wrap="wrap">
-            <Title order={4}>
-              {diff.data.left.nodeName} ↔ {diff.data.right.nodeName}
-            </Title>
-            {diff.data.comparable ? (
-              <Badge
-                variant="light"
-                color={diff.data.driftCount > 0 ? 'yellow' : 'gray'}
-                title="Differences in configuration keys, excluding expected and unclassified ones"
-              >
-                {diff.data.driftCount === 0
-                  ? 'no drift'
-                  : `${diff.data.driftCount} drift${diff.data.driftCount === 1 ? '' : 's'}`}
-              </Badge>
-            ) : null}
-            {[diff.data.left, diff.data.right].map((side) =>
-              side.available ? null : (
-                <Badge key={side.nodeId} variant="light" color="red">
-                  {side.nodeName} unavailable
-                </Badge>
-              ),
-            )}
-          </Group>
-
-          {/* Never a half-diff: when a side is unreachable or answers thinly, say so. */}
-          {!diff.data.comparable ? (
-            <Alert color="yellow" variant="light" title="No comparison shown">
-              <Stack gap={4}>
-                <Text size="sm">{diff.data.note}</Text>
-                {[diff.data.left, diff.data.right]
-                  .filter((s) => s.unavailableReason)
-                  .map((s) => (
-                    <Text key={s.nodeId} size="sm">
-                      <strong>{s.nodeName}:</strong> {s.unavailableReason}
-                    </Text>
-                  ))}
-              </Stack>
-            </Alert>
-          ) : null}
-
-          {diff.data.comparable && diff.data.note ? (
-            <Text size="xs" c="dimmed">
-              {diff.data.note}
-            </Text>
-          ) : null}
-
-          {diff.data.comparable ? (
-            <Accordion multiple defaultValue={['broker', 'addressSettings']} variant="separated">
-              {sections.map((s) => (
-                <Accordion.Item key={s.section} value={s.section}>
-                  <Accordion.Control>
-                    <Group gap="xs">
-                      <Text size="sm" fw={600}>
-                        {s.label}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {s.entries.length} key{s.entries.length === 1 ? '' : 's'}
-                      </Text>
-                      {s.driftCount > 0 ? (
-                        <Badge size="xs" color="yellow" variant="light">
-                          {s.driftCount} drift
-                        </Badge>
-                      ) : null}
-                    </Group>
-                  </Accordion.Control>
-                  <Accordion.Panel>
-                    <SectionTable entries={s.entries} />
-                  </Accordion.Panel>
-                </Accordion.Item>
-              ))}
-            </Accordion>
-          ) : null}
-        </>
-      ) : null}
+      {diff.data ? <DiffResult data={diff.data} sections={sections} /> : null}
     </Stack>
   );
 }

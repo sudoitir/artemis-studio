@@ -6,7 +6,7 @@ import { clusterHref } from '../../kernel/routing/href.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 
 /** "Open history" on a queue's row: the metrics view scoped to that queue. */
-export function OpenQueueHistory({ clusterId, target }: ActionProps<QueueTarget>) {
+export function OpenQueueHistory({ clusterId, target }: Readonly<ActionProps<QueueTarget>>) {
   const navigate = useNavigate();
   return (
     <ActionMenuItem

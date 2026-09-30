@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -22,7 +23,7 @@ class ClusterServiceNodeChoiceTest {
         BrokerNodeEntity n =
                 BrokerNodeEntity.fromSeed(CLUSTER, name, active == Boolean.TRUE ? "PRIMARY" : "BACKUP", null);
         n.attachManagementUrl("http://" + name + "/console/jolokia");
-        n.applyHaState(active, "STARTED", n.getHaRole(), true, 1L, "2.39.0", null, Instant.now());
+        n.applyHaState(new HaObservation(active, "STARTED", n.getHaRole(), true, "2.39.0", null), 1L, Instant.now());
         if (error != null) {
             n.recordError(Instant.now(), error);
         }

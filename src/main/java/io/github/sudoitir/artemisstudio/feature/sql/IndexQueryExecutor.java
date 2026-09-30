@@ -153,17 +153,17 @@ public class IndexQueryExecutor {
 
     private Sql predicate(Predicate predicate) {
         return switch (predicate) {
-            case Predicate.And and -> join(and.parts(), " AND ");
-            case Predicate.Or or -> join(or.parts(), " OR ");
-            case Predicate.Not not -> {
-                Sql inner = predicate(not.inner());
+            case Predicate.And(var parts) -> join(parts, " AND ");
+            case Predicate.Or(var parts) -> join(parts, " OR ");
+            case Predicate.Not(var operand) -> {
+                Sql inner = predicate(operand);
                 yield new Sql("NOT (" + inner.text() + ')', inner.binds());
             }
             case Predicate.Compare compare -> compare(compare);
             case Predicate.In in -> in(in);
-            case Predicate.IsNull isNull -> {
-                Sql term = term(isNull.term());
-                yield new Sql(term.text() + (isNull.negated() ? " IS NOT NULL" : " IS NULL"), term.binds());
+            case Predicate.IsNull(var target, var negated) -> {
+                Sql term = term(target);
+                yield new Sql(term.text() + (negated ? " IS NOT NULL" : " IS NULL"), term.binds());
             }
             case Predicate.Like like -> like(like);
             case Predicate.Between between -> between(between);
@@ -252,14 +252,14 @@ public class IndexQueryExecutor {
      */
     private Sql term(Term term) {
         return switch (term) {
-            case Term.ColumnTerm column -> new Sql(columnName(column.column()), List.of());
-            case Term.PropertyTerm property -> new Sql("props ->> ?", List.of(property.name()));
-            case Term.JsonTerm path -> new Sql("(body::jsonb #>> string_to_array(?, '.'))", List.of(path.path()));
-            case Term.CaseFold fold -> {
-                Sql inner = term(fold.inner());
-                yield new Sql((fold.upper() ? "upper(" : "lower(") + inner.text() + ')', inner.binds());
+            case Term.ColumnTerm(var column) -> new Sql(columnName(column), List.of());
+            case Term.PropertyTerm(var name) -> new Sql("props ->> ?", List.of(name));
+            case Term.JsonTerm(var path) -> new Sql("(body::jsonb #>> string_to_array(?, '.'))", List.of(path));
+            case Term.CaseFold(var operand, var upper) -> {
+                Sql inner = term(operand);
+                yield new Sql((upper ? "upper(" : "lower(") + inner.text() + ')', inner.binds());
             }
-            case Term.MatchRank ignored ->
+            case Term.MatchRank _ ->
                 // Only reachable through ORDER BY, which compiles it with the query's
                 // own MATCH() terms. A rank in a predicate has nothing to rank against.
                 throw new SqlSyntaxException("match_rank can only be used in ORDER BY.", "match_rank");
@@ -299,21 +299,21 @@ public class IndexQueryExecutor {
      */
     private Object value(Literal literal, Term against) {
         return switch (literal) {
-            case Literal.Str str -> str.value();
-            case Literal.Num num -> num.integral() ? (Object) (long) num.value() : num.value();
-            case Literal.Bool bool -> bool.value();
-            case Literal.RelativeTime relative -> {
-                Instant at = Instant.now().minus(relative.before());
+            case Literal.Str(var value) -> value;
+            case Literal.Num(var value, var integral) -> integral ? (Object) (long) value : value;
+            case Literal.Bool(var value) -> value;
+            case Literal.RelativeTime(var before) -> {
+                Instant at = Instant.now().minus(before);
                 yield isEpochMillisColumn(against) ? (Object) at.toEpochMilli() : Timestamp.from(at);
             }
         };
     }
 
     private boolean isEpochMillisColumn(Term term) {
-        if (!(term instanceof Term.ColumnTerm column)) {
+        if (!(term instanceof Term.ColumnTerm(var column))) {
             return false;
         }
-        return column.column() == Column.TIMESTAMP || column.column() == Column.EXPIRATION;
+        return column == Column.TIMESTAMP || column == Column.EXPIRATION;
     }
 
     /**
@@ -341,8 +341,8 @@ public class IndexQueryExecutor {
                 }
                 fragments.add("ts_rank_cd(to_tsvector('simple', body), websearch_to_tsquery('simple', ?))" + direction);
                 binds.add(matchTerms);
-            } else if (order.term() instanceof Term.ColumnTerm column) {
-                fragments.add(columnName(column.column()) + direction);
+            } else if (order.term() instanceof Term.ColumnTerm(var column)) {
+                fragments.add(columnName(column) + direction);
             }
         }
         return fragments.isEmpty()
@@ -354,10 +354,10 @@ public class IndexQueryExecutor {
     private static String matchTerms(Predicate predicate) {
         return switch (predicate) {
             case null -> null;
-            case Predicate.Match match -> match.terms();
-            case Predicate.And and -> firstMatch(and.parts());
-            case Predicate.Or or -> firstMatch(or.parts());
-            case Predicate.Not not -> matchTerms(not.inner());
+            case Predicate.Match(var terms) -> terms;
+            case Predicate.And(var parts) -> firstMatch(parts);
+            case Predicate.Or(var parts) -> firstMatch(parts);
+            case Predicate.Not(var inner) -> matchTerms(inner);
             default -> null;
         };
     }
@@ -418,7 +418,7 @@ public class IndexQueryExecutor {
         }
         try {
             return json.readValue(rawJson, Map.class);
-        } catch (JacksonException e) {
+        } catch (JacksonException _) {
             return new HashMap<>();
         }
     }

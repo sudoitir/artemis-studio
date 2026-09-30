@@ -18,10 +18,9 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { notifications } from '@mantine/notifications';
 
-import { useCluster } from '../clusters/index.ts';
+import { CapabilityLedger, useCluster } from '../clusters/index.ts';
 import { useMessages, usePurgeQueue, type DryRunView, type MessageSummaryView } from './api.ts';
 import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
-import { CapabilityLedger } from '../clusters/index.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { MessageDetailPanel } from './MessageDetailPanel.tsx';
 import { MessageActions } from './MessageActions.tsx';
@@ -71,6 +70,108 @@ const columns: GridColumn<MessageSummaryView>[] = [
   },
 ];
 
+/** "12 messages", or why the total is not known. */
+function countLabel(page: { count?: number | null; countUnavailable?: string | null }): string {
+  if (page.count == null) return `total unavailable — ${page.countUnavailable ?? 'the broker did not report it'}`;
+  return `${page.count} message${page.count === 1 ? '' : 's'}`;
+}
+
+/** Picked rows win; otherwise the selector in force, otherwise the whole queue. */
+function selectionOf(pickedIds: number[], filter: string | undefined): MessageSelection {
+  if (pickedIds.length > 0) return { kind: 'ids', ids: pickedIds };
+  return filter ? { kind: 'filter', filter } : { kind: 'all' };
+}
+
+function selectionTotalOf(selection: MessageSelection, total: number | null | undefined): number | null {
+  if (selection.kind === 'ids') return selection.ids.length;
+  return selection.kind === 'all' ? (total ?? null) : null;
+}
+
+function estimateSentence(affected: number): string {
+  return `This will remove approximately ${affected} message${affected === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`;
+}
+
+/** Purge the whole queue: estimate first, then confirm by typing the queue's name. */
+function PurgeQueue({ clusterId, queueName, node }: Readonly<{ clusterId: string; queueName: string; node?: string }>) {
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const purge = usePurgeQueue(clusterId, queueName);
+  // The whole preview, not just its count: the cap and whether the estimate is over
+  // it decide both what the dialog says and whether the purge may override it.
+  const [purgePreview, setPurgePreview] = useState<DryRunView | null>(null);
+  const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
+  const purgeOverCap = purgePreview?.overCap ?? false;
+
+  return (
+    <>
+      <Button
+        size="xs"
+        variant="light"
+        color="red"
+        onClick={() => {
+          setPurgePreview(null);
+          setPurgeFailed(null);
+          setPurgeOpen(true);
+          purge.mutate(
+            { node, dryRun: true },
+            {
+              onSuccess: (r) => setPurgePreview('cap' in r ? r : null),
+              onError: (e) => setPurgeFailed(e.message),
+            },
+          );
+        }}
+      >
+        Purge queue
+      </Button>
+      <Modal opened={purgeOpen} onClose={() => setPurgeOpen(false)} title={`Purge ${queueName}?`}>
+        <Stack gap="sm">
+          {/* An unavailable estimate is stated, never omitted: an absent number reads
+              as zero, and a confirmation disabled with no reason reads as a bug. */}
+          {purgeFailed ? (
+            <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
+              {purgeFailed} The purge can still proceed, but Studio cannot tell you how many messages it would destroy.
+              This cannot be undone. The broker's bulk safety cap still applies: if the depth turns out to be over it,
+              the purge is refused.
+            </Alert>
+          ) : (
+            <Text size="sm">
+              {purgePreview === null ? 'Estimating current depth…' : estimateSentence(purgePreview.affectedCount)}
+            </Text>
+          )}
+          {/* The cap is overridden only where the operator was told the number it
+              is being overridden for — never on an unknown depth. */}
+          {purgeOverCap && purgePreview ? (
+            <Alert color="yellow" variant="light" title="Over the safety cap">
+              This would remove {purgePreview.affectedCount.toLocaleString()} messages, over the cap of{' '}
+              {purgePreview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override
+              is recorded in the audit log.
+            </Alert>
+          ) : null}
+          <ConfirmByTyping
+            token={queueName}
+            confirmLabel={purgeOverCap ? 'Purge anyway, over the cap' : 'Purge queue'}
+            loading={purge.isPending}
+            disabled={purgePreview === null && purgeFailed === null}
+            onConfirm={() =>
+              purge.mutate(
+                { node, override: purgeOverCap },
+                {
+                  onSuccess: (r) => {
+                    notifications.show({
+                      message: `Purged ${'affectedCount' in r ? r.affectedCount : ''} messages`,
+                    });
+                    setPurgeOpen(false);
+                  },
+                  onError: (e) => notifications.show({ color: 'red', message: e.message }),
+                },
+              )
+            }
+          />
+        </Stack>
+      </Modal>
+    </>
+  );
+}
+
 /**
  * Browse one queue's messages (ADR-0021). Reached from a queue row, not a
  * top-level tab. Node, filter and page are URL-owned (non-negotiable #9);
@@ -103,14 +204,7 @@ export function MessagesView() {
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, message: id ?? undefined }) });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sendOpen, setSendOpen] = useState(false);
-  const [purgeOpen, setPurgeOpen] = useState(false);
   const page = search.page ?? 1;
-  const purge = usePurgeQueue(clusterId, queueName);
-  // The whole preview, not just its count: the cap and whether the estimate is over
-  // it decide both what the dialog says and whether the purge may override it.
-  const [purgePreview, setPurgePreview] = useState<DryRunView | null>(null);
-  const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
-  const purgeOverCap = purgePreview?.overCap ?? false;
   const selectionSlot = useSlot('messages.selection');
 
   // Selection is ephemeral (D10) — reset on any navigation of node / filter / page.
@@ -132,7 +226,7 @@ export function MessagesView() {
 
   useEffect(() => {
     if ((search.filter ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({
         ...prev,
@@ -174,34 +268,14 @@ export function MessagesView() {
         <Group gap="xs">
           {messages.data ? (
             <Text size="xs" c="dimmed">
-              {messages.data.count == null
-                ? `total unavailable — ${messages.data.countUnavailable ?? 'the broker did not report it'}`
-                : `${messages.data.count} message${messages.data.count === 1 ? '' : 's'}`}{' '}
-              · read from {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
+              {countLabel(messages.data)} · read from{' '}
+              {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
             </Text>
           ) : null}
           <Button size="xs" variant="light" onClick={() => setSendOpen(true)}>
             Send
           </Button>
-          <Button
-            size="xs"
-            variant="light"
-            color="red"
-            onClick={() => {
-              setPurgePreview(null);
-              setPurgeFailed(null);
-              setPurgeOpen(true);
-              purge.mutate(
-                { node: search.node, dryRun: true },
-                {
-                  onSuccess: (r) => setPurgePreview('cap' in r ? r : null),
-                  onError: (e) => setPurgeFailed(e.message),
-                },
-              );
-            }}
-          >
-            Purge queue
-          </Button>
+          <PurgeQueue clusterId={clusterId} queueName={queueName} node={search.node} />
         </Group>
       </Group>
     </Stack>
@@ -244,15 +318,9 @@ export function MessagesView() {
 
   // Picked rows win; otherwise the selector in force, otherwise the whole queue.
   const pickedIds = [...selected].map(Number).filter((n) => Number.isFinite(n));
-  const selection: MessageSelection =
-    pickedIds.length > 0
-      ? { kind: 'ids', ids: pickedIds }
-      : search.filter
-        ? { kind: 'filter', filter: search.filter }
-        : { kind: 'all' };
+  const selection = selectionOf(pickedIds, search.filter);
   // A selector's match count is the preview's to establish; the page's total is the whole queue.
-  const selectionTotal =
-    selection.kind === 'ids' ? pickedIds.length : selection.kind === 'all' ? (total ?? null) : null;
+  const selectionTotal = selectionTotalOf(selection, total);
 
   const setNode = (node: string | null) =>
     navigate({
@@ -372,55 +440,6 @@ export function MessagesView() {
         opened={sendOpen}
         onClose={() => setSendOpen(false)}
       />
-
-      <Modal opened={purgeOpen} onClose={() => setPurgeOpen(false)} title={`Purge ${queueName}?`}>
-        <Stack gap="sm">
-          {/* An unavailable estimate is stated, never omitted: an absent number reads
-              as zero, and a confirmation disabled with no reason reads as a bug. */}
-          {purgeFailed ? (
-            <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
-              {purgeFailed} The purge can still proceed, but Studio cannot tell you how many messages it would destroy.
-              This cannot be undone. The broker's bulk safety cap still applies: if the depth turns out to be over it,
-              the purge is refused.
-            </Alert>
-          ) : (
-            <Text size="sm">
-              {purgePreview === null
-                ? 'Estimating current depth…'
-                : `This will remove approximately ${purgePreview.affectedCount} message${purgePreview.affectedCount === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`}
-            </Text>
-          )}
-          {/* The cap is overridden only where the operator was told the number it
-              is being overridden for — never on an unknown depth. */}
-          {purgeOverCap && purgePreview ? (
-            <Alert color="yellow" variant="light" title="Over the safety cap">
-              This would remove {purgePreview.affectedCount.toLocaleString()} messages, over the cap of{' '}
-              {purgePreview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override
-              is recorded in the audit log.
-            </Alert>
-          ) : null}
-          <ConfirmByTyping
-            token={queueName}
-            confirmLabel={purgeOverCap ? 'Purge anyway, over the cap' : 'Purge queue'}
-            loading={purge.isPending}
-            disabled={purgePreview === null && purgeFailed === null}
-            onConfirm={() =>
-              purge.mutate(
-                { node: search.node, override: purgeOverCap },
-                {
-                  onSuccess: (r) => {
-                    notifications.show({
-                      message: `Purged ${'affectedCount' in r ? r.affectedCount : ''} messages`,
-                    });
-                    setPurgeOpen(false);
-                  },
-                  onError: (e) => notifications.show({ color: 'red', message: e.message }),
-                },
-              )
-            }
-          />
-        </Stack>
-      </Modal>
     </Stack>
   );
 }

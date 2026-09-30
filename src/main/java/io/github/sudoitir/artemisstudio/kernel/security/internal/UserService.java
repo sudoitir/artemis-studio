@@ -35,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final String GLOBAL_SCOPE = "GLOBAL";
+
     private final AppUserRepository users;
     private final RoleRepository roles;
     private final UserRoleRepository userRoles;
@@ -101,8 +103,9 @@ public class UserService {
         RoleEntity role = roles.findById(roleId).orElseThrow(() -> new NotFoundException("role", roleId));
         UUID resolvedScopeId = scopeId != null ? scopeId : ScopeIds.GLOBAL;
 
-        boolean isGlobalAdminGrant =
-                "GLOBAL".equals(scopeType) && role.getName().equals("ADMIN") && ScopeIds.GLOBAL.equals(resolvedScopeId);
+        boolean isGlobalAdminGrant = GLOBAL_SCOPE.equals(scopeType)
+                && role.getName().equals("ADMIN")
+                && ScopeIds.GLOBAL.equals(resolvedScopeId);
         if (isGlobalAdminGrant) {
             guardNotLastAdmin(user, "strip the administrator role from");
             StudioPrincipal principal = currentPrincipalOrNull();
@@ -120,13 +123,13 @@ public class UserService {
     private void guardNotLastAdmin(AppUserEntity user, String verb) {
         RoleEntity admin = roles.findByName("ADMIN").orElseThrow(() -> new IllegalStateException("ADMIN role missing"));
         long adminHolders = userRoles.findByIdRoleId(admin.getId()).stream()
-                .filter(ur -> "GLOBAL".equals(ur.getScopeType()))
+                .filter(ur -> GLOBAL_SCOPE.equals(ur.getScopeType()))
                 .map(UserRoleEntity::getUserId)
                 .distinct()
                 .filter(id -> users.findById(id).map(u -> !u.isDisabled()).orElse(false))
                 .count();
         boolean userHoldsAdmin = userRoles.findByIdUserId(user.getId()).stream()
-                .anyMatch(ur -> ur.getRoleId().equals(admin.getId()) && "GLOBAL".equals(ur.getScopeType()));
+                .anyMatch(ur -> ur.getRoleId().equals(admin.getId()) && GLOBAL_SCOPE.equals(ur.getScopeType()));
         if (userHoldsAdmin && adminHolders <= 1) {
             throw new ConflictException("last-admin", "Cannot " + verb + " the last enabled global administrator.");
         }

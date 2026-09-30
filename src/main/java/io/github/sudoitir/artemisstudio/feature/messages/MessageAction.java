@@ -20,7 +20,7 @@ public enum MessageAction {
     public static MessageAction fromPath(String raw) {
         try {
             return valueOf(raw.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalArgumentException("Unknown message action: " + raw);
         }
     }

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr.web;
 
+import io.github.sudoitir.artemisstudio.feature.rr.FlowQuery;
 import io.github.sudoitir.artemisstudio.feature.rr.RequestReplyService;
 import io.github.sudoitir.artemisstudio.feature.rr.RrMetrics;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.CreateExpectationRequest;
@@ -78,7 +79,7 @@ public class RequestReplyController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return requestReply.flowPage(clusterId, state, address, correlationId, from, to, page, size);
+        return requestReply.flowPage(clusterId, new FlowQuery(state, address, correlationId, from, to, page, size));
     }
 
     @GetMapping("/flows/{flowId}")

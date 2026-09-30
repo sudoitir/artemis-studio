@@ -53,35 +53,47 @@ public class CaptureRrSink implements CaptureBus.Listener {
         }
         Row row = captured.row();
         for (RrExpectationEntity expectation : expectations.findByEnabledTrue()) {
-            if (!captured.clusterId().equals(expectation.getClusterId())) {
-                continue;
-            }
-            if (expectation.getRequestAddress().equals(row.address())) {
-                target.accept(new Observation.RequestSeen(
-                        captured.clusterId(),
-                        row.nodeId(),
-                        Instant.now(),
-                        row.address(),
-                        String.valueOf(row.messageId()),
-                        correlationOf(row),
-                        row.replyTo() == null ? null : CoreDestinationName.extract(row.replyTo()),
-                        row.expiration(),
-                        row.body(),
-                        Map.of(),
-                        row.timestamp() > 0 ? Instant.ofEpochMilli(row.timestamp()) : null));
-            } else if (row.address() != null && replyAddresses.matches(expectation, row.address())) {
-                target.accept(new Observation.ReplySeen(
-                        captured.clusterId(),
-                        row.nodeId(),
-                        Instant.now(),
-                        row.address(),
-                        String.valueOf(row.messageId()),
-                        correlationOf(row),
-                        row.body(),
-                        Map.of(),
-                        row.timestamp() > 0 ? Instant.ofEpochMilli(row.timestamp()) : null));
+            if (captured.clusterId().equals(expectation.getClusterId())) {
+                Observation observation = observationFor(captured, row, expectation);
+                if (observation != null) {
+                    target.accept(observation);
+                }
             }
         }
+    }
+
+    private Observation observationFor(CaptureBus.Captured captured, Row row, RrExpectationEntity expectation) {
+        if (expectation.getRequestAddress().equals(row.address())) {
+            return new Observation.RequestSeen(
+                    captured.clusterId(),
+                    row.nodeId(),
+                    Instant.now(),
+                    row.address(),
+                    String.valueOf(row.messageId()),
+                    correlationOf(row),
+                    row.replyTo() == null ? null : CoreDestinationName.extract(row.replyTo()),
+                    row.expiration(),
+                    row.body(),
+                    Map.of(),
+                    enqueuedAt(row));
+        }
+        if (row.address() != null && replyAddresses.matches(expectation, row.address())) {
+            return new Observation.ReplySeen(
+                    captured.clusterId(),
+                    row.nodeId(),
+                    Instant.now(),
+                    row.address(),
+                    String.valueOf(row.messageId()),
+                    correlationOf(row),
+                    row.body(),
+                    Map.of(),
+                    enqueuedAt(row));
+        }
+        return null;
+    }
+
+    private static Instant enqueuedAt(Row row) {
+        return row.timestamp() > 0 ? Instant.ofEpochMilli(row.timestamp()) : null;
     }
 
     /** JMSCorrelationID first, then Artemis' own property — the same order the sampler uses. */

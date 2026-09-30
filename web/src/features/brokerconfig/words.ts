@@ -16,11 +16,17 @@ import { prettyKey, prettyValue } from './pretty.ts';
 
 export type Section = 'addresses' | 'addressSettings' | 'securitySettings' | 'diverts' | 'bridges';
 
-const SECTIONS: readonly string[] = ['addresses', 'addressSettings', 'securitySettings', 'diverts', 'bridges'];
+const SECTIONS: ReadonlySet<string> = new Set([
+  'addresses',
+  'addressSettings',
+  'securitySettings',
+  'diverts',
+  'bridges',
+]);
 
 /** A section named in a URL, or undefined when it names none. */
 export function asSection(raw: unknown): Section | undefined {
-  return typeof raw === 'string' && SECTIONS.includes(raw) ? (raw as Section) : undefined;
+  return typeof raw === 'string' && SECTIONS.has(raw) ? (raw as Section) : undefined;
 }
 
 /** The document section a plan step, a drift finding or a hazard names. */
@@ -70,7 +76,7 @@ export function wireSectionLabel(section: string | null | undefined): string {
     case 'BRIDGE':
       return 'bridge';
     default:
-      return section ? section.toLowerCase().replace(/_/g, ' ') : '';
+      return section ? section.toLowerCase().replaceAll('_', ' ') : '';
   }
 }
 
@@ -111,7 +117,7 @@ export function findingKindWords(kind: string): string {
     case 'NOT_CONNECTED':
       return 'Not forwarding — a fault, not drift';
     default:
-      return kind.replace(/_/g, ' ').toLowerCase();
+      return kind.replaceAll('_', ' ').toLowerCase();
   }
 }
 
@@ -134,6 +140,36 @@ function labelFor(f: ConfigDriftFindingView, key: string): string {
   return f.section === 'QUEUE' && f.key !== key ? `queue ${f.key} ` : '';
 }
 
+/** The nodes, by label, that each kind of finding names. */
+type NodesByLabel = Map<string, string[]>;
+
+/** The drift findings about one item, grouped by what is wrong and, within that, by label. */
+function groupFindings(
+  nodes: ConfigNodeStateView[],
+  wire: WireSection[],
+  key: string,
+  queueKeys: string[],
+): { missing: NodesByLabel; differs: NodesByLabel; faulted: NodesByLabel } {
+  const missing: NodesByLabel = new Map();
+  const differs: NodesByLabel = new Map();
+  // Reported, never counted as drift: a matching bridge that is not forwarding is a
+  // fault on the broker, and nothing an apply could write would close it (ADR-0091).
+  const faulted: NodesByLabel = new Map();
+  const bucket = { MISSING: missing, NOT_CONNECTED: faulted } as Record<string, NodesByLabel | undefined>;
+  for (const node of nodes) {
+    for (const f of node.findings) {
+      if (!about(f, wire, key, queueKeys) || f.kind === 'UNDECLARED') continue;
+      const into = bucket[f.kind] ?? differs;
+      const label = labelFor(f, key);
+      // A node can carry two findings under one label — the address and the queue
+      // of the same name — and naming it twice reads as two nodes.
+      const named = into.get(label) ?? [];
+      if (!named.includes(node.nodeName)) into.set(label, [...named, node.nodeName]);
+    }
+  }
+  return { missing, differs, faulted };
+}
+
 /** What one declared item's drift looks like across the nodes, in one phrase for a table cell. */
 export function itemDriftWords(
   declaration: ConfigDeclarationView,
@@ -147,25 +183,12 @@ export function itemDriftWords(
   if (live.length === 0) return { text: 'no live node' };
   if (evaluated.length === 0) return { text: 'not evaluated' };
 
-  const missing = new Map<string, string[]>();
-  const differs = new Map<string, string[]>();
-  // Reported, never counted as drift: a matching bridge that is not forwarding is a
-  // fault on the broker, and nothing an apply could write would close it (ADR-0091).
-  const faulted = new Map<string, string[]>();
-  for (const node of evaluated) {
-    for (const f of node.findings) {
-      if (!about(f, wire, key, queueKeys) || f.kind === 'UNDECLARED') continue;
-      const into = f.kind === 'MISSING' ? missing : f.kind === 'NOT_CONNECTED' ? faulted : differs;
-      const label = labelFor(f, key);
-      // A node can carry two findings under one label — the address and the queue
-      // of the same name — and naming it twice reads as two nodes.
-      const named = into.get(label) ?? [];
-      if (!named.includes(node.nodeName)) into.set(label, [...named, node.nodeName]);
-    }
-  }
+  const { missing, differs, faulted } = groupFindings(evaluated, wire, key, queueKeys);
   const parts: string[] = [];
   const emit = (from: Map<string, string[]>, word: string) =>
-    [...from.keys()].sort().forEach((label) => parts.push(`${label}${word} on ${from.get(label)!.join(', ')}`));
+    [...from.keys()]
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((label) => parts.push(`${label}${word} on ${from.get(label)!.join(', ')}`));
   if (missing.size === 0 && differs.size === 0) {
     const suffix = evaluated.length < live.length ? ` (${live.length - evaluated.length} not evaluated)` : '';
     emit(faulted, 'as declared but not forwarding');
@@ -241,6 +264,12 @@ export function hazardClassWords(hazardClass: ConfigHazardView['hazardClass']): 
   }
 }
 
+function appliedStepWords(verified: ConfigStepApplyView['verified']): { text: string; tone?: 'danger' } {
+  if (verified === 'MISMATCH') return { text: 'applied — read back differs', tone: 'danger' };
+  if (verified === 'UNVERIFIABLE') return { text: 'applied — cannot be verified' };
+  return { text: 'applied and verified' };
+}
+
 export function stepStatusWords(step: ConfigStepApplyView): {
   text: string;
   tone?: 'warning' | 'danger';
@@ -249,11 +278,7 @@ export function stepStatusWords(step: ConfigStepApplyView): {
     case 'WOULD_APPLY':
       return { text: 'would apply' };
     case 'APPLIED':
-      return step.verified === 'MISMATCH'
-        ? { text: 'applied — read back differs', tone: 'danger' }
-        : step.verified === 'UNVERIFIABLE'
-          ? { text: 'applied — cannot be verified' }
-          : { text: 'applied and verified' };
+      return appliedStepWords(step.verified);
     case 'ALREADY':
       return { text: 'already as declared' };
     case 'FAILED':
@@ -307,8 +332,9 @@ export const CONFIG_MANAGED_REASON =
 export function valueWords(value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (Array.isArray(value)) return value.map(valueWords).join(', ');
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : JSON.stringify(value);
 }
 
 /** The keys a finding compares, declared beside observed, for a two-column table. */
@@ -318,9 +344,11 @@ export function findingRows(
 ): { key: string; declared: string; observed: string; differs: boolean }[] {
   const keys = new Set([...Object.keys(f.declared ?? {}), ...Object.keys(f.observed ?? {})]);
   const isSetting = f.section === 'ADDRESS_SETTING';
-  return [...keys].sort().map((key) => {
-    const declared = isSetting ? prettyValue(key, f.declared?.[key]) : valueWords(f.declared?.[key]);
-    const observed = isSetting ? prettyValue(key, f.observed?.[key]) : valueWords(f.observed?.[key]);
-    return { key: isSetting ? prettyKey(key, catalogue) : key, declared, observed, differs: declared !== observed };
-  });
+  return [...keys]
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => {
+      const declared = isSetting ? prettyValue(key, f.declared?.[key]) : valueWords(f.declared?.[key]);
+      const observed = isSetting ? prettyValue(key, f.observed?.[key]) : valueWords(f.observed?.[key]);
+      return { key: isSetting ? prettyKey(key, catalogue) : key, declared, observed, differs: declared !== observed };
+    });
 }

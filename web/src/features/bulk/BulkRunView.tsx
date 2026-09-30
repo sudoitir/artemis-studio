@@ -44,10 +44,91 @@ function counts(run: Run): string {
   return `${run.succeeded.toLocaleString()} succeeded, ${run.failed.toLocaleString()} failed, ${run.skipped.toLocaleString()} skipped, ${done.toLocaleString()} of ${plural(run.total, 'queue')} settled`;
 }
 
-const toneColor = (tone: 'warning' | 'danger' | undefined) =>
-  tone === 'danger' ? 'var(--as-danger)' : tone === 'warning' ? 'var(--as-warning)' : undefined;
+const TONE_COLOR = { danger: 'var(--as-danger)', warning: 'var(--as-warning)' } as const;
+
+const toneColor = (tone: 'warning' | 'danger' | undefined) => (tone ? TONE_COLOR[tone] : undefined);
 
 const TERMINAL = new Set<Run['status']>(['SUCCEEDED', 'PARTIAL', 'FAILED', 'STOPPED', 'INTERRUPTED']);
+
+/** The per-queue table's columns; a queue is a real button, so its node detail is reachable from the keyboard. */
+function itemColumns(destructive: boolean, onOpen: (queueName: string) => void): GridColumn<BulkItemView>[] {
+  return [
+    {
+      id: 'queue',
+      header: 'Queue',
+      accessor: (i) => i.queueName,
+      cell: (i) => (
+        <Anchor
+          component="button"
+          size="sm"
+          aria-label={`Show node detail for ${i.queueName}`}
+          onClick={() => onOpen(i.queueName)}
+        >
+          {i.queueName}
+        </Anchor>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Outcome',
+      accessor: (i) => itemStatus(i.status).text,
+      cell: (i) => {
+        const s = itemStatus(i.status);
+        return (
+          <Text size="sm" c={toneColor(s.tone)}>
+            {s.text}
+          </Text>
+        );
+      },
+      width: 200,
+    },
+    ...(destructive
+      ? [
+          {
+            id: 'affected',
+            header: 'Messages',
+            accessor: (i: BulkItemView) => (i.affected == null ? 'unknown' : i.affected.toLocaleString()),
+            numeric: true,
+            width: 110,
+          },
+        ]
+      : []),
+    { id: 'note', header: 'Reason', accessor: (i) => i.error ?? i.warning ?? '' },
+  ];
+}
+
+/** One queue's per-node result, or why it has none. */
+function QueueDetail({
+  item,
+  outcome,
+  destructive,
+  onHide,
+}: Readonly<{
+  item: BulkItemView;
+  outcome: LifecycleOutcomeView | null;
+  destructive: boolean;
+  onHide: () => void;
+}>) {
+  return (
+    <Stack gap="xs">
+      <Group justify="space-between">
+        <Title order={5}>{item.queueName}</Title>
+        <Button size="xs" variant="subtle" onClick={onHide}>
+          Hide node detail
+        </Button>
+      </Group>
+      {outcome ? (
+        <NodeOutcomeSummary outcome={outcome} destructive={destructive} />
+      ) : (
+        <Text size="sm">
+          {item.status === 'REFUSED'
+            ? `Refused at preview: ${item.error ?? 'no reason recorded'}. Nothing was sent to the broker.`
+            : 'This queue has not been acted on, so there is no per-node result.'}
+        </Text>
+      )}
+    </Stack>
+  );
+}
 
 /**
  * One bulk run at its own address: its status in words, its progress, and each queue's outcome,
@@ -83,50 +164,7 @@ export function BulkRunView() {
   // The server re-checks; this only explains. Offered while grants load.
   const stopGate = gateFor(can(op.permission, clusterId), op.permissionLabel, undefined, loading);
 
-  const columns: GridColumn<BulkItemView>[] = [
-    {
-      id: 'queue',
-      header: 'Queue',
-      accessor: (i) => i.queueName,
-      // A real button, so the per-node detail is reachable from the keyboard.
-      cell: (i) => (
-        <Anchor
-          component="button"
-          size="sm"
-          aria-label={`Show node detail for ${i.queueName}`}
-          onClick={() => setOpen(i.queueName)}
-        >
-          {i.queueName}
-        </Anchor>
-      ),
-    },
-    {
-      id: 'status',
-      header: 'Outcome',
-      accessor: (i) => itemStatus(i.status).text,
-      cell: (i) => {
-        const s = itemStatus(i.status);
-        return (
-          <Text size="sm" c={toneColor(s.tone)}>
-            {s.text}
-          </Text>
-        );
-      },
-      width: 200,
-    },
-    ...(op.destructive
-      ? [
-          {
-            id: 'affected',
-            header: 'Messages',
-            accessor: (i: BulkItemView) => (i.affected == null ? 'unknown' : i.affected.toLocaleString()),
-            numeric: true,
-            width: 110,
-          },
-        ]
-      : []),
-    { id: 'note', header: 'Reason', accessor: (i) => i.error ?? i.warning ?? '' },
-  ];
+  const columns = itemColumns(op.destructive, setOpen);
 
   return (
     <Stack gap="sm">
@@ -203,23 +241,7 @@ export function BulkRunView() {
       />
 
       {opened ? (
-        <Stack gap="xs">
-          <Group justify="space-between">
-            <Title order={5}>{opened.queueName}</Title>
-            <Button size="xs" variant="subtle" onClick={() => setOpen(null)}>
-              Hide node detail
-            </Button>
-          </Group>
-          {openedOutcome ? (
-            <NodeOutcomeSummary outcome={openedOutcome} destructive={op.destructive} />
-          ) : (
-            <Text size="sm">
-              {opened.status === 'REFUSED'
-                ? `Refused at preview: ${opened.error ?? 'no reason recorded'}. Nothing was sent to the broker.`
-                : 'This queue has not been acted on, so there is no per-node result.'}
-            </Text>
-          )}
-        </Stack>
+        <QueueDetail item={opened} outcome={openedOutcome} destructive={op.destructive} onHide={() => setOpen(null)} />
       ) : null}
 
       <Modal opened={stopOpen} onClose={() => setStopOpen(false)} title="Stop this run?">

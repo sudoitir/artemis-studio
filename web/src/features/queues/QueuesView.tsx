@@ -21,6 +21,12 @@ const PAGE_SIZE = 200;
 
 const rowKey = (r: QueueView) => `${r.address}::${r.queueName}::${r.routingType}`;
 
+/** The state cell: blank while running, so a healthy grid stays quiet. */
+function pausedLabel(r: QueueView): string {
+  if (!r.paused) return '';
+  return r.perNode.every((n) => n.paused) ? 'paused' : 'paused on some nodes';
+}
+
 const columns: GridColumn<QueueView>[] = [
   { id: 'address', header: 'Address', accessor: (r) => r.address, sortKey: 'address' },
   { id: 'queueName', header: 'Queue', accessor: (r) => r.queueName, sortKey: 'queueName' },
@@ -72,7 +78,7 @@ const columns: GridColumn<QueueView>[] = [
     id: 'paused',
     header: 'State',
     accessor: (r) => r.paused,
-    cell: (r) => (r.paused ? (r.perNode.every((n) => n.paused) ? 'paused' : 'paused on some nodes') : ''),
+    cell: pausedLabel,
     width: 150,
   },
   {
@@ -83,6 +89,178 @@ const columns: GridColumn<QueueView>[] = [
     width: 90,
   },
 ];
+
+/** What the selection says, in words. */
+function selectionWords(count: number, total: number, matching: string, allMatching: boolean): string {
+  if (count === 0) return 'No queues selected. Select queues in the grid to act on them together.';
+  if (allMatching) return `All ${total.toLocaleString()} queues${matching} are selected.`;
+  return `${count.toLocaleString()} ${count === 1 ? 'queue' : 'queues'} selected`;
+}
+
+/** How many queues are picked, and the actions that apply to them. */
+function SelectionBar({
+  count,
+  total,
+  matching,
+  allMatching,
+  canSelectAll,
+  onSelectAll,
+  onClear,
+  children,
+}: Readonly<{
+  count: number;
+  total: number;
+  matching: string;
+  allMatching: boolean;
+  canSelectAll: boolean;
+  onSelectAll: () => void;
+  onClear: () => void;
+  children: React.ReactNode;
+}>) {
+  return (
+    <Group
+      gap="sm"
+      justify="space-between"
+      role="region"
+      aria-label="Selected queues"
+      style={{ position: 'sticky', insetBlockStart: 0, zIndex: 2, background: 'var(--as-surface)' }}
+    >
+      <Group gap="xs">
+        <Text size="sm" fw={count > 0 ? 600 : undefined}>
+          {selectionWords(count, total, matching, allMatching)}
+        </Text>
+        {canSelectAll ? (
+          <Button size="xs" variant="subtle" onClick={onSelectAll}>
+            {`Select all ${total.toLocaleString()} queues${matching}`}
+          </Button>
+        ) : null}
+        {count > 0 ? (
+          <Button size="xs" variant="subtle" onClick={onClear}>
+            Clear selection
+          </Button>
+        ) : null}
+      </Group>
+      <Group gap="xs">{children}</Group>
+    </Group>
+  );
+}
+
+/** Why the grid is empty: the filter, nodes that did not answer, or genuinely nothing yet. */
+function QueuesEmpty({
+  filtered,
+  filterText,
+  unreachable,
+  mayCreate,
+  onClearFilter,
+  onCreate,
+}: Readonly<{
+  filtered: boolean;
+  filterText: string;
+  unreachable: string[];
+  mayCreate: boolean;
+  onClearFilter: () => void;
+  onCreate: () => void;
+}>) {
+  if (filtered) {
+    return (
+      <Stack gap={4} align="flex-start">
+        <Text fw={600}>No queue matches "{filterText}"</Text>
+        <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
+        <Button size="xs" variant="light" onClick={onClearFilter}>
+          Clear the filter
+        </Button>
+      </Stack>
+    );
+  }
+  if (unreachable.length > 0) {
+    return (
+      <Stack gap={4} align="flex-start">
+        <Text fw={600}>
+          {unreachable.length === 1
+            ? `${unreachable[0]} could not be reached`
+            : `${unreachable.length} nodes could not be reached`}
+        </Text>
+        <Text size="sm">
+          There may be queues here that Studio cannot currently see —
+          {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is an
+          incomplete view rather than an empty cluster.
+          {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
+        </Text>
+      </Stack>
+    );
+  }
+  return (
+    <Stack gap={4} align="flex-start">
+      <Text fw={600}>No queues yet</Text>
+      <Text size="sm">
+        A queue is where messages wait for a consumer. Studio fills this grid from each broker's <code>listQueues</code>
+        {/* The semicolon follows the code with no space. */}; produce to an address or create a queue and it appears
+        here within a scrape tick.
+      </Text>
+      {mayCreate ? (
+        <Button size="xs" variant="light" onClick={onCreate}>
+          Create the first queue
+        </Button>
+      ) : null}
+    </Stack>
+  );
+}
+
+/**
+ * Selection is local and belongs to the filter it was made under: a new filter is a new set of
+ * queues, and carrying picks across it would act on queues the operator can no longer see.
+ * Picks are keyed by row, holding the queue name the bulk actions need.
+ */
+function useQueueSelection(rows: QueueView[], total: number, q: string | undefined) {
+  const [picked, setPicked] = useState<Map<string, string>>(new Map());
+  const [allMatching, setAllMatching] = useState(false);
+  const clearSelection = () => {
+    setPicked(new Map());
+    setAllMatching(false);
+  };
+  useEffect(() => {
+    setPicked(new Map());
+    setAllMatching(false);
+  }, [q]);
+  // "All matching" is a filter, not a list of names: the queues on the other pages were never loaded.
+  // Changing any one row turns it back into names, starting from this page.
+  const pageNames = () => new Map(rows.map((r) => [rowKey(r), r.queueName]));
+  const toggleRow = (key: string) => {
+    const next = allMatching ? pageNames() : new Map(picked);
+    setAllMatching(false);
+    if (next.has(key)) next.delete(key);
+    else next.set(key, rows.find((r) => rowKey(r) === key)?.queueName ?? key);
+    setPicked(next);
+  };
+  const toggleAll = (keys: string[], allSelected: boolean) => {
+    const next = allMatching ? pageNames() : new Map(picked);
+    setAllMatching(false);
+    if (allSelected) keys.forEach((k) => next.delete(k));
+    else rows.forEach((r) => next.set(rowKey(r), r.queueName));
+    setPicked(next);
+  };
+  const selectedKeys: ReadonlySet<string> = allMatching ? new Set(rows.map(rowKey)) : new Set(picked.keys());
+  const count = allMatching ? total : picked.size;
+  const pageAllPicked = rows.length > 0 && rows.every((r) => picked.has(rowKey(r)));
+  const matching = q ? ` matching "${q}"` : ' on this cluster';
+  const selection: QueueSelection = allMatching
+    ? { kind: 'filter', q: q ?? '', total }
+    : { kind: 'names', names: [...picked.values()] };
+
+  return {
+    picked,
+    allMatching,
+    setAllMatching,
+    clearSelection,
+    toggleRow,
+    toggleAll,
+    selectedKeys,
+    count,
+    pageAllPicked,
+    matching,
+    selection,
+  };
+}
 
 /**
  * The headline view: every queue across every node, in one virtualized grid.
@@ -103,7 +281,7 @@ export function QueuesView() {
 
   useEffect(() => {
     if ((search.q ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({ ...prev, q: debounced || undefined, page: undefined }),
     });
@@ -149,25 +327,28 @@ export function QueuesView() {
     .filter((e) => e.lastError)
     .map((e) => e.name);
 
-  // Selection is local and belongs to the filter it was made under: a new filter is a new set of
-  // queues, and carrying picks across it would act on queues the operator can no longer see.
-  // Picks are keyed by row, holding the queue name the bulk actions need.
-  const [picked, setPicked] = useState<Map<string, string>>(new Map());
-  const [allMatching, setAllMatching] = useState(false);
-  const clearSelection = () => {
-    setPicked(new Map());
-    setAllMatching(false);
-  };
-  useEffect(() => {
-    setPicked(new Map());
-    setAllMatching(false);
-  }, [search.q]);
   const selectionSlot = useSlot('queues.selection');
 
   const setSort = (sort: string | undefined) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, sort, page: undefined }) });
   const setPage = (next: number) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, page: next > 1 ? next : undefined }) });
+
+  const rows = query.data?.data ?? [];
+  const total = query.data?.count ?? 0;
+
+  const {
+    allMatching,
+    setAllMatching,
+    clearSelection,
+    toggleRow,
+    toggleAll,
+    selectedKeys,
+    count,
+    pageAllPicked,
+    matching,
+    selection,
+  } = useQueueSelection(rows, total, search.q);
 
   if (query.isError) {
     return (
@@ -176,34 +357,6 @@ export function QueuesView() {
       </Alert>
     );
   }
-
-  const rows = query.data?.data ?? [];
-  const total = query.data?.count ?? 0;
-
-  // "All matching" is a filter, not a list of names: the queues on the other pages were never loaded.
-  // Changing any one row turns it back into names, starting from this page.
-  const pageNames = () => new Map(rows.map((r) => [rowKey(r), r.queueName]));
-  const toggleRow = (key: string) => {
-    const next = allMatching ? pageNames() : new Map(picked);
-    setAllMatching(false);
-    if (next.has(key)) next.delete(key);
-    else next.set(key, rows.find((r) => rowKey(r) === key)?.queueName ?? key);
-    setPicked(next);
-  };
-  const toggleAll = (keys: string[], allSelected: boolean) => {
-    const next = allMatching ? pageNames() : new Map(picked);
-    setAllMatching(false);
-    if (allSelected) keys.forEach((k) => next.delete(k));
-    else rows.forEach((r) => next.set(rowKey(r), r.queueName));
-    setPicked(next);
-  };
-  const selectedKeys: ReadonlySet<string> = allMatching ? new Set(rows.map(rowKey)) : new Set(picked.keys());
-  const count = allMatching ? total : picked.size;
-  const pageAllPicked = rows.length > 0 && rows.every((r) => picked.has(rowKey(r)));
-  const matching = search.q ? ` matching "${search.q}"` : ' on this cluster';
-  const selection: QueueSelection = allMatching
-    ? { kind: 'filter', q: search.q ?? '', total }
-    : { kind: 'names', names: [...picked.values()] };
 
   return (
     <Stack gap="sm">
@@ -228,38 +381,19 @@ export function QueuesView() {
       </Group>
 
       {/* Always mounted, so the first tick does not push the grid down under the cursor. */}
-      <Group
-        gap="sm"
-        justify="space-between"
-        role="region"
-        aria-label="Selected queues"
-        style={{ position: 'sticky', insetBlockStart: 0, zIndex: 2, background: 'var(--as-surface)' }}
+      <SelectionBar
+        count={count}
+        total={total}
+        matching={matching}
+        allMatching={allMatching}
+        canSelectAll={!allMatching && pageAllPicked && total > rows.length}
+        onSelectAll={() => setAllMatching(true)}
+        onClear={clearSelection}
       >
-        <Group gap="xs">
-          <Text size="sm" fw={count > 0 ? 600 : undefined}>
-            {count === 0
-              ? 'No queues selected. Select queues in the grid to act on them together.'
-              : allMatching
-                ? `All ${total.toLocaleString()} queues${matching} are selected.`
-                : `${count.toLocaleString()} ${count === 1 ? 'queue' : 'queues'} selected`}
-          </Text>
-          {!allMatching && pageAllPicked && total > rows.length ? (
-            <Button size="xs" variant="subtle" onClick={() => setAllMatching(true)}>
-              {`Select all ${total.toLocaleString()} queues${matching}`}
-            </Button>
-          ) : null}
-          {count > 0 ? (
-            <Button size="xs" variant="subtle" onClick={clearSelection}>
-              Clear selection
-            </Button>
-          ) : null}
-        </Group>
-        <Group gap="xs">
-          {selectionSlot.map(({ id, Component }) => (
-            <Component key={id} clusterId={clusterId} selection={selection} count={count} clear={clearSelection} />
-          ))}
-        </Group>
-      </Group>
+        {selectionSlot.map(({ id, Component }) => (
+          <Component key={id} clusterId={clusterId} selection={selection} count={count} clear={clearSelection} />
+        ))}
+      </SelectionBar>
 
       {query.isPending && rows.length === 0 ? (
         <Stack gap={4}>
@@ -293,57 +427,20 @@ export function QueuesView() {
             ),
           }}
           emptyLabel={
-            search.q ? (
-              <Stack gap={4} align="flex-start">
-                <Text fw={600}>No queue matches "{search.q}"</Text>
-                <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => {
-                    setFilter('');
-                    navigate({
-                      to: '.',
-                      search: (prev: Record<string, unknown>) => ({
-                        ...prev,
-                        q: undefined,
-                        page: undefined,
-                      }),
-                    });
-                  }}
-                >
-                  Clear the filter
-                </Button>
-              </Stack>
-            ) : unreachable.length > 0 ? (
-              <Stack gap={4} align="flex-start">
-                <Text fw={600}>
-                  {unreachable.length === 1
-                    ? `${unreachable[0]} could not be reached`
-                    : `${unreachable.length} nodes could not be reached`}
-                </Text>
-                <Text size="sm">
-                  There may be queues here that Studio cannot currently see —
-                  {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is
-                  an incomplete view rather than an empty cluster.
-                  {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
-                </Text>
-              </Stack>
-            ) : (
-              <Stack gap={4} align="flex-start">
-                <Text fw={600}>No queues yet</Text>
-                <Text size="sm">
-                  A queue is where messages wait for a consumer. Studio fills this grid from each broker's{' '}
-                  <code>listQueues</code>; produce to an address or create a queue and it appears here within a scrape
-                  tick.
-                </Text>
-                {mayCreate ? (
-                  <Button size="xs" variant="light" onClick={() => setCreateOpen(true)}>
-                    Create the first queue
-                  </Button>
-                ) : null}
-              </Stack>
-            )
+            <QueuesEmpty
+              filtered={Boolean(search.q)}
+              filterText={search.q ?? ''}
+              unreachable={unreachable}
+              mayCreate={mayCreate}
+              onClearFilter={() => {
+                setFilter('');
+                void navigate({
+                  to: '.',
+                  search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
+                });
+              }}
+              onCreate={() => setCreateOpen(true)}
+            />
           }
         />
       )}

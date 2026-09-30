@@ -14,7 +14,11 @@ export function CaptureHint(props: { clusterId: string; addresses: string[]; pur
   return props.addresses.length === 0 ? null : <CoverageHint {...props} />;
 }
 
-function CoverageHint({ clusterId, addresses, purpose }: { clusterId: string; addresses: string[]; purpose: string }) {
+function CoverageHint({
+  clusterId,
+  addresses,
+  purpose,
+}: Readonly<{ clusterId: string; addresses: string[]; purpose: string }>) {
   const subscriptions = useIndexSubscriptions(clusterId);
   if (!subscriptions.data) return null;
   const missing = uncapturedAddresses(subscriptions.data, addresses);

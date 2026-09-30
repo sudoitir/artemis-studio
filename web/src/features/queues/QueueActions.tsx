@@ -155,7 +155,7 @@ function PauseQueueDialog({
   );
 }
 
-export function OpenQueue({ clusterId, target }: ActionProps<QueueTarget>) {
+export function OpenQueue({ clusterId, target }: Readonly<ActionProps<QueueTarget>>) {
   const navigate = useNavigate();
   return (
     <ActionMenuItem
@@ -167,7 +167,7 @@ export function OpenQueue({ clusterId, target }: ActionProps<QueueTarget>) {
   );
 }
 
-export function CopyQueueName({ target, host }: ActionProps<QueueTarget>) {
+export function CopyQueueName({ target, host }: Readonly<ActionProps<QueueTarget>>) {
   return (
     <ActionMenuItem
       label="Copy queue name"
@@ -177,7 +177,7 @@ export function CopyQueueName({ target, host }: ActionProps<QueueTarget>) {
   );
 }
 
-export function CopyQueueLink({ clusterId, target, host }: ActionProps<QueueTarget>) {
+export function CopyQueueLink({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   return (
     <ActionMenuItem
       label="Copy link to this queue"
@@ -187,11 +187,17 @@ export function CopyQueueLink({ clusterId, target, host }: ActionProps<QueueTarg
   );
 }
 
-export function PauseResumeQueue({ clusterId, target, host }: ActionProps<QueueTarget>) {
+/** The menu entry: which of pause or resume applies, or both while it is not known. */
+function pauseLabel(paused: boolean | undefined): string {
+  if (paused === undefined) return 'Pause or resume…';
+  return paused ? 'Resume…' : 'Pause…';
+}
+
+export function PauseResumeQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   const gate = useWriteGate(clusterId, 'queue:pause', 'Pause and resume queues');
   const { queue } = useQueue(clusterId, target.queueName, target.snapshot);
   const paused = queue ? queue.perNode.some((n) => n.paused) : undefined;
-  const label = paused === undefined ? 'Pause or resume…' : paused ? 'Resume…' : 'Pause…';
+  const label = pauseLabel(paused);
   return (
     <ActionMenuItem
       label={label}
@@ -209,7 +215,7 @@ export function PauseResumeQueue({ clusterId, target, host }: ActionProps<QueueT
   );
 }
 
-export function EditQueue({ clusterId, target, host }: ActionProps<QueueTarget>) {
+export function EditQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   const gate = useWriteGate(clusterId, 'queue:update', "Change a queue's configuration");
   return (
     <ActionMenuItem
@@ -228,7 +234,7 @@ export function EditQueue({ clusterId, target, host }: ActionProps<QueueTarget>)
   );
 }
 
-export function DeleteQueue({ clusterId, target, host }: ActionProps<QueueTarget>) {
+export function DeleteQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   const gate = useWriteGate(clusterId, 'queue:delete', 'Destroy queues and addresses');
   return (
     <ActionMenuItem
@@ -249,7 +255,7 @@ export function DeleteQueue({ clusterId, target, host }: ActionProps<QueueTarget
 }
 
 /** A queue's name as a link to its detail (ADR-0107). */
-export function QueueLink({ clusterId, target, children }: LinkProps<QueueTarget>) {
+export function QueueLink({ clusterId, target, children }: Readonly<LinkProps<QueueTarget>>) {
   return (
     <Link to={`/clusters/${clusterId}/queues`} search={{ queue: target.queueName }} className={linkClasses.link}>
       {children}
@@ -258,7 +264,7 @@ export function QueueLink({ clusterId, target, children }: LinkProps<QueueTarget
 }
 
 /** On a consumer's row: the queue it consumes from. */
-export function ConsumerOpenQueue({ clusterId, target }: ActionProps<ConsumerTarget>) {
+export function ConsumerOpenQueue({ clusterId, target }: Readonly<ActionProps<ConsumerTarget>>) {
   const navigate = useNavigate();
   const name = target.queueName;
   return (
@@ -273,7 +279,7 @@ export function ConsumerOpenQueue({ clusterId, target }: ActionProps<ConsumerTar
 }
 
 /** The queues bound to an address, from any row that names one. */
-function OpenQueuesOn({ clusterId, address }: { clusterId: string; address: string | null | undefined }) {
+function OpenQueuesOn({ clusterId, address }: Readonly<{ clusterId: string; address: string | null | undefined }>) {
   const navigate = useNavigate();
   return (
     <ActionMenuItem
@@ -286,10 +292,10 @@ function OpenQueuesOn({ clusterId, address }: { clusterId: string; address: stri
   );
 }
 
-export function AddressOpenQueues({ clusterId, target }: ActionProps<AddressTarget>) {
+export function AddressOpenQueues({ clusterId, target }: Readonly<ActionProps<AddressTarget>>) {
   return <OpenQueuesOn clusterId={clusterId} address={target.address} />;
 }
 
-export function ProducerOpenQueues({ clusterId, target }: ActionProps<ProducerTarget>) {
+export function ProducerOpenQueues({ clusterId, target }: Readonly<ActionProps<ProducerTarget>>) {
   return <OpenQueuesOn clusterId={clusterId} address={target.address} />;
 }

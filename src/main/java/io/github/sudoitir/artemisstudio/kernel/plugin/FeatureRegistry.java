@@ -84,18 +84,22 @@ public class FeatureRegistry implements PluginBridge {
             enabled.put(d.id(), on);
         }
         for (FeatureDescriptor d : byId.values()) {
-            for (String dependency : d.requires()) {
-                if (!byId.containsKey(dependency)) {
-                    throw new IllegalStateException(
-                            "Feature '" + d.id() + "' requires '" + dependency + "', which is not installed");
-                }
-                if (enabled.get(d.id()) && !enabled.get(dependency)) {
-                    throw new IllegalStateException("Feature '" + d.id() + "' is enabled but requires '" + dependency
-                            + "', which is disabled by " + Contract.enabledProperty(dependency) + "=false");
-                }
-            }
+            requireInstalledAndEnabled(d);
             for (String prefix : d.apiPrefixes()) {
                 prefixes.add(Map.entry(PathPatternParser.defaultInstance.parse(prefix + "/**"), d));
+            }
+        }
+    }
+
+    private void requireInstalledAndEnabled(FeatureDescriptor d) {
+        for (String dependency : d.requires()) {
+            if (!byId.containsKey(dependency)) {
+                throw new IllegalStateException(
+                        "Feature '" + d.id() + "' requires '" + dependency + "', which is not installed");
+            }
+            if (isEnabled(d.id()) && !isEnabled(dependency)) {
+                throw new IllegalStateException("Feature '" + d.id() + "' is enabled but requires '" + dependency
+                        + "', which is disabled by " + Contract.enabledProperty(dependency) + "=false");
             }
         }
     }

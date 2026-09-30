@@ -5,6 +5,31 @@ import type { ApiError } from '../api/request.ts';
 /** Every metric plot is this tall, whatever it is currently able to show. */
 export const CHART_HEIGHT = 220;
 
+/** What stands in for the plot: the failure, the loading placeholder, or the empty statement. */
+function chartNotice(
+  error: ApiError | null,
+  isPending: boolean,
+  isEmpty: boolean,
+  emptyLabel: string,
+): React.ReactNode {
+  if (error) {
+    return (
+      <Alert color="red" variant="light" title={error.title} h="100%">
+        {error.message} — this window could not be read, which is not the same as there being nothing in it.
+      </Alert>
+    );
+  }
+  if (isPending) return <Skeleton height={CHART_HEIGHT} radius="sm" />;
+  if (!isEmpty) return null;
+  return (
+    <Group h="100%" justify="center">
+      <Text size="sm" c="dimmed" ta="center" maw="32rem">
+        {emptyLabel}
+      </Text>
+    </Group>
+  );
+}
+
 /**
  * A titled panel around one metric plot, and the three states it can be in.
  *
@@ -27,7 +52,7 @@ export function ChartPanel({
   emptyLabel,
   note,
   children,
-}: {
+}: Readonly<{
   title: string;
   unit: string;
   isPending: boolean;
@@ -38,7 +63,7 @@ export function ChartPanel({
   /** A coverage caveat that belongs beside the title, not inside a tooltip. */
   note?: React.ReactNode;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <Card withBorder padding="md" radius="md">
       <Stack gap="xs">
@@ -51,23 +76,7 @@ export function ChartPanel({
           </Text>
         </Group>
         {note}
-        <div style={{ blockSize: CHART_HEIGHT }}>
-          {error ? (
-            <Alert color="red" variant="light" title={error.title} h="100%">
-              {error.message} — this window could not be read, which is not the same as there being nothing in it.
-            </Alert>
-          ) : isPending ? (
-            <Skeleton height={CHART_HEIGHT} radius="sm" />
-          ) : isEmpty ? (
-            <Group h="100%" justify="center">
-              <Text size="sm" c="dimmed" ta="center" maw="32rem">
-                {emptyLabel}
-              </Text>
-            </Group>
-          ) : (
-            children
-          )}
-        </div>
+        <div style={{ blockSize: CHART_HEIGHT }}>{chartNotice(error, isPending, isEmpty, emptyLabel) ?? children}</div>
       </Stack>
     </Card>
   );

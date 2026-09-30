@@ -47,13 +47,14 @@ export function contributionSummary(info: PluginInfoView): string {
 }
 
 export function count(n: number, noun: string): string | null {
-  return n === 0 ? null : `${n} ${noun}${n === 1 ? '' : 's'}`;
+  if (n === 0) return null;
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
 }
 
 /** The exact action the confirm button names: "Update Notes to 1.5.0 (3 database changes)". */
 export function actionLabel(plan: PluginPlanView): string {
   const changes = plan.pendingChangesets.length;
-  const suffix = changes > 0 ? ` (${changes} database change${changes === 1 ? '' : 's'})` : '';
+  const suffix = count(changes, 'database change') ? ` (${count(changes, 'database change')})` : '';
   const title = plan.info.title;
   if (!plan.fromVersion) return `Install ${title} ${plan.toVersion}${suffix}`;
   if (plan.fromVersion === plan.toVersion) return `Activate ${title} ${plan.toVersion}${suffix}`;

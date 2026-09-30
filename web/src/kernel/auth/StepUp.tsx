@@ -10,7 +10,7 @@ import { useFreshSignIn } from './freshSignIn.ts';
  * signing in again at its identity provider, which brings the operator back to `returnTo`.
  * Renders nothing once the session is fresh.
  */
-export function StepUp({ returnTo }: { returnTo: string }) {
+export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   const me = useMe();
   const fresh = useFreshSignIn();
   const reauthenticate = useReauthenticate();
@@ -64,7 +64,7 @@ export function StepUp({ returnTo }: { returnTo: string }) {
               setPassword(e.currentTarget.value);
               setEmpty(false);
             }}
-            error={empty ? 'Enter your password.' : failed ? failed.message : undefined}
+            error={empty ? 'Enter your password.' : failed?.message}
             w={260}
           />
           <Button type="submit" loading={reauthenticate.isPending}>

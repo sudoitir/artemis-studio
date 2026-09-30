@@ -22,7 +22,7 @@ interface BuilderSearch {
  * the write and apply gates, its URL state, and the review drawer — the same one, so the builder
  * still has one plan and one apply (ADR-0090 D1).
  */
-export function RoutingBuilderTab({ clusterId }: { clusterId: string }) {
+export function RoutingBuilderTab({ clusterId }: Readonly<{ clusterId: string }>) {
   const search = useSearch({ strict: false }) as BuilderSearch;
   const navigate = useNavigate();
   const declaration = useBrokerConfig(clusterId);

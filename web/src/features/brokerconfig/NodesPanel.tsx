@@ -40,10 +40,10 @@ function declaredKeys(declaration: ConfigDeclarationView): Set<string> {
 export function NodesPanel({
   declaration,
   catalogue,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   catalogue?: ConfigCatalogueView;
-}) {
+}>) {
   useDisplayZone();
   useServerNow();
   const onRows = declaredKeys(declaration);
@@ -85,7 +85,7 @@ export function NodesPanel({
  * whatever the broker happened to be doing. A node that agrees for no recorded
  * reason says that too, rather than implying the stronger one.
  */
-function SyncEvidence({ node, clusterId }: { node: ConfigNodeStateView; clusterId: string }) {
+function SyncEvidence({ node, clusterId }: Readonly<{ node: ConfigNodeStateView; clusterId: string }>) {
   if (node.state !== 'IN_SYNC') return null;
   if (!node.basis) {
     return (
@@ -113,12 +113,12 @@ function NodeCard({
   clusterId,
   catalogue,
   onRows,
-}: {
+}: Readonly<{
   node: ConfigNodeStateView;
   clusterId: string;
   catalogue?: ConfigCatalogueView;
   onRows: Set<string>;
-}) {
+}>) {
   const state = nodeStateWords(node.state);
   const loose = node.findings.filter((f) => !f.key || !onRows.has(`${f.section}:${f.key}`));
   const groups = new Map<string, typeof node.findings>();

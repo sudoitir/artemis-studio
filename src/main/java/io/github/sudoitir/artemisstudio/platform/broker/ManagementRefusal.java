@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * A management operation the broker refused for a reason that is not a connection
  * failure. Telling these apart is what {@code managementWrite} honesty depends on
@@ -68,6 +71,10 @@ public class ManagementRefusal extends RuntimeException {
     static final String DIVERT_ABSENT = "AMQ229012";
     /** An address-setting JSON document the broker could not parse (§15 M1). */
     static final String SETTING_PARSE = "Error while parsing MetaData";
+
+    /** The setting key the broker names in a parse error; the last one wins. */
+    private static final Pattern SETTING_NAME = Pattern.compile("name='([^']*)'");
+
     /** An address-setting pair the broker refuses after parsing (§15 M1). */
     static final String PAGE_SIZE_VS_MAX = "pageSize has to be lower than maxSizeBytes";
     /**
@@ -77,11 +84,6 @@ public class ManagementRefusal extends RuntimeException {
      */
     static final String MBEAN_ABSENT = "InstanceNotFoundException";
 
-    /**
-     * Classify a failed Jolokia response, or return {@code null} when the error is
-     * not one of the known management refusals and should be treated as a
-     * connection-level failure instead.
-     */
     /**
      * Turn a failed response into the right exception: a {@link ManagementRefusal} when
      * the broker explained itself with a code we know, and a connection-level
@@ -93,7 +95,7 @@ public class ManagementRefusal extends RuntimeException {
         if (res.ok()) {
             return;
         }
-        ManagementRefusal refusal = classify(res.error(), operation);
+        ManagementRefusal refusal = classify(res.error());
         if (refusal != null) {
             throw refusal;
         }
@@ -102,7 +104,12 @@ public class ManagementRefusal extends RuntimeException {
                 operation + " failed: " + (res.error() != null ? res.error() : "status " + res.status()));
     }
 
-    static ManagementRefusal classify(String error, String operation) {
+    /**
+     * Classify a failed Jolokia response, or return {@code null} when the error is
+     * not one of the known management refusals and should be treated as a
+     * connection-level failure instead.
+     */
+    static ManagementRefusal classify(String error) {
         if (error == null) {
             return null;
         }
@@ -140,16 +147,24 @@ public class ManagementRefusal extends RuntimeException {
             return new ManagementRefusal(Kind.ALREADY, "Already absent: " + error);
         }
         if (error.contains(SETTING_PARSE)) {
-            String field = error.replaceAll(".*name='([^']*)'.*", "$1");
-            return new ManagementRefusal(
-                    Kind.ARGUMENT,
-                    "The broker could not parse the value of "
-                            + (field.equals(error) ? "an address-setting key" : field) + ".");
+            return settingParseRefusal(error);
         }
         if (error.contains(PAGE_SIZE_VS_MAX)) {
             return new ManagementRefusal(
                     Kind.ARGUMENT, "page-size-bytes must be lower than max-size-bytes; the broker refused the pair.");
         }
         return null;
+    }
+
+    /** Names the last address-setting key the broker quoted, or says it could not tell which. */
+    private static ManagementRefusal settingParseRefusal(String error) {
+        Matcher name = SETTING_NAME.matcher(error);
+        String field = null;
+        while (name.find()) {
+            field = name.group(1);
+        }
+        return new ManagementRefusal(
+                Kind.ARGUMENT,
+                "The broker could not parse the value of " + (field == null ? "an address-setting key" : field) + ".");
     }
 }

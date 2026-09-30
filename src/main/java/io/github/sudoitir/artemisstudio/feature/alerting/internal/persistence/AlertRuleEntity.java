@@ -78,22 +78,18 @@ public class AlertRuleEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** What a metric-threshold rule compares: {@code metric comparator threshold}. */
+    public record Condition(String metric, String comparator, double threshold) {}
+
     public static AlertRuleEntity threshold(
-            UUID clusterId,
-            String name,
-            String metric,
-            String comparator,
-            double threshold,
-            int forSeconds,
-            String severity,
-            String scope) {
+            UUID clusterId, String name, Condition condition, int forSeconds, String severity, String scope) {
         AlertRuleEntity r = new AlertRuleEntity();
         r.clusterId = clusterId;
         r.name = name;
         r.kind = "METRIC_THRESHOLD";
-        r.metric = metric;
-        r.comparator = comparator;
-        r.threshold = threshold;
+        r.metric = condition.metric();
+        r.comparator = condition.comparator();
+        r.threshold = condition.threshold();
         r.forSeconds = forSeconds;
         r.severity = severity;
         r.scope = scope;

@@ -132,7 +132,7 @@ public class JobStatuses {
                 while (inFlight > 0 && (remaining = (deadline - System.nanoTime()) / 1_000_000L) > 0) {
                     gate.wait(remaining);
                 }
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }

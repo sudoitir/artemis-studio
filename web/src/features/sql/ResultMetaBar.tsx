@@ -5,6 +5,11 @@ import type { SqlResultView } from './api.ts';
 import { boundWords, noticeWords } from './notices.ts';
 import classes from './ResultMetaBar.module.css';
 
+function sourceLabel(fromIndex: boolean, captured: boolean): string {
+  if (!fromIndex) return 'from the brokers';
+  return captured ? 'from the index — captured' : 'from the index — sampled';
+}
+
 /**
  * One line about the result, with everything true about it behind a disclosure.
  *
@@ -21,17 +26,18 @@ export function ResultMetaBar({
   result,
   rowCount,
   verdict,
-}: {
+}: Readonly<{
   result: SqlResultView;
   rowCount: number;
   verdict: { text: string; tone?: 'warning' | 'danger' };
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const bounds = result.boundsReached ?? [];
   const notices = result.notices ?? [];
   const fromIndex = result.plan?.source === 'INDEX';
   const captured = fromIndex && result.plan?.captured === true;
   const statements = bounds.length + notices.length + (fromIndex ? 1 : 0);
+  const things = statements === 1 ? 'thing' : 'things';
 
   return (
     <div className={classes.bar}>
@@ -43,7 +49,7 @@ export function ResultMetaBar({
             {verdict.text}
           </Text>
           <Badge size="sm" variant="light" color="gray">
-            {fromIndex ? (captured ? 'from the index — captured' : 'from the index — sampled') : 'from the brokers'}
+            {sourceLabel(fromIndex, captured)}
           </Badge>
           {bounds.length > 0 ? (
             <Badge size="sm" variant="light" color="yellow">
@@ -59,7 +65,7 @@ export function ResultMetaBar({
             onClick={() => setOpen((was) => !was)}
             aria-expanded={open}
           >
-            {open ? 'Hide what this means' : `What this means (${statements} thing${statements === 1 ? '' : 's'})`}
+            {open ? 'Hide what this means' : `What this means (${statements} ${things})`}
           </Anchor>
         ) : null}
       </Group>

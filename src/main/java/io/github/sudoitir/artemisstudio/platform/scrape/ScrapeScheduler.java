@@ -13,7 +13,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -60,6 +59,8 @@ import tools.jackson.databind.JsonNode;
 @Slf4j
 public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
+    private static final String FEATURE = "scrape";
+
     /**
      * Registers the three tiers as trigger tasks whose {@code nextExecution}
      * re-reads {@link SettingsService} every fire (ADR-0025), so a cadence change
@@ -81,25 +82,25 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         for (ScheduledJob tier : List.of(
                 ScheduledJob.fixedDelay(
                         "scrape-tier-a",
-                        "scrape",
+                        FEATURE,
                         ScheduledJob.Scope.INSTANCE,
                         () -> settings.duration(ScrapeSettings.TIER_A),
                         this::tierA),
                 ScheduledJob.fixedDelay(
                         "scrape-tier-b",
-                        "scrape",
+                        FEATURE,
                         ScheduledJob.Scope.INSTANCE,
                         () -> settings.duration(ScrapeSettings.TIER_B),
                         this::tierB),
                 ScheduledJob.fixedDelay(
                         "scrape-tier-c",
-                        "scrape",
+                        FEATURE,
                         ScheduledJob.Scope.INSTALLATION,
                         () -> settings.duration(ScrapeSettings.TIER_C),
                         this::tierC),
                 ScheduledJob.fixedDelay(
                         "scrape-discovery",
-                        "scrape",
+                        FEATURE,
                         ScheduledJob.Scope.INSTALLATION,
                         () -> settings.duration(ScrapeSettings.DISCOVERY),
                         this::discovery))) {
@@ -267,16 +268,15 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     }
 
     private void fanOut(ExecutorService pool, List<ClusterNode> targets, NodeJob job) {
-        List<Future<?>> futures = new ArrayList<>();
-        for (ClusterNode node : targets) {
-            futures.add(pool.submit(() -> runIsolated(node, job)));
-        }
+        List<Future<?>> futures = targets.stream()
+                .<Future<?>>map(node -> pool.submit(() -> runIsolated(node, job)))
+                .toList();
         for (Future<?> f : futures) {
             try {
                 f.get();
             } catch (ExecutionException e) {
                 log.warn("Scrape task failed unexpectedly: {}", e.getCause() != null ? e.getCause() : e, e);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
                 return;
             }

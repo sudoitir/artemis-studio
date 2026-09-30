@@ -22,7 +22,7 @@ import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
-import { useFlowGraph, type FlowGraphView } from './api.ts';
+import { useFlowGraph, type FlowGraphView, type FlowNodeView } from './api.ts';
 import { BrokerNodeNotices } from './BrokerNodeNotices.tsx';
 import { FlowCanvas } from './FlowCanvas.tsx';
 import { FlowInspector } from './FlowInspector.tsx';
@@ -155,31 +155,56 @@ export function FlowView() {
         </Group>
       ) : null}
 
-      {graph.isError ? (
-        <Alert color="red" variant="light" title={graph.error.title ?? 'Flow could not be read'}>
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">{graph.error.message}</Text>
-            <Button size="xs" variant="default" onClick={() => graph.refetch()}>
-              Try again
-            </Button>
-          </Stack>
-        </Alert>
-      ) : graph.data === undefined ? (
-        <Stack gap="sm" aria-busy="true" aria-label="Loading flow">
-          <Skeleton height={72} />
-          <Skeleton height={420} />
-        </Stack>
-      ) : (
-        <FlowBody
-          clusterId={clusterId}
-          data={graph.data}
-          breakdownPending={graph.isPlaceholderData}
-          search={search}
-          rank={rank}
-          setSearch={setSearch}
-        />
-      )}
+      <FlowResult clusterId={clusterId} graph={graph} search={search} rank={rank} setSearch={setSearch} />
     </Stack>
+  );
+}
+
+type SetSearch = (patch: Partial<Record<keyof FlowSearch, unknown>>) => void;
+
+/** The flow itself, or what stands in for it while it loads or fails to. */
+function FlowResult({
+  clusterId,
+  graph,
+  search,
+  rank,
+  setSearch,
+}: Readonly<{
+  clusterId: string;
+  graph: ReturnType<typeof useFlowGraph>;
+  search: FlowSearch;
+  rank: FlowRank;
+  setSearch: SetSearch;
+}>) {
+  if (graph.isError) {
+    return (
+      <Alert color="red" variant="light" title={graph.error.title ?? 'Flow could not be read'}>
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">{graph.error.message}</Text>
+          <Button size="xs" variant="default" onClick={() => graph.refetch()}>
+            Try again
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (graph.data === undefined) {
+    return (
+      <Stack gap="sm" aria-busy="true" aria-label="Loading flow">
+        <Skeleton height={72} />
+        <Skeleton height={420} />
+      </Stack>
+    );
+  }
+  return (
+    <FlowBody
+      clusterId={clusterId}
+      data={graph.data}
+      breakdownPending={graph.isPlaceholderData}
+      search={search}
+      rank={rank}
+      setSearch={setSearch}
+    />
   );
 }
 
@@ -198,6 +223,21 @@ function validSplit(sizes: unknown): sizes is number[] {
   );
 }
 
+/** Values are focus strings, unique by construction: an address and its queue commonly share a name. */
+function findGroups(nodes: FlowNodeView[]) {
+  return FIND_GROUPS.map(({ group, kinds }) => {
+    const seen = new Map<string, string>();
+    for (const n of nodes) {
+      const focus = focusOf(n);
+      if (focus && kinds.includes(n.kind ?? '')) seen.set(focus, n.label ?? '');
+    }
+    return {
+      group,
+      items: [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label)),
+    };
+  }).filter((g) => g.items.length > 0);
+}
+
 function FlowBody({
   clusterId,
   data,
@@ -205,31 +245,22 @@ function FlowBody({
   search,
   rank,
   setSearch,
-}: {
+}: Readonly<{
   clusterId: string;
   data: FlowGraphView;
   breakdownPending: boolean;
   search: FlowSearch;
   rank: FlowRank;
-  setSearch: (patch: Partial<Record<keyof FlowSearch, unknown>>) => void;
-}) {
+  setSearch: SetSearch;
+}>) {
   const now = useServerNow();
-  const reducedMotion = useReducedMotion();
   // The selection is in the address (flow-visualization spec): a reload or a shared link restores it.
   const selected = search.node ?? null;
-  const [paused, setPaused] = useState(false);
-  const [split, setSplit] = useLocalStorage<number[]>({
-    key: 'as:flow:split',
-    defaultValue: DEFAULT_SPLIT,
-    getInitialValueInEffect: false,
-  });
   const opener = useRef<HTMLElement | null>(null);
 
   const totals = data.totals ?? { paths: 0, shown: 0, limit: DEFAULT_LIMIT, clamped: false };
   const kpis = data.kpis ?? { backlog: 0, clients: 0, faults: 0 };
   const nothingAtAll = (totals.paths ?? 0) === 0 && (kpis.clients ?? 0) === 0 && !data.focus;
-  const tab = search.tab ?? 'graph';
-  const nodes = data.nodes ?? [];
 
   const select = useCallback(
     (id: string | null) => {
@@ -249,20 +280,6 @@ function FlowBody({
     setSearch({ focus: next, hops: undefined, node: undefined });
   };
 
-  // Values are focus strings, unique by construction: an address and its queue commonly share a
-  // name, and a client that both produces and consumes is one client.
-  const findData = FIND_GROUPS.map(({ group, kinds }) => {
-    const seen = new Map<string, string>();
-    for (const n of nodes) {
-      const focus = focusOf(n);
-      if (focus && kinds.includes(n.kind ?? '')) seen.set(focus, n.label ?? '');
-    }
-    return {
-      group,
-      items: [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label)),
-    };
-  }).filter((g) => g.items.length > 0);
-
   return (
     <Stack gap="md">
       <FlowKpis kpis={kpis} />
@@ -275,156 +292,18 @@ function FlowBody({
         </Text>
       ) : null}
 
-      {data.focus && !data.focus.matched ? (
-        <Alert variant="light" color="gray" title={`Nothing matches the focus ${data.focus.kind} ${data.focus.name}`}>
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">It may have been deleted, or its clients disconnected since the address was shared.</Text>
-            <Button size="xs" variant="default" onClick={() => setSearch({ focus: undefined, hops: undefined })}>
-              Clear focus
-            </Button>
-          </Stack>
-        </Alert>
-      ) : nothingAtAll ? (
-        <Paper withBorder p="lg" radius="md">
-          <Stack gap="xs" className={classes.empty}>
-            <Title order={4}>No flow to show yet</Title>
-            <Text size="sm">
-              Flow draws the clients producing to each address, the queues those addresses route into, and the clients
-              consuming them. This cluster has no queues Studio has seen and no connected producers or consumers.
-            </Text>
-            <Text size="sm" c="dimmed">
-              Clients appear here within one sampling interval of attaching. New queues appear once the queue sweep has
-              read them.
-            </Text>
-          </Stack>
-        </Paper>
-      ) : (
-        <Stack gap="sm">
-          <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
-            <SegmentedControl
-              size="xs"
-              aria-label="View as"
-              data={[
-                { value: 'graph', label: 'Graph' },
-                { value: 'table', label: 'Table' },
-                { value: 'split', label: 'Split' },
-              ]}
-              value={tab}
-              onChange={(value) => setSearch({ tab: value === 'graph' ? undefined : value })}
-            />
-            <Group gap="sm" align="flex-end" wrap="wrap">
-              <Select
-                label="Find in this view"
-                placeholder="Client, address or queue"
-                size="xs"
-                w={260}
-                searchable
-                clearable
-                limit={30}
-                data={findData}
-                value={null}
-                nothingFoundMessage="Not in the shown paths — raise the limit to reach more"
-                onChange={(value) => {
-                  if (value) focusOn(value);
-                }}
-              />
-              {tab !== 'table' ? (
-                reducedMotion ? (
-                  <Text size="xs" c="dimmed">
-                    Motion off: your system asks for reduced motion.
-                  </Text>
-                ) : (
-                  <Button
-                    size="xs"
-                    variant="default"
-                    aria-pressed={paused}
-                    leftSection={paused ? <IconPlayerPlay size={14} /> : <IconPlayerPause size={14} />}
-                    onClick={() => setPaused((p) => !p)}
-                  >
-                    {paused ? 'Resume motion' : 'Pause motion'}
-                  </Button>
-                )
-              ) : null}
-            </Group>
-          </Group>
-
-          <Group gap="xs" align="center" wrap="wrap">
-            <Text size="xs" c="dimmed" id="flow-layers">
-              Layers
-            </Text>
-            <Chip.Group
-              multiple
-              value={parseLayers(search.layers)}
-              onChange={(value) => setSearch({ layers: layersParam(value as never[]) })}
-            >
-              <Group gap={6} wrap="wrap" role="group" aria-labelledby="flow-layers">
-                {FLOW_LAYERS.map((layer) => (
-                  <Chip key={layer} value={layer} size="xs" variant="outline">
-                    {LAYER_LABELS[layer]}
-                  </Chip>
-                ))}
-              </Group>
-            </Chip.Group>
-          </Group>
-
-          {(data.assumptions ?? []).map((assumption) => (
-            <Text key={assumption} size="xs" c="dimmed">
-              {assumption}
-            </Text>
-          ))}
-
-          {tab === 'split' ? (
-            <Splitter
-              onResizeEnd={(_, sizes) => {
-                if (validSplit(sizes)) setSplit(sizes);
-              }}
-              attributes={{ handle: { 'aria-label': 'Resize the monitoring pane' } }}
-            >
-              <Splitter.Pane defaultSize={validSplit(split) ? split[0] : DEFAULT_SPLIT[0]} min={GRAPH_MIN}>
-                <FlowCanvas
-                  clusterId={clusterId}
-                  graph={data}
-                  selectedId={selected}
-                  onSelect={select}
-                  paused={paused}
-                />
-              </Splitter.Pane>
-              <Splitter.Pane defaultSize={validSplit(split) ? split[1] : DEFAULT_SPLIT[1]} min={PANE_MIN} collapsible>
-                <FlowMonitorPane
-                  clusterId={clusterId}
-                  graph={data}
-                  nodeId={selected}
-                  range={search.range ?? '1h'}
-                  breakdownPending={breakdownPending}
-                  onRangeChange={(range: MetricRange) => setSearch({ range: range === '1h' ? undefined : range })}
-                  onClear={closeInspector}
-                />
-              </Splitter.Pane>
-            </Splitter>
-          ) : tab === 'graph' ? (
-            <div className={classes.graphLayout} data-inspecting={selected ? true : undefined}>
-              <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={select} paused={paused} />
-              {selected ? (
-                <FlowInspector
-                  graph={data}
-                  nodeId={selected}
-                  clusterId={clusterId}
-                  onClose={closeInspector}
-                  onFocus={focusOn}
-                />
-              ) : null}
-            </div>
-          ) : (
-            <FlowTable
-              clusterId={clusterId}
-              graph={data}
-              sort={search.sort}
-              onSortChange={(sort) => setSearch({ sort })}
-              onFocus={(next) => setSearch({ focus: next, hops: undefined })}
-            />
-          )}
-        </Stack>
-      )}
+      <FlowMain
+        clusterId={clusterId}
+        data={data}
+        nothingAtAll={nothingAtAll}
+        search={search}
+        setSearch={setSearch}
+        breakdownPending={breakdownPending}
+        selected={selected}
+        onSelect={select}
+        onCloseInspector={closeInspector}
+        onFocusOn={focusOn}
+      />
 
       <div className={classes.footer}>
         <Text size="xs" c="dimmed">
@@ -455,5 +334,284 @@ function FlowBody({
         )}.`}
       </VisuallyHidden>
     </Stack>
+  );
+}
+
+/** The body under the totals: why the focus matches nothing, why there is no flow, or the views. */
+function FlowMain({
+  clusterId,
+  data,
+  nothingAtAll,
+  search,
+  setSearch,
+  breakdownPending,
+  selected,
+  onSelect,
+  onCloseInspector,
+  onFocusOn,
+}: Readonly<{
+  clusterId: string;
+  data: FlowGraphView;
+  nothingAtAll: boolean;
+  search: FlowSearch;
+  setSearch: SetSearch;
+  breakdownPending: boolean;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  onCloseInspector: () => void;
+  onFocusOn: (focus: string) => void;
+}>) {
+  if (data.focus && !data.focus.matched) {
+    return (
+      <Alert variant="light" color="gray" title={`Nothing matches the focus ${data.focus.kind} ${data.focus.name}`}>
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">It may have been deleted, or its clients disconnected since the address was shared.</Text>
+          <Button size="xs" variant="default" onClick={() => setSearch({ focus: undefined, hops: undefined })}>
+            Clear focus
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (nothingAtAll) return <EmptyFlow />;
+  return (
+    <FlowViews
+      clusterId={clusterId}
+      data={data}
+      search={search}
+      setSearch={setSearch}
+      breakdownPending={breakdownPending}
+      selected={selected}
+      onSelect={onSelect}
+      onCloseInspector={onCloseInspector}
+      onFocusOn={onFocusOn}
+    />
+  );
+}
+
+/** What the flow says when there is nothing to draw yet. */
+function EmptyFlow() {
+  return (
+    <Paper withBorder p="lg" radius="md">
+      <Stack gap="xs" className={classes.empty}>
+        <Title order={4}>No flow to show yet</Title>
+        <Text size="sm">
+          Flow draws the clients producing to each address, the queues those addresses route into, and the clients
+          consuming them. This cluster has no queues Studio has seen and no connected producers or consumers.
+        </Text>
+        <Text size="sm" c="dimmed">
+          Clients appear here within one sampling interval of attaching. New queues appear once the queue sweep has read
+          them.
+        </Text>
+      </Stack>
+    </Paper>
+  );
+}
+
+/** The view switch, the find box, the layers, and the chosen view (graph, table or both). */
+function FlowViews({
+  clusterId,
+  data,
+  search,
+  setSearch,
+  breakdownPending,
+  selected,
+  onSelect,
+  onCloseInspector,
+  onFocusOn,
+}: Readonly<{
+  clusterId: string;
+  data: FlowGraphView;
+  search: FlowSearch;
+  setSearch: SetSearch;
+  breakdownPending: boolean;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  onCloseInspector: () => void;
+  onFocusOn: (focus: string) => void;
+}>) {
+  const [paused, setPaused] = useState(false);
+  const tab = search.tab ?? 'graph';
+
+  return (
+    <Stack gap="sm">
+      <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
+        <SegmentedControl
+          size="xs"
+          aria-label="View as"
+          data={[
+            { value: 'graph', label: 'Graph' },
+            { value: 'table', label: 'Table' },
+            { value: 'split', label: 'Split' },
+          ]}
+          value={tab}
+          onChange={(value) => setSearch({ tab: value === 'graph' ? undefined : value })}
+        />
+        <Group gap="sm" align="flex-end" wrap="wrap">
+          <Select
+            label="Find in this view"
+            placeholder="Client, address or queue"
+            size="xs"
+            w={260}
+            searchable
+            clearable
+            limit={30}
+            data={findGroups(data.nodes ?? [])}
+            value={null}
+            nothingFoundMessage="Not in the shown paths — raise the limit to reach more"
+            onChange={(value) => {
+              if (value) onFocusOn(value);
+            }}
+          />
+          {tab === 'table' ? null : <MotionControl paused={paused} onToggle={() => setPaused((p) => !p)} />}
+        </Group>
+      </Group>
+
+      <Group gap="xs" align="center" wrap="wrap">
+        <Text size="xs" c="dimmed" id="flow-layers">
+          Layers
+        </Text>
+        <Chip.Group
+          multiple
+          value={parseLayers(search.layers)}
+          onChange={(value) => setSearch({ layers: layersParam(value as never[]) })}
+        >
+          <Group gap={6} wrap="wrap" role="group" aria-labelledby="flow-layers">
+            {FLOW_LAYERS.map((layer) => (
+              <Chip key={layer} value={layer} size="xs" variant="outline">
+                {LAYER_LABELS[layer]}
+              </Chip>
+            ))}
+          </Group>
+        </Chip.Group>
+      </Group>
+
+      {(data.assumptions ?? []).map((assumption) => (
+        <Text key={assumption} size="xs" c="dimmed">
+          {assumption}
+        </Text>
+      ))}
+
+      <FlowPane
+        tab={tab}
+        clusterId={clusterId}
+        data={data}
+        search={search}
+        setSearch={setSearch}
+        breakdownPending={breakdownPending}
+        selected={selected}
+        paused={paused}
+        onSelect={onSelect}
+        onCloseInspector={onCloseInspector}
+        onFocusOn={onFocusOn}
+      />
+    </Stack>
+  );
+}
+
+/** Pause and resume for the motion on the graph, or the reason there is none. */
+function MotionControl({ paused, onToggle }: Readonly<{ paused: boolean; onToggle: () => void }>) {
+  const reducedMotion = useReducedMotion();
+  if (reducedMotion) {
+    return (
+      <Text size="xs" c="dimmed">
+        Motion off: your system asks for reduced motion.
+      </Text>
+    );
+  }
+  return (
+    <Button
+      size="xs"
+      variant="default"
+      aria-pressed={paused}
+      leftSection={paused ? <IconPlayerPlay size={14} /> : <IconPlayerPause size={14} />}
+      onClick={onToggle}
+    >
+      {paused ? 'Resume motion' : 'Pause motion'}
+    </Button>
+  );
+}
+
+/** The chosen view: the graph with its inspector, the table, or the two split with a monitoring pane. */
+function FlowPane({
+  tab,
+  clusterId,
+  data,
+  search,
+  setSearch,
+  breakdownPending,
+  selected,
+  paused,
+  onSelect,
+  onCloseInspector,
+  onFocusOn,
+}: Readonly<{
+  tab: string;
+  clusterId: string;
+  data: FlowGraphView;
+  search: FlowSearch;
+  setSearch: SetSearch;
+  breakdownPending: boolean;
+  selected: string | null;
+  paused: boolean;
+  onSelect: (id: string | null) => void;
+  onCloseInspector: () => void;
+  onFocusOn: (focus: string) => void;
+}>) {
+  const [split, setSplit] = useLocalStorage<number[]>({
+    key: 'as:flow:split',
+    defaultValue: DEFAULT_SPLIT,
+    getInitialValueInEffect: false,
+  });
+
+  if (tab === 'split') {
+    return (
+      <Splitter
+        onResizeEnd={(_, sizes) => {
+          if (validSplit(sizes)) setSplit(sizes);
+        }}
+        attributes={{ handle: { 'aria-label': 'Resize the monitoring pane' } }}
+      >
+        <Splitter.Pane defaultSize={validSplit(split) ? split[0] : DEFAULT_SPLIT[0]} min={GRAPH_MIN}>
+          <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={onSelect} paused={paused} />
+        </Splitter.Pane>
+        <Splitter.Pane defaultSize={validSplit(split) ? split[1] : DEFAULT_SPLIT[1]} min={PANE_MIN} collapsible>
+          <FlowMonitorPane
+            clusterId={clusterId}
+            graph={data}
+            nodeId={selected}
+            range={search.range ?? '1h'}
+            breakdownPending={breakdownPending}
+            onRangeChange={(range: MetricRange) => setSearch({ range: range === '1h' ? undefined : range })}
+            onClear={onCloseInspector}
+          />
+        </Splitter.Pane>
+      </Splitter>
+    );
+  }
+  if (tab === 'graph') {
+    return (
+      <div className={classes.graphLayout} data-inspecting={selected ? true : undefined}>
+        <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={onSelect} paused={paused} />
+        {selected ? (
+          <FlowInspector
+            graph={data}
+            nodeId={selected}
+            clusterId={clusterId}
+            onClose={onCloseInspector}
+            onFocus={onFocusOn}
+          />
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <FlowTable
+      clusterId={clusterId}
+      graph={data}
+      sort={search.sort}
+      onSortChange={(sort) => setSearch({ sort })}
+      onFocus={(next) => setSearch({ focus: next, hops: undefined })}
+    />
   );
 }

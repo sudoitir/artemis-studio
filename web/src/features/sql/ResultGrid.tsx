@@ -11,6 +11,39 @@ import { VerifyOnBroker } from './VerifyOnBroker.tsx';
 import { rowKey } from './useSqlTail.ts';
 import classes from './ResultGrid.module.css';
 
+/** Three provenances, each in its own words: live, captured by a divert, or sampled by a poll. */
+function SourceBadge({ row: r }: Readonly<{ row: SqlRowView }>) {
+  if (r.source !== 'INDEX') {
+    return (
+      <Badge size="xs" variant="default" title="Read from the live broker just now">
+        live
+      </Badge>
+    );
+  }
+  if (r.origin === 'CAPTURED') {
+    return (
+      <Badge
+        size="xs"
+        variant="light"
+        color="gray"
+        title="Copied by a divert as the address routed it; it may have been consumed since"
+      >
+        captured
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      size="xs"
+      variant="light"
+      color="gray"
+      title="Seen by a poll of this queue; a message consumed between polls was never recorded"
+    >
+      sampled
+    </Badge>
+  );
+}
+
 function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
   return [
     {
@@ -21,30 +54,7 @@ function columnsFor(clusterId: string): GridColumn<SqlRowView>[] {
       // Three provenances, not two, and each in its own words. "Indexed" covers a
       // sampled row and a captured one, which make different claims: a sampled row
       // says a poll saw this message, a captured one says the address routed it.
-      cell: (r) =>
-        r.source !== 'INDEX' ? (
-          <Badge size="xs" variant="default" title="Read from the live broker just now">
-            live
-          </Badge>
-        ) : r.origin === 'CAPTURED' ? (
-          <Badge
-            size="xs"
-            variant="light"
-            color="gray"
-            title="Copied by a divert as the address routed it; it may have been consumed since"
-          >
-            captured
-          </Badge>
-        ) : (
-          <Badge
-            size="xs"
-            variant="light"
-            color="gray"
-            title="Seen by a poll of this queue; a message consumed between polls was never recorded"
-          >
-            sampled
-          </Badge>
-        ),
+      cell: (r) => <SourceBadge row={r} />,
     },
     {
       id: 'node',
@@ -140,7 +150,7 @@ export function ResultGrid({
   freshKeys,
   columnIds,
   onAtTopChange,
-}: {
+}: Readonly<{
   clusterId: string;
   rows: SqlRowView[];
   onOpen: (row: SqlRowView) => void;
@@ -150,7 +160,7 @@ export function ResultGrid({
   /** The columns to show, in the order to show them. Defaults to all of them. */
   columnIds?: readonly string[];
   onAtTopChange?: (atTop: boolean) => void;
-}) {
+}>) {
   const columns = useMemo(() => {
     const all = columnsFor(clusterId);
     if (!columnIds) return all;

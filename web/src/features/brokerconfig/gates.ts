@@ -7,6 +7,18 @@ import { CONFIG_MANAGED_REASON } from './words.ts';
 
 const WRITE_PERMISSION_LABEL = 'Edit declared configuration';
 
+/** Applying is blocked when the file owns the configuration, or while nothing is declared. */
+function applyGateFor(declaration: ConfigDeclarationView | undefined, applyPermission: GateVerdict): GateVerdict {
+  if (declaration?.applyMode === 'CONFIG_MANAGED') return { kind: 'blocked', reason: CONFIG_MANAGED_REASON };
+  if (!declaration?.declared) {
+    return {
+      kind: 'blocked',
+      reason: 'Nothing is declared yet. Adopt from the cluster, import broker.xml or add an entry first.',
+    };
+  }
+  return applyPermission;
+}
+
 /**
  * Whether the declaration may be edited and applied, and why not. The Configuration screen and
  * the routing builder both offer both, so the reasons are decided once.
@@ -31,15 +43,7 @@ export function useDeclarationGates(
     cluster.data?.capabilities.managementWrite,
     loading || cluster.isPending,
   );
-  const applyGate: GateVerdict =
-    declaration?.applyMode === 'CONFIG_MANAGED'
-      ? { kind: 'blocked', reason: CONFIG_MANAGED_REASON }
-      : !declaration?.declared
-        ? {
-            kind: 'blocked',
-            reason: 'Nothing is declared yet. Adopt from the cluster, import broker.xml or add an entry first.',
-          }
-        : applyPermission;
+  const applyGate = applyGateFor(declaration, applyPermission);
 
   return { canWrite: loading || can('config:write', clusterId), writeGate, applyGate };
 }

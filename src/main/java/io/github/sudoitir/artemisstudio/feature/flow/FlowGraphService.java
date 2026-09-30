@@ -53,6 +53,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -109,190 +110,45 @@ public class FlowGraphService {
         Duration sampleInterval = FlowSettings.sampleInterval(settings);
         Duration tierC = settings.duration(ScrapeSettings.TIER_C);
         Set<Layer> layers = query.layers();
-        Map<UUID, String> nodeNames = new HashMap<>();
-        Map<String, String> nodeNamesByArtemisId = new HashMap<>();
-        for (ClusterNode n : directory.nodes(clusterId)) {
-            nodeNames.put(n.getId(), n.getName());
-            if (n.getArtemisNodeId() != null) {
-                // A live/backup pair shares one NodeID: name the logical node by its serving endpoint,
-                // never by whichever of the pair happens to be listed last.
-                String nodeId = n.getArtemisNodeId();
-                if (!nodeNamesByArtemisId.containsKey(nodeId) || Boolean.TRUE.equals(n.getActive())) {
-                    nodeNamesByArtemisId.put(nodeId, n.getName());
-                }
-            }
-        }
+        boolean capture = layers.contains(Layer.CAPTURE);
+        NodeNames names = nodeNames(clusterId);
 
         List<NodeSample> samples = store.nodeSamples(clusterId);
         List<StoredRoute> routes = store.routes(clusterId);
-        Set<String> temporaryQueues = new TreeSet<>();
-        Map<String, String> queueFilters = new HashMap<>();
-        for (StoredRoute r : routes) {
-            if (r.route().kind() == RouteKind.TEMPORARY_QUEUE) {
-                temporaryQueues.add(r.route().target());
-            } else if (r.route().kind() == RouteKind.QUEUE_FILTER) {
-                queueFilters.put(r.route().target(), r.route().filter());
-            }
-        }
-        boolean capture = layers.contains(Layer.CAPTURE);
+        Set<String> temporaryQueues = temporaryQueues(routes);
 
-        Map<String, QueueAgg> queues = new TreeMap<>();
-        for (QueueSnapshot s : snapshots.forCluster(clusterId)) {
-            if (internal(s.address()) || internal(s.queueName()) || temporaryQueues.contains(s.queueName())) {
-                continue;
-            }
-            if (captureOwned(s.queueName()) && !capture) {
-                continue;
-            }
-            queues.computeIfAbsent(s.queueName(), name -> new QueueAgg(name, s.address()))
-                    .add(s, nodeNames.get(s.nodeId()));
-        }
-        Instant windowStart = now.minus(tierC.multipliedBy(3));
-        // With a breakdown, the per-node rates are read and the totals derived from them — the same
-        // aggregate the unsplit read computes in SQL, so one query per metric either way (ADR-0110).
-        Map<String, Map<UUID, SubjectRate>> addedByNode = Map.of();
-        Map<String, Map<UUID, SubjectRate>> ackedByNode = Map.of();
-        Map<String, SubjectRate> added;
-        Map<String, SubjectRate> acked;
-        if (query.byNode()) {
-            addedByNode = metrics.latestRateWithTimeBySubjectAndNode(
-                    clusterId, "messagesAdded", windowStart, now.plusSeconds(1));
-            ackedByNode = metrics.latestRateWithTimeBySubjectAndNode(
-                    clusterId, "messagesAcked", windowStart, now.plusSeconds(1));
-            added = summed(addedByNode);
-            acked = summed(ackedByNode);
-        } else {
-            added = metrics.latestRateWithTimeBySubject(clusterId, "messagesAdded", windowStart, now.plusSeconds(1));
-            acked = metrics.latestRateWithTimeBySubject(clusterId, "messagesAcked", windowStart, now.plusSeconds(1));
-        }
+        Map<String, QueueAgg> queues = queueAggregates(clusterId, names.byId(), temporaryQueues, capture);
+        Rates rates = rates(clusterId, query.byNode(), now.minus(tierC.multipliedBy(3)), now);
+        Picture picture = new Picture(queues, new TreeMap<>(), new TreeMap<>(), rates.added(), rates.acked());
+        addClients(clusterId, query, names.byId(), temporaryQueues, picture);
 
-        Map<String, ClientAgg> producers = new TreeMap<>();
-        Map<String, ClientAgg> consumers = new TreeMap<>();
-        for (StoredEdge stored : store.edges(clusterId)) {
-            Edge e = stored.edge();
-            if (internal(e.address()) || internal(e.queue())) {
-                continue;
-            }
-            if ((captureOwned(e.queue()) || captureOwned(e.address())) && !capture) {
-                continue;
-            }
-            String label = label(e, query.groupBy());
-            String nodeName = nodeNames.get(stored.nodeId());
-            if (e.kind() == Kind.PRODUCE) {
-                producers.computeIfAbsent(label, ClientAgg::new).add(stored, nodeName, e.address());
-                continue;
-            }
-            if (temporaryQueues.contains(e.queue())) {
-                if (!layers.contains(Layer.TEMPORARY)) {
-                    continue;
-                }
-                // One node per client for all its temporary queues: each is short-lived and uniquely
-                // named, and drawn one by one they would bury the paths an operator came for.
-                String collapsed = TEMPORARY_PREFIX + label;
-                queues.computeIfAbsent(collapsed, name -> new QueueAgg(name, null, NodeRole.TEMPORARY))
-                        .temporary
-                        .add(e.queue());
-                consumers.computeIfAbsent(label, ClientAgg::new).add(stored, nodeName, collapsed);
-                continue;
-            }
-            consumers.computeIfAbsent(label, ClientAgg::new).add(stored, nodeName, e.queue());
-            if (!e.queue().isEmpty()) {
-                // A queue can be consumed before the slow queue sweep has seen it.
-                queues.computeIfAbsent(e.queue(), name -> new QueueAgg(name, e.address()));
-            }
-        }
+        Routing routing = new Routing();
+        routes.forEach(stored -> routing.add(stored, names.byId().get(stored.nodeId()), layers, capture));
+        routing.foldHopsInto(queues);
 
-        Map<String, HopAgg> hops = new TreeMap<>();
-        Map<List<Object>, RoutingAgg> diverts = new LinkedHashMap<>();
-        Map<List<Object>, RoutingAgg> bridges = new LinkedHashMap<>();
-        String deadLetter = null;
-        String expiry = null;
-        for (StoredRoute stored : routes) {
-            Route r = stored.route();
-            String nodeName = nodeNames.get(stored.nodeId());
-            switch (r.kind()) {
-                case STORE_AND_FORWARD -> {
-                    if (layers.contains(Layer.CLUSTER)) {
-                        hops.computeIfAbsent(r.name(), name -> new HopAgg(name, r.target()))
-                                .add(r, stored.sampledAt(), nodeName);
-                    }
-                }
-                case DIVERT -> {
-                    if (layers.contains(Layer.DIVERTS) && (capture || !captureOwned(r.name()))) {
-                        diverts.computeIfAbsent(
-                                        List.of(
-                                                r.name(),
-                                                r.source(),
-                                                r.target(),
-                                                r.exclusive(),
-                                                String.valueOf(r.filter())),
-                                        k -> new RoutingAgg(r))
-                                .add(r, stored.sampledAt(), stored.nodeId());
-                    }
-                }
-                case BRIDGE -> {
-                    if (layers.contains(Layer.BRIDGES)) {
-                        bridges.computeIfAbsent(List.of(r.name(), r.source(), r.target()), k -> new RoutingAgg(r))
-                                .add(r, stored.sampledAt(), stored.nodeId());
-                    }
-                }
-                case DEAD_LETTER -> deadLetter = r.target();
-                case EXPIRY -> expiry = r.target();
-                default -> {
-                    // Temporary and filtered queues were read above.
-                }
-            }
-        }
-        for (HopAgg hop : hops.values()) {
-            QueueAgg q =
-                    queues.computeIfAbsent(hop.queue, name -> new QueueAgg(name, null, NodeRole.STORE_AND_FORWARD));
-            q.ownRate = hop.rate;
-            q.ownAsOf = hop.asOf;
-            q.brokerNodes.addAll(hop.brokerNodes);
-        }
-
-        List<Path> all = paths(queues, producers);
-        Comparator<Path> ranking = Comparator.comparingInt(
-                        (Path p) -> bucket(score(p, query, added, acked, queues, producers, consumers)))
+        List<Path> all = paths(queues, picture.producers());
+        Comparator<Path> ranking = Comparator.comparingInt((Path p) -> bucket(score(p, query, picture)))
                 .reversed()
                 .thenComparing(Path::key);
         List<Path> ranked = all.stream().sorted(ranking).toList();
-
-        FlowFocusView focusView = null;
-        List<Path> chosen;
-        if (query.focus() != null) {
-            Set<Path> reach = neighbourhood(query.focus(), query.hops(), all, producers, consumers);
-            chosen =
-                    ranked.stream().filter(reach::contains).limit(query.limit()).toList();
-            focusView = new FlowFocusView(
-                    query.focus().kind().name().toLowerCase(Locale.ROOT),
-                    query.focus().name(),
-                    query.hops(),
-                    !reach.isEmpty());
-        } else {
-            chosen = ranked.stream().limit(query.limit()).toList();
-        }
+        Selection selection = select(query, all, ranked, picture);
+        List<Path> chosen = selection.chosen();
 
         int sampledNodes = samples.size();
         Freshness fresh = new Freshness(now, sampleInterval, tierC);
         Drawing drawing = new Drawing();
-        draw(chosen, queues, producers, consumers, added, queueFilters, fresh, drawing);
-        Set<String> knownAddresses = new TreeSet<>();
-        queues.values().forEach(q -> {
-            if (q.address != null) knownAddresses.add(q.address);
-        });
-        producers.values().forEach(c -> knownAddresses.addAll(c.targets.keySet()));
-        drawDiverts(diverts.values(), sampledNodes, fresh, drawing, queues);
-        drawBridges(bridges.values(), sampledNodes, knownAddresses, fresh, drawing);
-        drawHops(hops.values(), nodeNamesByArtemisId, fresh, drawing);
+        draw(chosen, picture, queueFilters(routes), fresh, drawing);
+        drawDiverts(routing.diverts.values(), sampledNodes, drawing, queues);
+        drawBridges(routing.bridges.values(), sampledNodes, knownAddresses(picture), fresh, drawing);
+        drawHops(routing.hops.values(), names.byArtemisId(), fresh, drawing);
         List<String> assumptions = drawWildcards(drawing);
         if (layers.contains(Layer.DEAD_LETTER)) {
-            drawFailureRoutes(drawing, queues, deadLetter, EdgeKind.DEAD_LETTER, NodeRole.DEAD_LETTER);
-            drawFailureRoutes(drawing, queues, expiry, EdgeKind.EXPIRY, NodeRole.EXPIRY);
+            drawFailureRoutes(drawing, queues, routing.deadLetter, EdgeKind.DEAD_LETTER, NodeRole.DEAD_LETTER);
+            drawFailureRoutes(drawing, queues, routing.expiry, EdgeKind.EXPIRY, NodeRole.EXPIRY);
         }
 
         List<FlowBrokerNodeView> brokerNodes = samples.stream()
-                .map(s -> brokerNode(s, nodeNames.get(s.nodeId())))
+                .map(s -> brokerNode(s, names.byId().get(s.nodeId())))
                 .sorted(Comparator.comparing(FlowBrokerNodeView::name, Comparator.nullsLast(String::compareTo)))
                 .toList();
         Instant sampledAt = samples.stream()
@@ -300,14 +156,14 @@ public class FlowGraphService {
                 .max(Instant::compareTo)
                 .orElse(null);
 
-        List<FlowNodeView> drawnNodes = drawing.nodes();
-        List<FlowEdgeView> drawnEdges = drawing.edges();
-        FlowKpis kpis = kpis(queues, producers, consumers, added, acked, brokerNodes, diverts, bridges, sampledNodes);
+        List<FlowNodeView> drawnNodes = drawing.sortedNodes();
+        List<FlowEdgeView> drawnEdges = drawing.sortedEdges();
+        FlowKpis kpis = kpis(picture, brokerNodes, routing, sampledNodes);
         if (query.byNode()) {
-            Breakdown breakdown = new Breakdown(nodeNames, samples, addedByNode, ackedByNode, fresh);
+            Breakdown breakdown = new Breakdown(names.byId(), samples, rates.addedByNode(), rates.ackedByNode(), fresh);
             drawnNodes = drawnNodes.stream().map(n -> breakdown.node(n, queues)).toList();
             drawnEdges = drawnEdges.stream()
-                    .map(e -> breakdown.edge(e, producers, consumers))
+                    .map(e -> breakdown.edge(e, picture.producers(), picture.consumers()))
                     .toList();
             brokerNodes = brokerNodes.stream()
                     .map(b -> breakdown.brokerNode(b, queues))
@@ -319,13 +175,152 @@ public class FlowGraphService {
                 drawnEdges,
                 kpis,
                 new FlowTotals(all.size(), chosen.size(), query.limit(), query.clamped()),
-                focusView,
+                selection.focusView(),
                 sampledAt,
                 samples.isEmpty(),
                 sampleInterval.toSeconds(),
                 layers.stream().map(Enum::name).sorted().toList(),
                 assumptions,
                 brokerNodes);
+    }
+
+    private NodeNames nodeNames(UUID clusterId) {
+        Map<UUID, String> byId = new HashMap<>();
+        Map<String, String> byArtemisId = new HashMap<>();
+        for (ClusterNode n : directory.nodes(clusterId)) {
+            byId.put(n.getId(), n.getName());
+            if (n.getArtemisNodeId() != null) {
+                // A live/backup pair shares one NodeID: name the logical node by its serving endpoint,
+                // never by whichever of the pair happens to be listed last.
+                byArtemisId.merge(
+                        n.getArtemisNodeId(),
+                        n.getName(),
+                        (first, next) -> Boolean.TRUE.equals(n.getActive()) ? next : first);
+            }
+        }
+        return new NodeNames(byId, byArtemisId);
+    }
+
+    private static Set<String> temporaryQueues(List<StoredRoute> routes) {
+        return routes.stream()
+                .filter(r -> r.route().kind() == RouteKind.TEMPORARY_QUEUE)
+                .map(r -> r.route().target())
+                .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    private static Map<String, String> queueFilters(List<StoredRoute> routes) {
+        Map<String, String> queueFilters = new HashMap<>();
+        for (StoredRoute r : routes) {
+            if (r.route().kind() == RouteKind.QUEUE_FILTER) {
+                queueFilters.put(r.route().target(), r.route().filter());
+            }
+        }
+        return queueFilters;
+    }
+
+    private Map<String, QueueAgg> queueAggregates(
+            UUID clusterId, Map<UUID, String> nodeNames, Set<String> temporaryQueues, boolean capture) {
+        Map<String, QueueAgg> queues = new TreeMap<>();
+        for (QueueSnapshot s : snapshots.forCluster(clusterId)) {
+            boolean hidden = internal(s.address())
+                    || internal(s.queueName())
+                    || temporaryQueues.contains(s.queueName())
+                    || (captureOwned(s.queueName()) && !capture);
+            if (!hidden) {
+                queues.computeIfAbsent(s.queueName(), name -> new QueueAgg(name, s.address()))
+                        .add(s, nodeNames.get(s.nodeId()));
+            }
+        }
+        return queues;
+    }
+
+    /**
+     * With a breakdown, the per-node rates are read and the totals derived from them — the same
+     * aggregate the unsplit read computes in SQL, so one query per metric either way (ADR-0110).
+     */
+    private Rates rates(UUID clusterId, boolean byNode, Instant windowStart, Instant now) {
+        Instant until = now.plusSeconds(1);
+        if (byNode) {
+            Map<String, Map<UUID, SubjectRate>> addedByNode =
+                    metrics.latestRateWithTimeBySubjectAndNode(clusterId, "messagesAdded", windowStart, until);
+            Map<String, Map<UUID, SubjectRate>> ackedByNode =
+                    metrics.latestRateWithTimeBySubjectAndNode(clusterId, "messagesAcked", windowStart, until);
+            return new Rates(summed(addedByNode), summed(ackedByNode), addedByNode, ackedByNode);
+        }
+        return new Rates(
+                metrics.latestRateWithTimeBySubject(clusterId, "messagesAdded", windowStart, until),
+                metrics.latestRateWithTimeBySubject(clusterId, "messagesAcked", windowStart, until),
+                Map.of(),
+                Map.of());
+    }
+
+    private void addClients(
+            UUID clusterId,
+            FlowQuery query,
+            Map<UUID, String> nodeNames,
+            Set<String> temporaryQueues,
+            Picture picture) {
+        boolean capture = query.layers().contains(Layer.CAPTURE);
+        for (StoredEdge stored : store.edges(clusterId)) {
+            Edge e = stored.edge();
+            boolean hidden = internal(e.address())
+                    || internal(e.queue())
+                    || ((captureOwned(e.queue()) || captureOwned(e.address())) && !capture);
+            if (!hidden) {
+                addClient(stored, query, nodeNames.get(stored.nodeId()), temporaryQueues, picture);
+            }
+        }
+    }
+
+    private static void addClient(
+            StoredEdge stored, FlowQuery query, String nodeName, Set<String> temporaryQueues, Picture picture) {
+        Edge e = stored.edge();
+        String label = label(e, query.groupBy());
+        if (e.kind() == Kind.PRODUCE) {
+            picture.producers().computeIfAbsent(label, ClientAgg::new).add(stored, nodeName, e.address());
+        } else if (temporaryQueues.contains(e.queue())) {
+            if (query.layers().contains(Layer.TEMPORARY)) {
+                // One node per client for all its temporary queues: each is short-lived and uniquely
+                // named, and drawn one by one they would bury the paths an operator came for.
+                String collapsed = TEMPORARY_PREFIX + label;
+                picture.queues()
+                        .computeIfAbsent(collapsed, name -> new QueueAgg(name, null, NodeRole.TEMPORARY))
+                        .temporary
+                        .add(e.queue());
+                picture.consumers().computeIfAbsent(label, ClientAgg::new).add(stored, nodeName, collapsed);
+            }
+        } else {
+            picture.consumers().computeIfAbsent(label, ClientAgg::new).add(stored, nodeName, e.queue());
+            if (!e.queue().isEmpty()) {
+                // A queue can be consumed before the slow queue sweep has seen it.
+                picture.queues().computeIfAbsent(e.queue(), name -> new QueueAgg(name, e.address()));
+            }
+        }
+    }
+
+    private static Selection select(FlowQuery query, List<Path> all, List<Path> ranked, Picture picture) {
+        if (query.focus() == null) {
+            return new Selection(ranked.stream().limit(query.limit()).toList(), null);
+        }
+        Set<Path> reach = neighbourhood(query.focus(), query.hops(), all, picture.producers(), picture.consumers());
+        List<Path> chosen =
+                ranked.stream().filter(reach::contains).limit(query.limit()).toList();
+        FlowFocusView focusView = new FlowFocusView(
+                query.focus().kind().name().toLowerCase(Locale.ROOT),
+                query.focus().name(),
+                query.hops(),
+                !reach.isEmpty());
+        return new Selection(chosen, focusView);
+    }
+
+    private static Set<String> knownAddresses(Picture picture) {
+        Set<String> knownAddresses = new TreeSet<>();
+        picture.queues().values().stream()
+                .map(q -> q.address)
+                .filter(Objects::nonNull)
+                .forEach(knownAddresses::add);
+        picture.producers().values().forEach(c -> knownAddresses.addAll(c.targets.keySet()));
+        return knownAddresses;
     }
 
     private static List<Path> paths(Map<String, QueueAgg> queues, Map<String, ClientAgg> producers) {
@@ -347,28 +342,21 @@ public class FlowGraphService {
         return List.copyOf(paths);
     }
 
-    private static Double score(
-            Path p,
-            FlowQuery query,
-            Map<String, SubjectRate> added,
-            Map<String, SubjectRate> acked,
-            Map<String, QueueAgg> queues,
-            Map<String, ClientAgg> producers,
-            Map<String, ClientAgg> consumers) {
+    private static Double score(Path p, FlowQuery query, Picture picture) {
         if (p.queue() == null) {
             // No queue: the only measure is what producers send to the address.
-            return query.rank() == FlowQuery.Rank.IN ? targetRate(producers, p.address()) : null;
+            return query.rank() == FlowQuery.Rank.IN ? targetRate(picture.producers(), p.address()) : null;
         }
-        QueueAgg q = queues.get(p.queue());
+        QueueAgg q = picture.queues().get(p.queue());
         if (q.role == NodeRole.STORE_AND_FORWARD) {
             return query.rank() == FlowQuery.Rank.BACKLOG ? null : q.ownRate;
         }
         if (q.role == NodeRole.TEMPORARY) {
-            return query.rank() == FlowQuery.Rank.BACKLOG ? null : targetRate(consumers, q.name);
+            return query.rank() == FlowQuery.Rank.BACKLOG ? null : targetRate(picture.consumers(), q.name);
         }
         return switch (query.rank()) {
-            case IN -> rate(added.get(p.queue()));
-            case OUT -> rate(acked.get(p.queue()));
+            case IN -> rate(picture.added().get(p.queue()));
+            case OUT -> rate(picture.acked().get(p.queue()));
             case BACKLOG -> q.messageCount == null ? null : q.messageCount.doubleValue();
         };
     }
@@ -401,50 +389,52 @@ public class FlowGraphService {
 
     private static Set<Path> neighbourhood(
             Focus focus, int hops, List<Path> all, Map<String, ClientAgg> producers, Map<String, ClientAgg> consumers) {
-        Set<Path> reach = new LinkedHashSet<>();
-        for (Path p : all) {
-            boolean hit =
-                    switch (focus.kind()) {
-                        case QUEUE -> focus.name().equals(p.queue());
-                        case ADDRESS -> focus.name().equals(p.address());
-                        case CLIENT -> touches(producers.get(focus.name()), consumers.get(focus.name()), p);
-                    };
-            if (hit) {
-                reach.add(p);
-            }
-        }
+        Set<Path> reach = all.stream()
+                .filter(p -> focused(focus, p, producers, consumers))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         for (int hop = 1; hop < hops && !reach.isEmpty(); hop++) {
-            Set<String> addresses = new TreeSet<>();
-            Set<String> queueNames = new TreeSet<>();
-            reach.forEach(p -> {
-                if (p.address() != null) {
-                    addresses.add(p.address());
-                }
-                if (p.queue() != null) {
-                    queueNames.add(p.queue());
-                }
-            });
-            List<ClientAgg> clients = new ArrayList<>();
-            producers.values().stream()
-                    .filter(c -> c.targets.keySet().stream().anyMatch(addresses::contains))
-                    .forEach(clients::add);
-            consumers.values().stream()
-                    .filter(c -> c.targets.keySet().stream().anyMatch(queueNames::contains))
-                    .forEach(clients::add);
-            Set<Path> next = new LinkedHashSet<>(reach);
-            for (Path p : all) {
-                if (p.address() != null && addresses.contains(p.address())) {
-                    next.add(p);
-                }
-                for (ClientAgg c : clients) {
-                    if (touches(producers.get(c.label), consumers.get(c.label), p)) {
-                        next.add(p);
-                    }
-                }
-            }
-            reach = next;
+            reach = widen(reach, all, producers, consumers);
         }
         return reach;
+    }
+
+    private static boolean focused(
+            Focus focus, Path p, Map<String, ClientAgg> producers, Map<String, ClientAgg> consumers) {
+        return switch (focus.kind()) {
+            case QUEUE -> focus.name().equals(p.queue());
+            case ADDRESS -> focus.name().equals(p.address());
+            case CLIENT -> touches(producers.get(focus.name()), consumers.get(focus.name()), p);
+        };
+    }
+
+    /** One more hop: every path on an address the reach touches, or that a client of the reach touches. */
+    private static Set<Path> widen(
+            Set<Path> reach, List<Path> all, Map<String, ClientAgg> producers, Map<String, ClientAgg> consumers) {
+        Set<String> addresses = reach.stream()
+                .map(Path::address)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(TreeSet::new));
+        Set<String> queueNames =
+                reach.stream().map(Path::queue).filter(Objects::nonNull).collect(Collectors.toCollection(TreeSet::new));
+        List<ClientAgg> clients = new ArrayList<>();
+        producers.values().stream()
+                .filter(c -> c.targets.keySet().stream().anyMatch(addresses::contains))
+                .forEach(clients::add);
+        consumers.values().stream()
+                .filter(c -> c.targets.keySet().stream().anyMatch(queueNames::contains))
+                .forEach(clients::add);
+        Set<Path> next = new LinkedHashSet<>(reach);
+        for (Path p : all) {
+            if (p.address() != null && addresses.contains(p.address())) {
+                next.add(p);
+            }
+            for (ClientAgg c : clients) {
+                if (touches(producers.get(c.label), consumers.get(c.label), p)) {
+                    next.add(p);
+                }
+            }
+        }
+        return next;
     }
 
     private static boolean touches(ClientAgg producer, ClientAgg consumer, Path p) {
@@ -461,13 +451,13 @@ public class FlowGraphService {
         final Set<String> addresses = new TreeSet<>();
         final Set<String> queues = new TreeSet<>();
 
-        List<FlowNodeView> nodes() {
+        List<FlowNodeView> sortedNodes() {
             return nodes.values().stream()
                     .sorted(Comparator.comparing(FlowNodeView::kind).thenComparing(FlowNodeView::id))
                     .toList();
         }
 
-        List<FlowEdgeView> edges() {
+        List<FlowEdgeView> sortedEdges() {
             return edges.values().stream()
                     .sorted(Comparator.comparing(FlowEdgeView::id))
                     .toList();
@@ -485,14 +475,7 @@ public class FlowGraphService {
     }
 
     private static void draw(
-            List<Path> chosen,
-            Map<String, QueueAgg> queues,
-            Map<String, ClientAgg> producers,
-            Map<String, ClientAgg> consumers,
-            Map<String, SubjectRate> added,
-            Map<String, String> queueFilters,
-            Fresh fresh,
-            Drawing drawing) {
+            List<Path> chosen, Picture picture, Map<String, String> queueFilters, Fresh fresh, Drawing drawing) {
         for (Path p : chosen) {
             if (p.address() != null) {
                 drawing.addresses.add(p.address());
@@ -503,55 +486,68 @@ public class FlowGraphService {
         }
 
         for (String address : drawing.addresses) {
-            addressNode(drawing, address, queues);
+            addressNode(drawing, address, picture.queues());
         }
 
         for (String name : drawing.queues) {
-            QueueAgg q = queues.get(name);
-            drawing.node(new FlowNodeView(
-                    queueId(name),
-                    NodeKind.QUEUE,
-                    q.role != null ? q.role : captureOwned(name) ? NodeRole.CAPTURE : null,
-                    queueLabel(q),
-                    q.role == NodeRole.TEMPORARY ? q.temporary.size() : null,
-                    q.messageCount,
-                    q.consumerCount,
-                    q.routingType == null ? List.of() : List.of(q.routingType),
-                    List.of(),
-                    List.of(),
-                    List.of(),
-                    List.copyOf(q.brokerNodes),
-                    q.noConsumer() ? List.of(Fault.NO_CONSUMER) : List.of()));
-            if (q.address == null) {
-                continue;
-            }
-            SubjectRate rate = added.get(name);
-            drawing.edge(new FlowEdgeView(
-                    "route:" + q.address + "->" + name,
-                    EdgeKind.ROUTE,
-                    addressId(q.address),
-                    queueId(name),
-                    rate(rate),
-                    RateSource.QUEUE_METRIC,
-                    rate == null ? null : rate.asOf(),
-                    rate != null && rate.span().compareTo(fresh.sampleInterval().multipliedBy(2)) > 0
-                            ? rate.span().toSeconds()
-                            : null,
-                    rate != null && fresh.olderThan(rate.asOf(), fresh.tierC()),
-                    delivery(q.routingType),
-                    null,
-                    null,
-                    queueFilters.get(name),
-                    null,
-                    false,
-                    null,
-                    null,
-                    captureOwned(name),
-                    List.of()));
+            drawQueue(name, picture, queueFilters, fresh, drawing);
         }
 
-        drawClients(producers, drawing.addresses, NodeKind.PRODUCER, fresh, drawing);
-        drawClients(consumers, drawing.queues, NodeKind.CONSUMER, fresh, drawing);
+        drawClients(picture.producers(), drawing.addresses, NodeKind.PRODUCER, fresh, drawing);
+        drawClients(picture.consumers(), drawing.queues, NodeKind.CONSUMER, fresh, drawing);
+    }
+
+    private static void drawQueue(
+            String name, Picture picture, Map<String, String> queueFilters, Fresh fresh, Drawing drawing) {
+        QueueAgg q = picture.queues().get(name);
+        NodeRole role = q.role != null ? q.role : captureRole(name);
+        drawing.node(new FlowNodeView(
+                queueId(name),
+                NodeKind.QUEUE,
+                role,
+                queueLabel(q),
+                q.role == NodeRole.TEMPORARY ? q.temporary.size() : null,
+                q.messageCount,
+                q.consumerCount,
+                q.routingType == null ? List.of() : List.of(q.routingType),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.copyOf(q.brokerNodes),
+                q.noConsumer() ? List.of(Fault.NO_CONSUMER) : List.of()));
+        if (q.address != null) {
+            drawing.edge(routeEdge(q, picture.added().get(name), queueFilters.get(name), fresh));
+        }
+    }
+
+    /** The capture role of a resource Studio's message capture owns, else none. */
+    private static NodeRole captureRole(String name) {
+        return captureOwned(name) ? NodeRole.CAPTURE : null;
+    }
+
+    private static FlowEdgeView routeEdge(QueueAgg q, SubjectRate rate, String filter, Fresh fresh) {
+        return new FlowEdgeView(
+                "route:" + q.address + "->" + q.name,
+                EdgeKind.ROUTE,
+                addressId(q.address),
+                queueId(q.name),
+                rate(rate),
+                RateSource.QUEUE_METRIC,
+                rate == null ? null : rate.asOf(),
+                rate != null && rate.span().compareTo(fresh.sampleInterval().multipliedBy(2)) > 0
+                        ? rate.span().toSeconds()
+                        : null,
+                rate != null && fresh.olderThan(rate.asOf(), fresh.tierC()),
+                delivery(q.routingType),
+                null,
+                null,
+                filter,
+                null,
+                false,
+                null,
+                null,
+                captureOwned(q.name),
+                List.of());
     }
 
     private static void addressNode(Drawing drawing, String address, Map<String, QueueAgg> queues) {
@@ -567,7 +563,7 @@ public class FlowGraphService {
         drawing.node(new FlowNodeView(
                 addressId(address),
                 NodeKind.ADDRESS,
-                anonymous ? NodeRole.ANONYMOUS : captureOwned(address) ? NodeRole.CAPTURE : null,
+                anonymous ? NodeRole.ANONYMOUS : captureRole(address),
                 anonymous ? "anonymous producers — address chosen per message" : address,
                 null,
                 null,
@@ -589,55 +585,63 @@ public class FlowGraphService {
 
     private static void drawClients(
             Map<String, ClientAgg> clients, Set<String> shownTargets, NodeKind kind, Fresh fresh, Drawing drawing) {
-        boolean producing = kind == NodeKind.PRODUCER;
         for (ClientAgg c : clients.values()) {
             List<Map.Entry<String, TargetAgg>> shown = c.targets.entrySet().stream()
                     .filter(t -> shownTargets.contains(t.getKey()))
                     .toList();
-            if (shown.isEmpty()) {
-                continue;
-            }
-            String id = (producing ? "producer:" : "consumer:") + c.label;
-            boolean stalled = shown.stream().anyMatch(t -> t.getValue().stalled);
-            drawing.node(new FlowNodeView(
-                    id,
-                    kind,
-                    null,
-                    c.label,
-                    c.members,
-                    null,
-                    null,
-                    List.of(),
-                    List.copyOf(c.protocols),
-                    List.copyOf(c.hosts),
-                    List.copyOf(c.users),
-                    List.copyOf(c.brokerNodes),
-                    stalled ? List.of(Fault.STALLED) : List.of()));
-            for (Map.Entry<String, TargetAgg> t : shown) {
-                TargetAgg agg = t.getValue();
-                String target = producing ? addressId(t.getKey()) : queueId(t.getKey());
-                drawing.edge(new FlowEdgeView(
-                        (producing ? "produce:" : "consume:") + c.label + "->" + t.getKey(),
-                        producing ? EdgeKind.PRODUCE : EdgeKind.CONSUME,
-                        producing ? id : target,
-                        producing ? target : id,
-                        agg.rate,
-                        RateSource.SAMPLER,
-                        agg.asOf,
-                        null,
-                        agg.asOf != null && fresh.olderThan(agg.asOf, fresh.sampleInterval()),
-                        null,
-                        agg.members,
-                        null,
-                        null,
-                        null,
-                        false,
-                        null,
-                        null,
-                        false,
-                        agg.stalled ? List.of(Fault.STALLED) : List.of()));
+            if (!shown.isEmpty()) {
+                drawClient(c, shown, kind, fresh, drawing);
             }
         }
+    }
+
+    private static void drawClient(
+            ClientAgg c, List<Map.Entry<String, TargetAgg>> shown, NodeKind kind, Fresh fresh, Drawing drawing) {
+        boolean producing = kind == NodeKind.PRODUCER;
+        String id = (producing ? "producer:" : "consumer:") + c.label;
+        boolean stalled = shown.stream().anyMatch(t -> t.getValue().stalled);
+        drawing.node(new FlowNodeView(
+                id,
+                kind,
+                null,
+                c.label,
+                c.members,
+                null,
+                null,
+                List.of(),
+                List.copyOf(c.protocols),
+                List.copyOf(c.hosts),
+                List.copyOf(c.users),
+                List.copyOf(c.brokerNodes),
+                stalled ? List.of(Fault.STALLED) : List.of()));
+        for (Map.Entry<String, TargetAgg> t : shown) {
+            drawing.edge(clientEdge(c, id, producing, t.getKey(), t.getValue(), fresh));
+        }
+    }
+
+    private static FlowEdgeView clientEdge(
+            ClientAgg c, String clientId, boolean producing, String key, TargetAgg agg, Fresh fresh) {
+        String target = producing ? addressId(key) : queueId(key);
+        return new FlowEdgeView(
+                (producing ? "produce:" : "consume:") + c.label + "->" + key,
+                producing ? EdgeKind.PRODUCE : EdgeKind.CONSUME,
+                producing ? clientId : target,
+                producing ? target : clientId,
+                agg.rate,
+                RateSource.SAMPLER,
+                agg.asOf,
+                null,
+                agg.asOf != null && fresh.olderThan(agg.asOf, fresh.sampleInterval()),
+                null,
+                agg.members,
+                null,
+                null,
+                null,
+                false,
+                null,
+                null,
+                false,
+                agg.stalled ? List.of(Fault.STALLED) : List.of());
     }
 
     /**
@@ -646,45 +650,49 @@ public class FlowGraphService {
      * every message before the address's own queues see it, which the route edges then say.
      */
     private static void drawDiverts(
-            java.util.Collection<RoutingAgg> diverts,
-            int sampledNodes,
-            Fresh fresh,
-            Drawing drawing,
-            Map<String, QueueAgg> queues) {
+            java.util.Collection<RoutingAgg> diverts, int sampledNodes, Drawing drawing, Map<String, QueueAgg> queues) {
         for (RoutingAgg d : diverts) {
             Route r = d.route;
-            if (!drawing.addresses.contains(r.source())) {
-                continue;
-            }
-            addressNode(drawing, r.target(), queues);
-            List<Fault> faults = d.nodes.size() < sampledNodes ? List.of(Fault.PARTIAL_PRESENCE) : List.of();
-            drawing.edge(new FlowEdgeView(
-                    "divert:" + r.name() + ":" + r.source() + "->" + r.target(),
-                    EdgeKind.DIVERT,
-                    addressId(r.source()),
-                    addressId(r.target()),
-                    null,
-                    RateSource.NONE,
-                    d.asOf,
-                    null,
-                    false,
-                    null,
-                    null,
-                    r.exclusive(),
-                    r.filter(),
-                    r.transformer(),
-                    false,
-                    d.nodes.size(),
-                    sampledNodes,
-                    captureOwned(r.name()),
-                    faults));
-            if (r.exclusive() && (r.filter() == null || r.filter().isBlank())) {
-                for (String edgeId : List.copyOf(drawing.edges.keySet())) {
-                    FlowEdgeView e = drawing.edges.get(edgeId);
-                    if (e.kind() == EdgeKind.ROUTE && e.source().equals(addressId(r.source()))) {
-                        drawing.edges.put(edgeId, bypassed(e));
-                    }
+            if (drawing.addresses.contains(r.source())) {
+                addressNode(drawing, r.target(), queues);
+                drawing.edge(divertEdge(d, sampledNodes));
+                if (r.exclusive() && (r.filter() == null || r.filter().isBlank())) {
+                    bypassRoutesFrom(r.source(), drawing);
                 }
+            }
+        }
+    }
+
+    private static FlowEdgeView divertEdge(RoutingAgg d, int sampledNodes) {
+        Route r = d.route;
+        List<Fault> faults = d.nodes.size() < sampledNodes ? List.of(Fault.PARTIAL_PRESENCE) : List.of();
+        return new FlowEdgeView(
+                "divert:" + r.name() + ":" + r.source() + "->" + r.target(),
+                EdgeKind.DIVERT,
+                addressId(r.source()),
+                addressId(r.target()),
+                null,
+                RateSource.NONE,
+                d.asOf,
+                null,
+                false,
+                null,
+                null,
+                r.exclusive(),
+                r.filter(),
+                r.transformer(),
+                false,
+                d.nodes.size(),
+                sampledNodes,
+                captureOwned(r.name()),
+                faults);
+    }
+
+    private static void bypassRoutesFrom(String address, Drawing drawing) {
+        for (String edgeId : List.copyOf(drawing.edges.keySet())) {
+            FlowEdgeView e = drawing.edges.get(edgeId);
+            if (e.kind() == EdgeKind.ROUTE && e.source().equals(addressId(address))) {
+                drawing.edges.put(edgeId, bypassed(e));
             }
         }
     }
@@ -924,25 +932,17 @@ public class FlowGraphService {
     }
 
     private static FlowKpis kpis(
-            Map<String, QueueAgg> queues,
-            Map<String, ClientAgg> producers,
-            Map<String, ClientAgg> consumers,
-            Map<String, SubjectRate> added,
-            Map<String, SubjectRate> acked,
-            List<FlowBrokerNodeView> brokerNodes,
-            Map<List<Object>, RoutingAgg> diverts,
-            Map<List<Object>, RoutingAgg> bridges,
-            int sampledNodes) {
+            Picture picture, List<FlowBrokerNodeView> brokerNodes, Routing routing, int sampledNodes) {
         Double in = null;
         Double out = null;
         long backlog = 0;
         int faults = 0;
-        for (QueueAgg q : queues.values()) {
+        for (QueueAgg q : picture.queues().values()) {
             if (q.role != null) {
                 continue;
             }
-            SubjectRate a = added.get(q.name);
-            SubjectRate k = acked.get(q.name);
+            SubjectRate a = picture.added().get(q.name);
+            SubjectRate k = picture.acked().get(q.name);
             if (a != null) {
                 in = (in == null ? 0 : in) + a.rate();
             }
@@ -952,21 +952,28 @@ public class FlowGraphService {
             backlog += q.messageCount == null ? 0 : q.messageCount;
             faults += q.noConsumer() ? 1 : 0;
         }
+        faults += clientRoutingAndNodeFaults(picture.consumers(), routing, brokerNodes, sampledNodes);
+        Set<String> clients = new TreeSet<>(picture.producers().keySet());
+        clients.addAll(picture.consumers().keySet());
+        return new FlowKpis(in, out, backlog, clients.size(), faults);
+    }
+
+    private static int clientRoutingAndNodeFaults(
+            Map<String, ClientAgg> consumers, Routing routing, List<FlowBrokerNodeView> brokerNodes, int sampledNodes) {
+        int faults = 0;
         for (ClientAgg c : consumers.values()) {
             faults += (int) c.targets.values().stream().filter(t -> t.stalled).count();
         }
-        for (RoutingAgg d : diverts.values()) {
+        for (RoutingAgg d : routing.diverts.values()) {
             faults += d.nodes.size() < sampledNodes ? 1 : 0;
         }
-        for (RoutingAgg b : bridges.values()) {
+        for (RoutingAgg b : routing.bridges.values()) {
             faults += b.connectedOn < b.nodes.size() || b.nodes.size() < sampledNodes ? 1 : 0;
         }
         faults += (int) brokerNodes.stream()
                 .filter(n -> n.state() != NodeSampleState.OK)
                 .count();
-        Set<String> clients = new TreeSet<>(producers.keySet());
-        clients.addAll(consumers.keySet());
-        return new FlowKpis(in, out, backlog, clients.size(), faults);
+        return faults;
     }
 
     private static FlowBrokerNodeView brokerNode(NodeSample s, String name) {
@@ -1213,6 +1220,84 @@ public class FlowGraphService {
                 out = plus(out, rateOf(acked, q.name, node));
             }
             return b.withTotals(backlog, consumerTotal, in, out);
+        }
+    }
+
+    /** The measured picture one read draws from: queues and clients, with the rates attached to queues. */
+    private record Picture(
+            Map<String, QueueAgg> queues,
+            Map<String, ClientAgg> producers,
+            Map<String, ClientAgg> consumers,
+            Map<String, SubjectRate> added,
+            Map<String, SubjectRate> acked) {}
+
+    private record Rates(
+            Map<String, SubjectRate> added,
+            Map<String, SubjectRate> acked,
+            Map<String, Map<UUID, SubjectRate>> addedByNode,
+            Map<String, Map<UUID, SubjectRate>> ackedByNode) {}
+
+    private record NodeNames(Map<UUID, String> byId, Map<String, String> byArtemisId) {}
+
+    private record Selection(List<Path> chosen, FlowFocusView focusView) {}
+
+    /** The store-and-forward hops, diverts, bridges and failure addresses the routes add up to. */
+    private static final class Routing {
+        final Map<String, HopAgg> hops = new TreeMap<>();
+        final Map<List<Object>, RoutingAgg> diverts = new LinkedHashMap<>();
+        final Map<List<Object>, RoutingAgg> bridges = new LinkedHashMap<>();
+        String deadLetter;
+        String expiry;
+
+        void add(StoredRoute stored, String nodeName, Set<Layer> layers, boolean capture) {
+            Route r = stored.route();
+            switch (r.kind()) {
+                case STORE_AND_FORWARD -> addHop(stored, nodeName, layers);
+                case DIVERT -> addDivert(stored, layers, capture);
+                case BRIDGE -> addBridge(stored, layers);
+                case DEAD_LETTER -> deadLetter = r.target();
+                case EXPIRY -> expiry = r.target();
+                default -> {
+                    // Temporary and filtered queues are read separately.
+                }
+            }
+        }
+
+        private void addHop(StoredRoute stored, String nodeName, Set<Layer> layers) {
+            Route r = stored.route();
+            if (layers.contains(Layer.CLUSTER)) {
+                hops.computeIfAbsent(r.name(), name -> new HopAgg(name, r.target()))
+                        .add(r, stored.sampledAt(), nodeName);
+            }
+        }
+
+        private void addDivert(StoredRoute stored, Set<Layer> layers, boolean capture) {
+            Route r = stored.route();
+            if (layers.contains(Layer.DIVERTS) && (capture || !captureOwned(r.name()))) {
+                diverts.computeIfAbsent(
+                                List.of(r.name(), r.source(), r.target(), r.exclusive(), String.valueOf(r.filter())),
+                                k -> new RoutingAgg(r))
+                        .add(r, stored.sampledAt(), stored.nodeId());
+            }
+        }
+
+        private void addBridge(StoredRoute stored, Set<Layer> layers) {
+            Route r = stored.route();
+            if (layers.contains(Layer.BRIDGES)) {
+                bridges.computeIfAbsent(List.of(r.name(), r.source(), r.target()), k -> new RoutingAgg(r))
+                        .add(r, stored.sampledAt(), stored.nodeId());
+            }
+        }
+
+        /** A store-and-forward queue is a queue like any other, with the hop's rate as its own. */
+        void foldHopsInto(Map<String, QueueAgg> queues) {
+            for (HopAgg hop : hops.values()) {
+                QueueAgg q =
+                        queues.computeIfAbsent(hop.queue, name -> new QueueAgg(name, null, NodeRole.STORE_AND_FORWARD));
+                q.ownRate = hop.rate;
+                q.ownAsOf = hop.asOf;
+                q.brokerNodes.addAll(hop.brokerNodes);
+            }
         }
     }
 

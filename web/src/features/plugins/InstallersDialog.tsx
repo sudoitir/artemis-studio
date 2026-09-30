@@ -9,7 +9,7 @@ import { StepUp } from '../../kernel/auth/StepUp.tsx';
  * Who can install plugins (ADR-0103). Deliberately not a role: only an installer changes this,
  * after confirming it is them, and the last one cannot be removed.
  */
-export function InstallersDialog({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+export function InstallersDialog({ opened, onClose }: Readonly<{ opened: boolean; onClose: () => void }>) {
   const installers = useInstallers(opened);
   const grant = useGrantInstaller();
   const revoke = useRevokeInstaller();

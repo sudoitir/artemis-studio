@@ -5,7 +5,7 @@ import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { stateColorVar, stateLabel } from './rrState.ts';
 
 /** One flow's state, address, correlation id, age, and latency (or none yet). */
-export function FlowsTable({ flows, onSelect }: { flows: FlowView[]; onSelect: (flowId: string) => void }) {
+export function FlowsTable({ flows, onSelect }: Readonly<{ flows: FlowView[]; onSelect: (flowId: string) => void }>) {
   // Ticking, and on Studio's clock rather than the workstation's — an age is a
   // server timestamp subtracted from now, so the two must be the same clock.
   const now = useServerNow();

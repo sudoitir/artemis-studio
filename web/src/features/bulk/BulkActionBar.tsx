@@ -16,7 +16,7 @@ const ORDER: BulkOperation[] = ['PAUSE', 'RESUME', 'PURGE', 'DELETE'];
  * The bulk actions over the queues screen's selection (`queues.selection`). Each is gated on the
  * permission of the single-queue command it applies, and opens its preview; nothing acts from here.
  */
-export function BulkActionBar({ clusterId, selection, count, clear }: SlotProps['queues.selection']) {
+export function BulkActionBar({ clusterId, selection, count, clear }: Readonly<SlotProps['queues.selection']>) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const write = cluster.data?.capabilities.managementWrite;

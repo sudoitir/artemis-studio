@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
@@ -69,7 +70,7 @@ class SqlStreamControllerTest extends PostgresIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        return body.replaceAll(".*\"queryId\"\\s*:\\s*\"([^\"]+)\".*", "$1");
+        return JsonPath.read(body, "$.queryId");
     }
 
     private static String quote(String s) {
@@ -108,17 +109,16 @@ class SqlStreamControllerTest extends PostgresIntegrationTest {
         // The second attempt is a refusal the stream has to carry itself, because by
         // then the client is an EventSource and cannot read a status code's body.
         String replayed = streamOf(queryId);
-        assertThat(replayed).contains("event:failed");
-        assertThat(replayed).contains("single use");
+        assertThat(replayed).contains("event:failed").contains("single use");
     }
 
     @Test
     void theQueryTextNeverAppearsInTheStreamUrl() throws Exception {
-        String queryId = reference("SELECT * FROM \"NOTHING.HERE\" WHERE body LIKE '%4471%'");
+        String queryId = reference("SELECT * FROM \"NOTHING.HERE\" WHERE body LIKE '%PAYROLL%'");
 
         // The whole point of the reference: an operator's predicate — and the value
         // they are searching for — is not in a URL any proxy will log.
-        assertThat(queryId).doesNotContain("4471").doesNotContain("SELECT");
+        assertThat(queryId).doesNotContain("PAYROLL").doesNotContain("SELECT");
     }
 
     @Test
@@ -128,8 +128,7 @@ class SqlStreamControllerTest extends PostgresIntegrationTest {
         // the console can render the difference.
         String body = stream("SELECT * FROM \"NOTHING.HERE\"");
 
-        assertThat(body).contains("event:done");
-        assertThat(body).doesNotContain("event:failed");
+        assertThat(body).contains("event:done").doesNotContain("event:failed");
     }
 
     @Test

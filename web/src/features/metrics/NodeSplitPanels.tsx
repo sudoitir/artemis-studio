@@ -43,13 +43,13 @@ export function NodeSplitCharts({
   from,
   to,
   syncId,
-}: {
+}: Readonly<{
   response: MetricSeriesResponse;
   range: MetricRange;
   from: number;
   to: number;
   syncId: string;
-}) {
+}>) {
   useDisplayZone();
   const nodes = response.byNode ?? [];
   const depthMax = peak(nodes, ['messageCount']);
@@ -146,11 +146,11 @@ export function NodeSplitPanels({
   clusterId,
   queueName,
   range,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   range: MetricRange;
-}) {
+}>) {
   const spec = rangeSpec(range);
   const tick = useServerNow(spec.stepMs);
   const { from, to } = useMemo(() => {

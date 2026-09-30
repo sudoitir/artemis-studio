@@ -7,11 +7,13 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -110,11 +112,9 @@ public class AlertPayloads {
                 return rest.substring(0, colon) + " on " + label(rest.substring(colon + 1), clusterName, nodeNames);
             }
         }
-        List<String> parts = new ArrayList<>();
-        for (String part : subject.split("/")) {
-            parts.add(part(part, clusterName, nodeNames));
-        }
-        return String.join(" / ", parts);
+        return Arrays.stream(subject.split("/"))
+                .map(part -> part(part, clusterName, nodeNames))
+                .collect(Collectors.joining(" / "));
     }
 
     private static String part(String part, String clusterName, Map<String, String> nodeNames) {

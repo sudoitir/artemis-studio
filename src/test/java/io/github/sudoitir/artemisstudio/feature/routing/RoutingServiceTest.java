@@ -12,11 +12,13 @@ import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
+import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -87,7 +89,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         n.attachManagementUrl(url);
-        n.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.56.0", null, Instant.now());
+        n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.56.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }
 
@@ -118,7 +120,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).nodesPresent()).isEqualTo(2);
         assertThat(rows.get(0).nodesTotal()).isEqualTo(2);
-        assertThat(rows.get(0).perNode()).extracting(n -> n.nodeName()).containsExactly("node-a", "node-b");
+        assertThat(rows.get(0).perNode()).extracting(NodeRef::nodeName).containsExactly("node-a", "node-b");
     }
 
     /**
@@ -135,9 +137,9 @@ class RoutingServiceTest extends PostgresIntegrationTest {
 
         List<DivertView> rows = diverts().data();
 
-        assertThat(rows).hasSize(2);
-        assertThat(rows).allMatch(r -> r.nodesPresent() == 1 && r.nodesTotal() == 2);
         assertThat(rows)
+                .hasSize(2)
+                .allMatch(r -> r.nodesPresent() == 1 && r.nodesTotal() == 2)
                 .extracting(DivertView::forwardingAddress)
                 .containsExactlyInAnyOrder("AUDIT.IN", "ELSEWHERE.IN");
     }

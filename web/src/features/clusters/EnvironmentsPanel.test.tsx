@@ -62,6 +62,6 @@ describe('EnvironmentsPanel', () => {
     await screen.findByText('production');
     await user.click(screen.getByRole('button', { name: 'Delete production' }));
 
-    await screen.findByText('0 environments');
+    expect(await screen.findByText('0 environments')).toBeInTheDocument();
   });
 });

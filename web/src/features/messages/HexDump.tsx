@@ -9,7 +9,7 @@ const BYTES_PER_ROW = 16;
  * mojibake, which an operator reads as corruption in their payload rather than as
  * Studio decoding bytes that were never text.
  */
-export function HexDump({ bytes, max = 512 }: { bytes: Uint8Array; max?: number }) {
+export function HexDump({ bytes, max = 512 }: Readonly<{ bytes: Uint8Array; max?: number }>) {
   const shown = bytes.subarray(0, max);
   const rows: string[] = [];
   for (let offset = 0; offset < shown.length; offset += BYTES_PER_ROW) {
@@ -19,7 +19,7 @@ export function HexDump({ bytes, max = 512 }: { bytes: Uint8Array; max?: number 
       .join(' ')
       .padEnd(BYTES_PER_ROW * 3 - 1, ' ');
     const ascii = Array.from(row)
-      .map((b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '.'))
+      .map((b) => (b >= 0x20 && b < 0x7f ? String.fromCodePoint(b) : '.'))
       .join('');
     rows.push(`${offset.toString(16).padStart(8, '0')}  ${hex}  |${ascii}|`);
   }

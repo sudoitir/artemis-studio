@@ -16,6 +16,41 @@ import { TracingDiagnostics } from './TracingDiagnostics.tsx';
 
 const PAGE_SIZE = 100;
 
+/** The flows, or why there are none to show: the read failed, or nothing was traced. */
+function FlowsResult({
+  flows,
+  clusterId,
+  page,
+  onPage,
+  onSelect,
+}: Readonly<{
+  flows: ReturnType<typeof useRrFlows>;
+  clusterId: string;
+  page: number;
+  onPage: (page: number) => void;
+  onSelect: (flowId: string) => void;
+}>) {
+  if (flows.isError) {
+    return (
+      <Alert color="red" variant="light" title={flows.error.title}>
+        {flows.error.message}
+      </Alert>
+    );
+  }
+  if (!flows.isPending && (flows.data?.count ?? 0) === 0) {
+    // A bare "0 flows" reads identically whether nothing was sent, nothing
+    // could be browsed, or every request was consumed faster than the
+    // sampler ticks. Those have three different answers.
+    return <TracingDiagnostics clusterId={clusterId} />;
+  }
+  return (
+    <>
+      <Pager page={page} pageSize={PAGE_SIZE} total={flows.data?.count ?? 0} onChange={onPage} label="flows" />
+      <FlowsTable flows={flows.data?.data ?? []} onSelect={onSelect} />
+    </>
+  );
+}
+
 /**
  * Request-reply tracing: the flagship screen. When the cluster's notification
  * capability is unavailable (no NOTIFICATIONS, or no resolvable Core URL),
@@ -95,7 +130,7 @@ export function FlowsView() {
                 setAddress(e.currentTarget.value);
                 // A filter change invalidates the position: page 4 of the old
                 // result is page 4 of nothing.
-                if (page > 1) setPage(1);
+                if (page > 1) void setPage(1);
               }}
               size="xs"
               w={220}
@@ -118,27 +153,7 @@ export function FlowsView() {
               }
               data={['AWAITING_REPLY', 'COMPLETED', 'TIMED_OUT', 'ORPHANED', 'RESPONDER_DROPPED', 'ORPHANED_REPLY']}
             />
-            {flows.isError ? (
-              <Alert color="red" variant="light" title={flows.error.title}>
-                {flows.error.message}
-              </Alert>
-            ) : !flows.isPending && (flows.data?.count ?? 0) === 0 ? (
-              // A bare "0 flows" reads identically whether nothing was sent, nothing
-              // could be browsed, or every request was consumed faster than the
-              // sampler ticks. Those have three different answers.
-              <TracingDiagnostics clusterId={clusterId} />
-            ) : (
-              <>
-                <Pager
-                  page={page}
-                  pageSize={PAGE_SIZE}
-                  total={flows.data?.count ?? 0}
-                  onChange={setPage}
-                  label="flows"
-                />
-                <FlowsTable flows={flows.data?.data ?? []} onSelect={setSelectedFlow} />
-              </>
-            )}
+            <FlowsResult flows={flows} clusterId={clusterId} page={page} onPage={setPage} onSelect={setSelectedFlow} />
           </Stack>
         </Tabs.Panel>
 

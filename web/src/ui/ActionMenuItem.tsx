@@ -12,6 +12,12 @@ function firstSentence(text: string): string {
   return end > 0 ? text.slice(0, end + 1) : text;
 }
 
+/** What sits under the label: why it is blocked, or that it is not proven yet, or nothing. */
+function hintFor(verdict: GateVerdict): string | null {
+  if (verdict.kind === 'blocked') return firstSentence(verdict.reason);
+  return verdict.uncertain ? 'Not yet proven on this connection; the first attempt settles it.' : null;
+}
+
 /**
  * One item of a row's action menu (ADR-0107).
  *
@@ -43,11 +49,7 @@ export function ActionMenuItem({
 }) {
   const hintId = useId();
   const blocked = verdict.kind === 'blocked';
-  const hint = blocked
-    ? firstSentence(verdict.reason)
-    : verdict.uncertain
-      ? 'Not yet proven on this connection; the first attempt settles it.'
-      : null;
+  const hint = hintFor(verdict);
 
   const activate = (event: MouseEvent<HTMLElement>) => {
     if (blocked) {

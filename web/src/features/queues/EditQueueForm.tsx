@@ -23,7 +23,10 @@ function currentValues(config: QueueConfiguration | undefined): Record<string, u
 
 /** A configuration value as the text input wants it. */
 function str(value: unknown): string {
-  return value === null || value === undefined ? '' : String(value);
+  if (value === null || value === undefined) return '';
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : JSON.stringify(value);
 }
 
 /** A configuration value as the number input wants it. */
@@ -54,15 +57,15 @@ export function EditQueueForm({
   queue,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queue: QueueView;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [filter, setFilter] = useState('');
   const [maxConsumers, setMaxConsumers] = useState<number | ''>('');
-  const [purgeOnNoConsumers, setPurge] = useState(false);
+  const [purgeOnNoConsumers, setPurgeOnNoConsumers] = useState(false);
   const [exclusive, setExclusive] = useState(false);
   const [ringSize, setRingSize] = useState<number | ''>('');
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
@@ -86,7 +89,7 @@ export function EditQueueForm({
     if (!current) return;
     setFilter(str(current['filter-string']));
     setMaxConsumers(num(current['max-consumers']));
-    setPurge(current['purge-on-no-consumers'] === true);
+    setPurgeOnNoConsumers(current['purge-on-no-consumers'] === true);
     setExclusive(current['exclusive'] === true);
     setRingSize(num(current['ring-size']));
     // Seeding is keyed by the values themselves, so an applied update reseeds the
@@ -187,7 +190,7 @@ export function EditQueueForm({
             <Switch
               label="Purge when the last consumer disconnects"
               checked={purgeOnNoConsumers}
-              onChange={(e) => setPurge(e.currentTarget.checked)}
+              onChange={(e) => setPurgeOnNoConsumers(e.currentTarget.checked)}
             />
             <Switch
               label="Exclusive"

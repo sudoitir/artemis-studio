@@ -172,6 +172,9 @@
  * as a second drawer.
  */
 .inlineSection {
+  /* A <fieldset> (the native labelled group), stripped of its default box. */
+  margin: 0;
+  min-inline-size: 0;
   padding-block: 12px;
   padding-inline: 14px;
   border: 1px solid var(--as-border);

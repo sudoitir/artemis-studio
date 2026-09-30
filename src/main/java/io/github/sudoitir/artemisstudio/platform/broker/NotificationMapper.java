@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.apache.activemq.artemis.api.core.management.CoreNotificationType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,6 +33,7 @@ public class NotificationMapper {
      */
     private final Supplier<BrokerTime> brokerTime;
 
+    @Autowired
     public NotificationMapper(io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService clocks) {
         this.brokerTime = clocks::brokerTime;
     }

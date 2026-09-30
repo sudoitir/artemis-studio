@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,14 @@ public class MetricPartitionMaintainer {
     private static final int CREATE_AHEAD_DAYS = 3;
     private static final java.time.format.DateTimeFormatter SUFFIX =
             java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    /** Moves a day's rows out of the default partition into its new table; every {@code %s} is a date or a generated name. */
+    private static final String MOVE_DEFAULT_ROWS = """
+            WITH moved AS (
+                DELETE FROM metric_sample_default WHERE ts >= '%s' AND ts < '%s' RETURNING *
+            )
+            INSERT INTO %s SELECT * FROM moved
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
     private final TransactionTemplate transactions;
@@ -59,7 +68,7 @@ public class MetricPartitionMaintainer {
      * {@code ACCESS EXCLUSIVE} on the default partition a moment later regardless.
      */
     private void createAhead() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         for (int i = 0; i <= CREATE_AHEAD_DAYS; i++) {
             LocalDate day = today.plusDays(i);
             String name = "metric_sample_" + day.format(SUFFIX);
@@ -77,12 +86,7 @@ public class MetricPartitionMaintainer {
                             """.formatted(name));
             transactions.executeWithoutResult(status -> {
                 jdbc.getJdbcTemplate().execute("LOCK TABLE metric_sample_default IN EXCLUSIVE MODE");
-                jdbc.getJdbcTemplate().execute("""
-                                WITH moved AS (
-                                    DELETE FROM metric_sample_default WHERE ts >= '%s' AND ts < '%s' RETURNING *
-                                )
-                                INSERT INTO %s SELECT * FROM moved
-                                """.formatted(day, next, name));
+                jdbc.getJdbcTemplate().execute(MOVE_DEFAULT_ROWS.formatted(day, next, name));
                 jdbc.getJdbcTemplate()
                         .execute("ALTER TABLE metric_sample ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
                                 .formatted(name, day, next));
@@ -95,9 +99,9 @@ public class MetricPartitionMaintainer {
                 SELECT EXISTS (
                     SELECT 1 FROM pg_inherits i
                       JOIN pg_class c ON c.oid = i.inhrelid
-                     WHERE i.inhparent = 'metric_sample'::regclass AND c.relname = '%s'
+                     WHERE i.inhparent = 'metric_sample'::regclass AND c.relname = ?
                 )
-                """.formatted(name), Boolean.class);
+                """, Boolean.class, name);
         return Boolean.TRUE.equals(exists);
     }
 

@@ -174,10 +174,10 @@ public class QueuesMcpTools {
             LifecycleKind kind, String subject, boolean dryRun, Attempt<LifecycleOutcome> attempt) {
         LifecycleOutcome outcome =
                 switch (attempt) {
-                    case Attempt.Ok<LifecycleOutcome> ok -> ok.value();
-                    case Attempt.Failed<LifecycleOutcome> f ->
+                    case Attempt.Ok<LifecycleOutcome>(var value) -> value;
+                    case Attempt.Failed<LifecycleOutcome>(var failure, var detail) ->
                         throw new io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException(
-                                f.kind(), f.detail());
+                                failure, detail);
                 };
         List<McpViews.LifecycleNode> nodes = outcome.nodes().stream()
                 .map(n -> new McpViews.LifecycleNode(n.nodeName(), n.status().name(), n.affected(), n.error()))
@@ -200,10 +200,11 @@ public class QueuesMcpTools {
     private static String lifecycleMessage(
             LifecycleKind kind, String subject, boolean dryRun, LifecycleOutcome outcome, boolean partial) {
         if (dryRun) {
-            return outcome.overCap()
-                    ? "Nothing was changed. A real run is over the bulk cap and would need override=true."
-                    : "Nothing was changed. Re-run with dryRun=false"
-                            + (kind.destructive() ? " and confirm=\"" + subject + "\"." : ".");
+            if (outcome.overCap()) {
+                return "Nothing was changed. A real run is over the bulk cap and would need override=true.";
+            }
+            String confirmation = kind.destructive() ? " and confirm=\"" + subject + "\"." : ".";
+            return "Nothing was changed. Re-run with dryRun=false" + confirmation;
         }
         if (partial) {
             return "Applied unevenly across the cluster. The nodes list says which nodes are in the requested "

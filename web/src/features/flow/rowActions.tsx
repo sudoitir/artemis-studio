@@ -15,7 +15,11 @@ import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import type { FlowNodeView } from './api.ts';
 
 /** "Show in Flow": the flow view focused on one resource, its upstream and downstream. */
-function ShowInFlow({ clusterId, focus, reason }: { clusterId: string; focus: string | null; reason?: string }) {
+function ShowInFlow({
+  clusterId,
+  focus,
+  reason,
+}: Readonly<{ clusterId: string; focus: string | null; reason?: string }>) {
   const navigate = useNavigate();
   return (
     <ActionMenuItem
@@ -28,15 +32,15 @@ function ShowInFlow({ clusterId, focus, reason }: { clusterId: string; focus: st
   );
 }
 
-export function QueueInFlow({ clusterId, target }: ActionProps<QueueTarget>) {
+export function QueueInFlow({ clusterId, target }: Readonly<ActionProps<QueueTarget>>) {
   return <ShowInFlow clusterId={clusterId} focus={`queue:${target.queueName}`} />;
 }
 
-export function AddressInFlow({ clusterId, target }: ActionProps<AddressTarget>) {
+export function AddressInFlow({ clusterId, target }: Readonly<ActionProps<AddressTarget>>) {
   return <ShowInFlow clusterId={clusterId} focus={`address:${target.address}`} />;
 }
 
-export function ConnectionInFlow({ clusterId, target }: ActionProps<ConnectionTarget>) {
+export function ConnectionInFlow({ clusterId, target }: Readonly<ActionProps<ConnectionTarget>>) {
   // Flow names a client by its client id by default; a connection without one is found by host.
   const clientId = target.snapshot?.clientId;
   return (
@@ -48,13 +52,13 @@ export function ConnectionInFlow({ clusterId, target }: ActionProps<ConnectionTa
   );
 }
 
-export function DivertInFlow({ clusterId, target }: ActionProps<DivertTarget>) {
+export function DivertInFlow({ clusterId, target }: Readonly<ActionProps<DivertTarget>>) {
   const address = target.snapshot?.address;
   return <ShowInFlow clusterId={clusterId} focus={address ? `address:${address}` : null} />;
 }
 
 /** A flow client: focus the view on it. */
-export function FocusClient({ clusterId, target }: ActionProps<ClientTarget>) {
+export function FocusClient({ clusterId, target }: Readonly<ActionProps<ClientTarget>>) {
   const navigate = useNavigate();
   const focus = `client:${target.label}`;
   return (
@@ -68,7 +72,7 @@ export function FocusClient({ clusterId, target }: ActionProps<ClientTarget>) {
 }
 
 /** A flow client's connections, found by what Flow names it by: its client id, user or host. */
-export function ClientConnections({ clusterId, target }: ActionProps<ClientTarget>) {
+export function ClientConnections({ clusterId, target }: Readonly<ActionProps<ClientTarget>>) {
   const navigate = useNavigate();
   return (
     <ActionMenuItem
@@ -88,11 +92,11 @@ export function FlowNodeActions({
   clusterId,
   node,
   restoreFocus,
-}: {
+}: Readonly<{
   clusterId: string;
   node: FlowNodeView;
   restoreFocus?: () => void;
-}) {
+}>) {
   const label = node.label ?? '';
   switch (node.kind) {
     case 'QUEUE':

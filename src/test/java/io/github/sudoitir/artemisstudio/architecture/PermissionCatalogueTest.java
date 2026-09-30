@@ -78,8 +78,10 @@ class PermissionCatalogueTest {
     private static List<String> uncatalogued(Path root, String... extensions) throws IOException {
         List<String> bad = new ArrayList<>();
         try (Stream<Path> files = Files.walk(root)) {
+            // Tests and fixtures hold resource keys such as "queue:orders", not permission gates.
             for (Path file : files.filter(p ->
                             Stream.of(extensions).anyMatch(e -> p.toString().endsWith(e)))
+                    .filter(p -> !p.getFileName().toString().contains(".test.") && !p.startsWith(root.resolve("test")))
                     .toList()) {
                 Matcher m = LITERAL.matcher(Files.readString(file));
                 while (m.find()) {

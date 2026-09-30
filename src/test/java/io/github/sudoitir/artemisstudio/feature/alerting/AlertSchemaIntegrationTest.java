@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity.Condition;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
@@ -70,7 +71,8 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
     @Test
     void thresholdAndStateRulesBothPersistAndAreFilterableByKind() {
         UUID c = cluster();
-        rules.save(AlertRuleEntity.threshold(c, "Deep queue", "messageCount", "GT", 1000.0, 60, "WARNING", null));
+        rules.save(AlertRuleEntity.threshold(
+                c, "Deep queue", new Condition("messageCount", "GT", 1000.0), 60, "WARNING", null));
         rules.save(AlertRuleEntity.state(c, "Split-brain", "SPLIT_BRAIN", 0, "CRITICAL"));
 
         List<AlertRuleEntity> thresholds = rules.findByClusterIdAndKindAndEnabledTrue(c, "METRIC_THRESHOLD");
@@ -106,12 +108,11 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void kindShapeCheckRejectsAThresholdRuleWithAStateCondition() {
-        UUID c = cluster();
+        var params = java.util.Map.of("c", cluster());
         assertThatThrownBy(() -> jdbc.update("""
                         INSERT INTO alert_rule (cluster_id, kind, metric, comparator, threshold, state_condition, name)
                         VALUES (:c, 'METRIC_THRESHOLD', 'messageCount', 'GT', 1, 'SPLIT_BRAIN', 'bad')
-                        """, java.util.Map.of("c", c)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                        """, params)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -119,8 +120,8 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
         String name = "ops-" + UUID.randomUUID();
         NotificationChannelEntity first = channels.save(new NotificationChannelEntity(name, "SLACK", "{}", null));
         createdChannels.add(first.getId());
-        assertThatThrownBy(() -> channels.save(new NotificationChannelEntity(name, "WEBHOOK", "{}", null)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        NotificationChannelEntity duplicate = new NotificationChannelEntity(name, "WEBHOOK", "{}", null);
+        assertThatThrownBy(() -> channels.save(duplicate)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

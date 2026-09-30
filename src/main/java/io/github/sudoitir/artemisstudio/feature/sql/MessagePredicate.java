@@ -44,18 +44,18 @@ public class MessagePredicate {
 
     public boolean matches(Predicate predicate, BrowsedMessage message, EvalContext context) {
         return switch (predicate) {
-            case Predicate.And and -> and.parts().stream().allMatch(p -> matches(p, message, context));
-            case Predicate.Or or -> or.parts().stream().anyMatch(p -> matches(p, message, context));
-            case Predicate.Not not -> !matches(not.inner(), message, context);
+            case Predicate.And(var parts) -> parts.stream().allMatch(p -> matches(p, message, context));
+            case Predicate.Or(var parts) -> parts.stream().anyMatch(p -> matches(p, message, context));
+            case Predicate.Not(var inner) -> !matches(inner, message, context);
             case Predicate.Compare compare -> compare(compare, message, context);
             case Predicate.In in -> in(in, message, context);
-            case Predicate.IsNull isNull -> (resolve(isNull.term(), message, context) == null) != isNull.negated();
+            case Predicate.IsNull(var term, var negated) -> (resolve(term, message, context) == null) != negated;
             case Predicate.Like like -> like(like, message, context);
             case Predicate.Between between -> between(between, message, context);
             // Unreachable: the planner refuses MATCH() against a live broker before a
             // message is ever read. Answering false here would silently drop rows; a
             // failure says which layer let it through.
-            case Predicate.Match ignored ->
+            case Predicate.Match _ ->
                 throw new IllegalStateException("MATCH() cannot be evaluated against a broker message");
         };
     }
@@ -153,17 +153,17 @@ public class MessagePredicate {
     /** The message's value for a term, or null when it has none. */
     Object resolve(Term term, BrowsedMessage message, EvalContext context) {
         return switch (term) {
-            case Term.ColumnTerm column -> column(column.column(), message, context);
-            case Term.PropertyTerm property -> property(property.name(), message);
-            case Term.JsonTerm path -> jsonPath(path.path(), message);
-            case Term.MatchRank ignored -> null;
-            case Term.CaseFold fold -> {
-                Object inner = resolve(fold.inner(), message, context);
-                yield inner == null
-                        ? null
-                        : fold.upper()
-                                ? String.valueOf(inner).toUpperCase(Locale.ROOT)
-                                : String.valueOf(inner).toLowerCase(Locale.ROOT);
+            case Term.ColumnTerm(var column) -> column(column, message, context);
+            case Term.PropertyTerm(var name) -> property(name, message);
+            case Term.JsonTerm(var path) -> jsonPath(path, message);
+            case Term.MatchRank _ -> null;
+            case Term.CaseFold(var operand, var upper) -> {
+                Object inner = resolve(operand, message, context);
+                if (inner == null) {
+                    yield null;
+                }
+                String text = String.valueOf(inner);
+                yield upper ? text.toUpperCase(Locale.ROOT) : text.toLowerCase(Locale.ROOT);
             }
         };
     }
@@ -220,7 +220,7 @@ public class MessagePredicate {
         JsonNode node;
         try {
             node = json.readTree(body);
-        } catch (JacksonException e) {
+        } catch (JacksonException _) {
             return null;
         }
         for (String key : path.split("\\.")) {
@@ -243,19 +243,19 @@ public class MessagePredicate {
      */
     private Integer order(Object left, Literal right, EvalContext context) {
         return switch (right) {
-            case Literal.Str str ->
-                left instanceof Boolean ? null : String.valueOf(left).compareTo(str.value());
+            case Literal.Str(var value) ->
+                left instanceof Boolean ? null : String.valueOf(left).compareTo(value);
             case Literal.Num num -> {
                 Double value = asNumber(left);
                 yield value == null ? null : Double.compare(value, num.value());
             }
-            case Literal.Bool bool -> left instanceof Boolean b ? Boolean.compare(b, bool.value()) : null;
-            case Literal.RelativeTime relative -> {
+            case Literal.Bool(var value) -> left instanceof Boolean b ? Boolean.compare(b, value) : null;
+            case Literal.RelativeTime(var before) -> {
                 Double value = asNumber(left);
                 yield value == null
                         ? null
                         : Double.compare(
-                                value, context.now().minus(relative.before()).toEpochMilli());
+                                value, (double) context.now().minus(before).toEpochMilli());
             }
         };
     }
@@ -267,7 +267,7 @@ public class MessagePredicate {
         if (value instanceof String text) {
             try {
                 return Double.valueOf(text);
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 return null;
             }
         }

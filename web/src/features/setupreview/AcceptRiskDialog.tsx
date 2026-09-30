@@ -21,12 +21,12 @@ export function AcceptRiskDialog({
   finding,
   onClose,
   announce,
-}: {
+}: Readonly<{
   clusterId: string;
   finding: SetupFindingView | null;
   onClose: () => void;
   announce: (message: string) => void;
-}) {
+}>) {
   return (
     <Modal opened={finding !== null} onClose={onClose} title="Accept as a known risk" size="lg">
       {finding ? (
@@ -47,12 +47,12 @@ function Form({
   finding,
   onClose,
   announce,
-}: {
+}: Readonly<{
   clusterId: string;
   finding: SetupFindingView;
   onClose: () => void;
   announce: (message: string) => void;
-}) {
+}>) {
   const accept = useAcceptRisk(clusterId);
   const [reason, setReason] = useState('');
   const [expiry, setExpiry] = useState<string>('30');

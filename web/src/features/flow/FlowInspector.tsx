@@ -3,7 +3,7 @@ import { Button, CloseButton, Group, Stack, Text, Title } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
-import type { FlowEdgeView, FlowGraphView } from './api.ts';
+import type { FlowEdgeView, FlowGraphView, FlowNodeView } from './api.ts';
 import { edgeText, FAULT_LABELS, formatCount, rateSourceLabel } from './flowFormat.ts';
 import { focusOf } from './flowSearch.ts';
 import classes from './FlowView.module.css';
@@ -27,6 +27,84 @@ const ROLE_WORD: Record<string, string> = {
   BRIDGE_TARGET: 'A bridge target outside this cluster',
 };
 
+/** What the inspector states about a node, as term and value; each kind contributes what it has. */
+function nodeFacts(node: FlowNodeView): Array<[string, string]> {
+  const facts: Array<[string, string]> = [];
+  if (node.role) facts.push(['What it is', ROLE_WORD[node.role] ?? node.role.toLowerCase()]);
+  if (node.kind === 'QUEUE') {
+    facts.push(
+      [
+        'Backlog',
+        node.messageCount === null || node.messageCount === undefined
+          ? 'not swept yet'
+          : `${formatCount(node.messageCount)} waiting`,
+      ],
+      [
+        'Consumers',
+        node.consumerCount === null || node.consumerCount === undefined ? 'not swept yet' : String(node.consumerCount),
+      ],
+    );
+  }
+  if (node.kind === 'ADDRESS' && node.routingTypes?.length)
+    facts.push(['Routing', node.routingTypes.join(', ').toLowerCase()]);
+  if (node.members) facts.push(['Connections', String(node.members)]);
+  if (node.protocols?.length) facts.push(['Protocols', node.protocols.join(', ')]);
+  if (node.hosts?.length) facts.push(['Hosts', node.hosts.join(', ')]);
+  if (node.users?.length) facts.push(['Users', node.users.join(', ')]);
+  if (node.brokerNodes?.length) facts.push(['Seen on', node.brokerNodes.join(', ')]);
+  return facts;
+}
+
+/** Where the node can be followed up — focus the view, or open the screen that owns it. */
+function InspectorActions({
+  node,
+  onFocus,
+  open,
+}: Readonly<{
+  node: FlowNodeView;
+  onFocus: (focus: string) => void;
+  open: (path: string, search?: Record<string, string | undefined>) => unknown;
+}>) {
+  return (
+    <Stack gap="xs">
+      {focusOf(node) ? (
+        <Button size="xs" variant="default" onClick={() => onFocus(focusOf(node)!)}>
+          Focus the view on this
+        </Button>
+      ) : null}
+      {node.kind === 'QUEUE' && !node.role ? (
+        <Button size="xs" variant="subtle" onClick={() => open('queues', { queue: node.label })}>
+          Open in Queues
+        </Button>
+      ) : null}
+      {node.kind === 'ADDRESS' && !node.role ? (
+        <Button size="xs" variant="subtle" onClick={() => open('addresses')}>
+          Open in Addresses
+        </Button>
+      ) : null}
+      {node.kind === 'CONSUMER' ? (
+        <Button size="xs" variant="subtle" onClick={() => open('consumers')}>
+          Open its consumers
+        </Button>
+      ) : null}
+      {node.kind === 'PRODUCER' ? (
+        <Button size="xs" variant="subtle" onClick={() => open('producers')}>
+          Open its producers
+        </Button>
+      ) : null}
+      {node.kind === 'PRODUCER' || node.kind === 'CONSUMER' ? (
+        <Button size="xs" variant="subtle" onClick={() => open('connections')}>
+          Open its connections
+        </Button>
+      ) : null}
+      <Text size="xs" c="dimmed">
+        Flow never changes the broker. Closing a connection or consumer happens on its own screen, with its
+        confirmation.
+      </Text>
+    </Stack>
+  );
+}
+
 /**
  * One node, explained (flow-visualization spec: the inspector explains a resource and links to
  * existing actions without mutating). Closing it returns focus to whatever opened it — the caller
@@ -38,13 +116,13 @@ export function FlowInspector({
   clusterId,
   onClose,
   onFocus,
-}: {
+}: Readonly<{
   graph: FlowGraphView;
   nodeId: string;
   clusterId: string;
   onClose: () => void;
   onFocus: (focus: string) => void;
-}) {
+}>) {
   const navigate = useNavigate();
   const now = useServerNow(5_000);
   const close = useRef<HTMLButtonElement>(null);
@@ -62,30 +140,10 @@ export function FlowInspector({
   const faults = (node.faults ?? []).map((f) => FAULT_LABELS[f] ?? f.toLowerCase());
   // The exact resource: a queue opens itself; the rest open the view filtered to the name, which
   // the resource filters match on (client id, user or host for connections).
-  const open = (path: string, search: Record<string, string | undefined> = { q: node.label }) =>
-    navigate({ to: `/clusters/$clusterId/${path}`, params: { clusterId }, search });
+  const open = (path: string, search?: Record<string, string | undefined>) =>
+    navigate({ to: `/clusters/$clusterId/${path}`, params: { clusterId }, search: search ?? { q: node.label } });
 
-  const facts: Array<[string, string]> = [];
-  if (node.role) facts.push(['What it is', ROLE_WORD[node.role] ?? node.role.toLowerCase()]);
-  if (node.kind === 'QUEUE') {
-    facts.push([
-      'Backlog',
-      node.messageCount === null || node.messageCount === undefined
-        ? 'not swept yet'
-        : `${formatCount(node.messageCount)} waiting`,
-    ]);
-    facts.push([
-      'Consumers',
-      node.consumerCount === null || node.consumerCount === undefined ? 'not swept yet' : String(node.consumerCount),
-    ]);
-  }
-  if (node.kind === 'ADDRESS' && node.routingTypes?.length)
-    facts.push(['Routing', node.routingTypes.join(', ').toLowerCase()]);
-  if (node.members) facts.push(['Connections', String(node.members)]);
-  if (node.protocols?.length) facts.push(['Protocols', node.protocols.join(', ')]);
-  if (node.hosts?.length) facts.push(['Hosts', node.hosts.join(', ')]);
-  if (node.users?.length) facts.push(['Users', node.users.join(', ')]);
-  if (node.brokerNodes?.length) facts.push(['Seen on', node.brokerNodes.join(', ')]);
+  const facts = nodeFacts(node);
 
   const flowList = (title: string, edges: FlowEdgeView[], other: (e: FlowEdgeView) => string | undefined) =>
     edges.length === 0 ? null : (
@@ -154,42 +212,7 @@ export function FlowInspector({
         {flowList('Flow in', inbound, (e) => e.source)}
         {flowList('Flow out', outbound, (e) => e.target)}
 
-        <Stack gap="xs">
-          {focusOf(node) ? (
-            <Button size="xs" variant="default" onClick={() => onFocus(focusOf(node)!)}>
-              Focus the view on this
-            </Button>
-          ) : null}
-          {node.kind === 'QUEUE' && !node.role ? (
-            <Button size="xs" variant="subtle" onClick={() => open('queues', { queue: node.label })}>
-              Open in Queues
-            </Button>
-          ) : null}
-          {node.kind === 'ADDRESS' && !node.role ? (
-            <Button size="xs" variant="subtle" onClick={() => open('addresses')}>
-              Open in Addresses
-            </Button>
-          ) : null}
-          {node.kind === 'CONSUMER' ? (
-            <Button size="xs" variant="subtle" onClick={() => open('consumers')}>
-              Open its consumers
-            </Button>
-          ) : null}
-          {node.kind === 'PRODUCER' ? (
-            <Button size="xs" variant="subtle" onClick={() => open('producers')}>
-              Open its producers
-            </Button>
-          ) : null}
-          {node.kind === 'PRODUCER' || node.kind === 'CONSUMER' ? (
-            <Button size="xs" variant="subtle" onClick={() => open('connections')}>
-              Open its connections
-            </Button>
-          ) : null}
-          <Text size="xs" c="dimmed">
-            Flow never changes the broker. Closing a connection or consumer happens on its own screen, with its
-            confirmation.
-          </Text>
-        </Stack>
+        <InspectorActions node={node} onFocus={onFocus} open={open} />
       </Stack>
     </aside>
   );

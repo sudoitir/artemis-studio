@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ApiTokenService {
 
+    private static final String RESOURCE = "token";
     private static final String PREFIX_TAG = "as_";
     private static final int PREFIX_BYTES = 8;
     private static final int SECRET_BYTES = 32;
@@ -70,7 +72,15 @@ public class ApiTokenService {
 
     public record Minted(ApiTokenEntity entity, String plaintext) {}
 
-    private record Secret(String prefix, byte[] hash, String plaintext) {}
+    private record Secret(String prefix, String secret) {
+        String plaintext() {
+            return prefix + "_" + secret;
+        }
+
+        byte[] hash() {
+            return sha256(secret);
+        }
+    }
 
     /** The maximum lifetime currently in force. */
     public Duration maxLifetime() {
@@ -117,7 +127,7 @@ public class ApiTokenService {
             }
         }
         AuditEvent event =
-                audit.begin(actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, Map.of(), false);
+                audit.begin(actorResolver.resolve(), "TOKEN_CREATE", RESOURCE, name, null, null, Map.of(), false);
         audit.succeed(event, 1);
         return new Minted(entity, plaintext);
     }
@@ -145,7 +155,7 @@ public class ApiTokenService {
     /** An administrator revokes any user's token; the audit row names the owner. */
     @Transactional
     public void revokeAny(UUID tokenId) {
-        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException("token", tokenId));
+        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException(RESOURCE, tokenId));
         String owner = accounts.byId(token.getUserId())
                 .map(UserAccounts.Account::username)
                 .orElse(token.getUserId().toString());
@@ -158,7 +168,7 @@ public class ApiTokenService {
             tokens.save(token);
         }
         AuditEvent event = audit.begin(
-                actorResolver.resolve(), "TOKEN_REVOKE", "token", token.getName(), null, null, params, false);
+                actorResolver.resolve(), "TOKEN_REVOKE", RESOURCE, token.getName(), null, null, params, false);
         audit.succeed(event, 1);
     }
 
@@ -179,7 +189,7 @@ public class ApiTokenService {
                 Instant.now().plus(settings.duration(ApiTokensSettings.ROTATION_OVERLAP)));
         tokens.save(token);
         AuditEvent event = audit.begin(
-                actorResolver.resolve(), "TOKEN_ROTATE", "token", token.getName(), null, null, Map.of(), false);
+                actorResolver.resolve(), "TOKEN_ROTATE", RESOURCE, token.getName(), null, null, Map.of(), false);
         audit.succeed(event, 1);
         return new Minted(token, secret.plaintext());
     }
@@ -189,7 +199,7 @@ public class ApiTokenService {
     }
 
     public TokenUsage.Summary usageAny(UUID tokenId, int days) {
-        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException("token", tokenId));
+        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException(RESOURCE, tokenId));
         return usage.summary(token.getId(), days);
     }
 
@@ -197,7 +207,7 @@ public class ApiTokenService {
     private ApiTokenEntity owned(UUID userId, UUID tokenId) {
         return tokens.findById(tokenId)
                 .filter(t -> t.getUserId().equals(userId))
-                .orElseThrow(() -> new NotFoundException("token", tokenId));
+                .orElseThrow(() -> new NotFoundException(RESOURCE, tokenId));
     }
 
     /**
@@ -237,11 +247,9 @@ public class ApiTokenService {
             return null;
         }
         Set<Grant> ownerGrants = grantLoader.loadFor(owner.id());
-        Set<Grant> tokenGrantSet = new HashSet<>();
-        for (ApiTokenGrantEntity g : tokenGrants.findByIdTokenId(token.getId())) {
-            tokenGrantSet.add(
-                    new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())));
-        }
+        Set<Grant> tokenGrantSet = tokenGrants.findByIdTokenId(token.getId()).stream()
+                .map(g -> new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())))
+                .collect(Collectors.toSet());
         Set<Grant> intersected = intersect(tokenGrantSet, ownerGrants);
         pendingLastUsed.put(token.getId(), now);
         return new TokenPrincipal(
@@ -270,7 +278,7 @@ public class ApiTokenService {
                 .orElse(Actor.ANONYMOUS);
         Actor actor = new Actor(owner, anonymous.sourceIp(), anonymous.requestId(), token.getUserId(), token.getName());
         AuditEvent event = audit.begin(
-                actor, "TOKEN_REJECTED", "token", token.getName(), null, null, Map.of("reason", "rotated"), false);
+                actor, "TOKEN_REJECTED", RESOURCE, token.getName(), null, null, Map.of("reason", "rotated"), false);
         audit.fail(event, "The secret was replaced by a rotation and its overlap has ended");
     }
 
@@ -294,7 +302,7 @@ public class ApiTokenService {
     private Secret newSecret() {
         String prefix = PREFIX_TAG + randomToken(PREFIX_BYTES);
         String secret = randomToken(SECRET_BYTES);
-        return new Secret(prefix, sha256(secret), prefix + "_" + secret);
+        return new Secret(prefix, secret);
     }
 
     private Set<Grant> intersect(Set<Grant> tokenGrants, Set<Grant> ownerGrants) {

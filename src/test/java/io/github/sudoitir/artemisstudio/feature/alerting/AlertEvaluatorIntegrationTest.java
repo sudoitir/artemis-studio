@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertFiringRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity.Condition;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertStateRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -70,8 +71,8 @@ class AlertEvaluatorIntegrationTest extends PostgresIntegrationTest {
         clusterId = cluster.getId();
         BrokerNodeEntity node = nodes.save(BrokerNodeEntity.fromSeed(clusterId, "n1", "STANDALONE", "node-1"));
 
-        AlertRuleEntity rule = rules.save(
-                AlertRuleEntity.threshold(clusterId, "Deep queue", "messageCount", "GT", 100.0, 0, "WARNING", null));
+        AlertRuleEntity rule = rules.save(AlertRuleEntity.threshold(
+                clusterId, "Deep queue", new Condition("messageCount", "GT", 100.0), 0, "WARNING", null));
 
         snapshot(clusterId, node.getId(), "orders", 150);
         evaluator.evaluate(clusterId, "METRIC_THRESHOLD");
@@ -93,8 +94,8 @@ class AlertEvaluatorIntegrationTest extends PostgresIntegrationTest {
         clusterId = cluster.getId();
         BrokerNodeEntity node = nodes.save(BrokerNodeEntity.fromSeed(clusterId, "n1", "STANDALONE", "node-1"));
 
-        AlertRuleEntity rule = rules.save(
-                AlertRuleEntity.threshold(clusterId, "Deep queue", "messageCount", "GT", 100.0, 0, "WARNING", null));
+        AlertRuleEntity rule = rules.save(AlertRuleEntity.threshold(
+                clusterId, "Deep queue", new Condition("messageCount", "GT", 100.0), 0, "WARNING", null));
         rule.setEnabled(false);
         rules.save(rule);
 

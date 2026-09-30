@@ -25,6 +25,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -98,7 +99,7 @@ class ConnectionControlServiceTest extends PostgresIntegrationTest {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         n.attachManagementUrl(url);
-        n.applyHaState(active, "STARTED", "PRIMARY", null, 1L, "2.56.0", null, Instant.now());
+        n.applyHaState(new HaObservation(active, "STARTED", "PRIMARY", null, "2.56.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }
 
@@ -234,7 +235,8 @@ class ConnectionControlServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aNodeThatIsNotPartOfTheClusterIsNotFound() {
-        assertThatThrownBy(() -> control.closeConnection(clusterId, UUID.randomUUID(), CONNECTION, false))
+        UUID unknownNode = UUID.randomUUID();
+        assertThatThrownBy(() -> control.closeConnection(clusterId, unknownNode, CONNECTION, false))
                 .isInstanceOf(NotFoundException.class);
     }
 

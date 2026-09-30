@@ -44,11 +44,11 @@ const ORDER: Key[] = ['managementRead', 'managementWrite', 'notifications', 'mes
 export function CapabilityLedger({
   capabilities,
   clusterId,
-}: {
+}: Readonly<{
   capabilities: CapabilitiesView;
   /** When the cluster is registered, snippets that are declarable link into its configuration. */
   clusterId?: string;
-}) {
+}>) {
   const [open, setOpen] = useState<Key | null>(null);
 
   return (
@@ -58,6 +58,7 @@ export function CapabilityLedger({
         const word = statusWord(key, cap);
         const expandable = word.text !== 'Available';
         const isOpen = open === key;
+        const chevron = isOpen ? ' ⌃' : ' ⌄';
 
         return (
           <div key={key}>
@@ -72,7 +73,7 @@ export function CapabilityLedger({
               <span className={styles.label}>{LABELS[key]}</span>
               <span className={styles.status} data-tone={word.tone}>
                 {word.text}
-                {expandable ? (isOpen ? ' ⌃' : ' ⌄') : ''}
+                {expandable ? chevron : ''}
               </span>
             </button>
 

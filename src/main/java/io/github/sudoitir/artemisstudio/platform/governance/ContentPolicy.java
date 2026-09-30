@@ -61,6 +61,6 @@ public class ContentPolicy {
                 store.current(),
                 settings.getObject().intValue(GovernanceSettings.SCAN_LIMIT),
                 mapper,
-                findings::record);
+                findings::recordFinding);
     }
 }

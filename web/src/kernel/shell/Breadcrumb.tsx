@@ -26,11 +26,18 @@ export function Breadcrumb() {
         {crumbs.map((crumb, i) => {
           const last = i === crumbs.length - 1;
           return last || !crumb.to ? (
-            <Text key={i} size="xs" c="dimmed" aria-current={last ? 'page' : undefined} truncate maw="40ch">
+            <Text
+              key={crumb.to ?? crumb.label}
+              size="xs"
+              c="dimmed"
+              aria-current={last ? 'page' : undefined}
+              truncate
+              maw="40ch"
+            >
               {crumb.label}
             </Text>
           ) : (
-            <Anchor key={i} component={Link} to={crumb.to} size="xs" c="dimmed">
+            <Anchor key={crumb.to ?? crumb.label} component={Link} to={crumb.to} size="xs" c="dimmed">
               {crumb.label}
             </Anchor>
           );

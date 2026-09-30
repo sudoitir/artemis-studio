@@ -17,19 +17,19 @@ export function RegisterCanvas({
   stale,
   shape,
   onSelectShape,
-}: {
+}: Readonly<{
   preview: RegisterPreview | undefined;
   stale: boolean;
   shape: ExampleShape | null;
   onSelectShape: (shape: ExampleShape) => void;
-}) {
+}>) {
   if (preview) {
     return <PreviewCanvas topology={preview.topology} stale={stale} />;
   }
   return <ExampleCards shape={shape} onSelectShape={onSelectShape} />;
 }
 
-function PreviewCanvas({ topology, stale }: { topology: TopologyView; stale: boolean }) {
+function PreviewCanvas({ topology, stale }: Readonly<{ topology: TopologyView; stale: boolean }>) {
   const model = layout(topology, EXAMPLE_HEALTH);
   return (
     <Stack gap="xs">
@@ -54,10 +54,10 @@ function PreviewCanvas({ topology, stale }: { topology: TopologyView; stale: boo
 function ExampleCards({
   shape,
   onSelectShape,
-}: {
+}: Readonly<{
   shape: ExampleShape | null;
   onSelectShape: (shape: ExampleShape) => void;
-}) {
+}>) {
   return (
     <Stack gap="xs">
       <Text size="sm" c="dimmed">

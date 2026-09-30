@@ -22,12 +22,12 @@ export function CapabilityGate({
   verdict,
   what,
   children,
-}: {
+}: Readonly<{
   verdict: GateVerdict;
   /** "applying address setting orders.#"; defaults to "this". */
   what?: string;
   children: ReactNode;
-}) {
+}>) {
   if (verdict.kind === 'allowed') {
     return <>{children}</>;
   }

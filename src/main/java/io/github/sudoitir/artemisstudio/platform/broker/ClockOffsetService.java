@@ -169,12 +169,16 @@ public class ClockOffsetService {
         Instant at = clock.instant();
         perCluster.forEach((clusterId, measured) -> {
             List<NodeSkew> skewed = measured.stream().filter(this::isSkewed).toList();
-            Verdict verdict = skewed.isEmpty()
-                    ? Verdict.IN_AGREEMENT
-                    : studioSuspect ? Verdict.STUDIO_SUSPECT : Verdict.BROKER_SKEWED;
-            out.put(clusterId, new Assessment(verdict, skewed, measured, at));
+            out.put(clusterId, new Assessment(verdictFor(skewed, studioSuspect), skewed, measured, at));
         });
         return Map.copyOf(out);
+    }
+
+    private static Verdict verdictFor(List<NodeSkew> skewed, boolean studioSuspect) {
+        if (skewed.isEmpty()) {
+            return Verdict.IN_AGREEMENT;
+        }
+        return studioSuspect ? Verdict.STUDIO_SUSPECT : Verdict.BROKER_SKEWED;
     }
 
     private boolean studioIsTheCommonFactor(List<NodeSkew> measured) {

@@ -66,7 +66,7 @@ public class ConsumerHealthService {
     @Transactional(readOnly = true)
     public PagedView<ConsumerHealth> page(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<ConsumerHealth> rows = evaluate(clusterId);
+        List<ConsumerHealth> rows = evaluated(clusterId);
         List<ConsumerHealth> matched = rows.stream()
                 .filter(h -> query.matches(h.queueName()) || query.matches(h.address()))
                 .toList();
@@ -83,7 +83,7 @@ public class ConsumerHealthService {
     @Transactional(readOnly = true)
     public java.util.Optional<ConsumerHealth> forQueue(UUID clusterId, String queueName) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return evaluate(clusterId).stream()
+        return evaluated(clusterId).stream()
                 .filter(h -> h.queueName().equals(queueName))
                 .findFirst();
     }
@@ -97,6 +97,10 @@ public class ConsumerHealthService {
      */
     @Transactional(readOnly = true)
     public List<ConsumerHealth> evaluate(UUID clusterId) {
+        return evaluated(clusterId);
+    }
+
+    private List<ConsumerHealth> evaluated(UUID clusterId) {
         // Unguarded on purpose: this is also the scheduler's path. The alert evaluator
         // runs on a scrape thread with no authenticated principal, so a permission check
         // here protects nothing and fails as a 404 about a cluster that plainly exists.
@@ -125,30 +129,25 @@ public class ConsumerHealthService {
             Map<String, Double> slopes,
             Map<String, BrokerEventView> brokerSlow) {
 
-        SubjectRate add = addRates.get(row.queueName());
-        SubjectRate ack = ackRates.get(row.queueName());
-        Double slope = slopes.get(row.queueName());
-
-        Double addRate = add == null ? null : add.rate();
-        Double ackRate = ack == null ? null : ack.rate();
-        Double netRate = addRate != null && ackRate != null ? addRate - ackRate : null;
-        Double perConsumer =
-                ackRate != null && row.totalConsumerCount() > 0 ? ackRate / row.totalConsumerCount() : null;
-
-        // The newest sample across both counters, so the reported age is the age of the
-        // freshest thing the verdict rests on, not of an arbitrary one of the two.
-        Instant asOf = newest(add, ack);
-        Duration span = longestSpan(add, ack);
-        boolean stale = row.perNode().stream().anyMatch(QueueNodeCell::stale);
-
-        Builder b = new Builder(row, addRate, ackRate, netRate, perConsumer, slope, asOf, span, stale);
+        Builder b = new Builder(
+                row, addRates.get(row.queueName()), ackRates.get(row.queueName()), slopes.get(row.queueName()));
 
         boolean backlog = row.totalMessageCount() >= properties.minBacklog();
-        boolean acking = ackRate != null && ackRate > properties.idleAckRate();
+        boolean acking = b.ackRate != null && b.ackRate > properties.idleAckRate();
 
+        ConsumerHealth verdict = unmeasuredOrUnattended(b, backlog, brokerSlow.get(row.address()));
+        if (verdict == null) {
+            verdict = notAcknowledging(b, backlog, acking);
+        }
+        return verdict != null ? verdict : trend(b, backlog);
+    }
+
+    /** Rungs 1-4 of the ladder: no rate to reason from, paused, nobody attached, or the broker's own word. */
+    private static ConsumerHealth unmeasuredOrUnattended(Builder b, boolean backlog, BrokerEventView slow) {
+        QueueView row = b.row;
         // 1. No computable rate. Checked first: every verdict below reasons about rates,
         //    and guessing from a depth alone is how "looks healthy" happens.
-        if (ackRate == null && addRate == null) {
+        if (b.ackRate == null && b.addRate == null) {
             return b.verdict(
                     Verdict.INSUFFICIENT_DATA,
                     "Not enough samples yet to measure throughput. A rate needs two sweeps of this"
@@ -177,7 +176,6 @@ public class ConsumerHealthService {
         }
 
         // 4. The broker's own verdict, which outranks anything derived (ADR-0044).
-        BrokerEventView slow = brokerSlow.get(row.address());
         if (slow != null && row.totalConsumerCount() > 0) {
             return b.broker(slow.consumerName())
                     .verdict(
@@ -186,10 +184,16 @@ public class ConsumerHealthService {
                                     + (slow.consumerName() == null ? "" : " (consumer " + slow.consumerName() + ")")
                                     + ". Its threshold is authoritative; check that consumer.");
         }
+        return null;
+    }
 
-        // 5/6. Attached, backed up, not acknowledging. What is in flight separates a
-        //      consumer that is holding messages from one that is being sent none, and
-        //      the two lead to opposite investigations.
+    /**
+     * Rungs 5 and 6: attached, backed up, not acknowledging. What is in flight separates a
+     * consumer that is holding messages from one that is being sent none, and the two lead
+     * to opposite investigations.
+     */
+    private static ConsumerHealth notAcknowledging(Builder b, boolean backlog, boolean acking) {
+        QueueView row = b.row;
         if (row.totalConsumerCount() > 0 && backlog && !acking) {
             if (row.totalDeliveringCount() > 0) {
                 return b.verdict(
@@ -205,21 +209,26 @@ public class ConsumerHealthService {
                             + " message selector or filter that matches nothing, and whether the"
                             + " consumers are in a transaction they never commit.");
         }
+        return null;
+    }
 
+    /** Rungs 7 and 8, then healthy: acknowledging, and whether the backlog grows or shrinks. */
+    private static ConsumerHealth trend(Builder b, boolean backlog) {
+        Double netRate = b.netRate;
         // 7. Acknowledging, but losing ground.
-        if (netRate != null && netRate > 0 && backlog && rising(slope)) {
+        if (netRate != null && netRate > 0 && backlog && rising(b.slope)) {
             return b.verdict(
                     Verdict.FALLING_BEHIND,
                     String.format(
                             "Arriving at %.2f msg/s and acknowledged at %.2f msg/s, so the backlog grows by"
                                     + " %.2f msg/s. Add consumer capacity, or slow the producers.",
-                            addRate, ackRate, netRate));
+                            b.addRate, b.ackRate, netRate));
         }
 
         // 8. Recovering. Reported rather than hidden: an operator watching an incident
         //    needs to know it is ending, and when.
         if (netRate != null && netRate < 0 && backlog) {
-            Duration eta = Duration.ofSeconds((long) (row.totalMessageCount() / -netRate));
+            Duration eta = Duration.ofSeconds((long) (b.row.totalMessageCount() / -netRate));
             return b.eta(eta)
                     .verdict(
                             Verdict.DRAINING,
@@ -253,26 +262,6 @@ public class ConsumerHealthService {
             byAddress.merge(e.address(), e, (a, bEvent) -> a.occurredAt().isAfter(bEvent.occurredAt()) ? a : bEvent);
         }
         return byAddress;
-    }
-
-    private static Instant newest(SubjectRate a, SubjectRate b) {
-        if (a == null) {
-            return b == null ? null : b.asOf();
-        }
-        if (b == null) {
-            return a.asOf();
-        }
-        return a.asOf().isAfter(b.asOf()) ? a.asOf() : b.asOf();
-    }
-
-    private static Duration longestSpan(SubjectRate a, SubjectRate b) {
-        if (a == null) {
-            return b == null ? null : b.span();
-        }
-        if (b == null) {
-            return a.span();
-        }
-        return a.span().compareTo(b.span()) >= 0 ? a.span() : b.span();
     }
 
     private static String humanise(Duration d) {
@@ -333,25 +322,39 @@ public class ConsumerHealthService {
         private String brokerConsumerName;
         private Duration eta;
 
-        private Builder(
-                QueueView row,
-                Double addRate,
-                Double ackRate,
-                Double netRate,
-                Double perConsumer,
-                Double slope,
-                Instant asOf,
-                Duration span,
-                boolean stale) {
+        private Builder(QueueView row, SubjectRate add, SubjectRate ack, Double slope) {
             this.row = row;
-            this.addRate = addRate;
-            this.ackRate = ackRate;
-            this.netRate = netRate;
-            this.perConsumer = perConsumer;
+            this.addRate = add == null ? null : add.rate();
+            this.ackRate = ack == null ? null : ack.rate();
+            this.netRate = addRate != null && ackRate != null ? addRate - ackRate : null;
+            this.perConsumer =
+                    ackRate != null && row.totalConsumerCount() > 0 ? ackRate / row.totalConsumerCount() : null;
             this.slope = slope;
-            this.asOf = asOf;
-            this.span = span;
-            this.stale = stale;
+            // The newest sample across both counters, so the reported age is the age of the
+            // freshest thing the verdict rests on, not of an arbitrary one of the two.
+            this.asOf = newest(add, ack);
+            this.span = longestSpan(add, ack);
+            this.stale = row.perNode().stream().anyMatch(QueueNodeCell::stale);
+        }
+
+        private static Instant newest(SubjectRate a, SubjectRate b) {
+            if (a == null) {
+                return b == null ? null : b.asOf();
+            }
+            if (b == null) {
+                return a.asOf();
+            }
+            return a.asOf().isAfter(b.asOf()) ? a.asOf() : b.asOf();
+        }
+
+        private static Duration longestSpan(SubjectRate a, SubjectRate b) {
+            if (a == null) {
+                return b == null ? null : b.span();
+            }
+            if (b == null) {
+                return a.span();
+            }
+            return a.span().compareTo(b.span()) >= 0 ? a.span() : b.span();
         }
 
         private Builder broker(String consumerName) {

@@ -46,7 +46,7 @@ public class AlertService {
     public AlertFiringPageView history(UUID clusterId, int page, int size) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
         int p = Math.max(page, 1);
-        int s = Math.min(Math.max(size, 1), 500);
+        int s = Math.clamp(size, 1, 500);
         var result = firingRepo.findVisible(clusterId, perm.can(AlertPermissions.ALERT_READ), PageRequest.of(p - 1, s));
         Map<UUID, String> names = ruleNames(result.getContent());
         return new AlertFiringPageView(

@@ -49,7 +49,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<
 
 /** The Module Federation container name a plugin's bundle is built with: its id, in snake_case. */
 export function remoteName(id: string): string {
-  return `plugin_${id.replace(/-/g, '_')}`;
+  return `plugin_${id.replaceAll('-', '_')}`;
 }
 
 /**

@@ -17,7 +17,7 @@ class ManagementRefusalTest {
 
     @Test
     void aQueueThatIsNoLongerOnTheNodeSaysSoRatherThanRaisingAJmxClassName() {
-        ManagementRefusal refusal = ManagementRefusal.classify(MBEAN_GONE, "pause");
+        ManagementRefusal refusal = ManagementRefusal.classify(MBEAN_GONE);
 
         assertThat(refusal).isNotNull();
         assertThat(refusal.kind()).isEqualTo(ManagementRefusal.Kind.ALREADY);
@@ -26,7 +26,7 @@ class ManagementRefusalTest {
 
     @Test
     void aQueueWithConsumersIsItsOwnRefusalAndNamesTheWayThrough() {
-        ManagementRefusal refusal = ManagementRefusal.classify(HAS_CONSUMERS, "destroyQueue");
+        ManagementRefusal refusal = ManagementRefusal.classify(HAS_CONSUMERS);
 
         assertThat(refusal).isNotNull();
         assertThat(refusal.kind()).isEqualTo(ManagementRefusal.Kind.HAS_CONSUMERS);

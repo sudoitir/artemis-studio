@@ -184,7 +184,7 @@ public final class OutboundMessages {
             paths.sorted(Comparator.reverseOrder()).forEach(path -> {
                 try {
                     Files.deleteIfExists(path);
-                } catch (IOException e) {
+                } catch (IOException _) {
                     // One undeletable file must not stop the rest being swept.
                 }
             });

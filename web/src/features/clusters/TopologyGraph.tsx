@@ -12,7 +12,7 @@ import { TopologyActions, TopologyCanvas } from './TopologyCanvas.tsx';
  * just a colour. Data-fetching wrapper around the pure {@link TopologyCanvas} —
  * see design.md Decision 6 for why the render half was split out.
  */
-export function TopologyGraph({ clusterId }: { clusterId: string }) {
+export function TopologyGraph({ clusterId }: Readonly<{ clusterId: string }>) {
   const topology = useTopology(clusterId);
   const health = useHealth(clusterId);
   const [addingFor, setAddingFor] = useState<string | null>(null);

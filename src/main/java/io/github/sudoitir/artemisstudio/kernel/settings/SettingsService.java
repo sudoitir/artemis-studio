@@ -11,7 +11,8 @@ import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.Stu
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +73,7 @@ public class SettingsService {
     /**
      * Every stored override, refreshed on boot and after each write. Reads are on the
      * scheduling hot path — a trigger asks for its interval on every fire — and writes
-     * are the only thing that can invalidate this, all through {@link #applyRuntime()}.
+     * are the only thing that can invalidate this, all through {@link #refreshOverrides()}.
      */
     private volatile Map<String, String> overrides = Map.of();
 
@@ -95,17 +96,8 @@ public class SettingsService {
         this.features = features;
         for (FeatureDescriptor module : features.enabled()) {
             for (SettingsContribution contribution : contributions) {
-                if (!contribution.featureId().equals(module.id())) {
-                    continue;
-                }
-                for (SettingDef def : contribution.settings()) {
-                    if (!module.settingKeys().contains(def.key())) {
-                        throw new IllegalStateException("Setting '" + def.key() + "' is contributed by '" + module.id()
-                                + "' but not declared in its descriptor");
-                    }
-                    if (registry.putIfAbsent(def.key(), def) != null) {
-                        throw new IllegalStateException("Setting '" + def.key() + "' is contributed twice");
-                    }
+                if (contribution.featureId().equals(module.id())) {
+                    register(module, contribution);
                 }
             }
             for (String key : module.settingKeys()) {
@@ -116,6 +108,18 @@ public class SettingsService {
             }
         }
         registry = java.util.Collections.unmodifiableMap(registry);
+    }
+
+    private void register(FeatureDescriptor module, SettingsContribution contribution) {
+        for (SettingDef def : contribution.settings()) {
+            if (!module.settingKeys().contains(def.key())) {
+                throw new IllegalStateException("Setting '" + def.key() + "' is contributed by '" + module.id()
+                        + "' but not declared in its descriptor");
+            }
+            if (registry.putIfAbsent(def.key(), def) != null) {
+                throw new IllegalStateException("Setting '" + def.key() + "' is contributed twice");
+            }
+        }
     }
 
     /**
@@ -282,7 +286,7 @@ public class SettingsService {
         String json = asJsonScalar(value);
         repo.findById(key).ifPresentOrElse(e -> e.setValue(json), () -> repo.save(new StudioSettingEntity(key, json)));
         repo.flush();
-        applyRuntime();
+        refreshOverrides();
         audit.succeed(event, 1);
     }
 
@@ -306,7 +310,7 @@ public class SettingsService {
 
         repo.deleteById(key);
         repo.flush();
-        applyRuntime();
+        refreshOverrides();
         audit.succeed(event, 1);
     }
 
@@ -318,6 +322,10 @@ public class SettingsService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
     public void applyRuntime() {
+        refreshOverrides();
+    }
+
+    private void refreshOverrides() {
         Map<String, String> fresh = new LinkedHashMap<>();
         for (StudioSettingEntity row : repo.findAll()) {
             if (registry.containsKey(row.getKey())) {
@@ -355,45 +363,52 @@ public class SettingsService {
     /** Rejects a value outside its kind's syntax or its bounds, naming the allowed range. */
     static void validate(SettingDef spec, String value) {
         switch (spec.kind()) {
-            case DURATION -> {
-                boolean foreverAllowed = SettingDef.FOREVER.equals(spec.max());
-                if (SettingDef.FOREVER.equalsIgnoreCase(value.trim())) {
-                    if (!foreverAllowed) {
-                        throw outOfRange(spec);
-                    }
-                    return;
-                }
-                Duration d = Duration.parse(toIso(value));
-                if (d.isZero() || d.isNegative()) {
-                    throw new IllegalArgumentException(spec.key() + " must be a positive duration");
-                }
-                if (spec.min() != null && d.compareTo(Duration.parse(toIso(spec.min()))) < 0
-                        || spec.max() != null
-                                && !foreverAllowed
-                                && d.compareTo(Duration.parse(toIso(spec.max()))) > 0) {
-                    throw outOfRange(spec);
-                }
-            }
-            case INT -> {
-                int n = Integer.parseInt(value.trim());
-                int min = spec.min() == null ? 1 : Integer.parseInt(spec.min());
-                if (n < min || spec.max() != null && n > Integer.parseInt(spec.max())) {
-                    throw spec.min() == null && spec.max() == null
-                            ? new IllegalArgumentException(spec.key() + " must be at least 1")
-                            : outOfRange(spec);
-                }
-            }
+            case DURATION -> validateDuration(spec, value);
+            case INT -> validateInt(spec, value);
             case CRON -> validateCron(spec.key(), value.trim());
-            case BOOLEAN -> {
-                if (!value.trim().equals("true") && !value.trim().equals("false")) {
-                    throw new IllegalArgumentException(spec.key() + " must be true or false");
-                }
+            case BOOLEAN -> validateBoolean(spec.key(), value.trim());
+        }
+    }
+
+    private static void validateDuration(SettingDef spec, String value) {
+        boolean foreverAllowed = SettingDef.FOREVER.equals(spec.max());
+        if (SettingDef.FOREVER.equalsIgnoreCase(value.trim())) {
+            if (!foreverAllowed) {
+                throw outOfRange(spec);
             }
+            return;
+        }
+        Duration d = Duration.parse(toIso(value));
+        if (d.isZero() || d.isNegative()) {
+            throw new IllegalArgumentException(spec.key() + " must be a positive duration");
+        }
+        boolean belowMin = spec.min() != null && d.compareTo(Duration.parse(toIso(spec.min()))) < 0;
+        boolean aboveMax = spec.max() != null && !foreverAllowed && d.compareTo(Duration.parse(toIso(spec.max()))) > 0;
+        if (belowMin || aboveMax) {
+            throw outOfRange(spec);
+        }
+    }
+
+    private static void validateInt(SettingDef spec, String value) {
+        int n = Integer.parseInt(value.trim());
+        int min = spec.min() == null ? 1 : Integer.parseInt(spec.min());
+        if (n < min || spec.max() != null && n > Integer.parseInt(spec.max())) {
+            if (spec.min() == null && spec.max() == null) {
+                throw new IllegalArgumentException(spec.key() + " must be at least 1");
+            }
+            throw outOfRange(spec);
+        }
+    }
+
+    private static void validateBoolean(String key, String value) {
+        if (!value.equals("true") && !value.equals("false")) {
+            throw new IllegalArgumentException(key + " must be true or false");
         }
     }
 
     private static IllegalArgumentException outOfRange(SettingDef spec) {
-        String min = spec.min() != null ? spec.min() : spec.kind() == SettingDef.Kind.INT ? "1" : "more than 0";
+        String defaultMin = spec.kind() == SettingDef.Kind.INT ? "1" : "more than 0";
+        String min = spec.min() != null ? spec.min() : defaultMin;
         String max = spec.max() != null ? spec.max() : "no limit";
         return new IllegalArgumentException(spec.key() + " must be between " + min + " and " + max);
     }
@@ -408,9 +423,9 @@ public class SettingsService {
             throw new IllegalArgumentException(key + " must be a six-field cron expression");
         }
         CronExpression cron = CronExpression.parse(value);
-        LocalDateTime from = LocalDateTime.of(2000, 1, 1, 0, 0);
-        LocalDateTime first = cron.next(from);
-        LocalDateTime second = first == null ? null : cron.next(first);
+        ZonedDateTime from = ZonedDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+        ZonedDateTime first = cron.next(from);
+        ZonedDateTime second = first == null ? null : cron.next(first);
         if (first != null && second != null && Duration.between(first, second).toSeconds() < 60) {
             throw new IllegalArgumentException(key + " must not fire more than once a minute");
         }

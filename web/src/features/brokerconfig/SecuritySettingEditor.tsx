@@ -33,7 +33,8 @@ function toGrid(item: ConfigSecuritySettingView | null): { roles: string[]; grid
     for (const [permission, holders] of Object.entries(item.permissions)) {
       for (const role of holders) {
         if (!roles.includes(role)) roles.push(role);
-        (grid[role] ??= new Set()).add(permission);
+        grid[role] ??= new Set();
+        grid[role].add(permission);
       }
     }
   }
@@ -65,13 +66,13 @@ export function SecuritySettingEditor({
   item,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   catalogue: ConfigCatalogueView;
   item: ConfigSecuritySettingView | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const initial = toGrid(item);
   const [match, setMatch] = useState(item?.match ?? '');
   const [roles, setRoles] = useState<string[]>(initial.roles);

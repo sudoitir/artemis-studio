@@ -29,6 +29,8 @@ import java.util.regex.Pattern;
  */
 final class BytecodeChecks {
 
+    private static final String VALUE = "value";
+
     private static final Set<String> DENIED_ANNOTATIONS = Set.of(
             "Lorg/springframework/scheduling/annotation/Scheduled;",
             "Lorg/springframework/scheduling/annotation/Async;",
@@ -67,35 +69,44 @@ final class BytecodeChecks {
         boolean configurationFound = false;
         for (String name : entryNames) {
             String unversioned = unversion(name);
-            if (!unversioned.startsWith(basePath) || !unversioned.endsWith(".class")) {
-                continue;
-            }
-            byte[] bytes;
-            try (InputStream in = jar.getInputStream(jar.getJarEntry(name))) {
-                bytes = in.readAllBytes();
-            }
-            ClassModel model = ClassFile.of().parse(bytes);
-            String className = model.thisClass().asInternalName().replace('/', '.');
-            if (className.equals(configurationFqcn)) {
+            if (unversioned.startsWith(basePath)
+                    && unversioned.endsWith(".class")
+                    && checkClass(jar, name, configurationFqcn, violations)) {
                 configurationFound = true;
-                checkComponentScanPresent(model, className, violations);
-            }
-            // A class-level @RequestMapping is only a prefix; what a handler maps is prefix + method path.
-            List<String> classPrefixes = mappingPaths(model).orElse(List.of(""));
-            checkAnnotations(model, className, null, violations);
-            for (MethodModel method : model.methods()) {
-                checkAnnotations(
-                        method, className + "#" + method.methodName().stringValue(), classPrefixes, violations);
-                method.code().ifPresent(code -> {
-                    for (CodeElement element : code) {
-                        if (element instanceof InvokeInstruction invoke) {
-                            checkInvocation(invoke, className, violations);
-                        }
-                    }
-                });
             }
         }
         checkConfigurationField(configurationFqcn, configurationFound, violations);
+    }
+
+    /** Checks one class file; returns whether it is the descriptor's configuration class. */
+    private boolean checkClass(JarFile jar, String name, String configurationFqcn, List<Violation> violations)
+            throws IOException {
+        byte[] bytes;
+        try (InputStream in = jar.getInputStream(jar.getJarEntry(name))) {
+            bytes = in.readAllBytes();
+        }
+        ClassModel model = ClassFile.of().parse(bytes);
+        String className = model.thisClass().asInternalName().replace('/', '.');
+        boolean isConfiguration = className.equals(configurationFqcn);
+        if (isConfiguration) {
+            checkComponentScanPresent(model, className, violations);
+        }
+        // A class-level @RequestMapping is only a prefix; what a handler maps is prefix + method path.
+        List<String> classPrefixes = mappingPaths(model).orElse(List.of(""));
+        checkAnnotations(model, className, null, violations);
+        for (MethodModel method : model.methods()) {
+            checkAnnotations(method, className + "#" + method.methodName().stringValue(), classPrefixes, violations);
+            method.code().ifPresent(code -> checkInvocations(code, className, violations));
+        }
+        return isConfiguration;
+    }
+
+    private void checkInvocations(Iterable<CodeElement> code, String className, List<Violation> violations) {
+        for (CodeElement element : code) {
+            if (element instanceof InvokeInstruction invoke) {
+                checkInvocation(invoke, className, violations);
+            }
+        }
     }
 
     private static String unversion(String name) {
@@ -171,7 +182,7 @@ final class BytecodeChecks {
             Annotation annotation, String type, String where, List<Violation> violations) {
         for (AnnotationElement el : annotation.elements()) {
             String name = el.name().stringValue();
-            if (!(name.equals("value") || name.equals("basePackages") || name.equals("basePackageClasses"))) {
+            if (!(name.equals(VALUE) || name.equals("basePackages") || name.equals("basePackageClasses"))) {
                 continue;
             }
             for (String target : classOrStringPackages(el.value())) {
@@ -197,7 +208,9 @@ final class BytecodeChecks {
                     String internal = c.classSymbol().packageName();
                     packages.add(internal);
                 }
-                default -> {}
+                default -> {
+                    // other value kinds name no package
+                }
             }
         }
         return packages;
@@ -208,7 +221,7 @@ final class BytecodeChecks {
         String found = null;
         for (AnnotationElement el : annotation.elements()) {
             String name = el.name().stringValue();
-            if ((name.equals("value") || name.equals("prefix")) && el.value() instanceof AnnotationValue.OfString s) {
+            if ((name.equals(VALUE) || name.equals("prefix")) && el.value() instanceof AnnotationValue.OfString s) {
                 found = s.stringValue();
             }
         }
@@ -235,7 +248,7 @@ final class BytecodeChecks {
         List<String> paths = new ArrayList<>();
         for (AnnotationElement el : annotation.elements()) {
             String name = el.name().stringValue();
-            if (!(name.equals("value") || name.equals("path"))) {
+            if (!(name.equals(VALUE) || name.equals("path"))) {
                 continue;
             }
             List<AnnotationValue> values =

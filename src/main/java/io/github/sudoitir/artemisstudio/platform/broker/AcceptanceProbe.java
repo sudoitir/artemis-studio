@@ -59,27 +59,20 @@ public class AcceptanceProbe {
             broker = client.resolveBrokerObjectName();
             String q = BrokerMBeans.queue(broker, address, queue, routingType);
             String a = BrokerMBeans.address(broker, address);
-            List<JolokiaRequest> requests = new ArrayList<>();
-            for (String attribute : QUEUE) {
-                requests.add(JolokiaRequest.read(q, attribute));
-            }
-            for (String attribute : ADDRESS) {
-                requests.add(JolokiaRequest.read(a, attribute));
-            }
-            for (String attribute : BROKER) {
-                requests.add(JolokiaRequest.read(broker, attribute));
-            }
+            List<JolokiaRequest> requests = new ArrayList<>(reads(q, QUEUE));
+            requests.addAll(reads(a, ADDRESS));
+            requests.addAll(reads(broker, BROKER));
             requests.add(JolokiaRequest.exec(broker, "getAddressSettingsAsJSON(java.lang.String)", address));
             r = client.batch(requests);
             if (r.size() < requests.size()) {
                 return Facts.unknown();
             }
-        } catch (BrokerConnectionException e) {
+        } catch (BrokerConnectionException _) {
             return Facts.unknown();
         }
         int i = 0;
         JolokiaResponse filterRead = r.get(i++);
-        Boolean exists = filterRead.ok() ? Boolean.TRUE : NOT_FOUND.equals(filterRead.errorType()) ? false : null;
+        Boolean exists = exists(filterRead);
         String filter = filterRead.ok() ? text(filterRead, "Filter", "") : null;
         String type = value(r.get(i++), "RoutingType", JsonNode::asText);
         Long ring = value(r.get(i++), "RingSize", JsonNode::asLong);
@@ -124,6 +117,20 @@ public class AcceptanceProbe {
     private static final List<String> BROKER =
             List.of("DiskStoreUsage", "MaxDiskUsage", "AddressMemoryUsagePercentage", "IDCacheSize", "PersistIDCache");
 
+    private static List<JolokiaRequest> reads(String mbean, List<String> attributes) {
+        return attributes.stream()
+                .map(attribute -> JolokiaRequest.read(mbean, attribute))
+                .toList();
+    }
+
+    /** The filter read answering means the queue exists; a not-found error means it does not; else unknown. */
+    private static Boolean exists(JolokiaResponse filterRead) {
+        if (filterRead.ok()) {
+            return Boolean.TRUE;
+        }
+        return NOT_FOUND.equals(filterRead.errorType()) ? Boolean.FALSE : null;
+    }
+
     private static <T> T value(JolokiaResponse res, String attribute, Function<JsonNode, T> as) {
         if (!res.ok()) {
             return null;
@@ -143,7 +150,7 @@ public class AcceptanceProbe {
         }
         try {
             return client.parsed(res);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

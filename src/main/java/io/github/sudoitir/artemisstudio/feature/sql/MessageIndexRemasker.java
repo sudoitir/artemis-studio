@@ -138,7 +138,7 @@ class MessageIndexRemasker implements StoredContentRemasker {
         }
         try {
             return json.readValue(raw, PROPS);
-        } catch (JacksonException e) {
+        } catch (JacksonException _) {
             return Map.of();
         }
     }

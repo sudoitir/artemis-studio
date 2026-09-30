@@ -43,14 +43,14 @@ function Frame({
   inbound,
   outbound,
   children,
-}: {
+}: Readonly<{
   id: string;
   data: FlowNodeData;
   shape: 'pill' | 'tag' | 'box' | 'hex';
   inbound: boolean;
   outbound: boolean;
   children: ReactNode;
-}) {
+}>) {
   const { select, emphasize, openMenu } = useContext(FlowCanvasContext);
   // Shift+F10 and the menu key are followed by the browser's own contextmenu event, which would
   // reopen the menu at the pointer and close the one the keyboard opened.
@@ -155,6 +155,9 @@ export const QueueNode = memo(function QueueNode({ id, data }: NodeProps) {
   const d = data as FlowNodeData;
   const v = d.view;
   const swept = v.messageCount !== null && v.messageCount !== undefined;
+  const sweptLabel = swept
+    ? `${formatCount(v.messageCount!)} waiting · ${v.consumerCount ?? 0} consumers`
+    : 'not swept yet';
   return (
     <Frame id={id} data={d} shape="box" inbound outbound>
       <div className={classes.head}>
@@ -165,13 +168,7 @@ export const QueueNode = memo(function QueueNode({ id, data }: NodeProps) {
       <span className={classes.depth} aria-hidden="true">
         <span className={classes.depthFill} style={{ inlineSize: `${Math.round(d.depth * 100)}%` }} />
       </span>
-      <span className={classes.meta}>
-        {v.role && QUEUE_ROLE[v.role]
-          ? QUEUE_ROLE[v.role]
-          : swept
-            ? `${formatCount(v.messageCount!)} waiting · ${v.consumerCount ?? 0} consumers`
-            : 'not swept yet'}
-      </span>
+      <span className={classes.meta}>{(v.role && QUEUE_ROLE[v.role]) || sweptLabel}</span>
     </Frame>
   );
 });

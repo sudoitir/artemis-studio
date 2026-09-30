@@ -18,7 +18,7 @@ final class Detectors {
     static final List<Detector> ALL = List.of(
             new Detector(
                     DataClass.CREDENTIAL,
-                    Pattern.compile("(?i)\\bbearer\\s+[A-Za-z0-9._~+/-]+=*|\\beyJ[\\w-]{5,}\\.[\\w-]{5,}\\.[\\w-]*"),
+                    Pattern.compile("(?i)\\bbearer\\s+[a-z0-9._~+/-]+=*|\\beyJ[\\w-]{5,}\\.[\\w-]{5,}\\.[\\w-]*"),
                     s -> true),
             // Card numbers start 2-6, which keeps epoch-millisecond timestamps out; a leading + is a phone number.
             new Detector(
@@ -30,11 +30,12 @@ final class Detectors {
             new Detector(
                     DataClass.EMAIL,
                     Pattern.compile(
-                            "\\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\\.[A-Za-z0-9-]{1,63})*\\.[A-Za-z]{2,24}\\b"),
+                            "\\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\\.[A-Za-z0-9-]{1,63}){0,126}\\.[A-Za-z]{2,24}\\b"),
                     s -> true),
+            new Detector(DataClass.PHONE, Pattern.compile("(?<![\\w+])\\+\\d{8,15}\\b"), s -> true),
             new Detector(
                     DataClass.PHONE,
-                    Pattern.compile("(?<![\\w+])\\+\\d{8,15}\\b|(?<!\\d)\\(?\\d{3}\\)?[ .-]\\d{3}[ .-]\\d{4}(?!\\d)"),
+                    Pattern.compile("(?<!\\d)\\(?\\d{3}\\)?[ .-]\\d{3}[ .-]\\d{4}(?!\\d)"),
                     s -> true));
 
     /** A detected span of a string. */

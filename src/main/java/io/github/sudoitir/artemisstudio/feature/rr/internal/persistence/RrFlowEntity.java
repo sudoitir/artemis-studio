@@ -117,28 +117,30 @@ public class RrFlowEntity {
     @Column(name = "reply_skew_ms")
     private Long replySkewMs;
 
-    public RrFlowEntity(
+    /** A request seen and now awaiting its reply, by the deadline it must be answered by. */
+    public record Awaiting(
             UUID clusterId,
             UUID nodeId,
             String requestAddress,
             String replyDestination,
             String replyKind,
-            String state,
             String correlationId,
             String requestMessageId,
             Instant requestedAt,
-            Instant deadlineAt) {
-        this.clusterId = clusterId;
-        this.nodeId = nodeId;
-        this.requestAddress = requestAddress;
-        this.replyDestination = replyDestination;
-        this.replyKind = replyKind;
-        this.state = state;
-        this.correlationId = correlationId;
-        this.requestMessageId = requestMessageId;
-        this.requestedAt = requestedAt;
-        this.deadlineAt = deadlineAt;
-        this.observedAt = requestedAt;
+            Instant deadlineAt) {}
+
+    public RrFlowEntity(Awaiting awaiting) {
+        this.clusterId = awaiting.clusterId();
+        this.nodeId = awaiting.nodeId();
+        this.requestAddress = awaiting.requestAddress();
+        this.replyDestination = awaiting.replyDestination();
+        this.replyKind = awaiting.replyKind();
+        this.state = RrState.AWAITING_REPLY.name();
+        this.correlationId = awaiting.correlationId();
+        this.requestMessageId = awaiting.requestMessageId();
+        this.requestedAt = awaiting.requestedAt();
+        this.deadlineAt = awaiting.deadlineAt();
+        this.observedAt = awaiting.requestedAt();
     }
 
     /** A reply observed with no matching awaiting-reply flow (request-reply-tracing spec, ORPHANED_REPLY). */

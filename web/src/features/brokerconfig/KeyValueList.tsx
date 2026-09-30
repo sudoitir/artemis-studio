@@ -9,7 +9,11 @@ import type { Row } from './pretty.ts';
  * rows behind a button that says how many more there are — the cell stays
  * scannable and nothing is hidden without a count.
  */
-export function KeyValueList({ rows, limit = 6, empty = '—' }: { rows: Row[]; limit?: number; empty?: string }) {
+export function KeyValueList({
+  rows,
+  limit = 6,
+  empty = '—',
+}: Readonly<{ rows: Row[]; limit?: number; empty?: string }>) {
   const [open, setOpen] = useState(false);
   if (rows.length === 0) {
     return (
@@ -20,6 +24,7 @@ export function KeyValueList({ rows, limit = 6, empty = '—' }: { rows: Row[]; 
   }
   const shown = open ? rows : rows.slice(0, limit);
   const hidden = rows.length - shown.length;
+  const more = hidden === 1 ? 'key' : 'keys';
   return (
     <div>
       <dl className={classes.kv}>
@@ -32,7 +37,7 @@ export function KeyValueList({ rows, limit = 6, empty = '—' }: { rows: Row[]; 
       </dl>
       {hidden > 0 || open ? (
         <Button variant="subtle" size="compact-xs" px={0} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          {open ? 'Show fewer' : `${hidden} more ${hidden === 1 ? 'key' : 'keys'}`}
+          {open ? 'Show fewer' : `${hidden} more ${more}`}
         </Button>
       ) : null}
     </div>

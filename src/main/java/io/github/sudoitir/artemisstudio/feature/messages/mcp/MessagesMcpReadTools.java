@@ -56,7 +56,7 @@ public class MessagesMcpReadTools {
             long mid;
             try {
                 mid = Long.parseLong(messageId.trim());
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 throw McpErrors.invalidParams("messageId must be the numeric id a header row returned.");
             }
             return McpErrors.guard(() -> messages.detail(id, q, mid, null, null));

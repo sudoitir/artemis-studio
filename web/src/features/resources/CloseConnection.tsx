@@ -26,6 +26,30 @@ const NOUN: Record<NodeKind, string> = {
   consumer: "consumer's connection",
 };
 
+/** The preview → result state both close dialogs share, opened on a dry run and cleared on dismiss. */
+function useClosePreview(close: ReturnType<typeof useCloseAddressConsumers>, onClose: () => void) {
+  const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
+  const [result, setResult] = useState<ConnectionCloseView | null>(null);
+  const [previewFailed, setPreviewFailed] = useState<string | null>(null);
+
+  const start = () => {
+    setPreview(null);
+    setResult(null);
+    setPreviewFailed(null);
+    close.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
+  };
+
+  const dismiss = () => {
+    setPreview(null);
+    setResult(null);
+    setPreviewFailed(null);
+    close.reset();
+    onClose();
+  };
+
+  return { preview, result, setResult, previewFailed, start, dismiss };
+}
+
 /**
  * The row action on the connections, sessions and consumers views (ADR-0057).
  *
@@ -44,7 +68,7 @@ export function CloseConnectionAction({
   rowLabel,
   /** When the row on screen was fetched, in epoch ms — the action depends on it. */
   fetchedAt,
-}: {
+}: Readonly<{
   clusterId: string;
   kind: NodeKind;
   nodeId: string;
@@ -53,35 +77,33 @@ export function CloseConnectionAction({
   /** How the row names itself, for the trigger's accessible name. */
   rowLabel: string;
   fetchedAt: number | null;
-}) {
+}>) {
   const gate = useCloseGate(clusterId, kind, targetId);
   const host = useActionHost();
 
   return (
-    <>
-      <CapabilityGate verdict={gate}>
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          color="red"
-          disabled={gate.kind === 'blocked'}
-          // Named, not an icon alone: a row of identical glyphs tells a screen
-          // reader nothing about which connection it is about to disconnect.
-          aria-label={`Close the ${NOUN[kind]} for ${rowLabel}`}
-          // Hosted outside the grid (ADR-0107): a close that succeeds removes this row on the next
-          // refresh, and a dialog mounted in the row would take its outcome with it.
-          onClick={(e) =>
-            host.open(
-              CloseDialog,
-              { clusterId, kind, nodeId, nodeName, targetId, fetchedAt },
-              { restoreFocus: focusBack(e.currentTarget) },
-            )
-          }
-        >
-          Close
-        </Button>
-      </CapabilityGate>
-    </>
+    <CapabilityGate verdict={gate}>
+      <Button
+        size="compact-xs"
+        variant="subtle"
+        color="red"
+        disabled={gate.kind === 'blocked'}
+        // Named, not an icon alone: a row of identical glyphs tells a screen
+        // reader nothing about which connection it is about to disconnect.
+        aria-label={`Close the ${NOUN[kind]} for ${rowLabel}`}
+        // Hosted outside the grid (ADR-0107): a close that succeeds removes this row on the next
+        // refresh, and a dialog mounted in the row would take its outcome with it.
+        onClick={(e) =>
+          host.open(
+            CloseDialog,
+            { clusterId, kind, nodeId, nodeName, targetId, fetchedAt },
+            { restoreFocus: focusBack(e.currentTarget) },
+          )
+        }
+      >
+        Close
+      </Button>
+    </CapabilityGate>
   );
 }
 
@@ -99,7 +121,7 @@ export function CloseDialog({
   fetchedAt,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   kind: NodeKind;
   nodeId: string;
@@ -108,27 +130,11 @@ export function CloseDialog({
   fetchedAt: number | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const close = useCloseNodeTarget(clusterId, kind, nodeId, targetId);
-  const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
-  const [result, setResult] = useState<ConnectionCloseView | null>(null);
-  const [previewFailed, setPreviewFailed] = useState<string | null>(null);
   const now = useServerNow();
 
-  const start = () => {
-    setPreview(null);
-    setResult(null);
-    setPreviewFailed(null);
-    close.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
-  };
-
-  const dismiss = () => {
-    setPreview(null);
-    setResult(null);
-    setPreviewFailed(null);
-    close.reset();
-    onClose();
-  };
+  const { preview, result, setResult, previewFailed, start, dismiss } = useClosePreview(close, onClose);
 
   const settled = result ?? (preview?.alreadyGone ? preview : null);
   const target = preview?.target ?? null;
@@ -166,23 +172,7 @@ export function CloseDialog({
             </Alert>
           ) : null}
 
-          {settled?.alreadyGone ? (
-            // The sentence is the whole outcome. A per-node summary beside it would
-            // add nothing and read as a second, different verdict.
-            <Text size="sm">
-              Nothing to close — this {NOUN[kind]} had already gone. That is the state you asked for, so nothing was
-              done and nothing failed.
-            </Text>
-          ) : settled ? (
-            <NodeOutcomeSummary
-              outcome={settled.outcome}
-              alreadyLabel={ALREADY_GONE}
-              countNoun="in-flight message"
-              verbFuture="would return"
-              verbPast="returned"
-              destructive
-            />
-          ) : null}
+          {settled ? <SettledOutcome settled={settled} kind={kind} /> : null}
 
           {target && !result ? <TargetSummary target={target} nodeName={nodeName} /> : null}
         </div>
@@ -193,28 +183,85 @@ export function CloseDialog({
           </Alert>
         ) : null}
 
-        {settled ? (
-          <Group justify="flex-end">
-            <Button size="xs" onClick={dismiss}>
-              Close
-            </Button>
-          </Group>
-        ) : target ? (
-          <ConfirmByTyping
-            token={target.confirmToken}
-            confirmLabel={`Close this ${NOUN[kind]}`}
-            loading={close.isPending}
-            disabled={close.isPending}
-            onConfirm={() => close.mutate({}, { onSuccess: setResult })}
-          />
-        ) : null}
+        <CloseFooter
+          settled={settled !== null}
+          confirmToken={target?.confirmToken}
+          confirmLabel={`Close this ${NOUN[kind]}`}
+          pending={close.isPending}
+          onDismiss={dismiss}
+          onConfirm={() => close.mutate({}, { onSuccess: setResult })}
+        />
       </Stack>
     </Modal>
   );
 }
 
+/** The outcome once the close is settled: already gone, or the per-node summary. */
+function SettledOutcome({ settled, kind }: Readonly<{ settled: ConnectionCloseView; kind: NodeKind }>) {
+  if (settled.alreadyGone) {
+    // The sentence is the whole outcome. A per-node summary beside it would
+    // add nothing and read as a second, different verdict.
+    return (
+      <Text size="sm">
+        Nothing to close — this {NOUN[kind]} had already gone. That is the state you asked for, so nothing was done and
+        nothing failed.
+      </Text>
+    );
+  }
+  return (
+    <NodeOutcomeSummary
+      outcome={settled.outcome}
+      alreadyLabel={ALREADY_GONE}
+      countNoun="in-flight message"
+      verbFuture="would return"
+      verbPast="returned"
+      destructive
+    />
+  );
+}
+
+/** Close once settled; otherwise the confirmation, armed by typing what the operator recognises. */
+function CloseFooter({
+  settled,
+  confirmToken,
+  confirmLabel,
+  pending,
+  onDismiss,
+  onConfirm,
+}: Readonly<{
+  settled: boolean;
+  confirmToken: string | undefined;
+  confirmLabel: string;
+  pending: boolean;
+  onDismiss: () => void;
+  onConfirm: () => void;
+}>) {
+  if (settled) {
+    return (
+      <Group justify="flex-end">
+        <Button size="xs" onClick={onDismiss}>
+          Close
+        </Button>
+      </Group>
+    );
+  }
+  if (confirmToken === undefined) return null;
+  return (
+    <ConfirmByTyping
+      token={confirmToken}
+      confirmLabel={confirmLabel}
+      loading={pending}
+      disabled={pending}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
 /** Who is about to be disconnected, and what it costs the messages they hold. */
-function TargetSummary({ target, nodeName }: { target: NonNullable<ConnectionCloseView['target']>; nodeName: string }) {
+function TargetSummary({
+  target,
+  nodeName,
+}: Readonly<{ target: NonNullable<ConnectionCloseView['target']>; nodeName: string }>) {
   const rows: [string, string][] = [
     ['Client id', target.clientId || 'none reported'],
     ['Remote address', target.remoteAddress || 'not reported'],
@@ -259,27 +306,25 @@ function TargetSummary({ target, nodeName }: { target: NonNullable<ConnectionClo
 }
 
 /** The addresses view's row action: the trigger and its gate, around the dialog below. */
-export function CloseAddressConsumersAction({ clusterId, address }: { clusterId: string; address: string }) {
+export function CloseAddressConsumersAction({ clusterId, address }: Readonly<{ clusterId: string; address: string }>) {
   const gate = useCloseAddressGate(clusterId);
   const host = useActionHost();
 
   return (
-    <>
-      <CapabilityGate verdict={gate}>
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          color="red"
-          disabled={gate.kind === 'blocked'}
-          aria-label={`Close every consumer on ${address}`}
-          onClick={(e) =>
-            host.open(CloseAddressConsumers, { clusterId, address }, { restoreFocus: focusBack(e.currentTarget) })
-          }
-        >
-          Close consumers
-        </Button>
-      </CapabilityGate>
-    </>
+    <CapabilityGate verdict={gate}>
+      <Button
+        size="compact-xs"
+        variant="subtle"
+        color="red"
+        disabled={gate.kind === 'blocked'}
+        aria-label={`Close every consumer on ${address}`}
+        onClick={(e) =>
+          host.open(CloseAddressConsumers, { clusterId, address }, { restoreFocus: focusBack(e.currentTarget) })
+        }
+      >
+        Close consumers
+      </Button>
+    </CapabilityGate>
   );
 }
 
@@ -296,31 +341,14 @@ export function CloseAddressConsumers({
   address,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   address: string;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const close = useCloseAddressConsumers(clusterId, address);
-  const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
-  const [result, setResult] = useState<ConnectionCloseView | null>(null);
-  const [previewFailed, setPreviewFailed] = useState<string | null>(null);
-
-  const start = () => {
-    setPreview(null);
-    setResult(null);
-    setPreviewFailed(null);
-    close.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
-  };
-
-  const dismiss = () => {
-    setPreview(null);
-    setResult(null);
-    setPreviewFailed(null);
-    close.reset();
-    onClose();
-  };
+  const { preview, result, setResult, previewFailed, start, dismiss } = useClosePreview(close, onClose);
 
   const overCap = preview?.outcome.overCap ?? false;
 

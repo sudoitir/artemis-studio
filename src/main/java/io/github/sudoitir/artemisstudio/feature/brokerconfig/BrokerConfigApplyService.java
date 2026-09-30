@@ -75,6 +75,7 @@ import tools.jackson.databind.ObjectMapper;
 public class BrokerConfigApplyService {
 
     static final String AUDIT_APPLY = "APPLY_BROKER_CONFIG";
+    private static final String CLUSTER = "cluster";
 
     private final BrokerConfigService configs;
     private final BrokerConfigReads reads;
@@ -111,7 +112,7 @@ public class BrokerConfigApplyService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_APPLY,
-                "cluster",
+                CLUSTER,
                 configs.clusterName(clusterId),
                 clusterId,
                 null,
@@ -163,8 +164,7 @@ public class BrokerConfigApplyService {
     @Transactional(readOnly = true)
     public List<BrokerConfigApplyEntity> history(UUID clusterId, int limit) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return applies.findByClusterIdOrderByStartedAtDesc(
-                clusterId, PageRequest.of(0, Math.max(1, Math.min(limit, 200))));
+        return applies.findByClusterIdOrderByStartedAtDesc(clusterId, PageRequest.of(0, Math.clamp(limit, 1, 200)));
     }
 
     @Transactional(readOnly = true)
@@ -232,6 +232,67 @@ public class BrokerConfigApplyService {
     private BrokerConfigApplyOutcome run(UUID clusterId, BrokerConfigApplyRequest request) {
         Prepared p = prepare(clusterId, request);
         preflight(clusterId, p);
+        requireRunnable(p, request);
+        if (p.plan.stepCount() == 0) {
+            return nothingToDo(clusterId, p, request);
+        }
+
+        BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
+                clusterId,
+                p.revision.id(),
+                mapper.writeValueAsString(p.plan),
+                actorResolver.resolve().displayName(),
+                p.plan.canaryNodeId(),
+                false));
+        AuditEvent event = audit.begin(
+                actorResolver.resolve(),
+                AUDIT_APPLY,
+                CLUSTER,
+                configs.clusterName(clusterId),
+                clusterId,
+                null,
+                params(p, request),
+                false);
+        row.attachAudit(event.getId());
+
+        boolean lockoutGuard = p.plan.hazards().stream().anyMatch(h -> h.kind() == HazardKind.MANAGEMENT_ACCESS);
+        List<NodePlan> order = new ArrayList<>();
+        p.plan.nodes().stream()
+                .filter(n -> n.readable() && n.nodeId().equals(p.plan.canaryNodeId()))
+                .forEach(order::add);
+        p.plan.nodes().stream()
+                .filter(n -> n.readable() && !n.nodeId().equals(p.plan.canaryNodeId()))
+                .forEach(order::add);
+
+        RunResult run = runNodes(clusterId, p, order, lockoutGuard, row.getId());
+        List<NodeApply> results = run.results();
+        p.plan.nodes().stream()
+                .filter(n -> !n.readable())
+                .map(BrokerConfigApplyService::skipped)
+                .forEach(results::add);
+
+        boolean halted = run.haltReason() != null;
+        Outcome outcome = outcome(halted, run.applied(), results.size());
+        String summary = summarise(outcome, results, run.haltReason(), order.size());
+        row.finish(outcome, summary, mapper.writeValueAsString(results));
+        applies.save(row);
+        audit.finish(event, halted, run.applied(), halted ? summary : null, results);
+        publishAfterCommit(clusterId);
+        return new BrokerConfigApplyOutcome(
+                row.getId(),
+                false,
+                outcome,
+                p.revision.revision(),
+                p.plan,
+                results,
+                p.stepCap,
+                p.overCap,
+                summary,
+                event.getId());
+    }
+
+    /** What must hold before a real run writes anything: the mode, the confirmed plan, acknowledged hazards, the cap. */
+    private static void requireRunnable(Prepared p, BrokerConfigApplyRequest request) {
         if (p.revision.header().mode() == ApplyMode.CONFIG_MANAGED) {
             // ADR-0067 D2 makes this the config-managed cluster's whole promise: Studio
             // does not write to it. The UI disables the control with the reason, but the
@@ -257,87 +318,49 @@ public class BrokerConfigApplyService {
         if (p.overCap && !request.override()) {
             throw new BulkCapExceededException(p.plan.stepCount(), p.stepCap);
         }
-        if (p.plan.stepCount() == 0) {
-            return nothingToDo(clusterId, p, request);
-        }
+    }
 
-        BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
-                clusterId,
-                p.revision.id(),
-                mapper.writeValueAsString(p.plan),
-                actorResolver.resolve().displayName(),
-                p.plan.canaryNodeId(),
-                false));
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                AUDIT_APPLY,
-                "cluster",
-                configs.clusterName(clusterId),
-                clusterId,
-                null,
-                params(p, request),
-                false);
-        row.attachAudit(event.getId());
+    /** What the nodes did, and the reason the run stopped early, if it did. */
+    private record RunResult(List<NodeApply> results, long applied, String haltReason) {}
 
-        boolean lockoutGuard = p.plan.hazards().stream().anyMatch(h -> h.kind() == HazardKind.MANAGEMENT_ACCESS);
-        List<NodePlan> order = new ArrayList<>();
-        p.plan.nodes().stream()
-                .filter(n -> n.readable() && n.nodeId().equals(p.plan.canaryNodeId()))
-                .forEach(order::add);
-        p.plan.nodes().stream()
-                .filter(n -> n.readable() && !n.nodeId().equals(p.plan.canaryNodeId()))
-                .forEach(order::add);
-
+    /** Canary first, one node at a time; the first failure halts the run and later nodes are not attempted. */
+    private RunResult runNodes(UUID clusterId, Prepared p, List<NodePlan> order, boolean lockoutGuard, long applyId) {
         List<NodeApply> results = new ArrayList<>();
-        boolean halted = false;
         String haltReason = null;
         long applied = 0;
         for (NodePlan node : order) {
-            if (halted) {
+            if (haltReason != null) {
                 results.add(
                         notAttempted(node, p.plan.canaryNodeId(), "Not attempted: the run halted on an earlier node."));
-                continue;
-            }
-            NodeApply result = applyTo(clusterId, p, node, lockoutGuard, row.getId());
-            results.add(result);
-            recordNodeState(clusterId, p.revision.revision(), row.getId(), result);
-            applied += result.steps().stream()
-                    .filter(s -> s.status() == StepStatus.APPLIED)
-                    .count();
-            if (result.anyFailed()) {
-                halted = true;
-                haltReason = result.steps().stream()
-                        .filter(s -> s.status() == StepStatus.FAILED || s.verified() == Verification.MISMATCH)
-                        .findFirst()
-                        .map(s -> node.nodeName() + ", " + s.description() + ": "
-                                + (s.error() != null ? s.error() : "read-back did not match"))
-                        .orElse(node.nodeName());
+            } else {
+                NodeApply result = applyTo(clusterId, p, node, lockoutGuard, applyId);
+                results.add(result);
+                recordNodeState(clusterId, p.revision.revision(), applyId, result);
+                applied += result.steps().stream()
+                        .filter(s -> s.status() == StepStatus.APPLIED)
+                        .count();
+                if (result.anyFailed()) {
+                    haltReason = haltReason(node, result);
+                }
             }
         }
-        for (NodePlan node : p.plan.nodes()) {
-            if (!node.readable()) {
-                results.add(skipped(node));
-            }
-        }
+        return new RunResult(results, applied, haltReason);
+    }
 
-        Outcome outcome =
-                halted ? (applied == 0 && results.size() == 1 ? Outcome.FAILED : Outcome.HALTED) : Outcome.APPLIED;
-        String summary = summarise(outcome, results, haltReason, order.size());
-        row.finish(outcome, summary, mapper.writeValueAsString(results));
-        applies.save(row);
-        audit.finish(event, halted, applied, halted ? summary : null, results);
-        publishAfterCommit(clusterId);
-        return new BrokerConfigApplyOutcome(
-                row.getId(),
-                false,
-                outcome,
-                p.revision.revision(),
-                p.plan,
-                results,
-                p.stepCap,
-                p.overCap,
-                summary,
-                event.getId());
+    private static String haltReason(NodePlan node, NodeApply result) {
+        return result.steps().stream()
+                .filter(s -> s.status() == StepStatus.FAILED || s.verified() == Verification.MISMATCH)
+                .findFirst()
+                .map(s -> node.nodeName() + ", " + s.description() + ": "
+                        + (s.error() != null ? s.error() : "read-back did not match"))
+                .orElse(node.nodeName());
+    }
+
+    private static Outcome outcome(boolean halted, long applied, int nodeCount) {
+        if (!halted) {
+            return Outcome.APPLIED;
+        }
+        return applied == 0 && nodeCount == 1 ? Outcome.FAILED : Outcome.HALTED;
     }
 
     private BrokerConfigApplyOutcome nothingToDo(UUID clusterId, Prepared p, BrokerConfigApplyRequest request) {
@@ -352,7 +375,7 @@ public class BrokerConfigApplyService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_APPLY,
-                "cluster",
+                CLUSTER,
                 configs.clusterName(clusterId),
                 clusterId,
                 null,
@@ -392,13 +415,13 @@ public class BrokerConfigApplyService {
             client = reads.client(clusterId, entity);
             broker = client.resolveBrokerObjectName();
         } catch (BrokerConnectionException e) {
-            for (Step s : node.steps()) {
-                steps.add(stepApply(
-                        s,
-                        s.already() ? StepStatus.ALREADY : StepStatus.NOT_ATTEMPTED,
-                        Verification.NOT_VERIFIED,
-                        null));
-            }
+            node.steps().stream()
+                    .map(s -> stepApply(
+                            s,
+                            s.already() ? StepStatus.ALREADY : StepStatus.NOT_ATTEMPTED,
+                            Verification.NOT_VERIFIED,
+                            null))
+                    .forEach(steps::add);
             publishProgress(clusterId, applyId, node, canary, "UNREACHABLE", 0);
             return new NodeApply(
                     node.nodeId(),
@@ -409,40 +432,16 @@ public class BrokerConfigApplyService {
                     steps,
                     "Could not connect: " + e.getMessage());
         }
+        NodeRun run = new NodeRun(clusterId, p, node, canary, applyId, client, broker, steps);
         boolean failed = false;
         publishProgress(clusterId, applyId, node, canary, "APPLYING", 0);
         for (Step s : node.steps()) {
             if (s.already()) {
                 steps.add(stepApply(s, StepStatus.ALREADY, Verification.VERIFIED, null));
-                continue;
-            }
-            if (failed) {
+            } else if (failed) {
                 steps.add(stepApply(s, StepStatus.NOT_ATTEMPTED, Verification.NOT_VERIFIED, null));
-                continue;
-            }
-            try {
-                // Every write is a management POST, and the client waits for the node's
-                // ceiling before each one it sends (ADR-0076).
-                StepStatus status = execute(clusterId, client, broker, p.revision.document(), s);
-                capabilities.recordWriteSucceeded(clusterId);
-                steps.add(stepApply(s, status, Verification.NOT_VERIFIED, null));
-                recordOwnership(clusterId, p.revision.id(), s, status);
-                publishProgress(clusterId, applyId, node, canary, "APPLYING", steps.size());
-            } catch (ManagementRefusal e) {
-                if (e.kind() == ManagementRefusal.Kind.ALREADY) {
-                    capabilities.recordWriteSucceeded(clusterId);
-                    steps.add(stepApply(s, StepStatus.ALREADY, Verification.NOT_VERIFIED, null));
-                    recordOwnership(clusterId, p.revision.id(), s, StepStatus.ALREADY);
-                    continue;
-                }
-                failed = true;
-                steps.add(stepApply(s, StepStatus.FAILED, Verification.NOT_VERIFIED, e.getMessage()));
-            } catch (BrokerConnectionException e) {
-                if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
-                    capabilities.recordWriteRefused(clusterId, e.getMessage());
-                }
-                failed = true;
-                steps.add(stepApply(s, StepStatus.FAILED, Verification.NOT_VERIFIED, e.getMessage()));
+            } else {
+                failed = applyStep(run, s);
             }
         }
         if (failed) {
@@ -468,6 +467,54 @@ public class BrokerConfigApplyService {
         return verified;
     }
 
+    /** One node's run in progress: where it writes, and the steps recorded so far. */
+    private record NodeRun(
+            UUID clusterId,
+            Prepared p,
+            NodePlan node,
+            boolean canary,
+            long applyId,
+            JolokiaBrokerClient client,
+            String broker,
+            List<StepApply> steps) {}
+
+    /** One pending step, recorded on the run; true when it failed and the node must halt. */
+    private boolean applyStep(NodeRun run, Step s) {
+        UUID clusterId = run.clusterId();
+        try {
+            // Every write is a management POST, and the client waits for the node's
+            // ceiling before each one it sends (ADR-0076).
+            StepStatus status = execute(
+                    clusterId, run.client(), run.broker(), run.p().revision.document(), s);
+            capabilities.recordWriteSucceeded(clusterId);
+            run.steps().add(stepApply(s, status, Verification.NOT_VERIFIED, null));
+            recordOwnership(clusterId, run.p().revision.id(), s, status);
+            publishProgress(
+                    clusterId,
+                    run.applyId(),
+                    run.node(),
+                    run.canary(),
+                    "APPLYING",
+                    run.steps().size());
+            return false;
+        } catch (ManagementRefusal e) {
+            if (e.kind() == ManagementRefusal.Kind.ALREADY) {
+                capabilities.recordWriteSucceeded(clusterId);
+                run.steps().add(stepApply(s, StepStatus.ALREADY, Verification.NOT_VERIFIED, null));
+                recordOwnership(clusterId, run.p().revision.id(), s, StepStatus.ALREADY);
+                return false;
+            }
+            run.steps().add(stepApply(s, StepStatus.FAILED, Verification.NOT_VERIFIED, e.getMessage()));
+            return true;
+        } catch (BrokerConnectionException e) {
+            if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
+                capabilities.recordWriteRefused(clusterId, e.getMessage());
+            }
+            run.steps().add(stepApply(s, StepStatus.FAILED, Verification.NOT_VERIFIED, e.getMessage()));
+            return true;
+        }
+    }
+
     /** Re-read the node and re-plan it: anything still pending that was applied is a mismatch. */
     private NodeApply verify(
             UUID clusterId,
@@ -483,20 +530,10 @@ public class BrokerConfigApplyService {
                 BrokerConfigDriftService.ownedKeys(p.owned, Section.SECURITY_SETTING));
         ObservedNodeConfig after = reads.observe(clusterId, entity, scope);
         if (after.unavailableReason() != null) {
-            List<StepApply> out = new ArrayList<>();
-            for (StepApply s : steps) {
-                out.add(new StepApply(
-                        s.stepId(),
-                        s.section(),
-                        s.key(),
-                        s.op(),
-                        s.description(),
-                        s.status(),
-                        s.status() == StepStatus.APPLIED
-                                ? (lockoutGuard ? Verification.MISMATCH : Verification.UNVERIFIABLE)
-                                : s.verified(),
-                        s.error()));
-            }
+            List<StepApply> out = steps.stream()
+                    .map(s -> withVerification(
+                            s, s.status() == StepStatus.APPLIED ? unreadable(lockoutGuard) : s.verified()))
+                    .toList();
             String note = lockoutGuard
                     ? "The verification read was refused after a security change covering the management address."
                             + " Studio may have lost its own access and cannot revert it: " + after.unavailableReason()
@@ -519,30 +556,43 @@ public class BrokerConfigApplyService {
                 .flatMap(n -> n.steps().stream())
                 .filter(s -> !s.already())
                 .forEach(s -> stillPending.add(s.section() + ":" + s.key()));
-        List<StepApply> out = new ArrayList<>();
-        boolean mismatch = false;
-        for (StepApply s : steps) {
-            Verification v = s.verified();
-            if (s.status() == StepStatus.APPLIED || s.status() == StepStatus.ALREADY) {
-                String item = s.section() + ":" + s.key();
-                if (s.op() == Op.REMOVE) {
-                    v = stillPending.contains(item) ? Verification.MISMATCH : Verification.VERIFIED;
-                } else if (stillPending.contains(item)) {
-                    v = Verification.MISMATCH;
-                } else if (s.section() == Section.ADDRESS_SETTING
-                        && !echoesEveryDeclaredKey(p.revision.document(), s.key(), after)) {
-                    v = Verification.UNVERIFIABLE;
-                } else {
-                    v = Verification.VERIFIED;
-                }
-            }
-            mismatch |= v == Verification.MISMATCH;
-            out.add(new StepApply(s.stepId(), s.section(), s.key(), s.op(), s.description(), s.status(), v, s.error()));
-        }
+        List<StepApply> out = steps.stream()
+                .map(s -> withVerification(s, readBack(s, stillPending, p.revision.document(), after)))
+                .toList();
+        boolean mismatch = out.stream().anyMatch(s -> s.verified() == Verification.MISMATCH);
         String note = mismatch
                 ? "Read-back after the apply does not match the declaration; the run halted here."
                 : "Applied and verified by reading the node back.";
         return new NodeApply(node.nodeId(), node.nodeName(), true, canary, null, out, note);
+    }
+
+    /** What an applied step becomes when the node could not be read back: a failure if Studio may be locked out. */
+    private static Verification unreadable(boolean lockoutGuard) {
+        return lockoutGuard ? Verification.MISMATCH : Verification.UNVERIFIABLE;
+    }
+
+    /** A step's verdict from the re-plan: still pending means the node does not hold what was applied. */
+    private static Verification readBack(
+            StepApply s, Set<String> stillPending, BrokerConfigDocument doc, ObservedNodeConfig after) {
+        if (s.status() != StepStatus.APPLIED && s.status() != StepStatus.ALREADY) {
+            return s.verified();
+        }
+        boolean pending = stillPending.contains(s.section() + ":" + s.key());
+        if (s.op() == Op.REMOVE) {
+            return pending ? Verification.MISMATCH : Verification.VERIFIED;
+        }
+        if (pending) {
+            return Verification.MISMATCH;
+        }
+        if (s.section() == Section.ADDRESS_SETTING && !echoesEveryDeclaredKey(doc, s.key(), after)) {
+            return Verification.UNVERIFIABLE;
+        }
+        return Verification.VERIFIED;
+    }
+
+    private static StepApply withVerification(StepApply s, Verification verified) {
+        return new StepApply(
+                s.stepId(), s.section(), s.key(), s.op(), s.description(), s.status(), verified, s.error());
     }
 
     /**
@@ -633,7 +683,7 @@ public class BrokerConfigApplyService {
         key.setNodeId(nodeId);
         BrokerConfigNodeStateEntity row =
                 nodeStates.findById(key).orElseGet(() -> new BrokerConfigNodeStateEntity(clusterId, nodeId));
-        row.record(state, detail, revision, "[]", basis, basisRef);
+        row.recordState(state, detail, revision, "[]", basis, basisRef);
         nodeStates.save(row);
     }
 
@@ -650,64 +700,77 @@ public class BrokerConfigApplyService {
     private StepStatus execute(
             UUID clusterId, JolokiaBrokerClient client, String broker, BrokerConfigDocument doc, Step s) {
         switch (s.section()) {
-            case ADDRESS -> {
-                @SuppressWarnings("unchecked")
-                List<String> types = (List<String>) s.after().get("routingTypes");
-                if (s.op() == Op.REPLACE) {
-                    ops.updateAddress(client, broker, s.key(), new HashSet<>(types));
-                } else {
-                    ops.createAddress(client, broker, s.key(), new HashSet<>(types));
-                }
-            }
-            case QUEUE -> {
-                if (s.op() == Op.REPLACE) {
-                    ops.updateQueue(client, broker, s.after());
-                } else {
-                    ops.createQueue(client, broker, s.after());
-                }
-            }
-            case ADDRESS_SETTING -> {
-                if (s.op() == Op.REMOVE) {
-                    ops.removeAddressSettings(client, broker, s.key());
-                } else {
-                    AddressSettingDecl decl = doc.addressSettings().stream()
-                            .filter(d -> d.match().equals(s.key()))
-                            .findFirst()
-                            .orElseThrow();
-                    ops.addAddressSettings(client, broker, s.key(), decl.values());
-                }
-            }
-            case SECURITY_SETTING -> {
-                if (s.op() == Op.REMOVE) {
-                    ops.removeSecuritySettings(client, broker, s.key());
-                } else {
-                    SecuritySettingDecl decl = doc.securitySettings().stream()
-                            .filter(d -> d.match().equals(s.key()))
-                            .findFirst()
-                            .orElseThrow();
-                    Map<PermissionType, Set<String>> roles = new java.util.EnumMap<>(PermissionType.class);
-                    roles.putAll(decl.permissions());
-                    ops.addSecuritySettings(client, broker, s.key(), roles);
-                }
-            }
-            case DIVERT -> {
-                if (s.op() == Op.REMOVE) {
-                    ops.destroyDivert(client, broker, s.key());
-                } else {
-                    ops.createDivert(client, broker, s.after());
-                }
-            }
-            case BRIDGE -> {
-                if (s.op() == Op.REMOVE) {
-                    // The declared name, which removes every instance a concurrency
-                    // above one deployed (ADR-0091).
-                    ops.destroyBridge(client, broker, s.key());
-                } else {
-                    ops.createBridge(client, broker, withCredential(clusterId, doc, s));
-                }
-            }
+            case ADDRESS -> writeAddress(client, broker, s);
+            case QUEUE -> writeQueue(client, broker, s);
+            case ADDRESS_SETTING -> writeAddressSetting(client, broker, doc, s);
+            case SECURITY_SETTING -> writeSecuritySetting(client, broker, doc, s);
+            case DIVERT -> writeDivert(client, broker, s);
+            case BRIDGE -> writeBridge(clusterId, client, broker, doc, s);
         }
         return StepStatus.APPLIED;
+    }
+
+    private void writeAddress(JolokiaBrokerClient client, String broker, Step s) {
+        @SuppressWarnings("unchecked")
+        List<String> types = (List<String>) s.after().get("routingTypes");
+        if (s.op() == Op.REPLACE) {
+            ops.updateAddress(client, broker, s.key(), new HashSet<>(types));
+        } else {
+            ops.createAddress(client, broker, s.key(), new HashSet<>(types));
+        }
+    }
+
+    private void writeQueue(JolokiaBrokerClient client, String broker, Step s) {
+        if (s.op() == Op.REPLACE) {
+            ops.updateQueue(client, broker, s.after());
+        } else {
+            ops.createQueue(client, broker, s.after());
+        }
+    }
+
+    private void writeAddressSetting(JolokiaBrokerClient client, String broker, BrokerConfigDocument doc, Step s) {
+        if (s.op() == Op.REMOVE) {
+            ops.removeAddressSettings(client, broker, s.key());
+        } else {
+            AddressSettingDecl decl = doc.addressSettings().stream()
+                    .filter(d -> d.match().equals(s.key()))
+                    .findFirst()
+                    .orElseThrow();
+            ops.addAddressSettings(client, broker, s.key(), decl.values());
+        }
+    }
+
+    private void writeSecuritySetting(JolokiaBrokerClient client, String broker, BrokerConfigDocument doc, Step s) {
+        if (s.op() == Op.REMOVE) {
+            ops.removeSecuritySettings(client, broker, s.key());
+        } else {
+            SecuritySettingDecl decl = doc.securitySettings().stream()
+                    .filter(d -> d.match().equals(s.key()))
+                    .findFirst()
+                    .orElseThrow();
+            Map<PermissionType, Set<String>> roles = new java.util.EnumMap<>(PermissionType.class);
+            roles.putAll(decl.permissions());
+            ops.addSecuritySettings(client, broker, s.key(), roles);
+        }
+    }
+
+    private void writeDivert(JolokiaBrokerClient client, String broker, Step s) {
+        if (s.op() == Op.REMOVE) {
+            ops.destroyDivert(client, broker, s.key());
+        } else {
+            ops.createDivert(client, broker, s.after());
+        }
+    }
+
+    private void writeBridge(
+            UUID clusterId, JolokiaBrokerClient client, String broker, BrokerConfigDocument doc, Step s) {
+        if (s.op() == Op.REMOVE) {
+            // The declared name, which removes every instance a concurrency
+            // above one deployed (ADR-0091).
+            ops.destroyBridge(client, broker, s.key());
+        } else {
+            ops.createBridge(client, broker, withCredential(clusterId, doc, s));
+        }
     }
 
     /**
@@ -772,11 +835,13 @@ public class BrokerConfigApplyService {
                 out.add(skipped(node));
                 continue;
             }
-            List<StepApply> steps = new ArrayList<>();
-            for (Step s : node.steps()) {
-                steps.add(stepApply(
-                        s, s.already() ? StepStatus.ALREADY : StepStatus.WOULD_APPLY, Verification.NOT_VERIFIED, null));
-            }
+            List<StepApply> steps = node.steps().stream()
+                    .map(s -> stepApply(
+                            s,
+                            s.already() ? StepStatus.ALREADY : StepStatus.WOULD_APPLY,
+                            Verification.NOT_VERIFIED,
+                            null))
+                    .toList();
             boolean canary = node.nodeId().equals(plan.canaryNodeId());
             out.add(new NodeApply(
                     node.nodeId(),
@@ -799,11 +864,13 @@ public class BrokerConfigApplyService {
     }
 
     private static NodeApply notAttempted(NodePlan node, UUID canary, String note) {
-        List<StepApply> steps = new ArrayList<>();
-        for (Step s : node.steps()) {
-            steps.add(stepApply(
-                    s, s.already() ? StepStatus.ALREADY : StepStatus.NOT_ATTEMPTED, Verification.NOT_VERIFIED, null));
-        }
+        List<StepApply> steps = node.steps().stream()
+                .map(s -> stepApply(
+                        s,
+                        s.already() ? StepStatus.ALREADY : StepStatus.NOT_ATTEMPTED,
+                        Verification.NOT_VERIFIED,
+                        null))
+                .toList();
         return new NodeApply(node.nodeId(), node.nodeName(), true, node.nodeId().equals(canary), null, steps, note);
     }
 

@@ -21,7 +21,7 @@ export interface Stat {
   format: (value: number) => string;
 }
 
-export function StatRow({ stats }: { stats: Stat[] }) {
+export function StatRow({ stats }: Readonly<{ stats: Stat[] }>) {
   return (
     <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
       {stats.map((stat) => (
@@ -31,7 +31,7 @@ export function StatRow({ stats }: { stats: Stat[] }) {
   );
 }
 
-function StatTile({ stat }: { stat: Stat }) {
+function StatTile({ stat }: Readonly<{ stat: Stat }>) {
   const { label, unit, value, since, format } = stat;
   const delta = value !== null && since !== null ? value - since : null;
 
@@ -59,12 +59,18 @@ function StatTile({ stat }: { stat: Stat }) {
   );
 }
 
+/** The arrow and the word for a change: none, up or down. */
+function movement(flat: boolean, delta: number) {
+  if (flat) return { Icon: IconMinus, word: 'unchanged' };
+  return delta > 0 ? { Icon: IconArrowUpRight, word: 'up' } : { Icon: IconArrowDownRight, word: 'down' };
+}
+
 /**
  * Movement across the window. The direction is a word and an arrow, never the
  * colour alone — and it carries no colour at all, because a rising queue depth is
  * not by itself something wrong.
  */
-function Delta({ delta, format }: { delta: number | null; format: (value: number) => string }) {
+function Delta({ delta, format }: Readonly<{ delta: number | null; format: (value: number) => string }>) {
   if (delta === null) {
     return (
       <Text size="xs" c="dimmed" mt={2}>
@@ -73,8 +79,7 @@ function Delta({ delta, format }: { delta: number | null; format: (value: number
     );
   }
   const flat = Math.abs(delta) < Number.EPSILON;
-  const Icon = flat ? IconMinus : delta > 0 ? IconArrowUpRight : IconArrowDownRight;
-  const word = flat ? 'unchanged' : delta > 0 ? 'up' : 'down';
+  const { Icon, word } = movement(flat, delta);
   return (
     <Group gap={4} mt={2} wrap="nowrap">
       <Icon size={14} aria-hidden="true" />

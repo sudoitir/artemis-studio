@@ -15,12 +15,12 @@ export function AddManagementUrl({
   endpoint,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   endpoint: NodeEndpointView | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [url, setUrl] = useState('');
   const [coreUrl, setCoreUrl] = useState('');
   const override = useOverrideNodeUrl(clusterId);
@@ -102,13 +102,13 @@ export function RemoveCluster({
   opened,
   onClose,
   onRemoved,
-}: {
+}: Readonly<{
   clusterId: string;
   clusterName: string;
   opened: boolean;
   onClose: () => void;
   onRemoved: () => void;
-}) {
+}>) {
   const remove = useDeleteCluster();
 
   return (

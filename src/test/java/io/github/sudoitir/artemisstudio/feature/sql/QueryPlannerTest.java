@@ -1,12 +1,14 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.feature.sql.ColumnCatalogue.Column;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
@@ -306,7 +308,9 @@ class QueryPlannerTest {
         BrokerNodeEntity a = node("broker-1", "node-a");
         given(List.of(a), List.of(snapshot(a, "ORDER.IN", 500)));
 
-        planner.enforceCostCeiling(plan("SELECT * FROM \"ORDER.IN\" WHERE body LIKE '%x%'"));
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\" WHERE body LIKE '%x%'");
+
+        assertThatNoException().isThrownBy(() -> planner.enforceCostCeiling(plan));
     }
 
     // ---- clock ----------------------------------------------------------
@@ -344,5 +348,340 @@ class QueryPlannerTest {
         assertThat(plan("SELECT * FROM \"ORDER.IN\" WHERE priority > 4").notices())
                 .extracting(Notice::kind)
                 .doesNotContain(Notice.Kind.CLOCK_OFFSET_UNKNOWN);
+    }
+
+    // ---- fixtures for hand-built queries ---------------------------------
+
+    private static QueryAst astOf(Source source, List<Column> projection, QueryAst.Predicate where, Integer limit) {
+        return new QueryAst(source, "ORDER.IN", projection, where, List.of(), limit, "SELECT ...");
+    }
+
+    private static QueryAst.Predicate compare(QueryAst.Term term, QueryAst.Literal value) {
+        return new QueryAst.Predicate.Compare(term, QueryAst.Operator.EQ, value);
+    }
+
+    private static QueryAst.Term column(Column column) {
+        return new QueryAst.Term.ColumnTerm(column);
+    }
+
+    private QueryPlan planOf(Source source, QueryAst.Predicate where) {
+        return planner.plan(CLUSTER, astOf(source, List.of(), where, null));
+    }
+
+    private BrokerNodeEntity oneQueue(long depth) {
+        BrokerNodeEntity a = node("broker-1", "node-a");
+        given(List.of(a), List.of(snapshot(a, "ORDER.IN", depth)));
+        return a;
+    }
+
+    // ---- narrowing hints --------------------------------------------------
+
+    private SqlProperties ceiling(long costCeiling) {
+        return new SqlProperties(
+                50,
+                50_000L,
+                2_000,
+                costCeiling,
+                Duration.ofSeconds(30),
+                2,
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(1));
+    }
+
+    @Test
+    void aScanAcrossSeveralQueuesTellsTheOperatorToNameOne() {
+        BrokerNodeEntity a = node("broker-1", "node-a");
+        given(List.of(a), List.of(snapshot(a, "ORDER.IN", 1_000_000), snapshot(a, "ORDER.OUT", 1_000_000)));
+
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.*\" WHERE body LIKE '%x%'");
+
+        assertThatThrownBy(() -> planner.enforceCostCeiling(plan))
+                .isInstanceOf(CostRefusedException.class)
+                .hasMessageContaining("Name one queue instead of a wildcard");
+    }
+
+    @Test
+    void aPushdownOnlyQueryOverTheCeilingTellsTheOperatorToNarrowTheFrom() {
+        planner = newPlanner(ceiling(10));
+        oneQueue(1_000_000);
+
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\" WHERE priority > 4");
+
+        assertThat(plan.requiresScan()).isFalse();
+        assertThatThrownBy(() -> planner.enforceCostCeiling(plan))
+                .isInstanceOf(CostRefusedException.class)
+                .hasMessageContaining("Narrow the FROM pattern, or add a LIMIT.");
+    }
+
+    @Test
+    void theCostCeilingDoesNotApplyToTheIndex() {
+        planner = newPlanner(ceiling(10));
+        oneQueue(1_000_000);
+
+        QueryPlan plan = plan("SELECT * FROM index.\"ORDER.IN\" WHERE body LIKE '%x%'");
+
+        assertThat(plan.estimatedMessagesExamined()).isGreaterThan(10);
+        planner.enforceCostCeiling(plan);
+    }
+
+    // ---- index plans -------------------------------------------------------
+
+    @Test
+    void anIndexPlanCarriesCoverageNoticesAndWhetherEveryTargetIsCaptured() {
+        BrokerNodeEntity a = oneQueue(10);
+        Notice gap = new Notice(Notice.Kind.INDEX_COVERAGE_GAP, "gap");
+        when(coverage.check(any(), any(), any())).thenReturn(List.of(gap));
+        when(coverage.isCaptured(any(), any())).thenReturn(true);
+
+        QueryPlan index = plan("SELECT * FROM index.\"ORDER.IN\"");
+
+        assertThat(index.notices()).contains(gap);
+        assertThat(index.captured()).isTrue();
+        assertThat(index.targets()).extracting(Target::nodeName).containsExactly("broker-1");
+
+        QueryPlan broker = plan("SELECT * FROM broker.\"ORDER.IN\"");
+        assertThat(broker.notices()).doesNotContain(gap);
+        assertThat(broker.captured()).as("only an index plan can claim capture").isFalse();
+        assertThat(a.getId()).isNotNull();
+    }
+
+    // ---- indexed observations against a live broker -------------------------
+
+    @Test
+    void everyPredicateShapeNamingAnIndexOnlyColumnIsRefusedAgainstABroker() {
+        oneQueue(10);
+        QueryAst.Term observed = column(Column.OBSERVED_AT);
+        QueryAst.Literal text = new QueryAst.Literal.Str("x");
+
+        List<QueryAst.Predicate> shapes = List.of(
+                compare(observed, text),
+                new QueryAst.Predicate.In(observed, List.of(text), false),
+                new QueryAst.Predicate.IsNull(observed, false),
+                new QueryAst.Predicate.Like(observed, "x%", null, false, false),
+                new QueryAst.Predicate.Between(observed, text, text, false),
+                new QueryAst.Predicate.Not(compare(observed, text)),
+                new QueryAst.Predicate.And(List.of(compare(column(Column.QUEUE), text), compare(observed, text))),
+                new QueryAst.Predicate.Or(List.of(compare(observed, text))),
+                compare(new QueryAst.Term.CaseFold(observed, true), text));
+
+        for (QueryAst.Predicate shape : shapes) {
+            assertThatThrownBy(() -> planOf(Source.BROKER, shape))
+                    .as(shape.toString())
+                    .isInstanceOf(SqlSyntaxException.class)
+                    .hasMessageContaining("'" + Column.OBSERVED_AT.sqlName() + "' describes an indexed observation");
+        }
+    }
+
+    @Test
+    void fullTextSearchAndMatchRankAreIndexOnlyAgainstABroker() {
+        oneQueue(10);
+
+        var match = new QueryAst.Predicate.Match("acme");
+        var rank = compare(new QueryAst.Term.MatchRank(), new QueryAst.Literal.Num(1, true));
+
+        assertThatThrownBy(() -> planOf(Source.BROKER, match))
+                .isInstanceOf(SqlSyntaxException.class)
+                .hasMessageContaining("MATCH(body, ...)");
+        assertThatThrownBy(() -> planOf(Source.BROKER, rank))
+                .isInstanceOf(SqlSyntaxException.class)
+                .hasMessageContaining("match_rank");
+    }
+
+    @Test
+    void anIndexOnlyProjectionColumnIsRefusedAgainstABroker() {
+        oneQueue(10);
+
+        var ast = astOf(Source.BROKER, List.of(Column.LAST_SEEN_AT), null, null);
+
+        assertThatThrownBy(() -> planner.plan(CLUSTER, ast))
+                .isInstanceOf(SqlSyntaxException.class)
+                .hasMessageContaining(Column.LAST_SEEN_AT.sqlName());
+    }
+
+    @Test
+    void columnsAndPropertiesTheBrokerCanReadPassTheIndexOnlyCheck() {
+        oneQueue(10);
+        QueryAst.Literal text = new QueryAst.Literal.Str("x");
+
+        QueryPlan plan = planner.plan(
+                CLUSTER,
+                astOf(
+                        Source.BROKER,
+                        List.of(Column.QUEUE),
+                        new QueryAst.Predicate.And(List.of(
+                                compare(new QueryAst.Term.PropertyTerm("region"), text),
+                                compare(new QueryAst.Term.JsonTerm("a.b"), text),
+                                compare(column(Column.PRIORITY), new QueryAst.Literal.Num(4, true)))),
+                        null));
+
+        assertThat(plan.resolvedSource()).isEqualTo(Source.BROKER);
+    }
+
+    // ---- relative windows ----------------------------------------------------
+
+    @Test
+    void aRelativeWindowInAnyPredicateShapeIsNotedAgainstAnUnmeasuredClock() {
+        BrokerNodeEntity a = oneQueue(10);
+        when(clocks.offsetFor(a.getId())).thenReturn(Optional.empty());
+        QueryAst.Literal now = new QueryAst.Literal.RelativeTime(Duration.ofHours(1));
+        QueryAst.Literal text = new QueryAst.Literal.Str("x");
+        QueryAst.Term timestamp = column(Column.TIMESTAMP);
+
+        List<QueryAst.Predicate> windows = List.of(
+                compare(timestamp, now),
+                new QueryAst.Predicate.In(timestamp, List.of(text, now), false),
+                new QueryAst.Predicate.Between(timestamp, now, text, false),
+                new QueryAst.Predicate.Between(timestamp, text, now, false),
+                new QueryAst.Predicate.Not(compare(timestamp, now)),
+                new QueryAst.Predicate.And(List.of(
+                        compare(column(Column.PRIORITY), new QueryAst.Literal.Num(4, true)), compare(timestamp, now))),
+                new QueryAst.Predicate.Or(List.of(compare(timestamp, now))));
+        for (QueryAst.Predicate window : windows) {
+            assertThat(planOf(Source.BROKER, window).notices())
+                    .as(window.toString())
+                    .extracting(Notice::kind)
+                    .contains(Notice.Kind.CLOCK_OFFSET_UNKNOWN);
+        }
+
+        List<QueryAst.Predicate> none = List.of(
+                new QueryAst.Predicate.IsNull(timestamp, false),
+                new QueryAst.Predicate.Like(column(Column.QUEUE), "a%", null, false, false),
+                compare(timestamp, new QueryAst.Literal.Num(1, true)),
+                new QueryAst.Predicate.In(timestamp, List.of(text), false),
+                new QueryAst.Predicate.Between(timestamp, text, text, false));
+        for (QueryAst.Predicate predicate : none) {
+            assertThat(planOf(Source.BROKER, predicate).notices())
+                    .as(predicate.toString())
+                    .extracting(Notice::kind)
+                    .doesNotContain(Notice.Kind.CLOCK_OFFSET_UNKNOWN);
+        }
+    }
+
+    @Test
+    void theUnmeasuredNodesAreNamedOnceEach() {
+        BrokerNodeEntity a = node("broker-1", "node-a");
+        BrokerNodeEntity b = node("broker-2", "node-b");
+        given(List.of(a, b), List.of(snapshot(a, "ORDER.IN", 1), snapshot(b, "ORDER.IN", 1)));
+        when(clocks.offsetFor(any())).thenReturn(Optional.empty());
+
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\" WHERE timestamp > now() - interval '1 hour'");
+
+        assertThat(plan.notices())
+                .filteredOn(n -> n.kind() == Notice.Kind.CLOCK_OFFSET_UNKNOWN)
+                .singleElement()
+                .satisfies(n -> assertThat(n.detail()).contains("broker-1, broker-2"));
+        assertThat(plan.targets())
+                .allSatisfy(t -> assertThat(t.clockOffsetKnown()).isFalse());
+        assertThat(plan.targets().getFirst().brokerNow()).isEqualTo(NOW);
+    }
+
+    // ---- targets, limits and selectors ----------------------------------------
+
+    @Test
+    void aCappedTargetListSaysHowManyMatchedAndHowManyWereRead() {
+        BrokerNodeEntity a = node("broker-1", "node-a");
+        List<QueueSnapshot> many = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            many.add(snapshot(a, "Q." + i, 1));
+        }
+        given(List.of(a), many);
+        planner = newPlanner(new SqlProperties(
+                2, 50_000L, 2_000, 250_000L, Duration.ofSeconds(30), 2, Duration.ofSeconds(5), Duration.ofSeconds(1)));
+
+        QueryPlan plan = plan("SELECT * FROM \"Q.#\"");
+
+        assertThat(plan.targets()).extracting(Target::queueName).containsExactly("Q.0", "Q.1");
+        assertThat(plan.notices()).singleElement().satisfies(n -> {
+            assertThat(n.kind()).isEqualTo(Notice.Kind.TARGET_CAPPED);
+            assertThat(n.detail()).contains("5 targets").contains("first 2");
+        });
+    }
+
+    @Test
+    void aSnapshotOnANodeTheDirectoryDoesNotKnowIsNotATarget() {
+        BrokerNodeEntity known = node("broker-1", "node-a");
+        BrokerNodeEntity unknown = node("ghost", "node-z");
+        given(List.of(known), List.of(snapshot(known, "ORDER.IN", 1), snapshot(unknown, "ORDER.IN", 1)));
+
+        assertThat(plan("SELECT * FROM \"ORDER.IN\"").targets())
+                .extracting(Target::nodeName)
+                .containsExactly("broker-1");
+    }
+
+    @Test
+    void nodesWithoutAnArtemisNodeIdAreNeverMergedAsAPair() {
+        BrokerNodeEntity a = node("broker-1", null);
+        BrokerNodeEntity b = node("broker-2", null);
+        given(List.of(a, b), List.of(snapshot(a, "ORDER.IN", 1), snapshot(b, "ORDER.IN", 1)));
+
+        assertThat(plan("SELECT * FROM \"ORDER.IN\"").targets()).hasSize(2);
+    }
+
+    @Test
+    void theEffectiveLimitIsTheQueriesLimitCappedAtMaxRows() {
+        oneQueue(10);
+
+        assertThat(planner.plan(CLUSTER, astOf(Source.BROKER, List.of(), null, 10))
+                        .effectiveLimit())
+                .isEqualTo(10);
+        assertThat(planner.plan(CLUSTER, astOf(Source.BROKER, List.of(), null, 9_999))
+                        .effectiveLimit())
+                .isEqualTo(2_000);
+        assertThat(planner.plan(CLUSTER, astOf(Source.BROKER, List.of(), null, null))
+                        .effectiveLimit())
+                .isEqualTo(2_000);
+    }
+
+    @Test
+    void aPlanWithNoTargetsStillRendersItsSelectorAgainstStudiosClock() {
+        given(List.of(), List.of());
+        when(locator.locate(any(), any())).thenReturn(List.of());
+
+        QueryPlan plan = plan("SELECT * FROM \"NOPE\" WHERE priority > 4");
+
+        assertThat(plan.targets()).isEmpty();
+        assertThat(plan.selector()).isEqualTo("JMSPriority > 4");
+        assertThat(plan.estimatedMessagesExamined()).isZero();
+        assertThat(plan.pushedDown()).containsExactly("priority > 4");
+        assertThat(plan.scanned()).isEmpty();
+    }
+
+    @Test
+    void aWhereClauseThatIsAConjunctionIsDescribedPartByPart() {
+        oneQueue(10);
+
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\" WHERE priority > 4 AND durable = true AND body LIKE '%x%'");
+
+        assertThat(plan.pushedDown()).containsExactly("priority > 4", "durable = true");
+        assertThat(plan.scanned()).containsExactly("body LIKE '%x%'");
+    }
+
+    @Test
+    void theExecutorHelpersExposeTheSameSplitAndPerNodeSelectors() {
+        QueryAst ast = parser.parse("SELECT * FROM \"ORDER.IN\" WHERE priority > 4 AND body LIKE '%x%'");
+
+        PredicateSplitter.Split split = planner.splitOf(ast);
+
+        assertThat(split.hasPushdown()).isTrue();
+        assertThat(split.requiresScan()).isTrue();
+        assertThat(planner.selectorFor(split.pushdown(), NOW)).isEqualTo("JMSPriority > 4");
+        assertThat(planner.selectorFor(null, NOW)).isNull();
+        assertThat(QueryPlanner.lower("AbC")).isEqualTo("abc");
+        assertThat(QueryPlanner.lower(null)).isNull();
+    }
+
+    @Test
+    void theInjectablePlannerUsesTheSystemClock() {
+        QueryPlanner injected =
+                new QueryPlanner(snapshots, locator, nodes, splitter, renderer, clocks, defaults(), coverage);
+        BrokerNodeEntity a = oneQueue(10);
+        Instant before = Instant.now();
+
+        QueryPlan plan = injected.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\""));
+
+        assertThat(plan.targets()).singleElement().satisfies(t -> {
+            assertThat(t.nodeId()).isEqualTo(a.getId());
+            assertThat(t.brokerNow()).isAfterOrEqualTo(before.minusSeconds(1));
+        });
     }
 }

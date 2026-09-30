@@ -13,6 +13,8 @@ import java.time.Instant;
  */
 public final class AlertStateMachine {
 
+    private static final String FIRING = "FIRING";
+
     private AlertStateMachine() {}
 
     public enum TransitionKind {
@@ -28,7 +30,7 @@ public final class AlertStateMachine {
         return switch (state.getState()) {
             case "OK" -> fromOk(state, active, value, forSeconds, now);
             case "PENDING" -> fromPending(state, active, value, forSeconds, now);
-            case "FIRING" -> fromFiring(state, active, value, now);
+            case FIRING -> fromFiring(state, active, value);
             default -> throw new IllegalStateException("unknown alert_state: " + state.getState());
         };
     }
@@ -42,7 +44,7 @@ public final class AlertStateMachine {
         state.setSince(now);
         state.setLastValue(value);
         if (forSeconds <= 0) {
-            state.setState("FIRING");
+            state.setState(FIRING);
             return new Transition(state.getSubjectKey(), TransitionKind.FIRED, value);
         }
         return null;
@@ -59,13 +61,13 @@ public final class AlertStateMachine {
         Instant since = state.getSince() != null ? state.getSince() : now;
         state.setSince(since);
         if (Duration.between(since, now).getSeconds() >= forSeconds) {
-            state.setState("FIRING");
+            state.setState(FIRING);
             return new Transition(state.getSubjectKey(), TransitionKind.FIRED, value);
         }
         return null;
     }
 
-    private static Transition fromFiring(AlertStateEntity state, boolean active, Double value, Instant now) {
+    private static Transition fromFiring(AlertStateEntity state, boolean active, Double value) {
         if (active) {
             state.setLastValue(value);
             return null;

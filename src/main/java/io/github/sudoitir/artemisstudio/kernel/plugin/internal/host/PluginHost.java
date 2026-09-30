@@ -91,6 +91,10 @@ public class PluginHost implements SmartLifecycle {
     private static final Duration CRASH_LOOP_WINDOW = Duration.ofMinutes(15);
 
     private static final String SYSTEM_ACTOR = "system";
+    private static final String FAILED = "failed";
+    private static final String SUCCEEDED = "succeeded";
+    private static final String BOOT_START = "boot-start";
+    private static final String LISTENER_THREW = "Plugin lifecycle listener {} threw for plugin '{}'";
 
     private final PluginStore store;
     private final PluginValidator validator;
@@ -251,8 +255,7 @@ public class PluginHost implements SmartLifecycle {
             }
             if (tryAdvisoryLock(e.getId())) {
                 store.update(e.getId(), row -> row.fail("Studio stopped while activating"));
-                notifyListeners(
-                        e.getId(), e.getVersion(), e.getVersion(), e.getSha256(), SYSTEM_ACTOR, "boot", "failed");
+                notifyListeners(e.getId(), e.getVersion(), e.getVersion(), e.getSha256(), SYSTEM_ACTOR, "boot", FAILED);
             }
         }
     }
@@ -289,36 +292,38 @@ public class PluginHost implements SmartLifecycle {
      * it starts below instead of staying down for good.
      */
     private void checkCompatibility() {
-        for (PluginInstallEntity e : installs.findAll()) {
-            PluginInstallStatus status = e.status();
-            if (!STARTS_AT_BOOT.contains(status) && status != PluginInstallStatus.INCOMPATIBLE) {
-                continue;
-            }
-            PluginDescriptor descriptor;
-            try {
-                descriptor = parseStoredDescriptor(e);
-            } catch (RuntimeException corrupt) {
-                store.update(e.getId(), row -> row.fail("Stored descriptor unreadable: " + corrupt.getMessage()));
-                continue;
-            }
-            StudioVersion.Compatibility compat = studioVersion.check(
-                    descriptor.studio().since(), descriptor.studio().until());
-            boolean outside =
-                    compat == StudioVersion.Compatibility.TOO_OLD || compat == StudioVersion.Compatibility.TOO_NEW;
-            if (outside && status != PluginInstallStatus.INCOMPATIBLE) {
-                String reason = "Studio %s is outside the range this plugin supports (%s..%s)."
-                        .formatted(
-                                studioVersion.current().map(Object::toString).orElse("?"),
-                                descriptor.studio().since(),
-                                descriptor.studio().until() == null
-                                        ? ""
-                                        : descriptor.studio().until());
-                store.update(e.getId(), row -> row.incompatible(reason));
-                notifyListeners(
-                        e.getId(), e.getVersion(), e.getVersion(), e.getSha256(), SYSTEM_ACTOR, "boot", "incompatible");
-            } else if (!outside && status == PluginInstallStatus.INCOMPATIBLE) {
-                store.update(e.getId(), row -> row.transitionTo(PluginInstallStatus.ACTIVE));
-            }
+        installs.findAll().forEach(this::checkCompatibility);
+    }
+
+    private void checkCompatibility(PluginInstallEntity e) {
+        PluginInstallStatus status = e.status();
+        if (!STARTS_AT_BOOT.contains(status) && status != PluginInstallStatus.INCOMPATIBLE) {
+            return;
+        }
+        PluginDescriptor descriptor;
+        try {
+            descriptor = parseStoredDescriptor(e);
+        } catch (RuntimeException corrupt) {
+            store.update(e.getId(), row -> row.fail("Stored descriptor unreadable: " + corrupt.getMessage()));
+            return;
+        }
+        StudioVersion.Compatibility compat = studioVersion.check(
+                descriptor.studio().since(), descriptor.studio().until());
+        boolean outside =
+                compat == StudioVersion.Compatibility.TOO_OLD || compat == StudioVersion.Compatibility.TOO_NEW;
+        if (outside && status != PluginInstallStatus.INCOMPATIBLE) {
+            String reason = "Studio %s is outside the range this plugin supports (%s..%s)."
+                    .formatted(
+                            studioVersion.current().map(Object::toString).orElse("?"),
+                            descriptor.studio().since(),
+                            descriptor.studio().until() == null
+                                    ? ""
+                                    : descriptor.studio().until());
+            store.update(e.getId(), row -> row.incompatible(reason));
+            notifyListeners(
+                    e.getId(), e.getVersion(), e.getVersion(), e.getSha256(), SYSTEM_ACTOR, "boot", "incompatible");
+        } else if (!outside && status == PluginInstallStatus.INCOMPATIBLE) {
+            store.update(e.getId(), row -> row.transitionTo(PluginInstallStatus.ACTIVE));
         }
     }
 
@@ -395,7 +400,7 @@ public class PluginHost implements SmartLifecycle {
             jarPath = store.materialize(installs.findById(id).orElseThrow().getSha256());
         } catch (Exception e) {
             store.update(id, row -> row.fail("Artifact unreadable: " + e.getMessage()));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "failed");
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, FAILED);
             return;
         }
         CompletableFuture<PluginRuntime> future = CompletableFuture.supplyAsync(
@@ -415,12 +420,11 @@ public class PluginHost implements SmartLifecycle {
             }
             registry.set(id, new Active(runtime));
             store.update(id, row -> row.transitionTo(PluginInstallStatus.ACTIVE));
-            notifyListeners(
-                    id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "succeeded");
-        } catch (TimeoutException timedOut) {
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, SUCCEEDED);
+        } catch (TimeoutException _) {
             String reason = "Plugin '%s' did not start within %ds".formatted(id, timeout.toSeconds());
             store.update(id, row -> row.needsRestart(reason));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "failed");
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, FAILED);
             // ponytail: interrupting a virtual thread mid-Spring-refresh does not actually stop it;
             // if it finishes late anyway, close the orphaned runtime instead of leaking it.
             future.whenComplete((runtime, error) -> {
@@ -432,8 +436,8 @@ public class PluginHost implements SmartLifecycle {
         } catch (ExecutionException | CompletionException failed) {
             Throwable cause = failed.getCause() != null ? failed.getCause() : failed;
             store.update(id, row -> row.fail(describeFailure(cause)));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "failed");
-        } catch (InterruptedException interrupted) {
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, FAILED);
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
     }
@@ -494,7 +498,7 @@ public class PluginHost implements SmartLifecycle {
             try {
                 l.onStep(id, from, to, sha256, actor, step, outcome);
             } catch (RuntimeException e) {
-                log.warn("Plugin lifecycle listener {} threw for plugin '{}'", l, id, e);
+                log.warn(LISTENER_THREW, l, id, e);
             }
         });
     }
@@ -572,7 +576,7 @@ public class PluginHost implements SmartLifecycle {
     private PluginDescriptor tryParseStoredDescriptor(PluginInstallEntity e) {
         try {
             return parseStoredDescriptor(e);
-        } catch (RuntimeException corrupt) {
+        } catch (RuntimeException _) {
             return null;
         }
     }
@@ -779,10 +783,10 @@ public class PluginHost implements SmartLifecycle {
             log.error("Plugin '{}' activation crashed", id, e);
             try {
                 store.fail(id, describeFailure(e));
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // the row may already be gone (a concurrent purge); the failure is still logged above
             }
-            logStep(ctx, actor, "failed", "failed");
+            logStep(ctx, actor, FAILED, FAILED);
         }
     }
 
@@ -797,7 +801,7 @@ public class PluginHost implements SmartLifecycle {
             // The old runtime was never touched: it keeps serving, and the row keeps recording
             // the version it is actually running (design.md §5's Instant failure case).
             store.fail(id, describeFailure(buildFailure));
-            logStep(ctx, actor, "failed", "failed");
+            logStep(ctx, actor, FAILED, FAILED);
             return;
         }
         step(ctx, actor, "registering");
@@ -854,7 +858,7 @@ public class PluginHost implements SmartLifecycle {
             });
         }
         store.consumeUpload(sha256);
-        logStep(ctx, actor, "active", "succeeded");
+        logStep(ctx, actor, "active", SUCCEEDED);
     }
 
     /**
@@ -875,7 +879,7 @@ public class PluginHost implements SmartLifecycle {
         boolean reversible;
         try {
             reversible = migrations.isReversible(ctx.jarPath(), id);
-        } catch (Exception e) {
+        } catch (Exception _) {
             reversible = false;
         }
         if (reversible) {
@@ -889,7 +893,7 @@ public class PluginHost implements SmartLifecycle {
                         "Activation failed (%s); the schema could not be rolled back either: %s"
                                 .formatted(describeFailure(cause), describeFailure(rollbackFailure)));
                 registry.remove(id);
-                logStep(ctx, actor, "failed", "failed");
+                logStep(ctx, actor, FAILED, FAILED);
                 return;
             }
         }
@@ -898,7 +902,7 @@ public class PluginHost implements SmartLifecycle {
                 "Activation failed after the schema was migrated to %s: %s"
                         .formatted(ctx.descriptor().version(), describeFailure(cause)));
         registry.remove(id);
-        logStep(ctx, actor, "failed", "failed");
+        logStep(ctx, actor, FAILED, FAILED);
     }
 
     private void resumeOld(PlanContext ctx, String actor, boolean hadOld, Throwable cause) {
@@ -906,7 +910,7 @@ public class PluginHost implements SmartLifecycle {
         store.fail(id, describeFailure(cause));
         if (!hadOld || ctx.previousDescriptor() == null || ctx.previousSha() == null) {
             registry.remove(id);
-            logStep(ctx, actor, "failed", "failed");
+            logStep(ctx, actor, FAILED, FAILED);
             return;
         }
         try {
@@ -921,7 +925,7 @@ public class PluginHost implements SmartLifecycle {
                     resumeFailure);
             registry.remove(id);
         }
-        logStep(ctx, actor, "failed", "failed");
+        logStep(ctx, actor, FAILED, FAILED);
     }
 
     // ---- disable / enable / uninstall ------------------------------------------------------------
@@ -966,7 +970,7 @@ public class PluginHost implements SmartLifecycle {
         boolean acquired;
         try {
             acquired = busy.tryAcquire(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             acquired = false;
         }
@@ -1023,9 +1027,9 @@ public class PluginHost implements SmartLifecycle {
                         entity.getSha256(),
                         actor,
                         finalStatus.dbValue(),
-                        "succeeded");
+                        SUCCEEDED);
             } catch (RuntimeException e) {
-                log.warn("Plugin lifecycle listener {} threw for plugin '{}'", l, id, e);
+                log.warn(LISTENER_THREW, l, id, e);
             }
         });
     }
@@ -1133,9 +1137,9 @@ public class PluginHost implements SmartLifecycle {
                 actor);
         listeners.forEach(l -> {
             try {
-                l.onStep(id, version, version, sha256, actor, "purged", "succeeded");
+                l.onStep(id, version, version, sha256, actor, "purged", SUCCEEDED);
             } catch (RuntimeException e) {
-                log.warn("Plugin lifecycle listener {} threw for plugin '{}'", l, id, e);
+                log.warn(LISTENER_THREW, l, id, e);
             }
         });
     }
@@ -1188,8 +1192,58 @@ public class PluginHost implements SmartLifecycle {
                 existingOpt.map(this::parseStoredDescriptor).orElse(null);
         String previousSha = existingOpt.map(PluginInstallEntity::getSha256).orElse(null);
 
-        // Checked against an uninstalled row too: its schema and data are kept until a purge, so a
-        // different vendor's jar, or an older version, would be handed data it did not write.
+        checkExistingInstall(pluginId, descriptor, allowDowngrade);
+
+        String schema = schemaName(pluginId);
+        // Schema creation belongs to the advisory-locked activation sequence in
+        // PluginMigrations.migrate() (design.md §4), never to a read-only plan(): a schema that
+        // doesn't exist yet just means Liquibase's own DATABASECHANGELOG lookup comes back empty,
+        // which pendingChangesets/updateSql already treat as "every changeset is pending" — exactly
+        // what a pre-install review should show, with no side effect on an admin who never installs.
+        List<ChangesetInfo> pending;
+        String updateSql;
+        try {
+            pending = migrations.pendingChangesets(dataSource, schema, pluginId, jarPath);
+            updateSql = pending.isEmpty() ? "" : migrations.updateSql(dataSource, schema, pluginId, jarPath);
+        } catch (Exception e) {
+            throw new PluginRefusedException(List.of(new Violation(
+                    "changelog-invalid",
+                    "The plugin's changelog could not be evaluated: " + e.getMessage(),
+                    "Fix the Liquibase changelog and re-upload.")));
+        }
+
+        boolean stuckNow = activeRuntime(pluginId).map(PluginRuntime::stuck).orElse(false);
+        ActivationClass activationClass = activationClassOf(descriptor, stuckNow, pending);
+
+        ContributionDiff diff = diff(previousDescriptor, descriptor);
+        Map<String, Integer> rolesLosing = rolesLosingPermission(diff.permissionsRemoved());
+        List<String> missing = missingRequires(descriptor);
+        StudioVersion.Compatibility compat = studioVersion.check(
+                descriptor.studio().since(), descriptor.studio().until());
+        boolean compatible =
+                compat != StudioVersion.Compatibility.TOO_OLD && compat != StudioVersion.Compatibility.TOO_NEW;
+
+        ActivationPlan plan = new ActivationPlan(
+                pluginId,
+                previousDescriptor == null ? null : previousDescriptor.version(),
+                descriptor.version(),
+                activationClass,
+                pending,
+                updateSql,
+                diff,
+                rolesLosing,
+                compatible,
+                missing,
+                descriptor,
+                restartOf(activationClass));
+        return new PlanContext(sha256, jarPath, descriptor, previousDescriptor, previousSha, plan);
+    }
+
+    /**
+     * Checked against an uninstalled row too: its schema and data are kept until a purge, so a
+     * different vendor's jar, or an older version, would be handed data it did not write.
+     */
+    private void checkExistingInstall(String pluginId, PluginDescriptor descriptor, boolean allowDowngrade) {
         installs.findById(pluginId).ifPresent(existing -> {
             boolean uninstalled = existing.status() == PluginInstallStatus.UNINSTALLED;
             if (!existing.getVendor().equals(descriptor.vendor().name())) {
@@ -1213,54 +1267,21 @@ public class PluginHost implements SmartLifecycle {
                                 : "Use Roll back instead of uploading an older version.")));
             }
         });
+    }
 
-        String schema = schemaName(pluginId);
-        // Schema creation belongs to the advisory-locked activation sequence in
-        // PluginMigrations.migrate() (design.md §4), never to a read-only plan(): a schema that
-        // doesn't exist yet just means Liquibase's own DATABASECHANGELOG lookup comes back empty,
-        // which pendingChangesets/updateSql already treat as "every changeset is pending" — exactly
-        // what a pre-install review should show, with no side effect on an admin who never installs.
-        List<ChangesetInfo> pending;
-        String updateSql;
-        try {
-            pending = migrations.pendingChangesets(dataSource, schema, pluginId, jarPath);
-            updateSql = pending.isEmpty() ? "" : migrations.updateSql(dataSource, schema, pluginId, jarPath);
-        } catch (Exception e) {
-            throw new PluginRefusedException(List.of(new Violation(
-                    "changelog-invalid",
-                    "The plugin's changelog could not be evaluated: " + e.getMessage(),
-                    "Fix the Liquibase changelog and re-upload.")));
+    private static ActivationClass activationClassOf(
+            PluginDescriptor descriptor, boolean stuck, List<ChangesetInfo> pending) {
+        if (descriptor.activation() == PluginDescriptor.Activation.RESTART || stuck) {
+            return ActivationClass.RESTART;
         }
+        return pending.isEmpty() ? ActivationClass.INSTANT : ActivationClass.BRIEF_MAINTENANCE;
+    }
 
-        boolean stuckNow = activeRuntime(pluginId).map(PluginRuntime::stuck).orElse(false);
-        ActivationClass activationClass = descriptor.activation() == PluginDescriptor.Activation.RESTART || stuckNow
-                ? ActivationClass.RESTART
-                : !pending.isEmpty() ? ActivationClass.BRIEF_MAINTENANCE : ActivationClass.INSTANT;
-
-        ContributionDiff diff = diff(previousDescriptor, descriptor);
-        Map<String, Integer> rolesLosing = rolesLosingPermission(diff.permissionsRemoved());
-        List<String> missing = missingRequires(descriptor);
-        StudioVersion.Compatibility compat = studioVersion.check(
-                descriptor.studio().since(), descriptor.studio().until());
-        boolean compatible =
-                compat != StudioVersion.Compatibility.TOO_OLD && compat != StudioVersion.Compatibility.TOO_NEW;
-
-        ActivationPlan plan = new ActivationPlan(
-                pluginId,
-                previousDescriptor == null ? null : previousDescriptor.version(),
-                descriptor.version(),
-                activationClass,
-                pending,
-                updateSql,
-                diff,
-                rolesLosing,
-                compatible,
-                missing,
-                descriptor,
-                activationClass != ActivationClass.RESTART
-                        ? ActivationPlan.Restart.NONE
-                        : restart.supervised() ? ActivationPlan.Restart.AUTOMATIC : ActivationPlan.Restart.MANUAL);
-        return new PlanContext(sha256, jarPath, descriptor, previousDescriptor, previousSha, plan);
+    private ActivationPlan.Restart restartOf(ActivationClass activationClass) {
+        if (activationClass != ActivationClass.RESTART) {
+            return ActivationPlan.Restart.NONE;
+        }
+        return restart.supervised() ? ActivationPlan.Restart.AUTOMATIC : ActivationPlan.Restart.MANUAL;
     }
 
     /** A cheap, separate parse of just the id — no violations recorded, no validation performed —
@@ -1274,7 +1295,7 @@ public class PluginHost implements SmartLifecycle {
             }
             byte[] bytes = jar.getInputStream(entry).readNBytes(PluginDescriptorParser.MAX_BYTES + 1);
             return Optional.ofNullable(descriptorParser.parse(bytes).id());
-        } catch (Exception e) {
+        } catch (Exception _) {
             return Optional.empty();
         }
     }
@@ -1437,7 +1458,7 @@ public class PluginHost implements SmartLifecycle {
             try {
                 l.onStep(id, from, to, sha256, actor, step, outcome);
             } catch (RuntimeException e) {
-                log.warn("Plugin lifecycle listener {} threw for plugin '{}'", l, id, e);
+                log.warn(LISTENER_THREW, l, id, e);
             }
         });
     }

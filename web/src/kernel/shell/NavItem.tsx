@@ -22,7 +22,7 @@ export function NavItem({
   trailing,
   collapsed,
   disabledReason,
-}: {
+}: Readonly<{
   to: string;
   label: string;
   /** An icon, a health mark, or a monogram — whatever leads the row. */
@@ -31,7 +31,7 @@ export function NavItem({
   collapsed: boolean;
   /** Why the row cannot be opened; the row is disabled while this is set. */
   disabledReason?: string;
-}) {
+}>) {
   const reasonId = useId();
 
   if (disabledReason) {

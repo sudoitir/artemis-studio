@@ -102,8 +102,8 @@ function useLifecycleMutation<V extends LifecycleVars>(
     mutationFn: send,
     onSuccess: (result) => {
       if (result.dryRun) return;
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
+      void qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
       // The queue's own configuration is what the edit form shows; leaving it
       // cached is how an applied change reads as though it never happened. The
       // topic key above already covers it — `clusters/<id>/queues` is its prefix.
@@ -138,7 +138,8 @@ export function useDeleteQueue(clusterId: string, queueName: string) {
     clusterId,
     ({ dryRun, override, disconnectConsumers }) => {
       const query = lifecycleQuery(dryRun, override);
-      const flag = disconnectConsumers ? `${query ? '&' : '?'}disconnectConsumers=true` : '';
+      const separator = query ? '&' : '?';
+      const flag = disconnectConsumers ? `${separator}disconnectConsumers=true` : '';
       return request(`${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${query}${flag}`, {
         method: 'DELETE',
       });

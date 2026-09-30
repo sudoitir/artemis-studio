@@ -203,8 +203,7 @@ class TransferRunner {
         RelayLink.Route route = new RelayLink.Route(
                 stagingQueue, true, null, s.run.getTargetAddress(), s.run.getTargetQueue(), provenance(s, true));
         InDoubt inDoubt = new InDoubt(s.id());
-        boolean exhausted = false;
-        int empties = 0;
+        Staged progress = new Staged();
         Link link = new Link();
         try {
             while (true) {
@@ -219,42 +218,61 @@ class TransferRunner {
                 // held(): it never exceeds twice the batch. The broker's count can read higher for an
                 // instant, because it double-counts messages moving to the relay's consumer (issue #75).
                 long depth = Math.max(messages.messageCount(source, s.stagingMbean(source)), held(s.run));
-                if (!exhausted && depth < 2L * batch) {
-                    exhausted = refill(s, source, (int) (2L * batch - depth), stagingQueue);
+                if (!progress.exhausted && depth < 2L * batch) {
+                    progress.exhausted = refill(s, source, (int) (2L * batch - depth), stagingQueue);
                 }
                 long started = System.nanoTime();
                 RelayLink.Batch b = link.to(s, route).relay(batch, inDoubt);
-                switch (b.outcome()) {
-                    case ADDRESS_FULL -> {
-                        inDoubt.refused();
-                        End w = waitForCapacity(s, "The target refused a batch because its address is full.");
-                        if (w != null) {
-                            return w;
-                        }
-                    }
-                    case EMPTY -> {
-                        long left = messages.messageCount(source, s.stagingMbean(source));
-                        if (exhausted && left == 0) {
-                            return finishStaged(s, source, stagingQueue);
-                        }
-                        if (++empties >= EMPTY_TRIES) {
-                            return End.stopped(("%d messages are held in staging queue %s but none could be received"
-                                            + " (they may be scheduled for later delivery). Resume later, or"
-                                            + " return them to the source.")
-                                    .formatted(left, stagingQueue));
-                        }
-                    }
-                    case RELAYED -> {
-                        empties = 0;
-                        ledger.remove(s.id(), b.sourceIds());
-                        delivered(s, b);
-                        pace(started, b.delivered() + b.duplicates());
-                    }
+                End end = afterStagedBatch(s, b, inDoubt, progress, source, stagingQueue, started);
+                if (end != null) {
+                    return end;
                 }
             }
         } finally {
             link.close();
         }
+    }
+
+    /** What a staged move has seen so far: whether the source is drained, and how many empty batches ran. */
+    private static final class Staged {
+        boolean exhausted;
+        int empties;
+    }
+
+    /** What one relayed batch means for a staged move: an end for the segment, or null to go on. */
+    private End afterStagedBatch(
+            Segment s,
+            RelayLink.Batch b,
+            InDoubt inDoubt,
+            Staged progress,
+            JolokiaBrokerClient source,
+            String stagingQueue,
+            long started) {
+        switch (b.outcome()) {
+            case ADDRESS_FULL -> {
+                inDoubt.refused();
+                return waitForCapacity(s, "The target refused a batch because its address is full.");
+            }
+            case EMPTY -> {
+                long left = messages.messageCount(source, s.stagingMbean(source));
+                if (progress.exhausted && left == 0) {
+                    return finishStaged(s, source, stagingQueue);
+                }
+                if (++progress.empties >= EMPTY_TRIES) {
+                    return End.stopped(("%d messages are held in staging queue %s but none could be received"
+                                    + " (they may be scheduled for later delivery). Resume later, or"
+                                    + " return them to the source.")
+                            .formatted(left, stagingQueue));
+                }
+            }
+            case RELAYED -> {
+                progress.empties = 0;
+                ledger.remove(s.id(), b.sourceIds());
+                delivered(s, b);
+                pace(started, (long) b.delivered() + b.duplicates());
+            }
+        }
+        return null;
     }
 
     /**
@@ -277,7 +295,7 @@ class TransferRunner {
         public void beforeTargetCommit(List<Long> sourceIds) {
             Set<Long> fresh = new HashSet<>(sourceIds);
             fresh.removeAll(ledger.known(runId, sourceIds));
-            ledger.record(runId, sourceIds);
+            ledger.recordCopied(runId, sourceIds);
             attempted = fresh;
         }
 
@@ -349,43 +367,45 @@ class TransferRunner {
             JolokiaBrokerClient source = nodes.client(s.source);
             String mbean = s.sourceMbean(source);
             long started = System.nanoTime();
-            long moved;
-            boolean done;
-            if (s.selection.kind() == SelectionKind.IDS) {
-                List<Long> ids = s.selection.ids();
-                int from = s.run.getIdCursor();
-                if (from >= ids.size()) {
-                    return completed(s);
-                }
-                List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + batch));
-                BulkResult result = messages.moveByIds(source, mbean, chunk, s.run.getTargetQueue());
-                int taken = chunk.size() - result.notDone().size();
-                moved = result.affected();
-                s.run.staged(0, taken);
-                s.run.notTransferred(taken - moved);
-                if (result.partial()) {
-                    s.run.delivered(moved, 0, Instant.now());
-                    save(s);
-                    throw new BrokerConnectionException(
-                            BrokerConnectionException.Kind.BAD_RESPONSE, "The move stopped: " + result.error());
-                }
-                done = s.run.getIdCursor() >= ids.size();
-            } else {
-                moved = messages.moveMessages(
-                        source, mbean, batch, s.frozenFilter(), s.run.getTargetQueue(), false, batch);
-                done = moved < batch;
+            boolean byIds = s.selection.kind() == SelectionKind.IDS;
+            if (byIds && s.run.getIdCursor() >= s.selection.ids().size()) {
+                return completed(s);
             }
+            long moved = byIds
+                    ? moveIdChunk(s, source, mbean, batch)
+                    : messages.moveMessages(
+                            source, mbean, batch, s.frozenFilter(), s.run.getTargetQueue(), false, batch);
+            boolean done = byIds ? s.run.getIdCursor() >= s.selection.ids().size() : moved < batch;
             s.run.delivered(moved, 0, Instant.now());
             save(s);
             publish(s);
             if (done) {
-                if (s.selection.kind() != SelectionKind.IDS) {
+                if (!byIds) {
                     s.run.notTransferred(messages.countMessages(source, mbean, s.frozenFilter()));
                 }
                 return completed(s);
             }
             pace(started, moved);
         }
+    }
+
+    /** Moves the next {@code batch} selected ids straight to the target queue; how many moved. */
+    private long moveIdChunk(Segment s, JolokiaBrokerClient source, String mbean, int batch) {
+        List<Long> ids = s.selection.ids();
+        int from = s.run.getIdCursor();
+        List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + batch));
+        BulkResult result = messages.moveByIds(source, mbean, chunk, s.run.getTargetQueue());
+        int taken = chunk.size() - result.notDone().size();
+        long moved = result.affected();
+        s.run.staged(0, taken);
+        s.run.notTransferred(taken - moved);
+        if (result.partial()) {
+            s.run.delivered(moved, 0, Instant.now());
+            save(s);
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "The move stopped: " + result.error());
+        }
+        return moved;
     }
 
     // ---- copy ------------------------------------------------------------------
@@ -413,9 +433,20 @@ class TransferRunner {
             @Override
             public void afterTargetCommit(List<Long> sourceIds) {
                 faults.afterTargetCommit(s.id());
-                ledger.record(s.id(), sourceIds);
+                ledger.recordCopied(s.id(), sourceIds);
             }
         };
+        End stopped = relayAll(s, route, hooks, ids);
+        if (stopped != null) {
+            return stopped;
+        }
+        countNotCopied(s, ids);
+        ledger.forget(s.id());
+        return completed(s);
+    }
+
+    /** Relays batches until the source has nothing more for the run; an end when the run must stop first. */
+    private End relayAll(Segment s, RelayLink.Route route, RelayLink.Hooks hooks, Set<Long> ids) throws IOException {
         Link link = new Link();
         try {
             while (true) {
@@ -426,24 +457,28 @@ class TransferRunner {
                 long started = System.nanoTime();
                 RelayLink.Batch b = link.to(s, route).relay(settings.intValue(TransferSettings.BATCH_SIZE), hooks);
                 if (b.outcome() == RelayLink.Outcome.EMPTY) {
-                    break;
+                    return null;
                 }
                 if (b.outcome() == RelayLink.Outcome.ADDRESS_FULL) {
                     End w = waitForCapacity(s, "The target refused a batch because its address is full.");
                     if (w != null) {
                         return w;
                     }
-                    continue;
+                } else {
+                    delivered(s, b);
+                    if (ids != null && ledger.count(s.id()) >= ids.size()) {
+                        return null;
+                    }
+                    pace(started, (long) b.delivered() + b.duplicates());
                 }
-                delivered(s, b);
-                if (ids != null && ledger.count(s.id()) >= ids.size()) {
-                    break;
-                }
-                pace(started, b.delivered() + b.duplicates());
             }
         } finally {
             link.close();
         }
+    }
+
+    /** Records how many of the selection a copy left uncopied: still in delivery, scheduled or gone. */
+    private void countNotCopied(Segment s, Set<Long> ids) {
         long copied = ledger.count(s.id());
         if (ids != null) {
             s.run.notTransferred(ids.size() - copied);
@@ -457,8 +492,6 @@ class TransferRunner {
             long matching = messages.countMessages(source, s.sourceMbean(source), s.frozenFilter());
             s.run.notTransferred(Math.max(0, matching - copied));
         }
-        ledger.forget(s.id());
-        return completed(s);
     }
 
     // ---- return to source ----------------------------------------------------------
@@ -632,7 +665,7 @@ class TransferRunner {
             try {
                 s.resolve();
                 verdict = check(s);
-            } catch (BrokerConnectionException e) {
+            } catch (BrokerConnectionException _) {
                 verdict = new TargetAcceptance.BatchVerdict(null, reason);
             }
             if (verdict.refusal() != null) {
@@ -657,7 +690,7 @@ class TransferRunner {
     }
 
     private void delivered(Segment s, RelayLink.Batch b) {
-        s.run.delivered(b.delivered() + b.duplicates(), b.bytes(), Instant.now());
+        s.run.delivered((long) b.delivered() + b.duplicates(), b.bytes(), Instant.now());
         save(s);
         publish(s);
     }
@@ -669,7 +702,7 @@ class TransferRunner {
         if (owed > 0) {
             try {
                 Thread.sleep(Duration.ofNanos(owed));
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -683,9 +716,9 @@ class TransferRunner {
                 if (background.stopRequested(runId)) {
                     return false;
                 }
-                Thread.sleep(Math.max(1, Math.min(250, (end - System.nanoTime()) / 1_000_000)));
+                Thread.sleep(Math.clamp((end - System.nanoTime()) / 1_000_000, 1, 250));
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return false;
         }

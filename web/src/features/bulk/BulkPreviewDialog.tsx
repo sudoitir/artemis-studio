@@ -59,6 +59,170 @@ function blastRadius(operation: BulkOperation, preview: BulkRunDetailView): stri
     : `${scope}, destroying at least ${messages}. This cannot be undone.`;
 }
 
+/** What the preview says while it reads, when it fails, and once it has a plan. */
+function PreviewStatus({
+  preview,
+  operation,
+  unknown,
+  refused,
+  onRetry,
+}: Readonly<{
+  preview: ReturnType<typeof useBulkPreview>;
+  operation: BulkOperation;
+  unknown: number;
+  refused: number;
+  onRetry: () => void;
+}>) {
+  const data = preview.data;
+  return (
+    <div aria-live="polite">
+      {preview.isPending ? (
+        <Text size="sm" c="dimmed">
+          Reading what these queues hold…
+        </Text>
+      ) : null}
+      {preview.isError ? (
+        <Alert color="red" variant="light" title={preview.error.title} role="alert">
+          <Stack gap="xs" align="flex-start">
+            <Text size="sm">{preview.error.message}</Text>
+            <Button size="xs" variant="light" onClick={onRetry}>
+              Preview again
+            </Button>
+          </Stack>
+        </Alert>
+      ) : null}
+      {data ? (
+        <Stack gap={4}>
+          <Text size="sm" fw={600}>
+            {blastRadius(operation, data)}
+          </Text>
+          {unknown > 0 ? (
+            <Text size="sm">
+              {plural(unknown, 'queue')} {unknown === 1 ? 'has a figure' : 'have figures'} Studio does not know, because
+              a node has not answered recently; the total is a floor.
+            </Text>
+          ) : null}
+          {refused > 0 ? (
+            <Text size="sm">
+              {plural(refused, 'queue')} {refused === 1 ? 'is' : 'are'} refused and will not be touched. The reason is
+              beside each one below.
+            </Text>
+          ) : null}
+        </Stack>
+      ) : null}
+    </div>
+  );
+}
+
+/** How the run behaves on failure, and the control that starts it — armed by typing when it destroys. */
+function RunControls({
+  op,
+  acting,
+  execute,
+  continueOnFailure,
+  onContinueOnFailure,
+  overCap,
+  override,
+  confirmLabel,
+  onStart,
+  onRetry,
+}: Readonly<{
+  op: (typeof OPERATIONS)[BulkOperation];
+  acting: BulkItemView[];
+  execute: ReturnType<typeof useBulkExecute>;
+  continueOnFailure: boolean;
+  onContinueOnFailure: (on: boolean) => void;
+  overCap: boolean;
+  override: boolean;
+  confirmLabel: string;
+  onStart: () => void;
+  onRetry: () => void;
+}>) {
+  return (
+    <>
+      <Switch
+        label="Continue past failures"
+        description={
+          continueOnFailure
+            ? 'Every queue is attempted, whatever happens to the ones before it.'
+            : 'The run stops at the first queue that fails, and the queues after it are skipped.'
+        }
+        checked={continueOnFailure}
+        onChange={(e) => onContinueOnFailure(e.currentTarget.checked)}
+      />
+
+      {execute.isError ? (
+        <Alert color="red" variant="light" title={execute.error.title} role="alert">
+          <Stack gap="xs" align="flex-start">
+            <Text size="sm">{execute.error.message}</Text>
+            <Text size="sm">Nothing was run. Preview again to confirm the queues as they are now.</Text>
+            <Button size="xs" variant="light" onClick={onRetry}>
+              Preview again
+            </Button>
+          </Stack>
+        </Alert>
+      ) : null}
+
+      {op.destructive ? (
+        <ConfirmByTyping
+          // One queue is confirmed by its name, as a single-queue destroy is everywhere else;
+          // many are confirmed by the action and the count.
+          token={acting.length === 1 ? acting[0].queueName : `${op.verb.toLowerCase()} ${acting.length} queues`}
+          confirmLabel={confirmLabel}
+          loading={execute.isPending}
+          disabled={(overCap && !override) || execute.isPending}
+          onConfirm={onStart}
+        />
+      ) : (
+        <Group>
+          <Button size="xs" loading={execute.isPending} onClick={onStart}>
+            {confirmLabel}
+          </Button>
+        </Group>
+      )}
+    </>
+  );
+}
+
+/** The frozen queue set, optionally narrowed to the ones with a refusal or warning. */
+function QueuesInRun({
+  destructive,
+  shown,
+  onlyProblems,
+  onOnlyProblems,
+}: Readonly<{
+  destructive: boolean;
+  shown: BulkItemView[];
+  onlyProblems: boolean;
+  onOnlyProblems: (on: boolean) => void;
+}>) {
+  return (
+    <Stack gap="xs">
+      <Group justify="space-between">
+        <Title order={5}>The queues in this run</Title>
+        <Switch
+          size="xs"
+          label="Only queues with a refusal or warning"
+          checked={onlyProblems}
+          onChange={(e) => onOnlyProblems(e.currentTarget.checked)}
+        />
+      </Group>
+      <VirtualTable
+        label="Queues in this run"
+        storageKey="bulk.preview"
+        columns={columns(destructive)}
+        data={shown}
+        rowKey={(i) => i.queueName}
+        emptyLabel={
+          <Text size="sm">
+            {onlyProblems ? 'No queue has a refusal or a warning.' : 'No queue matched the selection.'}
+          </Text>
+        }
+      />
+    </Stack>
+  );
+}
+
 /**
  * Preview → confirm → execute for one bulk operation (ADR-0093). The preview freezes the queue set
  * and states the blast radius; only that frozen plan can be confirmed, and a destroy is armed by
@@ -71,14 +235,14 @@ export function BulkPreviewDialog({
   opened,
   onClose,
   onStarted,
-}: {
+}: Readonly<{
   clusterId: string;
   operation: BulkOperation;
   selection: QueueSelection;
   opened: boolean;
   onClose: () => void;
   onStarted: () => void;
-}) {
+}>) {
   const op = OPERATIONS[operation];
   const navigate = useNavigate();
   const preview = useBulkPreview(clusterId);
@@ -122,7 +286,7 @@ export function BulkPreviewDialog({
       {
         onSuccess: (run) => {
           close();
-          navigate({ to: `/clusters/${clusterId}/bulk/${run.id}` });
+          void navigate({ to: `/clusters/${clusterId}/bulk/${run.id}` });
           onStarted();
         },
       },
@@ -138,42 +302,13 @@ export function BulkPreviewDialog({
       size="xl"
     >
       <Stack gap="md">
-        <div aria-live="polite">
-          {preview.isPending ? (
-            <Text size="sm" c="dimmed">
-              Reading what these queues hold…
-            </Text>
-          ) : null}
-          {preview.isError ? (
-            <Alert color="red" variant="light" title={preview.error.title} role="alert">
-              <Stack gap="xs" align="flex-start">
-                <Text size="sm">{preview.error.message}</Text>
-                <Button size="xs" variant="light" onClick={takePreview}>
-                  Preview again
-                </Button>
-              </Stack>
-            </Alert>
-          ) : null}
-          {data ? (
-            <Stack gap={4}>
-              <Text size="sm" fw={600}>
-                {blastRadius(operation, data)}
-              </Text>
-              {unknown > 0 ? (
-                <Text size="sm">
-                  {plural(unknown, 'queue')} {unknown === 1 ? 'has a figure' : 'have figures'} Studio does not know,
-                  because a node has not answered recently; the total is a floor.
-                </Text>
-              ) : null}
-              {refused > 0 ? (
-                <Text size="sm">
-                  {plural(refused, 'queue')} {refused === 1 ? 'is' : 'are'} refused and will not be touched. The reason
-                  is beside each one below.
-                </Text>
-              ) : null}
-            </Stack>
-          ) : null}
-        </div>
+        <PreviewStatus
+          preview={preview}
+          operation={operation}
+          unknown={unknown}
+          refused={refused}
+          onRetry={takePreview}
+        />
 
         {data && overCap ? (
           <Alert color="yellow" variant="light" title="Over the safety cap">
@@ -193,48 +328,18 @@ export function BulkPreviewDialog({
         ) : null}
 
         {data && acting.length > 0 ? (
-          <>
-            <Switch
-              label="Continue past failures"
-              description={
-                continueOnFailure
-                  ? 'Every queue is attempted, whatever happens to the ones before it.'
-                  : 'The run stops at the first queue that fails, and the queues after it are skipped.'
-              }
-              checked={continueOnFailure}
-              onChange={(e) => setContinueOnFailure(e.currentTarget.checked)}
-            />
-
-            {execute.isError ? (
-              <Alert color="red" variant="light" title={execute.error.title} role="alert">
-                <Stack gap="xs" align="flex-start">
-                  <Text size="sm">{execute.error.message}</Text>
-                  <Text size="sm">Nothing was run. Preview again to confirm the queues as they are now.</Text>
-                  <Button size="xs" variant="light" onClick={takePreview}>
-                    Preview again
-                  </Button>
-                </Stack>
-              </Alert>
-            ) : null}
-
-            {op.destructive ? (
-              <ConfirmByTyping
-                // One queue is confirmed by its name, as a single-queue destroy is everywhere else;
-                // many are confirmed by the action and the count.
-                token={acting.length === 1 ? acting[0].queueName : `${op.verb.toLowerCase()} ${acting.length} queues`}
-                confirmLabel={confirmLabel}
-                loading={execute.isPending}
-                disabled={(overCap && !override) || execute.isPending}
-                onConfirm={start}
-              />
-            ) : (
-              <Group>
-                <Button size="xs" loading={execute.isPending} onClick={start}>
-                  {confirmLabel}
-                </Button>
-              </Group>
-            )}
-          </>
+          <RunControls
+            op={op}
+            acting={acting}
+            execute={execute}
+            continueOnFailure={continueOnFailure}
+            onContinueOnFailure={setContinueOnFailure}
+            overCap={overCap}
+            override={override}
+            confirmLabel={confirmLabel}
+            onStart={start}
+            onRetry={takePreview}
+          />
         ) : null}
 
         {data && acting.length === 0 ? (
@@ -244,29 +349,12 @@ export function BulkPreviewDialog({
         ) : null}
 
         {data ? (
-          <Stack gap="xs">
-            <Group justify="space-between">
-              <Title order={5}>The queues in this run</Title>
-              <Switch
-                size="xs"
-                label="Only queues with a refusal or warning"
-                checked={onlyProblems}
-                onChange={(e) => setOnlyProblems(e.currentTarget.checked)}
-              />
-            </Group>
-            <VirtualTable
-              label="Queues in this run"
-              storageKey="bulk.preview"
-              columns={columns(op.destructive)}
-              data={shown}
-              rowKey={(i) => i.queueName}
-              emptyLabel={
-                <Text size="sm">
-                  {onlyProblems ? 'No queue has a refusal or a warning.' : 'No queue matched the selection.'}
-                </Text>
-              }
-            />
-          </Stack>
+          <QueuesInRun
+            destructive={op.destructive}
+            shown={shown}
+            onlyProblems={onlyProblems}
+            onOnlyProblems={setOnlyProblems}
+          />
         ) : null}
       </Stack>
     </Modal>

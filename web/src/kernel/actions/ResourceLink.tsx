@@ -19,13 +19,13 @@ export function ResourceLink<K extends LinkKind>({
   clusterId,
   target,
   children,
-}: {
+}: Readonly<{
   kind: K;
   /** Defaults to the cluster in the address. */
   clusterId?: string;
   target: ActionTargets[K];
   children: ReactNode;
-}) {
+}>) {
   const params = useParams({ strict: false }) as { clusterId?: string };
   const [first] = useSlot(`${kind}.link` as LinkSlot<K>);
   const cluster = clusterId ?? params.clusterId;

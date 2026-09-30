@@ -23,12 +23,12 @@ export function AdoptionSuggestion({
   onAdopt,
   canWrite,
   blockedReason,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   onAdopt: () => void;
   canWrite: boolean;
   blockedReason?: string;
-}) {
+}>) {
   const adopt = useAdoptBrokerConfig(declaration.clusterId);
   const live = declaration.nodes.filter((n) => n.live);
 
@@ -77,8 +77,8 @@ export function AdoptionSuggestion({
                     {result.disagreements.length === 1 ? '' : 's'}
                   </Text>
                   <List size="xs" spacing={2}>
-                    {result.disagreements.map((d, i) => (
-                      <List.Item key={i}>{d}</List.Item>
+                    {result.disagreements.map((d) => (
+                      <List.Item key={d}>{d}</List.Item>
                     ))}
                   </List>
                 </>

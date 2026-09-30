@@ -41,7 +41,8 @@ export function useAudit(clusterId: string, filter: AuditFilter = {}): UseQueryR
         if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
       }
       const qs = sp.toString();
-      return request<AuditPageView>(`/clusters/${clusterId}/audit${qs ? `?${qs}` : ''}`);
+      const query = qs ? `?${qs}` : '';
+      return request<AuditPageView>(`/clusters/${clusterId}/audit${query}`);
     },
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,

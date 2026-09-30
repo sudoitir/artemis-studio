@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -116,7 +117,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void browseReturnsAPageAndEchoesTheNode() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse.json", 4)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse.json", 4)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "PHASE3.SRC"))
                 .andExpect(status().isOk())
@@ -129,7 +130,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void detailFindsOneMessageById() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse.json", 4)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse.json", 4)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages/{id}", clusterId, "PHASE3.SRC", 133))
                 .andExpect(status().isOk())
@@ -140,7 +141,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void detailIsA404WhenTheIdIsNotInRange() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse.json", 4)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse.json", 4)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages/{id}", clusterId, "PHASE3.SRC", 999999))
                 .andExpect(status().isNotFound());
@@ -148,7 +149,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void anInvalidFilterIsA400() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse-bad-filter.json", 0)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse-bad-filter.json", 0)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "PHASE3.SRC")
                         .param("filter", "this is not a filter =="))
@@ -174,12 +175,14 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
     void withNoNodeAskedForTheBrowseOpensTheLiveNodeHoldingTheMessages() throws Exception {
         String urlB = "http://b:8161/console/jolokia";
         BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
-        a.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        a.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         nodes.save(a);
         BrokerNodeEntity b = BrokerNodeEntity.fromSeed(
                 clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
         b.attachManagementUrl(urlB);
-        b.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        b.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         UUID nodeBId = nodes.save(b).getId();
         upsert.upsertBatch(List.of(
                 new QueueRow(clusterId, nodeAId, "SPLIT", "SPLIT", "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false),
@@ -190,7 +193,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
         server.expect(requestTo(urlB))
                 .andRespond(withSuccess(fixture("search-broker.json"), MediaType.APPLICATION_JSON));
         server.expect(requestTo(urlB)).andRespond(withSuccess(batch("browse.json", 4), MediaType.APPLICATION_JSON));
-        when(connections.forCluster(eq(clusterId), eq(urlB)))
+        when(connections.forCluster(clusterId, urlB))
                 .thenReturn(new JolokiaBrokerClient(builder.build(), urlB, mapper));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "SPLIT"))
@@ -207,7 +210,8 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
     @Test
     void aQueueTheScrapeHasNotReachedIsFoundOnTheLiveNodeAndBrowsed() throws Exception {
         BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
-        a.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        a.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         nodes.save(a);
         String located = "{\"status\":200,\"value\":{"
                 + "\"org.apache.activemq.artemis:address=\\\"FRESH.ADDR\\\",broker=\\\"primary\\\",component=addresses,"
@@ -219,7 +223,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
                 .andRespond(withSuccess(fixture("search-broker.json"), MediaType.APPLICATION_JSON));
         server.expect(requestTo(URL_A)).andRespond(withSuccess(located, MediaType.APPLICATION_JSON));
         server.expect(requestTo(URL_A)).andRespond(withSuccess(batch("browse.json", 4), MediaType.APPLICATION_JSON));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenReturn(new JolokiaBrokerClient(builder.build(), URL_A, mapper));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "FRESH"))

@@ -17,7 +17,7 @@ function isPattern(entry: string): boolean {
  * browsed for another has been told a lie about what is traced.
  */
 function globToRegExp(glob: string): RegExp {
-  const parts = glob.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
+  const parts = glob.split('*').map((part) => part.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`));
   return new RegExp(`^${parts.join('.*')}$`, 's');
 }
 
@@ -62,7 +62,7 @@ export function useReplyAddressResolution(clusterId: string, value: string[]): R
   const known = useMemo(() => {
     const addresses = new Set<string>();
     for (const row of queues.data?.data ?? []) addresses.add(row.address);
-    return [...addresses].sort();
+    return [...addresses].sort((a, b) => a.localeCompare(b));
   }, [queues.data]);
 
   const resolved = useMemo(() => resolveAgainst(entries, known), [entries, known]);

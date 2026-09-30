@@ -61,11 +61,11 @@ public final class McpErrors {
     public static McpSchema.CallToolResult guard(Supplier<Object> body) {
         try {
             return ok(body.get());
-        } catch (NotFoundException e) {
+        } catch (NotFoundException _) {
             // Deliberately not e.getMessage(): NotFoundException names the entity and
             // the id, which is exactly what must stay hidden here.
             return error(CLUSTER_DENIED);
-        } catch (AccessDeniedException e) {
+        } catch (AccessDeniedException _) {
             return error("This key lacks the permission for that operation. "
                     + "Read studio://permissions to see what it holds.");
         } catch (BulkCapExceededException e) {
@@ -127,7 +127,7 @@ public final class McpErrors {
     public static <T> T parse(String field, String raw, Class<T> type) {
         try {
             return JSON.readValue(raw, type);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             throw invalidParams(field + " must be a JSON object.");
         }
     }

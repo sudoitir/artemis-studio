@@ -69,7 +69,7 @@ public class WebhookSender implements NotificationSender {
             Map<String, Object> config = mapper.readValue(channelConfigJson, Map.class);
             Object url = config.get("url");
             return url == null ? null : url.toString();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

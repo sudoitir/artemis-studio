@@ -15,10 +15,10 @@ import styles from './StatRow.module.css';
 export function MetricsTable({
   columns,
   format,
-}: {
+}: Readonly<{
   columns: Array<{ name: string; label: string; series: MetricSeries | undefined }>;
   format: (name: string, value: number) => string;
-}) {
+}>) {
   const rows = mergeByTimestamp(columns.map((c) => ({ name: c.name, series: c.series }))).reverse();
   // Timestamps below are formatted in the display zone, read from module state.
   useDisplayZone();

@@ -19,7 +19,7 @@ final class PolicyEngine {
 
     /** Where detections in uncovered fields go. */
     interface FindingSink {
-        void record(String address, Location location, String path, DataClass dataClass);
+        void recordFinding(String address, Location location, String path, DataClass dataClass);
     }
 
     static final String BINARY_WITHHELD = "Binary body cannot be classified, so it is withheld.";
@@ -149,7 +149,7 @@ final class PolicyEngine {
                 hits.stream()
                         .map(Detectors.Hit::dataClass)
                         .distinct()
-                        .forEach(c -> findings.record(context.address(), location, name, c));
+                        .forEach(c -> findings.recordFinding(context.address(), location, name, c));
             }
             return spans(location, name, value, hits);
         }
@@ -219,7 +219,7 @@ final class PolicyEngine {
             Object tree;
             try {
                 tree = mapper.readValue(text, Object.class);
-            } catch (JacksonException notJson) {
+            } catch (JacksonException _) {
                 return null;
             }
             return mapper.writeValueAsString(walk(tree, ""));
@@ -278,9 +278,10 @@ final class PolicyEngine {
             return text;
         }
         int bytes = 0;
-        for (int i = 0; i < text.length(); ) {
+        int i = 0;
+        while (i < text.length()) {
             int codePoint = text.codePointAt(i);
-            int size = codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4;
+            int size = utf8Size(codePoint);
             if (bytes + size > limit) {
                 return text.substring(0, i);
             }
@@ -288,5 +289,15 @@ final class PolicyEngine {
             i += Character.charCount(codePoint);
         }
         return text;
+    }
+
+    private static int utf8Size(int codePoint) {
+        if (codePoint < 0x80) {
+            return 1;
+        }
+        if (codePoint < 0x800) {
+            return 2;
+        }
+        return codePoint < 0x10000 ? 3 : 4;
     }
 }

@@ -47,7 +47,8 @@ export interface DiagramAction {
 
 /** What positions depend on: which nodes exist and how they connect. A new label moves nothing. */
 export function layoutSignature(nodes: DiagramNode[], edges: DiagramEdge[], direction: string): string {
-  return `${direction}#${nodes.map((n) => n.id).join('|')}#${edges.map((e) => `${e.source}>${e.target}`).join('|')}`;
+  const arrows = edges.map((e) => `${e.source}>${e.target}`).join('|');
+  return `${direction}#${nodes.map((n) => n.id).join('|')}#${arrows}`;
 }
 
 /**
@@ -57,6 +58,10 @@ export function layoutSignature(nodes: DiagramNode[], edges: DiagramEdge[], dire
 export function nodeName(n: DiagramNode, via: string[] = []): string {
   let name = [n.kind, n.label, n.detail].filter(Boolean).join(', ');
   if (via.length) name += `. Via ${via.join('; ')}`;
-  if (n.state) name += `. ${n.state === 'error' ? 'Invalid' : 'Warning'}${n.reason ? `: ${n.reason}` : ''}`;
+  if (n.state) {
+    const problem = n.state === 'error' ? 'Invalid' : 'Warning';
+    const why = n.reason ? `: ${n.reason}` : '';
+    name += `. ${problem}${why}`;
+  }
   return name;
 }

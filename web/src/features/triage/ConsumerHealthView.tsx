@@ -79,6 +79,51 @@ const columns: GridColumn<HealthRow>[] = [
   },
 ];
 
+/** How many rows on this page need attention, in words; quiet when the page is empty. */
+function attentionWords(needing: number, rows: number): string {
+  if (needing > 0) return `${needing} of ${rows} on this page need attention`;
+  return rows > 0 ? 'Nothing on this page needs attention' : '';
+}
+
+/** Why the grid is empty: the filter, nodes that did not answer, or genuinely nothing yet. */
+function HealthEmpty({ filterText, unreachable }: Readonly<{ filterText: string | undefined; unreachable: string[] }>) {
+  if (filterText) {
+    return (
+      <Stack gap={4} align="flex-start">
+        <Text fw={600}>No queue matches "{filterText}"</Text>
+        <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
+      </Stack>
+    );
+  }
+  if (unreachable.length > 0) {
+    return (
+      <Stack gap={4} align="flex-start">
+        <Text fw={600}>
+          {unreachable.length === 1
+            ? `${unreachable[0]} could not be reached`
+            : `${unreachable.length} nodes could not be reached`}
+        </Text>
+        <Text size="sm">
+          There may be queues here that Studio cannot currently see —
+          {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is an
+          incomplete view rather than a healthy cluster.
+          {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
+        </Text>
+      </Stack>
+    );
+  }
+  return (
+    <Stack gap={4} align="flex-start">
+      <Text fw={600}>No queues to report on yet</Text>
+      <Text size="sm">
+        Consumer health ranks every queue by whether its consumers are keeping up — whether anything is attached,
+        whether it is acknowledging, and whether the backlog is growing. Queues appear here within a scrape tick of
+        being created.
+      </Text>
+    </Stack>
+  );
+}
+
 /**
  * Every queue in the cluster ranked by how badly it needs attention.
  *
@@ -106,7 +151,7 @@ export function ConsumerHealthView() {
 
   useEffect(() => {
     if ((search.q ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({ ...prev, q: debounced || undefined, page: undefined }),
     });
@@ -160,11 +205,7 @@ export function ConsumerHealthView() {
         />
         {/* Stated in words, and quiet when there is nothing to say. */}
         <Text size="xs" c="dimmed" role="status">
-          {needingAttention > 0
-            ? `${needingAttention} of ${rows.length} on this page need attention`
-            : rows.length > 0
-              ? 'Nothing on this page needs attention'
-              : ''}
+          {attentionWords(needingAttention, rows.length)}
           {unmeasured > 0 ? ` · ${unmeasured} not yet measured` : ''}
         </Text>
       </Group>
@@ -195,37 +236,7 @@ export function ConsumerHealthView() {
               />
             ),
           }}
-          emptyLabel={
-            search.q ? (
-              <Stack gap={4} align="flex-start">
-                <Text fw={600}>No queue matches "{search.q}"</Text>
-                <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
-              </Stack>
-            ) : unreachable.length > 0 ? (
-              <Stack gap={4} align="flex-start">
-                <Text fw={600}>
-                  {unreachable.length === 1
-                    ? `${unreachable[0]} could not be reached`
-                    : `${unreachable.length} nodes could not be reached`}
-                </Text>
-                <Text size="sm">
-                  There may be queues here that Studio cannot currently see —
-                  {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is
-                  an incomplete view rather than a healthy cluster.
-                  {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
-                </Text>
-              </Stack>
-            ) : (
-              <Stack gap={4} align="flex-start">
-                <Text fw={600}>No queues to report on yet</Text>
-                <Text size="sm">
-                  Consumer health ranks every queue by whether its consumers are keeping up — whether anything is
-                  attached, whether it is acknowledging, and whether the backlog is growing. Queues appear here within a
-                  scrape tick of being created.
-                </Text>
-              </Stack>
-            )
-          }
+          emptyLabel={<HealthEmpty filterText={search.q} unreachable={unreachable} />}
         />
       )}
 

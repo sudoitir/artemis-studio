@@ -160,28 +160,11 @@ public class BrokerCommands {
                 c.params(),
                 c.dryRun());
 
-        Map<UUID, Long> estimates = new LinkedHashMap<>();
-        long total = 0;
-        if (c.estimate() != null) {
-            for (Target t : targets) {
-                if (!t.live()) {
-                    continue;
-                }
-                try {
-                    estimates.put(t.node().getId(), c.estimate().count().apply(clientFor(c.clusterId(), t.node())));
-                } catch (ManagementRefusal e) {
-                    // Nothing to destroy here — an absent resource counts as zero, and
-                    // the action reports the node as ALREADY.
-                    estimates.put(t.node().getId(), 0L);
-                } catch (BrokerConnectionException e) {
-                    estimates.put(t.node().getId(), null);
-                }
-            }
-            total = estimates.values().stream()
-                    .filter(Objects::nonNull)
-                    .mapToLong(Long::longValue)
-                    .sum();
-        }
+        Map<UUID, Long> estimates = estimate(c, targets);
+        long total = estimates.values().stream()
+                .filter(Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
         // A node that could not be counted makes the total a floor, not a figure.
         boolean incomplete = estimates.containsValue(null);
         boolean overCap = c.estimate() != null
@@ -190,43 +173,27 @@ public class BrokerCommands {
         List<NodeOutcome> outcomes = new ArrayList<>();
         if (c.dryRun()) {
             for (Target t : targets) {
-                UUID id = t.node().getId();
-                if (!t.live()) {
-                    outcomes.add(NodeOutcome.skipped(id, t.node().getName()));
-                    continue;
-                }
-                Check check = preflight(c, t);
-                if (check.refusal() != null) {
-                    outcomes.add(NodeOutcome.failed(id, t.node().getName(), check.refusal()));
-                    continue;
-                }
-                boolean unknown = c.estimate() != null && estimates.get(id) == null;
-                // Stated, never omitted: an absent count reads as zero.
-                String note = unknown
-                        ? "This node did not answer, so its " + c.estimate().label() + " is unknown."
-                        : check.warning();
-                outcomes.add(new NodeOutcome(id, t.node().getName(), NodeStatus.WOULD_APPLY, estimates.get(id), note));
+                outcomes.add(preview(c, t, estimates));
             }
             audit.finish(event, false, total, null, c.auditDetail().apply(outcomes));
             return new LifecycleOutcome(true, cap, overCap, outcomes);
         }
 
         if (overCap && !c.override()) {
-            String reason = total <= cap && incomplete
-                    ? "At least one node did not report its " + c.estimate().label()
-                            + ", so the blast radius is not known (" + total + " counted, cap " + cap + ")."
-                    : "Over the safety cap (" + total + " > " + cap + ").";
-            audit.finish(event, true, total, reason, c.auditDetail().apply(outcomes));
+            audit.finish(
+                    event,
+                    true,
+                    total,
+                    capReason(c, total, cap, incomplete),
+                    c.auditDetail().apply(outcomes));
             throw new BulkCapExceededException(total, cap);
         }
 
-        for (Target t : targets) {
-            if (!t.live()) {
-                outcomes.add(NodeOutcome.skipped(t.node().getId(), t.node().getName()));
-                continue;
-            }
-            outcomes.add(applyTo(c, t, estimates.get(t.node().getId())));
-        }
+        targets.stream()
+                .map(t -> t.live()
+                        ? applyTo(c, t, estimates.get(t.node().getId()))
+                        : NodeOutcome.skipped(t.node().getId(), t.node().getName()))
+                .forEach(outcomes::add);
 
         LifecycleOutcome outcome = new LifecycleOutcome(false, cap, overCap, outcomes);
         audit.finish(
@@ -237,6 +204,56 @@ public class BrokerCommands {
                 c.auditDetail().apply(outcomes));
         signalAfterCommit(c.signal());
         return outcome;
+    }
+
+    /** Each live node's estimate; a node that could not be counted maps to {@code null}. */
+    private Map<UUID, Long> estimate(Command c, List<Target> targets) {
+        Map<UUID, Long> estimates = new LinkedHashMap<>();
+        if (c.estimate() == null) {
+            return estimates;
+        }
+        for (Target t : targets) {
+            if (t.live()) {
+                estimates.put(t.node().getId(), estimateOn(c, t));
+            }
+        }
+        return estimates;
+    }
+
+    private Long estimateOn(Command c, Target t) {
+        try {
+            return c.estimate().count().apply(clientFor(c.clusterId(), t.node()));
+        } catch (ManagementRefusal _) {
+            // Nothing to destroy here — an absent resource counts as zero, and
+            // the action reports the node as ALREADY.
+            return 0L;
+        } catch (BrokerConnectionException _) {
+            return null;
+        }
+    }
+
+    /** What a dry run says about one node: skipped, refused by its preflight, or would apply. */
+    private NodeOutcome preview(Command c, Target t, Map<UUID, Long> estimates) {
+        UUID id = t.node().getId();
+        if (!t.live()) {
+            return NodeOutcome.skipped(id, t.node().getName());
+        }
+        Check check = preflight(c, t);
+        if (check.refusal() != null) {
+            return NodeOutcome.failed(id, t.node().getName(), check.refusal());
+        }
+        boolean unknown = c.estimate() != null && estimates.get(id) == null;
+        // Stated, never omitted: an absent count reads as zero.
+        String note =
+                unknown ? "This node did not answer, so its " + c.estimate().label() + " is unknown." : check.warning();
+        return new NodeOutcome(id, t.node().getName(), NodeStatus.WOULD_APPLY, estimates.get(id), note);
+    }
+
+    private static String capReason(Command c, long total, long cap, boolean incomplete) {
+        return total <= cap && incomplete
+                ? "At least one node did not report its " + c.estimate().label()
+                        + ", so the blast radius is not known (" + total + " counted, cap " + cap + ")."
+                : "Over the safety cap (" + total + " > " + cap + ").";
     }
 
     /**

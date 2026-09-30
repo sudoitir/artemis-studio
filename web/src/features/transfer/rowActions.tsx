@@ -12,7 +12,7 @@ import { TransferDialog } from './TransferDialog.tsx';
  * or cluster, through the same preview and resumable run as a selection on the messages screen
  * (ADR-0097). An empty queue is a reason, stated; an unknown depth is not.
  */
-export function TransferQueueMessages({ clusterId, target, host }: ActionProps<QueueTarget>) {
+export function TransferQueueMessages({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const total = target.snapshot ? target.snapshot.totalMessageCount : null;

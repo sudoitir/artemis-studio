@@ -178,6 +178,13 @@ export function useSqlTail(clusterId: string): SqlRun {
       }
     };
 
+    const forgetFresh = (key: string) =>
+      setFreshKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+
     const listen = (stream: EventSource) => {
       stream.addEventListener('row', (e) => {
         const row = parse<SqlRowView>(e);
@@ -201,11 +208,7 @@ export function useSqlTail(clusterId: string): SqlRun {
           setFreshKeys((prev) => new Set(prev).add(key));
           const timer = setTimeout(() => {
             timers.current.delete(timer);
-            setFreshKeys((prev) => {
-              const next = new Set(prev);
-              next.delete(key);
-              return next;
-            });
+            forgetFresh(key);
           }, FRESH_MS);
           timers.current.add(timer);
         }

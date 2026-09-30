@@ -22,11 +22,11 @@ export function QueueLifecycleActions({
   clusterId,
   queue,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queue: QueueView;
   onClose: () => void;
-}) {
+}>) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const write = cluster.data?.capabilities.managementWrite;
@@ -137,13 +137,13 @@ export function DeleteQueueDialog({
   opened,
   onClose,
   onDeleted,
-}: {
+}: Readonly<{
   clusterId: string;
   queue: QueueView;
   opened: boolean;
   onClose: () => void;
   onDeleted: () => void;
-}) {
+}>) {
   const remove = useDeleteQueue(clusterId, queue.queueName);
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);

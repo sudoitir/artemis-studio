@@ -5,7 +5,10 @@ import { notifications } from '@mantine/notifications';
 
 import { useSendMessage } from './api.ts';
 
-type Pair = { k: string; v: string };
+/** A property row; the id keeps it identifiable while rows are added, edited and removed. */
+type Pair = { id: number; k: string; v: string };
+
+let nextPairId = 0;
 
 /** Enqueue one message. Over Jolokia the body is text; binary is Phase 4 (non-negotiable #5). */
 export function SendMessage({
@@ -14,13 +17,13 @@ export function SendMessage({
   node,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   node?: string;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const send = useSendMessage(clusterId, queueName);
   const [type, setType] = useState(3);
   const [durable, setDurable] = useState(true);
@@ -66,13 +69,13 @@ export function SendMessage({
               size="sm"
               variant="subtle"
               aria-label="Add property"
-              onClick={() => setProps((p) => [...p, { k: '', v: '' }])}
+              onClick={() => setProps((p) => [...p, { id: nextPairId++, k: '', v: '' }])}
             >
               <IconPlus size={14} />
             </ActionIcon>
           </Group>
           {props.map((p, i) => (
-            <Group key={i} gap="xs" wrap="nowrap">
+            <Group key={p.id} gap="xs" wrap="nowrap">
               <TextInput
                 placeholder="key"
                 value={p.k}

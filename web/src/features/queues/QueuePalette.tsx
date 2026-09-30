@@ -26,14 +26,17 @@ export const QueuePalette: PaletteSource = ({ clusterId, query, opened, report }
       {
         group: 'Queues',
         actions: [
-          ...data.map((q) => ({
-            id: `queue-${q.address}-${q.queueName}`,
-            label: q.queueName,
-            description: `${q.address === q.queueName ? '' : `on ${q.address} · `}depth ${q.totalMessageCount.toLocaleString()} · ${q.nodesPresent}/${q.nodesTotal} nodes`,
-            // The query itself, so the palette's own filter keeps what the server already matched.
-            keywords: [query, q.address],
-            onClick: () => navigate({ to: `/clusters/${clusterId}/queues`, search: { queue: q.queueName } }),
-          })),
+          ...data.map((q) => {
+            const where = q.address === q.queueName ? '' : `on ${q.address} · `;
+            return {
+              id: `queue-${q.address}-${q.queueName}`,
+              label: q.queueName,
+              description: `${where}depth ${q.totalMessageCount.toLocaleString()} · ${q.nodesPresent}/${q.nodesTotal} nodes`,
+              // The query itself, so the palette's own filter keeps what the server already matched.
+              keywords: [query, q.address],
+              onClick: () => navigate({ to: `/clusters/${clusterId}/queues`, search: { queue: q.queueName } }),
+            };
+          }),
           ...(count > data.length
             ? [
                 {

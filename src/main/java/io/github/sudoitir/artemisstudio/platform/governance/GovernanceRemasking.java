@@ -30,17 +30,22 @@ public class GovernanceRemasking {
         int version = store.current().version();
         long deadline = System.nanoTime() + BUDGET.toNanos();
         for (StoredContentRemasker remasker : owners()) {
-            while (System.nanoTime() < deadline) {
-                int rewritten;
-                try {
-                    rewritten = remasker.remask(version, BATCH);
-                } catch (RuntimeException e) {
-                    log.warn("Re-masking {} failed; it is retried on the next run", remasker.name(), e);
-                    break;
-                }
-                if (rewritten < BATCH) {
-                    break;
-                }
+            remaskUntilDone(remasker, version, deadline);
+        }
+    }
+
+    /** Batches for one owner until it has nothing left, fails, or the deadline passes. */
+    private void remaskUntilDone(StoredContentRemasker remasker, int version, long deadline) {
+        while (System.nanoTime() < deadline) {
+            int rewritten;
+            try {
+                rewritten = remasker.remask(version, BATCH);
+            } catch (RuntimeException e) {
+                log.warn("Re-masking {} failed; it is retried on the next run", remasker.name(), e);
+                return;
+            }
+            if (rewritten < BATCH) {
+                return;
             }
         }
     }

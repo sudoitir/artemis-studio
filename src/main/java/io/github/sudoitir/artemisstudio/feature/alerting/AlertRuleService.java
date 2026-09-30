@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity.Condition;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AlertRuleService {
 
+    private static final String AUDIT_TARGET = "ALERT_RULE";
     private static final Set<String> STATE_CONDITIONS = Set.of(
             "SPLIT_BRAIN",
             "NODE_DOWN",
@@ -93,7 +95,7 @@ public class AlertRuleService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_ALERT_RULE",
-                "ALERT_RULE",
+                AUDIT_TARGET,
                 rule.getName(),
                 clusterId,
                 null,
@@ -112,7 +114,7 @@ public class AlertRuleService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_ALERT_RULE",
-                "ALERT_RULE",
+                AUDIT_TARGET,
                 existing.getName(),
                 existing.getClusterId(),
                 null,
@@ -145,7 +147,7 @@ public class AlertRuleService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_ALERT_RULE",
-                "ALERT_RULE",
+                AUDIT_TARGET,
                 rule.getName(),
                 rule.getClusterId(),
                 null,
@@ -162,39 +164,50 @@ public class AlertRuleService {
             throw new IllegalArgumentException("an installation rule must be a state rule");
         }
         if ("METRIC_THRESHOLD".equals(r.kind())) {
-            if (r.metric() == null || r.comparator() == null || r.threshold() == null) {
-                throw new IllegalArgumentException(
-                        "metric, comparator, and threshold are required for a threshold rule");
-            }
-            if (!COMPARATORS.contains(r.comparator())) {
-                throw new IllegalArgumentException("unknown comparator: " + r.comparator());
-            }
-            // Ask the conditions themselves what they can evaluate, rather than naming two
-            // of them here. The hard-coded pair rejected every derived metric — including
-            // ackRatePerConsumer, which ADR-0044 ships a template for and which therefore
-            // could not be saved through this API at all (ADR-0089).
-            AlertRuleSpec probe =
-                    new AlertRuleSpec(null, true, r.metric(), r.comparator(), r.threshold(), r.scope(), null);
-            if (conditions.stream().noneMatch(c -> c.supports(probe))) {
-                throw new IllegalArgumentException("unknown metric: " + r.metric());
-            }
-            if (r.stateCondition() != null) {
-                throw new IllegalArgumentException("a threshold rule must not set stateCondition");
-            }
-            return AlertRuleEntity.threshold(
-                    null, r.name(), r.metric(), r.comparator(), r.threshold(), r.forSeconds(), r.severity(), r.scope());
+            return validatedThreshold(r);
         }
         if ("STATE".equals(r.kind())) {
-            Set<String> allowed = installation ? INSTALLATION_CONDITIONS : STATE_CONDITIONS;
-            if (r.stateCondition() == null || !allowed.contains(r.stateCondition())) {
-                throw new IllegalArgumentException("unknown stateCondition: " + r.stateCondition());
-            }
-            if (r.metric() != null || r.comparator() != null || r.threshold() != null) {
-                throw new IllegalArgumentException("a state rule must not set metric/comparator/threshold");
-            }
-            return AlertRuleEntity.state(null, r.name(), r.stateCondition(), r.forSeconds(), r.severity());
+            return validatedState(r, installation);
         }
         throw new IllegalArgumentException("unknown rule kind: " + r.kind());
+    }
+
+    private AlertRuleEntity validatedThreshold(AlertRuleRequest r) {
+        if (r.metric() == null || r.comparator() == null || r.threshold() == null) {
+            throw new IllegalArgumentException("metric, comparator, and threshold are required for a threshold rule");
+        }
+        if (!COMPARATORS.contains(r.comparator())) {
+            throw new IllegalArgumentException("unknown comparator: " + r.comparator());
+        }
+        // Ask the conditions themselves what they can evaluate, rather than naming two
+        // of them here. The hard-coded pair rejected every derived metric — including
+        // ackRatePerConsumer, which ADR-0044 ships a template for and which therefore
+        // could not be saved through this API at all (ADR-0089).
+        AlertRuleSpec probe = new AlertRuleSpec(null, true, r.metric(), r.comparator(), r.threshold(), r.scope(), null);
+        if (conditions.stream().noneMatch(c -> c.supports(probe))) {
+            throw new IllegalArgumentException("unknown metric: " + r.metric());
+        }
+        if (r.stateCondition() != null) {
+            throw new IllegalArgumentException("a threshold rule must not set stateCondition");
+        }
+        return AlertRuleEntity.threshold(
+                null,
+                r.name(),
+                new Condition(r.metric(), r.comparator(), r.threshold()),
+                r.forSeconds(),
+                r.severity(),
+                r.scope());
+    }
+
+    private AlertRuleEntity validatedState(AlertRuleRequest r, boolean installation) {
+        Set<String> allowed = installation ? INSTALLATION_CONDITIONS : STATE_CONDITIONS;
+        if (r.stateCondition() == null || !allowed.contains(r.stateCondition())) {
+            throw new IllegalArgumentException("unknown stateCondition: " + r.stateCondition());
+        }
+        if (r.metric() != null || r.comparator() != null || r.threshold() != null) {
+            throw new IllegalArgumentException("a state rule must not set metric/comparator/threshold");
+        }
+        return AlertRuleEntity.state(null, r.name(), r.stateCondition(), r.forSeconds(), r.severity());
     }
 
     /** A rule on a plugin metric whose plugin is not running has no source (ADR-0113). */

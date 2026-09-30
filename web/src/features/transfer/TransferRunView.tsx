@@ -51,9 +51,9 @@ function sentence(run: Run): string {
  */
 function pace(run: Run, rate: number | null | undefined, left: string | null): string {
   if (ACTIVE.has(run.state)) {
-    return rate
-      ? `${rate.toLocaleString(undefined, { maximumFractionDigits: 1 })} messages a second${left ? `, ${left}` : ''}.`
-      : 'No rate yet.';
+    if (!rate) return 'No rate yet.';
+    const remaining = left ? `, ${left}` : '';
+    return `${rate.toLocaleString(undefined, { maximumFractionDigits: 1 })} messages a second${remaining}.`;
   }
   const seconds =
     run.startedAt && run.finishedAt ? (Date.parse(run.finishedAt) - Date.parse(run.startedAt)) / 1000 : null;
@@ -72,6 +72,224 @@ function eta(run: Run): string | null {
   return seconds < 90
     ? `about ${plural(seconds, 'second')} left`
     : `about ${plural(Math.ceil(seconds / 60), 'minute')} left`;
+}
+
+/** Selected, held in staging, delivered — and what did not go through. */
+function Pipeline({ run, staging }: Readonly<{ run: Run; staging: boolean }>) {
+  return (
+    <dl className={classes.strip} aria-label="Transfer pipeline">
+      <div className={classes.stage}>
+        <dt>Selected</dt>
+        <dd>{run.estimate == null ? 'unknown' : n(run.estimate)}</dd>
+      </div>
+      <IconArrowRight className={classes.arrow} aria-hidden size={16} />
+      <div
+        className={classes.stage}
+        data-tone={staging && run.held > 0 && !ACTIVE.has(run.state) ? 'warning' : undefined}
+      >
+        <dt>Held in staging</dt>
+        <dd>{staging ? n(run.held) : 'not used'}</dd>
+      </div>
+      <IconArrowRight className={classes.arrow} aria-hidden size={16} />
+      <div className={classes.stage}>
+        <dt>Delivered</dt>
+        <dd>{n(run.delivered)}</dd>
+      </div>
+      {run.notTransferred > 0 ? (
+        <div className={classes.stage} data-tone="warning">
+          <dt>Not transferred</dt>
+          <dd>{n(run.notTransferred)}</dd>
+        </div>
+      ) : null}
+      {run.expired > 0 ? (
+        <div className={classes.stage}>
+          <dt>Expired while held</dt>
+          <dd>{n(run.expired)}</dd>
+        </div>
+      ) : null}
+      {run.returned > 0 ? (
+        <div className={classes.stage}>
+          <dt>Returned to source</dt>
+          <dd>{n(run.returned)}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
+/** How far along the run is, or why that cannot be shown. */
+function DeliveredProgress({ run, tone }: Readonly<{ run: Run; tone: string | undefined }>) {
+  if (run.estimate == null) {
+    return (
+      <Text size="sm">How far along this is cannot be shown: the selection&rsquo;s size was not known at preview.</Text>
+    );
+  }
+  return (
+    <Progress
+      aria-label="Messages delivered"
+      value={run.estimate === 0 ? 100 : Math.min(100, ((run.delivered + run.notTransferred) / run.estimate) * 100)}
+      color={tone}
+    />
+  );
+}
+
+/** What became of the messages at the source, in words. */
+function sourceStatus(mode: Run['mode'], staging: boolean): string {
+  if (mode !== 'MOVE') return 'read, left in place';
+  return staging ? 'taken off into staging' : 'moved by the broker';
+}
+
+/** Stopping is safe: the batch in flight finishes and nothing is lost. */
+function StopDialog({
+  opened,
+  staging,
+  pending,
+  onClose,
+  onStop,
+}: Readonly<{ opened: boolean; staging: boolean; pending: boolean; onClose: () => void; onStop: () => void }>) {
+  return (
+    <Modal opened={opened} onClose={onClose} title="Stop this transfer?">
+      <Stack gap="sm">
+        <Text size="sm">
+          The batch in flight finishes, then the run stops. Nothing is lost:{' '}
+          {staging ? 'held messages stay in staging, and ' : ''}
+          the run can be resumed{staging ? ' or returned' : ''} later.
+        </Text>
+        <Group justify="flex-end">
+          <Button size="xs" variant="default" onClick={onClose}>
+            Keep running
+          </Button>
+          <Button size="xs" loading={pending} onClick={onStop}>
+            Stop
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+/** Returning the held messages ends the run; it is armed by typing the source queue's name. */
+function ReturnDialog({
+  opened,
+  run,
+  pending,
+  onClose,
+  onReturn,
+}: Readonly<{ opened: boolean; run: Run; pending: boolean; onClose: () => void; onReturn: () => void }>) {
+  return (
+    <Modal opened={opened} onClose={onClose} title="Return the held messages to the source?">
+      <Stack gap="sm">
+        <Text size="sm">
+          Every message held in staging, {plural(run.held, 'message')} now, goes back on {run.source.queue} on{' '}
+          {run.source.nodeName}, and the staging queue is removed. Messages already delivered to {run.target.queue} stay
+          there. The run ends as returned and cannot be resumed.
+        </Text>
+        <ConfirmByTyping
+          token={run.source.queue}
+          label={`Type the source queue's name, "${run.source.queue}", to confirm`}
+          confirmLabel={`Return ${plural(run.held, 'message')}`}
+          loading={pending}
+          disabled={pending}
+          onConfirm={onReturn}
+        />
+      </Stack>
+    </Modal>
+  );
+}
+
+/** The audit trails, and the commands the run's state allows — each behind its gate. */
+function RunActions({
+  run,
+  runGate,
+  returnGate,
+  stop,
+  resume,
+  back,
+  onDialog,
+}: Readonly<{
+  run: Run;
+  runGate: ReturnType<typeof gateFor>;
+  returnGate: ReturnType<typeof gateFor>;
+  stop: ReturnType<typeof useTransferCommand>;
+  resume: ReturnType<typeof useTransferCommand>;
+  back: ReturnType<typeof useTransferCommand>;
+  onDialog: (dialog: 'stop' | 'return') => void;
+}>) {
+  return (
+    <Group gap="xs">
+      {run.auditEventId != null ? (
+        <Anchor
+          component={Link}
+          to={`/clusters/${run.source.clusterId}/audit`}
+          // The untyped router cannot type another feature's search; `BulkRunView` does the same.
+          search={{ parentId: run.auditEventId } as never}
+          size="sm"
+        >
+          Audit trail
+        </Anchor>
+      ) : null}
+      {run.targetAuditEventId != null ? (
+        <Anchor
+          component={Link}
+          to={`/clusters/${run.target.clusterId}/audit`}
+          search={{ parentId: run.targetAuditEventId } as never}
+          size="sm"
+        >
+          Target&rsquo;s audit trail
+        </Anchor>
+      ) : null}
+      {ACTIVE.has(run.state) && run.state !== 'RETURNING' ? (
+        <CapabilityGate verdict={runGate} what="stopping this transfer">
+          <Button
+            size="xs"
+            variant="light"
+            disabled={runGate.kind === 'blocked'}
+            loading={stop.isPending}
+            onClick={() => onDialog('stop')}
+          >
+            Stop
+          </Button>
+        </CapabilityGate>
+      ) : null}
+      {run.resumable ? (
+        <CapabilityGate verdict={runGate} what="resuming this transfer">
+          <Button
+            size="xs"
+            disabled={runGate.kind === 'blocked'}
+            loading={resume.isPending}
+            onClick={() => resume.mutate()}
+          >
+            Resume
+          </Button>
+        </CapabilityGate>
+      ) : null}
+      {run.returnable ? (
+        <CapabilityGate verdict={returnGate} what="returning these messages">
+          <Button
+            size="xs"
+            variant="light"
+            color="red"
+            disabled={returnGate.kind === 'blocked' || back.isPending}
+            loading={back.isPending}
+            onClick={() => onDialog('return')}
+          >
+            Return to source…
+          </Button>
+        </CapabilityGate>
+      ) : null}
+    </Group>
+  );
+}
+
+/** The server re-checks every command; these gates only explain. Offered while grants load. */
+function commandGates(run: Run, can: (action: string, clusterId?: string) => boolean, loading: boolean) {
+  const sourcePermission = run.mode === 'MOVE' ? 'message:move' : 'message:read';
+  const sourceLabel = run.mode === 'MOVE' ? 'Move or retry messages' : 'Browse messages';
+  const runGate = can(sourcePermission, run.source.clusterId)
+    ? gateFor(can('message:send', run.target.clusterId), 'Send messages', undefined, loading)
+    : gateFor(false, sourceLabel, undefined, loading);
+  const returnGate = gateFor(can('message:move', run.source.clusterId), 'Move or retry messages', undefined, loading);
+  return { runGate, returnGate };
 }
 
 /**
@@ -106,13 +324,7 @@ export function TransferRunView() {
   const rate = run.messagesPerSecond;
   const left = eta(run);
 
-  // The server re-checks every command; these only explain. Offered while grants load.
-  const sourcePermission = run.mode === 'MOVE' ? 'message:move' : 'message:read';
-  const sourceLabel = run.mode === 'MOVE' ? 'Move or retry messages' : 'Browse messages';
-  const runGate = can(sourcePermission, run.source.clusterId)
-    ? gateFor(can('message:send', run.target.clusterId), 'Send messages', undefined, loading)
-    : gateFor(false, sourceLabel, undefined, loading);
-  const returnGate = gateFor(can('message:move', run.source.clusterId), 'Move or retry messages', undefined, loading);
+  const { runGate, returnGate } = commandGates(run, can, loading);
   const failure = [stop, resume, back].find((m) => m.isError)?.error ?? null;
 
   return (
@@ -136,68 +348,15 @@ export function TransferRunView() {
             {run.overrideCap ? ', with the safety cap overridden' : ''}
           </Text>
         </Stack>
-        <Group gap="xs">
-          {run.auditEventId != null ? (
-            <Anchor
-              component={Link}
-              to={`/clusters/${run.source.clusterId}/audit`}
-              // The untyped router cannot type another feature's search; `BulkRunView` does the same.
-              search={{ parentId: run.auditEventId } as never}
-              size="sm"
-            >
-              Audit trail
-            </Anchor>
-          ) : null}
-          {run.targetAuditEventId != null ? (
-            <Anchor
-              component={Link}
-              to={`/clusters/${run.target.clusterId}/audit`}
-              search={{ parentId: run.targetAuditEventId } as never}
-              size="sm"
-            >
-              Target&rsquo;s audit trail
-            </Anchor>
-          ) : null}
-          {ACTIVE.has(run.state) && run.state !== 'RETURNING' ? (
-            <CapabilityGate verdict={runGate} what="stopping this transfer">
-              <Button
-                size="xs"
-                variant="light"
-                disabled={runGate.kind === 'blocked'}
-                loading={stop.isPending}
-                onClick={() => setDialog('stop')}
-              >
-                Stop
-              </Button>
-            </CapabilityGate>
-          ) : null}
-          {run.resumable ? (
-            <CapabilityGate verdict={runGate} what="resuming this transfer">
-              <Button
-                size="xs"
-                disabled={runGate.kind === 'blocked'}
-                loading={resume.isPending}
-                onClick={() => resume.mutate()}
-              >
-                Resume
-              </Button>
-            </CapabilityGate>
-          ) : null}
-          {run.returnable ? (
-            <CapabilityGate verdict={returnGate} what="returning these messages">
-              <Button
-                size="xs"
-                variant="light"
-                color="red"
-                disabled={returnGate.kind === 'blocked' || back.isPending}
-                loading={back.isPending}
-                onClick={() => setDialog('return')}
-              >
-                Return to source…
-              </Button>
-            </CapabilityGate>
-          ) : null}
-        </Group>
+        <RunActions
+          run={run}
+          runGate={runGate}
+          returnGate={returnGate}
+          stop={stop}
+          resume={resume}
+          back={back}
+          onDialog={setDialog}
+        />
       </Group>
 
       {/* Only the state is announced; the figures change every batch and would drown it out. */}
@@ -226,56 +385,10 @@ export function TransferRunView() {
         </Alert>
       ) : null}
 
-      <dl className={classes.strip} aria-label="Transfer pipeline">
-        <div className={classes.stage}>
-          <dt>Selected</dt>
-          <dd>{run.estimate == null ? 'unknown' : n(run.estimate)}</dd>
-        </div>
-        <IconArrowRight className={classes.arrow} aria-hidden size={16} />
-        <div
-          className={classes.stage}
-          data-tone={staging && run.held > 0 && !ACTIVE.has(run.state) ? 'warning' : undefined}
-        >
-          <dt>Held in staging</dt>
-          <dd>{staging ? n(run.held) : 'not used'}</dd>
-        </div>
-        <IconArrowRight className={classes.arrow} aria-hidden size={16} />
-        <div className={classes.stage}>
-          <dt>Delivered</dt>
-          <dd>{n(run.delivered)}</dd>
-        </div>
-        {run.notTransferred > 0 ? (
-          <div className={classes.stage} data-tone="warning">
-            <dt>Not transferred</dt>
-            <dd>{n(run.notTransferred)}</dd>
-          </div>
-        ) : null}
-        {run.expired > 0 ? (
-          <div className={classes.stage}>
-            <dt>Expired while held</dt>
-            <dd>{n(run.expired)}</dd>
-          </div>
-        ) : null}
-        {run.returned > 0 ? (
-          <div className={classes.stage}>
-            <dt>Returned to source</dt>
-            <dd>{n(run.returned)}</dd>
-          </div>
-        ) : null}
-      </dl>
+      <Pipeline run={run} staging={staging} />
 
       {/* The theme honours reduced motion, so the bar's transition drops out for those who ask. */}
-      {run.estimate == null ? (
-        <Text size="sm">
-          How far along this is cannot be shown: the selection&rsquo;s size was not known at preview.
-        </Text>
-      ) : (
-        <Progress
-          aria-label="Messages delivered"
-          value={run.estimate === 0 ? 100 : Math.min(100, ((run.delivered + run.notTransferred) / run.estimate) * 100)}
-          color={toneColor(state.tone)}
-        />
-      )}
+      <DeliveredProgress run={run} tone={toneColor(state.tone)} />
       <Text size="sm" className={classes.figures}>
         {pace(run, rate, left)}
       </Text>
@@ -288,12 +401,7 @@ export function TransferRunView() {
             key: 'source',
             name: `${run.source.nodeName}, source (${clusterName(run.source.clusterId)})`,
             count: n(run.mode === 'MOVE' ? run.staged : run.delivered),
-            status:
-              run.mode === 'MOVE'
-                ? staging
-                  ? 'taken off into staging'
-                  : 'moved by the broker'
-                : 'read, left in place',
+            status: sourceStatus(run.mode, staging),
           },
           {
             key: 'target',
@@ -317,49 +425,21 @@ export function TransferRunView() {
         </Stack>
       ) : null}
 
-      <Modal opened={dialog === 'stop'} onClose={() => setDialog(null)} title="Stop this transfer?">
-        <Stack gap="sm">
-          <Text size="sm">
-            The batch in flight finishes, then the run stops. Nothing is lost:{' '}
-            {staging ? 'held messages stay in staging, and ' : ''}
-            the run can be resumed{staging ? ' or returned' : ''} later.
-          </Text>
-          <Group justify="flex-end">
-            <Button size="xs" variant="default" onClick={() => setDialog(null)}>
-              Keep running
-            </Button>
-            <Button
-              size="xs"
-              loading={stop.isPending}
-              onClick={() => stop.mutate(undefined, { onSettled: () => setDialog(null) })}
-            >
-              Stop
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal
-        opened={dialog === 'return'}
+      <StopDialog
+        opened={dialog === 'stop'}
+        staging={staging}
+        pending={stop.isPending}
         onClose={() => setDialog(null)}
-        title="Return the held messages to the source?"
-      >
-        <Stack gap="sm">
-          <Text size="sm">
-            Every message held in staging, {plural(run.held, 'message')} now, goes back on {run.source.queue} on{' '}
-            {run.source.nodeName}, and the staging queue is removed. Messages already delivered to {run.target.queue}{' '}
-            stay there. The run ends as returned and cannot be resumed.
-          </Text>
-          <ConfirmByTyping
-            token={run.source.queue}
-            label={`Type the source queue's name, "${run.source.queue}", to confirm`}
-            confirmLabel={`Return ${plural(run.held, 'message')}`}
-            loading={back.isPending}
-            disabled={back.isPending}
-            onConfirm={() => back.mutate(undefined, { onSettled: () => setDialog(null) })}
-          />
-        </Stack>
-      </Modal>
+        onStop={() => stop.mutate(undefined, { onSettled: () => setDialog(null) })}
+      />
+
+      <ReturnDialog
+        opened={dialog === 'return'}
+        run={run}
+        pending={back.isPending}
+        onClose={() => setDialog(null)}
+        onReturn={() => back.mutate(undefined, { onSettled: () => setDialog(null) })}
+      />
     </Stack>
   );
 }

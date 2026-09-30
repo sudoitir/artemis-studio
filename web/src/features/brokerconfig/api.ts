@@ -71,9 +71,10 @@ export function useConfigDiff(
   if (left) params.set('left', left);
   if (right) params.set('right', right);
   const query = params.toString();
+  const queryString = query ? `?${query}` : '';
   return useQuery({
     queryKey: ['clusters', clusterId, 'config-diff', left, right],
-    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${query ? `?${query}` : ''}`),
+    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${queryString}`),
     staleTime: 30_000,
   });
 }
@@ -264,10 +265,10 @@ export function useApplyBrokerConfig(clusterId: string) {
       }),
     onSuccess: (result) => {
       if (result.dryRun) return;
-      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
+      void qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
+      void qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
     },
   });
 }

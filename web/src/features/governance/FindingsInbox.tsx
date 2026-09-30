@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Button, Group, SegmentedControl, Stack, Table, Text, VisuallyHidden } from '@mantine/core';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -14,9 +14,51 @@ const STATUSES = [
 
 const WRITE_REASON = 'Confirming or dismissing a finding needs the governance:write permission.';
 
+const LOCATION_WORD: Record<string, string> = { BODY: 'body', HEADER: 'header' };
+
 function field(f: FindingView): string {
-  const where = f.location === 'BODY' ? 'body' : f.location === 'HEADER' ? 'header' : 'property';
+  const where = LOCATION_WORD[f.location] ?? 'property';
   return f.fieldPath ? `${where} ${f.fieldPath}` : where;
+}
+
+/** What stands in for the table while findings load, fail to load, or there are none to show. */
+function findingsNotice(
+  findings: ReturnType<typeof useFindings>,
+  status: string,
+  setStatus: (status: string) => void,
+): ReactNode {
+  if (findings.isPending) return <Text size="sm">Loading findings…</Text>;
+  if (findings.isError) {
+    return (
+      <Alert variant="light" color="red" title="Findings could not be loaded">
+        <Stack gap="xs">
+          <Text size="sm">{findings.error.message}</Text>
+          <Group>
+            <Button size="xs" variant="default" onClick={() => findings.refetch()}>
+              Try again
+            </Button>
+          </Group>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (findings.data.length > 0) return null;
+  if (status === 'OPEN' || status === 'ALL') {
+    return (
+      <Text size="sm">
+        No personal data has been detected in a field that no rule covers. Findings appear here as Studio reads
+        messages.
+      </Text>
+    );
+  }
+  return (
+    <Stack gap="xs" align="flex-start">
+      <Text size="sm">No {status.toLowerCase()} findings. Other findings may exist under another status.</Text>
+      <Button size="xs" variant="default" onClick={() => setStatus('ALL')}>
+        Show all findings
+      </Button>
+    </Stack>
+  );
 }
 
 /**
@@ -97,34 +139,7 @@ export function FindingsInbox() {
         </Alert>
       ) : null}
 
-      {findings.isPending ? (
-        <Text size="sm">Loading findings…</Text>
-      ) : findings.isError ? (
-        <Alert variant="light" color="red" title="Findings could not be loaded">
-          <Stack gap="xs">
-            <Text size="sm">{findings.error.message}</Text>
-            <Group>
-              <Button size="xs" variant="default" onClick={() => findings.refetch()}>
-                Try again
-              </Button>
-            </Group>
-          </Stack>
-        </Alert>
-      ) : findings.data.length === 0 ? (
-        status === 'OPEN' || status === 'ALL' ? (
-          <Text size="sm">
-            No personal data has been detected in a field that no rule covers. Findings appear here as Studio reads
-            messages.
-          </Text>
-        ) : (
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">No {status.toLowerCase()} findings. Other findings may exist under another status.</Text>
-            <Button size="xs" variant="default" onClick={() => setStatus('ALL')}>
-              Show all findings
-            </Button>
-          </Stack>
-        )
-      ) : (
+      {findingsNotice(findings, status, setStatus) ?? (
         <Table>
           <Table.Thead>
             <Table.Tr>
@@ -140,7 +155,7 @@ export function FindingsInbox() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {findings.data.map((f) => (
+            {(findings.data ?? []).map((f) => (
               <Table.Tr key={f.id}>
                 <Table.Td>
                   <Text size="sm" ff="monospace">

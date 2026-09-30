@@ -16,7 +16,7 @@ export function Pager({
   total,
   onChange,
   label,
-}: {
+}: Readonly<{
   /** 1-based. */
   page: number;
   pageSize: number;
@@ -24,7 +24,7 @@ export function Pager({
   onChange: (page: number) => void;
   /** Plural noun for the rows, e.g. `flows`. */
   label: string;
-}) {
+}>) {
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);

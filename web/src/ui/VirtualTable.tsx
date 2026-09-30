@@ -109,7 +109,7 @@ function writeWidths(storageKey: string | undefined, widths: Record<string, numb
 function contentWidth(cell: HTMLElement): number {
   const button = cell.querySelector<HTMLElement>(':scope > button');
   const style = getComputedStyle(cell);
-  const padding = (parseFloat(style.paddingInlineStart) || 0) + (parseFloat(style.paddingInlineEnd) || 0);
+  const padding = (Number.parseFloat(style.paddingInlineStart) || 0) + (Number.parseFloat(style.paddingInlineEnd) || 0);
   return button ? button.scrollWidth + padding : cell.scrollWidth;
 }
 
@@ -117,6 +117,98 @@ function contentWidth(cell: HTMLElement): number {
 function focusTarget(cell: HTMLElement): HTMLElement {
   const widgets = [...cell.querySelectorAll<HTMLElement>(WIDGETS)].filter((el) => !(el as HTMLButtonElement).disabled);
   return widgets.length === 1 ? widgets[0] : cell;
+}
+
+/**
+ * Makes exactly one element of the grid tabbable: the active cell's focus target. Returns that
+ * target, so the caller can move focus to it.
+ */
+function syncTabOrder(grid: HTMLElement, activeRow: number, activeCol: number): HTMLElement | null {
+  let target: HTMLElement | null = null;
+  for (const cell of grid.querySelectorAll<HTMLElement>('[data-grid-col]')) {
+    const row = Number(cell.parentElement?.dataset.gridRow);
+    const col = Number(cell.dataset.gridCol);
+    const isActive = row === activeRow && col === activeCol;
+    const focusable = focusTarget(cell);
+    cell.tabIndex = isActive && focusable === cell ? 0 : -1;
+    for (const widget of cell.querySelectorAll<HTMLElement>(WIDGETS)) {
+      widget.tabIndex = isActive && widget === focusable ? 0 : -1;
+    }
+    if (isActive) target = focusable;
+  }
+  return target;
+}
+
+/** How a sortable column stands: whether the grid is sorted by it, and which way. */
+interface ColumnSorting {
+  active: boolean;
+  desc: boolean;
+}
+
+/** The grid's `aria-sort` for a column: none when it cannot sort, else which way it sorts now. */
+function ariaSortOf(sorting: ColumnSorting | null): 'ascending' | 'descending' | 'none' | undefined {
+  if (!sorting) return undefined;
+  if (!sorting.active) return 'none';
+  return sorting.desc ? 'descending' : 'ascending';
+}
+
+/** The arrow after a sortable header's name: which way it sorts, and nothing when it does not. */
+function sortMark(active: boolean, desc: boolean): string {
+  if (!active) return '';
+  return desc ? ' ▾' : ' ▴';
+}
+
+/**
+ * The single source of truth for column geometry. Header and body rows are
+ * both grid containers over this one track list, so they cannot drift apart
+ * the way two independently laid-out tables can. The floors add up to the
+ * grid's `min-inline-size`, which is also the width body rows resolve
+ * against — without it the tracks would overflow a grid box still pinned to
+ * the viewport, and the rows would be laid out narrower than the header.
+ */
+function gridTracks<T>(
+  columns: GridColumn<T>[],
+  widths: Record<string, number>,
+  fits: Record<string, number>,
+  selectable: boolean,
+  hasMenu: boolean,
+): { template: string; minInline: number } {
+  // A declared `width` is the least a fixed column gets: a value that needs more (MULTICAST in a
+  // 96 px type column, a longer translation) widens it rather than being cut.
+  const floorOf = (c: GridColumn<T>) =>
+    widths[c.id] ?? (c.width ? Math.max(c.width, fits[c.id] ?? 0) : Math.max(FLEX_MIN_WIDTH, fits[c.id] ?? 0));
+  const template = [
+    selectable ? `${SELECT_COL_WIDTH}px` : null,
+    ...columns.map((c) => (widths[c.id] || c.width ? `${floorOf(c)}px` : `minmax(${floorOf(c)}px, 1fr)`)),
+    hasMenu ? `${ACTIONS_COL_WIDTH}px` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const minInline =
+    (selectable ? SELECT_COL_WIDTH : 0) +
+    columns.reduce((sum, c) => sum + floorOf(c), 0) +
+    (hasMenu ? ACTIONS_COL_WIDTH : 0);
+  return { template, minInline };
+}
+
+/** The text of a cell whose column draws nothing of its own: the value, or nothing for none. */
+function defaultText(value: unknown): string {
+  // Accessors return scalars; an object here would be a column that needs its own `cell`.
+  return String((value ?? '') as string | number | boolean | bigint);
+}
+
+/** The keys that open a row's menu: Shift+F10 or the ContextMenu key. */
+function isMenuKey(e: React.KeyboardEvent): boolean {
+  return e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
+}
+
+function isCopyKey(e: React.KeyboardEvent): boolean {
+  return (e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && !e.altKey;
+}
+
+/** Ctrl+Shift+Left/Right, which resizes the column of a header cell (ADR-0116). */
+function isResizeKey(e: React.KeyboardEvent): boolean {
+  return e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
 }
 
 interface Reveal {
@@ -166,6 +258,191 @@ interface VirtualTableProps<T> {
   storageKey?: string;
 }
 
+/** The header's select-all checkbox, across the rows loaded. */
+function SelectAllCell({
+  keys,
+  selected,
+  onToggleAll,
+}: Readonly<{
+  keys: string[];
+  selected: ReadonlySet<string> | undefined;
+  onToggleAll: ((keys: string[], allSelected: boolean) => void) | undefined;
+}>) {
+  const count = selected ? keys.filter((k) => selected.has(k)).length : 0;
+  const all = keys.length > 0 && count === keys.length;
+  return (
+    <div role="columnheader" data-grid-col={0} className={`${styles.cell} ${styles.headCell} ${styles.selectCell}`}>
+      <Checkbox
+        size="xs"
+        aria-label={all ? 'Deselect all on this page' : 'Select all on this page'}
+        checked={all}
+        indeterminate={count > 0 && !all}
+        onChange={() => onToggleAll?.(keys, all)}
+      />
+    </div>
+  );
+}
+
+/** A body row's selection checkbox. */
+function SelectCell({
+  rowKey,
+  checked,
+  onToggle,
+}: Readonly<{ rowKey: string; checked: boolean; onToggle: ((key: string) => void) | undefined }>) {
+  return (
+    <div
+      role="gridcell"
+      data-grid-col={0}
+      className={`${styles.cell} ${styles.selectCell}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Checkbox size="xs" aria-label={`Select row ${rowKey}`} checked={checked} onChange={() => onToggle?.(rowKey)} />
+    </div>
+  );
+}
+
+interface ColumnHeaderProps<T> {
+  column: GridColumn<T>;
+  /** Its position in the grid's focus model. */
+  col: number;
+  /** Null when the column cannot sort here. */
+  sorting: ColumnSorting | null;
+  onSort: () => void;
+  onResizeStart: (e: React.PointerEvent<HTMLElement>) => void;
+  onFit: () => void;
+}
+
+/** A column's header cell: its name or sort button, and the handle that resizes it. */
+function ColumnHeader<T>({ column, col, sorting, onSort, onResizeStart, onFit }: Readonly<ColumnHeaderProps<T>>) {
+  return (
+    <div
+      role="columnheader"
+      aria-sort={ariaSortOf(sorting)}
+      data-numeric={column.numeric || undefined}
+      data-grid-col={col}
+      className={`${styles.cell} ${styles.headCell}`}
+      aria-description="Ctrl+Shift+Left or Right resizes this column."
+    >
+      {sorting ? (
+        <button type="button" className={styles.sortButton} onClick={onSort}>
+          {column.header}
+          <span aria-hidden="true">{sortMark(sorting.active, sorting.desc)}</span>
+        </button>
+      ) : (
+        column.header
+      )}
+      {/* A pointer affordance for what Ctrl+Shift+Arrow does from the keyboard. */}
+      <span
+        aria-hidden="true"
+        className={styles.resizeHandle}
+        onPointerDown={onResizeStart}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onFit();
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+interface DataCellProps<T> {
+  column: GridColumn<T>;
+  row: T;
+  col: number;
+  onReveal: (el: HTMLElement) => void;
+  onHide: (e: React.SyntheticEvent) => void;
+}
+
+/** One value of a body row. */
+function DataCell<T>({ column, row, col, onReveal, onHide }: Readonly<DataCellProps<T>>) {
+  const value = column.accessor(row);
+  const full = plainText(value);
+  return (
+    <div
+      role="gridcell"
+      data-numeric={column.numeric || undefined}
+      data-full={full}
+      data-grid-col={col}
+      className={`${styles.cell} ${column.numeric ? styles.num : ''}`}
+      // An ellipsized cell still has to be readable in full: the
+      // title is the always-there fallback; the shared panel
+      // (hover / keyboard focus) adds copy.
+      title={full}
+      onPointerEnter={(e) => onReveal(e.currentTarget)}
+      onPointerLeave={onHide}
+    >
+      {column.cell ? column.cell(row) : defaultText(value)}
+    </div>
+  );
+}
+
+/** The trailing cell of a body row: the control that opens its menu, or closes it again. */
+function ActionsCell({
+  col,
+  label,
+  expanded,
+  onToggle,
+}: Readonly<{ col: number; label: string; expanded: boolean; onToggle: (trigger: HTMLElement) => void }>) {
+  return (
+    <div role="gridcell" data-grid-col={col} className={`${styles.cell} ${styles.actionsCell}`}>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size="sm"
+        aria-label={`Actions for ${label}`}
+        aria-haspopup="menu"
+        aria-expanded={expanded}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(e.currentTarget);
+        }}
+      >
+        <IconDots size={16} aria-hidden />
+      </ActionIcon>
+    </div>
+  );
+}
+
+/** The full value of a clipped cell, with a way to copy it, anchored to that cell. */
+function RevealPanel({
+  reveal,
+  panelRef,
+  onHide,
+}: Readonly<{
+  reveal: Reveal;
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  onHide: (e: React.SyntheticEvent) => void;
+}>) {
+  const rtl = typeof document !== 'undefined' && document.dir === 'rtl';
+  return (
+    <Portal>
+      <div
+        ref={panelRef}
+        className={styles.reveal}
+        role="dialog"
+        aria-label="Full value"
+        style={{
+          insetInlineStart: rtl
+            ? Math.min(window.innerWidth - reveal.rect.right, window.innerWidth - 360)
+            : Math.min(reveal.rect.left, window.innerWidth - 360),
+          insetBlockStart: reveal.rect.bottom + 4,
+        }}
+        onPointerLeave={onHide}
+      >
+        <span className={styles.revealText}>{reveal.text}</span>
+        <CopyButton value={reveal.text} timeout={1500}>
+          {({ copied, copy }) => (
+            <button type="button" className={styles.revealCopy} onClick={copy} onBlur={onHide}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          )}
+        </CopyButton>
+      </div>
+    </Portal>
+  );
+}
+
 /**
  * A virtualized data grid: one CSS grid track list, declared once and shared by
  * the header row and every body row, row-virtualized with
@@ -206,7 +483,7 @@ export function VirtualTable<T>({
   rowMenu,
   compact,
   storageKey,
-}: VirtualTableProps<T>) {
+}: Readonly<VirtualTableProps<T>>) {
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
     accessorFn: (row: Row) => c.accessor(row as T),
@@ -251,9 +528,7 @@ export function VirtualTable<T>({
 
   const activeRow = touched.current
     ? resolveRow(loadedKeys, active.key, lastIndex.current)
-    : loadedKeys.length > 0
-      ? 1
-      : 0;
+    : Math.min(loadedKeys.length, 1);
   const activeCol = Math.min(active.col, Math.max(colCount - 1, 0));
   if (activeRow > 0) lastIndex.current = activeRow;
 
@@ -402,18 +677,7 @@ export function VirtualTable<T>({
   useLayoutEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
-    let target: HTMLElement | null = null;
-    for (const cell of grid.querySelectorAll<HTMLElement>('[data-grid-col]')) {
-      const row = Number(cell.parentElement?.dataset.gridRow);
-      const col = Number(cell.dataset.gridCol);
-      const isActive = row === activeRow && col === activeCol;
-      const focusable = focusTarget(cell);
-      cell.tabIndex = isActive && focusable === cell ? 0 : -1;
-      for (const widget of cell.querySelectorAll<HTMLElement>(WIDGETS)) {
-        widget.tabIndex = isActive && widget === focusable ? 0 : -1;
-      }
-      if (isActive) target = focusable;
-    }
+    const target = syncTabOrder(grid, activeRow, activeCol);
     const lost = focusWithin.current && (document.activeElement === document.body || document.activeElement === null);
     if (target && (pendingFocus.current || lost)) {
       pendingFocus.current = false;
@@ -496,7 +760,7 @@ export function VirtualTable<T>({
   const copyCell = (cell: HTMLElement) => {
     const text = cell.dataset.full;
     if (!text || !navigator.clipboard) return false;
-    setAnnouncement((prev) => (prev === null ? '' : prev));
+    setAnnouncement((prev) => prev ?? '');
     void navigator.clipboard.writeText(text).then(
       () => setAnnouncement(`Copied ${text}`),
       () => setAnnouncement('Copy failed: the browser refused access to the clipboard.'),
@@ -504,73 +768,72 @@ export function VirtualTable<T>({
     return true;
   };
 
-  const onGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const pos = posOf(e.target as Element);
-    if (!pos) return;
-    const target = e.target as HTMLElement;
-    const cell = target.closest<HTMLElement>('[data-grid-col]')!;
-    const onWidget = target !== cell;
-    const body = pos.row > 0;
-    const row = body ? (rows[pos.row - 1]?.original as T | undefined) : undefined;
-    const key = body ? loadedKeys[pos.row - 1] : undefined;
+  /** Where a key was pressed: the cell, and the row it belongs to when it is in the body. */
+  interface KeyTarget {
+    pos: GridPos;
+    cell: HTMLElement;
+    onWidget: boolean;
+    row: T | undefined;
+    key: string | undefined;
+  }
 
-    // The row menu, from the keyboard: Shift+F10 or the ContextMenu key.
-    if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') {
-      if (!rowMenu || !key) return;
+  // Each key handler reports whether the key was its own.
+  const rowMenuKey = (e: React.KeyboardEvent, { pos, cell, key }: KeyTarget): boolean => {
+    if (!isMenuKey(e)) return false;
+    if (rowMenu && key) {
       e.preventDefault();
       suppressContextMenuUntil.current = performance.now() + 500;
       const trigger = cellAt(pos.row, colCount - 1)?.querySelector('button');
       openMenu(key, anchorBelow(trigger ?? cell));
-      return;
     }
+    return true;
+  };
 
-    if (e.key === 'Escape' && reveal) {
-      setReveal(null);
-      return;
-    }
+  const escapeKey = (e: React.KeyboardEvent): boolean => {
+    if (e.key !== 'Escape' || !reveal) return false;
+    setReveal(null);
+    return true;
+  };
 
-    if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && !e.altKey) {
-      if (window.getSelection()?.toString()) return;
-      if (copyCell(cell)) e.preventDefault();
-      return;
-    }
+  const copyKey = (e: React.KeyboardEvent, { cell }: KeyTarget): boolean => {
+    if (!isCopyKey(e)) return false;
+    if (!window.getSelection()?.toString() && copyCell(cell)) e.preventDefault();
+    return true;
+  };
 
-    if (e.key === 'Enter' && body && !onWidget && row !== undefined && onRowClick) {
+  /** Enter activates a row and Space selects it, from the row's cells but not from a control in one. */
+  const activateKey = (e: React.KeyboardEvent, { pos, onWidget, row, key }: KeyTarget): boolean => {
+    if (pos.row === 0 || onWidget) return false;
+    if (e.key === 'Enter' && row !== undefined && onRowClick) {
       e.preventDefault();
       onRowClick(row);
-      return;
+      return true;
     }
-
-    if (e.key === ' ' && body && !onWidget && selectable && key !== undefined) {
+    if (e.key === ' ' && selectable && key !== undefined) {
       e.preventDefault();
       onToggleRow?.(key);
-      return;
+      return true;
     }
+    return false;
+  };
 
-    // Ctrl+Shift+Left/Right on a header cell resizes its column (ADR-0116); the grid keeps its
-    // one tab stop, so this is the keyboard's way to what the border handle does.
-    const dataIndex = pos.col - firstDataCol;
-    if (
-      pos.row === 0 &&
-      e.ctrlKey &&
-      e.shiftKey &&
-      !e.altKey &&
-      (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
-      dataIndex >= 0 &&
-      dataIndex < columns.length
-    ) {
-      e.preventDefault();
-      const column = columns[dataIndex];
-      const grow = (e.key === 'ArrowRight') !== isRtl();
-      const current = widths[column.id] ?? cell.getBoundingClientRect().width;
-      const width = Math.round(Math.max(RESIZE_MIN_WIDTH, current + (grow ? RESIZE_STEP : -RESIZE_STEP)));
-      setWidth(column.id, width);
-      // Mounted empty first when it is new, like a copy's announcement, so it is read out.
-      setAnnouncement((prev) => (prev === null ? '' : prev));
-      requestAnimationFrame(() => setAnnouncement(`${column.header} column, ${width} pixels`));
-      return;
-    }
+  // Ctrl+Shift+Left/Right on a header cell resizes its column (ADR-0116); the grid keeps its
+  // one tab stop, so this is the keyboard's way to what the border handle does.
+  const resizeKey = (e: React.KeyboardEvent, { pos, cell }: KeyTarget): boolean => {
+    const column = pos.row === 0 && isResizeKey(e) ? columns[pos.col - firstDataCol] : undefined;
+    if (!column) return false;
+    e.preventDefault();
+    const grow = (e.key === 'ArrowRight') !== isRtl();
+    const current = widths[column.id] ?? cell.getBoundingClientRect().width;
+    const width = Math.round(Math.max(RESIZE_MIN_WIDTH, current + (grow ? RESIZE_STEP : -RESIZE_STEP)));
+    setWidth(column.id, width);
+    // Mounted empty first when it is new, like a copy's announcement, so it is read out.
+    setAnnouncement((prev) => prev ?? '');
+    requestAnimationFrame(() => setAnnouncement(`${column.header} column, ${width} pixels`));
+    return true;
+  };
 
+  const moveKey = (e: React.KeyboardEvent, pos: GridPos) => {
     if (e.altKey) return;
     const scroll = scrollRef.current;
     const page = Math.max(1, Math.floor(((scroll?.clientHeight ?? ROW_HEIGHT * 10) - headerHeight) / ROW_HEIGHT) - 1);
@@ -583,6 +846,34 @@ export function VirtualTable<T>({
     if (!next) return;
     e.preventDefault();
     if (next.row !== pos.row || next.col !== pos.col) moveTo(next);
+  };
+
+  const onGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const pos = posOf(e.target as Element);
+    if (!pos) return;
+    const target = e.target as HTMLElement;
+    const cell = target.closest<HTMLElement>('[data-grid-col]')!;
+    const body = pos.row > 0;
+    const at: KeyTarget = {
+      pos,
+      cell,
+      onWidget: target !== cell,
+      row: body ? (rows[pos.row - 1]?.original as T | undefined) : undefined,
+      key: body ? loadedKeys[pos.row - 1] : undefined,
+    };
+    if (rowMenuKey(e, at) || escapeKey(e) || copyKey(e, at) || activateKey(e, at) || resizeKey(e, at)) return;
+    moveKey(e, pos);
+  };
+
+  const toggleMenu = (key: string, trigger: HTMLElement) => {
+    if (menu?.key === key) closeMenu(true);
+    else openMenu(key, anchorBelow(trigger));
+  };
+
+  const activateRow = (e: React.MouseEvent, original: T) => {
+    // A control inside the row acts for itself, not for the row.
+    if ((e.target as Element).closest(WIDGETS)) return;
+    onRowClick?.(original);
   };
 
   const onBodyContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -613,32 +904,10 @@ export function VirtualTable<T>({
     openMenu(key, clampToViewport({ x: e.clientX, y: e.clientY }));
   };
 
-  /**
-   * The single source of truth for column geometry. Header and body rows are
-   * both grid containers over this one track list, so they cannot drift apart
-   * the way two independently laid-out tables can. The floors add up to the
-   * grid's `min-inline-size`, which is also the width body rows resolve
-   * against — without it the tracks would overflow a grid box still pinned to
-   * the viewport, and the rows would be laid out narrower than the header.
-   */
-  // A declared `width` is the least a fixed column gets: a value that needs more (MULTICAST in a
-  // 96 px type column, a longer translation) widens it rather than being cut.
-  const floorOf = (c: GridColumn<T>) =>
-    widths[c.id] ?? (c.width ? Math.max(c.width, fits[c.id] ?? 0) : Math.max(FLEX_MIN_WIDTH, fits[c.id] ?? 0));
-  const template = [
-    selectable ? `${SELECT_COL_WIDTH}px` : null,
-    ...columns.map((c) => (widths[c.id] || c.width ? `${floorOf(c)}px` : `minmax(${floorOf(c)}px, 1fr)`)),
-    rowMenu ? `${ACTIONS_COL_WIDTH}px` : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const minInline =
-    (selectable ? SELECT_COL_WIDTH : 0) +
-    columns.reduce((sum, c) => sum + floorOf(c), 0) +
-    (rowMenu ? ACTIONS_COL_WIDTH : 0);
+  const { template, minInline } = gridTracks(columns, widths, fits, Boolean(selectable), Boolean(rowMenu));
 
   const sortField = sort?.replace(/^-/, '');
-  const sortDesc = sort?.startsWith('-');
+  const sortDesc = sort?.startsWith('-') ?? false;
 
   const nextSort = (key: string): string | undefined => {
     if (sortField !== key) return key;
@@ -661,10 +930,7 @@ export function VirtualTable<T>({
     return <div className={styles.empty}>{emptyLabel}</div>;
   }
 
-  const selectedCount = selected ? loadedKeys.filter((k) => selected.has(k)).length : 0;
-  const allSelected = loadedKeys.length > 0 && selectedCount === loadedKeys.length;
   const actionsCol = colCount - 1;
-  const rtl = typeof document !== 'undefined' && document.dir === 'rtl';
 
   return (
     <div
@@ -704,66 +970,18 @@ export function VirtualTable<T>({
           aria-rowindex={1}
           data-grid-row={0}
         >
-          {selectable ? (
-            <div
-              role="columnheader"
-              data-grid-col={0}
-              className={`${styles.cell} ${styles.headCell} ${styles.selectCell}`}
-            >
-              <Checkbox
-                size="xs"
-                aria-label={allSelected ? 'Deselect all on this page' : 'Select all on this page'}
-                checked={allSelected}
-                indeterminate={selectedCount > 0 && !allSelected}
-                onChange={() => onToggleAll?.(loadedKeys, allSelected)}
-              />
-            </div>
-          ) : null}
-          {columns.map((c, i) => {
-            const sortable = Boolean(c.sortKey && onSortChange);
-            const ariaSort = !sortable
-              ? undefined
-              : sortField === c.sortKey
-                ? sortDesc
-                  ? 'descending'
-                  : 'ascending'
-                : 'none';
-            return (
-              <div
-                key={c.id}
-                role="columnheader"
-                aria-sort={ariaSort}
-                data-numeric={c.numeric || undefined}
-                data-grid-col={firstDataCol + i}
-                className={`${styles.cell} ${styles.headCell}`}
-                aria-description="Ctrl+Shift+Left or Right resizes this column."
-              >
-                {sortable ? (
-                  <button
-                    type="button"
-                    className={styles.sortButton}
-                    onClick={() => onSortChange?.(nextSort(c.sortKey!))}
-                  >
-                    {c.header}
-                    <span aria-hidden="true">{sortField === c.sortKey ? (sortDesc ? ' ▾' : ' ▴') : ''}</span>
-                  </button>
-                ) : (
-                  c.header
-                )}
-                {/* A pointer affordance for what Ctrl+Shift+Arrow does from the keyboard. */}
-                <span
-                  aria-hidden="true"
-                  className={styles.resizeHandle}
-                  onPointerDown={(e) => startResize(e, c.id)}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    fitColumn(c.id, firstDataCol + i);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-            );
-          })}
+          {selectable ? <SelectAllCell keys={loadedKeys} selected={selected} onToggleAll={onToggleAll} /> : null}
+          {columns.map((c, i) => (
+            <ColumnHeader
+              key={c.id}
+              column={c}
+              col={firstDataCol + i}
+              sorting={c.sortKey && onSortChange ? { active: sortField === c.sortKey, desc: sortDesc } : null}
+              onSort={() => onSortChange?.(nextSort(c.sortKey!))}
+              onResizeStart={(e) => startResize(e, c.id)}
+              onFit={() => fitColumn(c.id, firstDataCol + i)}
+            />
+          ))}
           {rowMenu ? (
             <div role="columnheader" data-grid-col={actionsCol} className={`${styles.cell} ${styles.headCell}`}>
               <VisuallyHidden>Actions</VisuallyHidden>
@@ -791,75 +1009,29 @@ export function VirtualTable<T>({
                 data-selected={selected?.has(key) || undefined}
                 data-menu-open={menu?.key === key || undefined}
                 className={`${styles.row} ${styles.bodyRow} ${onRowClick ? styles.clickable : ''} ${rowClassName?.(original) ?? ''}`}
-                onClick={
-                  onRowClick
-                    ? (e) => {
-                        // A control inside the row acts for itself, not for the row.
-                        if ((e.target as Element).closest(WIDGETS)) return;
-                        onRowClick(original);
-                      }
-                    : undefined
-                }
+                onClick={onRowClick ? (e) => activateRow(e, original) : undefined}
                 style={{ transform: `translateY(${vi.start}px)` }}
               >
                 {selectable ? (
-                  <div
-                    role="gridcell"
-                    data-grid-col={0}
-                    className={`${styles.cell} ${styles.selectCell}`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Checkbox
-                      size="xs"
-                      aria-label={`Select row ${key}`}
-                      checked={selected?.has(key) ?? false}
-                      onChange={() => onToggleRow?.(key)}
-                    />
-                  </div>
+                  <SelectCell rowKey={key} checked={selected?.has(key) ?? false} onToggle={onToggleRow} />
                 ) : null}
-                {columns.map((c, i) => {
-                  const value = c.accessor(original);
-                  const full = plainText(value);
-                  return (
-                    <div
-                      key={c.id}
-                      role="gridcell"
-                      data-numeric={c.numeric || undefined}
-                      data-full={full}
-                      data-grid-col={firstDataCol + i}
-                      className={`${styles.cell} ${c.numeric ? styles.num : ''}`}
-                      // An ellipsized cell still has to be readable in full: the
-                      // title is the always-there fallback; the shared panel
-                      // (hover / keyboard focus) adds copy.
-                      title={full}
-                      onPointerEnter={(e) => openReveal(e.currentTarget)}
-                      onPointerLeave={closeReveal}
-                    >
-                      {c.cell ? c.cell(original) : String(value ?? '')}
-                    </div>
-                  );
-                })}
+                {columns.map((c, i) => (
+                  <DataCell
+                    key={c.id}
+                    column={c}
+                    row={original}
+                    col={firstDataCol + i}
+                    onReveal={openReveal}
+                    onHide={closeReveal}
+                  />
+                ))}
                 {rowMenu ? (
-                  <div role="gridcell" data-grid-col={actionsCol} className={`${styles.cell} ${styles.actionsCell}`}>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="sm"
-                      aria-label={`Actions for ${rowLabel}`}
-                      aria-haspopup="menu"
-                      aria-expanded={menu?.key === key}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (menu?.key === key) {
-                          closeMenu(true);
-                          return;
-                        }
-                        openMenu(key, anchorBelow(e.currentTarget));
-                      }}
-                    >
-                      <IconDots size={16} aria-hidden />
-                    </ActionIcon>
-                  </div>
+                  <ActionsCell
+                    col={actionsCol}
+                    label={rowLabel}
+                    expanded={menu?.key === key}
+                    onToggle={(trigger) => toggleMenu(key, trigger)}
+                  />
                 ) : null}
               </div>
             );
@@ -884,32 +1056,7 @@ export function VirtualTable<T>({
         </VisuallyHidden>
       ) : null}
 
-      {reveal ? (
-        <Portal>
-          <div
-            ref={panelRef}
-            className={styles.reveal}
-            role="dialog"
-            aria-label="Full value"
-            style={{
-              insetInlineStart: rtl
-                ? Math.min(window.innerWidth - reveal.rect.right, window.innerWidth - 360)
-                : Math.min(reveal.rect.left, window.innerWidth - 360),
-              insetBlockStart: reveal.rect.bottom + 4,
-            }}
-            onPointerLeave={closeReveal}
-          >
-            <span className={styles.revealText}>{reveal.text}</span>
-            <CopyButton value={reveal.text} timeout={1500}>
-              {({ copied, copy }) => (
-                <button type="button" className={styles.revealCopy} onClick={copy} onBlur={closeReveal}>
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
-              )}
-            </CopyButton>
-          </div>
-        </Portal>
-      ) : null}
+      {reveal ? <RevealPanel reveal={reveal} panelRef={panelRef} onHide={closeReveal} /> : null}
     </div>
   );
 }

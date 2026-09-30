@@ -20,6 +20,7 @@ import java.util.Enumeration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,9 @@ import org.springframework.web.servlet.DispatcherServlet;
 @Slf4j
 public class PluginRuntimeFactory {
 
+    /** What a plugin's class loader, servlet and connection pool names start with. */
+    private static final String NAME_PREFIX = "plugin-";
+
     private final PluginApiContext apiContext;
     private final ApplicationContext mainContext;
     private final PluginMigrations migrations;
@@ -73,7 +77,7 @@ public class PluginRuntimeFactory {
         String pluginId = descriptor.id();
         String schema = "plugin_" + pluginId.replace('-', '_');
         URLClassLoader loader = new URLClassLoader(
-                "plugin-" + pluginId + "-" + descriptor.version(),
+                NAME_PREFIX + pluginId + "-" + descriptor.version(),
                 new URL[] {jarPath.toUri().toURL()},
                 PluginRuntimeFactory.class.getClassLoader());
 
@@ -82,6 +86,7 @@ public class PluginRuntimeFactory {
         try {
             HikariDataSource dataSource = buildDataSource(pluginId, schema);
             GenericWebApplicationContext ctx = null;
+            boolean activated = false;
             try {
                 onStep.accept("migrating");
                 migrations.migrate(dataSource, schema, pluginId, descriptor.version(), jarPath);
@@ -97,7 +102,7 @@ public class PluginRuntimeFactory {
                 emfBean.setJpaPropertyMap(
                         Map.of("hibernate.hbm2ddl.auto", "validate", "hibernate.default_schema", schema));
                 emfBean.afterPropertiesSet();
-                EntityManagerFactory emf = emfBean.getObject();
+                EntityManagerFactory emf = Objects.requireNonNull(emfBean.getObject());
 
                 ctx = new GenericWebApplicationContext();
                 ctx.getBeanFactory().registerSingleton(PluginContextOnly.MARKER, Boolean.TRUE);
@@ -118,57 +123,69 @@ public class PluginRuntimeFactory {
 
                 assertSecuredBeansAreProxied(ctx);
 
-                String servletName = "plugin-" + pluginId;
+                String servletName = NAME_PREFIX + pluginId;
                 DispatcherServlet servlet = new DispatcherServlet(ctx);
                 servlet.init(new PluginServletConfig(servletName, servletContext));
 
                 PluginRuntime runtime = new PluginRuntime(
                         descriptor,
                         loader,
-                        ctx,
-                        servlet,
-                        dataSource,
-                        emf,
+                        new PluginRuntime.Parts(ctx, servlet, dataSource, emf),
                         mainContext,
                         servletName,
                         jarPath,
                         sha256Hex(jarPath));
-                // A bridge that throws on attach fails only this plugin's activation (PluginBridge's
-                // contract) — which requires unwinding every bridge that already succeeded before it,
-                // or that bridge's registration (a permission namespace, an MCP tool, a settings key)
-                // would be left live for a plugin the caller was told never started.
-                List<PluginBridge> attached = new ArrayList<>();
-                try {
-                    for (PluginBridge bridge :
-                            mainContext.getBeansOfType(PluginBridge.class).values()) {
-                        bridge.attach(runtime.handle());
-                        attached.add(bridge);
-                    }
-                } catch (RuntimeException | Error attachFailure) {
-                    for (int i = attached.size() - 1; i >= 0; i--) {
-                        try {
-                            attached.get(i).detach(runtime.handle());
-                        } catch (RuntimeException detachFailure) {
-                            log.warn(
-                                    "Bridge {} threw unwinding plugin '{}' after a failed activation",
-                                    attached.get(i),
-                                    pluginId,
-                                    detachFailure);
-                        }
-                    }
-                    throw attachFailure;
-                }
+                attachBridges(runtime, pluginId);
+                activated = true;
                 return runtime;
-            } catch (Exception | Error e) {
-                if (ctx != null) {
-                    ctx.close();
+            } finally {
+                if (!activated) {
+                    if (ctx != null) {
+                        ctx.close();
+                    }
+                    dataSource.close();
+                    loader.close();
                 }
-                dataSource.close();
-                loader.close();
-                throw e;
             }
         } finally {
             Thread.currentThread().setContextClassLoader(previousTccl);
+        }
+    }
+
+    /**
+     * A bridge that throws on attach fails only this plugin's activation (PluginBridge's
+     * contract) — which requires unwinding every bridge that already succeeded before it,
+     * or that bridge's registration (a permission namespace, an MCP tool, a settings key)
+     * would be left live for a plugin the caller was told never started.
+     */
+    private void attachBridges(PluginRuntime runtime, String pluginId) {
+        List<PluginBridge> attached = new ArrayList<>();
+        boolean allAttached = false;
+        try {
+            for (PluginBridge bridge :
+                    mainContext.getBeansOfType(PluginBridge.class).values()) {
+                bridge.attach(runtime.handle());
+                attached.add(bridge);
+            }
+            allAttached = true;
+        } finally {
+            if (!allAttached) {
+                detachAll(attached, runtime, pluginId);
+            }
+        }
+    }
+
+    private void detachAll(List<PluginBridge> attached, PluginRuntime runtime, String pluginId) {
+        for (int i = attached.size() - 1; i >= 0; i--) {
+            try {
+                attached.get(i).detach(runtime.handle());
+            } catch (RuntimeException detachFailure) {
+                log.warn(
+                        "Bridge {} threw unwinding plugin '{}' after a failed activation",
+                        attached.get(i),
+                        pluginId,
+                        detachFailure);
+            }
         }
     }
 
@@ -194,7 +211,7 @@ public class PluginRuntimeFactory {
         config.setMaximumPoolSize(3);
         config.setConnectionInitSql(
                 "SET search_path TO " + schema + "; SET lock_timeout='10s'; SET statement_timeout='60s'");
-        config.setPoolName("plugin-" + pluginId + "-pool");
+        config.setPoolName(NAME_PREFIX + pluginId + "-pool");
         return new HikariDataSource(config);
     }
 

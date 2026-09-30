@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 class CredentialAuditParamsFilter implements AuditParamsFilter {
 
     @Override
-    public Map<String, ?> filter(Map<String, ?> params) {
+    public Map<String, Object> filter(Map<String, ?> params) {
         Map<String, Object> out = new LinkedHashMap<>();
         params.forEach(
                 (key, value) -> out.put(key, SecretRedactor.isCredentialKey(key) ? SecretRedactor.MASK : value(value)));

@@ -21,6 +21,20 @@ const LABELS: Record<FreshnessState, string> = {
   paused: 'Paused',
 };
 
+const STREAM_STATE: Record<string, FreshnessState> = {
+  live: 'live',
+  reconnecting: 'reconnecting',
+  connecting: 'reconnecting',
+  offline: 'offline',
+};
+
+/** How current the screen is: paused, offline, live over the stream, reconnecting, or polling. */
+function freshnessState(paused: boolean, hasError: boolean, stream: string | null): FreshnessState {
+  if (paused) return 'paused';
+  if (hasError) return 'offline';
+  return STREAM_STATE[stream ?? ''] ?? 'polling';
+}
+
 /**
  * The one place that answers "is this current?" — in the header, on every route
  * (ADR-0052).
@@ -50,17 +64,7 @@ export function FreshnessBar() {
     if (resumed) void refreshActiveQueries(qc);
   }, [paused, qc]);
 
-  const state: FreshnessState = paused
-    ? 'paused'
-    : hasError
-      ? 'offline'
-      : stream === 'live'
-        ? 'live'
-        : stream === 'reconnecting' || stream === 'connecting'
-          ? 'reconnecting'
-          : stream === 'offline'
-            ? 'offline'
-            : 'polling';
+  const state = freshnessState(paused, hasError, stream);
 
   const label = LABELS[state];
   // `dataUpdatedAt` is TanStack's own `Date.now()`. Normalised onto Studio's
@@ -110,7 +114,7 @@ export function FreshnessBar() {
  * narrate over whatever the operator is actually doing. Only the state word goes
  * in, and only when it changes.
  */
-function StateAnnouncement({ state }: { state: FreshnessState }) {
+function StateAnnouncement({ state }: Readonly<{ state: FreshnessState }>) {
   const [message, setMessage] = useState('');
   const previous = useRef(state);
 

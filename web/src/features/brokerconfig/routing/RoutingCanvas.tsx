@@ -166,7 +166,7 @@ function FollowFocus({
   follow,
   frame,
 }: {
-  follow: React.MutableRefObject<((id: string) => void) | null>;
+  follow: React.RefObject<((id: string) => void) | null>;
   frame: React.RefObject<HTMLDivElement | null>;
 }) {
   const flow = useReactFlow();
@@ -215,7 +215,7 @@ export function RoutingCanvas({
   canWrite,
   leading,
   actions,
-}: {
+}: Readonly<{
   graph: RoutingGraph;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -225,7 +225,7 @@ export function RoutingCanvas({
   leading?: ReactNode;
   /** Toolbar controls at its end — the builder's authoring and apply actions. */
   actions?: ReactNode;
-}) {
+}>) {
   const layout = useRoutingLayout(graph);
   const wrapper = useRef<HTMLDivElement>(null);
 

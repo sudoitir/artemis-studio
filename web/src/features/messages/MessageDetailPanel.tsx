@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   Badge,
@@ -24,6 +24,8 @@ import { redactionsAt } from '../../ui/redactions.ts';
 
 type Redactions = MessageDetailView['redactions'];
 
+const FILE_EXTENSION: Record<string, string> = { json: 'json', xml: 'xml' };
+
 /**
  * Raises the per-message body/property cap. Mirrors
  * {@code BrokerXmlSnippets.forMessageBodyLimit()} on the backend — shown next to
@@ -40,11 +42,11 @@ function PropertyTable({
   title,
   entries,
   redactions,
-}: {
+}: Readonly<{
   title: string;
   entries: [string, unknown][];
   redactions: Redactions;
-}) {
+}>) {
   if (entries.length === 0) return null;
   return (
     <Stack gap={4}>
@@ -85,7 +87,7 @@ function MessageBody({
   messageId,
   redactions,
   withheld,
-}: {
+}: Readonly<{
   body: string | null;
   bodyEncoding: string;
   contentType?: string | null;
@@ -94,7 +96,7 @@ function MessageBody({
   messageId: number;
   redactions: Redactions;
   withheld: MessageDetailView['withheld'];
-}) {
+}>) {
   const bodyRedactions = redactionsAt(redactions, 'BODY');
   const masked = bodyRedactions.some((r) => !r.clear);
   const [view, setView] = useState<'formatted' | 'raw'>('formatted');
@@ -112,7 +114,7 @@ function MessageBody({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `message-${messageId}.${detected.format === 'json' ? 'json' : detected.format === 'xml' ? 'xml' : 'txt'}`;
+    a.download = `message-${messageId}.${FILE_EXTENSION[detected.format] ?? 'txt'}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -166,10 +168,9 @@ function MessageBody({
       ) : null}
       <WithheldNotice withheld={withheld} />
 
-      {body === null && withheld.length > 0 ? null : detected.bytes ? (
-        <HexDump bytes={detected.bytes} />
-      ) : (
-        <CodeHighlight
+      {body === null && withheld.length > 0 ? null : (
+        <BodyContent
+          bytes={detected.bytes}
           code={shown || '(empty)'}
           language={(view === 'formatted' && detected.highlightLanguage) || 'text'}
         />
@@ -190,6 +191,172 @@ function MessageBody({
   );
 }
 
+/** The body as bytes when it is binary, otherwise as highlighted text. */
+function BodyContent({
+  bytes,
+  code,
+  language,
+}: Readonly<{ bytes: Uint8Array | null; code: string; language: string }>) {
+  if (bytes) return <HexDump bytes={bytes} />;
+  return <CodeHighlight code={code} language={language} />;
+}
+
+/** The type, durability, priority, size and transport of the message, in words. */
+function MessageBadges({ m }: Readonly<{ m: MessageDetailView }>) {
+  return (
+    <Group gap="xs">
+      <Badge variant="light">{messageTypeName(m.type)}</Badge>
+      <Badge variant="light" color="gray">
+        {m.durable ? 'durable' : 'non-durable'}
+      </Badge>
+      <Badge variant="light" color="gray">
+        priority {m.priority}
+      </Badge>
+      <Badge variant="light" color="gray">
+        {m.size} bytes
+      </Badge>
+      <Badge
+        variant="light"
+        color={m.transport === 'CORE' ? 'teal' : 'blue'}
+        title={
+          m.transport === 'CORE'
+            ? 'Read faithfully over the Core protocol client'
+            : 'Read over the Jolokia management channel'
+        }
+      >
+        via {m.transport === 'CORE' ? 'Core' : 'Jolokia'}
+      </Badge>
+    </Group>
+  );
+}
+
+/** One header row; the governed value keeps its redaction marks. */
+function HeaderRow({
+  label,
+  value,
+  redactions,
+  first,
+}: Readonly<{ label: string; value: string; redactions: ReturnType<typeof redactionsAt>; first?: boolean }>) {
+  return (
+    <Table.Tr>
+      <Table.Td w={first ? '40%' : undefined}>
+        <Text size="xs" c="dimmed">
+          {label}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <GovernedValue value={value} redactions={redactions} />
+      </Table.Td>
+    </Table.Tr>
+  );
+}
+
+/** When the message was enqueued and expires, and the identifying headers it carries. */
+function HeaderTable({ m }: Readonly<{ m: MessageDetailView }>) {
+  return (
+    <Table withRowBorders={false} verticalSpacing={2}>
+      <Table.Tbody>
+        <Table.Tr>
+          <Table.Td w="40%">
+            <Text size="xs" c="dimmed">
+              Enqueued
+            </Text>
+          </Table.Td>
+          <Table.Td>
+            <Text size="xs">{absoluteLabel(m.timestamp)}</Text>
+          </Table.Td>
+        </Table.Tr>
+        <Table.Tr>
+          <Table.Td>
+            <Text size="xs" c="dimmed">
+              Expiration
+            </Text>
+          </Table.Td>
+          <Table.Td>
+            <Text size="xs">{m.expiration > 0 ? absoluteLabel(m.expiration) : 'never'}</Text>
+          </Table.Td>
+        </Table.Tr>
+        {m.groupId ? (
+          <HeaderRow label="Group" value={m.groupId} redactions={redactionsAt(m.redactions, 'HEADER', 'groupId')} />
+        ) : null}
+        {m.correlationId ? (
+          <HeaderRow
+            label="Correlation ID"
+            value={m.correlationId}
+            redactions={redactionsAt(m.redactions, 'HEADER', 'correlationId')}
+          />
+        ) : null}
+        {m.userId ? (
+          <HeaderRow label="User ID" value={m.userId} redactions={redactionsAt(m.redactions, 'HEADER', 'userId')} />
+        ) : null}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+/** What the broker clipped, and the exact change that lifts the limit. */
+function TruncationNotice({ m }: Readonly<{ m: MessageDetailView }>) {
+  if (!m.bodyTruncated) return null;
+  return (
+    <Alert color="yellow" variant="light" title="This message is truncated">
+      <Stack gap="xs">
+        <Text size="sm">
+          The broker clipped this message's body and property values at {m.observedLimitBytes ?? 'its'} bytes (
+          <code>management-message-attribute-size-limit</code>). To see the whole message, raise the limit in{' '}
+          <code>broker.xml</code> and re-browse, or connect the Core client so Studio can read it faithfully:
+        </Text>
+        <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
+      </Stack>
+    </Alert>
+  );
+}
+
+/** The message itself: its headers, every property table, the body, and the truncation notice. */
+function MessageDetailContent({ m }: Readonly<{ m: MessageDetailView }>) {
+  return (
+    <Stack gap="md">
+      <MessageBadges m={m} />
+      <HeaderTable m={m} />
+
+      <PropertyTable title="String properties" entries={Object.entries(m.stringProperties)} redactions={m.redactions} />
+      <PropertyTable title="Integer properties" entries={Object.entries(m.intProperties)} redactions={m.redactions} />
+      <PropertyTable title="Long properties" entries={Object.entries(m.longProperties)} redactions={m.redactions} />
+      <PropertyTable title="Double properties" entries={Object.entries(m.doubleProperties)} redactions={m.redactions} />
+      <PropertyTable
+        title="Boolean properties"
+        entries={Object.entries(m.booleanProperties)}
+        redactions={m.redactions}
+      />
+
+      <MessageBody
+        body={m.body ?? null}
+        bodyEncoding={m.bodyEncoding}
+        contentType={m.contentType}
+        bodyTruncated={m.bodyTruncated}
+        stringProperties={m.stringProperties}
+        messageId={m.messageId}
+        redactions={m.redactions}
+        withheld={m.withheld}
+      />
+
+      <TruncationNotice m={m} />
+    </Stack>
+  );
+}
+
+/** What stands in for the message while it loads or fails to load. */
+function detailNotice(detail: ReturnType<typeof useMessageDetail>): ReactNode {
+  if (detail.isPending) return <Loader size="sm" />;
+  if (detail.isError) {
+    return (
+      <Alert color="red" variant="light" title={detail.error.title}>
+        {detail.error.message}
+      </Alert>
+    );
+  }
+  return null;
+}
+
 export function MessageDetailPanel({
   clusterId,
   queueName,
@@ -197,14 +364,14 @@ export function MessageDetailPanel({
   node,
   filter,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   messageId: string | null;
   node?: string;
   filter?: string;
   onClose: () => void;
-}) {
+}>) {
   const detail = useMessageDetail(clusterId, queueName, messageId, node, filter);
   const m = detail.data;
   // Absolute timestamps here read the display zone from module state, so this
@@ -219,149 +386,7 @@ export function MessageDetailPanel({
       size="xl"
       title={messageId ? `Message ${messageId}` : ''}
     >
-      {detail.isPending ? (
-        <Loader size="sm" />
-      ) : detail.isError ? (
-        <Alert color="red" variant="light" title={detail.error.title}>
-          {detail.error.message}
-        </Alert>
-      ) : m ? (
-        <Stack gap="md">
-          <Group gap="xs">
-            <Badge variant="light">{messageTypeName(m.type)}</Badge>
-            <Badge variant="light" color="gray">
-              {m.durable ? 'durable' : 'non-durable'}
-            </Badge>
-            <Badge variant="light" color="gray">
-              priority {m.priority}
-            </Badge>
-            <Badge variant="light" color="gray">
-              {m.size} bytes
-            </Badge>
-            <Badge
-              variant="light"
-              color={m.transport === 'CORE' ? 'teal' : 'blue'}
-              title={
-                m.transport === 'CORE'
-                  ? 'Read faithfully over the Core protocol client'
-                  : 'Read over the Jolokia management channel'
-              }
-            >
-              via {m.transport === 'CORE' ? 'Core' : 'Jolokia'}
-            </Badge>
-          </Group>
-
-          <Table withRowBorders={false} verticalSpacing={2}>
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Td w="40%">
-                  <Text size="xs" c="dimmed">
-                    Enqueued
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">{absoluteLabel(m.timestamp)}</Text>
-                </Table.Td>
-              </Table.Tr>
-              <Table.Tr>
-                <Table.Td>
-                  <Text size="xs" c="dimmed">
-                    Expiration
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">{m.expiration > 0 ? absoluteLabel(m.expiration) : 'never'}</Text>
-                </Table.Td>
-              </Table.Tr>
-              {m.groupId ? (
-                <Table.Tr>
-                  <Table.Td>
-                    <Text size="xs" c="dimmed">
-                      Group
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <GovernedValue value={m.groupId} redactions={redactionsAt(m.redactions, 'HEADER', 'groupId')} />
-                  </Table.Td>
-                </Table.Tr>
-              ) : null}
-              {m.correlationId ? (
-                <Table.Tr>
-                  <Table.Td>
-                    <Text size="xs" c="dimmed">
-                      Correlation ID
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <GovernedValue
-                      value={m.correlationId}
-                      redactions={redactionsAt(m.redactions, 'HEADER', 'correlationId')}
-                    />
-                  </Table.Td>
-                </Table.Tr>
-              ) : null}
-              {m.userId ? (
-                <Table.Tr>
-                  <Table.Td>
-                    <Text size="xs" c="dimmed">
-                      User ID
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <GovernedValue value={m.userId} redactions={redactionsAt(m.redactions, 'HEADER', 'userId')} />
-                  </Table.Td>
-                </Table.Tr>
-              ) : null}
-            </Table.Tbody>
-          </Table>
-
-          <PropertyTable
-            title="String properties"
-            entries={Object.entries(m.stringProperties)}
-            redactions={m.redactions}
-          />
-          <PropertyTable
-            title="Integer properties"
-            entries={Object.entries(m.intProperties)}
-            redactions={m.redactions}
-          />
-          <PropertyTable title="Long properties" entries={Object.entries(m.longProperties)} redactions={m.redactions} />
-          <PropertyTable
-            title="Double properties"
-            entries={Object.entries(m.doubleProperties)}
-            redactions={m.redactions}
-          />
-          <PropertyTable
-            title="Boolean properties"
-            entries={Object.entries(m.booleanProperties)}
-            redactions={m.redactions}
-          />
-
-          <MessageBody
-            body={m.body ?? null}
-            bodyEncoding={m.bodyEncoding}
-            contentType={m.contentType}
-            bodyTruncated={m.bodyTruncated}
-            stringProperties={m.stringProperties}
-            messageId={m.messageId}
-            redactions={m.redactions}
-            withheld={m.withheld}
-          />
-
-          {m.bodyTruncated ? (
-            <Alert color="yellow" variant="light" title="This message is truncated">
-              <Stack gap="xs">
-                <Text size="sm">
-                  The broker clipped this message's body and property values at {m.observedLimitBytes ?? 'its'} bytes (
-                  <code>management-message-attribute-size-limit</code>). To see the whole message, raise the limit in{' '}
-                  <code>broker.xml</code> and re-browse, or connect the Core client so Studio can read it faithfully:
-                </Text>
-                <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
-              </Stack>
-            </Alert>
-          ) : null}
-        </Stack>
-      ) : null}
+      {detailNotice(detail) ?? (m ? <MessageDetailContent m={m} /> : null)}
     </Drawer>
   );
 }

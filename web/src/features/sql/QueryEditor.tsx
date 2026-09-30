@@ -115,7 +115,7 @@ const errorField = StateField.define<DecorationSet>({
 
 /** The token after `FROM `, so the completion replaces it rather than appending to it. */
 function wordAfterFrom(text: string): string {
-  return /from\s+(.*)$/i.exec(text)?.[1] ?? '';
+  return /from\s+(\S.*)?$/i.exec(text)?.[1] ?? '';
 }
 
 /**
@@ -133,7 +133,7 @@ export function QueryEditor({
   queues,
   label = 'Query',
   errorToken = null,
-}: {
+}: Readonly<{
   value: string;
   onChange: (next: string) => void;
   onRun: () => void;
@@ -142,7 +142,7 @@ export function QueryEditor({
   label?: string;
   /** The token a refusal is about, underlined in place. Null clears the mark. */
   errorToken?: string | null;
-}) {
+}>) {
   const labelId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);

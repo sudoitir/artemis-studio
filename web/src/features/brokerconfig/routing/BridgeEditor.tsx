@@ -50,6 +50,23 @@ function blank(v: string | null | undefined): boolean {
 }
 
 /** A number field's value on the wire: empty means "not declared — keep the broker's default". */
+/** Why no connector names can be offered, or null when some are known. */
+function connectorsUnknownReason(
+  rows: { reason?: string | null }[],
+  knownCount: number,
+  pending: boolean,
+): string | null {
+  if (rows.length === 0) {
+    return pending
+      ? 'Studio has not read the nodes’ connector names yet.'
+      : 'Studio has no node to read connector names from.';
+  }
+  if (knownCount === 0) {
+    return `Studio could not read any node's connector names: ${rows[0].reason ?? 'the read was refused'}.`;
+  }
+  return null;
+}
+
 function num(v: string | number): number | null {
   if (v === '' || v === null || v === undefined) return null;
   const n = typeof v === 'number' ? v : Number(v);
@@ -76,13 +93,13 @@ export function BridgeEditor({
   prefill,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   item: ConfigBridgeView | null;
   prefill?: BridgePrefill;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [name, setName] = useState('');
   const [queueName, setQueueName] = useState('');
   const [forwardingAddress, setForwardingAddress] = useState('');
@@ -127,7 +144,7 @@ export function BridgeEditor({
     setFilter(item?.filter ?? '');
     setTransformer({
       className: item?.transformer?.className ?? '',
-      properties: { ...(item?.transformer?.properties ?? {}) },
+      properties: { ...item?.transformer?.properties },
     });
     setRoutingType(item?.routingType ?? '');
     setHa(item?.ha ?? false);
@@ -161,18 +178,11 @@ export function BridgeEditor({
   const offered = useMemo(() => {
     const rows = nodeConnectors.data ?? [];
     const known = rows.filter((r) => r.known);
-    const names = [...new Set(known.flatMap((r) => r.names))].sort();
+    const names = [...new Set(known.flatMap((r) => r.names))].sort((a, b) => a.localeCompare(b));
     return {
       names,
       /** Null while nothing is known yet — not the same as "there are none" (ADR-0049 D5). */
-      unknownReason:
-        rows.length === 0
-          ? nodeConnectors.isPending
-            ? 'Studio has not read the nodes’ connector names yet.'
-            : 'Studio has no node to read connector names from.'
-          : known.length === 0
-            ? `Studio could not read any node's connector names: ${rows[0].reason ?? 'the read was refused'}.`
-            : null,
+      unknownReason: connectorsUnknownReason(rows, known.length, nodeConnectors.isPending),
     };
   }, [nodeConnectors.data, nodeConnectors.isPending]);
 
@@ -183,8 +193,7 @@ export function BridgeEditor({
     else if (keyTaken(declaration.document.bridges, (i) => i.name, n, item?.name)) {
       errors.name = `"${n}" is already declared. Edit that bridge instead.`;
     } else if (!MANAGEMENT_NAME.test(n)) {
-      errors.name =
-        'A bridge’s name cannot contain whitespace or any of , = : * ? " \\ — the broker puts it in an object name.';
+      errors.name = String.raw`A bridge’s name cannot contain whitespace or any of , = : * ? " \ — the broker puts it in an object name.`;
     }
     if (!queueName.trim()) errors.queueName = 'A bridge needs the queue it reads from.';
     if (!forwardingAddress.trim()) errors.forwardingAddress = 'A bridge needs the address it forwards to.';

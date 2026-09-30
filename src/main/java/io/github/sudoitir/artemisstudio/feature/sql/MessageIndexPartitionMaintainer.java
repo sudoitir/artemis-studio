@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,7 +76,7 @@ public class MessageIndexPartitionMaintainer {
      * partition exists.
      */
     private void createAhead() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         for (int i = 0; i <= CREATE_AHEAD_DAYS; i++) {
             LocalDate day = today.plusDays(i);
             String name = "message_index_" + day.format(SUFFIX);
@@ -96,17 +97,20 @@ public class MessageIndexPartitionMaintainer {
             // One transaction: the attach takes its lock with the move, so a row for that day
             // inserted into the default partition between the two can no longer make the
             // attach fail its validation scan.
+            // Identifiers cannot be bound. The name is "message_index_" plus a formatted date,
+            // and day and next are LocalDates, so nothing here carries caller-supplied text.
+            String move = """
+                    WITH moved AS (
+                        DELETE FROM message_index_default
+                         WHERE observed_at >= '%s' AND observed_at < '%s' RETURNING *
+                    )
+                    INSERT INTO %s SELECT * FROM moved
+                    """.formatted(day, next, name);
+            String attach = "ALTER TABLE message_index ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
+                    .formatted(name, day, next);
             transactions.executeWithoutResult(status -> {
-                jdbc.getJdbcTemplate().execute("""
-                                WITH moved AS (
-                                    DELETE FROM message_index_default
-                                     WHERE observed_at >= '%s' AND observed_at < '%s' RETURNING *
-                                )
-                                INSERT INTO %s SELECT * FROM moved
-                                """.formatted(day, next, name));
-                jdbc.getJdbcTemplate()
-                        .execute("ALTER TABLE message_index ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
-                                .formatted(name, day, next));
+                jdbc.getJdbcTemplate().execute(move);
+                jdbc.getJdbcTemplate().execute(attach);
             });
         }
     }
@@ -116,9 +120,9 @@ public class MessageIndexPartitionMaintainer {
                 SELECT EXISTS (
                     SELECT 1 FROM pg_inherits i
                       JOIN pg_class c ON c.oid = i.inhrelid
-                     WHERE i.inhparent = 'message_index'::regclass AND c.relname = '%s'
+                     WHERE i.inhparent = 'message_index'::regclass AND c.relname = ?
                 )
-                """.formatted(name), Boolean.class);
+                """, Boolean.class, name);
         return Boolean.TRUE.equals(exists);
     }
 

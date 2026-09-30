@@ -6,10 +6,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +29,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -117,7 +120,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         n.attachManagementUrl(url);
-        n.applyHaState(active, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, Instant.now());
+        n.applyHaState(new HaObservation(active, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }
 
@@ -532,6 +535,509 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
                         404, null, "No MBean with pattern found", "javax.management.InstanceNotFoundException", null));
         assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, true, false, false))
                 .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.core.NotFoundException.class);
+    }
+
+    // ---- create queue: the ALREADY comparison ------------------------------
+
+    private CreateQueueRequest fullRequest() {
+        return new CreateQueueRequest(ADDRESS, QUEUE, "anycast", true, "color='red'", 5, true, false, true, 100L, null);
+    }
+
+    private static Map<String, Object> fullConfig() {
+        return Map.of(
+                "address",
+                ADDRESS,
+                "routing-type",
+                "ANYCAST",
+                "durable",
+                true,
+                "filter-string",
+                "color='red'",
+                "max-consumers",
+                5,
+                "purge-on-no-consumers",
+                true,
+                "exclusive",
+                false,
+                "non-destructive",
+                true,
+                "ring-size",
+                100);
+    }
+
+    private void alreadyExists(Map<String, Object> existing) {
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.ALREADY, "AMQ229019: already exists"))
+                .when(ops)
+                .createQueue(any(), anyString(), any());
+        doReturn(existing).when(ops).readQueueConfig(any(), anyString());
+    }
+
+    @Test
+    void anExistingQueueMatchingEveryRequestedAttributeIsAlreadyThere() {
+        alreadyExists(fullConfig());
+
+        LifecycleOutcome outcome = ok(lifecycle.createQueue(clusterId, fullRequest(), false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.ALREADY);
+    }
+
+    @Test
+    void anExistingQueueDifferingInAnyRequestedAttributeFails() {
+        for (String key : List.of(
+                "filter-string",
+                "max-consumers",
+                "purge-on-no-consumers",
+                "exclusive",
+                "non-destructive",
+                "ring-size",
+                "durable")) {
+            java.util.HashMap<String, Object> existing = new java.util.HashMap<>(fullConfig());
+            existing.put(
+                    key,
+                    switch (key) {
+                        case "filter-string" -> "color='blue'";
+                        case "max-consumers", "ring-size" -> 999;
+                        default -> !(Boolean) fullConfig().get(key);
+                    });
+            alreadyExists(existing);
+
+            LifecycleOutcome outcome = ok(lifecycle.createQueue(clusterId, fullRequest(), false));
+
+            assertThat(status(outcome, liveId)).as(key).isEqualTo(NodeStatus.FAILED);
+        }
+    }
+
+    @Test
+    void anExistingQueueMissingARequestedAttributeDiffersAndItIsNamedAsUnset() {
+        alreadyExists(Map.of("routing-type", "MULTICAST", "filter-string", "other"));
+
+        LifecycleOutcome outcome = ok(lifecycle.createQueue(clusterId, fullRequest(), false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.FAILED);
+        assertThat(error(outcome, liveId))
+                .contains("address is unset, requested orders.addr")
+                .contains("routing type is MULTICAST, requested anycast")
+                .contains("filter is other, requested color='red'");
+    }
+
+    @Test
+    void aDifferenceInAnAttributeThatIsNotDescribedStillFailsWithAGenericReason() {
+        java.util.HashMap<String, Object> existing = new java.util.HashMap<>(fullConfig());
+        existing.put("ring-size", 1);
+        alreadyExists(existing);
+
+        LifecycleOutcome outcome = ok(lifecycle.createQueue(clusterId, fullRequest(), false));
+
+        assertThat(error(outcome, liveId)).contains("the existing queue differs from the request");
+    }
+
+    @Test
+    void aBlankFilterIsNotSentAndIsNotADifference() {
+        alreadyExists(Map.of("address", ADDRESS, "routing-type", "ANYCAST", "durable", true));
+        CreateQueueRequest blankFilter =
+                new CreateQueueRequest(ADDRESS, QUEUE, "ANYCAST", true, "  ", null, null, null, null, null, null);
+
+        assertThat(status(ok(lifecycle.createQueue(clusterId, blankFilter, false)), liveId))
+                .isEqualTo(NodeStatus.ALREADY);
+    }
+
+    @Test
+    void aRefusalOtherThanAlreadyFailsTheNodeWithTheBrokersReason() {
+        when(ops.createQueue(any(), anyString(), any()))
+                .thenThrow(new ManagementRefusal(ManagementRefusal.Kind.ARGUMENT, "bad filter"));
+
+        LifecycleOutcome outcome = ok(lifecycle.createQueue(clusterId, fullRequest(), false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.FAILED);
+        assertThat(error(outcome, liveId)).contains("bad filter");
+        verify(ops, never()).readQueueConfig(any(), anyString());
+    }
+
+    @Test
+    void theRequestedConfigurationIsSentToTheBrokerWithOnlyWhatWasSet() {
+        lifecycle.createQueue(clusterId, fullRequest(), false);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Map<String, Object>> config = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(ops).createQueue(any(), anyString(), config.capture());
+        assertThat(config.getValue())
+                .containsEntry("name", QUEUE)
+                .containsEntry("address", ADDRESS)
+                .containsEntry("routing-type", "ANYCAST")
+                .containsEntry("durable", true)
+                .containsEntry("auto-create-address", true)
+                .containsEntry("filter-string", "color='red'")
+                .containsEntry("max-consumers", 5)
+                .containsEntry("purge-on-no-consumers", true)
+                .containsEntry("exclusive", false)
+                .containsEntry("non-destructive", true)
+                .containsEntry("ring-size", 100L);
+
+        org.mockito.Mockito.clearInvocations(ops);
+        lifecycle.createQueue(clusterId, createRequest(), false);
+        verify(ops).createQueue(any(), anyString(), config.capture());
+        assertThat(config.getValue()).doesNotContainKeys("filter-string", "max-consumers", "ring-size");
+    }
+
+    // ---- update, pause, resume, reset -------------------------------------------
+
+    @Test
+    void anUpdateSendsOnlyTheFieldsThatWereGiven() {
+        seedQueue();
+
+        LifecycleOutcome outcome = ok(lifecycle.updateQueue(
+                clusterId, QUEUE, new LifecycleRequests.UpdateQueueRequest("", 3, false, true, false, 50L), false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Map<String, Object>> patch = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(ops).updateQueue(any(), anyString(), anyString(), patch.capture());
+        assertThat(patch.getValue())
+                .containsEntry("filter-string", "")
+                .containsEntry("max-consumers", 3)
+                .containsEntry("purge-on-no-consumers", false)
+                .containsEntry("exclusive", true)
+                .containsEntry("non-destructive", false)
+                .containsEntry("ring-size", 50L);
+    }
+
+    @Test
+    void anUpdateThatChangesNothingIsRejectedBeforeTouchingAnyNode() {
+        seedQueue();
+
+        var request = new LifecycleRequests.UpdateQueueRequest(null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> lifecycle.updateQueue(clusterId, QUEUE, request, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one field");
+        verify(ops, never()).updateQueue(any(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void anUpdateOfAQueueNoNodeHasIsNotFound() {
+        when(client.single(any()))
+                .thenReturn(new io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse(
+                        404, null, "No MBean", "javax.management.InstanceNotFoundException", null));
+
+        assertThatThrownBy(() -> lifecycle.updateQueue(
+                        clusterId,
+                        "ghost",
+                        new LifecycleRequests.UpdateQueueRequest(null, 1, null, null, null, null),
+                        false))
+                .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.core.NotFoundException.class);
+    }
+
+    @Test
+    void pausingAQueueThatIsRunningPausesItAndOneAlreadyPausedIsLeftAlone() {
+        seedQueue();
+
+        assertThat(status(ok(lifecycle.setPaused(clusterId, QUEUE, true, false)), liveId))
+                .isEqualTo(NodeStatus.APPLIED);
+        verify(ops).pause(any(), anyString());
+
+        when(ops.isPaused(any(), anyString())).thenReturn(true);
+        assertThat(status(ok(lifecycle.setPaused(clusterId, QUEUE, true, false)), liveId))
+                .isEqualTo(NodeStatus.ALREADY);
+        verify(ops, times(1)).pause(any(), anyString());
+    }
+
+    @Test
+    void resumingAPausedQueueResumesItAndOneAlreadyRunningIsLeftAlone() {
+        seedQueue();
+        when(ops.isPaused(any(), anyString())).thenReturn(true);
+
+        assertThat(status(ok(lifecycle.setPaused(clusterId, QUEUE, false, false)), liveId))
+                .isEqualTo(NodeStatus.APPLIED);
+        verify(ops).resume(any(), anyString());
+
+        when(ops.isPaused(any(), anyString())).thenReturn(false);
+        assertThat(status(ok(lifecycle.setPaused(clusterId, QUEUE, false, false)), liveId))
+                .isEqualTo(NodeStatus.ALREADY);
+        verify(ops, times(1)).resume(any(), anyString());
+        assertThat(auditFor("RESUME_QUEUE")).isNotEmpty();
+    }
+
+    @Test
+    void resettingTheCounterIsAppliedOnTheLiveNode() {
+        seedQueue();
+
+        LifecycleOutcome outcome = ok(lifecycle.resetCounter(clusterId, QUEUE, false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        verify(ops).resetMessageCounter(any(), anyString());
+    }
+
+    // ---- addresses --------------------------------------------------------------
+
+    @Test
+    void anAddressIsCreatedWithItsRoutingTypesUpperCased() {
+        LifecycleOutcome outcome = ok(lifecycle.createAddress(
+                clusterId, new LifecycleRequests.CreateAddressRequest("a.b", "anycast,multicast"), false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        verify(ops).createAddress(any(), anyString(), eq("a.b"), eq("ANYCAST,MULTICAST"));
+    }
+
+    @Test
+    void deletingAnAddressWithBoundQueuesNamesThemAndOtherRefusalsPassThrough() {
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.BOUND_QUEUES, "AMQ: has bindings"))
+                .when(ops)
+                .deleteAddress(any(), anyString(), eq("a.b"));
+        when(ops.boundQueues(any(), anyString())).thenReturn(List.of("q1", "q2"));
+
+        LifecycleOutcome named = ok(lifecycle.deleteAddress(clusterId, "a.b", false));
+        assertThat(status(named, liveId)).isEqualTo(NodeStatus.FAILED);
+        assertThat(error(named, liveId))
+                .contains("2 queue(s) bound to it: q1, q2")
+                .contains("Delete them first");
+
+        when(ops.boundQueues(any(), anyString())).thenReturn(List.of());
+        assertThat(error(ok(lifecycle.deleteAddress(clusterId, "a.b", false)), liveId))
+                .isEqualTo("Address 'a.b' still has queues bound to it.");
+
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.ARGUMENT, "no such address"))
+                .when(ops)
+                .deleteAddress(any(), anyString(), eq("a.c"));
+        assertThat(error(ok(lifecycle.deleteAddress(clusterId, "a.c", false)), liveId))
+                .contains("no such address");
+    }
+
+    @Test
+    void anAddressWithNoQueuesBoundIsDeleted() {
+        LifecycleOutcome outcome = ok(lifecycle.deleteAddress(clusterId, "a.b", false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        verify(ops).deleteAddress(any(), anyString(), eq("a.b"));
+    }
+
+    // ---- diverts ----------------------------------------------------------------
+
+    private static LifecycleRequests.CreateDivertRequest divertRequest(
+            String name, boolean exclusive, boolean acknowledge) {
+        return new LifecycleRequests.CreateDivertRequest(name, null, "src", "dst", exclusive, null, null, acknowledge);
+    }
+
+    private static DivertRow captureTap(String address) {
+        return divert(DivertOperations.CAPTURE_PREFIX + "tap", address, "capture.sink");
+    }
+
+    @Test
+    void aValidDivertIsCreatedAndAuditedWithTheShadowingAcknowledgement() {
+        when(divertOps.addressAvailable(any(), anyString(), eq("dst"))).thenReturn(true);
+        when(divertOps.createVerified(any(), anyString(), any())).thenReturn(NodeStatus.APPLIED);
+
+        LifecycleOutcome outcome = ok(lifecycle.createDivert(clusterId, divertRequest("feed", false, false), false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        assertThat(realAudit("CREATE_DIVERT").getParams()).contains("acknowledgeCaptureShadowing");
+    }
+
+    @Test
+    void aDivertThatWouldCompleteACycleIsRefusedNamingIt() {
+        when(divertOps.addressAvailable(any(), anyString(), any())).thenReturn(true);
+        diverts(divert("back", "dst", "src"));
+
+        NodeOutcome preview = live(ok(lifecycle.createDivert(clusterId, divertRequest("feed", false, false), true)));
+
+        assertThat(preview.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(preview.error()).contains("would complete a cycle of diverts");
+        verify(divertOps, never()).createVerified(any(), anyString(), any());
+    }
+
+    @Test
+    void aDivertToAnAddressTheNodeLacksIsRefusedWithTheDeclarationThatWouldFixIt() {
+        when(divertOps.addressAvailable(any(), anyString(), any())).thenReturn(false);
+
+        NodeOutcome preview = live(ok(lifecycle.createDivert(clusterId, divertRequest("feed", false, false), true)));
+
+        assertThat(preview.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(preview.error())
+                .contains("'dst' does not exist on this node")
+                .contains("producers to 'src' would fail")
+                .contains("<address name=\"dst\">");
+    }
+
+    @Test
+    void anExclusiveDivertOnACapturedAddressIsRefusedUnlessTheShadowingIsAcknowledged() {
+        when(divertOps.addressAvailable(any(), anyString(), any())).thenReturn(true);
+        when(divertOps.createVerified(any(), anyString(), any())).thenReturn(NodeStatus.APPLIED);
+        diverts(captureTap("src"));
+
+        NodeOutcome refused = live(ok(lifecycle.createDivert(clusterId, divertRequest("feed", true, false), true)));
+        assertThat(refused.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(refused.error()).contains("is being captured").contains("acknowledgeCaptureShadowing");
+
+        NodeOutcome warned = live(ok(lifecycle.createDivert(clusterId, divertRequest("feed", true, true), true)));
+        assertThat(warned.status()).isEqualTo(NodeStatus.WOULD_APPLY);
+        assertThat(warned.error()).contains("is being captured").doesNotContain("Set acknowledgeCaptureShadowing");
+    }
+
+    @Test
+    void theCaptureCheckIgnoresNonExclusiveDivertsAndCapturesOfOtherAddresses() {
+        when(divertOps.addressAvailable(any(), anyString(), any())).thenReturn(true);
+        diverts(captureTap("src"), captureTap("elsewhere"), divert("plain", "src", "x"));
+
+        assertThat(live(ok(lifecycle.createDivert(clusterId, divertRequest("feed", false, false), true)))
+                        .error())
+                .isNull();
+
+        diverts(captureTap("elsewhere"), divert("plain", "src", "x"));
+        assertThat(live(ok(lifecycle.createDivert(clusterId, divertRequest("feed", true, false), true)))
+                        .error())
+                .isNull();
+    }
+
+    @Test
+    void aDivertRequestThatFailsValidationIsRejectedWithEveryViolation() {
+        var request =
+                new LifecycleRequests.CreateDivertRequest("bad name", null, "src", "src", null, null, "NOPE", null);
+
+        assertThatThrownBy(() -> lifecycle.createDivert(clusterId, request, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name:")
+                .hasMessageContaining("routingType:");
+    }
+
+    @Test
+    void divertNamesInTheNamespacesStudioReservesAreRefused() {
+        var captureRequest = divertRequest(DivertOperations.CAPTURE_PREFIX + "x", false, false);
+        var tapRequest = divertRequest(DivertOperations.PLUGIN_TAP_PREFIX + "x", false, false);
+
+        assertThatThrownBy(() -> lifecycle.createDivert(clusterId, captureRequest, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("reserved for message capture");
+        assertThatThrownBy(() -> lifecycle.createDivert(clusterId, tapRequest, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("reserved for plugins' message taps");
+        assertThatThrownBy(() -> lifecycle.deleteDivert(clusterId, DivertOperations.CAPTURE_PREFIX + "x", false))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> lifecycle.deleteDivert(clusterId, DivertOperations.PLUGIN_TAP_PREFIX + "x", false))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(divertOps, never()).destroyDivert(any(), anyString(), anyString());
+    }
+
+    @Test
+    void anOperatorsDivertIsDeletedOnTheLiveNode() {
+        LifecycleOutcome outcome = ok(lifecycle.deleteDivert(clusterId, "feed", false));
+
+        assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
+        verify(divertOps).destroyDivert(any(), anyString(), eq("feed"));
+    }
+
+    // ---- delete: what the preview says about each kind of divert ------------------
+
+    @Test
+    void aSingleConsumerIsCountedInTheSingular() {
+        seedQueue();
+        onTheNode(1, QUEUE);
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.error()).contains("has 1 consumer attached");
+    }
+
+    @Test
+    void aDependentDivertIsDescribedWithEverythingNeededToRecreateIt() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(
+                new DivertRow(
+                        null,
+                        null,
+                        "full",
+                        "route",
+                        "incoming",
+                        ADDRESS,
+                        "color='red'",
+                        "ANYCAST",
+                        "x.Transformer",
+                        Map.of(),
+                        true,
+                        false),
+                new DivertRow(null, null, "bare", "bare", "other", ADDRESS, " ", "STRIP", " ", Map.of(), false, false));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.error())
+                .contains("'full' (incoming")
+                .contains("routing name route")
+                .contains("routing type ANYCAST")
+                .contains(", exclusive")
+                .contains(", filter color='red'")
+                .contains(", transformer x.Transformer")
+                .contains("'bare' (other")
+                .doesNotContain("filter  ");
+    }
+
+    @Test
+    void diversAlreadyGoneWhenTheQueueIsDeletedDoNotStopTheDelete() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.ALREADY, "gone"))
+                .when(divertOps)
+                .destroyDivert(any(), anyString(), eq("feed"));
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.APPLIED);
+        verify(ops).destroyQueue(any(), anyString(), eq(QUEUE), anyBoolean());
+    }
+
+    @Test
+    void aDivertRefusalThatIsNotAlreadyKeepsTheQueueAndSaysWhy() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.ARGUMENT, "in use"))
+                .when(divertOps)
+                .destroyDivert(any(), anyString(), eq("feed"));
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(real.error())
+                .contains("Divert 'feed' could not be removed (in use)")
+                .contains("not deleted");
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void aConnectionFailureDeletingTheQueueNamesTheDivertsAlreadyRemoved() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(divert("feed", "incoming", ADDRESS));
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "timed out"))
+                .when(ops)
+                .destroyQueue(any(), anyString(), eq(QUEUE), anyBoolean());
+
+        NodeOutcome real = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, false, false, false)));
+
+        assertThat(real.status()).isEqualTo(NodeStatus.FAILED);
+        assertThat(real.error()).contains("timed out").contains("Diverts already removed from this node: 'feed'");
+    }
+
+    @Test
+    void divertsUnrelatedToTheQueuesAddressAndCapturesElsewhereAreNotMentioned() {
+        seedQueue();
+        onTheNode(0, QUEUE, "another");
+        diverts(divert("unrelated", "x", "y"), captureTap("some.other.address"));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.status()).isEqualTo(NodeStatus.WOULD_APPLY);
+        assertThat(preview.error()).isNull();
+    }
+
+    @Test
+    void aCaptureTapNoOtherQueueCoversGoesWithItsQueue() {
+        seedQueue();
+        onTheNode(0, QUEUE);
+        diverts(captureTap(ADDRESS));
+
+        NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
+
+        assertThat(preview.error()).contains("each removed by its capture subscription");
     }
 
     // ---- helpers ----------------------------------------------------------

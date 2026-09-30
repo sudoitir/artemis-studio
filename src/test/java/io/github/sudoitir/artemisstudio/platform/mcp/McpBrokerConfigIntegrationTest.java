@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -27,6 +26,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -132,11 +132,11 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         String url = "http://" + name + ":8161/console/jolokia";
         n.attachManagementUrl(url);
-        n.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, Instant.now());
+        n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         UUID id = nodes.save(n).getId();
         JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
-        when(connections.forCluster(eq(clusterId), eq(url))).thenReturn(client);
+        when(connections.forCluster(clusterId, url)).thenReturn(client);
         clientToNode.put(client, id);
     }
 

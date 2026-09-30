@@ -118,7 +118,7 @@ function labelFor(format: PayloadFormat): string {
 
 /** The media type the producer declared, from the DTO field or an application property. */
 function declaredType(input: PayloadInput): string | null {
-  if (input.contentType && input.contentType.trim()) return input.contentType.trim();
+  if (input.contentType?.trim()) return input.contentType.trim();
   const props = input.stringProperties ?? {};
   for (const key of CONTENT_TYPE_KEYS) {
     const v = props[key];
@@ -144,7 +144,7 @@ function formatFromMediaType(mediaType: string): PayloadFormat | null {
 
 /** Base64 → bytes, decoding at most `maxBytes` so a multi-MB body is not fully materialised. */
 function decodeBase64(body: string, maxBytes: number): Uint8Array {
-  const clean = body.replace(/\s/g, '');
+  const clean = body.replaceAll(/\s/g, '');
   const chars = Math.min(clean.length, Math.ceil(maxBytes / 3) * 4);
   const slice = clean.slice(0, chars - (chars % 4));
   let binary: string;
@@ -154,13 +154,18 @@ function decodeBase64(body: string, maxBytes: number): Uint8Array {
     return new Uint8Array(0);
   }
   const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.codePointAt(i)!;
   return out;
 }
 
+function base64Padding(clean: string): number {
+  if (clean.endsWith('==')) return 2;
+  return clean.endsWith('=') ? 1 : 0;
+}
+
 function base64SizeBytes(body: string): number {
-  const clean = body.replace(/\s/g, '');
-  const padding = clean.endsWith('==') ? 2 : clean.endsWith('=') ? 1 : 0;
+  const clean = body.replaceAll(/\s/g, '');
+  const padding = base64Padding(clean);
   return Math.max(0, Math.floor((clean.length * 3) / 4) - padding);
 }
 
@@ -287,8 +292,22 @@ export function detectPayload(input: PayloadInput): DetectedPayload {
   const isBase64 = input.bodyEncoding === 'BASE64';
   const sizeBytes = isBase64 ? base64SizeBytes(body) : new Blob([body]).size;
 
-  // 1. A declared type is the producer's own statement. It wins over any sniff —
-  //    but it still only *formats* if the body actually parses.
+  return (
+    fromDeclaredType(input, body, isBase64, sizeBytes) ??
+    (isBase64 ? fromBase64Prefix(body, sizeBytes) : fromTextProbe(input, body, sizeBytes))
+  );
+}
+
+/**
+ * 1. A declared type is the producer's own statement. It wins over any sniff — but it still only
+ * *formats* if the body actually parses. Null when the declared type says nothing about the body.
+ */
+function fromDeclaredType(
+  input: PayloadInput,
+  body: string,
+  isBase64: boolean,
+  sizeBytes: number,
+): DetectedPayload | null {
   const declared = declaredType(input);
   const declaredFormat = declared ? formatFromMediaType(declared) : null;
 
@@ -319,55 +338,61 @@ export function detectPayload(input: PayloadInput): DetectedPayload {
       sizeBytes,
     };
   }
+  return null;
+}
 
-  // 2. A base64 body: match the leading bytes against the container table.
-  if (isBase64) {
-    const bytes = decodeBase64(body, DETECT_PREFIX_BYTES);
-    const magic = matchMagic(bytes);
-    return {
-      format: magic?.format ?? 'binary',
-      label: magic?.label ?? labelFor('binary'),
-      source: magic ? 'inferred' : 'none',
-      formatted: null,
-      unavailable: 'binary',
-      highlightLanguage: null,
-      bytes,
-      sizeBytes,
-    };
-  }
+/** 2. A base64 body: match the leading bytes against the container table. */
+function fromBase64Prefix(body: string, sizeBytes: number): DetectedPayload {
+  const bytes = decodeBase64(body, DETECT_PREFIX_BYTES);
+  const magic = matchMagic(bytes);
+  return {
+    format: magic?.format ?? 'binary',
+    label: magic?.label ?? labelFor('binary'),
+    source: magic ? 'inferred' : 'none',
+    formatted: null,
+    unavailable: 'binary',
+    highlightLanguage: null,
+    bytes,
+    sizeBytes,
+  };
+}
 
-  // 3. A text body: probe structurally, but only claim what parsed. Detection reads a
-  //    prefix; the parse that proves the claim reads the whole body, below the ceiling.
+/**
+ * 3. A text body: probe structurally, but only claim what parsed. Detection reads a
+ * prefix; the parse that proves the claim reads the whole body, below the ceiling.
+ */
+function fromTextProbe(input: PayloadInput, body: string, sizeBytes: number): DetectedPayload {
   const head = body.slice(0, DETECT_PREFIX_BYTES).trimStart();
   const first = head[0];
+  if (first === '{' || first === '[') return probeJson(input, body, sizeBytes);
+  if (first === '<') return probeXml(input, body, sizeBytes);
+  return textResult('text', 'none', sizeBytes);
+}
 
-  if (first === '{' || first === '[') {
-    const { formatted, unavailable } = tryFormat('json', body, input.bodyTruncated, sizeBytes);
-    if (formatted !== null) {
-      return textResult('json', 'inferred', sizeBytes, null, formatted, languageFor('json', sizeBytes));
-    }
-    // A truncated body that looks like JSON is a size problem, and saying so is the
-    // point of this branch — but an unparseable *whole* body is simply not JSON.
-    if (unavailable === 'truncated' || unavailable === 'too-large') {
-      return textResult('json', 'inferred', sizeBytes, unavailable, null, null);
-    }
-    return textResult('text', 'none', sizeBytes);
+function probeJson(input: PayloadInput, body: string, sizeBytes: number): DetectedPayload {
+  const { formatted, unavailable } = tryFormat('json', body, input.bodyTruncated, sizeBytes);
+  if (formatted !== null) {
+    return textResult('json', 'inferred', sizeBytes, null, formatted, languageFor('json', sizeBytes));
   }
-
-  if (first === '<') {
-    if (sizeBytes > PRETTY_MAX_BYTES) {
-      return textResult('xml', 'inferred', sizeBytes, 'too-large', null, null);
-    }
-    const doc = parseXml(body);
-    if (doc) {
-      return textResult('xml', 'inferred', sizeBytes, null, formatXmlDocument(doc), languageFor('xml', sizeBytes));
-    }
-    if (input.bodyTruncated) {
-      return textResult('xml', 'inferred', sizeBytes, 'truncated', null, null);
-    }
-    return textResult('text', 'none', sizeBytes);
+  // A truncated body that looks like JSON is a size problem, and saying so is the
+  // point of this branch — but an unparseable *whole* body is simply not JSON.
+  if (unavailable === 'truncated' || unavailable === 'too-large') {
+    return textResult('json', 'inferred', sizeBytes, unavailable, null, null);
   }
+  return textResult('text', 'none', sizeBytes);
+}
 
+function probeXml(input: PayloadInput, body: string, sizeBytes: number): DetectedPayload {
+  if (sizeBytes > PRETTY_MAX_BYTES) {
+    return textResult('xml', 'inferred', sizeBytes, 'too-large', null, null);
+  }
+  const doc = parseXml(body);
+  if (doc) {
+    return textResult('xml', 'inferred', sizeBytes, null, formatXmlDocument(doc), languageFor('xml', sizeBytes));
+  }
+  if (input.bodyTruncated) {
+    return textResult('xml', 'inferred', sizeBytes, 'truncated', null, null);
+  }
   return textResult('text', 'none', sizeBytes);
 }
 

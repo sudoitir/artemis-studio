@@ -9,7 +9,7 @@ export interface UserMenuProps {
 }
 
 /** The signed-in user's identity, admin entry point, account page, and logout (identity-and-sessions spec). */
-export function UserMenu({ me }: UserMenuProps) {
+export function UserMenu({ me }: Readonly<UserMenuProps>) {
   const logout = useLogout();
   const navigate = useNavigate();
 

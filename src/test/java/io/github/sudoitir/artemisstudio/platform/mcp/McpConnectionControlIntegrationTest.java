@@ -25,6 +25,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Use
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -111,7 +112,7 @@ class McpConnectionControlIntegrationTest extends PostgresIntegrationTest {
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
         node.attachManagementUrl("http://a:8161/console/jolokia");
-        node.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.56.0", null, Instant.now());
+        node.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.56.0", null), 1L, Instant.now());
         nodeId = nodes.save(node).getId();
 
         client = mock(JolokiaBrokerClient.class);

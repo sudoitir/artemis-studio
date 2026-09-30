@@ -18,6 +18,9 @@ public class ScrapeSettings implements SettingsContribution {
     public static final String DISCOVERY = "scrape.discovery-interval";
     public static final String METRIC_PARTITION_CRON = "metric.partition-maintainer-cron";
 
+    private static final String GROUP_SCRAPE = "Scrape";
+    private static final String GROUP_RETENTION = "Retention";
+
     private final ScrapeProperties scrape;
     private final MetricProperties metric;
 
@@ -31,7 +34,7 @@ public class ScrapeSettings implements SettingsContribution {
         return List.of(
                 new SettingDef(
                         TIER_A,
-                        "Scrape",
+                        GROUP_SCRAPE,
                         "Tier A interval",
                         "HA state, topology and split-brain corroboration.",
                         Kind.DURATION,
@@ -39,7 +42,7 @@ public class ScrapeSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         TIER_B,
-                        "Scrape",
+                        GROUP_SCRAPE,
                         "Tier B interval",
                         "Fast re-read of the queues that were busy last sweep.",
                         Kind.DURATION,
@@ -47,7 +50,7 @@ public class ScrapeSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         TIER_C,
-                        "Scrape",
+                        GROUP_SCRAPE,
                         "Tier C interval",
                         "Full queue sweep, one page per node per tick.",
                         Kind.DURATION,
@@ -55,7 +58,7 @@ public class ScrapeSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         DISCOVERY,
-                        "Scrape",
+                        GROUP_SCRAPE,
                         "Discovery interval",
                         "Re-read each cluster's topology, so a broker that joins appears on its own.",
                         Kind.DURATION,
@@ -63,11 +66,11 @@ public class ScrapeSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         METRIC_PARTITION_CRON,
-                        "Retention",
+                        GROUP_RETENTION,
                         "Partition maintainer schedule",
                         "When daily metric partitions are created ahead.",
                         Kind.CRON,
-                        () -> metric.partitionMaintainerCron(),
+                        metric::partitionMaintainerCron,
                         null));
     }
 }

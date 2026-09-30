@@ -2,10 +2,12 @@ package io.github.sudoitir.artemisstudio.feature.triage.mcp;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertService;
+import io.github.sudoitir.artemisstudio.feature.events.BrokerEventQuery;
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews;
 import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealth;
 import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealthService;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditQuery;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
@@ -177,7 +179,10 @@ public class TriageMcpTools {
                 : null;
 
         List<McpViews.ActivityRow> recent =
-                brokerEvents.page(clusterId, null, null, health.address(), null, null, 1, 10).data().stream()
+                brokerEvents
+                        .page(clusterId, new BrokerEventQuery(null, null, health.address(), null, null, 1, 10))
+                        .data()
+                        .stream()
                         .map(TriageMcpTools::toActivity)
                         .toList();
 
@@ -240,11 +245,17 @@ public class TriageMcpTools {
         List<McpViews.ActivityRow> rows =
                 switch (source) {
                     case BROKER_EVENTS ->
-                        brokerEvents.page(clusterId, null, null, filter, null, null, 1, limit + 1).data().stream()
+                        brokerEvents
+                                .page(clusterId, new BrokerEventQuery(null, null, filter, null, null, 1, limit + 1))
+                                .data()
+                                .stream()
                                 .map(TriageMcpTools::toActivity)
                                 .toList();
                     case AUDIT ->
-                        auditLog.page(clusterId, null, filter, null, null, null, null, 1, limit + 1).data().stream()
+                        auditLog
+                                .page(clusterId, new AuditQuery(null, filter, null, null, null, null, 1, limit + 1))
+                                .data()
+                                .stream()
                                 .map(TriageMcpTools::toActivity)
                                 .toList();
                 };
@@ -270,6 +281,13 @@ public class TriageMcpTools {
                 // A dry run that "succeeded" changed nothing; saying so keeps a model from
                 // reading the audit trail as a record of things that actually happened.
                 e.dryRun() ? e.outcome() + " (dry run)" : e.outcome(),
-                e.error() != null ? e.error() : (e.affectedCount() != null ? "affected=" + e.affectedCount() : null));
+                activityDetail(e));
+    }
+
+    private static String activityDetail(AuditViews.AuditEventView e) {
+        if (e.error() != null) {
+            return e.error();
+        }
+        return e.affectedCount() != null ? "affected=" + e.affectedCount() : null;
     }
 }

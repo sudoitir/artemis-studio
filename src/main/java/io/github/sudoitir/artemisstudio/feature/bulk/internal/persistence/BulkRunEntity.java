@@ -101,29 +101,33 @@ public class BulkRunEntity {
     @Column(name = "finished_at")
     private Instant finishedAt;
 
-    public BulkRunEntity(
-            UUID clusterId,
-            BulkOperation operation,
-            String username,
+    /** What a preview worked out: the plan's identity and size, how much of it was refused, and its estimate. */
+    public record Preview(
             String planHash,
             String selection,
             String options,
             int totalItems,
             int refused,
             Long estimate,
-            boolean estimateComplete,
+            boolean estimateComplete) {}
+
+    public BulkRunEntity(
+            UUID clusterId,
+            BulkOperation operation,
+            String username,
+            Preview preview,
             Instant createdAt,
             Instant expiresAt) {
         this.clusterId = clusterId;
         this.operation = operation;
         this.username = username;
-        this.planHash = planHash;
-        this.selection = selection;
-        this.options = options;
-        this.totalItems = totalItems;
-        this.skipped = refused;
-        this.estimate = estimate;
-        this.estimateComplete = estimateComplete;
+        this.planHash = preview.planHash();
+        this.selection = preview.selection();
+        this.options = preview.options();
+        this.totalItems = preview.totalItems();
+        this.skipped = preview.refused();
+        this.estimate = preview.estimate();
+        this.estimateComplete = preview.estimateComplete();
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
     }

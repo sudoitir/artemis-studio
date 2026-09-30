@@ -25,7 +25,7 @@ export function NodeOutcomeSummary({
   countNoun = 'message',
   verbFuture = 'would destroy',
   verbPast = 'destroyed',
-}: {
+}: Readonly<{
   outcome: LifecycleOutcomeView;
   /** A destroy shows the message counts; a pause has none worth a column. */
   destructive?: boolean;
@@ -43,20 +43,16 @@ export function NodeOutcomeSummary({
   countNoun?: string;
   verbFuture?: string;
   verbPast?: string;
-}) {
+}>) {
   const verdict = verdictFor(outcome);
+  const verb = outcome.dryRun ? verbFuture : verbPast;
+  const plural = outcome.totalAffected === 1 ? '' : 's';
 
   return (
     <OutcomeSummary
       verdict={verdict.text}
       verdictTone={verdict.tone}
-      total={
-        destructive
-          ? `${outcome.dryRun ? verbFuture : verbPast} ${outcome.totalAffected.toLocaleString()} ${countNoun}${
-              outcome.totalAffected === 1 ? '' : 's'
-            }`
-          : undefined
-      }
+      total={destructive ? `${verb} ${outcome.totalAffected.toLocaleString()} ${countNoun}${plural}` : undefined}
       rows={outcome.nodes.map((node) => {
         const { text, tone } = statusWords(node.status, alreadyLabel);
         return {
@@ -97,12 +93,12 @@ export function OutcomeSummary({
   verdictTone,
   total,
   rows,
-}: {
+}: Readonly<{
   verdict: string;
   verdictTone?: 'warning' | 'danger';
   total?: string;
   rows: OutcomeRow[];
-}) {
+}>) {
   return (
     // A live region, so a screen reader hears what a destructive command did without hunting for it.
     <div className={classes.summary} role="status" aria-live="polite">
@@ -161,9 +157,10 @@ function verdictFor(outcome: LifecycleOutcomeView): { text: string; tone?: 'warn
     // would put "would apply" above a row that says "failed".
     const refused = failed > 0 ? `, ${failed} refused` : '';
     const suffix = skipped > 0 ? `, ${skipped} not live and will be skipped` : '';
+    const tone = failed === targets ? 'danger' : 'warning';
     return {
       text: `Would apply to ${targets - failed} of ${outcome.nodes.length} nodes${refused}${suffix}`,
-      tone: failed === 0 ? undefined : failed === targets ? 'danger' : 'warning',
+      tone: failed === 0 ? undefined : tone,
     };
   }
   if (outcome.partial) {

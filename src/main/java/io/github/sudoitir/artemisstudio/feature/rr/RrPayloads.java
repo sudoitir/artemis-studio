@@ -111,7 +111,7 @@ class RrPayloads {
         }
         try {
             return sealer.unseal(aad(flowId, kind, at), Base64.getDecoder().decode(sealed));
-        } catch (IllegalArgumentException notBase64) {
+        } catch (IllegalArgumentException _) {
             return Map.of();
         }
     }

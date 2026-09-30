@@ -85,7 +85,7 @@ public class ClockOffsetRegistry {
      * @param t0 Studio's clock immediately before the request, from {@link #now()}
      * @param t1 Studio's clock immediately after the response
      */
-    public void record(String jolokiaUrl, long brokerEpochSeconds, long t0, long t1) {
+    public void recordReading(String jolokiaUrl, long brokerEpochSeconds, long t0, long t1) {
         if (jolokiaUrl == null || brokerEpochSeconds <= 0 || t1 < t0) {
             return;
         }

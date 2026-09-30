@@ -19,7 +19,7 @@ public record AlertScope(String addressPattern, String queuePattern, String node
         }
         try {
             return mapper.readValue(json, AlertScope.class);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return NONE;
         }
     }

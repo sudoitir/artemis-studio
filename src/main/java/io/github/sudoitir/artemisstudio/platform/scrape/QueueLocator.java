@@ -53,32 +53,35 @@ public class QueueLocator {
     private List<QueueLocation> live(UUID clusterId, String queueName) {
         List<QueueLocation> found = new ArrayList<>();
         for (ClusterNode node : ServingNodes.from(clusters.nodes(clusterId))) {
-            if (!Boolean.TRUE.equals(node.getActive())) {
-                continue;
-            }
-            try {
-                JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-                // A pattern read answers for every match at once, keyed by MBean name; a node
-                // without the queue answers 404, which is simply not a location.
-                JolokiaResponse read = client.single(JolokiaRequest.read(
-                        BrokerMBeans.queuePattern(client.resolveBrokerObjectName(), queueName), "MessageCount"));
-                if (!read.ok() || read.value() == null || !read.value().isObject()) {
-                    continue;
-                }
-                for (var entry : read.value().properties()) {
-                    ObjectName mbean = new ObjectName(entry.getKey());
-                    found.add(new QueueLocation(
-                            node.getId(),
-                            queueName,
-                            value(mbean, "address"),
-                            value(mbean, "routing-type").toUpperCase(Locale.ROOT),
-                            entry.getValue().path("MessageCount").asLong()));
-                }
-            } catch (BrokerConnectionException | MalformedObjectNameException e) {
-                // A node that cannot be read has not shown the queue; the others still answer.
+            if (Boolean.TRUE.equals(node.getActive())) {
+                readLocations(clusterId, node, queueName, found);
             }
         }
         return found;
+    }
+
+    private void readLocations(UUID clusterId, ClusterNode node, String queueName, List<QueueLocation> found) {
+        try {
+            JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
+            // A pattern read answers for every match at once, keyed by MBean name; a node
+            // without the queue answers 404, which is simply not a location.
+            JolokiaResponse read = client.single(JolokiaRequest.read(
+                    BrokerMBeans.queuePattern(client.resolveBrokerObjectName(), queueName), "MessageCount"));
+            if (!read.ok() || read.value() == null || !read.value().isObject()) {
+                return;
+            }
+            for (var entry : read.value().properties()) {
+                ObjectName mbean = new ObjectName(entry.getKey());
+                found.add(new QueueLocation(
+                        node.getId(),
+                        queueName,
+                        value(mbean, "address"),
+                        value(mbean, "routing-type").toUpperCase(Locale.ROOT),
+                        entry.getValue().path("MessageCount").asLong()));
+            }
+        } catch (BrokerConnectionException | MalformedObjectNameException _) {
+            // A node that cannot be read has not shown the queue; the others still answer.
+        }
     }
 
     /** Artemis quotes these values; an unquoted one is taken as it is. */

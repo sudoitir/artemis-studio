@@ -27,7 +27,7 @@ public class ClearViewAudit {
 
     /** Record the clear values in {@code messages}; nothing is written when none were served clear. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void record(
+    public void recordClear(
             GovernContext context, String targetType, String targetName, Collection<GovernedMessage> messages) {
         Map<String, Long> classes = classesServedClear(messages);
         if (classes.isEmpty()) {
@@ -51,7 +51,7 @@ public class ClearViewAudit {
      * with no request, such as a tail closing.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void record(
+    public void recordClear(
             io.github.sudoitir.artemisstudio.kernel.security.Actor actor,
             GovernContext context,
             String targetType,

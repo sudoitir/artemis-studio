@@ -26,7 +26,7 @@ export function BulkActionPreview({
   opened,
   onClose,
   onDone,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   action: MessageActionKind;
@@ -34,7 +34,7 @@ export function BulkActionPreview({
   opened: boolean;
   onClose: () => void;
   onDone: () => void;
-}) {
+}>) {
   const run = useMessageAction(clusterId, queueName);
   const [filter, setFilter] = useState('');
   const [target, setTarget] = useState('');

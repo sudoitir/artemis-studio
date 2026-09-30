@@ -4,11 +4,64 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { absoluteLabel, elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
-import { useRunSetupReview, useSetupReview, type SetupFindingView } from './api.ts';
+import { useRunSetupReview, useSetupReview, type SetupFindingView, type SetupReviewView as Review } from './api.ts';
 import { AcceptRiskDialog } from './AcceptRiskDialog.tsx';
 import type { SetupReviewSearch } from './feature.ts';
 import { FindingCard } from './FindingCard.tsx';
 import { CATEGORY_LABELS, CATEGORY_ORDER, SEVERITY_FILTERS, SEVERITY_WORDS, plural } from './words.ts';
+
+/** Why no finding is listed: the filter hides them, or nothing was found (which is not proof of a sound setup). */
+function NoFindings({
+  review: v,
+  filtered,
+  onClear,
+}: Readonly<{ review: Review; filtered: boolean; onClear: () => void }>) {
+  if (filtered || v.findings.length > 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        No findings match this filter
+        {v.findings.length > 0 ? ` (${plural(v.findings.length, 'finding')} in the review)` : ''}.{' '}
+        <Anchor component="button" type="button" size="sm" onClick={onClear}>
+          Clear the filter
+        </Anchor>
+      </Text>
+    );
+  }
+  return (
+    <Text size="sm" c="dimmed">
+      None of the {v.rulesInCatalogue} rules found a mistake in what the nodes reported. That is not proof of a sound
+      setup: settings the management API does not expose, such as network-check-list, cannot be reviewed.
+    </Text>
+  );
+}
+
+/** The nodes the review could not read, and what that means for the cluster-wide rules. */
+function UnreviewedNodes({ review: v, unreviewed }: Readonly<{ review: Review; unreviewed: Review['nodes'] }>) {
+  return (
+    <Alert color="yellow" variant="light" title={`${plural(unreviewed.length, 'node')} not reviewed`}>
+      <Stack gap={4}>
+        {unreviewed.map((n) => (
+          <Text size="sm" key={n.nodeId}>
+            <Text span fw={600}>
+              {n.nodeName}
+            </Text>
+            : {n.reason ?? 'no reason recorded'}
+          </Text>
+        ))}
+        <Text size="sm">
+          {v.clusterEvaluated
+            ? 'Cluster-wide rules still ran: every live node answered.'
+            : 'Cluster-wide rules — quorum, version skew — were not evaluated, because a live node did not answer. Its earlier findings are kept and marked as not re-checked.'}
+        </Text>
+      </Stack>
+    </Alert>
+  );
+}
+
+function openSummary(v: Review): string {
+  if (v.open.critical + v.open.warning + v.open.info === 0) return 'No open findings.';
+  return `Open: ${plural(v.open.critical, 'critical')}, ${plural(v.open.warning, 'warning')}, ${v.open.info} info.`;
+}
 
 /**
  * A cluster's setup review (cluster-setup-review spec, ADR-0106): what is known to go wrong
@@ -136,31 +189,11 @@ export function SetupReviewView() {
       ) : null}
 
       <Text size="md" fw={600}>
-        {v.open.critical + v.open.warning + v.open.info === 0
-          ? 'No open findings.'
-          : `Open: ${plural(v.open.critical, 'critical')}, ${plural(v.open.warning, 'warning')}, ${v.open.info} info.`}
+        {openSummary(v)}
         {v.accepted > 0 ? ` ${plural(v.accepted, 'finding')} accepted as a known risk.` : ''}
       </Text>
 
-      {unreviewed.length > 0 ? (
-        <Alert color="yellow" variant="light" title={`${plural(unreviewed.length, 'node')} not reviewed`}>
-          <Stack gap={4}>
-            {unreviewed.map((n) => (
-              <Text size="sm" key={n.nodeId}>
-                <Text span fw={600}>
-                  {n.nodeName}
-                </Text>
-                : {n.reason ?? 'no reason recorded'}
-              </Text>
-            ))}
-            <Text size="sm">
-              {v.clusterEvaluated
-                ? 'Cluster-wide rules still ran: every live node answered.'
-                : 'Cluster-wide rules — quorum, version skew — were not evaluated, because a live node did not answer. Its earlier findings are kept and marked as not re-checked.'}
-            </Text>
-          </Stack>
-        </Alert>
-      ) : null}
+      {unreviewed.length > 0 ? <UnreviewedNodes review={v} unreviewed={unreviewed} /> : null}
 
       <Group gap="sm" align="center">
         <Chip.Group
@@ -189,25 +222,11 @@ export function SetupReviewView() {
       </Group>
 
       {open.length === 0 && acceptedList.length === 0 ? (
-        filtered || v.findings.length > 0 ? (
-          <Text size="sm" c="dimmed">
-            No findings match this filter
-            {v.findings.length > 0 ? ` (${plural(v.findings.length, 'finding')} in the review)` : ''}.{' '}
-            <Anchor
-              component="button"
-              type="button"
-              size="sm"
-              onClick={() => setSearch({ severity: undefined, accepted: undefined })}
-            >
-              Clear the filter
-            </Anchor>
-          </Text>
-        ) : (
-          <Text size="sm" c="dimmed">
-            None of the {v.rulesInCatalogue} rules found a mistake in what the nodes reported. That is not proof of a
-            sound setup: settings the management API does not expose, such as network-check-list, cannot be reviewed.
-          </Text>
-        )
+        <NoFindings
+          review={v}
+          filtered={filtered}
+          onClear={() => setSearch({ severity: undefined, accepted: undefined })}
+        />
       ) : (
         <>
           {byCategory.map((group) => (

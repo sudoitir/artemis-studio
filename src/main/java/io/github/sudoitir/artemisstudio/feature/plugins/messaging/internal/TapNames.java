@@ -45,7 +45,7 @@ final class TapNames {
         }
         try {
             return UUID.fromString(name.substring(lastDot + 1));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }

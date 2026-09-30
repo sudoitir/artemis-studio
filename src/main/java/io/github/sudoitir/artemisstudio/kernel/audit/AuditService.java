@@ -61,15 +61,13 @@ public class AuditService {
         Actor a = actor == null ? Actor.system() : actor;
         AuditEventEntity entity = new AuditEventEntity(
                 action,
-                targetType,
-                targetName,
-                a.displayName(),
-                a.requestId(),
-                a.sourceIp(),
-                a.userId(),
-                clusterId,
-                clusterId == null ? null : clusters.clusterName(clusterId),
-                nodeId,
+                a,
+                new AuditEventEntity.Target(
+                        targetType,
+                        targetName,
+                        clusterId,
+                        clusterId == null ? null : clusters.clusterName(clusterId),
+                        nodeId),
                 paramsJson,
                 dryRun);
         entity.attachParent(AuditScope.PARENT.isBound() ? AuditScope.PARENT.get() : null);

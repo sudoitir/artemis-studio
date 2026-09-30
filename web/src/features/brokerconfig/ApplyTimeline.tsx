@@ -3,6 +3,8 @@ import { Progress, Stack, Text } from '@mantine/core';
 import type { ApplyProgress } from './applyProgress.ts';
 import classes from './Configuration.module.css';
 
+const PROGRESS_COLOR = { danger: 'red', warning: 'yellow' } as const;
+
 const PHASE: Record<ApplyProgress['phase'], { text: string; tone?: 'warning' | 'danger' }> = {
   APPLYING: { text: 'applying' },
   VERIFYING: { text: 'reading back to verify' },
@@ -22,7 +24,7 @@ const PHASE: Record<ApplyProgress['phase'], { text: string; tone?: 'warning' | '
  * Advisory. The POST's response replaces this with the real per-node result, so
  * nothing here is ever the last word on what happened.
  */
-export function ApplyTimeline({ progress }: { progress: ApplyProgress[] }) {
+export function ApplyTimeline({ progress }: Readonly<{ progress: ApplyProgress[] }>) {
   if (progress.length === 0) {
     return (
       <Text size="sm" aria-live="polite">
@@ -55,7 +57,7 @@ export function ApplyTimeline({ progress }: { progress: ApplyProgress[] }) {
               value={p.total === 0 ? 100 : (p.done / p.total) * 100}
               size="xs"
               mt={2}
-              color={phase.tone === 'danger' ? 'red' : phase.tone === 'warning' ? 'yellow' : undefined}
+              color={phase.tone ? PROGRESS_COLOR[phase.tone] : undefined}
               aria-hidden
             />
           </div>

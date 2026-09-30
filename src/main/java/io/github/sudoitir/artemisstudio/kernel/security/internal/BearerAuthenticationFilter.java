@@ -67,8 +67,9 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     private Optional<StudioPrincipal> authenticate(String token) {
         return contributions.stream()
                 .flatMap(c -> c.providers().stream())
-                .filter(p -> p instanceof BearerIdentityProvider)
-                .map(p -> ((BearerIdentityProvider) p).authenticate(token))
+                .filter(BearerIdentityProvider.class::isInstance)
+                .map(BearerIdentityProvider.class::cast)
+                .map(p -> p.authenticate(token))
                 .flatMap(Optional::stream)
                 .findFirst();
     }

@@ -41,7 +41,7 @@ public class ContentSealer {
         }
         try {
             return mapper.readValue(vault.open(aad, sealed), ORIGINALS);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return Map.of();
         }
     }

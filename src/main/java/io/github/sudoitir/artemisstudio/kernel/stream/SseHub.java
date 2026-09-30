@@ -130,7 +130,7 @@ public class SseHub {
         remove(clusterId, s);
         try {
             s.emitter().completeWithError(cause);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // already closed
         }
     }
@@ -140,7 +140,7 @@ public class SseHub {
         byCluster.forEach((clusterId, set) -> set.forEach(s -> {
             try {
                 s.emitter().complete();
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // already closed
             }
         }));

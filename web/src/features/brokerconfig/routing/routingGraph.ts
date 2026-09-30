@@ -165,43 +165,49 @@ export function targetLabel(forwardingAddress: string, over: string | null): str
   return over ? `${forwardingAddress} over ${over}` : forwardingAddress;
 }
 
-/**
- * The declaration and what the nodes report, as one graph: addresses, the queues
- * bound to them, the diverts between addresses, the bridges out of queues, and
- * the targets those bridges reach.
- */
-export function buildRoutingGraph(declaration: ConfigDeclarationView): RoutingGraph {
-  const nodes = new Map<string, RoutingNodeView>();
-  const edges: RoutingEdgeView[] = [];
-  const doc = declaration.document;
+type Nodes = Map<string, RoutingNodeView>;
 
-  /** An address or queue named by something else, added only if nothing declared it first. */
-  const referenced = (kind: 'address' | 'queue', name: string): string => {
-    const id = `${kind}:${name}`;
-    if (!nodes.has(id)) {
-      nodes.set(id, {
-        id,
-        kind,
-        name,
-        state: 'REFERENCED',
-        connects: `not declared, and no node has been asked about it`,
-        fault: null,
-        edit: null,
-      });
-    }
-    return id;
-  };
+/** What the builders add to: the nodes by id, and the edges between them. */
+interface Builder {
+  nodes: Nodes;
+  edges: RoutingEdgeView[];
+}
 
-  for (const a of doc.addresses) {
+const plural = (n: number) => (n === 1 ? '' : 's');
+
+/** An address or queue named by something else, added only if nothing declared it first. */
+function referenced(nodes: Nodes, kind: 'address' | 'queue', name: string): string {
+  const id = `${kind}:${name}`;
+  if (!nodes.has(id)) {
+    nodes.set(id, {
+      id,
+      kind,
+      name,
+      state: 'REFERENCED',
+      connects: `not declared, and no node has been asked about it`,
+      fault: null,
+      edit: null,
+    });
+  }
+  return id;
+}
+
+/** The queue count an address routes to, in words. */
+function addressConnects(a: ConfigDeclarationView['document']['addresses'][number]): string {
+  const types = a.routingTypes.join(' and ');
+  if (!a.queues.length) return `routes ${types}, with no queue declared on it`;
+  return `routes ${types} to ${a.queues.length} queue${plural(a.queues.length)}`;
+}
+
+function addAddresses({ nodes, edges }: Builder, declaration: ConfigDeclarationView) {
+  for (const a of declaration.document.addresses) {
     const { state, fault } = declaredState(declaration, 'ADDRESS', a.name);
     nodes.set(addressId(a.name), {
       id: addressId(a.name),
       kind: 'address',
       name: a.name,
       state,
-      connects: a.queues.length
-        ? `routes ${a.routingTypes.join(' and ')} to ${a.queues.length} queue${a.queues.length === 1 ? '' : 's'}`
-        : `routes ${a.routingTypes.join(' and ')}, with no queue declared on it`,
+      connects: addressConnects(a),
       fault,
       edit: { section: 'addresses', item: a.name },
     });
@@ -224,8 +230,10 @@ export function buildRoutingGraph(declaration: ConfigDeclarationView): RoutingGr
       });
     }
   }
+}
 
-  for (const d of doc.diverts) {
+function addDiverts({ nodes, edges }: Builder, declaration: ConfigDeclarationView) {
+  for (const d of declaration.document.diverts) {
     const { state, fault } = declaredState(declaration, 'DIVERT', d.name);
     const id = `divert:${d.name}`;
     nodes.set(id, {
@@ -237,42 +245,48 @@ export function buildRoutingGraph(declaration: ConfigDeclarationView): RoutingGr
       fault,
       edit: { section: 'diverts', item: d.name },
     });
-    const from = nodes.has(addressId(d.address)) ? addressId(d.address) : referenced('address', d.address);
+    const from = nodes.has(addressId(d.address)) ? addressId(d.address) : referenced(nodes, 'address', d.address);
     const to = nodes.has(addressId(d.forwardingAddress))
       ? addressId(d.forwardingAddress)
-      : referenced('address', d.forwardingAddress);
-    edges.push({
-      id: `divert-in:${d.name}`,
-      source: from,
-      target: id,
-      label: `address ${d.address} feeds divert ${d.name}`,
-    });
-    edges.push({
-      id: `divert-out:${d.name}`,
-      source: id,
-      target: to,
-      label: `divert ${d.name} ${d.exclusive ? 'takes' : 'copies'} messages to address ${d.forwardingAddress}`,
-      chip: d.exclusive ? 'takes' : 'copies',
-    });
+      : referenced(nodes, 'address', d.forwardingAddress);
+    edges.push(
+      {
+        id: `divert-in:${d.name}`,
+        source: from,
+        target: id,
+        label: `address ${d.address} feeds divert ${d.name}`,
+      },
+      {
+        id: `divert-out:${d.name}`,
+        source: id,
+        target: to,
+        label: `divert ${d.name} ${d.exclusive ? 'takes' : 'copies'} messages to address ${d.forwardingAddress}`,
+        chip: d.exclusive ? 'takes' : 'copies',
+      },
+    );
   }
+}
 
-  for (const b of doc.bridges) {
+function addBridges({ nodes, edges }: Builder, declaration: ConfigDeclarationView) {
+  for (const b of declaration.document.bridges) {
     const { state, fault } = declaredState(declaration, 'BRIDGE', b.name);
     const id = `bridge:${b.name}`;
     const over = b.staticConnectors.length ? b.staticConnectors.join(', ') : (b.discoveryGroupName ?? null);
+    const overSuffix = over ? ` over ${over}` : '';
     nodes.set(id, {
       id,
       kind: 'bridge',
       name: b.name,
       state,
-      connects: `forwards queue ${b.queueName} to address ${b.forwardingAddress}${over ? ` over ${over}` : ''}`,
+      connects: `forwards queue ${b.queueName} to address ${b.forwardingAddress}${overSuffix}`,
       fault,
       edit: { section: 'bridges', item: b.name },
     });
-    const from = nodes.has(queueId(b.queueName)) ? queueId(b.queueName) : referenced('queue', b.queueName);
+    const from = nodes.has(queueId(b.queueName)) ? queueId(b.queueName) : referenced(nodes, 'queue', b.queueName);
     const label = targetLabel(b.forwardingAddress, over);
     const targetNodeId = `target:${label}`;
     if (!nodes.has(targetNodeId)) {
+      const reached = over ? `, reached over ${over}` : '';
       nodes.set(targetNodeId, {
         id: targetNodeId,
         // The name is the address, so a bridge composed onto this target gets the
@@ -280,98 +294,122 @@ export function buildRoutingGraph(declaration: ConfigDeclarationView): RoutingGr
         kind: 'target',
         name: b.forwardingAddress,
         state: 'REFERENCED',
-        connects: `on another broker${over ? `, reached over ${over}` : ''}; Studio does not read it from here`,
+        connects: `on another broker${reached}; Studio does not read it from here`,
+        fault: null,
+        edit: null,
+      });
+    }
+    edges.push(
+      {
+        id: `bridge-in:${b.name}`,
+        source: from,
+        target: id,
+        label: `queue ${b.queueName} feeds bridge ${b.name}`,
+      },
+      {
+        id: `bridge-out:${b.name}`,
+        source: id,
+        target: targetNodeId,
+        label: `bridge ${b.name} forwards to ${label}`,
+      },
+    );
+  }
+}
+
+/** A divert the nodes run and the declaration does not have, drawn as far as they reported it. */
+function addObservedDivert({ nodes, edges }: Builder, f: ConfigDriftFindingView, key: string) {
+  const id = `divert:${key}`;
+  const from = text(f.observed, 'address');
+  const to = text(f.observed, 'forwarding-address');
+  nodes.set(id, {
+    id,
+    kind: 'divert',
+    name: key,
+    state: 'OBSERVED_ONLY',
+    connects:
+      from && to ? `moves messages from address ${from} to address ${to}` : 'the nodes did not report what it connects',
+    fault: null,
+    edit: null,
+  });
+  if (from) {
+    edges.push({
+      id: `divert-in:${key}`,
+      source: referenced(nodes, 'address', from),
+      target: id,
+      label: `address ${from} feeds divert ${key}`,
+    });
+  }
+  if (to) {
+    edges.push({
+      id: `divert-out:${key}`,
+      source: id,
+      target: referenced(nodes, 'address', to),
+      label: `divert ${key} forwards to address ${to}`,
+    });
+  }
+}
+
+/** A bridge the nodes run and the declaration does not have, drawn as far as they reported it. */
+function addObservedBridge({ nodes, edges }: Builder, f: ConfigDriftFindingView, key: string) {
+  const id = `bridge:${key}`;
+  const from = text(f.observed, 'queue-name');
+  const to = text(f.observed, 'forwarding-address');
+  nodes.set(id, {
+    id,
+    kind: 'bridge',
+    name: key,
+    state: 'OBSERVED_ONLY',
+    connects: from && to ? `forwards queue ${from} to address ${to}` : 'the nodes did not report what it connects',
+    fault: null,
+    edit: null,
+  });
+  if (from) {
+    edges.push({
+      id: `bridge-in:${key}`,
+      source: referenced(nodes, 'queue', from),
+      target: id,
+      label: `queue ${from} feeds bridge ${key}`,
+    });
+  }
+  if (to) {
+    const targetNodeId = `target:${to}`;
+    if (!nodes.has(targetNodeId)) {
+      nodes.set(targetNodeId, {
+        id: targetNodeId,
+        kind: 'target',
+        name: to,
+        state: 'REFERENCED',
+        connects: 'on another broker; Studio does not read it from here',
         fault: null,
         edit: null,
       });
     }
     edges.push({
-      id: `bridge-in:${b.name}`,
-      source: from,
-      target: id,
-      label: `queue ${b.queueName} feeds bridge ${b.name}`,
-    });
-    edges.push({
-      id: `bridge-out:${b.name}`,
+      id: `bridge-out:${key}`,
       source: id,
       target: targetNodeId,
-      label: `bridge ${b.name} forwards to ${label}`,
+      label: `bridge ${key} forwards to ${to}`,
     });
   }
+}
+
+/**
+ * The declaration and what the nodes report, as one graph: addresses, the queues
+ * bound to them, the diverts between addresses, the bridges out of queues, and
+ * the targets those bridges reach.
+ */
+export function buildRoutingGraph(declaration: ConfigDeclarationView): RoutingGraph {
+  const builder: Builder = { nodes: new Map(), edges: [] };
+  const { nodes, edges } = builder;
+
+  addAddresses(builder, declaration);
+  addDiverts(builder, declaration);
+  addBridges(builder, declaration);
 
   for (const f of undeclared(declaration)) {
     const key = f.key!;
-    if (f.section === 'DIVERT' && !nodes.has(`divert:${key}`)) {
-      const id = `divert:${key}`;
-      const from = text(f.observed, 'address');
-      const to = text(f.observed, 'forwarding-address');
-      nodes.set(id, {
-        id,
-        kind: 'divert',
-        name: key,
-        state: 'OBSERVED_ONLY',
-        connects:
-          from && to
-            ? `moves messages from address ${from} to address ${to}`
-            : 'the nodes did not report what it connects',
-        fault: null,
-        edit: null,
-      });
-      if (from)
-        edges.push({
-          id: `divert-in:${key}`,
-          source: referenced('address', from),
-          target: id,
-          label: `address ${from} feeds divert ${key}`,
-        });
-      if (to)
-        edges.push({
-          id: `divert-out:${key}`,
-          source: id,
-          target: referenced('address', to),
-          label: `divert ${key} forwards to address ${to}`,
-        });
-    } else if (f.section === 'BRIDGE' && !nodes.has(`bridge:${key}`)) {
-      const id = `bridge:${key}`;
-      const from = text(f.observed, 'queue-name');
-      const to = text(f.observed, 'forwarding-address');
-      nodes.set(id, {
-        id,
-        kind: 'bridge',
-        name: key,
-        state: 'OBSERVED_ONLY',
-        connects: from && to ? `forwards queue ${from} to address ${to}` : 'the nodes did not report what it connects',
-        fault: null,
-        edit: null,
-      });
-      if (from)
-        edges.push({
-          id: `bridge-in:${key}`,
-          source: referenced('queue', from),
-          target: id,
-          label: `queue ${from} feeds bridge ${key}`,
-        });
-      if (to) {
-        const targetNodeId = `target:${to}`;
-        if (!nodes.has(targetNodeId)) {
-          nodes.set(targetNodeId, {
-            id: targetNodeId,
-            kind: 'target',
-            name: to,
-            state: 'REFERENCED',
-            connects: 'on another broker; Studio does not read it from here',
-            fault: null,
-            edit: null,
-          });
-        }
-        edges.push({
-          id: `bridge-out:${key}`,
-          source: id,
-          target: targetNodeId,
-          label: `bridge ${key} forwards to ${to}`,
-        });
-      }
-    }
+    if (f.section === 'DIVERT' && !nodes.has(`divert:${key}`)) addObservedDivert(builder, f, key);
+    else if (f.section === 'BRIDGE' && !nodes.has(`bridge:${key}`)) addObservedBridge(builder, f, key);
   }
 
   const ids = new Set(nodes.keys());

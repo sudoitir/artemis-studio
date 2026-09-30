@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.web;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditQuery;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageView;
@@ -36,7 +37,7 @@ public class AuditController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return audit.page(clusterId, user, action, outcome, parentId, from, to, page, size);
+        return audit.page(clusterId, new AuditQuery(user, action, outcome, parentId, from, to, page, size));
     }
 
     /** One audit event by id, for a shared link. */

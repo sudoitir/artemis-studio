@@ -51,7 +51,7 @@ function Explanation({
  * for its exit transition, then removed, and focus goes back to what opened it — unless the dialog
  * navigated away, where moving focus would be a jump the operator did not ask for.
  */
-export function ActionHostProvider({ children }: { children: ReactNode }) {
+export function ActionHostProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const nextId = useRef(1);
   const entriesRef = useRef(entries);
@@ -74,6 +74,11 @@ export function ActionHostProvider({ children }: { children: ReactNode }) {
     timers.current.add(timer);
   }, []);
 
+  const markOpened = useCallback(
+    (id: number) => setEntries((all) => all.map((e) => (e.id === id ? { ...e, opened: true } : e))),
+    [],
+  );
+
   const host = useMemo<ActionHost>(() => {
     const open: ActionHost['open'] = (Dialog, props, options) => {
       const id = nextId.current++;
@@ -88,7 +93,7 @@ export function ActionHostProvider({ children }: { children: ReactNode }) {
           href: window.location.href,
         },
       ]);
-      requestAnimationFrame(() => setEntries((all) => all.map((e) => (e.id === id ? { ...e, opened: true } : e))));
+      requestAnimationFrame(() => markOpened(id));
     };
     return {
       open,
@@ -113,7 +118,7 @@ export function ActionHostProvider({ children }: { children: ReactNode }) {
         );
       },
     };
-  }, []);
+  }, [markOpened]);
 
   return (
     <HostContext.Provider value={host}>

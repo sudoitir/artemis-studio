@@ -61,8 +61,8 @@ function column(node: FlowNodeView): Column {
  * changes only rates keeps the signature, so no node moves.
  */
 export function layoutSignature(graph: FlowGraphView): string {
-  const nodes = (graph.nodes ?? []).map((n) => n.id).sort();
-  const edges = (graph.edges ?? []).map((e) => `${e.source}>${e.target}`).sort();
+  const nodes = (graph.nodes ?? []).map((n) => n.id ?? '').sort((a, b) => a.localeCompare(b));
+  const edges = (graph.edges ?? []).map((e) => `${e.source}>${e.target}`).sort((a, b) => a.localeCompare(b));
   return `${nodes.join('|')}#${edges.join('|')}`;
 }
 

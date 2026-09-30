@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -36,6 +37,11 @@ import tools.jackson.databind.ObjectMapper;
 public final class SetupRules {
 
     public static final String CLUSTER = "cluster";
+
+    private static final String HA_POLICY = "HAPolicy";
+    private static final String CLUSTERED = "Clustered";
+    private static final String NOT_SET = "(not set)";
+    private static final String FALSE = "false";
 
     /** Every code this catalogue can produce, so the screen can say how much was checked. */
     public static final List<String> CODES = List.of(
@@ -106,16 +112,20 @@ public final class SetupRules {
      * "Replication Primary w/quorum voting", "Replication Backup w/lock manager", "Shared Store
      * Primary", "Colocated", … . Pre-2.30 brokers said "Live" for "Primary"; both are accepted.
      */
+    private static HaSide sideOf(String policy) {
+        if (policy.contains("backup")) {
+            return HaSide.BACKUP;
+        }
+        boolean primary = policy.contains("primary") || policy.contains("live") || policy.contains("master");
+        return primary ? HaSide.PRIMARY : HaSide.UNKNOWN;
+    }
+
     static HaPolicy haPolicy(String raw) {
         if (raw == null || raw.isBlank()) {
             return new HaPolicy(raw, HaFamily.UNKNOWN, HaSide.UNKNOWN);
         }
         String s = raw.toLowerCase(Locale.ROOT);
-        HaSide side = s.contains("backup")
-                ? HaSide.BACKUP
-                : (s.contains("primary") || s.contains("live") || s.contains("master"))
-                        ? HaSide.PRIMARY
-                        : HaSide.UNKNOWN;
+        HaSide side = sideOf(s);
         if (s.contains("only")) {
             return new HaPolicy(raw, HaFamily.PRIMARY_ONLY, HaSide.NONE);
         }
@@ -193,10 +203,9 @@ public final class SetupRules {
             members.addAll(ctx.clusterMembers(n));
         }
         int primaries = members.size();
-        List<Evidence> evidence = new ArrayList<>();
-        for (NodeRead n : voting) {
-            evidence.add(new Evidence(n.nodeName(), "HAPolicy", ctx.policy(n).raw()));
-        }
+        List<Evidence> evidence = voting.stream()
+                .map(n -> new Evidence(n.nodeName(), HA_POLICY, ctx.policy(n).raw()))
+                .collect(Collectors.toCollection(ArrayList::new));
         evidence.add(new Evidence(
                 null, "Primaries registered in Studio (distinct NodeIDs)", Integer.toString(studioPrimaries)));
         evidence.add(new Evidence(null, "Primaries seen by the cluster connections", Integer.toString(primaries)));
@@ -290,7 +299,7 @@ public final class SetupRules {
     // ------------------------------------------------------------------ node rules
 
     private static void nodeRules(Context ctx, NodeRead n) {
-        JsonNode b = n.broker();
+        JsonNode b = Objects.requireNonNull(n.broker(), "a readable node carries its broker attributes");
         HaPolicy policy = ctx.policy(n);
         if (policy.family() == HaFamily.UNKNOWN) {
             ctx.notAssessed.add(new NotAssessed(
@@ -311,7 +320,7 @@ public final class SetupRules {
                     "No high availability on " + n.nodeName(),
                     "Messages stored on this node are unavailable while it is down; the cluster redistributes new"
                             + " traffic but not what this node already holds.",
-                    List.of(new Evidence(n.nodeName(), "HAPolicy", policy.raw())),
+                    List.of(new Evidence(n.nodeName(), HA_POLICY, policy.raw())),
                     "Pair it with a replication backup (or a shared-store backup) if its messages must survive the"
                             + " node's loss.",
                     null,
@@ -332,7 +341,7 @@ public final class SetupRules {
                     "Persistence is disabled on " + n.nodeName(),
                     "Every message, including durable ones, is held only in memory and lost on a restart or"
                             + " crash; a backup cannot replicate a journal that is never written.",
-                    List.of(new Evidence(n.nodeName(), "PersistenceEnabled", "false")),
+                    List.of(new Evidence(n.nodeName(), "PersistenceEnabled", FALSE)),
                     "Enable persistence.",
                     "<persistence-enabled>true</persistence-enabled>",
                     List.of(),
@@ -364,7 +373,7 @@ public final class SetupRules {
                     "Security is disabled on " + n.nodeName(),
                     "Any client that reaches an acceptor can send, consume and create or delete queues, with no"
                             + " authentication and no authorisation.",
-                    List.of(new Evidence(n.nodeName(), "SecurityEnabled", "false")),
+                    List.of(new Evidence(n.nodeName(), "SecurityEnabled", FALSE)),
                     "Enable security and define roles for each address.",
                     "<security-enabled>true</security-enabled>",
                     List.of(),
@@ -393,7 +402,7 @@ public final class SetupRules {
                 "Its HA policy expects a backup, and none shares its NodeID. If this node fails, nothing takes over"
                         + " its messages.",
                 List.of(
-                        new Evidence(n.nodeName(), "HAPolicy", policy.raw()),
+                        new Evidence(n.nodeName(), HA_POLICY, policy.raw()),
                         new Evidence(n.nodeName(), "NodeID", n.artemisNodeId())),
                 "Start the backup, or register it in Studio if it is running but unknown here.",
                 null,
@@ -425,13 +434,9 @@ public final class SetupRules {
             }
             primaries += p.side() == HaSide.PRIMARY ? 1 : 0;
             backups += p.side() == HaSide.BACKUP ? 1 : 0;
-            evidence.add(new Evidence(o.nodeName(), "HAPolicy", p.raw()));
+            evidence.add(new Evidence(o.nodeName(), HA_POLICY, p.raw()));
         }
-        String problem = families.size() > 1
-                ? "The endpoints of one node use different HA policies"
-                : primaries > 1
-                        ? "Two endpoints of one node are both configured as primary"
-                        : backups > 1 ? "Two endpoints of one node are both configured as backup" : null;
+        String problem = pairProblem(families, primaries, backups);
         if (problem == null) {
             return;
         }
@@ -457,11 +462,35 @@ public final class SetupRules {
                 false));
     }
 
+    private static String pairProblem(Set<HaFamily> families, int primaries, int backups) {
+        if (families.size() > 1) {
+            return "The endpoints of one node use different HA policies";
+        }
+        if (primaries > 1) {
+            return "Two endpoints of one node are both configured as primary";
+        }
+        return backups > 1 ? "Two endpoints of one node are both configured as backup" : null;
+    }
+
     private static void clustering(Context ctx, NodeRead n, JsonNode b) {
         if (ctx.logicalNodes() < 2) {
             return;
         }
-        Boolean clustered = bool(b, "Clustered");
+        notClustered(ctx, n, b);
+        if (n.clusterConnections() == null) {
+            ctx.notAssessed.add(new NotAssessed("CLUSTER_*", n.subject(), n.clusterConnectionsError()));
+            return;
+        }
+        ClusterIssues issues = new ClusterIssues();
+        Long redistribution = ctx.redistributionDelay(n);
+        for (var entry : n.clusterConnections().entrySet()) {
+            inspectConnection(ctx, n, entry.getKey(), entry.getValue(), redistribution, issues);
+        }
+        reportClusterIssues(ctx, n, issues);
+    }
+
+    private static void notClustered(Context ctx, NodeRead n, JsonNode b) {
+        Boolean clustered = bool(b, CLUSTERED);
         JsonNode names = b.get("ClusterConnectionNames");
         boolean noConnection = names != null && names.isArray() && names.isEmpty();
         if (Boolean.FALSE.equals(clustered) || noConnection) {
@@ -474,7 +503,7 @@ public final class SetupRules {
                     "Studio sees " + ctx.logicalNodes() + " nodes in this cluster, but this one neither load-balances"
                             + " to them nor redistributes to their consumers. Its messages stay where they land.",
                     List.of(
-                            new Evidence(n.nodeName(), "Clustered", String.valueOf(clustered)),
+                            new Evidence(n.nodeName(), CLUSTERED, String.valueOf(clustered)),
                             new Evidence(
                                     n.nodeName(),
                                     "ClusterConnectionNames",
@@ -494,57 +523,67 @@ public final class SetupRules {
                     List.of(),
                     false));
         }
+    }
 
-        if (n.clusterConnections() == null) {
-            ctx.notAssessed.add(new NotAssessed("CLUSTER_*", n.subject(), n.clusterConnectionsError()));
-            return;
+    /** What the cluster connections of one node got wrong, gathered before any finding is written. */
+    private static final class ClusterIssues {
+        final List<Evidence> stopped = new ArrayList<>();
+        final List<Evidence> lbOff = new ArrayList<>();
+        final List<Evidence> hopsZero = new ArrayList<>();
+        final List<Evidence> noDup = new ArrayList<>();
+        final List<Evidence> stranded = new ArrayList<>();
+        final List<Evidence> unseen = new ArrayList<>();
+    }
+
+    private static void inspectConnection(
+            Context ctx, NodeRead n, String cc, JsonNode a, Long redistribution, ClusterIssues issues) {
+        if (n.live() && Boolean.FALSE.equals(bool(a, "Started"))) {
+            issues.stopped.add(new Evidence(n.nodeName(), cc + " / Started", FALSE));
         }
-        List<Evidence> stopped = new ArrayList<>();
-        List<Evidence> lbOff = new ArrayList<>();
-        List<Evidence> hopsZero = new ArrayList<>();
-        List<Evidence> noDup = new ArrayList<>();
-        List<Evidence> stranded = new ArrayList<>();
-        List<Evidence> unseen = new ArrayList<>();
-        Long redistribution = ctx.redistributionDelay(n);
-        for (var entry : n.clusterConnections().entrySet()) {
-            String cc = entry.getKey();
-            JsonNode a = entry.getValue();
-            if (n.live() && Boolean.FALSE.equals(bool(a, "Started"))) {
-                stopped.add(new Evidence(n.nodeName(), cc + " / Started", "false"));
-            }
-            String lb = text(a, "MessageLoadBalancingType");
-            if ("OFF".equalsIgnoreCase(lb)) {
-                lbOff.add(new Evidence(n.nodeName(), cc + " / MessageLoadBalancingType", lb));
-            }
-            JsonNode hops = a.get("MaxHops");
-            if (hops != null && hops.isNumber() && hops.asInt() == 0) {
-                hopsZero.add(new Evidence(n.nodeName(), cc + " / MaxHops", "0"));
-            }
-            if (Boolean.FALSE.equals(bool(a, "DuplicateDetection"))) {
-                noDup.add(new Evidence(n.nodeName(), cc + " / DuplicateDetection", "false"));
-            }
-            if (n.live()
-                    && lb != null
-                    && (lb.equalsIgnoreCase("ON_DEMAND") || lb.equalsIgnoreCase("OFF_WITH_REDISTRIBUTION"))
-                    && redistribution != null
-                    && redistribution < 0) {
-                stranded.add(new Evidence(n.nodeName(), cc + " / MessageLoadBalancingType", lb));
-                stranded.add(new Evidence(
-                        n.nodeName(), "address-setting # / redistributionDelay", redistribution.toString()));
-            }
-            JsonNode nodes = a.get("Nodes");
-            if (n.live() && nodes != null && nodes.isObject()) {
-                Set<String> seen = new TreeSet<>();
-                nodes.properties().forEach(e -> seen.add(e.getKey()));
-                for (NodeRead other : ctx.all) {
-                    String id = other.artemisNodeId();
-                    if (other.live() && id != null && !id.equals(n.artemisNodeId()) && !seen.contains(id)) {
-                        unseen.add(new Evidence(
-                                n.nodeName(), cc + " does not see", other.nodeName() + " (NodeID " + id + ")"));
-                    }
-                }
+        String lb = text(a, "MessageLoadBalancingType");
+        if ("OFF".equalsIgnoreCase(lb)) {
+            issues.lbOff.add(new Evidence(n.nodeName(), cc + " / MessageLoadBalancingType", lb));
+        }
+        JsonNode hops = a.get("MaxHops");
+        if (hops != null && hops.isNumber() && hops.asInt() == 0) {
+            issues.hopsZero.add(new Evidence(n.nodeName(), cc + " / MaxHops", "0"));
+        }
+        if (Boolean.FALSE.equals(bool(a, "DuplicateDetection"))) {
+            issues.noDup.add(new Evidence(n.nodeName(), cc + " / DuplicateDetection", FALSE));
+        }
+        if (n.live()
+                && lb != null
+                && (lb.equalsIgnoreCase("ON_DEMAND") || lb.equalsIgnoreCase("OFF_WITH_REDISTRIBUTION"))
+                && redistribution != null
+                && redistribution < 0) {
+            issues.stranded.add(new Evidence(n.nodeName(), cc + " / MessageLoadBalancingType", lb));
+            issues.stranded.add(
+                    new Evidence(n.nodeName(), "address-setting # / redistributionDelay", redistribution.toString()));
+        }
+        JsonNode nodes = a.get("Nodes");
+        if (n.live() && nodes != null && nodes.isObject()) {
+            unseenPeers(ctx, n, cc, nodes, issues.unseen);
+        }
+    }
+
+    private static void unseenPeers(Context ctx, NodeRead n, String cc, JsonNode nodes, List<Evidence> unseen) {
+        Set<String> seen = new TreeSet<>();
+        nodes.properties().forEach(e -> seen.add(e.getKey()));
+        for (NodeRead other : ctx.all) {
+            String id = other.artemisNodeId();
+            if (other.live() && id != null && !id.equals(n.artemisNodeId()) && !seen.contains(id)) {
+                unseen.add(new Evidence(n.nodeName(), cc + " does not see", other.nodeName() + " (NodeID " + id + ")"));
             }
         }
+    }
+
+    private static void reportClusterIssues(Context ctx, NodeRead n, ClusterIssues issues) {
+        List<Evidence> stopped = issues.stopped;
+        List<Evidence> lbOff = issues.lbOff;
+        List<Evidence> hopsZero = issues.hopsZero;
+        List<Evidence> noDup = issues.noDup;
+        List<Evidence> stranded = issues.stranded;
+        List<Evidence> unseen = issues.unseen;
         if (!stopped.isEmpty()) {
             ctx.findings.add(finding(
                     "CLUSTER_CONNECTION_STOPPED",
@@ -650,7 +689,7 @@ public final class SetupRules {
 
     /** A connector a clustered node advertises to its peers must name a host they can reach. */
     private static void connectors(Context ctx, NodeRead n, JsonNode b) {
-        if (!Boolean.TRUE.equals(bool(b, "Clustered"))) {
+        if (!Boolean.TRUE.equals(bool(b, CLUSTERED))) {
             return;
         }
         JsonNode connectors = ctx.embedded(b.get("ConnectorsAsJSON"));
@@ -702,9 +741,7 @@ public final class SetupRules {
             String ssl = text(a.path("params"), "sslEnabled");
             if (!"true".equalsIgnoreCase(ssl)) {
                 plain.add(new Evidence(
-                        n.nodeName(),
-                        "acceptor " + text(a, "name") + " / sslEnabled",
-                        ssl == null ? "(not set)" : ssl));
+                        n.nodeName(), "acceptor " + text(a, "name") + " / sslEnabled", ssl == null ? NOT_SET : ssl));
             }
         }
         if (!plain.isEmpty()) {
@@ -745,7 +782,7 @@ public final class SetupRules {
                     "A message that fails delivery " + attempts + " times is removed with only a log line, because"
                             + " # names no dead-letter address to move it to.",
                     List.of(
-                            new Evidence(n.nodeName(), "address-setting # / deadLetterAddress", "(not set)"),
+                            new Evidence(n.nodeName(), "address-setting # / deadLetterAddress", NOT_SET),
                             new Evidence(
                                     n.nodeName(),
                                     "address-setting # / maxDeliveryAttempts",
@@ -786,7 +823,7 @@ public final class SetupRules {
                     n,
                     "No expiry address on " + n.nodeName() + ": expired messages are discarded",
                     "A message whose time-to-live passes is deleted without a trace.",
-                    List.of(new Evidence(n.nodeName(), "address-setting # / expiryAddress", "(not set)")),
+                    List.of(new Evidence(n.nodeName(), "address-setting # / expiryAddress", NOT_SET)),
                     "Name an expiry address if expired messages need to be audited or replayed.",
                     """
                     <address-setting match="#">
@@ -883,7 +920,10 @@ public final class SetupRules {
             return v.asBoolean();
         }
         String s = v.asString();
-        return "true".equalsIgnoreCase(s) ? Boolean.TRUE : "false".equalsIgnoreCase(s) ? Boolean.FALSE : null;
+        if ("true".equalsIgnoreCase(s)) {
+            return Boolean.TRUE;
+        }
+        return FALSE.equalsIgnoreCase(s) ? Boolean.FALSE : null;
     }
 
     /** Everything the rules share about one review. */
@@ -910,7 +950,7 @@ public final class SetupRules {
         }
 
         HaPolicy policy(NodeRead n) {
-            return policies.computeIfAbsent(n.nodeId(), id -> haPolicy(text(n.broker(), "HAPolicy")));
+            return policies.computeIfAbsent(n.nodeId(), id -> haPolicy(text(n.broker(), HA_POLICY)));
         }
 
         /** The NodeIDs this node's cluster connections are bridged to, plus its own. */
@@ -946,7 +986,7 @@ public final class SetupRules {
             }
             try {
                 return mapper.readTree(value.asString());
-            } catch (RuntimeException e) {
+            } catch (RuntimeException _) {
                 return null;
             }
         }

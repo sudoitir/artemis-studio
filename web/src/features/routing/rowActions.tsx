@@ -5,7 +5,7 @@ import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { DeleteDivertDialog } from './DivertActions.tsx';
 import { useDivertWriteGate } from './divertGate.ts';
 
-export function CopyDivertName({ target, host }: ActionProps<DivertTarget>) {
+export function CopyDivertName({ target, host }: Readonly<ActionProps<DivertTarget>>) {
   return (
     <ActionMenuItem
       label="Copy divert name"
@@ -19,7 +19,7 @@ export function CopyDivertName({ target, host }: ActionProps<DivertTarget>) {
  * "Delete divert…" on a divert's row. A capture divert is Studio's own and reconciliation would put
  * it back, so it is not deletable here, and the item says where it is managed instead.
  */
-export function DeleteDivert({ clusterId, target, host }: ActionProps<DivertTarget>) {
+export function DeleteDivert({ clusterId, target, host }: Readonly<ActionProps<DivertTarget>>) {
   const gate = useDivertWriteGate(clusterId);
   const divert = target.snapshot;
   const verdict =

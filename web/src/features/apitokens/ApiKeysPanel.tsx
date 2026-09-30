@@ -50,19 +50,13 @@ export function ApiKeysPanel() {
         </Button>
       </Group>
 
-      {tokens.isError ? (
-        <Alert color="red" title="Your keys could not be loaded">
-          <Text size="sm">{tokens.error.message}</Text>
-          <Text size="sm">Reload the page to try again.</Text>
-        </Alert>
-      ) : tokens.data?.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          You have no keys. A key lets a script or an assistant act as you, with the permissions you choose, until it
-          expires or you revoke it.
-        </Text>
-      ) : (
-        <KeysTable tokens={tokens.data ?? []} onRotate={setRotating} onRevoke={setRevoking} onUsage={setUsageOf} />
-      )}
+      <KeysList
+        error={tokens.isError ? tokens.error : null}
+        tokens={tokens.data}
+        onRotate={setRotating}
+        onRevoke={setRevoking}
+        onUsage={setUsageOf}
+      />
 
       <Modal opened={creating} onClose={closeCreate} title="New API key" size="lg">
         {minted ? <OneTimeSecret value={minted.value} /> : <MintKeyForm onMinted={setMinted} />}
@@ -83,17 +77,50 @@ export function ApiKeysPanel() {
   );
 }
 
+/** The keys, or why there are none to show. */
+function KeysList({
+  error,
+  tokens,
+  onRotate,
+  onRevoke,
+  onUsage,
+}: Readonly<{
+  error: Error | null;
+  tokens: TokenView[] | undefined;
+  onRotate: (t: TokenView) => void;
+  onRevoke: (t: TokenView) => void;
+  onUsage: (t: TokenView) => void;
+}>) {
+  if (error) {
+    return (
+      <Alert color="red" title="Your keys could not be loaded">
+        <Text size="sm">{error.message}</Text>
+        <Text size="sm">Reload the page to try again.</Text>
+      </Alert>
+    );
+  }
+  if (tokens?.length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        You have no keys. A key lets a script or an assistant act as you, with the permissions you choose, until it
+        expires or you revoke it.
+      </Text>
+    );
+  }
+  return <KeysTable tokens={tokens ?? []} onRotate={onRotate} onRevoke={onRevoke} onUsage={onUsage} />;
+}
+
 function KeysTable({
   tokens,
   onRotate,
   onRevoke,
   onUsage,
-}: {
+}: Readonly<{
   tokens: TokenView[];
   onRotate: (t: TokenView) => void;
   onRevoke: (t: TokenView) => void;
   onUsage: (t: TokenView) => void;
-}) {
+}>) {
   return (
     <Table>
       <Table.Thead>
@@ -173,7 +200,7 @@ function KeysTable({
   );
 }
 
-function RotateModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+function RotateModal({ token, onClose }: Readonly<{ token: TokenView | null; onClose: () => void }>) {
   const rotate = useRotateToken();
   const close = () => {
     rotate.reset();
@@ -207,7 +234,7 @@ function RotateModal({ token, onClose }: { token: TokenView | null; onClose: () 
   );
 }
 
-function RevokeModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+function RevokeModal({ token, onClose }: Readonly<{ token: TokenView | null; onClose: () => void }>) {
   const revoke = useRevokeToken();
   return (
     <Modal opened={token !== null} onClose={onClose} title={token ? `Revoke ${token.name}` : ''}>

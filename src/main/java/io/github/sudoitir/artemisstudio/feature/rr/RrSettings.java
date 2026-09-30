@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RrSettings implements SettingsContribution {
 
+    private static final String CATEGORY = "Request-reply";
     public static final String DEFAULT_DEADLINE_MS = "rr.default-deadline-ms";
     public static final String PAYLOAD_CAPTURE_BYTES = "rr.payload-capture-bytes";
     public static final String SWEEP_INTERVAL = "rr.sweep-interval";
@@ -30,7 +31,7 @@ public class RrSettings implements SettingsContribution {
         return List.of(
                 new SettingDef(
                         DEFAULT_DEADLINE_MS,
-                        "Request-reply",
+                        CATEGORY,
                         "Default deadline (ms)",
                         "Used only when neither the message nor its expectation carries a deadline.",
                         Kind.INT,
@@ -38,7 +39,7 @@ public class RrSettings implements SettingsContribution {
                         s -> correlator.setDefaultDeadlineMs(s.intValue(DEFAULT_DEADLINE_MS))),
                 new SettingDef(
                         PAYLOAD_CAPTURE_BYTES,
-                        "Request-reply",
+                        CATEGORY,
                         "Payload capture cap (bytes)",
                         "How much of a request or reply body is stored when an expectation enables capture.",
                         Kind.INT,
@@ -46,7 +47,7 @@ public class RrSettings implements SettingsContribution {
                         s -> correlator.setPayloadCaptureBytes(s.intValue(PAYLOAD_CAPTURE_BYTES))),
                 new SettingDef(
                         SWEEP_INTERVAL,
-                        "Request-reply",
+                        CATEGORY,
                         "Deadline sweep interval",
                         "How often flows past their deadline are marked timed out or orphaned.",
                         Kind.DURATION,
@@ -54,7 +55,7 @@ public class RrSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         SAMPLE_INTERVAL,
-                        "Request-reply",
+                        CATEGORY,
                         "Sampler interval",
                         "How often enabled expectations are sampled over the Core transport. "
                                 + "It is also the error bar on any latency measured by observation.",

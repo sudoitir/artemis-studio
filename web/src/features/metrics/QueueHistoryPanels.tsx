@@ -16,11 +16,11 @@ export function QueueHistoryPanels({
   clusterId,
   queueName,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   onClose: () => void;
-}) {
+}>) {
   const navigate = useNavigate();
   // The drawer's own window is a fixed hour, quantized to the same bucket the
   // metrics view uses so the two agree about where a bucket starts (ADR-0055).

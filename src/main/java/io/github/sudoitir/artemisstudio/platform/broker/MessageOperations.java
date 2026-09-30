@@ -69,9 +69,9 @@ public class MessageOperations {
 
     /** Current {@code MessageCount} of the queue — the purge / retry-all dry-run estimate. */
     public long messageCount(JolokiaBrokerClient client, String queueMbean) {
-        JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, "MessageCount"));
-        requireOk(res, "MessageCount");
-        JsonNode count = res.attribute("MessageCount");
+        JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, MESSAGE_COUNT));
+        requireOk(res, MESSAGE_COUNT);
+        JsonNode count = res.attribute(MESSAGE_COUNT);
         return count == null ? 0L : count.asLong();
     }
 
@@ -85,10 +85,10 @@ public class MessageOperations {
 
     public QueueDepth depth(JolokiaBrokerClient client, String queueMbean) {
         JolokiaResponse res =
-                client.single(JolokiaRequest.read(queueMbean, "MessageCount", "DeliveringCount", "ScheduledCount"));
-        requireOk(res, "MessageCount");
+                client.single(JolokiaRequest.read(queueMbean, MESSAGE_COUNT, "DeliveringCount", "ScheduledCount"));
+        requireOk(res, MESSAGE_COUNT);
         return new QueueDepth(
-                res.value().path("MessageCount").asLong(),
+                res.value().path(MESSAGE_COUNT).asLong(),
                 res.value().path("DeliveringCount").asLong(),
                 res.value().path("ScheduledCount").asLong());
     }
@@ -97,6 +97,8 @@ public class MessageOperations {
 
     /** Ids sent to the broker in one batch request, and so charged one permit (ADR-0076). */
     static final int BY_ID_BATCH = 50;
+
+    private static final String MESSAGE_COUNT = "MessageCount";
 
     /**
      * What an operation on a list of ids did. When it stopped part-way, {@code error} says why
@@ -220,36 +222,48 @@ public class MessageOperations {
                 }
                 return new BulkResult(affected, List.copyOf(ids.subList(from, ids.size())), e.getMessage());
             }
-            List<Long> refused = new java.util.ArrayList<>();
-            RuntimeException firstError = null;
-            for (int i = 0; i < chunk.size(); i++) {
-                try {
-                    if (i >= responses.size()) {
-                        throw new BrokerConnectionException(
-                                BrokerConnectionException.Kind.BAD_RESPONSE,
-                                "The broker returned fewer results than operations.");
-                    }
-                    JolokiaResponse res = responses.get(i);
-                    requireOk(res, op);
-                    if (res.value() != null && res.value().asBoolean()) {
-                        affected++;
-                    }
-                } catch (RuntimeException e) {
-                    refused.add(chunk.get(i));
-                    if (firstError == null) {
-                        firstError = e;
-                    }
-                }
-            }
-            if (firstError != null) {
+            ChunkOutcome outcome = countChunk(chunk, responses, op);
+            affected += outcome.affected();
+            if (outcome.firstError() != null) {
                 if (affected == 0) {
-                    throw firstError;
+                    throw outcome.firstError();
                 }
-                refused.addAll(later);
-                return new BulkResult(affected, List.copyOf(refused), firstError.getMessage());
+                List<Long> notDone = new java.util.ArrayList<>(outcome.refused());
+                notDone.addAll(later);
+                return new BulkResult(
+                        affected, List.copyOf(notDone), outcome.firstError().getMessage());
             }
         }
         return new BulkResult(affected, List.of(), null);
+    }
+
+    /** What one batch did: how many ids the broker acted on, the ones it refused, and the first refusal. */
+    private record ChunkOutcome(long affected, List<Long> refused, RuntimeException firstError) {}
+
+    private static ChunkOutcome countChunk(List<Long> chunk, List<JolokiaResponse> responses, String op) {
+        long affected = 0;
+        List<Long> refused = new java.util.ArrayList<>();
+        RuntimeException firstError = null;
+        for (int i = 0; i < chunk.size(); i++) {
+            try {
+                if (i >= responses.size()) {
+                    throw new BrokerConnectionException(
+                            BrokerConnectionException.Kind.BAD_RESPONSE,
+                            "The broker returned fewer results than operations.");
+                }
+                JolokiaResponse res = responses.get(i);
+                requireOk(res, op);
+                if (res.value() != null && res.value().asBoolean()) {
+                    affected++;
+                }
+            } catch (RuntimeException e) {
+                refused.add(chunk.get(i));
+                if (firstError == null) {
+                    firstError = e;
+                }
+            }
+        }
+        return new ChunkOutcome(affected, refused, firstError);
     }
 
     private long filterExec(JolokiaBrokerClient client, String queueMbean, String op, Object... args) {

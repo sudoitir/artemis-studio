@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Alert, Anchor, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
@@ -7,13 +8,9 @@ import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { useBulkRuns, type BulkRunView } from './api.ts';
 import { OPERATIONS, runStatus } from './words.ts';
 
-/** Past and running bulk runs on a cluster, newest first. */
-export function BulkRunsView() {
-  useDisplayZone();
-  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const query = useBulkRuns(clusterId);
-
-  const columns: GridColumn<BulkRunView>[] = [
+/** The run table's columns; each run's time is a link into it, so it is reachable from the keyboard. */
+function runColumns(clusterId: string): GridColumn<BulkRunView>[] {
+  return [
     {
       id: 'when',
       header: 'When',
@@ -31,22 +28,35 @@ export function BulkRunsView() {
     { id: 'user', header: 'Run by', accessor: (r) => r.username, width: 160 },
     { id: 'outcome', header: 'Outcome', accessor: (r) => runStatus(r.status).text },
   ];
+}
+
+/** What stands in for the table while runs load or fail to load. */
+function runsNotice(query: ReturnType<typeof useBulkRuns>): ReactNode {
+  if (query.isError) {
+    return (
+      <Alert color="red" variant="light" title={query.error.title}>
+        {query.error.message}
+      </Alert>
+    );
+  }
+  return query.data ? null : <Skeleton height={160} />;
+}
+
+/** Past and running bulk runs on a cluster, newest first. */
+export function BulkRunsView() {
+  useDisplayZone();
+  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
+  const query = useBulkRuns(clusterId);
 
   return (
     <Stack gap="sm">
       <Title order={3}>Bulk runs</Title>
-      {query.isError ? (
-        <Alert color="red" variant="light" title={query.error.title}>
-          {query.error.message}
-        </Alert>
-      ) : !query.data ? (
-        <Skeleton height={160} />
-      ) : (
+      {runsNotice(query) ?? (
         <VirtualTable
           label="Bulk runs"
           storageKey="bulk.runs"
-          columns={columns}
-          data={query.data}
+          columns={runColumns(clusterId)}
+          data={query.data ?? []}
           rowKey={(r) => r.id}
           emptyLabel={
             <Stack gap={4} align="flex-start">

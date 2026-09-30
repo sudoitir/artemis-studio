@@ -92,13 +92,14 @@ public class BrokerConfigMcpActionTools {
             case APPLY ->
                 applyConfig(
                         id,
-                        nodeIds,
-                        McpArgs.flag(removeUndeclared, false),
-                        acknowledge,
-                        expectedPlanHash,
+                        applyRequest(
+                                nodeIds,
+                                McpArgs.flag(removeUndeclared, false),
+                                acknowledge,
+                                expectedPlanHash,
+                                McpArgs.flag(override, false)),
                         dry,
-                        confirm,
-                        McpArgs.flag(override, false));
+                        confirm);
         });
     }
 
@@ -159,15 +160,8 @@ public class BrokerConfigMcpActionTools {
                 "Saved revision " + saved.revision() + ". Nothing has been applied to a broker.");
     }
 
-    private McpViews.ConfigApplyOutcome applyConfig(
-            UUID clusterId,
-            String nodeIds,
-            boolean removeUndeclared,
-            String acknowledge,
-            String expectedPlanHash,
-            boolean dry,
-            String confirm,
-            boolean override) {
+    private static BrokerConfigApplyRequest applyRequest(
+            String nodeIds, boolean removeUndeclared, String acknowledge, String expectedPlanHash, boolean override) {
         Set<UUID> nodes = new LinkedHashSet<>();
         if (nodeIds != null && !nodeIds.isBlank()) {
             for (String n : nodeIds.split(",")) {
@@ -180,14 +174,30 @@ public class BrokerConfigMcpActionTools {
                         .map(String::trim)
                         .filter(a -> !a.isEmpty())
                         .toList();
-        BrokerConfigApplyRequest request = new BrokerConfigApplyRequest(
+        return new BrokerConfigApplyRequest(
                 null, nodes, null, removeUndeclared, acks, expectedPlanHash, override, java.util.Set.of());
+    }
+
+    private McpViews.ConfigApplyOutcome applyConfig(
+            UUID clusterId, BrokerConfigApplyRequest request, boolean dry, String confirm) {
         if (!dry) {
             McpArgs.confirm(brokerConfig.get(clusterId).clusterName(), confirm);
         }
         BrokerConfigApplyOutcome outcome =
                 dry ? brokerConfigApply.plan(clusterId, request) : brokerConfigApply.apply(clusterId, request);
         return configOutcome(outcome, brokerConfig.get(clusterId).clusterName());
+    }
+
+    private static String dryRunMessage(BrokerConfigApplyOutcome o, String clusterName, List<String> acknowledge) {
+        Plan plan = o.plan();
+        if (o.overCap()) {
+            return "Nothing was changed. " + plan.stepCount() + " steps is over the cap of " + o.stepCap()
+                    + "; a real run needs override=true.";
+        }
+        String acknowledgement =
+                acknowledge.isEmpty() ? "." : " and acknowledge=\"" + String.join(",", acknowledge) + "\".";
+        return "Nothing was changed. Re-run with dryRun=false, confirm=\"" + clusterName + "\", expectedPlanHash=\""
+                + plan.planHash() + "\"" + acknowledgement;
     }
 
     static McpViews.ConfigApplyOutcome configOutcome(BrokerConfigApplyOutcome o, String clusterName) {
@@ -219,15 +229,7 @@ public class BrokerConfigMcpActionTools {
                 .orElse(null);
         String message = o.summary();
         if (o.dryRun()) {
-            message = o.overCap()
-                    ? "Nothing was changed. " + plan.stepCount() + " steps is over the cap of " + o.stepCap()
-                            + "; a real run needs override=true."
-                    : "Nothing was changed. Re-run with dryRun=false, confirm=\"" + clusterName
-                            + "\", expectedPlanHash=\""
-                            + plan.planHash() + "\""
-                            + (acknowledge.isEmpty()
-                                    ? "."
-                                    : " and acknowledge=\"" + String.join(",", acknowledge) + "\".");
+            message = dryRunMessage(o, clusterName, acknowledge);
         }
         return new McpViews.ConfigApplyOutcome(
                 o.dryRun(),

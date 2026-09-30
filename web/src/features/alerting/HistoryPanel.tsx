@@ -10,7 +10,7 @@ import { useDisplayZone } from '../../kernel/time/timezone.ts';
 const PAGE_SIZE = 50;
 
 /** Every past firing and resolution for this cluster, newest first (alerting spec). */
-export function HistoryPanel({ clusterId }: { clusterId: string }) {
+export function HistoryPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
   useDisplayZone();

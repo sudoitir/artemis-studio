@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Findi
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.FindingKind;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferRunView;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import jakarta.jms.Connection;
 import jakarta.jms.MessageConsumer;
@@ -67,7 +68,8 @@ class TransferAcceptanceTest extends TransferTestSupport {
 
         // What Studio last read of the target node: it has become the backup of its pair.
         BrokerNodeEntity node = brokerNodes.findById(clusterD.node()).orElseThrow();
-        node.applyHaState(false, "STARTED", "BACKUP", true, 1L, null, node.getArtemisNodeId(), Instant.now());
+        node.applyHaState(
+                new HaObservation(false, "STARTED", "BACKUP", true, null, node.getArtemisNodeId()), 1L, Instant.now());
         brokerNodes.save(node);
         refusal(preview(TransferMode.COPY, src, all(), queue(d, "accept.backup")), "target-backup");
 

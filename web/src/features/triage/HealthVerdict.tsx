@@ -15,10 +15,11 @@ const TONE_CLASS = {
  * Colour never carries the verdict alone: the same text is present in every
  * scheme and at every contrast, and a healthy row carries no colour at all.
  */
-export function HealthVerdict({ row }: { row: ConsumerHealthView }) {
+export function HealthVerdict({ row }: Readonly<{ row: ConsumerHealthView }>) {
   const copy = verdictCopy(row.verdict);
   const unmeasured = isUnmeasured(row);
-  const className = unmeasured ? styles.unmeasured : copy.tone ? TONE_CLASS[copy.tone] : undefined;
+  const toneClass = copy.tone ? TONE_CLASS[copy.tone] : undefined;
+  const className = unmeasured ? styles.unmeasured : toneClass;
 
   return (
     <span className={styles.verdict}>

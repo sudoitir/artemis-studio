@@ -38,7 +38,10 @@ export interface TopologyActionsValue {
 
 const ActionsContext = createContext<TopologyActionsValue>({});
 
-export function TopologyActions({ value, children }: { value: TopologyActionsValue; children: React.ReactNode }) {
+export function TopologyActions({
+  value,
+  children,
+}: Readonly<{ value: TopologyActionsValue; children: React.ReactNode }>) {
   return <ActionsContext.Provider value={value}>{children}</ActionsContext.Provider>;
 }
 
@@ -55,7 +58,7 @@ function PairGroup({ data }: NodeProps) {
 }
 
 /** What the enabled features mark on a box of a live cluster (`topology.node.marks`), such as a firing alert. */
-function NodeMarks({ nodeIds }: { nodeIds: string[] }) {
+function NodeMarks({ nodeIds }: Readonly<{ nodeIds: string[] }>) {
   const { clusterId } = useContext(ActionsContext);
   const marks = useSlot('topology.node.marks');
   if (!clusterId) return null;
@@ -135,7 +138,7 @@ const nodeTypes = { broker: BrokerNode, unmanaged: UnmanagedNode, pair: PairGrou
 function RefitOnNodeSetChange({ signature }: { signature: string }) {
   const flow = useReactFlow();
   useEffect(() => {
-    flow.fitView({ padding: 0.15, maxZoom: 1 });
+    void flow.fitView({ padding: 0.15, maxZoom: 1 });
   }, [flow, signature]);
   return null;
 }
@@ -157,13 +160,14 @@ function Legend() {
       ))}
       <span className={styles.legendItem}>
         <span className={styles.legendAxis} aria-hidden="true" />
+        {/* The flex gap spaces the mark from its label. */}
         shared NodeID — serving above, standby below
       </span>
     </div>
   );
 }
 
-function EmptyCanvas({ height }: { height?: string }) {
+function EmptyCanvas({ height }: Readonly<{ height?: string }>) {
   return (
     <div className={styles.wrapper} style={height ? { blockSize: height } : undefined}>
       <div className={styles.empty}>
@@ -187,12 +191,12 @@ export function TopologyCanvas({
   model,
   interactive = true,
   height,
-}: {
+}: Readonly<{
   model: TopologyLayout;
   interactive?: boolean;
   /** Override the frame height. Embedders that already constrain the box pass `100%`. */
   height?: string;
-}) {
+}>) {
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
   const signature = useMemo(
     () =>

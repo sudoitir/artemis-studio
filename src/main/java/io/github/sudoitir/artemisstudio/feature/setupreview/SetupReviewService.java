@@ -59,6 +59,7 @@ import tools.jackson.databind.ObjectMapper;
 public class SetupReviewService {
 
     public static final String TOPIC = "setup-review";
+    private static final String REASON = "reason";
 
     private final ClusterDirectory clusters;
     private final BrokerConnections connections;
@@ -166,9 +167,9 @@ public class SetupReviewService {
                 clusterId,
                 null,
                 request.expiresAt() == null
-                        ? Map.of("reason", request.reason())
+                        ? Map.of(REASON, request.reason())
                         : Map.of(
-                                "reason",
+                                REASON,
                                 request.reason(),
                                 "expiresAt",
                                 request.expiresAt().toString()),
@@ -221,45 +222,13 @@ public class SetupReviewService {
         }
         Instant now = Instant.now();
         List<SetupFindingView> views = new ArrayList<>();
-        int critical = 0;
-        int warning = 0;
-        int info = 0;
-        int acceptedCount = 0;
+        Tally tally = new Tally();
         for (SetupFindingEntity row : findings.findByClusterId(clusterId)) {
             Finding f = mapper.readValue(row.getFinding(), Finding.class);
-            SetupFindingAcceptanceEntity a = accepted.get(new FindingKey(clusterId, row.getCode(), row.getSubject()));
-            AcceptanceView acceptance = a == null
-                    ? null
-                    : new AcceptanceView(
-                            a.getReason(), a.getAcceptedBy(), a.getCreatedAt(), a.getExpiresAt(), a.activeAt(now));
-            if (acceptance != null && acceptance.active()) {
-                acceptedCount++;
-            } else {
-                switch (f.severity()) {
-                    case CRITICAL -> critical++;
-                    case WARNING -> warning++;
-                    case INFO -> info++;
-                }
-            }
-            views.add(new SetupFindingView(
-                    f.code(),
-                    f.category().name(),
-                    f.severity().name(),
-                    f.subject(),
-                    labels.getOrDefault(f.subject(), f.subject()),
-                    f.title(),
-                    f.impact(),
-                    f.evidence().stream()
-                            .map(e -> new EvidenceView(e.node(), e.key(), e.value()))
-                            .toList(),
-                    f.recommendation(),
-                    f.snippet(),
-                    f.caveats(),
-                    f.appliable(),
-                    row.getFirstSeenAt(),
-                    row.getLastSeenAt(),
-                    review != null && row.getLastSeenAt().isBefore(review.getReviewedAt()),
-                    acceptance));
+            AcceptanceView acceptance =
+                    acceptanceView(accepted.get(new FindingKey(clusterId, row.getCode(), row.getSubject())), now);
+            tally.count(f.severity(), acceptance != null && acceptance.active());
+            views.add(findingView(f, row, review, labels, acceptance));
         }
         views.sort(Comparator.comparing((SetupFindingView v) -> Severity.valueOf(v.severity()))
                 .thenComparing(SetupFindingView::category)
@@ -269,20 +238,8 @@ public class SetupReviewService {
         List<ReviewedNodeView> nodes = new ArrayList<>();
         List<NotAssessedView> notAssessed = new ArrayList<>();
         if (review != null) {
-            for (Map<String, Object> n :
-                    mapper.readValue(review.getNodes(), new TypeReference<List<Map<String, Object>>>() {})) {
-                nodes.add(new ReviewedNodeView(
-                        UUID.fromString(String.valueOf(n.get("nodeId"))),
-                        String.valueOf(n.get("nodeName")),
-                        Boolean.TRUE.equals(n.get("live")),
-                        Boolean.TRUE.equals(n.get("reviewed")),
-                        n.get("reason") == null ? null : String.valueOf(n.get("reason"))));
-            }
-            for (NotAssessed na :
-                    mapper.readValue(review.getNotAssessed(), new TypeReference<List<NotAssessed>>() {})) {
-                notAssessed.add(new NotAssessedView(
-                        na.code(), na.subject(), labels.getOrDefault(na.subject(), na.subject()), na.reason()));
-            }
+            nodes.addAll(reviewedNodes(review));
+            notAssessed.addAll(notAssessedViews(review, labels));
         }
         return new SetupReviewView(
                 clusterId,
@@ -294,9 +251,82 @@ public class SetupReviewService {
                 nodes,
                 views,
                 notAssessed,
-                new SeverityCountsView(critical, warning, info),
-                acceptedCount,
+                new SeverityCountsView(tally.critical, tally.warning, tally.info),
+                tally.accepted,
                 SetupRules.CODES.size(),
                 notice);
+    }
+
+    /** How many findings stand at each severity, and how many an active acceptance has set aside. */
+    private static final class Tally {
+        int critical;
+        int warning;
+        int info;
+        int accepted;
+
+        void count(Severity severity, boolean acceptedActive) {
+            if (acceptedActive) {
+                accepted++;
+                return;
+            }
+            switch (severity) {
+                case CRITICAL -> critical++;
+                case WARNING -> warning++;
+                case INFO -> info++;
+            }
+        }
+    }
+
+    private static AcceptanceView acceptanceView(SetupFindingAcceptanceEntity a, Instant now) {
+        if (a == null) {
+            return null;
+        }
+        return new AcceptanceView(
+                a.getReason(), a.getAcceptedBy(), a.getCreatedAt(), a.getExpiresAt(), a.activeAt(now));
+    }
+
+    private static SetupFindingView findingView(
+            Finding f,
+            SetupFindingEntity row,
+            SetupReviewEntity review,
+            Map<String, String> labels,
+            AcceptanceView acceptance) {
+        return new SetupFindingView(
+                f.code(),
+                f.category().name(),
+                f.severity().name(),
+                f.subject(),
+                labels.getOrDefault(f.subject(), f.subject()),
+                f.title(),
+                f.impact(),
+                f.evidence().stream()
+                        .map(e -> new EvidenceView(e.node(), e.key(), e.value()))
+                        .toList(),
+                f.recommendation(),
+                f.snippet(),
+                f.caveats(),
+                f.appliable(),
+                row.getFirstSeenAt(),
+                row.getLastSeenAt(),
+                review != null && row.getLastSeenAt().isBefore(review.getReviewedAt()),
+                acceptance);
+    }
+
+    private List<ReviewedNodeView> reviewedNodes(SetupReviewEntity review) {
+        return mapper.readValue(review.getNodes(), new TypeReference<List<Map<String, Object>>>() {}).stream()
+                .map(n -> new ReviewedNodeView(
+                        UUID.fromString(String.valueOf(n.get("nodeId"))),
+                        String.valueOf(n.get("nodeName")),
+                        Boolean.TRUE.equals(n.get("live")),
+                        Boolean.TRUE.equals(n.get("reviewed")),
+                        n.get(REASON) == null ? null : String.valueOf(n.get(REASON))))
+                .toList();
+    }
+
+    private List<NotAssessedView> notAssessedViews(SetupReviewEntity review, Map<String, String> labels) {
+        return mapper.readValue(review.getNotAssessed(), new TypeReference<List<NotAssessed>>() {}).stream()
+                .map(na -> new NotAssessedView(
+                        na.code(), na.subject(), labels.getOrDefault(na.subject(), na.subject()), na.reason()))
+                .toList();
     }
 }

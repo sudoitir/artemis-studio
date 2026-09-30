@@ -40,12 +40,12 @@ function RoutingNode({
   data,
   inbound,
   outbound,
-}: {
+}: Readonly<{
   id: string;
   data: RoutingNodeData;
   inbound: boolean;
   outbound: boolean;
-}) {
+}>) {
   const { focusedId, canWrite, register, focus, select } = useContext(RoutingCanvasContext);
   const ref = useRef<HTMLButtonElement>(null);
   const view = data.view;

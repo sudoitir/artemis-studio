@@ -181,8 +181,8 @@ export function useRetryDelivery(channelId: string) {
     mutationFn: (seq) =>
       request<AlertDeliveryView>(`/channels/${channelId}/deliveries/${seq}/retry`, { method: 'POST' }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.deliveries(channelId) });
-      qc.invalidateQueries({ queryKey: keys.channels });
+      void qc.invalidateQueries({ queryKey: keys.deliveries(channelId) });
+      void qc.invalidateQueries({ queryKey: keys.channels });
     },
   });
 }
