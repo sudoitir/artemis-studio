@@ -417,7 +417,7 @@ public class PluginHost implements SmartLifecycle {
             store.update(id, row -> row.transitionTo(PluginInstallStatus.ACTIVE));
             notifyListeners(
                     id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "succeeded");
-        } catch (TimeoutException timedOut) {
+        } catch (TimeoutException _) {
             String reason = "Plugin '%s' did not start within %ds".formatted(id, timeout.toSeconds());
             store.update(id, row -> row.needsRestart(reason));
             notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "failed");
@@ -433,7 +433,7 @@ public class PluginHost implements SmartLifecycle {
             Throwable cause = failed.getCause() != null ? failed.getCause() : failed;
             store.update(id, row -> row.fail(describeFailure(cause)));
             notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, "boot-start", "failed");
-        } catch (InterruptedException interrupted) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
     }
@@ -572,7 +572,7 @@ public class PluginHost implements SmartLifecycle {
     private PluginDescriptor tryParseStoredDescriptor(PluginInstallEntity e) {
         try {
             return parseStoredDescriptor(e);
-        } catch (RuntimeException corrupt) {
+        } catch (RuntimeException _) {
             return null;
         }
     }
@@ -779,7 +779,7 @@ public class PluginHost implements SmartLifecycle {
             log.error("Plugin '{}' activation crashed", id, e);
             try {
                 store.fail(id, describeFailure(e));
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // the row may already be gone (a concurrent purge); the failure is still logged above
             }
             logStep(ctx, actor, "failed", "failed");
@@ -875,7 +875,7 @@ public class PluginHost implements SmartLifecycle {
         boolean reversible;
         try {
             reversible = migrations.isReversible(ctx.jarPath(), id);
-        } catch (Exception e) {
+        } catch (Exception _) {
             reversible = false;
         }
         if (reversible) {
@@ -966,7 +966,7 @@ public class PluginHost implements SmartLifecycle {
         boolean acquired;
         try {
             acquired = busy.tryAcquire(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             acquired = false;
         }
@@ -1274,7 +1274,7 @@ public class PluginHost implements SmartLifecycle {
             }
             byte[] bytes = jar.getInputStream(entry).readNBytes(PluginDescriptorParser.MAX_BYTES + 1);
             return Optional.ofNullable(descriptorParser.parse(bytes).id());
-        } catch (Exception e) {
+        } catch (Exception _) {
             return Optional.empty();
         }
     }

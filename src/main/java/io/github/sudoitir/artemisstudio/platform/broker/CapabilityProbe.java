@@ -217,7 +217,7 @@ public class CapabilityProbe {
     private JsonNode catchAllSettings(JolokiaBrokerClient client) {
         try {
             return client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
-        } catch (BrokerConnectionException e) {
+        } catch (BrokerConnectionException _) {
             return UNREADABLE;
         }
     }
@@ -286,7 +286,7 @@ public class CapabilityProbe {
                 if (protocols.asText().toUpperCase().contains("CORE")) {
                     return true;
                 }
-            } catch (BrokerConnectionException e) {
+            } catch (BrokerConnectionException _) {
                 // A single unreadable acceptor is not decisive; try the next.
             }
         }

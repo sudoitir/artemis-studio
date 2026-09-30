@@ -225,7 +225,7 @@ public class TopologyDiscovery {
             URI u = URI.create(jolokiaUrl);
             int port = u.getPort();
             return port > 0 ? u.getHost() + ":" + port : u.getHost();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return jolokiaUrl;
         }
     }

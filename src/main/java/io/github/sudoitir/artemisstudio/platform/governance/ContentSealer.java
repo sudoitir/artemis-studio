@@ -45,7 +45,7 @@ public class ContentSealer {
         }
         try {
             return mapper.readValue(vault.decrypt(aad, ciphertext, nonce), ORIGINALS);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return Map.of();
         }
     }

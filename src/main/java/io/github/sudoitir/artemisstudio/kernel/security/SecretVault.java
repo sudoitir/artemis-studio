@@ -45,7 +45,7 @@ public class SecretVault {
         byte[] decoded;
         try {
             decoded = Base64.getDecoder().decode(configured.trim());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalStateException(
                     "ARTEMIS_STUDIO_SECRET_KEY is not valid base64. Expected base64 of 32 bytes.");
         }

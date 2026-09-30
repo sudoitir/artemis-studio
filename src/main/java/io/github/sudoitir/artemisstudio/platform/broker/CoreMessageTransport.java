@@ -291,7 +291,7 @@ public class CoreMessageTransport implements MessageTransport {
             if (m instanceof ActiveMQMessage amq) {
                 return amq.getCoreMessage().getMessageID();
             }
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // fall through
         }
         return 0L;
@@ -319,7 +319,7 @@ public class CoreMessageTransport implements MessageTransport {
     private static String stringProp(Message m, String name) {
         try {
             return m.getStringProperty(name);
-        } catch (JMSException e) {
+        } catch (JMSException _) {
             return null;
         }
     }

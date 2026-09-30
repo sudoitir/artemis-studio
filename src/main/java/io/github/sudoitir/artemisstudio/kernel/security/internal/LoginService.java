@@ -94,7 +94,7 @@ public class LoginService {
                     .authenticate(username, password)
                     .map(p -> p.userId().equals(current.userId()))
                     .orElse(false);
-        } catch (DisabledException e) {
+        } catch (DisabledException _) {
             same = false;
         }
         if (!same) {

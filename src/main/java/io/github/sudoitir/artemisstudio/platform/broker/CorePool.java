@@ -219,12 +219,12 @@ public class CorePool {
         public void close() {
             try {
                 session.close();
-            } catch (JMSException ignored) {
+            } catch (JMSException _) {
                 // teardown
             }
             try {
                 connection.close();
-            } catch (JMSException ignored) {
+            } catch (JMSException _) {
                 // teardown — pooled close() returns it to the pool, never tears down the real socket
             }
         }

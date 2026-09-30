@@ -49,7 +49,7 @@ final class GuardPermissions {
         SpelNode ast;
         try {
             ast = ((SpelExpression) PARSER.parseExpression(guard.value())).getAST();
-        } catch (ParseException e) {
+        } catch (ParseException _) {
             return; // Spring Security rejects it at call time; not this check's concern
         }
         walk(ast, guard.value(), location, loader, refs);
@@ -80,7 +80,7 @@ final class GuardPermissions {
             Object value = new SpelExpression(source, (SpelNodeImpl) argument, new SpelParserConfiguration())
                     .getValue(context);
             return value instanceof String s ? s : null;
-        } catch (EvaluationException e) {
+        } catch (EvaluationException _) {
             return null; // depends on the call, e.g. #permission or filterObject
         }
     }

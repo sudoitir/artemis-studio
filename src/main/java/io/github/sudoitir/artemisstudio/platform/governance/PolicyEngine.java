@@ -219,7 +219,7 @@ final class PolicyEngine {
             Object tree;
             try {
                 tree = mapper.readValue(text, Object.class);
-            } catch (JacksonException notJson) {
+            } catch (JacksonException _) {
                 return null;
             }
             return mapper.writeValueAsString(walk(tree, ""));

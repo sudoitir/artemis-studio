@@ -74,7 +74,7 @@ public class AcceptanceProbe {
             if (r.size() < requests.size()) {
                 return Facts.unknown();
             }
-        } catch (BrokerConnectionException e) {
+        } catch (BrokerConnectionException _) {
             return Facts.unknown();
         }
         int i = 0;
@@ -143,7 +143,7 @@ public class AcceptanceProbe {
         }
         try {
             return client.parsed(res);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

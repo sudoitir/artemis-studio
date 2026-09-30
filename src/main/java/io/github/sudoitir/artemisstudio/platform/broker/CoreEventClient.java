@@ -162,13 +162,13 @@ public final class CoreEventClient implements AutoCloseable {
         closeQuietly(connection);
         try {
             factory.close();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // factory close is best-effort
         }
         if (drainThread != null) {
             try {
                 drainThread.join(Duration.ofSeconds(2));
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -180,7 +180,7 @@ public final class CoreEventClient implements AutoCloseable {
         }
         try {
             c.close();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // teardown
         }
     }

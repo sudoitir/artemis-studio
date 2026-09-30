@@ -169,11 +169,11 @@ public class BrokerCommands {
                 }
                 try {
                     estimates.put(t.node().getId(), c.estimate().count().apply(clientFor(c.clusterId(), t.node())));
-                } catch (ManagementRefusal e) {
+                } catch (ManagementRefusal _) {
                     // Nothing to destroy here — an absent resource counts as zero, and
                     // the action reports the node as ALREADY.
                     estimates.put(t.node().getId(), 0L);
-                } catch (BrokerConnectionException e) {
+                } catch (BrokerConnectionException _) {
                     estimates.put(t.node().getId(), null);
                 }
             }

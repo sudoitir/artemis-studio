@@ -370,7 +370,7 @@ public class ClusterService {
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
                 client.resolveBrokerObjectName();
                 seeds.add(new ProbedSeed(node.getJolokiaUrl(), client));
-            } catch (BrokerConnectionException ignored) {
+            } catch (BrokerConnectionException _) {
                 // Unreachable this round; tier A records its error.
             }
         }
@@ -498,7 +498,7 @@ public class ClusterService {
         try {
             URI u = URI.create(url);
             return u.getPort() > 0 ? u.getHost() + ":" + u.getPort() : u.getHost();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return url;
         }
     }

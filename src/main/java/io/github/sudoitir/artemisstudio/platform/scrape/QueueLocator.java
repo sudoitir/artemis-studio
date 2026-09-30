@@ -74,7 +74,7 @@ public class QueueLocator {
                             value(mbean, "routing-type").toUpperCase(Locale.ROOT),
                             entry.getValue().path("MessageCount").asLong()));
                 }
-            } catch (BrokerConnectionException | MalformedObjectNameException e) {
+            } catch (BrokerConnectionException | MalformedObjectNameException _) {
                 // A node that cannot be read has not shown the queue; the others still answer.
             }
         }

@@ -190,7 +190,7 @@ final class PluginClassloaderCaches {
                 target.setAccessible(true);
                 return belongsTo(method.get(methodClassKey), loader)
                         || (target.get(methodClassKey) instanceof Class<?> c && c.getClassLoader() == loader);
-            } catch (ReflectiveOperationException e) {
+            } catch (ReflectiveOperationException _) {
                 return false;
             }
         }

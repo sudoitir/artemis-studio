@@ -36,7 +36,7 @@ public final class SemVer {
     private static Long parse(String s) {
         try {
             return Long.parseLong(s);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

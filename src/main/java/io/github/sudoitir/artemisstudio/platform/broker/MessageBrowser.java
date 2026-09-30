@@ -198,7 +198,7 @@ public class MessageBrowser {
         }
         try {
             return Long.parseLong(v.asText().trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0L;
         }
     }

@@ -36,7 +36,7 @@ public final class McpArgs {
         }
         try {
             return UUID.fromString(value.trim());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw McpErrors.invalidParams(field + " must be a UUID. Read studio://clusters for the ids this key sees.");
         }
     }
@@ -55,7 +55,7 @@ public final class McpArgs {
         }
         try {
             return Enum.valueOf(type, value.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw McpErrors.invalidParams(field + " must be one of: " + names(type) + ". " + SEE_HELP);
         }
     }
@@ -84,7 +84,7 @@ public final class McpArgs {
         long amount;
         try {
             amount = Long.parseLong(w.substring(0, w.length() - 1));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             throw McpErrors.invalidParams("window must look like 15m, 6h or 2d.");
         }
         if (amount <= 0) {

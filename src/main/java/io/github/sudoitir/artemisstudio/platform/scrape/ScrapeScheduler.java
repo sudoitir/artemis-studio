@@ -276,7 +276,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
                 f.get();
             } catch (ExecutionException e) {
                 log.warn("Scrape task failed unexpectedly: {}", e.getCause() != null ? e.getCause() : e, e);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
                 return;
             }

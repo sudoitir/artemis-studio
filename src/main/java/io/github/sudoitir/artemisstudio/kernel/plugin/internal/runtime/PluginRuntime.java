@@ -202,7 +202,7 @@ public final class PluginRuntime implements AutoCloseable {
         boolean acquired;
         try {
             acquired = lock.writeLock().tryLock(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             acquired = false;
         }
