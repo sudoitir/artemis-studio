@@ -24,14 +24,17 @@ public final class SecretRedactor {
 
     /**
      * {@code key=value}, {@code key: value} and {@code "key":"value"}. A value is a quoted string, an
-     * {@code Authorization} scheme with its token, or a run up to the next delimiter. The key is bounded and
+     * {@code Authorization} scheme with its token (see {@link #SCHEME_TOKEN}), or a run up to the next delimiter. The key is bounded and
      * possessive and every run is possessive, so no input makes the match super-linear; {@link #isCredentialKey}
      * decides afterwards whether the key is one. A key longer than the bound is judged on its last characters.
      */
     private static final Pattern ASSIGNMENT = Pattern.compile("([\\w.-]{1,64}+)([\"']?\\s*+[=:]\\s*+)"
-            + "(?!\\[redacted])(\"(?:[^\"\\\\]|\\\\.)*+\"|'[^']*+'|(?:(?:Bearer|Basic)\\s++)?[^\\s,;&\"'}\\]]++)");
+            + "(?!\\[redacted])(\"(?:[^\"\\\\]|\\\\.)*+\"|'[^']*+'|[^\\s,;&\"'}\\]]++)");
 
-    private static final Pattern BEARER = Pattern.compile("(?i)\\b(Bearer)\\s++(?!\\[redacted])[A-Za-z0-9._~+/=-]++");
+    /** The token that follows a bare {@code Bearer} or {@code Basic} value. */
+    private static final Pattern SCHEME_TOKEN = Pattern.compile("\\s++[^\\s,;&\"'}\\]]++");
+
+    private static final Pattern BEARER = Pattern.compile("(?i)\\b(Bearer)\\s++(?!\\[redacted])[a-z0-9._~+/=-]++");
 
     /** Case-sensitive and base64-shaped, so the words "Basic settings" survive. */
     private static final Pattern BASIC =
@@ -80,6 +83,13 @@ public final class SecretRedactor {
             char quote = value.charAt(0);
             out.append(text, copied, m.start(3)).append(quote == '"' || quote == '\'' ? quote + MASK + quote : MASK);
             copied = m.end();
+            if (value.equals("Bearer") || value.equals("Basic")) {
+                Matcher token = SCHEME_TOKEN.matcher(text).region(copied, text.length());
+                if (token.lookingAt()) {
+                    copied = token.end();
+                    m.region(copied, text.length());
+                }
+            }
         }
         return out.append(text, copied, text.length()).toString();
     }
