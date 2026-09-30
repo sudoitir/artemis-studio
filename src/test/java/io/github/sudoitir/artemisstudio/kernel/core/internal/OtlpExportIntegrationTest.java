@@ -248,7 +248,7 @@ class OtlpExportIntegrationTest extends PostgresIntegrationTest {
             this.observations = observations;
         }
 
-        @GetMapping("/api/v1/otel-probe")
+        @GetMapping("/otel-probe")
         String probe() throws Exception {
             UUID cluster = UUID.randomUUID();
             jdbc.queryForObject("select 1", Integer.class);
