@@ -9,7 +9,7 @@
 - [x] 3.1 `studio_replica` changelog (drop `studio_boot`), `ReplicaRegistry` with DB-time heartbeat thread, states, reaping in housekeeping
 - [x] 3.2 `PluginHost` crash-loop counts crashes from the registry; stop writes `stopped_at`
 - [x] 3.3 `StudioBus`: dedicated LISTEN connection, `pg_notify` publish in-transaction, frame/events/signal payloads, `ReplicaSignal`, `BusResumed`
-- [ ] 3.4 Readiness: `replica` indicator, `/livez` `/readyz`, `timeout-per-shutdown-phase`; DRAIN and RUNS shutdown phases
+- [x] 3.4 Readiness: `replica` indicator, `/livez` `/readyz`, `timeout-per-shutdown-phase`; DRAIN and RUNS shutdown phases
 
 ## 4. Stream across replicas (D4)
 - [ ] 4.1 `SseHub.publish` broadcasts, `deliver` local; events batches loaded by seq; 7,500-byte downgrade

@@ -52,6 +52,8 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("artemis-studio.secret-key", () -> SECRET_KEY);
+        // A cached context closes with the JVM; it has no load balancer to wait for.
+        registry.add("artemis-studio.ha.drain-delay", () -> "0s");
         // For the same reason as the scrape tiers: the plugin-messaging pass would visit every
         // cluster the shared database has accumulated, from a scheduler thread, and call a mocked
         // BrokerConnections while a test is stubbing it. Its startup sweep still runs, before any
@@ -65,6 +67,7 @@ public abstract class PostgresIntegrationTest {
                 "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
                 "spring.datasource.username=" + POSTGRES.getUsername(),
                 "spring.datasource.password=" + POSTGRES.getPassword(),
-                "artemis-studio.secret-key=" + SECRET_KEY);
+                "artemis-studio.secret-key=" + SECRET_KEY,
+                "artemis-studio.ha.drain-delay=0s");
     }
 }
