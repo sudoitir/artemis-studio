@@ -5,6 +5,7 @@
 - **Deciders**: Mahdi Amirabdollahi
 - **Change**: `openspec/changes/plugins`
 - **Amends**: [ADR-0042](0042-calver-releases-on-docker-hub.md) — a release also publishes the plugin API
+- **Amended by**: [ADR-0139](0139-release-attestations-and-image-scan.md) — the Central artifacts are attested
 
 ## Context
 
