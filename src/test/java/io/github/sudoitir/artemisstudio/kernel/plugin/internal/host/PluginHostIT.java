@@ -388,6 +388,27 @@ class PluginHostIT extends PostgresIntegrationTest {
     }
 
     @Test
+    void theNextBootRefusesAVersionWhoseKeyWasRemovedWhileItWaitedForTheRestart() throws Exception {
+        String id = uniqueId("acme-restart-untrusted");
+        String sha = upload(emptyPlugin(id).descriptorField("activation", "RESTART"));
+        host.activate(sha, "tester", false);
+        seededIds.add(id);
+        awaitStatus(id, PluginInstallStatus.NEEDS_RESTART);
+
+        jdbc.update("DELETE FROM plugin_trusted_key");
+        try {
+            resetBootHistory();
+            host.runStartupSequence();
+        } finally {
+            TrustedTestKey.trust(jdbc);
+        }
+
+        assertThat(host.status(id)).get().extracting(PluginSummary::status).isEqualTo(PluginInstallStatus.FAILED);
+        assertThat(host.status(id).orElseThrow().failure()).startsWith("plugin-untrusted");
+        assertThat(registry.get(id)).isEmpty();
+    }
+
+    @Test
     void anUninstalledPluginsDataCannotBeTakenOverByAnotherVendor() throws Exception {
         String id = uniqueId("acme-takeover");
         String sha = upload(emptyPlugin(id));

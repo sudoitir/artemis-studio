@@ -350,6 +350,7 @@ public class PluginHost implements SmartLifecycle {
     private void startActiveRowsAtBoot() {
         List<PluginInstallEntity> rows = installs.findAll().stream()
                 .filter(e -> STARTS_AT_BOOT.contains(e.status()))
+                .filter(this::trustedForRestart)
                 .toList();
         Map<String, PluginDescriptor> descriptors = new LinkedHashMap<>();
         for (PluginInstallEntity e : rows) {
@@ -366,6 +367,27 @@ public class PluginHost implements SmartLifecycle {
         for (String id : startOrder(descriptors)) {
             startOneAtBoot(id, descriptors.get(id), timeout, executor);
         }
+    }
+
+    /**
+     * A {@code needs_restart} row may carry a version that has never run: a restart-class
+     * activation records it and waits for this boot. Its signer is checked again here, so a key
+     * removed in between stops it, as activation would have. An {@code active} row keeps running
+     * unverified (design.md §5).
+     */
+    private boolean trustedForRestart(PluginInstallEntity e) {
+        if (e.status() != PluginInstallStatus.NEEDS_RESTART
+                || trust.decide(e.getSignerFingerprint(), e.getSignerSubject()).status() == TrustDecision.Status.TRUSTED
+                || trust.allowUnverified()) {
+            return true;
+        }
+        String reason = e.getSignerFingerprint() == null
+                ? "plugin-unsigned: the version waiting for this restart is unsigned, and unverified plugins are not allowed."
+                : "plugin-untrusted: the key %s that signed the version waiting for this restart is no longer trusted."
+                        .formatted(e.getSignerFingerprint());
+        store.update(e.getId(), row -> row.fail(reason));
+        log.warn("plugin-lifecycle id={} step=boot-start outcome=failed reason={}", e.getId(), reason);
+        return false;
     }
 
     /** Dependency-first order: a plugin's {@code requires} on another plugin being started here

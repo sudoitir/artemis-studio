@@ -288,7 +288,11 @@ public class PluginAdministration {
      */
     public PluginTrust.TrustedKey addKey(HttpServletRequest request, String name, String uploadSha256, String pem) {
         Map<String, Object> params = new HashMap<>();
-        params.put(uploadSha256 != null ? "upload" : "pem", uploadSha256 != null ? uploadSha256 : pem);
+        // The PEM itself is not recorded: it can be 8 KB of whatever the client sent.
+        params.put("source", uploadSha256 != null ? "upload" : "pem");
+        if (uploadSha256 != null) {
+            params.put("upload", uploadSha256);
+        }
         return audited("PLUGIN_KEY_ADD", name.strip(), params, () -> {
             requireStepUp(request);
             if ((uploadSha256 == null) == (pem == null)) {

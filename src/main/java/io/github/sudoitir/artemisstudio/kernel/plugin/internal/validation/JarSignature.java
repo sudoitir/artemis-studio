@@ -67,6 +67,14 @@ final class JarSignature {
         Certificate signer = null;
         for (JarEntry entry : entries) {
             String name = entry.getName();
+            if (entry.isDirectory() && entry.getSize() > 0) {
+                // No loader reads it, but nothing should ever serve bytes the signature does not cover.
+                violations.add(new Violation(
+                        "jar-entry-unsigned",
+                        "\"%s\" is a directory entry with content.".formatted(name),
+                        "Rebuild and sign the jar again; do not add or replace files after signing."));
+                return null;
+            }
             if (entry.isDirectory()
                     || name.equals(MANIFEST)
                     || METADATA.matcher(name).matches()) {
