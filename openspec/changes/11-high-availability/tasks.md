@@ -22,20 +22,20 @@
 - [x] 5.3 Release drops subscriptions, consumers, `ScrapeCycle`, `StreamSignals`; acquire kicks tier A
 
 ## 6. Cache coherence (D5)
-- [ ] 6.1 Signals for settings, cluster-deleted, env-index, policy (delete the probe job), session-ended, leases
-- [ ] 6.2 Plugins: `reconcileRuntimes` on signal; deterministic `manifestVersion`
-- [ ] 6.3 Sweep remaining component-local caches and classify each
+- [x] 6.1 Signals for settings, cluster-deleted, env-index, policy (delete the probe job), session-ended, leases
+- [x] 6.2 Plugins: `reconcileRuntimes` on signal; deterministic `manifestVersion`
+- [x] 6.3 Sweep remaining component-local caches and classify each
 
 ## 7. Shared small stores (D6, D7)
 - [x] 7.1 `cluster_node.split_brain`; delete `SplitBrainRegistry`; readers use rows
-- [ ] 7.2 `sql_query_ticket` table; `api_request_window` table
+- [x] 7.2 `sql_query_ticket` table; `api_request_window` table
 
 ## 8. Runs across replicas (D9)
-- [ ] 8.1 `replica_id` on bulk and transfer runs; recovery job interrupts only runs of gone replicas
-- [ ] 8.2 `run-stop` signal; RUNS phase waits then stops and records INTERRUPTED with progress
+- [x] 8.1 `replica_id` on bulk and transfer runs; recovery job interrupts only runs of gone replicas
+- [x] 8.2 `run-stop` signal; RUNS phase waits then stops and records INTERRUPTED with progress
 
 ## 9. Self-health (spec: one view)
-- [ ] 9.1 Replicas section in `StudioHealthController` and `StudioHealth.tsx` (host, version, state, heartbeat age, owned clusters, answering replica)
+- [x] 9.1 Replicas section in `StudioHealthController` and `StudioHealth.tsx` (host, version, state, heartbeat age, owned clusters, answering replica)
 
 ## 10. Deployment, tests, docs (D10)
 - [ ] 10.1 `compose.ha.yaml`, `compose.ha.test.yaml`, `ha/haproxy.cfg`; dev/prod healthchecks on `/readyz`
