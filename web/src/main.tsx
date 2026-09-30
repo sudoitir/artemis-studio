@@ -35,11 +35,17 @@ import '@artemis-studio/plugin-sdk';
  *
  * The fine-grained `shiki/core` bundle, not `shiki`'s full one: the full bundle
  * registers every grammar shiki ships as its own lazy chunk (311 files in the dist
- * for five languages we actually use). `themes: []` is correct — Mantine's adapter
- * passes its own light/dark theme per call.
+ * for five languages we actually use).
+ *
+ * The theme is Shiki's CSS-variables one, so a token's colour is a semantic `--as-code-*` token
+ * chosen per colour scheme in `theme.css` and measured there (non-negotiable 6). Mantine's own
+ * highlighter themes are fixed hex values that miss the AA floor in both schemes, and the adapter
+ * would apply them per scheme unless one theme is forced.
  */
+const CODE_THEME = 'studio';
+
 async function loadShiki() {
-  const [{ createHighlighterCore }, { createOnigurumaEngine }] = await Promise.all([
+  const [{ createHighlighterCore, createCssVariablesTheme }, { createOnigurumaEngine }] = await Promise.all([
     import('shiki/core'),
     import('shiki/engine/oniguruma'),
   ]);
@@ -51,12 +57,12 @@ async function loadShiki() {
       import('@shikijs/langs/sql'),
       import('@shikijs/langs/properties'),
     ],
-    themes: [],
+    themes: [createCssVariablesTheme({ name: CODE_THEME })],
     engine: createOnigurumaEngine(import('shiki/wasm')),
   });
 }
 
-const shikiAdapter = createShikiAdapter(loadShiki);
+const shikiAdapter = createShikiAdapter(loadShiki, { forceColorScheme: CODE_THEME });
 
 /**
  * Pausing is enforced here, once, for every query (ADR-0118): intervals through the

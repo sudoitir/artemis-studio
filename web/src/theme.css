@@ -90,6 +90,19 @@ html:root[data-mantine-color-scheme='light'] {
      Measured on the dark body: 6.78:1 and 5.84:1. */
   --as-code-property: var(--mantine-color-indigo-3);
   --as-code-meta: var(--mantine-color-grape-4);
+  /* Read-only code blocks (Shiki's CSS-variables theme, main.tsx) reuse the editor's roles: a key or
+     keyword, a string or tag, a number or constant, an attribute or function name. Bare punctuation
+     and comments read as dimmed text. */
+  --shiki-foreground: var(--as-text);
+  --shiki-token-keyword: var(--as-code-keyword);
+  --shiki-token-string: var(--as-code-string);
+  --shiki-token-string-expression: var(--as-code-string);
+  --shiki-token-constant: var(--as-code-number);
+  --shiki-token-function: var(--as-code-property);
+  --shiki-token-parameter: var(--as-code-meta);
+  --shiki-token-comment: var(--as-code-comment);
+  --shiki-token-punctuation: var(--as-text-dimmed);
+  --shiki-token-link: var(--as-code-property);
   /* Half the row-hover tint, so the caret's line is findable without competing
      with the selection; text keeps the body contrast on it. */
   --as-code-active-line: color-mix(in srgb, var(--as-grid-row-hover) 50%, transparent);
