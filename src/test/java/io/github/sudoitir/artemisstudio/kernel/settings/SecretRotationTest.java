@@ -132,7 +132,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         // Other rows in the shared database were rotated too; bring them back so a context holding only key 1 opens
         // them.
         for (SealedStore store : stores) {
-            store.rewrapBatch(Integer.MAX_VALUE, 1, Integer.MAX_VALUE, blob -> vault.rewrap(blob, 1));
+            store.rewrapBatch(null, Integer.MAX_VALUE, 1, Integer.MAX_VALUE, blob -> vault.rewrap(blob, 1));
         }
         jdbc.update("UPDATE secret_key_state SET current_kek_version = 1");
         vault.refreshCurrentVersion();
@@ -195,6 +195,12 @@ class SecretRotationTest extends PostgresIntegrationTest {
                                 "SELECT detail->>'sealed' FROM rr_event WHERE flow_id = ?", String.class, flowId)));
     }
 
+    /** Lets the running rotation's settle window pass, then sweeps. */
+    private void settleAndSweep() {
+        jdbc.update("UPDATE secret_rotation SET started_at = started_at - interval '1 hour' WHERE status = 'RUNNING'");
+        rotations.sweep();
+    }
+
     private static MockHttpServletRequest freshSession() {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.getSession(true).setAttribute(SessionAuthentication.AUTHENTICATED_AT, Instant.now());
@@ -221,7 +227,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         assertThat(vault.currentKekVersion()).isEqualTo(2);
         vault.seal("new", "written during the rotation");
 
-        rotations.sweep();
+        settleAndSweep();
 
         SecretRotations.Rotation done = rotations.last().orElseThrow();
         assertThat(done.status()).isEqualTo("SUCCEEDED");
@@ -244,17 +250,51 @@ class SecretRotationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aRotationSucceedsOnlyOnceEveryReplicaHasHadTimeToLearnTheNewVersion() {
+        seedEveryStore();
+        service.start(freshSession());
+
+        rotations.sweep();
+
+        SecretRotations.Rotation waiting = rotations.running().orElseThrow();
+        assertThat(waiting.remaining()).isZero();
+        assertThat(waiting.rewrapped()).isGreaterThanOrEqualTo(5);
+
+        settleAndSweep();
+
+        assertThat(rotations.running()).isEmpty();
+        assertThat(rotations.last().orElseThrow().status()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void aWalkInBatchesOfOneVisitsEveryRowOnceWhateverTheKeyTypes() {
+        seedEveryStore();
+        service.start(freshSession());
+
+        for (SealedStore store : stores) {
+            Object after = null;
+            do {
+                after = store.rewrapBatch(after, 2, 2, 1, blob -> vault.rewrap(blob, 2))
+                        .last();
+            } while (after != null);
+            assertThat(store.countBelow(2)).as(store.name()).isZero();
+        }
+        assertThat(blobs())
+                .allSatisfy(b -> assertThat(SecretVault.kekVersion(b)).isEqualTo(2));
+    }
+
+    @Test
     void aRotationStoppedMidWayResumesAndFinishes() {
         seedEveryStore();
         service.start(freshSession());
 
         // A pass that stopped after one row per store.
         for (SealedStore store : stores) {
-            store.rewrapBatch(2, 2, 1, blob -> vault.rewrap(blob, 2));
+            store.rewrapBatch(null, 2, 2, 1, blob -> vault.rewrap(blob, 2));
         }
         assertThat(rotations.running()).isPresent();
 
-        rotations.sweep();
+        settleAndSweep();
 
         assertThat(rotations.running()).isEmpty();
         assertThat(rotations.last().orElseThrow().status()).isEqualTo("SUCCEEDED");
@@ -271,7 +311,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         jdbc.update("UPDATE plugin_secret SET sealed = ? WHERE plugin_id = ?", stale, plugin);
         assertThat(SecretVault.kekVersion(stale)).isEqualTo(1);
 
-        rotations.sweep();
+        settleAndSweep();
 
         assertThat(rotations.last().orElseThrow().status()).isEqualTo("SUCCEEDED");
         assertThat(SecretVault.kekVersion(jdbc.queryForObject(
@@ -288,7 +328,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
                 .extracting(e -> ((ConflictException) e).slug())
                 .isEqualTo("rotation-running");
 
-        rotations.sweep();
+        settleAndSweep();
 
         assertThatThrownBy(() -> service.start(freshSession()))
                 .isInstanceOf(ConflictException.class)
@@ -307,7 +347,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         UUID row = jdbc.queryForObject("SELECT id FROM plugin_secret WHERE plugin_id = ?", UUID.class, plugin);
         service.start(freshSession());
 
-        rotations.sweep();
+        settleAndSweep();
 
         SecretRotations.Rotation failed = rotations.last().orElseThrow();
         assertThat(failed.status()).isEqualTo("FAILED");
@@ -327,7 +367,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
                 "UPDATE plugin_secret SET sealed = set_byte(sealed, 20, get_byte(sealed, 20) # 255) WHERE plugin_id = ?",
                 plugin);
         service.start(freshSession());
-        rotations.sweep();
+        settleAndSweep();
         assertThat(rotations.last().orElseThrow().status()).isEqualTo("FAILED");
 
         jdbc.update("UPDATE plugin_secret SET sealed = ? WHERE plugin_id = ?", good, plugin);
@@ -337,7 +377,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         assertThat(again.fromVersion()).isEqualTo(1);
         assertThat(again.toVersion()).isEqualTo(2);
         assertThat(vault.currentKekVersion()).isEqualTo(2);
-        rotations.sweep();
+        settleAndSweep();
         assertThat(rotations.last().orElseThrow().status()).isEqualTo("SUCCEEDED");
         assertThat(secretsOf(plugin).get("broken")).contains("later-fixed");
     }
@@ -392,7 +432,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
                 .getContentAsString();
 
         service.start(freshSession());
-        rotations.sweep();
+        settleAndSweep();
 
         String after = mvc.perform(get("/api/v1/settings/secrets"))
                 .andExpect(status().isOk())

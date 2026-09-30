@@ -27,7 +27,7 @@ class SecretRotationJobs {
                 "secret-key-version-refresh",
                 "settings",
                 ScheduledJob.Scope.INSTANCE,
-                () -> Duration.ofSeconds(10),
+                () -> SecretVault.REFRESH_INTERVAL,
                 vault::refreshCurrentVersion);
     }
 }

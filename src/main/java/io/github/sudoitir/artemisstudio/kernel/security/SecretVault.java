@@ -31,6 +31,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class SecretVault implements SmartInitializingSingleton {
 
+    /** How often each replica reads the stored current version again (ADR-0132 D5). */
+    public static final java.time.Duration REFRESH_INTERVAL = java.time.Duration.ofSeconds(10);
+
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final byte FORMAT = 1;
     private static final int NONCE_BYTES = 12;

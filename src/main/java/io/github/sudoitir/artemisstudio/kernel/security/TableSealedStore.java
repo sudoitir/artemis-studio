@@ -16,15 +16,20 @@ public class TableSealedStore implements SealedStore {
     private final JdbcTemplate jdbc;
     private final String table;
     private final List<String> key;
-    private final String select;
+    private final String selectFirst;
+    private final String selectAfter;
     private final String update;
 
     public TableSealedStore(JdbcTemplate jdbc, String table, String... keyColumns) {
         this.jdbc = jdbc;
         this.table = table;
         this.key = List.of(keyColumns);
-        this.select = "SELECT " + String.join(", ", key) + ", sealed FROM " + table + " WHERE sealed IS NOT NULL AND "
-                + VERSION + " < ? LIMIT ?";
+        String keys = String.join(", ", key);
+        String head = "SELECT " + keys + ", sealed FROM " + table + " WHERE sealed IS NOT NULL AND " + VERSION + " < ?";
+        String tail = " ORDER BY " + keys + " LIMIT ?";
+        this.selectFirst = head + tail;
+        this.selectAfter = head + " AND (" + keys + ") > ("
+                + String.join(", ", key.stream().map(c -> "?").toList()) + ")" + tail;
         this.update = "UPDATE " + table + " SET sealed = ? WHERE "
                 + String.join(" AND ", key.stream().map(c -> c + " = ?").toList()) + " AND sealed = ?";
     }
@@ -44,10 +49,16 @@ public class TableSealedStore implements SealedStore {
     }
 
     @Override
-    public int rewrapBatch(int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
-        int updated = 0;
-        for (Row row : jdbc.query(
-                select,
+    public Batch rewrapBatch(
+            Object after, int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
+        List<Object> select = new ArrayList<>();
+        select.add(belowVersion);
+        if (after != null) {
+            select.addAll(Arrays.asList((Object[]) after));
+        }
+        select.add(limit);
+        List<Row> rows = jdbc.query(
+                after == null ? selectFirst : selectAfter,
                 (rs, i) -> {
                     Object[] values = new Object[key.size()];
                     for (int c = 0; c < values.length; c++) {
@@ -55,8 +66,9 @@ public class TableSealedStore implements SealedStore {
                     }
                     return new Row(values, rs.getBytes(values.length + 1));
                 },
-                belowVersion,
-                limit)) {
+                select.toArray());
+        int updated = 0;
+        for (Row row : rows) {
             byte[] rewrapped;
             try {
                 rewrapped = rewrap.apply(row.sealed());
@@ -69,7 +81,7 @@ public class TableSealedStore implements SealedStore {
             args.add(row.sealed());
             updated += jdbc.update(update, args.toArray());
         }
-        return updated;
+        return new Batch(updated, rows.size() < limit ? null : rows.getLast().key());
     }
 
     @Override

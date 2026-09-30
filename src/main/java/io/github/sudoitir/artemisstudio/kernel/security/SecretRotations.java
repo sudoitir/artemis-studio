@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class SecretRotations {
 
     static final int BATCH = 500;
+
+    /**
+     * How long after the start a rotation must have stood before it can succeed: longer than every replica takes to
+     * learn the new current version, so none can still write under the old one.
+     */
+    static final Duration SETTLE = SecretVault.REFRESH_INTERVAL.multipliedBy(3);
 
     private static final String COLUMNS =
             "id, from_version, to_version, status, started_by, started_at, finished_at, rewrapped, remaining, error";
@@ -153,13 +160,15 @@ public class SecretRotations {
         int target = rotation.toVersion();
         long rewrapped = rotation.rewrapped();
         try {
-            progress(rotation.id(), rewrapped, countBelow(target));
             for (SealedStore store : stores) {
-                int n;
-                while ((n = store.rewrapBatch(target, target, BATCH, blob -> vault.rewrap(blob, target))) > 0) {
-                    rewrapped += n;
+                Object after = null;
+                do {
+                    SealedStore.Batch batch =
+                            store.rewrapBatch(after, target, target, BATCH, blob -> vault.rewrap(blob, target));
+                    after = batch.last();
+                    rewrapped += batch.updated();
                     jdbc.update("UPDATE secret_rotation SET rewrapped = ? WHERE id = ?", rewrapped, rotation.id());
-                }
+                } while (after != null);
             }
         } catch (SealedStore.RewrapException e) {
             jdbc.update(
@@ -171,7 +180,7 @@ public class SecretRotations {
         }
         long remaining = countBelow(target);
         progress(rotation.id(), rewrapped, remaining);
-        if (remaining == 0) {
+        if (remaining == 0 && clock.instant().isAfter(rotation.startedAt().plus(SETTLE))) {
             jdbc.update(
                     "UPDATE secret_rotation SET status = 'SUCCEEDED', finished_at = ? WHERE id = ?",
                     java.sql.Timestamp.from(clock.instant()),

@@ -19,13 +19,20 @@ public interface SealedStore {
 
     /**
      * Re-wraps up to {@code limit} blobs wrapped under a version below {@code belowVersion} into
-     * {@code targetVersion}. A row is updated only if its bytes are still the ones read, so a concurrent writer wins
-     * and the row is picked up again by the next batch.
+     * {@code targetVersion}, walking the primary key in order from just after {@code after} ({@code null} starts at
+     * the beginning), so a pass reads each row once. A row is updated only if its bytes are still the ones read, so a
+     * concurrent writer wins and the row is picked up by the next pass.
      *
-     * @return the rows updated
+     * @return the rows updated and where to continue
      * @throws RewrapException when a blob cannot be re-wrapped
      */
-    int rewrapBatch(int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap);
+    Batch rewrapBatch(Object after, int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap);
+
+    /**
+     * @param updated the rows re-wrapped
+     * @param last the key to pass as {@code after} for the next batch, or {@code null} when the store is exhausted
+     */
+    record Batch(int updated, Object last) {}
 
     /** How many blobs each KEK version protects. */
     Map<Integer, Long> countByVersion();
