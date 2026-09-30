@@ -75,10 +75,10 @@ export interface SlotProps {
   /** A section of the signed-in user's Account page, under the contribution's title. */
   'account.sections': object;
   /**
-   * Items of the user menu, after Account. A contribution renders a `Menu.Item`; the menu stays mounted
-   * while closed, so a dialog the item opens outlives the menu closing.
+   * A dialog opened from the user menu. The menu lists the contribution's title after Account and hosts
+   * the dialog outside the menu, so it outlives the menu closing.
    */
-  'shell.userMenu': object;
+  'shell.userMenu': { opened: boolean; onClose: () => void };
 
   /*
    * Row actions (ADR-0107): the items of a resource's row menu, wherever a grid lists it. Each

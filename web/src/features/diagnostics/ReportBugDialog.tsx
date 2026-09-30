@@ -7,7 +7,6 @@ import {
   CopyButton,
   Group,
   Loader,
-  Menu,
   Modal,
   Stack,
   Text,
@@ -16,30 +15,18 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconBug, IconChevronDown, IconChevronRight, IconCopy, IconExternalLink } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconCopy, IconExternalLink } from '@tabler/icons-react';
 
 import { branding } from '../../branding.ts';
 import { useManifest } from '../../kernel/manifest.ts';
 import { useDiagnosticsSummary } from './api.ts';
+import classes from './Diagnostics.module.css';
 import { environmentMarkdown, issueBody, issueUrl, type BugDescription } from './bugReport.ts';
-
-/** "Report a bug…" in the user menu (diagnostics spec): every signed-in user may report one. */
-export function ReportBugMenuItem() {
-  const [opened, setOpened] = useState(false);
-  return (
-    <>
-      <Menu.Item leftSection={<IconBug size={14} aria-hidden />} onClick={() => setOpened(true)}>
-        Report a bug…
-      </Menu.Item>
-      <ReportBugDialog opened={opened} onClose={() => setOpened(false)} />
-    </>
-  );
-}
 
 const EMPTY: BugDescription = { happened: '', expected: '', steps: '' };
 
 /**
- * A pre-filled GitHub issue. The environment comes from this Studio only; nothing leaves the browser until the
+ * "Report a bug…" in the user menu (diagnostics spec), for every signed-in user: a pre-filled GitHub issue. The environment comes from this Studio only; nothing leaves the browser until the
  * user opens the issue on GitHub, and Copy works where there is no internet at all.
  */
 export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean; onClose: () => void }>) {
@@ -98,7 +85,7 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
         <TextInput
           id="bug-title"
           label="Title"
-          placeholder="Queue view shows zero consumers after a failover"
+          placeholder="One line that says what went wrong"
           value={title}
           error={titleError}
           onChange={(e) => {
@@ -148,7 +135,9 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
             </Alert>
           )}
           <Collapse expanded={showEnvironment} id="bug-environment">
-            <Code block>{environment}</Code>
+            <Code block className={classes.environment}>
+              {environment}
+            </Code>
           </Collapse>
         </Stack>
 

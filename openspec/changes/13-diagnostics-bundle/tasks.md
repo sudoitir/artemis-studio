@@ -17,5 +17,5 @@
 
 ## 4. Docs and finish
 - [x] 4.1 User guide page `site/src/guide/diagnostics.md` and sidebar
-- [ ] 4.2 `just verify` green; screenshots light and dark
+- [x] 4.2 `just verify` green; screenshots light and dark
 - [ ] 4.3 PR, green CI and Sonar, merge, `/opsx:archive`

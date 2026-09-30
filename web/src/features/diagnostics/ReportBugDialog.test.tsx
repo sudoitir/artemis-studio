@@ -3,9 +3,9 @@ import { http, HttpResponse } from 'msw';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { renderWithProviders } from '../../test/render.tsx';
+import { renderAppAt, renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import { ReportBugDialog } from './ReportBugMenuItem.tsx';
+import { ReportBugDialog } from './ReportBugDialog.tsx';
 
 const SUMMARY = {
   studioVersion: '2026.09.4',
@@ -17,6 +17,30 @@ const SUMMARY = {
 
 describe('ReportBugDialog', () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it('opens from the user menu and stays open once the menu closes', async () => {
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({
+          id: 'u1',
+          username: 'viewer',
+          mustChangePassword: false,
+          grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
+        }),
+      ),
+      http.get('*/api/v1/diagnostics/summary', () => HttpResponse.json(SUMMARY)),
+    );
+    const user = userEvent.setup();
+    renderAppAt('/');
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Report a bug…' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Report a bug' });
+    await new Promise((r) => setTimeout(r, 400));
+    expect(dialog).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Report a bug…' })).not.toBeInTheDocument();
+  });
 
   it('fills the environment from Studio and opens the issue only when asked', async () => {
     const requests: string[] = [];

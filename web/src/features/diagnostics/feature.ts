@@ -1,6 +1,6 @@
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { DiagnosticsPanel } from './DiagnosticsPanel.tsx';
-import { ReportBugMenuItem } from './ReportBugMenuItem.tsx';
+import { ReportBugDialog } from './ReportBugDialog.tsx';
 
 /** Administration → Diagnostics, the support bundle; and "Report a bug" in the user menu (diagnostics spec). */
 export const diagnosticsFeature = defineFeature({
@@ -8,6 +8,6 @@ export const diagnosticsFeature = defineFeature({
   id: 'diagnostics',
   slots: {
     'admin.tabs': [{ id: 'diagnostics', order: 90, title: 'Diagnostics', Component: DiagnosticsPanel }],
-    'shell.userMenu': [{ id: 'report-bug', order: 10, Component: ReportBugMenuItem }],
+    'shell.userMenu': [{ id: 'report-bug', order: 10, title: 'Report a bug…', Component: ReportBugDialog }],
   },
 });

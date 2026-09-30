@@ -98,3 +98,8 @@
   background: var(--as-surface);
   box-shadow: var(--as-elevation-1);
 }
+
+.environment {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
