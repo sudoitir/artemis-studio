@@ -7,7 +7,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -35,11 +34,9 @@ public class BrokerConfigReads {
 
     /** Observe every logical node of the cluster within {@code scope}. */
     public List<ObservedNodeConfig> observe(UUID clusterId, ReadScope scope) {
-        List<ObservedNodeConfig> out = new ArrayList<>();
-        for (ClusterNode node : targets(clusterId)) {
-            out.add(observe(clusterId, node, scope));
-        }
-        return out;
+        return targets(clusterId).stream()
+                .map(node -> observe(clusterId, node, scope))
+                .toList();
     }
 
     /** Observe one node; not-live and unreachable are answers, not failures. */

@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -899,20 +900,18 @@ public final class BrokerConfigViews {
             @Schema(requiredMode = REQUIRED) List<AddressSettingKeyView> addressSettingKeys,
             @Schema(requiredMode = REQUIRED) List<String> permissionTypes) {
         public static CatalogueView current() {
-            List<AddressSettingKeyView> keys = new ArrayList<>();
-            for (AddressSettingKey k : AddressSettingKey.values()) {
-                keys.add(new AddressSettingKeyView(
-                        k.jsonName(),
-                        k.xmlName(),
-                        k.type().name(),
-                        k.allowedValues(),
-                        k.hazardClass().name(),
-                        k.applicable()));
-            }
-            List<String> types = new ArrayList<>();
-            for (PermissionType t : PermissionType.values()) {
-                types.add(t.xmlName());
-            }
+            List<AddressSettingKeyView> keys = Arrays.stream(AddressSettingKey.values())
+                    .map(k -> new AddressSettingKeyView(
+                            k.jsonName(),
+                            k.xmlName(),
+                            k.type().name(),
+                            k.allowedValues(),
+                            k.hazardClass().name(),
+                            k.applicable()))
+                    .toList();
+            List<String> types = Arrays.stream(PermissionType.values())
+                    .map(PermissionType::xmlName)
+                    .toList();
             return new CatalogueView(keys, types);
         }
     }

@@ -2,10 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigOperations.ReadScope;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService.Source;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Finding;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.FindingKind;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.NodePlan;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Op;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Section;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.Plan.Step;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigDeclarationRepository;
@@ -13,7 +10,6 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistenc
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity.Basis;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity.State;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemEntity;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemRepository;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -23,11 +19,14 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -191,7 +190,7 @@ public class BrokerConfigDriftService {
                     .orElseGet(() -> new BrokerConfigNodeStateEntity(clusterId, node.nodeId()));
             NodeReport report =
                     report(node, plan, revision.revision(), basis(row, revision.revision(), revision.source()));
-            row.record(
+            row.recordState(
                     report.state(),
                     report.detail(),
                     report.state() == State.IN_SYNC || report.state() == State.DRIFTED ? revision.revision() : null,
@@ -290,46 +289,14 @@ public class BrokerConfigDriftService {
                     null,
                     null);
         }
-        List<DriftFinding> findings = new ArrayList<>();
-        NodePlan mine = plan.nodes().stream()
-                .filter(n -> n.nodeId().equals(node.nodeId()))
-                .findFirst()
-                .orElse(null);
-        if (mine != null) {
-            for (Step s : mine.steps()) {
-                if (s.already()) {
-                    continue;
-                }
-                if (s.op() == Op.ADD) {
-                    findings.add(new DriftFinding(
-                            FindingKind.MISSING, s.section(), s.key(), s.description(), s.after(), Map.of()));
-                } else if (s.op() == Op.REPLACE) {
-                    findings.add(new DriftFinding(
-                            FindingKind.DIVERGENT, s.section(), s.key(), s.description(), s.after(), s.before()));
-                } else {
-                    findings.add(new DriftFinding(
-                            FindingKind.UNDECLARED,
-                            s.section(),
-                            s.key(),
-                            "Studio applied it and it is no longer declared.",
-                            Map.of(),
-                            s.before()));
-                }
-            }
-        }
-        for (Finding f : plan.findings()) {
-            if (node.nodeId().equals(f.nodeId())) {
-                findings.add(new DriftFinding(f.kind(), f.section(), f.key(), f.detail(), Map.of(), Map.of()));
-            }
-        }
         // Two REMOVE steps for one divert replace collapse into the DIVERGENT they mean.
-        List<DriftFinding> deduped = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        for (DriftFinding f : findings) {
-            if (seen.add(f.kind() + ":" + f.section() + ":" + f.key())) {
-                deduped.add(f);
-            }
-        }
+        List<DriftFinding> deduped = new ArrayList<>(driftFindings(node, plan).stream()
+                .collect(Collectors.toMap(
+                        f -> f.kind() + ":" + f.section() + ":" + f.key(),
+                        Function.identity(),
+                        (first, second) -> first,
+                        LinkedHashMap::new))
+                .values());
         // A bridge that matches the declaration and is not connected is a fault, not
         // drift (ADR-0091): its configuration is exactly what was declared, so nothing
         // an apply could write would fix it. It is reported, and it is not counted.
@@ -338,10 +305,7 @@ public class BrokerConfigDriftService {
                 .count();
         State state = deduped.size() == faults ? State.IN_SYNC : State.DRIFTED;
         Basis basis = state == State.IN_SYNC ? basisIfInSync : null;
-        String faultNote = faults == 0
-                ? ""
-                : " " + faults + (faults == 1 ? " declared bridge is" : " declared bridges are")
-                        + " not forwarding; that is a fault on the broker, not a difference from the declaration.";
+        String faultNote = faultNote(faults);
         String detail = state == State.IN_SYNC
                 ? "Matches revision " + revision + ". " + why(basis, revision) + faultNote
                 : (deduped.size() - faults) + " findings." + faultNote;
@@ -349,12 +313,53 @@ public class BrokerConfigDriftService {
         return new NodeReport(node.nodeId(), node.nodeName(), true, state, detail, deduped, basis, basisRef);
     }
 
-    Set<OwnedItem> owned(UUID clusterId) {
-        Set<OwnedItem> out = new HashSet<>();
-        for (BrokerConfigOwnedItemEntity e : ownedItems.findByClusterId(clusterId)) {
-            out.add(new OwnedItem(Section.valueOf(e.getKind()), e.getItemKey()));
+    /** What this node's steps and the plan's findings say it does differently, before duplicates collapse. */
+    private static List<DriftFinding> driftFindings(ObservedNodeConfig node, Plan plan) {
+        List<DriftFinding> findings = new ArrayList<>();
+        plan.nodes().stream()
+                .filter(n -> n.nodeId().equals(node.nodeId()))
+                .findFirst()
+                .ifPresent(mine -> mine.steps().stream()
+                        .filter(s -> !s.already())
+                        .map(BrokerConfigDriftService::stepFinding)
+                        .forEach(findings::add));
+        plan.findings().stream()
+                .filter(f -> node.nodeId().equals(f.nodeId()))
+                .map(f -> new DriftFinding(f.kind(), f.section(), f.key(), f.detail(), Map.of(), Map.of()))
+                .forEach(findings::add);
+        return findings;
+    }
+
+    private static DriftFinding stepFinding(Step s) {
+        return switch (s.op()) {
+            case ADD ->
+                new DriftFinding(FindingKind.MISSING, s.section(), s.key(), s.description(), s.after(), Map.of());
+            case REPLACE ->
+                new DriftFinding(FindingKind.DIVERGENT, s.section(), s.key(), s.description(), s.after(), s.before());
+            case REMOVE ->
+                new DriftFinding(
+                        FindingKind.UNDECLARED,
+                        s.section(),
+                        s.key(),
+                        "Studio applied it and it is no longer declared.",
+                        Map.of(),
+                        s.before());
+        };
+    }
+
+    private static String faultNote(long faults) {
+        if (faults == 0) {
+            return "";
         }
-        return out;
+        String bridges = faults == 1 ? " declared bridge is" : " declared bridges are";
+        return " " + faults + bridges
+                + " not forwarding; that is a fault on the broker, not a difference from the declaration.";
+    }
+
+    Set<OwnedItem> owned(UUID clusterId) {
+        return ownedItems.findByClusterId(clusterId).stream()
+                .map(e -> new OwnedItem(Section.valueOf(e.getKind()), e.getItemKey()))
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     static Set<String> ownedKeys(Set<OwnedItem> owned, Section section) {
