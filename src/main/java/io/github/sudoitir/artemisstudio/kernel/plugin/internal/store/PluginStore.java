@@ -7,6 +7,8 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.Plugi
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginUploadRepository;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,6 +44,7 @@ public class PluginStore {
     private final PluginArtifactRepository artifacts;
     private final PluginInstallRepository installs;
     private final PluginUploadRepository uploads;
+    private final StudioBus bus;
 
     /** Stores {@code content}, keyed by its own sha256. A second upload of the same bytes is a no-op. */
     @Transactional
@@ -118,16 +121,12 @@ public class PluginStore {
 
     @Transactional
     public void transitionTo(String id, PluginInstallStatus status) {
-        installs.findById(id).ifPresentOrElse(entity -> entity.transitionTo(status), () -> {
-            throw new PluginStoreException("No installed plugin " + id);
-        });
+        update(id, entity -> entity.transitionTo(status));
     }
 
     @Transactional
     public void fail(String id, String reason) {
-        installs.findById(id).ifPresentOrElse(entity -> entity.fail(reason), () -> {
-            throw new PluginStoreException("No installed plugin " + id);
-        });
+        update(id, entity -> entity.fail(reason));
     }
 
     public Optional<PluginInstallEntity> find(String id) {
@@ -137,13 +136,18 @@ public class PluginStore {
     /**
      * Mutates the install row for {@code id} within one transaction — the generic escape hatch
      * {@code PluginHost} (task 6.8) uses for progress/step updates and version bumps that do not
-     * fit one of this store's own named transitions above.
+     * fit one of this store's own named transitions above. A change of status is announced to the
+     * other replicas when it commits, so each brings its own runtimes in line with the row (ADR-0148).
      */
     @Transactional
     public void update(String id, Consumer<PluginInstallEntity> mutation) {
         PluginInstallEntity entity =
                 installs.findById(id).orElseThrow(() -> new PluginStoreException("No installed plugin " + id));
+        PluginInstallStatus before = entity.status();
         mutation.accept(entity);
+        if (entity.status() != before) {
+            bus.publish(new ReplicaSignal("plugins", id));
+        }
     }
 
     /** Removes the inert {@code plugin_upload} row for a sha once it has been activated. */

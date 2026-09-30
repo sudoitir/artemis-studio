@@ -74,6 +74,23 @@ class FeatureRegistryPluginTest {
     }
 
     @Test
+    void theManifestVersionDependsOnlyOnWhichPluginsAreActive() {
+        FeatureRegistry first = registry(new AtomicReference<>());
+        FeatureRegistry second = registry(new AtomicReference<>());
+        String none = first.manifestVersion();
+
+        first.addPlugin(descriptor("acme-a", List.of(), List.of(), List.of(), List.of()));
+        first.addPlugin(descriptor("acme-b", List.of(), List.of(), List.of(), List.of()));
+        second.addPlugin(descriptor("acme-b", List.of(), List.of(), List.of(), List.of()));
+        second.addPlugin(descriptor("acme-a", List.of(), List.of(), List.of(), List.of()));
+
+        assertThat(first.manifestVersion()).isEqualTo(second.manifestVersion()).isNotEqualTo(none);
+        first.removePlugin("acme-a");
+        first.removePlugin("acme-b");
+        assertThat(first.manifestVersion()).isEqualTo(none);
+    }
+
+    @Test
     void removingAPluginThatWasNeverActiveIsANoOp() {
         FeatureRegistry registry = registry(new AtomicReference<>());
         String before = registry.manifestVersion();
