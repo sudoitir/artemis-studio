@@ -92,17 +92,20 @@ public class SecretRotations {
         }
         int to = target;
         int fromVersion = from;
+        // Honest before the first pass ends: everything under an older version still has to be re-wrapped.
+        long remaining = countBelow(to);
         UUID id = UUID.randomUUID();
         try {
             tx.executeWithoutResult(s -> {
                 jdbc.update(
-                        "INSERT INTO secret_rotation (id, from_version, to_version, status, started_by, started_at)"
-                                + " VALUES (?, ?, ?, 'RUNNING', ?, ?)",
+                        "INSERT INTO secret_rotation (id, from_version, to_version, status, started_by, started_at,"
+                                + " remaining) VALUES (?, ?, ?, 'RUNNING', ?, ?, ?)",
                         id,
                         fromVersion,
                         to,
                         startedBy,
-                        java.sql.Timestamp.from(clock.instant()));
+                        java.sql.Timestamp.from(clock.instant()),
+                        remaining);
                 if (to > current) {
                     jdbc.update("UPDATE secret_key_state SET current_kek_version = ?, updated_at = now()", to);
                 }

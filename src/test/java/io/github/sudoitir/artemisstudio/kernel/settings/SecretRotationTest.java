@@ -224,6 +224,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         assertThat(started.status()).isEqualTo("RUNNING");
         assertThat(started.fromVersion()).isEqualTo(1);
         assertThat(started.toVersion()).isEqualTo(2);
+        assertThat(started.remaining()).isGreaterThanOrEqualTo(5);
         assertThat(vault.currentKekVersion()).isEqualTo(2);
         vault.seal("new", "written during the rotation");
 
