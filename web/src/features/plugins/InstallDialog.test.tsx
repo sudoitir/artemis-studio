@@ -24,7 +24,7 @@ function refusal(violations: object[]) {
 
 function open(source: Source) {
   const onClose = vi.fn();
-  renderWithProviders(<InstallDialog source={source} onClose={onClose} />);
+  renderWithProviders(<InstallDialog source={source} canInstall onClose={onClose} />);
   return { onClose, user: userEvent.setup() };
 }
 

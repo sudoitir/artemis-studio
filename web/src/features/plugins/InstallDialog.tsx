@@ -16,7 +16,8 @@ import {
   type PluginViolationView,
 } from './api.ts';
 import { ActivationProgress, type Outcome } from './ActivationProgress.tsx';
-import { PlanReview } from './PlanReview.tsx';
+import { Acknowledgement, PlanReview } from './PlanReview.tsx';
+import { TrustKeyDialog } from './TrustKeyDialog.tsx';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
@@ -122,6 +123,37 @@ function interruptionWords(plan: PluginPlanView): string {
   return 'Nobody is interrupted.';
 }
 
+/** Why Continue is off: an unsigned plugin the installation refuses, or a key nobody has trusted yet. */
+function blockedWords(plan: PluginPlanView): string {
+  return plan.trust.status === 'UNSIGNED'
+    ? 'Continue is unavailable while unverified plugins are not allowed.'
+    : 'Continue is unavailable until its publisher is trusted.';
+}
+
+/** Cancel and Continue; Continue stays off, with its reason beside it, until the publisher is allowed. */
+function ReviewActions({
+  plan,
+  onCancel,
+  onContinue,
+}: Readonly<{ plan: PluginPlanView; onCancel: () => void; onContinue: () => void }>) {
+  const allowed = plan.trust.allowed;
+  return (
+    <Group justify="flex-end">
+      {allowed ? null : (
+        <Text size="xs" c="dimmed">
+          {blockedWords(plan)}
+        </Text>
+      )}
+      <Button variant="default" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button disabled={!allowed} onClick={onContinue}>
+        Continue
+      </Button>
+    </Group>
+  );
+}
+
 /** The third step: the blast radius, a fresh sign-in, and the plugin's id typed. */
 function ConfirmStep({
   plan,
@@ -138,6 +170,9 @@ function ConfirmStep({
   fresh: boolean;
   onActivated: () => void;
 }>) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  const needsAcknowledgement = plan.acknowledgements.length > 0;
+  const unacknowledged = needsAcknowledgement && !acknowledged;
   return (
     <Stack gap="md" mt="md">
       <Text size="sm">
@@ -148,6 +183,7 @@ function ConfirmStep({
           It requires {plan.missingRequires.join(', ')} first.
         </Text>
       ) : null}
+      {needsAcknowledgement ? <Acknowledgement plan={plan} checked={acknowledged} onChange={setAcknowledged} /> : null}
       <StepUp returnTo={returnTo} />
       {activate.error && !needsReauthentication(activate.error) ? (
         <Alert variant="light" color="red" title="Not activated" role="alert">
@@ -162,9 +198,14 @@ function ConfirmStep({
         confirmLabel={actionLabel(plan)}
         color="blue"
         loading={activate.isPending}
-        disabled={!fresh || plan.missingRequires.length > 0}
-        onConfirm={() => activate.mutate(sha, { onSuccess: onActivated })}
+        disabled={!fresh || plan.missingRequires.length > 0 || unacknowledged}
+        onConfirm={() => activate.mutate({ sha, acknowledge: acknowledged }, { onSuccess: onActivated })}
       />
+      {unacknowledged ? (
+        <Text size="xs" c="dimmed">
+          Tick the confirmation above to activate.
+        </Text>
+      ) : null}
       {!fresh ? (
         <Text size="xs" c="dimmed">
           Confirm it is you above first.
@@ -181,11 +222,16 @@ function ConfirmStep({
  * Progress — the activation as it runs. Nothing is installed before Confirm, and closing the
  * dialog at Progress does not stop anything.
  */
-export function InstallDialog({ source, onClose }: Readonly<{ source: Source | null; onClose: () => void }>) {
+export function InstallDialog({
+  source,
+  canInstall,
+  onClose,
+}: Readonly<{ source: Source | null; canInstall: boolean; onClose: () => void }>) {
   const [step, setStep] = useState(0);
   const [inspected, setInspected] = useState<PluginUploadView | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [outcome, setOutcome] = useState<Outcome>('pending');
+  const [trusting, setTrusting] = useState(false);
   const upload = useUpload();
   const download = useDownloadUpdate();
   const activate = useActivateUpload();
@@ -219,7 +265,8 @@ export function InstallDialog({ source, onClose }: Readonly<{ source: Source | n
   useEffect(() => {
     if (source?.kind === 'resume' && resumed.data && !inspected) {
       setInspected({ sha256: source.sha, plan: resumed.data, warnings: [] });
-      setStep(2);
+      // A publisher nobody trusts yet is settled in Review, so a resume lands there.
+      setStep(resumed.data.trust.allowed ? 2 : 1);
     }
   }, [source, resumed.data, inspected]);
 
@@ -239,8 +286,15 @@ export function InstallDialog({ source, onClose }: Readonly<{ source: Source | n
     onClose();
   };
 
+  // After a key is trusted the same jar is planned again: its status, and what needs confirming, change.
+  const replan = async () => {
+    if (!inspected) return;
+    const fresh = await request<PluginPlanView>(`/admin/plugins/uploads/${inspected.sha256}`);
+    setInspected({ ...inspected, plan: fresh });
+  };
+
   const uploadQuery = inspected ? `&upload=${inspected.sha256}` : '';
-  const returnTo = `${window.location.pathname}?tab=plugins${uploadQuery}`;
+  const returnTo = `${globalThis.location.pathname}?tab=plugins${uploadQuery}`;
 
   return (
     <Modal
@@ -249,6 +303,8 @@ export function InstallDialog({ source, onClose }: Readonly<{ source: Source | n
       size={920}
       title={plan ? actionLabel(plan) : 'Install plugin'}
       closeOnClickOutside={step < 2}
+      // One Escape closes one layer: while the key dialog is open it closes that, not this.
+      closeOnEscape={!trusting}
     >
       <Stepper active={step} size="sm" allowNextStepsSelect={false}>
         <Stepper.Step label="Inspect" description="Checked before it is stored">
@@ -258,13 +314,12 @@ export function InstallDialog({ source, onClose }: Readonly<{ source: Source | n
         <Stepper.Step label="Review" description="What it will do">
           {plan ? (
             <Stack gap="md" mt="md">
-              <PlanReview plan={plan} warnings={inspected?.warnings} />
-              <Group justify="flex-end">
-                <Button variant="default" onClick={close}>
-                  Cancel
-                </Button>
-                <Button onClick={() => setStep(2)}>Continue</Button>
-              </Group>
+              <PlanReview
+                plan={plan}
+                warnings={inspected?.warnings}
+                trust={{ canInstall, onTrust: () => setTrusting(true) }}
+              />
+              <ReviewActions plan={plan} onCancel={close} onContinue={() => setStep(2)} />
             </Stack>
           ) : null}
         </Stepper.Step>
@@ -298,6 +353,16 @@ export function InstallDialog({ source, onClose }: Readonly<{ source: Source | n
           ) : null}
         </Stepper.Step>
       </Stepper>
+      {plan && inspected ? (
+        <TrustKeyDialog
+          opened={trusting}
+          onClose={() => setTrusting(false)}
+          sha256={inspected.sha256}
+          trust={plan.trust}
+          returnTo={returnTo}
+          onTrusted={replan}
+        />
+      ) : null}
     </Modal>
   );
 }

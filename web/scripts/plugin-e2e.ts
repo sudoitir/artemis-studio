@@ -108,6 +108,29 @@ async function main() {
     await expectStatus(await call(api, 'POST', '/auth/login', { username: USER, password }), 200, 'login again');
   }
 
+  step("an unknown publisher's jar is refused until an installer trusts its key");
+  const untrusted = (await expectStatus(
+    await call(api, 'PUT', '/admin/plugins/upload', undefined, await readFile(need('JAR_V1'))),
+    201,
+    'upload before trusting',
+  )) as { sha256: string; plan: { trust: { status: string } } };
+  if (untrusted.plan.trust.status !== 'UNTRUSTED') {
+    throw new Error(`expected an untrusted signer, planned ${untrusted.plan.trust.status}`);
+  }
+  await expectStatus(
+    await call(api, 'POST', `/admin/plugins/uploads/${untrusted.sha256}/activate`),
+    422,
+    'activate before trusting',
+  );
+  await expectStatus(
+    await call(api, 'POST', '/admin/plugins/keys', {
+      name: 'Template CI',
+      pem: await readFile(need('PUBLISHER_CERT'), 'utf8'),
+    }),
+    201,
+    'trust the publisher key',
+  );
+
   step('install 1.0.0 — a new schema, so Brief maintenance');
   await install(api, need('JAR_V1'), 'BRIEF_MAINTENANCE');
 

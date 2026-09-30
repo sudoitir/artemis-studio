@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.SemVer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.StudioRestart;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
@@ -44,7 +45,8 @@ class PluginAdministrationTest {
                 new PluginAuditTrail(audit, mock(org.springframework.beans.factory.ObjectProvider.class)),
                 new UploadRateLimit(Clock.systemUTC()),
                 new UpdateChecker(JsonMapper.builder().build()),
-                mock(StudioRestart.class));
+                mock(StudioRestart.class),
+                mock(PluginTrust.class));
     }
 
     @Test
@@ -52,7 +54,10 @@ class PluginAdministrationTest {
         when(installers.isInstaller(userId)).thenReturn(true);
         when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
 
-        assertThatThrownBy(() -> administration(false).upload(Path.of("unused.jar"), 1))
+        var disabled = administration(false);
+        Path jar = Path.of("unused.jar");
+
+        assertThatThrownBy(() -> disabled.upload(jar, 1))
                 .isInstanceOf(PluginAccessDeniedException.class)
                 .extracting(e -> ((PluginAccessDeniedException) e).slug())
                 .isEqualTo("plugin-upload-disabled");

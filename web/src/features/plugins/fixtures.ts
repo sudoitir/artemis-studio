@@ -52,6 +52,16 @@ export function plan(over: Partial<PluginPlanView> = {}): PluginPlanView {
     compatible: true,
     missingRequires: [],
     restart: 'NONE',
+    trust: {
+      status: 'TRUSTED',
+      fingerprint: 'AB:CD:EF',
+      subject: 'CN=Acme',
+      keyName: 'Acme',
+      previousFingerprint: null,
+      signerChanged: false,
+      allowed: true,
+    },
+    acknowledgements: [],
     info: INFO,
     ...over,
   };
@@ -73,6 +83,9 @@ export function plugin(over: Partial<PluginView> = {}): PluginView {
     stuck: false,
     iconUrl: null,
     dependants: [],
+    signerFingerprint: 'AB:CD:EF',
+    signerSubject: 'CN=Acme',
+    verified: true,
     info: INFO,
     ...over,
   };

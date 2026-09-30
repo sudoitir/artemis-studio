@@ -78,3 +78,26 @@ export function downtime(plan: PluginPlanView): string {
         : 'It starts the next time Studio restarts. Studio cannot restart itself here; you will be shown the command.';
   }
 }
+
+/** The trust status in words: the badge never leans on its colour. */
+export const TRUST_LABEL: Record<PluginPlanView['trust']['status'], string> = {
+  TRUSTED: 'Verified',
+  UNTRUSTED: 'Untrusted key',
+  UNSIGNED: 'Unsigned',
+};
+
+/** Why the plan needs an explicit "I understand", one sentence per reason the server listed. */
+export function acknowledgementReasons(plan: PluginPlanView): string[] {
+  return plan.acknowledgements.map((reason) => {
+    switch (reason) {
+      case 'permissions-added':
+        return `It asks for ${plan.diff.permissionsAdded.length === 1 ? 'a permission' : 'permissions'} the installed version did not: ${plan.diff.permissionsAdded.join(', ')}.`;
+      case 'signer-changed':
+        return `It is signed by a different key than the installed version (${plan.trust.previousFingerprint ?? 'none'} to ${plan.trust.fingerprint ?? 'none'}).`;
+      case 'unverified':
+        return 'It is unverified: no trusted key vouches for it. An installer allowed unverified plugins.';
+      default:
+        return reason;
+    }
+  });
+}

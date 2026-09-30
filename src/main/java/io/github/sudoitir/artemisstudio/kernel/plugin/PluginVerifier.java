@@ -1,8 +1,10 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorParser;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PublisherKeys;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.PluginValidator;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Signer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ValidationReport;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
 import java.io.IOException;
@@ -27,6 +29,10 @@ import org.springframework.boot.info.BuildProperties;
  * The Studio version the jar's {@code studio.since..until} is checked against is the version of
  * the {@code artemis-studio} jar on the classpath — the one the plugin compiled against — or
  * {@code -Dartemis-studio.version=YYYY.MM.N}. Exits 1 when Studio would refuse the jar.
+ *
+ * <p>It names who signed the jar, or warns that it is unsigned: Studio refuses an unsigned plugin
+ * unless an installer allows unverified plugins. With {@code -Dartemis-studio.plugin.certificate=<pem>}
+ * (the certificate or public key the publisher publishes) it also exits 1 unless that key signed the jar.
  */
 @PluginApi
 public final class PluginVerifier {
@@ -38,13 +44,31 @@ public final class PluginVerifier {
             System.err.println("usage: PluginVerifier <plugin.jar>");
             System.exit(2);
         }
-        System.exit(verify(Path.of(args[0]), System.getProperty("artemis-studio.version"), System.out));
+        String certificate = System.getProperty("artemis-studio.plugin.certificate");
+        System.exit(verify(
+                Path.of(args[0]),
+                System.getProperty("artemis-studio.version"),
+                certificate == null || certificate.isBlank() ? null : Path.of(certificate),
+                System.out));
     }
 
-    /** Prints the verdict to {@code out}; returns the process exit code: 0 accepted, 1 refused, 2 unreadable. */
+    /** {@link #verify(Path, String, Path, PrintStream)} without a publisher certificate to match. */
     public static int verify(Path jar, String studioVersionOverride, PrintStream out) throws IOException {
+        return verify(jar, studioVersionOverride, null, out);
+    }
+
+    /**
+     * Prints the verdict to {@code out}; returns the process exit code: 0 accepted, 1 refused, 2 unreadable.
+     * A non-null {@code publisherCertificate} (a PEM certificate or public key) also refuses a jar not signed by it.
+     */
+    public static int verify(Path jar, String studioVersionOverride, Path publisherCertificate, PrintStream out)
+            throws IOException {
         if (!Files.isRegularFile(jar)) {
             out.println("No such file: " + jar);
+            return 2;
+        }
+        if (publisherCertificate != null && !Files.isRegularFile(publisherCertificate)) {
+            out.println("No such file: " + publisherCertificate);
             return 2;
         }
         StudioVersion studioVersion = new StudioVersion(
@@ -68,13 +92,42 @@ public final class PluginVerifier {
                     + " has no rollback; an update that applies it cannot be rolled back.");
             out.println("        fix: add a --rollback (formatted SQL) or <rollback> (XML) to it.");
         }
-        if (!report.valid()) {
+        Signer signer = report.signer();
+        if (signer == null) {
+            out.println("WARNING [plugin-unsigned] The jar is not signed. Studio refuses an unsigned plugin unless an"
+                    + " installer allows unverified plugins.");
+            out.println("        fix: sign it with jarsigner (the template's `sign` profile does it).");
+        } else {
+            out.println("Signed by " + signer.subject() + ", key " + signer.fingerprint());
+        }
+        boolean refused = !report.valid();
+        if (publisherCertificate != null && !matches(signer, publisherCertificate, out)) {
+            refused = true;
+        }
+        if (refused) {
             out.println("Refused: Studio would not install this jar.");
             return 1;
         }
         out.println("Accepted: " + report.descriptor().id() + " "
                 + report.descriptor().version() + ".");
         return 0;
+    }
+
+    private static boolean matches(Signer signer, Path publisherCertificate, PrintStream out) throws IOException {
+        Signer expected;
+        try {
+            expected = PublisherKeys.parse(Files.readString(publisherCertificate));
+        } catch (IllegalArgumentException e) {
+            out.println("ERROR   [publisher-certificate] " + publisherCertificate + ": " + e.getMessage());
+            return false;
+        }
+        if (signer == null || !signer.fingerprint().equals(expected.fingerprint())) {
+            out.println("ERROR   [publisher-key-mismatch] The jar was "
+                    + (signer == null ? "not signed" : "signed by key " + signer.fingerprint())
+                    + ", not by the publisher's key " + expected.fingerprint() + ".");
+            return false;
+        }
+        return true;
     }
 
     /** {@code META-INF/build-info.properties} of the Studio jar on the classpath, when there is one. */

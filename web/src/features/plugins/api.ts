@@ -14,6 +14,10 @@ export type PluginViolationView = Schemas['PluginViolationView'];
 export type PluginPurgePlanView = Schemas['PluginPurgePlanView'];
 export type PluginUpdateView = Schemas['PluginUpdateView'];
 export type PluginInstallerView = Schemas['PluginInstallerView'];
+export type PluginTrustView = Schemas['PluginTrustView'];
+export type TrustedKeysView = Schemas['TrustedKeysView'];
+export type TrustedKeyView = Schemas['TrustedKeyView'];
+export type AddKeyRequest = Schemas['AddKeyRequest'];
 export type StudioRestartView = Schemas['StudioRestartView'];
 export type AuditEventView = Schemas['AuditEventView'];
 
@@ -26,6 +30,7 @@ export const keys = {
   history: (id: string) => ['plugins', 'history', id] as const,
   upload: (sha: string) => ['plugins', 'upload', sha] as const,
   installers: ['plugins', 'installers'] as const,
+  trust: ['plugins', 'trust'] as const,
 };
 
 /** Every problem from these endpoints lists its reasons; this reads them back out. */
@@ -79,6 +84,17 @@ export function useInstallers(enabled: boolean): UseQueryResult<PluginInstallerV
   });
 }
 
+export function useTrustedKeys(enabled: boolean): UseQueryResult<TrustedKeysView, ApiError> {
+  return useQuery({
+    queryKey: keys.trust,
+    queryFn: () => request<TrustedKeysView>(`${BASE}/keys`),
+    enabled,
+  });
+}
+
+/** What the installer is asked to confirm before a plan is activated; the server enforces it. */
+const acknowledged = (acknowledge: boolean | undefined) => (acknowledge ? '?acknowledge=true' : '');
+
 function useInvalidating<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
   const qc = useQueryClient();
   return useMutation<TResult, ApiError, TVars>({
@@ -115,20 +131,34 @@ export function useDiscardUpload() {
 }
 
 export function useActivateUpload() {
-  return useInvalidating((sha: string) =>
-    request<PluginPlanView>(`${BASE}/uploads/${sha}/activate`, { method: 'POST' }),
+  return useInvalidating(({ sha, acknowledge }: { sha: string; acknowledge: boolean }) =>
+    request<PluginPlanView>(`${BASE}/uploads/${sha}/activate${acknowledged(acknowledge)}`, { method: 'POST' }),
   );
 }
 
 export type LifecycleAction = 'enable' | 'rollback' | 'disable' | 'uninstall';
 
-/** Enable, roll back, disable or uninstall; `cascade` also disables the plugins that require it. */
+/**
+ * Enable, roll back, disable or uninstall; `cascade` also disables the plugins that require it, and
+ * `acknowledge` confirms what an enable or rollback needs confirmed (the server says what).
+ */
 export function useLifecycle() {
-  return useInvalidating(({ id, action, cascade }: { id: string; action: LifecycleAction; cascade?: boolean }) =>
-    request<PluginPlanView | undefined>(
-      `${BASE}/${encodeURIComponent(id)}/${action}${cascade ? '?cascade=true' : ''}`,
-      { method: 'POST' },
-    ),
+  return useInvalidating(
+    ({
+      id,
+      action,
+      cascade,
+      acknowledge,
+    }: {
+      id: string;
+      action: LifecycleAction;
+      cascade?: boolean;
+      acknowledge?: boolean;
+    }) =>
+      request<PluginPlanView | undefined>(
+        `${BASE}/${encodeURIComponent(id)}/${action}${cascade ? '?cascade=true' : acknowledged(acknowledge)}`,
+        { method: 'POST' },
+      ),
   );
 }
 
@@ -150,4 +180,22 @@ export function useGrantInstaller() {
 
 export function useRevokeInstaller() {
   return useInvalidating((userId: string) => request<void>(`${BASE}/installers/${userId}`, { method: 'DELETE' }));
+}
+
+export function useAddKey() {
+  return useInvalidating((body: AddKeyRequest) =>
+    request<TrustedKeyView>(`${BASE}/keys`, { method: 'POST', body: JSON.stringify(body) }),
+  );
+}
+
+export function useRemoveKey() {
+  return useInvalidating((fingerprint: string) =>
+    request<void>(`${BASE}/keys/${encodeURIComponent(fingerprint)}`, { method: 'DELETE' }),
+  );
+}
+
+export function useTrustPolicy() {
+  return useInvalidating((allowUnverified: boolean) =>
+    request<void>(`${BASE}/trust-policy`, { method: 'PUT', body: JSON.stringify({ allowUnverified }) }),
+  );
 }

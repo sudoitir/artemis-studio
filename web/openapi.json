@@ -722,6 +722,27 @@
         }
       }
     },
+    "/api/v1/admin/plugins/trust-policy" : {
+      "put" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "trustPolicy",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TrustPolicyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/users" : {
       "get" : {
         "tags" : [ "users-controller" ],
@@ -3280,6 +3301,14 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "name" : "acknowledge",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
         } ],
         "responses" : {
           "202" : {
@@ -3339,6 +3368,14 @@
           "required" : true,
           "schema" : {
             "type" : "string"
+          }
+        }, {
+          "name" : "acknowledge",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
           }
         } ],
         "responses" : {
@@ -3419,6 +3456,14 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "name" : "acknowledge",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
         } ],
         "responses" : {
           "202" : {
@@ -3441,6 +3486,50 @@
         "responses" : {
           "202" : {
             "description" : "Accepted"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/keys" : {
+      "get" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "keys",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TrustedKeysView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "addKey",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddKeyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TrustedKeyView"
+                }
+              }
+            }
           }
         }
       }
@@ -6437,6 +6526,25 @@
         }
       }
     },
+    "/api/v1/admin/plugins/keys/{fingerprint}" : {
+      "delete" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "removeKey",
+        "parameters" : [ {
+          "name" : "fingerprint",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/admin/plugins/installers/{userId}" : {
       "delete" : {
         "tags" : [ "plugin-admin-controller" ],
@@ -7746,11 +7854,48 @@
             "description" : "NONE; AUTOMATIC: Studio restarts itself once confirmed; MANUAL: restart it yourself.",
             "enum" : [ "NONE", "AUTOMATIC", "MANUAL" ]
           },
+          "trust" : {
+            "$ref" : "#/components/schemas/PluginTrustView"
+          },
+          "acknowledgements" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
           "info" : {
             "$ref" : "#/components/schemas/PluginInfoView"
           }
         },
-        "required" : [ "activationClass", "compatible", "diff", "info", "missingRequires", "pendingChangesets", "pluginId", "restart", "reversible", "rolesLosingPermission", "toVersion", "updateSql" ]
+        "required" : [ "acknowledgements", "activationClass", "compatible", "diff", "info", "missingRequires", "pendingChangesets", "pluginId", "restart", "reversible", "rolesLosingPermission", "toVersion", "trust", "updateSql" ]
+      },
+      "PluginTrustView" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "TRUSTED", "UNTRUSTED", "UNSIGNED" ]
+          },
+          "fingerprint" : {
+            "type" : [ "string", "null" ]
+          },
+          "subject" : {
+            "type" : [ "string", "null" ]
+          },
+          "keyName" : {
+            "type" : [ "string", "null" ]
+          },
+          "previousFingerprint" : {
+            "type" : [ "string", "null" ]
+          },
+          "signerChanged" : {
+            "type" : "boolean"
+          },
+          "allowed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "allowed", "signerChanged", "status" ]
       },
       "PluginUploadView" : {
         "type" : "object",
@@ -7803,6 +7948,15 @@
           }
         },
         "required" : [ "code", "fix", "message", "severity" ]
+      },
+      "TrustPolicyRequest" : {
+        "type" : "object",
+        "properties" : {
+          "allowUnverified" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "allowUnverified" ]
       },
       "CreateUserRequest" : {
         "type" : "object",
@@ -10616,6 +10770,49 @@
           }
         },
         "required" : [ "bytes", "estimatedRows", "name" ]
+      },
+      "AddKeyRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "upload" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 64,
+            "minLength" : 0
+          },
+          "pem" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 8192,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "TrustedKeyView" : {
+        "type" : "object",
+        "properties" : {
+          "fingerprint" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          },
+          "addedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "addedBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "addedAt", "addedBy", "fingerprint", "name", "subject" ]
       },
       "GrantInstallerRequest" : {
         "type" : "object",
@@ -14372,11 +14569,20 @@
               "type" : "string"
             }
           },
+          "signerFingerprint" : {
+            "type" : [ "string", "null" ]
+          },
+          "signerSubject" : {
+            "type" : [ "string", "null" ]
+          },
+          "verified" : {
+            "type" : "boolean"
+          },
           "info" : {
             "$ref" : "#/components/schemas/PluginInfoView"
           }
         },
-        "required" : [ "dependants", "id", "info", "installedAt", "rollbackAvailable", "sha256", "status", "stuck", "version" ]
+        "required" : [ "dependants", "id", "info", "installedAt", "rollbackAvailable", "sha256", "status", "stuck", "verified", "version" ]
       },
       "PluginsView" : {
         "type" : "object",
@@ -14439,6 +14645,30 @@
           }
         },
         "required" : [ "command", "needed", "restarting", "supervised", "unreleased" ]
+      },
+      "TrustedKeysView" : {
+        "type" : "object",
+        "properties" : {
+          "keys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TrustedKeyView"
+            }
+          },
+          "allowUnverified" : {
+            "type" : "boolean"
+          },
+          "signedPlugins" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "allowUnverified", "keys", "signedPlugins" ]
       },
       "PluginInstallerView" : {
         "type" : "object",

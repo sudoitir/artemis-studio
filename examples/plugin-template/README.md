@@ -26,6 +26,48 @@ says how to fix it. Install it from **Administration → Plugins** in Studio.
 
 You need Java 25 and Maven. Node is downloaded by the build.
 
+## Sign your plugin
+
+Studio installs only a plugin it can tell who built. Sign the jar with a key of your own; an installer
+trusts your key once and every later version you sign is accepted. An unsigned jar is refused unless an
+installer switches on **Allow unverified plugins** in Administration → Plugins.
+
+1. **Make a key, once.** Keep the keystore private and back it up: losing it means your users must trust a
+   new key.
+
+   ```bash
+   keytool -genkeypair -alias acme -keyalg EC -groupname secp256r1 -sigalg SHA256withECDSA \
+       -validity 36500 -dname "CN=Acme Ltd, O=Acme" -keystore acme.p12 -storetype PKCS12
+   ```
+
+2. **Build with it.** The password comes from the environment so it never lands in shell history or the pom:
+
+   ```bash
+   export PLUGIN_SIGNING_STOREPASS=…
+   mvn verify -Dplugin.signing.keystore=acme.p12 -Dplugin.signing.alias=acme
+   ```
+
+   The build signs the jar and then checks it as Studio will; it prints `Signed by …, key <fingerprint>`.
+   Without `plugin.signing.keystore` the jar is unsigned and the build warns `[plugin-unsigned]`.
+
+3. **Publish your certificate**, next to your downloads, so installers can compare its fingerprint:
+
+   ```bash
+   keytool -exportcert -rfc -alias acme -keystore acme.p12 -file acme.pem
+   ```
+
+4. **Check a build against it.** The build fails unless the jar was signed by that key, and also when it is
+   unsigned:
+
+   ```bash
+   mvn verify -Dplugin.signing.keystore=acme.p12 -Dplugin.signing.alias=acme -Dartemis-studio.plugin.certificate=acme.pem
+   ```
+
+An installer sees your key's fingerprint on the review screen, compares it with the one you published, and
+chooses **Trust this key**; keys are managed under Administration → Plugins. The fingerprint is that of the
+key, so renewing the certificate for the same key changes nothing. Sign every version with the same key: an
+update signed by a different trusted key is allowed, but the installer must confirm the change.
+
 ## Make it yours
 
 1. Pick an id: lowercase kebab-case, your organisation first, as in `acme-notes`. Rename it everywhere —

@@ -67,6 +67,8 @@ public final class PluginAdminViews {
      * @param stuck the running version did not close cleanly; a restart frees what it holds
      * @param iconUrl present while active; the icon may still be absent, so fall back on error
      * @param dependants active plugins that require this one
+     * @param signerFingerprint who signed the installed jar; absent when it was unsigned
+     * @param verified the signer is a trusted key right now; removing the key clears it
      */
     public record PluginView(
             @Schema(requiredMode = REQUIRED) String id,
@@ -83,6 +85,9 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) boolean stuck,
             @Schema(nullable = true) String iconUrl,
             @Schema(requiredMode = REQUIRED) List<String> dependants,
+            @Schema(nullable = true) String signerFingerprint,
+            @Schema(nullable = true) String signerSubject,
+            @Schema(requiredMode = REQUIRED) boolean verified,
             @Schema(requiredMode = REQUIRED) PluginInfoView info) {}
 
     /** What a plugin says about itself, from its descriptor. */
@@ -136,6 +141,8 @@ public final class PluginAdminViews {
      *     answers 503 for seconds while its database changes; {@code RESTART}: Studio must restart
      * @param reversible every pending database change carries a rollback
      * @param missingRequires required plugins or features that are not active; activation is refused
+     * @param acknowledgements why activation needs {@code acknowledge=true}: {@code permissions-added},
+     *     {@code signer-changed} or {@code unverified}; activating without it answers 409
      */
     public record PluginPlanView(
             @Schema(requiredMode = REQUIRED) String pluginId,
@@ -162,7 +169,54 @@ public final class PluginAdminViews {
                     allowableValues = {"NONE", "AUTOMATIC", "MANUAL"})
             String restart,
 
+            @Schema(requiredMode = REQUIRED) PluginTrustView trust,
+            @Schema(requiredMode = REQUIRED) List<String> acknowledgements,
             @Schema(requiredMode = REQUIRED) PluginInfoView info) {}
+
+    /**
+     * Who signed the jar and whether that may run (design.md §5).
+     *
+     * @param fingerprint the jar's signer; absent when unsigned
+     * @param keyName the trusted key's name, present only when {@code TRUSTED}
+     * @param previousFingerprint the installed version's signer, when it had one
+     * @param allowed {@code TRUSTED}, or the unverified allowance is on
+     */
+    public record PluginTrustView(
+            @Schema(
+                    requiredMode = REQUIRED,
+                    allowableValues = {"TRUSTED", "UNTRUSTED", "UNSIGNED"})
+            String status,
+
+            @Schema(nullable = true) String fingerprint,
+            @Schema(nullable = true) String subject,
+            @Schema(nullable = true) String keyName,
+            @Schema(nullable = true) String previousFingerprint,
+            @Schema(requiredMode = REQUIRED) boolean signerChanged,
+            @Schema(requiredMode = REQUIRED) boolean allowed) {}
+
+    public record TrustedKeyView(
+            @Schema(requiredMode = REQUIRED) String fingerprint,
+            @Schema(requiredMode = REQUIRED) String name,
+            @Schema(requiredMode = REQUIRED) String subject,
+            @Schema(requiredMode = REQUIRED) Instant addedAt,
+            @Schema(requiredMode = REQUIRED) String addedBy) {}
+
+    /** @param signedPlugins fingerprint to the ids of the installed plugins that carry it */
+    public record TrustedKeysView(
+            @Schema(requiredMode = REQUIRED) List<TrustedKeyView> keys,
+            @Schema(requiredMode = REQUIRED) boolean allowUnverified,
+            @Schema(requiredMode = REQUIRED) Map<String, List<String>> signedPlugins) {}
+
+    /** Exactly one of {@code upload} (a pending upload's sha256, whose signer is trusted) and {@code pem}. */
+    public record AddKeyRequest(
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 100) String name,
+
+            @Schema(nullable = true) @jakarta.validation.constraints.Size(max = 64) String upload,
+
+            @Schema(nullable = true) @jakarta.validation.constraints.Size(max = 8192) String pem) {}
+
+    public record TrustPolicyRequest(
+            @Schema(requiredMode = REQUIRED) boolean allowUnverified) {}
 
     public record PluginChangesetView(
             @Schema(requiredMode = REQUIRED) String id,

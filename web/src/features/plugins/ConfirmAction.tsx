@@ -23,6 +23,7 @@ export function ConfirmAction({
   danger,
   pending,
   error,
+  returnTo,
   onConfirm,
 }: Readonly<{
   opened: boolean;
@@ -35,6 +36,8 @@ export function ConfirmAction({
   danger?: boolean;
   pending: boolean;
   error: ApiError | null;
+  /** Where a sign-in at the identity provider comes back to; defaults to this page. */
+  returnTo?: string;
   onConfirm: () => void;
 }>) {
   const fresh = useFreshSignIn();
@@ -48,7 +51,7 @@ export function ConfirmAction({
     <Modal opened={opened} onClose={onClose} title={title}>
       <Stack gap="md">
         {children}
-        <StepUp returnTo={`${window.location.pathname}${window.location.search}`} />
+        <StepUp returnTo={returnTo ?? `${globalThis.location.pathname}${globalThis.location.search}`} />
         {refusal ? (
           <Alert color="red" variant="light" role="alert" title="Not done">
             {refusal}

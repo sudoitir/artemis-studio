@@ -40,6 +40,8 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("plugin_artifact", "one row per installed plugin version, removed on uninstall"),
             Map.entry("plugin_install", "one row per installed plugin"),
             Map.entry("plugin_installer", "configuration"),
+            Map.entry("plugin_trusted_key", "configuration: one row per trusted publisher key"),
+            Map.entry("plugin_trust_policy", "configuration: a single row"),
             Map.entry("studio_boot", "trimmed to a day at every start"),
             Map.entry("plugin_upload", "trimmed to a day on every upload"),
             Map.entry("studio_config_property", "configuration"),

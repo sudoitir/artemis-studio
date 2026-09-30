@@ -54,6 +54,9 @@ function plugin(overrides: Partial<PluginView> = {}): PluginView {
     stuck: false,
     iconUrl: null,
     dependants: [],
+    signerFingerprint: 'AB:CD',
+    signerSubject: 'CN=Acme',
+    verified: true,
     info: INFO,
     ...overrides,
   } as PluginView;
@@ -102,6 +105,16 @@ const PLAN: PluginPlanView = {
   compatible: true,
   missingRequires: [],
   restart: 'NONE',
+  trust: {
+    status: 'TRUSTED',
+    fingerprint: 'AB:CD',
+    subject: 'CN=Acme',
+    keyName: 'Acme',
+    previousFingerprint: null,
+    signerChanged: false,
+    allowed: true,
+  },
+  acknowledgements: [],
   info: INFO,
 } as PluginPlanView;
 
@@ -373,6 +386,94 @@ describe('Administration → Plugins', () => {
     await user.tab();
     await user.keyboard('{Enter}');
     await waitFor(() => expect(purged).toBe(true));
+  });
+
+  it('marks an unverified plugin with a badge in words, in the list and in its drawer', async () => {
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () =>
+        HttpResponse.json(
+          inventory([
+            plugin({ id: 'acme-alpha', info: { ...INFO, title: 'Alpha' } }),
+            plugin({
+              id: 'acme-beta',
+              info: { ...INFO, title: 'Beta' },
+              verified: false,
+              signerFingerprint: null,
+              signerSubject: null,
+            }),
+          ]),
+        ),
+      ),
+      http.get('*/api/v1/admin/plugins/acme-beta/history', () => HttpResponse.json([])),
+    );
+    renderPanel();
+    const rows = (await screen.findAllByRole('row')).slice(1);
+    expect(within(rows[0]).queryByText('Unverified')).toBeNull();
+    expect(within(rows[1]).getByText('Unverified')).toBeInTheDocument();
+  });
+
+  it('shows the signer in the drawer', async () => {
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () =>
+        HttpResponse.json(inventory([plugin({ verified: false, signerFingerprint: 'AB:CD:EF' })])),
+      ),
+      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])),
+    );
+    renderPanel('/admin?tab=plugins&plugin=acme-notes');
+    expect(await screen.findByText('CN=Acme (not a trusted key)')).toBeInTheDocument();
+    expect(screen.getByText('AB:CD:EF')).toBeInTheDocument();
+    expect(screen.getAllByText('Unverified').length).toBeGreaterThan(0);
+  });
+
+  it('asks for an explicit tick when the server says enabling needs confirming, then sends acknowledge', async () => {
+    const calls: string[] = [];
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () =>
+        HttpResponse.json(inventory([plugin({ status: 'disabled', verified: false })])),
+      ),
+      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])),
+      http.post('*/api/v1/admin/plugins/acme-notes/enable', ({ request }) => {
+        calls.push(new URL(request.url).search);
+        if (!calls.at(-1)) {
+          return HttpResponse.json(
+            {
+              type: 'https://artemis-studio.dev/problems/plugin-refused',
+              title: 'Conflict',
+              status: 409,
+              detail: 'refused',
+              violations: [
+                {
+                  code: 'acknowledgement-required',
+                  message: "Activating 'acme-notes' needs your confirmation: unverified.",
+                  fix: 'Review the plan and confirm it.',
+                  severity: 'ERROR',
+                },
+              ],
+            },
+            { status: 409 },
+          );
+        }
+        return HttpResponse.json(PLAN, { status: 202 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel('/admin?tab=plugins&plugin=acme-notes');
+    await user.click(await screen.findByRole('tab', { name: 'Actions' }));
+    await user.click(screen.getByRole('button', { name: 'Enable…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Start Notes again' });
+    await user.click(within(dialog).getByRole('button', { name: 'Enable' }));
+    expect(await within(dialog).findByText(/needs your confirmation: unverified/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Enable' }));
+    expect(await within(dialog).findByText('Tick this to continue.')).toBeInTheDocument();
+    expect(calls).toEqual(['']);
+
+    await user.click(within(dialog).getByRole('checkbox', { name: /want to continue/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Enable' }));
+    await waitFor(() => expect(calls).toEqual(['', '?acknowledge=true']));
   });
 
   it('offers a restart when Studio can make one, and the command when it cannot', async () => {

@@ -11,7 +11,8 @@
  * watches the first one: `demo.gif` is "what is this", `flow.gif` and
  * `sql-console.gif` are "what can I not do anywhere else", and
  * `plugin-install.gif` is "what does installing a plugin involve". The last one
- * needs `PLUGIN_JAR` (a built plugin-template jar that is not installed yet) and
+ * needs `PLUGIN_JAR` (a built, signed plugin-template jar that is not installed
+ * yet; when its key is not trusted yet, the clip trusts it from the review) and
  * is skipped without it. `CLIPS=flow,demo` records only the named clips.
  *
  * Playwright records WebM per context; ffmpeg turns each into a GIF through a
@@ -386,6 +387,19 @@ if (PLUGIN_JAR) {
           await hold(page, 450);
         }
         await hold(page, 1_000);
+      }
+      // A publisher Studio has not met yet: compare the fingerprint, then trust the key from here.
+      const trust = dialog.getByRole('button', { name: 'Trust this key…' });
+      if (await trust.count()) {
+        await click(page, trust);
+        const trustDialog = page.getByRole('dialog').last();
+        await click(page, trustDialog.getByRole('textbox', { name: 'Key name' }));
+        await type(page, 'Acme');
+        await click(page, trustDialog.getByRole('checkbox', { name: /I compared this fingerprint/ }));
+        await hold(page, 600);
+        await click(page, trustDialog.getByRole('button', { name: 'Trust this key' }));
+        await dialog.getByText('Verified').first().waitFor({ timeout: 30_000 });
+        await hold(page, 1_200);
       }
       await click(page, dialog.getByRole('button', { name: 'Continue' }));
 
