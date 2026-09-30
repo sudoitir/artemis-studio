@@ -30,7 +30,7 @@ services:
     volumes:
       - ./artemis/secondary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22secondary%22/Started' || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22secondary%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -53,7 +53,7 @@ services:
       artemis-secondary:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22secondary-backup%22/Started' || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22secondary-backup%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -73,7 +73,7 @@ services:
     volumes:
       - ./artemis/tertiary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22tertiary%22/Started' || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22tertiary%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -96,7 +96,7 @@ services:
       artemis-tertiary:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22tertiary-backup%22/Started' || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22tertiary-backup%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
       interval: 10s
       timeout: 5s
       retries: 12

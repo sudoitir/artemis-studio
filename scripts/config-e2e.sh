@@ -70,8 +70,8 @@ py() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 # jolokia SERVICE JSON — ask one broker directly; used only for the out-of-band
 # change and the measurements.
 jolokia() {
-  $COMPOSE exec -T "$1" curl -sS -u artemis:artemis -H 'Content-Type: application/json' \
-    -d "$2" http://localhost:8161/console/jolokia/
+  curl -sS -u artemis:artemis -H 'Content-Type: application/json' \
+    -d "$2" "http://$($COMPOSE port "$1" 8161)/console/jolokia/"
 }
 
 # The broker MBean is named after the broker, not its bind address — the dev pair

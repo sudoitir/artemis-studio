@@ -85,7 +85,8 @@ services:
       - ./artemis/primary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
     healthcheck:
       # Started, not Active: a running node is Started even before it wins primary.
-      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22primary%22/Started' || exit 1"]
+      # The image has no curl or wget, so bash speaks HTTP itself, with the Basic credentials artemis:artemis.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22primary%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -109,7 +110,7 @@ services:
         condition: service_healthy
     healthcheck:
       # A healthy backup is Started=true and Active=false. Don't gate on Active.
-      test: ["CMD-SHELL", "curl -sf -u artemis:artemis 'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22backup%22/Started' || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22backup%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
       interval: 10s
       timeout: 5s
       retries: 12
