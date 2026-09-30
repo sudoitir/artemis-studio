@@ -8,7 +8,7 @@
 ## 3. Foundation (D1, D3, D8)
 - [x] 3.1 `studio_replica` changelog (drop `studio_boot`), `ReplicaRegistry` with DB-time heartbeat thread, states, reaping in housekeeping
 - [x] 3.2 `PluginHost` crash-loop counts crashes from the registry; stop writes `stopped_at`
-- [ ] 3.3 `StudioBus`: dedicated LISTEN connection, `pg_notify` publish in-transaction, frame/events/signal payloads, `ReplicaSignal`, `BusResumed`
+- [x] 3.3 `StudioBus`: dedicated LISTEN connection, `pg_notify` publish in-transaction, frame/events/signal payloads, `ReplicaSignal`, `BusResumed`
 - [ ] 3.4 Readiness: `replica` indicator, `/livez` `/readyz`, `timeout-per-shutdown-phase`; DRAIN and RUNS shutdown phases
 
 ## 4. Stream across replicas (D4)
