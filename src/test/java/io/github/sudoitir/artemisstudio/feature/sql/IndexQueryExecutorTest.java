@@ -302,4 +302,184 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 .orElse("");
         assertThat(populated).contains("to_tsvector");
     }
+
+    // ---- predicate shapes, ordering, tail and outcomes -----------------------
+
+    private Row messageWith(
+            long id, String queue, int priority, long size, String correlationId, Map<String, Object> properties) {
+        return new Row(
+                NODE,
+                "primary",
+                queue,
+                queue,
+                id,
+                3,
+                true,
+                priority,
+                Instant.now().toEpochMilli(),
+                0,
+                size,
+                null,
+                correlationId,
+                null,
+                null,
+                null,
+                "body " + id,
+                false,
+                properties,
+                Source.BROKER,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private List<Long> ids(String where) {
+        return run("SELECT * FROM index.\"ORDER.IN\" WHERE " + where + " ORDER BY priority ASC, size ASC LIMIT 50")
+                .stream()
+                .map(Row::messageId)
+                .toList();
+    }
+
+    private void seedShapes() {
+        writer.observe(CLUSTER, messageWith(1, "ORDER.IN", 1, 10, "alpha", Map.of("tenant", "Acme")), Instant.now());
+        writer.observe(CLUSTER, messageWith(2, "ORDER.IN", 5, 20, "beta", Map.of("tenant", "globex")), Instant.now());
+        writer.observe(CLUSTER, messageWith(3, "ORDER.IN", 9, 30, null, Map.of()), Instant.now());
+    }
+
+    @Test
+    void combinesPredicatesWithAndOrNot() {
+        seedShapes();
+
+        assertThat(ids("priority > 1 AND size < 30")).containsExactly(2L);
+        assertThat(ids("priority = 1 OR priority = 9")).containsExactly(1L, 3L);
+        assertThat(ids("NOT priority = 5")).containsExactly(1L, 3L);
+    }
+
+    @Test
+    void comparesWithInBetweenLikeAndNullChecks() {
+        seedShapes();
+
+        assertThat(ids("priority IN (1, 9)")).containsExactly(1L, 3L);
+        assertThat(ids("priority NOT IN (1, 9)")).containsExactly(2L);
+        assertThat(ids("priority BETWEEN 2 AND 9")).containsExactly(2L, 3L);
+        assertThat(ids("priority NOT BETWEEN 2 AND 9")).containsExactly(1L);
+        assertThat(ids("correlationId LIKE 'al%'")).containsExactly(1L);
+        assertThat(ids("correlationId NOT LIKE 'al%'")).containsExactly(2L);
+        assertThat(ids("correlationId ILIKE 'AL%'")).containsExactly(1L);
+        assertThat(ids("correlationId LIKE 'a\\_%' ESCAPE '\\'")).isEmpty();
+        assertThat(ids("correlationId IS NULL")).containsExactly(3L);
+        assertThat(ids("correlationId IS NOT NULL")).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void foldsCaseOnAProperty() {
+        seedShapes();
+
+        assertThat(ids("lower(props.tenant) = 'acme'")).containsExactly(1L);
+        assertThat(ids("upper(props.tenant) = 'GLOBEX'")).containsExactly(2L);
+    }
+
+    @Test
+    void comparesEveryCatalogueColumnAgainstItsStoredName() {
+        seedShapes();
+
+        // Each column resolves to a real message_index column: a wrong mapping is a SQL error, not a short list.
+        assertThat(ids("queue = 'ORDER.IN' AND address = 'ORDER.IN' AND node = 'primary' AND messageId IS NOT NULL"
+                        + " AND durable = true AND timestamp > 0 AND expiration = 0 AND size > 0 AND jmsType IS NULL"
+                        + " AND groupId IS NULL AND userId IS NULL AND messageType = 3 AND replyTo IS NULL"
+                        + " AND body LIKE 'body%' AND observedAt IS NOT NULL AND lastSeenAt IS NOT NULL"
+                        + " AND origin = 'SAMPLED' AND origAddress IS NULL AND sourceMessageId IS NULL"))
+                .containsExactly(1L, 2L, 3L);
+    }
+
+    @Test
+    void bindsRelativeWindowsToTheColumnsOwnUnit() {
+        seedShapes();
+
+        // timestamp is epoch milliseconds, observedAt a timestamptz; the same window works on both.
+        assertThat(ids("timestamp > now() - interval '1 hour'")).containsExactly(1L, 2L, 3L);
+        assertThat(ids("observedAt > now() - interval '1 hour'")).containsExactly(1L, 2L, 3L);
+        assertThat(ids("observedAt < now() - interval '1 hour'")).isEmpty();
+        assertThat(ids("expiration < now() - interval '1 hour'")).containsExactly(1L, 2L, 3L);
+    }
+
+    @Test
+    void bindsDecimalAndBooleanLiterals() {
+        seedShapes();
+
+        assertThat(ids("size > 9.5")).containsExactly(1L, 2L, 3L);
+        assertThat(ids("durable = false")).isEmpty();
+    }
+
+    @Test
+    void refusesMatchRankInAPredicate() {
+        assertThatThrownBy(() -> run("SELECT * FROM index.\"ORDER.IN\" WHERE match_rank > 0 LIMIT 10"))
+                .isInstanceOf(SqlSyntaxException.class);
+    }
+
+    @Test
+    void ordersByTheColumnsAskedForAndDefaultsToNewestFirst() {
+        seedShapes();
+
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" ORDER BY priority DESC LIMIT 10"))
+                .extracting(Row::messageId)
+                .containsExactly(3L, 2L, 1L);
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" ORDER BY size ASC LIMIT 10"))
+                .extracting(Row::messageId)
+                .containsExactly(1L, 2L, 3L);
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" LIMIT 10")).hasSize(3);
+    }
+
+    @Test
+    void orderingByAPropertyFallsBackToNewestFirst() {
+        seedShapes();
+
+        // A property has no column to sort by in the index; the ordering is dropped rather than guessed.
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" ORDER BY props.tenant ASC LIMIT 10"))
+                .hasSize(3);
+    }
+
+    @Test
+    void aTailReadsOnlyWhatWasObservedSinceItsMarkOldestFirst() {
+        Instant now = Instant.now();
+        writer.observe(CLUSTER, messageWith(1, "ORDER.IN", 4, 1, null, Map.of()), now.minusSeconds(120));
+        writer.observe(CLUSTER, messageWith(2, "ORDER.IN", 4, 1, null, Map.of()), now.minusSeconds(30));
+        writer.observe(CLUSTER, messageWith(3, "ORDER.IN", 4, 1, null, Map.of()), now.minusSeconds(10));
+
+        Collect sink = new Collect();
+        executor.execute(
+                CLUSTER,
+                plan("SELECT * FROM index.\"ORDER.IN\" ORDER BY priority DESC LIMIT 10"),
+                sink,
+                now.minusSeconds(60));
+
+        assertThat(sink.rows).extracting(Row::messageId).containsExactly(2L, 3L);
+    }
+
+    @Test
+    void reportsPerQueueOutcomesAndSpansAllTargets() {
+        writer.observe(CLUSTER, messageWith(1, "ORDER.IN", 4, 1, null, Map.of()), Instant.now());
+        writer.observe(CLUSTER, messageWith(2, "ORDER.IN", 4, 1, null, Map.of()), Instant.now());
+        writer.observe(CLUSTER, messageWith(3, "ORDER.OUT", 4, 1, null, Map.of()), Instant.now());
+        QueryAst ast = parser.parse("SELECT * FROM index.\"ORDER.*\" LIMIT 10");
+        List<Target> targets = List.of(
+                new Target(NODE, "primary", "ORDER.IN", "ORDER.IN", "ANYCAST", 0, Instant.now(), true),
+                new Target(NODE, "primary", "ORDER.OUT", "ORDER.OUT", "ANYCAST", 0, Instant.now(), true),
+                new Target(NODE, "primary", "ORDER.EMPTY", "ORDER.EMPTY", "ANYCAST", 0, Instant.now(), true));
+        QueryPlan multi =
+                new QueryPlan(ast, Source.INDEX, targets, null, false, List.of(), List.of(), 0, 10, false, List.of());
+
+        Collect sink = new Collect();
+        QueryResult result = executor.execute(CLUSTER, multi, sink);
+
+        assertThat(result.rows()).hasSize(3);
+        assertThat(result.nodes())
+                .extracting(NodeOutcome::queueName, NodeOutcome::matched, NodeOutcome::status)
+                .containsExactly(
+                        org.assertj.core.api.Assertions.tuple("ORDER.IN", 2L, NodeOutcome.Status.ANSWERED),
+                        org.assertj.core.api.Assertions.tuple("ORDER.OUT", 1L, NodeOutcome.Status.ANSWERED),
+                        org.assertj.core.api.Assertions.tuple("ORDER.EMPTY", 0L, NodeOutcome.Status.ANSWERED));
+        assertThat(result.boundsReached()).isEmpty();
+    }
 }
