@@ -19,6 +19,7 @@ import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -65,6 +66,9 @@ public class SettingsService {
     private final ActorResolver actorResolver;
     private final FeatureRegistry features;
     private final StudioBus bus;
+
+    /** Whether the stored values have been pushed to their holders once, at boot. */
+    private boolean pushed;
 
     /**
      * Insertion-ordered: this is also the order the settings screen renders. Immutable at rest,
@@ -354,16 +358,22 @@ public class SettingsService {
         refreshOverrides();
     }
 
-    private void refreshOverrides() {
+    private synchronized void refreshOverrides() {
         Map<String, String> fresh = new LinkedHashMap<>();
         for (StudioSettingEntity row : repo.findAll()) {
             if (registry.containsKey(row.getKey())) {
                 fresh.put(row.getKey(), unquote(row.getValue()));
             }
         }
+        Map<String, String> previous = overrides;
         overrides = Map.copyOf(fresh);
+        boolean first = !pushed;
+        pushed = true;
+        // Only what changed is pushed: the writer and the bus echo both refresh, and pushing a value
+        // can be costly for its holder (new broker timeouts replace every broker client).
         for (SettingDef spec : registry.values()) {
-            if (spec.apply() != null) {
+            if (spec.apply() != null
+                    && (first || !Objects.equals(previous.get(spec.key()), overrides.get(spec.key())))) {
                 spec.apply().accept(this);
             }
         }
