@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Maps {@code role} (changesets 003, 014). {@code builtin} roles (ADMIN,
- * OPERATOR, VIEWER) are seeded and immutable (ADR-0038, design.md decision 4);
+ * Maps {@code role} (changesets 003, 014, 0004). {@code builtin} roles (ADMIN,
+ * OPERATOR, VIEWER) are seeded and immutable except for {@code requiresMfa} (ADR-0038, ADR-0142);
  * a custom role has any permission combination and can be freely edited.
  */
 @Entity
@@ -37,6 +37,10 @@ public class RoleEntity {
 
     @Column(name = "builtin", nullable = false)
     private boolean builtin;
+
+    /** Local accounts holding this role need a second factor (ADR-0142); the built-in ADMIN role does by default. */
+    @Column(name = "requires_mfa", nullable = false)
+    private boolean requiresMfa;
 
     public RoleEntity(String name, boolean builtin) {
         this.name = name;

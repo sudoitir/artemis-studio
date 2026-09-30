@@ -112,6 +112,10 @@ public class UserService {
                 "user",
                 user.getUsername(),
                 Map.of("role", role.getName(), "scopeType", request.scopeType()));
+        if (role.isRequiresMfa()) {
+            // Sessions signed in before the grant never verified a second factor; the next sign-in enforces it.
+            sessions.endSessionsOf(List.of(user.getUsername()));
+        }
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")

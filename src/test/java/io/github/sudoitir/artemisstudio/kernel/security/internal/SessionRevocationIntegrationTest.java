@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
@@ -79,7 +81,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     @Test
     void removingAGrantEndsTheUsersSessions() {
         AppUserEntity user = newUser("revoke-grant");
-        var role = roleService.create(new RoleRequest("revoke-grant-role", List.of("cluster:read")));
+        var role = roleService.create(new RoleRequest("revoke-grant-role", List.of("cluster:read"), false));
         userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
         openSession(user.getUsername());
 
@@ -92,13 +94,13 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     void changingARolesPermissionsEndsEveryMembersSessions() {
         AppUserEntity first = newUser("revoke-role-a");
         AppUserEntity second = newUser("revoke-role-b");
-        var role = roleService.create(new RoleRequest("revoke-role", List.of("cluster:read", "queue:purge")));
+        var role = roleService.create(new RoleRequest("revoke-role", List.of("cluster:read", "queue:purge"), false));
         userService.addGrant(first.getId(), new GrantRequest(role.id(), "GLOBAL", null));
         userService.addGrant(second.getId(), new GrantRequest(role.id(), "GLOBAL", null));
         openSession(first.getUsername());
         openSession(second.getUsername());
 
-        roleService.update(role.id(), new RoleRequest("revoke-role", List.of("cluster:read")));
+        roleService.update(role.id(), new RoleRequest("revoke-role", List.of("cluster:read"), false));
 
         assertThat(sessions.findByPrincipalName(first.getUsername())).isEmpty();
         assertThat(sessions.findByPrincipalName(second.getUsername())).isEmpty();
@@ -119,12 +121,72 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     @Test
     void addingAGrantLeavesSessionsAlone() {
         AppUserEntity user = newUser("revoke-add");
-        var role = roleService.create(new RoleRequest("revoke-add-role", List.of("cluster:read")));
+        var role = roleService.create(new RoleRequest("revoke-add-role", List.of("cluster:read"), false));
         openSession(user.getUsername());
 
         userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
 
         assertThat(sessions.findByPrincipalName(user.getUsername())).hasSize(1);
+    }
+
+    @Test
+    void grantingARoleThatRequiresMfaEndsTheUsersSessions() {
+        AppUserEntity user = newUser("revoke-mfa-grant");
+        var role = roleService.create(new RoleRequest("revoke-mfa-role", List.of("cluster:read"), true));
+        openSession(user.getUsername());
+
+        userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
+
+        assertThat(sessions.findByPrincipalName(user.getUsername())).isEmpty();
+    }
+
+    @Test
+    void makingARoleRequireMfaEndsItsMembersSessions() {
+        AppUserEntity user = newUser("revoke-mfa-switch");
+        var role = roleService.create(new RoleRequest("revoke-mfa-switch-role", List.of("cluster:read"), false));
+        userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
+        openSession(user.getUsername());
+
+        var updated =
+                roleService.update(role.id(), new RoleRequest("revoke-mfa-switch-role", List.of("cluster:read"), true));
+
+        assertThat(updated.requiresMfa()).isTrue();
+        assertThat(sessions.findByPrincipalName(user.getUsername())).isEmpty();
+    }
+
+    @Test
+    void theBuiltInAdministratorRoleRequiresMfaByDefault() {
+        var admin = roleService.list().stream()
+                .filter(r -> r.name().equals("ADMIN"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(admin.requiresMfa()).isTrue();
+        assertThat(roleService.list().stream()
+                        .filter(r -> r.builtin() && !r.name().equals("ADMIN")))
+                .allMatch(r -> !r.requiresMfa());
+    }
+
+    @Test
+    void aBuiltInRoleAcceptsAChangeToMfaAndNothingElse() {
+        var viewer = roleService.list().stream()
+                .filter(r -> r.name().equals("VIEWER"))
+                .findFirst()
+                .orElseThrow();
+        try {
+            var changed = roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), true));
+            assertThat(changed.requiresMfa()).isTrue();
+            assertThat(changed.permissions()).containsExactlyInAnyOrderElementsOf(viewer.permissions());
+
+            assertThatThrownBy(() ->
+                            roleService.update(viewer.id(), new RoleRequest("RENAMED", viewer.permissions(), true)))
+                    .isInstanceOf(ConflictException.class);
+            assertThatThrownBy(
+                            () -> roleService.update(viewer.id(), new RoleRequest(viewer.name(), List.of("*"), true)))
+                    .isInstanceOf(ConflictException.class);
+        } finally {
+            roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), false));
+        }
     }
 
     private AppUserEntity newUser(String username) {

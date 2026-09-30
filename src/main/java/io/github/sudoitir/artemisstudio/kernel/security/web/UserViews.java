@@ -49,13 +49,20 @@ public final class UserViews {
 
     public record RoleRequest(
             @NotBlank String name,
-            @Schema(requiredMode = REQUIRED) List<String> permissions) {}
+            @Schema(requiredMode = REQUIRED) List<String> permissions,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether local accounts holding this role need a second factor. "
+                            + "Single sign-on users rely on their identity provider's own MFA.")
+            boolean requiresMfa) {}
 
     public record RoleView(
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) boolean builtin,
-            @Schema(requiredMode = REQUIRED) List<String> permissions) {}
+            @Schema(requiredMode = REQUIRED) List<String> permissions,
+            @Schema(requiredMode = REQUIRED) boolean requiresMfa) {}
 
     public record PermissionView(
             @Schema(requiredMode = REQUIRED) String action,
