@@ -60,9 +60,10 @@ public class SecretRotations {
             Optional<Rotation> lastRotation) {}
 
     /**
-     * Rotates to the highest version the provider holds now.
+     * Rotates to the highest version the provider holds now, or, when that is already current, finishes what a failed
+     * or interrupted rotation left under an older version.
      *
-     * @throws ConflictException when a rotation is running or the provider has no version newer than the current one
+     * @throws ConflictException when a rotation is running or there is neither a newer version nor a secret under an older one
      */
     public Rotation start(String startedBy) {
         if (running().isPresent()) {
@@ -70,12 +71,20 @@ public class SecretRotations {
         }
         int target = vault.reloadKeyring().highest();
         int current = vault.refreshCurrentVersion();
+        int from = current;
         if (target <= current) {
-            throw new ConflictException(
-                    "no-newer-key",
-                    "The provider holds no key version newer than " + current
-                            + ". Add a newer key version to the provider first.");
+            // A failed or interrupted rotation: re-wrap what is still under an older version, keeping the current one.
+            from = countsByVersion().keySet().stream()
+                    .filter(v -> v < current)
+                    .findFirst()
+                    .orElseThrow(() -> new ConflictException(
+                            "no-newer-key",
+                            "The provider holds no key version newer than " + current
+                                    + ". Add a newer key version to the provider first."));
+            target = current;
         }
+        int to = target;
+        int fromVersion = from;
         UUID id = UUID.randomUUID();
         try {
             tx.executeWithoutResult(s -> {
@@ -83,11 +92,13 @@ public class SecretRotations {
                         "INSERT INTO secret_rotation (id, from_version, to_version, status, started_by, started_at)"
                                 + " VALUES (?, ?, ?, 'RUNNING', ?, ?)",
                         id,
-                        current,
-                        target,
+                        fromVersion,
+                        to,
                         startedBy,
                         java.sql.Timestamp.from(clock.instant()));
-                jdbc.update("UPDATE secret_key_state SET current_kek_version = ?, updated_at = now()", target);
+                if (to > current) {
+                    jdbc.update("UPDATE secret_key_state SET current_kek_version = ?, updated_at = now()", to);
+                }
             });
         } catch (DuplicateKeyException e) {
             throw new ConflictException("rotation-running", "A key rotation is already running.");
@@ -122,10 +133,7 @@ public class SecretRotations {
                 // the provider is unreachable now; the keys loaded at start are still shown
             }
         }
-        Map<Integer, Long> counts = new TreeMap<>();
-        for (SealedStore store : stores) {
-            store.countByVersion().forEach((version, n) -> counts.merge(version, n, Long::sum));
-        }
+        Map<Integer, Long> counts = countsByVersion();
         return new Status(
                 vault.providerName(),
                 vault.refreshCurrentVersion(),
@@ -169,6 +177,14 @@ public class SecretRotations {
                     java.sql.Timestamp.from(clock.instant()),
                     rotation.id());
         }
+    }
+
+    private Map<Integer, Long> countsByVersion() {
+        Map<Integer, Long> counts = new TreeMap<>();
+        for (SealedStore store : stores) {
+            store.countByVersion().forEach((version, n) -> counts.merge(version, n, Long::sum));
+        }
+        return counts;
     }
 
     private long countBelow(int version) {

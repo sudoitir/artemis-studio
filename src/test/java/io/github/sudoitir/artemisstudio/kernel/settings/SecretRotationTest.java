@@ -320,6 +320,29 @@ class SecretRotationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aFailedRotationCanBeStartedAgainOnceTheBadRowIsRepaired() {
+        secretsOf(plugin).put("broken", "later-fixed");
+        byte[] good = jdbc.queryForObject("SELECT sealed FROM plugin_secret WHERE plugin_id = ?", byte[].class, plugin);
+        jdbc.update(
+                "UPDATE plugin_secret SET sealed = set_byte(sealed, 20, get_byte(sealed, 20) # 255) WHERE plugin_id = ?",
+                plugin);
+        service.start(freshSession());
+        rotations.sweep();
+        assertThat(rotations.last().orElseThrow().status()).isEqualTo("FAILED");
+
+        jdbc.update("UPDATE plugin_secret SET sealed = ? WHERE plugin_id = ?", good, plugin);
+        SecretRotations.Rotation again = service.start(freshSession());
+
+        assertThat(again.status()).isEqualTo("RUNNING");
+        assertThat(again.fromVersion()).isEqualTo(1);
+        assertThat(again.toVersion()).isEqualTo(2);
+        assertThat(vault.currentKekVersion()).isEqualTo(2);
+        rotations.sweep();
+        assertThat(rotations.last().orElseThrow().status()).isEqualTo("SUCCEEDED");
+        assertThat(secretsOf(plugin).get("broken")).contains("later-fixed");
+    }
+
+    @Test
     void aStaleAuthenticationIsRefusedAndAudited() {
         assertThatThrownBy(() -> service.start(new MockHttpServletRequest()))
                 .isInstanceOf(ReauthenticationRequiredException.class);
