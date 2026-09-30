@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
@@ -13,6 +14,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRun
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry.Active;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,12 +22,14 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -67,6 +71,11 @@ class PluginHostIT extends PostgresIntegrationTest {
     private final List<String> runtimeIds = new ArrayList<>();
     private final List<String> seededIds = new ArrayList<>();
     private final List<String> uploadedShas = new ArrayList<>();
+
+    @BeforeEach
+    void trustThePublisher() {
+        TrustedTestKey.trust(jdbc);
+    }
 
     @AfterEach
     void cleanUp() {
@@ -148,22 +157,23 @@ class PluginHostIT extends PostgresIntegrationTest {
         }
     }
 
-    private PluginSummary awaitStatus(String id, PluginInstallStatus want) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var summary = host.status(id);
-            if (summary.isPresent() && summary.get().status() == want) {
-                return summary.get();
-            }
-            if (summary.isPresent()
-                    && summary.get().status() == PluginInstallStatus.FAILED
-                    && want != PluginInstallStatus.FAILED) {
-                throw new AssertionError("Plugin '" + id + "' failed while waiting for " + want + ": "
-                        + summary.get().failure());
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Plugin '" + id + "' never reached " + want + "; last status: " + host.status(id));
+    private PluginSummary awaitStatus(String id, PluginInstallStatus want) {
+        return await("plugin '" + id + "' reaches " + want)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> {
+                            var summary = host.status(id);
+                            if (summary.isPresent()
+                                    && summary.get().status() == PluginInstallStatus.FAILED
+                                    && want != PluginInstallStatus.FAILED) {
+                                throw new AssertionError("Plugin '" + id + "' failed while waiting for " + want + ": "
+                                        + summary.get().failure());
+                            }
+                            return summary.filter(x -> x.status() == want);
+                        },
+                        Optional::isPresent)
+                .orElseThrow();
     }
 
     @Test
@@ -179,7 +189,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         assertThat(plan.missingRequires()).isEmpty();
         assertThat(plan.compatible()).isTrue();
 
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
 
@@ -197,7 +207,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(plan.updateSql()).isEmpty();
 
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -221,7 +231,7 @@ class PluginHostIT extends PostgresIntegrationTest {
                 .contains("thing")
                 .doesNotContainIgnoringCase("databasechangelog");
 
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -267,7 +277,7 @@ class PluginHostIT extends PostgresIntegrationTest {
 
         // An admin who never activates leaves no orphaned schema behind, and a later real
         // activation still works correctly off the never-created schema.
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -288,7 +298,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         String shaV1 = upload(emptyPlugin(id)
                 .descriptorField("version", "1.0.0")
                 .descriptorField("permissions", List.of(Map.of("action", id + ":read"))));
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -300,7 +310,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(plan.diff().permissionsRemoved()).containsExactly(id + ":read");
 
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
         PluginSummary active = awaitStatus(id, PluginInstallStatus.ACTIVE);
         assertThat(active.version()).isEqualTo("2.0.0");
         assertThat(active.sha256()).isEqualTo(shaV2);
@@ -343,7 +353,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         ActivationPlan plan = host.plan(sha);
         assertThat(plan.missingRequires()).containsExactly("no-such-dependency");
 
-        assertThatThrownBy(() -> host.activate(sha, "tester"))
+        assertThatThrownBy(() -> host.activate(sha, "tester", false))
                 .isInstanceOf(PluginRefusedException.class)
                 .satisfies(e -> assertThat(((PluginRefusedException) e).violations())
                         .anySatisfy(v -> assertThat(v.code()).isEqualTo("requires-missing")));
@@ -358,7 +368,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         ActivationPlan plan = host.plan(sha);
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.RESTART);
 
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.NEEDS_RESTART);
         assertThat(registry.get(id)).isEmpty();
@@ -368,7 +378,7 @@ class PluginHostIT extends PostgresIntegrationTest {
     void theNextBootStartsAPluginThatNeedsARestart() throws Exception {
         String id = uniqueId("acme-restart-boot");
         String sha = upload(emptyPlugin(id).descriptorField("activation", "RESTART"));
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         seededIds.add(id);
         runtimeIds.add(id);
         awaitStatus(id, PluginInstallStatus.NEEDS_RESTART);
@@ -378,6 +388,27 @@ class PluginHostIT extends PostgresIntegrationTest {
 
         assertThat(host.status(id)).get().extracting(PluginSummary::status).isEqualTo(PluginInstallStatus.ACTIVE);
         assertThat(registry.get(id)).containsInstanceOf(Active.class);
+    }
+
+    @Test
+    void theNextBootRefusesAVersionWhoseKeyWasRemovedWhileItWaitedForTheRestart() throws Exception {
+        String id = uniqueId("acme-restart-untrusted");
+        String sha = upload(emptyPlugin(id).descriptorField("activation", "RESTART"));
+        host.activate(sha, "tester", false);
+        seededIds.add(id);
+        awaitStatus(id, PluginInstallStatus.NEEDS_RESTART);
+
+        jdbc.update("DELETE FROM plugin_trusted_key");
+        try {
+            resetBootHistory();
+            host.runStartupSequence();
+        } finally {
+            TrustedTestKey.trust(jdbc);
+        }
+
+        assertThat(host.status(id)).get().extracting(PluginSummary::status).isEqualTo(PluginInstallStatus.FAILED);
+        assertThat(host.status(id).orElseThrow().failure()).startsWith("plugin-untrusted");
+        assertThat(registry.get(id)).isEmpty();
     }
 
     @Test
@@ -411,7 +442,7 @@ class PluginHostIT extends PostgresIntegrationTest {
                     started.countDown();
                     try {
                         release.await();
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException _) {
                         Thread.currentThread().interrupt();
                     }
                 }));
@@ -448,7 +479,7 @@ class PluginHostIT extends PostgresIntegrationTest {
 
             String id = uniqueId("acme-budget");
             String sha = upload(emptyPlugin(id));
-            assertThatThrownBy(() -> host.activate(sha, "tester"))
+            assertThatThrownBy(() -> host.activate(sha, "tester", false))
                     .isInstanceOf(PluginRefusedException.class)
                     .satisfies(e -> assertThat(((PluginRefusedException) e).violations())
                             .anySatisfy(v -> assertThat(v.code()).isEqualTo("connection-budget")));
@@ -471,7 +502,7 @@ class PluginHostIT extends PostgresIntegrationTest {
     void disableClosesTheRuntimeAndMarksDisabled() throws Exception {
         String id = uniqueId("acme-disable");
         String sha = upload(emptyPlugin(id));
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -487,14 +518,14 @@ class PluginHostIT extends PostgresIntegrationTest {
     void disableWithoutCascadeRefusesWhenAnotherActivePluginRequiresIt() throws Exception {
         String requiredId = uniqueId("acme-required");
         String requiredSha = upload(emptyPlugin(requiredId));
-        host.activate(requiredSha, "tester");
+        host.activate(requiredSha, "tester", false);
         runtimeIds.add(requiredId);
         seededIds.add(requiredId);
         awaitStatus(requiredId, PluginInstallStatus.ACTIVE);
 
         String dependantId = uniqueId("acme-dependant");
         String dependantSha = upload(emptyPlugin(dependantId).descriptorField("requires", List.of(requiredId)));
-        host.activate(dependantSha, "tester");
+        host.activate(dependantSha, "tester", false);
         runtimeIds.add(dependantId);
         seededIds.add(dependantId);
         awaitStatus(dependantId, PluginInstallStatus.ACTIVE);
@@ -516,14 +547,14 @@ class PluginHostIT extends PostgresIntegrationTest {
     void enableStartsTheDisabledPluginAgainInstant() throws Exception {
         String id = uniqueId("acme-enable");
         String sha = upload(emptyPlugin(id));
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
         host.disable(id, false, "tester");
         awaitStatus(id, PluginInstallStatus.DISABLED);
 
-        ActivationPlan plan = host.enable(id, "tester");
+        ActivationPlan plan = host.enable(id, "tester", false);
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
         assertThat(registry.get(id)).containsInstanceOf(Active.class);
@@ -533,7 +564,7 @@ class PluginHostIT extends PostgresIntegrationTest {
     void uninstallKeepsDataAndMarksUninstalled() throws Exception {
         String id = uniqueId("acme-uninstall");
         String sha = upload(pluginWithATable(id));
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -551,19 +582,19 @@ class PluginHostIT extends PostgresIntegrationTest {
     void rollbackReactivatesThePreviousVersionWhenNoSchemaChanged() throws Exception {
         String id = uniqueId("acme-rollback");
         String shaV1 = upload(emptyPlugin(id).descriptorField("version", "1.0.0"));
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
 
         String shaV2 = upload(emptyPlugin(id).descriptorField("version", "2.0.0"));
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
         PluginSummary activeV2 = awaitStatus(id, PluginInstallStatus.ACTIVE);
         assertThat(activeV2.version()).isEqualTo("2.0.0");
         assertThat(store.find(id))
                 .hasValueSatisfying(e -> assertThat(e.isSchemaChanged()).isFalse());
 
-        ActivationPlan plan = host.rollback(id, "tester");
+        ActivationPlan plan = host.rollback(id, "tester", false);
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(plan.toVersion()).isEqualTo("1.0.0");
         PluginSummary rolledBack = awaitStatus2(id, "1.0.0");
@@ -574,18 +605,18 @@ class PluginHostIT extends PostgresIntegrationTest {
     void rollbackRefusedWhenTheCurrentVersionChangedTheSchema() throws Exception {
         String id = uniqueId("acme-rollback-schema");
         String shaV1 = upload(emptyPlugin(id).descriptorField("version", "1.0.0"));
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
 
         String shaV2 = upload(pluginWithATable(id).descriptorField("version", "2.0.0"));
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
         assertThat(store.find(id))
                 .hasValueSatisfying(e -> assertThat(e.isSchemaChanged()).isTrue());
 
-        assertThatThrownBy(() -> host.rollback(id, "tester"))
+        assertThatThrownBy(() -> host.rollback(id, "tester", false))
                 .isInstanceOf(PluginRefusedException.class)
                 .satisfies(e -> assertThat(((PluginRefusedException) e).violations())
                         .anySatisfy(v -> assertThat(v.code()).isEqualTo("rollback-unavailable")));
@@ -596,7 +627,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         String id = uniqueId("acme-purge");
         String sha =
                 upload(pluginWithATable(id).descriptorField("permissions", List.of(Map.of("action", id + ":admin"))));
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -634,7 +665,7 @@ class PluginHostIT extends PostgresIntegrationTest {
         String freshSha = upload(emptyPlugin(id));
         ActivationPlan freshPlan = host.plan(freshSha);
         assertThat(freshPlan.fromVersion()).isNull();
-        host.activate(freshSha, "tester");
+        host.activate(freshSha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         PluginSummary fresh = awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -667,23 +698,22 @@ class PluginHostIT extends PostgresIntegrationTest {
 
     /** Like {@link #awaitStatus(String, PluginInstallStatus)}, but for rollback, which stays ACTIVE
      * throughout — waits for the version to change instead. */
-    private PluginSummary awaitStatus2(String id, String wantVersion) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var summary = host.status(id);
-            if (summary.isPresent()
-                    && summary.get().status() == PluginInstallStatus.ACTIVE
-                    && wantVersion.equals(summary.get().version())) {
-                return summary.get();
-            }
-            if (summary.isPresent() && summary.get().status() == PluginInstallStatus.FAILED) {
-                throw new AssertionError("Plugin '" + id + "' failed while waiting for version " + wantVersion + ": "
-                        + summary.get().failure());
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError(
-                "Plugin '" + id + "' never reached version " + wantVersion + "; last status: " + host.status(id));
+    private PluginSummary awaitStatus2(String id, String wantVersion) {
+        return await("plugin '" + id + "' reaches version " + wantVersion)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> {
+                            var summary = host.status(id);
+                            if (summary.isPresent() && summary.get().status() == PluginInstallStatus.FAILED) {
+                                throw new AssertionError("Plugin '" + id + "' failed while waiting for version "
+                                        + wantVersion + ": " + summary.get().failure());
+                            }
+                            return summary.filter(
+                                    x -> x.status() == PluginInstallStatus.ACTIVE && wantVersion.equals(x.version()));
+                        },
+                        Optional::isPresent)
+                .orElseThrow();
     }
 
     // ---- boot / shutdown / safe mode (task 6.8's SmartLifecycle half) ---------------------------
@@ -696,7 +726,7 @@ class PluginHostIT extends PostgresIntegrationTest {
     }
 
     @Test
-    void staleActivatingRowIsFailedAtBootBecauseNothingHoldsItsAdvisoryLock() throws Exception {
+    void staleActivatingRowIsFailedAtBootBecauseNothingHoldsItsAdvisoryLock() {
         String id = uniqueId("acme-stale");
         String sha = store.put(("not-a-real-jar-" + id).getBytes());
         uploadedShas.add(sha);
@@ -751,7 +781,7 @@ class PluginHostIT extends PostgresIntegrationTest {
     void stopClosesRunningPluginsAndRecordsACleanStopAndSurvivesStartAfterwards() throws Exception {
         String id = uniqueId("acme-stopstart");
         String sha = upload(emptyPlugin(id));
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);

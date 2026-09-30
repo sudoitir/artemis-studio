@@ -72,6 +72,12 @@ public class PluginInstallEntity {
     @Column(name = "progress")
     private String progress;
 
+    @Column(name = "signer_fingerprint")
+    private String signerFingerprint;
+
+    @Column(name = "signer_subject")
+    private String signerSubject;
+
     public PluginInstallEntity(
             String id, String version, String vendor, String sha256, String installedBy, String descriptor) {
         this.id = id;
@@ -129,6 +135,12 @@ public class PluginInstallEntity {
     /** Records whether a fresh install's own first activation applied any changeset. */
     public void schemaChanged(boolean changed) {
         this.schemaChanged = changed;
+    }
+
+    /** Records who signed the jar this row runs; both are null for an unsigned jar. */
+    public void signer(String fingerprint, String subject) {
+        this.signerFingerprint = fingerprint;
+        this.signerSubject = subject;
     }
 
     /** Records a completed update: the current version becomes previous, the new one current. */

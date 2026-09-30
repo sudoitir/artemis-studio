@@ -1,10 +1,24 @@
-import { Alert, Anchor, Collapse, Group, List, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Checkbox,
+  Code,
+  Collapse,
+  CopyButton,
+  Group,
+  List,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { useDisclosure } from '@mantine/hooks';
 
 import type { PluginPlanView, PluginViolationView } from './api.ts';
 import styles from './Plugins.module.css';
-import { count, downtime } from './words.ts';
+import { acknowledgementReasons, count, downtime, TRUST_LABEL } from './words.ts';
 
 function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
@@ -14,6 +28,137 @@ function Section({ title, children }: Readonly<{ title: string; children: React.
       </Title>
       {children}
     </Stack>
+  );
+}
+
+type TrustOffer = Readonly<{ canInstall: boolean; onTrust: () => void }>;
+
+function Fingerprint({ value, copy }: Readonly<{ value: string; copy?: boolean }>) {
+  return (
+    <Group gap={4} wrap="nowrap" component="span" display="inline-flex" maw="100%">
+      <Code className={styles.fingerprint}>{value}</Code>
+      {copy ? (
+        <CopyButton value={value}>
+          {({ copied, copy: doCopy }) => (
+            <Button size="compact-xs" variant="subtle" onClick={doCopy} aria-label="Copy fingerprint">
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+          )}
+        </CopyButton>
+      ) : null}
+    </Group>
+  );
+}
+
+/** The signer moved between versions: old key to new, or to or from unsigned. */
+function SignerChange({ trust }: Readonly<{ trust: PluginPlanView['trust'] }>) {
+  return (
+    <Text size="sm" className={styles.warning}>
+      Signer changed:{' '}
+      {trust.previousFingerprint ? (
+        <Fingerprint value={trust.previousFingerprint} />
+      ) : (
+        'the installed version was unsigned'
+      )}{' '}
+      → {trust.fingerprint ? <Fingerprint value={trust.fingerprint} /> : 'this version is unsigned'}
+    </Text>
+  );
+}
+
+/** Says, for a status that is not simply trusted, why the plugin can or cannot go on. */
+function TrustExplanation({ trust }: Readonly<{ trust: PluginPlanView['trust'] }>) {
+  if (trust.status === 'TRUSTED') return null;
+  if (trust.allowed) {
+    return (
+      <Text size="sm" className={styles.warning}>
+        Unverified: it can be installed only because an installer allowed unverified plugins.
+      </Text>
+    );
+  }
+  return trust.status === 'UNSIGNED' ? (
+    <Text size="sm">
+      This plugin is not signed, and this installation refuses unverified plugins. An installer can allow unverified
+      plugins under Trusted keys.
+    </Text>
+  ) : (
+    <Text size="sm">
+      No key you trust signed this plugin. Compare the fingerprint with the one the publisher publishes before you trust
+      it.
+    </Text>
+  );
+}
+
+/** Trusting a key is an installer's act; anyone else sees the button and why it is off. */
+function TrustAction({ offer }: Readonly<{ offer: TrustOffer }>) {
+  return (
+    <Group gap="xs">
+      <Button size="xs" variant="default" disabled={!offer.canInstall} onClick={offer.onTrust}>
+        Trust this key…
+      </Button>
+      {offer.canInstall ? null : (
+        <Text size="xs" c="dimmed">
+          Only someone who can install plugins can trust a key.
+        </Text>
+      )}
+    </Group>
+  );
+}
+
+/** Who stands behind the jar: its signer, and whether an installer has said to trust that key. */
+function PublisherSection({ plan, trust }: Readonly<{ plan: PluginPlanView; trust?: TrustOffer }>) {
+  const t = plan.trust;
+  const trusted = t.status === 'TRUSTED';
+  return (
+    <Section title="Publisher">
+      <Group gap="xs">
+        <Badge
+          size="sm"
+          variant={trusted ? 'outline' : 'light'}
+          color={trusted ? 'gray' : 'yellow'}
+          c={trusted ? undefined : 'var(--as-warning)'}
+        >
+          {TRUST_LABEL[t.status]}
+        </Badge>
+        {trusted && t.keyName ? <Text size="sm">Trusted key: {t.keyName}</Text> : null}
+      </Group>
+      {t.fingerprint ? (
+        <>
+          <Text size="sm">Signed by {t.subject ?? 'an unnamed certificate'}. Key fingerprint:</Text>
+          <Fingerprint value={t.fingerprint} copy />
+        </>
+      ) : null}
+      {t.signerChanged ? <SignerChange trust={t} /> : null}
+      <TrustExplanation trust={t} />
+      {t.status === 'UNTRUSTED' && trust ? <TrustAction offer={trust} /> : null}
+    </Section>
+  );
+}
+
+/** The reasons an activation needs an explicit yes; the button it gates says so beside it. */
+export function Acknowledgement({
+  plan,
+  checked,
+  onChange,
+}: Readonly<{
+  plan: PluginPlanView;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}>) {
+  return (
+    <Alert variant="light" color="yellow" title="This needs your confirmation">
+      <Stack gap="xs">
+        <List size="sm" spacing={2}>
+          {acknowledgementReasons(plan).map((reason) => (
+            <List.Item key={reason}>{reason}</List.Item>
+          ))}
+        </List>
+        <Checkbox
+          checked={checked}
+          onChange={(e) => onChange(e.currentTarget.checked)}
+          label="I have read this and want to continue"
+        />
+      </Stack>
+    </Alert>
   );
 }
 
@@ -69,8 +214,14 @@ function ChangesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
   return (
     <Section title="What changes">
       <List size="sm" spacing={2}>
+        {d.permissionsAdded.map((p) => (
+          <List.Item key={`adds-${p}`}>
+            <Text span fw={700} className={styles.warning}>
+              Adds permission {p}
+            </Text>
+          </List.Item>
+        ))}
         {[
-          ...d.permissionsAdded.map((p) => `Adds permission ${p}`),
           ...d.permissionsRemoved.map((p) => `Removes permission ${p}`),
           ...d.mcpToolsAdded.map((t) => `Adds assistant tool ${t}`),
           ...d.mcpToolsRemoved.map((t) => `Removes assistant tool ${t}`),
@@ -135,7 +286,13 @@ function ConfirmSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
 export function PlanReview({
   plan,
   warnings = [],
-}: Readonly<{ plan: PluginPlanView; warnings?: PluginViolationView[] }>) {
+  trust,
+}: Readonly<{
+  plan: PluginPlanView;
+  warnings?: PluginViolationView[];
+  /** Offered for an untrusted key: whether this user may trust it, and what happens when they choose to. */
+  trust?: TrustOffer;
+}>) {
   const info = plan.info;
   const update = !!plan.fromVersion && plan.fromVersion !== plan.toVersion;
 
@@ -165,6 +322,8 @@ export function PlanReview({
           active. Install or enable {plan.missingRequires.length === 1 ? 'it' : 'them'} first.
         </Alert>
       ) : null}
+
+      <PublisherSection plan={plan} trust={trust} />
 
       <CapabilitiesSection plan={plan} />
 

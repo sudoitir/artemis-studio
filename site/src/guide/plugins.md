@@ -127,6 +127,41 @@ click.
 Plugins are only ever changed **from a browser session**. API tokens and the MCP endpoint are
 refused, even an installer's.
 
+## Signing and trust
+
+A plugin runs with Studio's own access, so Studio checks **who built it** before anything runs. Every plugin
+jar is signed by its publisher with a key, and Studio installs a jar only if it is signed by a key an
+installer has trusted. The signature also proves the jar was not changed afterwards: a file altered, added or
+removed after signing is refused before anything is stored.
+
+- **Trusted keys.** Under **Trusted keys** on the Plugins tab, installers add the publishers' keys (a PEM
+  certificate or public key, which the publisher publishes) and remove them. Each key shows its
+  **fingerprint**, the name you gave it, and the plugins it signed. Adding or removing a key needs a fresh
+  sign-in, like any plugin change, and is audited.
+- **Trust this key.** Upload a plugin from a publisher you have not trusted yet and the review names its key
+  by fingerprint and certificate subject. Compare that fingerprint with the one the publisher publishes (on
+  their site, in their release notes), tick that you did, and choose **Trust this key**. Studio takes the key
+  from the uploaded jar itself, adds it and re-checks the review. Never trust a fingerprint you only read in
+  the same place you got the jar.
+- **Signer changes.** An update may be signed by a different trusted key than the installed version. The
+  review then shows the old and the new fingerprint, and you must confirm the change before activating.
+  Likewise, an update that asks for a **new permission** highlights it and needs your confirmation. Studio
+  enforces both on the server; a client that skips the confirmation is refused.
+- **Unverified plugins.** By default a plugin that is unsigned, or signed by a key nobody trusts, cannot be
+  installed, updated, rolled back to or enabled. An installer can switch on **Allow unverified plugins** in
+  Trusted keys. It is **off by default**, changing it needs a fresh sign-in and is audited, and every
+  activation it allows records `trust=unverified` and the fingerprint in the audit log. Such a plugin shows an
+  **Unverified** badge, and needs the same confirmation on activation.
+- **Removing a key.** Plugins the key signed keep running, so removing a key never takes a plugin down, but
+  they show the **Unverified** badge at once, and their next update is refused unless a trusted key signed it.
+- **Health.** While any installed plugin is unverified, the `studio` health group in
+  `/actuator/health/studio` reports **DEGRADED** and names the plugins, so a monitor notices. It returns to
+  `UP` when the plugin is updated by a trusted key, its key is trusted again, or it is removed.
+
+Trust is the key, not the certificate: a publisher who re-issues their certificate for the same key needs
+nothing done. There are no certificate chains, expiry dates or revocation lists, so if a publisher's key is
+compromised, remove it. Plugin authors: see [Sign your plugin](https://github.com/sudoitir/artemis-studio/tree/main/examples/plugin-template#sign-your-plugin).
+
 ## Security, in short
 
 - **Checked before it is stored.** Studio reads the whole jar's bytecode without loading it.

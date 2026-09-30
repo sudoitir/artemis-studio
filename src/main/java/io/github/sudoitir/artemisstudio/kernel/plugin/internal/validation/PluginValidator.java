@@ -94,7 +94,7 @@ public class PluginValidator {
         }
         List<String> entryNames = scanned.get();
 
-        try (JarFile jar = new JarFile(jarFile.toFile(), false, ZipFile.OPEN_READ, Runtime.version())) {
+        try (JarFile jar = new JarFile(jarFile.toFile(), true, ZipFile.OPEN_READ, Runtime.version())) {
             return validateJar(jar, entryNames, otherBasePackages, violations);
         } catch (IOException e) {
             violations.add(new Violation(JAR_UNREADABLE, "The jar could not be opened: " + e.getMessage(), REUPLOAD));
@@ -126,6 +126,12 @@ public class PluginValidator {
         if (!consistent(jar, entryNames, violations)) {
             return new ValidationReport(null, violations);
         }
+        int before = violations.size();
+        Signer signer = JarSignature.check(jar, entryNames, violations);
+        if (violations.size() > before) {
+            // A jar whose signature fails cannot be trusted to describe itself.
+            return new ValidationReport(null, violations);
+        }
         checkManifest(jar, violations);
         PluginDescriptor descriptor = readDescriptor(jar, violations);
         if (descriptor == null) {
@@ -135,7 +141,7 @@ public class PluginValidator {
         checkDescriptorFields(descriptor, otherBasePackages, violations);
         new BytecodeChecks(descriptor).check(jar, entryNames, violations);
         List<ChangesetInfo> changesets = new LiquibasePreflight(descriptor).check(jar, entryNames, violations);
-        return new ValidationReport(descriptor, violations, changesets);
+        return new ValidationReport(descriptor, violations, changesets, signer);
     }
 
     /**
@@ -328,6 +334,7 @@ public class PluginValidator {
                 continue;
             }
             boolean allowed = name.equals("META-INF/MANIFEST.MF")
+                    || JarSignature.METADATA.matcher(name).matches()
                     || name.startsWith("META-INF/maven/")
                     || name.startsWith("META-INF/LICENSE")
                     || name.startsWith("META-INF/NOTICE")

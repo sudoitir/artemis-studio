@@ -23,6 +23,10 @@ import java.util.Map;
  * @param descriptor the jar's own descriptor — what the review screen describes
  * @param missingRequires every {@code requires} entry that is neither an enabled built-in feature
  *     nor an active plugin right now; non-empty refuses {@code activate} but not {@code plan}
+ * @param trust who signed the jar and whether it may run; an untrusted or unsigned jar refuses
+ *     {@code activate} unless the allowance is on, but never {@code plan}
+ * @param acknowledgements the reasons ({@code permissions-added}, {@code signer-changed},
+ *     {@code unverified}) the installer must confirm before {@code activate} proceeds
  */
 public record ActivationPlan(
         String pluginId,
@@ -36,7 +40,9 @@ public record ActivationPlan(
         boolean compatible,
         List<String> missingRequires,
         PluginDescriptor descriptor,
-        Restart restart) {
+        Restart restart,
+        PlanTrust trust,
+        List<String> acknowledgements) {
 
     /**
      * Whether confirming ends in a restart of Studio: {@code NONE}, {@code AUTOMATIC} (Studio
@@ -53,5 +59,6 @@ public record ActivationPlan(
         pendingChangesets = List.copyOf(pendingChangesets);
         rolesLosingPermission = Map.copyOf(rolesLosingPermission);
         missingRequires = List.copyOf(missingRequires);
+        acknowledgements = List.copyOf(acknowledgements);
     }
 }

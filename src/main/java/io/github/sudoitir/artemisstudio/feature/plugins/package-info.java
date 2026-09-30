@@ -16,6 +16,7 @@
             "kernel.plugin",
             "kernel.plugin::descriptor",
             "kernel.plugin::host",
+            "kernel.plugin::trust",
             "kernel.plugin::validation",
             "kernel.security",
             "kernel.settings",

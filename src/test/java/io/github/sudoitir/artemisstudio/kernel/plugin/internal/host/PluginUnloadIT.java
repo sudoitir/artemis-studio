@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -9,6 +10,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
@@ -18,11 +20,14 @@ import io.github.sudoitir.artemisstudio.support.McpFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.awaitility.core.ConditionTimeoutException;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -73,6 +78,11 @@ class PluginUnloadIT extends PostgresIntegrationTest {
 
     @Autowired
     ApiTokenService tokens;
+
+    @BeforeEach
+    void trustThePublisher() {
+        TrustedTestKey.trust(jdbc);
+    }
 
     @AfterEach
     void cleanUp() {
@@ -161,11 +171,14 @@ class PluginUnloadIT extends PostgresIntegrationTest {
     @Test
     void aPluginThatDidRealWorkIsCollectedAfterItIsUninstalled() throws Exception {
         WeakReference<ClassLoader> loader = installExerciseAndUninstall();
-        for (int i = 0; i < 25 && loader.get() != null; i++) {
-            System.gc();
-            Thread.sleep(200);
-        }
-        if (loader.get() != null) {
+        try {
+            await().atMost(Duration.ofSeconds(5))
+                    .pollInterval(Duration.ofMillis(200))
+                    .until(() -> {
+                        System.gc();
+                        return loader.get() == null;
+                    });
+        } catch (ConditionTimeoutException _) {
             java.lang.management.ManagementFactory.getPlatformMBeanServer()
                     .invoke(
                             new javax.management.ObjectName("com.sun.management:type=HotSpotDiagnostic"),
@@ -186,15 +199,12 @@ class PluginUnloadIT extends PostgresIntegrationTest {
         var key = McpFixture.mintKey(
                 users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
         String sha = store.put(Files.readAllBytes(plugin().build()));
-        host.activate(sha, "test");
-        for (int i = 0;
-                i < 300
-                        && host.status(ID)
-                                .map(s -> s.status() != PluginInstallStatus.ACTIVE)
-                                .orElse(true);
-                i++) {
-            Thread.sleep(100);
-        }
+        host.activate(sha, "test", false);
+        await().atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(100))
+                .until(() -> host.status(ID)
+                        .filter(x -> x.status() == PluginInstallStatus.ACTIVE)
+                        .isPresent());
         var active = (PluginRuntimeRegistry.Active) registry.get(ID).orElseThrow();
         WeakReference<ClassLoader> loader = new WeakReference<>(active.runtime().classLoader());
 

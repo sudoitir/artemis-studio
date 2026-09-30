@@ -6,10 +6,10 @@ import java.util.List;
 /**
  * The outcome of {@link PluginValidator#validate}. {@code descriptor} is {@code null} when
  * {@code plugin.json} itself could not be read (a violation says why); nothing further is
- * checked in that case.
+ * checked in that case. {@code signer} is {@code null} for an unsigned jar.
  */
 public record ValidationReport(
-        PluginDescriptor descriptor, List<Violation> violations, List<ChangesetInfo> changesets) {
+        PluginDescriptor descriptor, List<Violation> violations, List<ChangesetInfo> changesets, Signer signer) {
 
     public ValidationReport {
         violations = List.copyOf(violations);
@@ -17,7 +17,7 @@ public record ValidationReport(
     }
 
     public ValidationReport(PluginDescriptor descriptor, List<Violation> violations) {
-        this(descriptor, violations, List.of());
+        this(descriptor, violations, List.of(), null);
     }
 
     public boolean valid() {
