@@ -1,7 +1,7 @@
 /**
  * Real-browser verification of grid column sizing (ADR-0116) against a running, seeded Studio.
  *
- *   ADMIN_PASSWORD=… node --experimental-strip-types scripts/verify-grid.ts
+ *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… node --experimental-strip-types scripts/verify-grid.ts
  *
  * Checks what jsdom cannot: columns fit what the browser actually lays out, a drag on a header
  * border widens its column, header and rows stay aligned, the width survives a reload, a

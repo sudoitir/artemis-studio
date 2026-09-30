@@ -37,7 +37,7 @@
 - [x] 7.4 Admin: unlock, sessions drawer, reset two-step verification, role MFA switch; password-policy errors
 
 ## 8. Scripts (F)
-- [ ] 8.1 Demo seed enrols TOTP; `signIn` computes the code from `ADMIN_TOTP_SECRET`
+- [x] 8.1 Demo seed enrols TOTP; `signIn` computes the code from `ADMIN_TOTP_SECRET`
 
 ## 9. Finish
 - [ ] 9.1 Reviewer on the full diff; findings fixed

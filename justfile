@@ -82,7 +82,8 @@ dev-up:
 
 # Dev stack plus a second and a third live/backup pair, filled with realistic traffic.
 # Needs the admin password `just dev-up` printed: ADMIN_PASSWORD=... just demo
-# On a fresh stack that password is one-time; add NEW_ADMIN_PASSWORD=... the first time.
+# On a fresh stack that password is one-time; add NEW_ADMIN_PASSWORD=... the first time. The seed also sets up
+# the admin's authenticator app (its role requires one) and prints ADMIN_TOTP_SECRET, which later runs need.
 [group('develop')]
 demo:
     {{compose_demo}} up --build -d
@@ -91,12 +92,13 @@ demo:
     COMPOSE="{{compose_demo}}" ./scripts/demo-seed.sh
 
 # Capture the README screenshots against whatever is running on :8080.
+# Needs ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... (the password and the secret `just demo` printed).
 [group('develop')]
 shots:
     {{npm}} run shots
 
 # Record the README demo GIFs (product, flow, SQL console, plugin install) from a real session on :8080.
-# Same prerequisite as `shots`: ADMIN_PASSWORD=... just demo-gif
+# Same prerequisite as `shots`: ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... just demo-gif
 # PLUGIN_JAR=<a built plugin-template jar> adds the plugin-install clip; CLIPS=demo,flow records only those.
 [group('develop')]
 demo-gif:

@@ -64,6 +64,19 @@ You are forced to set a new password on first login. Lose that first password
 before changing it and the only recovery is resetting the row directly in
 Postgres — there is no password-reset flow yet.
 
+The built-in **ADMIN** role requires two-step verification, so right after you choose a
+password Studio asks you to set up an authenticator app (scan the QR code, then confirm
+with a code) or a passkey, and shows ten single-use recovery codes once. Keep them: they
+are the way back in when the device is lost. Every later sign-in asks for the password and
+then a code.
+
+A script or `curl` signs in the same way. `POST /api/v1/auth/login` answers
+`{"status": "SECOND_FACTOR_REQUIRED", …}` for an account that has a factor, and
+`POST /api/v1/auth/second-factor` takes `{"totpCode": "123456"}`. An account with none yet
+sets one up with `POST /api/v1/auth/mfa/totp` (it returns the `secret` and an
+`otpauthUri`) and confirms it with `POST /api/v1/auth/mfa/totp/confirm` and
+`{"code": "123456"}`, which returns the recovery codes. API keys are not asked for a code.
+
 ## Register a cluster
 
 Sign in, then **Clusters → Add**. You give Studio one seed node's management
@@ -101,7 +114,9 @@ ADMIN_PASSWORD=… NEW_ADMIN_PASSWORD=… just demo   # a second pair, plus real
 
 The password `just dev-up` prints is one-time: Studio refuses everything else until it
 is changed. `NEW_ADMIN_PASSWORD` is the one you choose; the seed changes it for you on
-the first run, and later runs need only `ADMIN_PASSWORD` set to it.
+the first run. It also sets up an authenticator app for `admin`, which its role requires,
+and prints `ADMIN_TOTP_SECRET`. Later runs, and `just shots` and `just demo-gif`, need
+`ADMIN_PASSWORD` set to the new password and `ADMIN_TOTP_SECRET` to that secret.
 
 Nothing in that seed writes to `metric_sample` or `queue_snapshot` directly —
 the traffic is produced and consumed through the broker's own CLI, so the charts

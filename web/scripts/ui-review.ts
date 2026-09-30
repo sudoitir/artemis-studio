@@ -1,7 +1,7 @@
 /**
  * Capture the routing builder for a design pass, in BOTH colour schemes.
  *
- *   ADMIN_PASSWORD=… npm --prefix web run ui-review
+ *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… npm --prefix web run ui-review
  *
  * Not a README capture — `shots.ts` is that. This one photographs the states a
  * reviewer needs to judge rather than the one that sells the feature: the canvas

@@ -8,7 +8,7 @@
 # it, and demonstrating that needs a real broker, a real divert and a real
 # consumer racing each other.
 #
-#   ADMIN_PASSWORD=... ./scripts/capture-e2e.sh
+#   ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... ./scripts/capture-e2e.sh
 #
 # Everything goes through the product's own surfaces — Studio's REST API and the
 # Artemis CLI inside the broker image — except the final assertions, which read
@@ -19,6 +19,8 @@ set -euo pipefail
 STUDIO=${STUDIO:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
+# Once the admin has two-step verification (config-e2e.sh or the demo seed enrols it), the secret that run printed.
+ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 # The bootstrap admin must change its password before it can do anything else, so
 # the script does that once and uses the new one from then on.
 NEW_PASSWORD=${NEW_PASSWORD:-capture-e2e-Passw0rd!}
@@ -30,18 +32,12 @@ JAR=/var/lib/artemis-instance/bin/artemis
 COOKIES=$(mktemp)
 trap 'rm -f "$COOKIES"' EXIT
 
+# shellcheck source=lib/signin.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/signin.sh"
+
 say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 fail() { printf '\n\033[31mFAIL: %s\033[0m\n' "$*" >&2; exit 1; }
 pass() { printf '\033[32m  ✓ %s\033[0m\n' "$*"; }
-
-csrf() { awk '$6 == "XSRF-TOKEN" { print $7 }' "$COOKIES" | tail -1; }
-
-api() {
-  local method=$1 path=$2
-  shift 2
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$path" \
-    -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
-}
 
 psql_() { $COMPOSE exec -T postgres psql -qtAX -U artemis_studio -d artemis_studio -c "$1"; }
 
@@ -57,24 +53,7 @@ for _ in $(seq 1 60); do
 done
 
 say "signing in"
-login() { # password
-  curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/auth/me" >/dev/null || true
-  api POST /auth/login -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$1\"}" | grep -q '"username"'
-}
-
-if login "$ADMIN_PASSWORD"; then
-  if curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/clusters" | grep -q must-change-password; then
-    say "changing the bootstrap password"
-    api POST /auth/password \
-      -d "{\"currentPassword\":\"$ADMIN_PASSWORD\",\"newPassword\":\"$NEW_PASSWORD\"}" >/dev/null
-    ADMIN_PASSWORD=$NEW_PASSWORD
-    login "$ADMIN_PASSWORD" || fail "login failed after the password change"
-  fi
-elif login "$NEW_PASSWORD"; then
-  ADMIN_PASSWORD=$NEW_PASSWORD
-else
-  fail "login failed — is ADMIN_PASSWORD the one just dev-up printed?"
-fi
+studio_sign_in "$NEW_PASSWORD" || fail "could not sign in to Studio"
 
 say "registering the dev cluster"
 existing=$(api GET /clusters | python3 -c 'import json,sys; print(next((c["id"] for c in json.load(sys.stdin) if c["name"]=="dev"), ""))')
@@ -213,7 +192,7 @@ for _ in $(seq 1 60); do
   curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 && break
   sleep 3
 done
-login "$ADMIN_PASSWORD" || fail "could not sign in again after the restart"
+studio_sign_in "$NEW_PASSWORD" || fail "could not sign in again after the restart"
 
 say "waiting for the reconciler to converge again"
 for _ in $(seq 1 40); do

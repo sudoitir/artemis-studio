@@ -54,6 +54,10 @@ docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrato
 
 首次登录时会强制你设置新密码。如果在修改之前弄丢了这个初始密码，唯一的恢复办法是直接在 Postgres 中重置对应行——目前还没有找回密码的流程。
 
+内置的 **ADMIN** 角色要求两步验证，所以设置好新密码后，Studio 会马上让你设置验证器应用（扫描二维码，再输入一个验证码确认）或通行密钥（passkey），并**仅显示一次**十个一次性恢复码。请妥善保存：设备丢失时，它们是你重新登录的办法。之后每次登录都会先要密码，再要一个验证码。
+
+脚本或 `curl` 的登录方式相同。对已有验证方式的账户，`POST /api/v1/auth/login` 返回 `{"status": "SECOND_FACTOR_REQUIRED", …}`，随后用 `POST /api/v1/auth/second-factor` 提交 `{"totpCode": "123456"}`。尚未设置的账户用 `POST /api/v1/auth/mfa/totp` 开始设置（返回 `secret` 和 `otpauthUri`），再用 `POST /api/v1/auth/mfa/totp/confirm` 提交 `{"code": "123456"}` 确认，响应中包含恢复码。API 密钥不需要验证码。
+
 ## 注册一个集群
 
 登录后进入 **Clusters → Add**。你只需提供一个种子节点的管理端点及其凭据；拓扑中的其余部分会从 Broker 自身发现。凭据以 `ARTEMIS_STUDIO_SECRET_KEY` 加密存储。
@@ -78,6 +82,8 @@ docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrato
 just dev-up                          # Postgres + 一对 Artemis + Studio
 ADMIN_PASSWORD=… just demo           # 第二对节点，加上真实流量
 ```
+
+`just dev-up` 打印的密码是一次性的。第一次运行时，种子脚本需要 `NEW_ADMIN_PASSWORD=…`（你选的新密码），它会替你改掉密码，并为 `admin` 设置其角色所要求的验证器应用，然后打印 `ADMIN_TOTP_SECRET`。之后再运行（包括 `just shots` 和 `just demo-gif`）需要把 `ADMIN_PASSWORD` 设为新密码，并把 `ADMIN_TOTP_SECRET` 设为该密钥。
 
 这套种子脚本不会直接写 `metric_sample` 或 `queue_snapshot`——流量是通过 Broker 自带的 CLI 真实生产与消费的，所以图表是测量结果，而不是编造的。
 

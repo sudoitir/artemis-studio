@@ -53,7 +53,7 @@ docker compose -f compose.prod.yaml --env-file .env up -d
 docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrator'
 ```
 
-打开 <http://localhost:8080>，用 `admin` 和最后一行打印出的密码登录。这个密码只显示一次，首次登录时你会设置自己的密码。
+打开 <http://localhost:8080>，用 `admin` 和最后一行打印出的密码登录。这个密码只显示一次，首次登录时你会设置自己的密码，并设置 admin 角色所要求的两步验证。
 
 <details>
 <summary>克隆仓库后用 <code>just</code> 启动，或者单独跑一个容器、连接你自己的 Postgres</summary>
@@ -139,7 +139,7 @@ just dev             # 或者：同时启动后端 :8080 和 Vite :5173，支持
 just verify          # 运行 CI 的全部检查
 ```
 
-`ADMIN_PASSWORD=… just demo` 会再加两对主备节点，并给全部六个节点灌入贴近生产的流量：divert、一个 bridge、集群跳转、一个没有消费者且不断增长的积压、一批真实的死信积压，以及一个被停掉的节点。上面的截图和动图都是 `just shots` 和 `just demo-gif` 在这套环境里实录的，没有任何摆拍。
+`ADMIN_PASSWORD=… just demo`（首次运行还需要 `NEW_ADMIN_PASSWORD=…`，之后需要 `ADMIN_TOTP_SECRET=…`）会再加两对主备节点，并给全部六个节点灌入贴近生产的流量：divert、一个 bridge、集群跳转、一个没有消费者且不断增长的积压、一批真实的死信积压，以及一个被停掉的节点。上面的截图和动图都是 `just shots` 和 `just demo-gif` 在这套环境里实录的，没有任何摆拍。
 
 每个功能都要走 **OpenSpec** 流程，重要决策都记录为 [**ADR**](docs/adr/)。从 [`CONTRIBUTING.md`](CONTRIBUTING.md) 开始。
 

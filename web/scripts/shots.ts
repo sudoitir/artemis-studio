@@ -1,7 +1,7 @@
 /**
  * Capture the README screenshots against a running Studio.
  *
- *   ADMIN_PASSWORD=… npm --prefix web run shots      (or: just shots)
+ *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… npm --prefix web run shots      (or: just shots)
  *
  * Point it at whatever `just demo` left running. It signs in as a real operator
  * would (`session.ts`), waits for each view's own evidence of having loaded —

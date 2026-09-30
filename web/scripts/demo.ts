@@ -1,7 +1,7 @@
 /**
  * Record the README's demo GIFs from a real signed-in session.
  *
- *   ADMIN_PASSWORD=… npm --prefix web run demo      (or: just demo-gif)
+ *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… npm --prefix web run demo      (or: just demo-gif)
  *
  * Point it at whatever `just demo` left running. Everything on screen is the
  * product answering for itself against the seeded four-node estate — there is no
