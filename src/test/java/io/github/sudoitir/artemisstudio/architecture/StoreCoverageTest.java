@@ -35,6 +35,8 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("identity_group_mapping", "configuration"),
             Map.entry("identity_provider_default_role", "configuration"),
             Map.entry("plugin_secret", "configuration: one row per plugin secret"),
+            Map.entry("secret_key_state", "a single row: the current key version"),
+            Map.entry("secret_rotation", "one row per key rotation an operator starts"),
             Map.entry("plugin_artifact", "one row per installed plugin version, removed on uninstall"),
             Map.entry("plugin_install", "one row per installed plugin"),
             Map.entry("plugin_installer", "configuration"),

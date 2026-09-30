@@ -30,7 +30,7 @@ class RrPayloads {
     private static final String SEALED = "sealed";
 
     /** Every {@code rr_event.detail} key that belongs to a captured payload; the data lifecycle strips them together. */
-    static final List<String> KEYS = List.of(BODY_PREVIEW, TRUNCATED, POLICY_VERSION, SEALED, NONCE);
+    static final List<String> KEYS = List.of(BODY_PREVIEW, TRUNCATED, POLICY_VERSION, SEALED);
 
     private final ContentPolicy policy;
     private final ContentSealer sealer;
