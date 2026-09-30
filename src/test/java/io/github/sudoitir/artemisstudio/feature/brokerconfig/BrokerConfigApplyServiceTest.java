@@ -30,7 +30,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
@@ -95,9 +94,6 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     BrokerConfigNodeStateRepository nodeStates;
-
-    @Autowired
-    SplitBrainRegistry splitBrain;
 
     @MockitoBean
     BrokerConnections connections;
@@ -646,17 +642,14 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
         BrokerConfigApplyOutcome preview = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
 
-        splitBrain.publish(
-                clusterId, Map.of(nodes.findById(firstId).orElseThrow().getArtemisNodeId(), SplitBrainStatus.CRITICAL));
-        try {
-            BrokerConfigApplyRequest request = confirmed(preview);
-            assertThatThrownBy(() -> apply.apply(clusterId, request))
-                    .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining("split-brain");
-            verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
-        } finally {
-            splitBrain.forget(clusterId);
-        }
+        BrokerNodeEntity first = nodes.findById(firstId).orElseThrow();
+        first.recordSplitBrain(SplitBrainStatus.CRITICAL);
+        nodes.save(first);
+        BrokerConfigApplyRequest request = confirmed(preview);
+        assertThatThrownBy(() -> apply.apply(clusterId, request))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("split-brain");
+        verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
     }
 
     // ---- helpers ----------------------------------------------------------

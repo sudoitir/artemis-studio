@@ -1,8 +1,11 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -79,6 +82,10 @@ public class BrokerNodeEntity implements ClusterNode {
 
     @Column(name = "observed_cycle")
     private Long observedCycle;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "split_brain", nullable = false)
+    private SplitBrainStatus splitBrain = SplitBrainStatus.NONE;
 
     @Column(name = "clock_measured_at")
     private Instant clockMeasuredAt;
@@ -170,6 +177,11 @@ public class BrokerNodeEntity implements ClusterNode {
         }
         this.lastSeenAt = lastSeenAt;
         this.lastError = null;
+    }
+
+    /** The corroborated split-brain verdict for this node's NodeID. */
+    public void recordSplitBrain(SplitBrainStatus status) {
+        this.splitBrain = status;
     }
 
     /** A failed scrape: record it without disturbing the last-known-good HA state. */

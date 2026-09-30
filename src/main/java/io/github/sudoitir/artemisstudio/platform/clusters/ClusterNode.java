@@ -39,6 +39,9 @@ public interface ClusterNode {
 
     Instant getLastSeenAt();
 
+    /** The last split-brain verdict for this node's NodeID, written by the replica that owns the cluster. */
+    SplitBrainStatus getSplitBrain();
+
     /** The scrape cycle the HA state was last observed in; {@code null} before any read. */
     Long getObservedCycle();
 

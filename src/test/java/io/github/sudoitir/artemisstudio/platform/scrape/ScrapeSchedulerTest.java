@@ -24,7 +24,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyAcquired;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyReleased;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import java.io.IOException;
@@ -91,7 +90,7 @@ class ScrapeSchedulerTest {
     @BeforeEach
     void setUp() {
         when(ownership.owns(any())).thenReturn(true);
-        scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
+        scrapeCycle = new ScrapeCycle(persist);
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
                 settings,

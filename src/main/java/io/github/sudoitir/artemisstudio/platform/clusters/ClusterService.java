@@ -87,7 +87,6 @@ public class ClusterService {
     private final CapabilityLedger capabilityLedger;
     private final TopologyDiscovery topologyDiscovery;
     private final HaStateEvaluator evaluator;
-    private final SplitBrainRegistry splitBrainRegistry;
     private final CoreSubscriptionManager coreSubscriptions;
     private final CoreSubscriptionCheck coreSubscriptionCheck;
     private final BrokerSessions brokerSessions;
@@ -281,8 +280,7 @@ public class ClusterService {
         List<ClusterSummary> out = new ArrayList<>();
         for (ClusterEntity c : clusters.findAllByOrderByNameAsc()) {
             List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(c.getId());
-            var logical =
-                    evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), splitBrainRegistry.statusesFor(c.getId()));
+            var logical = evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), SplitBrainStatus.byNodeId(rows));
             var health = evaluator.toHealth(c.getId(), logical);
             out.add(new ClusterSummary(
                     c.getId(),

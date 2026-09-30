@@ -59,6 +59,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "studio_replica",
                     // Which replica owns a cluster's broker duties (ADR-0148, changeset platform-clusters 0003).
                     "cluster_lease",
+                    // The split-brain verdict moves onto the node row (ADR-0148, changeset platform-clusters 0004).
+                    "CREATE TABLE broker_node ",
+                    "ck_broker_node_split_brain",
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).
                     "plugin_secret",

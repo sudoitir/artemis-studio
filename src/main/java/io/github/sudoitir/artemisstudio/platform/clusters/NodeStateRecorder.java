@@ -5,10 +5,12 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxed
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -51,6 +53,22 @@ public class NodeStateRecorder {
     @Transactional
     public void recordNodeError(UUID nodeId, String message) {
         nodes.findById(nodeId).ifPresent(node -> node.recordError(Instant.now(), message));
+    }
+
+    /**
+     * Persist a corroboration pass: every node of the cluster takes the verdict of its NodeID, and
+     * one the pass has no verdict for is not in split-brain. Written with the tier-A state so every
+     * replica reads what the owner decided (ADR-0148).
+     */
+    @Transactional
+    public void recordSplitBrain(UUID clusterId, Map<String, SplitBrainStatus> verdictsByNodeId) {
+        for (BrokerNodeEntity node : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
+            String nodeId = node.getArtemisNodeId();
+            node.recordSplitBrain(
+                    nodeId == null
+                            ? SplitBrainStatus.NONE
+                            : verdictsByNodeId.getOrDefault(nodeId, SplitBrainStatus.NONE));
+        }
     }
 
     /** Freshly persisted endpoints for a cluster — the input to split-brain corroboration. */

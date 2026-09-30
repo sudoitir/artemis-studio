@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.HaStateEvaluator;
 import io.github.sudoitir.artemisstudio.platform.clusters.LogicalNode;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,7 +40,6 @@ public class StateCondition implements AlertCondition {
     private final io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService clocks;
     private final BrokerNodeMapper nodeMapper;
     private final HaStateEvaluator evaluator;
-    private final SplitBrainRegistry splitBrainRegistry;
     private final List<AlertSignalSource> signals;
 
     @Override
@@ -64,7 +62,7 @@ public class StateCondition implements AlertCondition {
 
     private Evaluation splitBrain(UUID clusterId, List<ClusterNode> rows) {
         List<LogicalNode> logical =
-                evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), splitBrainRegistry.statusesFor(clusterId));
+                evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), SplitBrainStatus.byNodeId(rows));
         boolean critical = logical.stream().anyMatch(n -> n.splitBrain() == SplitBrainStatus.CRITICAL);
         Set<String> universe = Set.of(CLUSTER_SUBJECT);
         return new Evaluation(universe, critical ? Map.of(CLUSTER_SUBJECT, 1.0) : Map.of());
@@ -137,7 +135,7 @@ public class StateCondition implements AlertCondition {
 
     private Evaluation clusterDegraded(UUID clusterId, List<ClusterNode> rows) {
         List<NodeEndpoint> endpoints = nodeMapper.toEndpoints(rows);
-        List<LogicalNode> logical = evaluator.toLogicalNodes(endpoints, splitBrainRegistry.statusesFor(clusterId));
+        List<LogicalNode> logical = evaluator.toLogicalNodes(endpoints, SplitBrainStatus.byNodeId(rows));
         ClusterHealth health = evaluator.toHealth(clusterId, logical);
         Set<String> universe = Set.of(CLUSTER_SUBJECT);
         boolean degraded =

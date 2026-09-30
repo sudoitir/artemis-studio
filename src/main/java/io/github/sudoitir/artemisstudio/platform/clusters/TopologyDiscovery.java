@@ -46,7 +46,6 @@ public class TopologyDiscovery {
     private final BrokerNodeRepository nodes;
     private final HaStateEvaluator evaluator;
     private final BrokerNodeMapper nodeMapper;
-    private final SplitBrainRegistry splitBrainRegistry;
 
     /** A seed the caller has already connected to. */
     public record ProbedSeed(String jolokiaUrl, JolokiaBrokerClient client) {}
@@ -98,9 +97,9 @@ public class TopologyDiscovery {
     }
 
     private ClusterTopology evaluated(UUID clusterId) {
-        List<NodeEndpoint> endpoints = nodeMapper.toEndpoints(nodes.findByClusterIdOrderByNameAsc(clusterId));
+        List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
         return new ClusterTopology(
-                clusterId, evaluator.toLogicalNodes(endpoints, splitBrainRegistry.statusesFor(clusterId)));
+                clusterId, evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), SplitBrainStatus.byNodeId(rows)));
     }
 
     /**

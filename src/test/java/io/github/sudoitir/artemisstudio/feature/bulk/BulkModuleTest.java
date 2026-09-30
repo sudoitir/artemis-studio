@@ -9,7 +9,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageOperations;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEnvironmentIndex;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
+import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpProperties;
@@ -43,9 +43,9 @@ class BulkModuleTest extends ModuleIntegrationTest {
     @MockitoBean
     ClusterDirectory clusterDirectory;
 
-    /** The scrape cycle, in a direct dependency, records split-brain state in the clusters module. */
+    /** The scrape cycle, in a direct dependency, persists each node's split-brain verdict through the clusters module. */
     @MockitoBean
-    SplitBrainRegistry splitBrain;
+    NodeStateRecorder nodeStateRecorder;
 
     /** The single-queue commands connect to a node through the broker module. */
     @MockitoBean

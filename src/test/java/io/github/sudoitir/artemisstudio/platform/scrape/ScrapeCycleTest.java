@@ -1,13 +1,19 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
+import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,8 +25,22 @@ class ScrapeCycleTest {
 
     private static final String NODE_ID = "f7734597-a768-11f1-aa4c-ceae3fa2df1d";
 
-    private final SplitBrainRegistry registry = new SplitBrainRegistry();
-    private final ScrapeCycle cycle = new ScrapeCycle(registry);
+    /** The verdicts {@link ScrapeCycle} persisted, per cluster, as the node rows would hold them. */
+    private final Map<UUID, Map<String, SplitBrainStatus>> persisted = new HashMap<>();
+
+    private final NodeStateRecorder recorder = mock(NodeStateRecorder.class);
+    private final ScrapeCycle cycle = new ScrapeCycle(recorder);
+
+    @BeforeEach
+    void record() {
+        doAnswer(invocation -> persisted.put(invocation.getArgument(0), invocation.getArgument(1)))
+                .when(recorder)
+                .recordSplitBrain(any(), any());
+    }
+
+    private SplitBrainStatus statusFor(UUID clusterId) {
+        return persisted.getOrDefault(clusterId, Map.of()).getOrDefault(NODE_ID, SplitBrainStatus.NONE);
+    }
 
     private static NodeEndpoint endpoint(String name, boolean active, Long observedCycle) {
         return new NodeEndpoint(
@@ -44,7 +64,7 @@ class ScrapeCycleTest {
 
     private SplitBrainStatus corroborate(UUID clusterId, NodeEndpoint... endpoints) {
         cycle.corroborate(clusterId, List.of(endpoints));
-        return registry.statusFor(clusterId, NODE_ID);
+        return statusFor(clusterId);
     }
 
     @Test
@@ -109,12 +129,12 @@ class ScrapeCycleTest {
         corroborate(split, endpoint("primary", true, 8L), endpoint("backup", true, 8L));
         corroborate(healthy, endpoint("primary", true, 8L), endpoint("backup", false, 8L));
 
-        assertThat(registry.statusFor(split, NODE_ID)).isEqualTo(SplitBrainStatus.CRITICAL);
-        assertThat(registry.statusFor(healthy, NODE_ID)).isEqualTo(SplitBrainStatus.NONE);
+        assertThat(statusFor(split)).isEqualTo(SplitBrainStatus.CRITICAL);
+        assertThat(statusFor(healthy)).isEqualTo(SplitBrainStatus.NONE);
     }
 
     @Test
-    void forgetClearsEverythingForACluster() {
+    void forgetRestartsTheCorroborationRatchetOfACluster() {
         UUID clusterId = UUID.randomUUID();
         cycle.next(clusterId);
         corroborate(clusterId, endpoint("primary", true, 1L), endpoint("backup", true, 1L));
@@ -122,6 +142,9 @@ class ScrapeCycleTest {
         cycle.forget(clusterId);
 
         assertThat(cycle.current(clusterId)).isZero();
-        assertThat(registry.statusFor(clusterId, NODE_ID)).isEqualTo(SplitBrainStatus.NONE);
+        corroborate(clusterId, endpoint("primary", true, 2L), endpoint("backup", true, 2L));
+        assertThat(statusFor(clusterId))
+                .as("the ratchet starts again, so the first sighting is not yet critical")
+                .isEqualTo(SplitBrainStatus.SUSPECTED);
     }
 }

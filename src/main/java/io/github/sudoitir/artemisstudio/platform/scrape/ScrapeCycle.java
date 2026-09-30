@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
+import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,19 +23,20 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>The cycle counter is <em>per cluster</em>, so one cluster's scrape
  *       cadence never perturbs another's detection window.
- *   <li>Only the scrape schedule advances the ratchet. The result is published
- *       to {@link SplitBrainRegistry}; read endpoints read that, so looking at
- *       health never corroborates a split-brain.
+ *   <li>Only the scrape schedule advances the ratchet. The verdict is persisted on
+ *       the cluster's node rows; read endpoints read the rows, on any replica, so
+ *       looking at health never corroborates a split-brain.
  * </ul>
  *
- * <p>The ratchet is in memory only. A restart resets the window, costing at most
+ * <p>The ratchet is in memory and stays with the replica that owns the cluster. A
+ * restart, or a hand-over to another replica, resets the window, costing at most
  * one extra tier-A cycle (~5s) before a real split-brain re-escalates to CRITICAL.
  */
 @Component
 @RequiredArgsConstructor
 public class ScrapeCycle {
 
-    private final SplitBrainRegistry splitBrainRegistry;
+    private final NodeStateRecorder persist;
 
     private final Map<UUID, AtomicLong> cycleByCluster = new ConcurrentHashMap<>();
     /** Per cluster: NodeID → the cycle a same-cycle dual-active was first seen in. */
@@ -69,14 +70,13 @@ public class ScrapeCycle {
             }
         }
         byNodeId.forEach((nodeId, eps) -> statuses.put(nodeId, evaluate(ratchet, nodeId, eps)));
-        splitBrainRegistry.publish(clusterId, statuses);
+        persist.recordSplitBrain(clusterId, statuses);
     }
 
     /** Forget a cluster's counters when it is removed. */
     public void forget(UUID clusterId) {
         cycleByCluster.remove(clusterId);
         firstSuspectedCycle.remove(clusterId);
-        splitBrainRegistry.forget(clusterId);
     }
 
     /**

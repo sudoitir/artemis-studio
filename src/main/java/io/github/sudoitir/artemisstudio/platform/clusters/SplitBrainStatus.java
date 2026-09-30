@@ -1,5 +1,9 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Whether an HA pair has two nodes claiming to be live, and how sure Studio is
  * (ADR-0012).
@@ -17,5 +21,19 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 public enum SplitBrainStatus {
     NONE,
     SUSPECTED,
-    CRITICAL
+    CRITICAL;
+
+    /**
+     * The persisted verdicts of a cluster's nodes, keyed by NodeID, for {@link HaStateEvaluator}. Both
+     * members of a pair carry the same verdict, so the worst one stands for the NodeID.
+     */
+    public static Map<String, SplitBrainStatus> byNodeId(Collection<? extends ClusterNode> rows) {
+        Map<String, SplitBrainStatus> byNodeId = new HashMap<>();
+        for (ClusterNode row : rows) {
+            if (row.getArtemisNodeId() != null) {
+                byNodeId.merge(row.getArtemisNodeId(), row.getSplitBrain(), (a, b) -> a.compareTo(b) >= 0 ? a : b);
+            }
+        }
+        return byNodeId;
+    }
 }

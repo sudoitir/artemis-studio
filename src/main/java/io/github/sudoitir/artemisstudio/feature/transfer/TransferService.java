@@ -41,7 +41,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
@@ -89,7 +88,6 @@ public class TransferService {
     private final TransferRunner runner;
     private final TransferNodes nodes;
     private final ClusterDirectory directory;
-    private final SplitBrainRegistry splitBrain;
     private final CapabilityLedger capabilities;
     private final QueueLocator locator;
     private final MessageOperations messages;
@@ -156,8 +154,7 @@ public class TransferService {
                         sameCluster,
                         targetLive,
                         TransferNodes.backup(target),
-                        splitBrain.statusFor(request.targetClusterId(), target.getArtemisNodeId())
-                                == SplitBrainStatus.CRITICAL,
+                        target.getSplitBrain() == SplitBrainStatus.CRITICAL,
                         threshold),
                 targetAddress,
                 request.targetQueue()));
