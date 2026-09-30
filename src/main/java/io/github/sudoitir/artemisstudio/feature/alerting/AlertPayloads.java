@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertStateMachine.Transition;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertStateMachine.TransitionKind;
+import io.github.sudoitir.artemisstudio.kernel.core.StudioProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
@@ -33,7 +34,7 @@ public class AlertPayloads {
     public static final int VERSION = 2;
 
     private final ClusterDirectory clusters;
-    private final AlertingProperties properties;
+    private final StudioProperties studio;
     private final ObjectMapper mapper;
 
     /** A transition as the payload carries it. */
@@ -89,12 +90,11 @@ public class AlertPayloads {
 
     /** {@code <public-url>/clusters/<id>/alerts}, or null when no public URL is configured. */
     String studioUrl(UUID clusterId) {
-        String base = properties.publicUrl();
-        if (base == null || base.isBlank()) {
+        if (!studio.hasPublicUrl()) {
             return null;
         }
-        String trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
-        return clusterId == null ? trimmed : trimmed + "/clusters/" + clusterId + "/alerts";
+        String base = studio.publicUrl();
+        return clusterId == null ? base : base + "/clusters/" + clusterId + "/alerts";
     }
 
     /**
