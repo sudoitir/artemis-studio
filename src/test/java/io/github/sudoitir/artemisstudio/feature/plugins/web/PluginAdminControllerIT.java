@@ -196,7 +196,6 @@ class PluginAdminControllerIT extends PostgresIntegrationTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .content(jar(id)))
-                .andDo(r -> System.out.println("DBGBODY " + r.getResponse().getContentAsString()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.plan.pluginId").value(id))
                 .andExpect(jsonPath("$.plan.activationClass").value("INSTANT"))
