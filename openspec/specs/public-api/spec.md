@@ -1,7 +1,7 @@
 # public-api Specification
 
 ## Purpose
-TBD - created by archiving change 09-public-api-contract. Update Purpose after archive.
+The HTTP API under `/api/v1` as a published, versioned contract that clients other than Studio's own UI can rely on: a versioning and deprecation policy, breaks caught in CI, one convention for lists, errors and limits, idempotent retries, generated clients, and tests that keep the document and the implementation in step.
 
 ## Requirements
 
