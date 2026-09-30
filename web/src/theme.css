@@ -18,6 +18,20 @@
   --mantine-color-dimmed: color-mix(in srgb, var(--mantine-color-gray-7), var(--mantine-color-gray-6));
 }
 
+/* The light scheme's filled red carries a white label at under 4:1 (red-6 3.6:1, red-7 3.85:1). --as-danger is the
+   AA red already measured for text (5.46:1 on white, so 5.46:1 behind a white label). (`html:` outranks the
+   variables Mantine injects at run time.) */
+html:root[data-mantine-color-scheme='light'] {
+  --mantine-color-red-filled: var(--as-danger);
+  --mantine-color-red-filled-hover: color-mix(in srgb, var(--as-danger) 88%, black);
+}
+
+/* A filled button's label is white by default: on pine-5 that is 3.15:1 (and on red-5 2.8:1), under the AA 4.5:1
+   floor. Black measures 6.7:1 and 7.6:1. Mantine sets the label as an inline variable, hence !important. */
+:root[data-mantine-color-scheme='dark'] .mantine-Button-root:is(:not([data-variant]), [data-variant='filled']) {
+  --button-color: var(--mantine-color-black) !important;
+}
+
 :root {
   --as-surface: var(--mantine-color-body);
   --as-surface-raised: var(--mantine-color-default);
