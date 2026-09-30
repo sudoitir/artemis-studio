@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.artemisstudio.feature.flow.ClientEdges.Kind;
 import io.github.sudoitir.artemisstudio.feature.flow.FlowStore.StoredEdge;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
+import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -59,6 +61,19 @@ class FlowSamplerIT extends PostgresIntegrationTest {
     /** The real client for the container, under the credentials a registered cluster would carry. */
     @MockitoBean
     BrokerConnections connections;
+
+    /**
+     * The scheduled sweep, stopped. It forgets the rate baseline of every cluster nobody is watching,
+     * and this test's cluster is watched by no one, so a scheduled run between the test's two sweeps
+     * left the second one with no rate to report.
+     */
+    @TestBean(name = "flowSampleJob")
+    ScheduledJob flowSampleJob;
+
+    static ScheduledJob flowSampleJob() {
+        return ScheduledJob.fixedDelay(
+                "flow-sample", "flow", ScheduledJob.Scope.INSTANCE, () -> java.time.Duration.ofDays(1), () -> {});
+    }
 
     private UUID clusterId;
     private UUID nodeId;
