@@ -46,6 +46,6 @@
 - [x] 8.4 Publish both clients on every release (npm provenance, Central signed + attested); add their paths to `changes.release`
 
 ## 9. Finish
-- [ ] 9.1 `just verify` green; `just api-diff` shows this change's breaks
+- [x] 9.1 `just verify` green; `just api-diff` shows this change's breaks
 - [x] 9.2 UI check of changed list pages (own ports and compose project; light and dark, empty and error), stack stopped
 - [ ] 9.3 Reviewer pass; PR with `!` commits; CI and Sonar green; merged; change archived

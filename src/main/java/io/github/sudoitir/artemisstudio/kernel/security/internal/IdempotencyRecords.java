@@ -24,13 +24,13 @@ class IdempotencyRecords {
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof Stored s
-                    && done == s.done
-                    && Objects.equals(fingerprint, s.fingerprint)
-                    && Objects.equals(status, s.status)
-                    && Objects.equals(contentType, s.contentType)
-                    && Objects.equals(headers, s.headers)
-                    && Arrays.equals(body, s.body);
+            return o instanceof Stored(var f, var d, var st, var ct, var h, var b)
+                    && done == d
+                    && Objects.equals(fingerprint, f)
+                    && Objects.equals(status, st)
+                    && Objects.equals(contentType, ct)
+                    && Objects.equals(headers, h)
+                    && Arrays.equals(body, b);
         }
 
         @Override
