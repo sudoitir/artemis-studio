@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +20,30 @@ class IdempotencyRecords {
     static final int TTL_SECONDS = 24 * 3600;
 
     /** {@code status}, {@code contentType}, {@code headers} and {@code body} are null until the request is done. */
-    record Stored(String fingerprint, boolean done, Integer status, String contentType, String headers, byte[] body) {}
+    record Stored(String fingerprint, boolean done, Integer status, String contentType, String headers, byte[] body) {
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Stored s
+                    && done == s.done
+                    && Objects.equals(fingerprint, s.fingerprint)
+                    && Objects.equals(status, s.status)
+                    && Objects.equals(contentType, s.contentType)
+                    && Objects.equals(headers, s.headers)
+                    && Arrays.equals(body, s.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Objects.hash(fingerprint, done, status, contentType, headers) + Arrays.hashCode(body);
+        }
+
+        @Override
+        public String toString() {
+            return "Stored[fingerprint=%s, done=%s, status=%s, contentType=%s, body=%d bytes]"
+                    .formatted(fingerprint, done, status, contentType, body == null ? 0 : body.length);
+        }
+    }
 
     private final JdbcClient jdbc;
 

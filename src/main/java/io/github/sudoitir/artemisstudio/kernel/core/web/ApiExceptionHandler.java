@@ -99,8 +99,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception e, Object body, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         // The base class passes a null body and reads the problem off the exception itself.
-        ProblemDetail problem =
-                body instanceof ProblemDetail p ? p : e instanceof ErrorResponse er ? er.getBody() : null;
+        ProblemDetail problem = null;
+        if (body instanceof ProblemDetail p) {
+            problem = p;
+        } else if (e instanceof ErrorResponse er) {
+            problem = er.getBody();
+        }
         if (problem != null && !String.valueOf(problem.getType()).startsWith(Problems.TYPE_BASE)) {
             problem.setType(java.net.URI.create(Problems.TYPE_BASE + slugFor(status)));
         }

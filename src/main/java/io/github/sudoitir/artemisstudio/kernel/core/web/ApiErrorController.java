@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -22,15 +23,29 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class ApiErrorController implements ErrorController {
 
-    @RequestMapping("/error")
+    // An error is forwarded here with the method of the request that failed, so every method is accepted.
+    @RequestMapping(
+            value = "/error",
+            method = {
+                RequestMethod.GET,
+                RequestMethod.HEAD,
+                RequestMethod.POST,
+                RequestMethod.PUT,
+                RequestMethod.PATCH,
+                RequestMethod.DELETE,
+                RequestMethod.OPTIONS
+            })
     ResponseEntity<ProblemDetail> error(HttpServletRequest request) {
         Object code = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
         HttpStatus status = code instanceof Integer i && HttpStatus.resolve(i) != null
                 ? HttpStatus.valueOf(i)
                 : HttpStatus.INTERNAL_SERVER_ERROR;
-        String slug = status == HttpStatus.NOT_FOUND
-                ? "not-found"
-                : status.is4xxClientError() ? "bad-request" : "internal-error";
+        String slug = "internal-error";
+        if (status == HttpStatus.NOT_FOUND) {
+            slug = "not-found";
+        } else if (status.is4xxClientError()) {
+            slug = "bad-request";
+        }
         return ResponseEntity.status(status)
                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .body(Problems.of(status, slug, status.getReasonPhrase(), "The request could not be completed."));

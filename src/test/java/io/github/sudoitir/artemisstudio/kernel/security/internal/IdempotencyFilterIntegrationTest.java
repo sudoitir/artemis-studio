@@ -120,7 +120,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
             started.countDown();
             try {
                 finish.await(30, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
             applied.incrementAndGet();
@@ -207,7 +207,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
 
         try {
             post(alice, key, null, "{}", throwing);
-        } catch (IllegalStateException expected) {
+        } catch (IllegalStateException _) {
             // the container answers it
         }
         MockHttpServletResponse retry = post(alice, key, null, "{}", create());

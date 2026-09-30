@@ -28,7 +28,7 @@ class ApiVersioningConfig implements WebMvcConfigurer {
 
     /** The one spelling of a version segment. {@code /api/1/} or {@code /api/V1/} would reach v1 handlers
      * past every filter that matches the literal {@code /api/v1/} prefix, so they are refused instead. */
-    private static final Pattern VERSION_SEGMENT = Pattern.compile("v[1-9][0-9]*");
+    private static final Pattern VERSION_SEGMENT = Pattern.compile("v[1-9]\\d*");
 
     private final ObjectProvider<ApiDeprecation> deprecations;
 
