@@ -114,9 +114,12 @@ public class RrSamplerHealth {
 
         public void publish() {
             ExpectationHealth previous = byExpectation.get(expectationId);
-            Instant lastSuccessAt = nodesSampled > 0 ? startedAt : previous == null ? null : previous.lastSuccessAt();
-            Instant lastErrorAt = lastError != null ? startedAt : previous == null ? null : previous.lastErrorAt();
-            String error = lastError != null ? lastError : previous == null ? null : previous.lastError();
+            Instant previousSuccessAt = previous == null ? null : previous.lastSuccessAt();
+            Instant previousErrorAt = previous == null ? null : previous.lastErrorAt();
+            String previousError = previous == null ? null : previous.lastError();
+            Instant lastSuccessAt = nodesSampled > 0 ? startedAt : previousSuccessAt;
+            Instant lastErrorAt = lastError != null ? startedAt : previousErrorAt;
+            String error = lastError != null ? lastError : previousError;
             byExpectation.put(
                     expectationId,
                     new ExpectationHealth(

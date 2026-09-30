@@ -14,8 +14,7 @@ final class AlertBackoff {
     private AlertBackoff() {}
 
     static Duration delayFor(int failures, Duration initial, Duration max) {
-        long baseMillis =
-                Math.min(max.toMillis(), initial.toMillis() * (1L << Math.min(Math.max(failures - 1, 0), 20)));
+        long baseMillis = Math.min(max.toMillis(), initial.toMillis() * (1L << Math.clamp(failures - 1, 0, 20)));
         long jittered = baseMillis / 2 + ThreadLocalRandom.current().nextLong(baseMillis / 2 + 1);
         return Duration.ofMillis(jittered);
     }

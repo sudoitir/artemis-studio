@@ -50,7 +50,7 @@ public class BrokerEventService {
             UUID clusterId, String type, UUID nodeId, String address, Instant from, Instant to, int page, int size) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         int p = Math.max(page, 1);
-        int s = Math.min(Math.max(size, 1), 500);
+        int s = Math.clamp(size, 1, 500);
         Page<BrokerEventEntity> result = events.findPage(
                 clusterId,
                 blankToNull(type),
@@ -96,7 +96,7 @@ public class BrokerEventService {
                         null,
                         from != null ? from : Instant.EPOCH,
                         to != null ? to : Instant.parse("9999-12-31T23:59:59Z"),
-                        PageRequest.of(0, Math.min(Math.max(limit, 1), 500)))
+                        PageRequest.of(0, Math.clamp(limit, 1, 500)))
                 .getContent()
                 .stream()
                 .map(this::toView)
@@ -108,7 +108,7 @@ public class BrokerEventService {
     public List<BrokerEventView> since(UUID clusterId, long lastSeq, int cap) {
         return events
                 .findByClusterIdAndSeqGreaterThanOrderBySeqAsc(
-                        clusterId, lastSeq, PageRequest.of(0, Math.min(Math.max(cap, 1), 1000)))
+                        clusterId, lastSeq, PageRequest.of(0, Math.clamp(cap, 1, 1000)))
                 .stream()
                 .map(this::toView)
                 .toList();
@@ -138,7 +138,7 @@ public class BrokerEventService {
         Map<String, Object> props;
         try {
             props = mapper.readValue(json, PROPS_TYPE);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return Map.of();
         }
         Map<String, Object> governed = new LinkedHashMap<>();

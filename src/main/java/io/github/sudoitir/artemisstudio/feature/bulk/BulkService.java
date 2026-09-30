@@ -199,7 +199,9 @@ public class BulkService {
                     warnings.add("Not paused; nothing changes.");
                 }
             }
-            case PURGE -> {}
+            case PURGE -> {
+                // A purge has nothing to warn about.
+            }
         }
         return new Planned(
                 name, refusal, new ItemEstimate(nodes, warnings.isEmpty() ? null : String.join(" ", warnings)));
@@ -265,7 +267,7 @@ public class BulkService {
                 throw new ConflictException(
                         "bulk-run-started", "This bulk run has already been executed. Preview again to run it again.");
             }
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             String running = runs.findFirstByClusterIdAndStatus(clusterId, BulkRunStatus.RUNNING)
                     .map(r -> r.getId().toString())
                     .orElse("another run");

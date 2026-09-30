@@ -270,6 +270,13 @@ public class TriageMcpTools {
                 // A dry run that "succeeded" changed nothing; saying so keeps a model from
                 // reading the audit trail as a record of things that actually happened.
                 e.dryRun() ? e.outcome() + " (dry run)" : e.outcome(),
-                e.error() != null ? e.error() : (e.affectedCount() != null ? "affected=" + e.affectedCount() : null));
+                activityDetail(e));
+    }
+
+    private static String activityDetail(AuditViews.AuditEventView e) {
+        if (e.error() != null) {
+            return e.error();
+        }
+        return e.affectedCount() != null ? "affected=" + e.affectedCount() : null;
     }
 }

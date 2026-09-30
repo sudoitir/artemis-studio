@@ -102,32 +102,7 @@ public class PagerDutySender implements NotificationSender {
         event.put("event_action", line.fired() ? "trigger" : "resolve");
         event.put("dedup_key", dedupKey(m, line));
         if (line.fired()) {
-            String summary = AlertMessageFormatter.singleLine("["
-                    + AlertMessageFormatter.severityWord(m.severity()) + "] " + m.ruleName() + " — " + line.label()
-                    + (m.clusterName() != null ? " (" + m.clusterName() + ")" : ""));
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("summary", summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
-            payload.put("source", m.clusterName() != null ? m.clusterName() : "artemis-studio");
-            payload.put("severity", severity(m.severity()));
-            if (line.at() != null) {
-                payload.put("timestamp", line.at().toString());
-            }
-            payload.put("component", line.label());
-            if (m.clusterName() != null) {
-                payload.put("group", m.clusterName());
-            }
-            payload.put("class", m.ruleName());
-            Map<String, Object> details = new LinkedHashMap<>();
-            details.put("rule", m.ruleName());
-            details.put("subject", line.subject());
-            if (line.value() != null) {
-                details.put("value", line.value());
-            }
-            if (m.clusterId() != null) {
-                details.put("clusterId", m.clusterId().toString());
-            }
-            payload.put("custom_details", details);
-            event.put("payload", payload);
+            event.put("payload", payload(m, line));
             if (m.studioUrl() != null) {
                 event.put("links", java.util.List.of(Map.of("href", m.studioUrl(), "text", "Open in Studio")));
             }
@@ -137,6 +112,35 @@ public class PagerDutySender implements NotificationSender {
             }
         }
         return event;
+    }
+
+    private static Map<String, Object> payload(AlertMessage m, AlertMessage.Line line) {
+        String summary = AlertMessageFormatter.singleLine("["
+                + AlertMessageFormatter.severityWord(m.severity()) + "] " + m.ruleName() + " — " + line.label()
+                + (m.clusterName() != null ? " (" + m.clusterName() + ")" : ""));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("summary", summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
+        payload.put("source", m.clusterName() != null ? m.clusterName() : "artemis-studio");
+        payload.put("severity", severity(m.severity()));
+        if (line.at() != null) {
+            payload.put("timestamp", line.at().toString());
+        }
+        payload.put("component", line.label());
+        if (m.clusterName() != null) {
+            payload.put("group", m.clusterName());
+        }
+        payload.put("class", m.ruleName());
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("rule", m.ruleName());
+        details.put("subject", line.subject());
+        if (line.value() != null) {
+            details.put("value", line.value());
+        }
+        if (m.clusterId() != null) {
+            details.put("clusterId", m.clusterId().toString());
+        }
+        payload.put("custom_details", details);
+        return payload;
     }
 
     /** SHA-256 hex of {@code artemis-studio|<ruleId>|<subject>}: stable, and inside PagerDuty's 255 limit. */
@@ -163,7 +167,7 @@ public class PagerDutySender implements NotificationSender {
             JsonNode url = mapper.readTree(channelConfigJson == null ? "{}" : channelConfigJson)
                     .get("url");
             return url == null || url.isNull() || url.asString().isBlank() ? DEFAULT_URL : url.asString();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return DEFAULT_URL;
         }
     }

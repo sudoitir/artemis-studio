@@ -317,16 +317,6 @@ public class RrCorrelator implements RrObservationSink {
     }
 
     /**
-     * When this flow stops being allowed to wait, on <em>Studio's</em> clock.
-     *
-     * <p>{@code JMSExpiration} is absolute and was stamped by the producer: its own
-     * clock plus the TTL it asked for. The deadline sweep compares against Studio's
-     * clock, so before this normalisation a producer running ten minutes fast meant
-     * no flow ever timed out, and ten minutes slow meant every flow timed out the
-     * moment it was seen. The broker's measured offset is removed here (ADR-0053)
-     * so the comparison downstream is between two readings of the same clock.
-     */
-    /**
      * Forward skew only, in milliseconds, or null when there is nothing to report.
      *
      * <p>Studio cannot tell "produced in the future" from "produced and then sat on
@@ -347,6 +337,16 @@ public class RrCorrelator implements RrObservationSink {
         return Map.of("clockSkew", Map.of("side", side, "aheadOfStudioMs", skewMs));
     }
 
+    /**
+     * When this flow stops being allowed to wait, on <em>Studio's</em> clock.
+     *
+     * <p>{@code JMSExpiration} is absolute and was stamped by the producer: its own
+     * clock plus the TTL it asked for. The deadline sweep compares against Studio's
+     * clock, so before this normalisation a producer running ten minutes fast meant
+     * no flow ever timed out, and ten minutes slow meant every flow timed out the
+     * moment it was seen. The broker's measured offset is removed here (ADR-0053)
+     * so the comparison downstream is between two readings of the same clock.
+     */
     private Instant deadlineAt(Observation.RequestSeen r, RrExpectationEntity expectation) {
         if (r.expiration() > 0) {
             return clocks.brokerTime().toStudioTime(r.nodeId(), r.expiration());

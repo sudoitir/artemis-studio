@@ -104,10 +104,9 @@ public class ResourcesMcpActionTools {
 
     private static CloseResult result(Attempt<CloseResult> attempt) {
         return switch (attempt) {
-            case Attempt.Ok<CloseResult> ok -> ok.value();
-            case Attempt.Failed<CloseResult> f ->
-                throw new io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException(
-                        f.kind(), f.detail());
+            case Attempt.Ok<CloseResult>(var value) -> value;
+            case Attempt.Failed<CloseResult>(var kind, var detail) ->
+                throw new io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException(kind, detail);
         };
     }
 

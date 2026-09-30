@@ -43,54 +43,16 @@ public class SetupReader {
                     JolokiaRequest.exec(broker, "getAddressSettingsAsJSON(java.lang.String)", "#"),
                     JolokiaRequest.readAll(broker + ",component=cluster-connections,name=*")));
             if (responses.size() != 3) {
-                return NodeRead.unreadable(
-                        node.getId(),
-                        node.getName(),
-                        node.getArtemisNodeId(),
-                        live,
-                        true,
-                        "The node answered " + responses.size() + " of 3 batched requests.");
+                return unreadable(node, live, "The node answered " + responses.size() + " of 3 batched requests.");
             }
             JolokiaResponse attributes = responses.get(0);
             if (!attributes.ok()) {
-                return NodeRead.unreadable(
-                        node.getId(),
-                        node.getName(),
-                        node.getArtemisNodeId(),
-                        live,
-                        true,
-                        "The broker MBean could not be read: " + reason(attributes));
+                return unreadable(node, live, "The broker MBean could not be read: " + reason(attributes));
             }
             JsonNode brokerAttributes = attributes.value();
+            Part<JsonNode> settings = defaultSettings(client, responses.get(1));
+            Part<Map<String, JsonNode>> connections = clusterConnections(responses.get(2));
 
-            JsonNode settings = null;
-            String settingsError = null;
-            JsonNode settingsResponse = responses.get(1).ok() ? client.parsed(responses.get(1)) : null;
-            if (settingsResponse != null && settingsResponse.isObject()) {
-                settings = settingsResponse;
-            } else {
-                settingsError = "The default address settings could not be read: " + reason(responses.get(1));
-            }
-
-            Map<String, JsonNode> connections = null;
-            String connectionsError = null;
-            JolokiaResponse cc = responses.get(2);
-            if (cc.ok() && cc.value() != null && cc.value().isObject()) {
-                connections = new LinkedHashMap<>();
-                for (var entry : cc.value().properties()) {
-                    connections.put(name(entry.getKey()), entry.getValue());
-                }
-            } else if (cc.status() == 404) {
-                connections = Map.of();
-            } else {
-                connectionsError = "The cluster connections could not be read: " + reason(cc);
-            }
-
-            String artemisNodeId = node.getArtemisNodeId();
-            JsonNode reported = brokerAttributes.get("NodeID");
-            if (reported != null && !reported.isNull() && !reported.asString().isBlank()) {
-                artemisNodeId = reported.asString();
-            }
             JsonNode active = brokerAttributes.get("Active");
             if (active != null && active.isBoolean()) {
                 live = active.asBoolean();
@@ -98,32 +60,61 @@ public class SetupReader {
             return new NodeRead(
                     node.getId(),
                     node.getName(),
-                    artemisNodeId,
+                    reportedNodeId(brokerAttributes, node.getArtemisNodeId()),
                     live,
                     true,
                     null,
                     brokerAttributes,
-                    settings,
-                    settingsError,
-                    connections,
-                    connectionsError);
+                    settings.value(),
+                    settings.error(),
+                    connections.value(),
+                    connections.error());
         } catch (BrokerConnectionException e) {
-            return NodeRead.unreadable(
-                    node.getId(),
-                    node.getName(),
-                    node.getArtemisNodeId(),
+            return unreadable(
+                    node,
                     live,
-                    true,
                     e.getMessage() != null ? e.getMessage() : e.kind().defaultMessage());
         } catch (RuntimeException e) {
-            return NodeRead.unreadable(
-                    node.getId(),
-                    node.getName(),
-                    node.getArtemisNodeId(),
-                    live,
-                    true,
-                    "The node's answer could not be read: " + e.getMessage());
+            return unreadable(node, live, "The node's answer could not be read: " + e.getMessage());
         }
+    }
+
+    /** One part of the read: its value, or the reason it is missing. */
+    private record Part<T>(T value, String error) {}
+
+    private static NodeRead unreadable(ClusterNode node, boolean live, String reason) {
+        return NodeRead.unreadable(node.getId(), node.getName(), node.getArtemisNodeId(), live, true, reason);
+    }
+
+    private static Part<JsonNode> defaultSettings(JolokiaBrokerClient client, JolokiaResponse response) {
+        JsonNode parsed = response.ok() ? client.parsed(response) : null;
+        if (parsed != null && parsed.isObject()) {
+            return new Part<>(parsed, null);
+        }
+        return new Part<>(null, "The default address settings could not be read: " + reason(response));
+    }
+
+    private static Part<Map<String, JsonNode>> clusterConnections(JolokiaResponse cc) {
+        if (cc.ok() && cc.value() != null && cc.value().isObject()) {
+            Map<String, JsonNode> connections = new LinkedHashMap<>();
+            for (var entry : cc.value().properties()) {
+                connections.put(name(entry.getKey()), entry.getValue());
+            }
+            return new Part<>(connections, null);
+        }
+        if (cc.status() == 404) {
+            return new Part<>(Map.of(), null);
+        }
+        return new Part<>(null, "The cluster connections could not be read: " + reason(cc));
+    }
+
+    /** The NodeID the broker reports for itself, else the one Studio already knew. */
+    private static String reportedNodeId(JsonNode brokerAttributes, String known) {
+        JsonNode reported = brokerAttributes.get("NodeID");
+        if (reported != null && !reported.isNull() && !reported.asString().isBlank()) {
+            return reported.asString();
+        }
+        return known;
     }
 
     /** {@code ...,component=cluster-connections,name="studio-dev"} → {@code studio-dev}. */

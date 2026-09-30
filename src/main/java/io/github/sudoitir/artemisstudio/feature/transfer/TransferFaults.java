@@ -11,5 +11,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class TransferFaults {
 
-    public void afterTargetCommit(UUID runId) {}
+    public void afterTargetCommit(UUID runId) {
+        // Nothing to do outside a test.
+    }
 }

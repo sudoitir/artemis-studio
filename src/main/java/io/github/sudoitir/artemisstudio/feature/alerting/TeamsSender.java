@@ -95,10 +95,10 @@ public class TeamsSender implements NotificationSender {
                     default -> "Default";
                 }));
         List<Map<String, Object>> facts = new ArrayList<>();
-        facts.add(Map.of("title", "Severity", "value", AlertMessageFormatter.severityWord(m.severity())));
-        facts.add(Map.of("title", "Rule", "value", m.ruleName()));
+        facts.add(fact("Severity", AlertMessageFormatter.severityWord(m.severity())));
+        facts.add(fact("Rule", m.ruleName()));
         if (m.clusterName() != null) {
-            facts.add(Map.of("title", "Cluster", "value", m.clusterName()));
+            facts.add(fact("Cluster", m.clusterName()));
         }
         bodyItems.add(Map.of("type", "FactSet", "facts", facts));
         for (AlertMessage.Line t : m.transitions()) {
@@ -120,5 +120,9 @@ public class TeamsSender implements NotificationSender {
                 "message",
                 "attachments",
                 List.of(Map.of("contentType", "application/vnd.microsoft.card.adaptive", "content", card)));
+    }
+
+    private static Map<String, Object> fact(String title, String value) {
+        return Map.of("title", title, "value", value);
     }
 }

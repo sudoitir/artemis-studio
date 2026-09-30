@@ -33,6 +33,11 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class QueueLifecycleOperations {
 
+    private static final String QUEUE_NAMES = "QueueNames";
+    private static final String CONSUMER_COUNT = "ConsumerCount";
+    private static final String MESSAGE_COUNT = "MessageCount";
+    private static final String PAUSED = "Paused";
+
     /**
      * Queue MBean attribute -> {@code QueueConfiguration} JSON key. Read back and
      * replayed on every update; see {@link #updateQueue}. Attributes the broker
@@ -176,24 +181,23 @@ public class QueueLifecycleOperations {
     public DeleteState deleteState(
             JolokiaBrokerClient client, String brokerMbean, String address, String queueName, String routingType) {
         List<JolokiaResponse> res = client.batch(List.of(
-                JolokiaRequest.read(BrokerMBeans.address(brokerMbean, address), "QueueNames"),
-                JolokiaRequest.read(
-                        BrokerMBeans.queue(brokerMbean, address, queueName, routingType), "ConsumerCount")));
+                JolokiaRequest.read(BrokerMBeans.address(brokerMbean, address), QUEUE_NAMES),
+                JolokiaRequest.read(BrokerMBeans.queue(brokerMbean, address, queueName, routingType), CONSUMER_COUNT)));
         // An address that is not there is a fact: the queue is gone. Any other failed read is
         // not, and throwing makes the node "could not be checked" rather than assumed fine.
         if (absent(res.get(0))) {
             return new DeleteState(false, 0L, List.of());
         }
-        require(res.get(0), "QueueNames");
-        JsonNode names = res.get(0).attribute("QueueNames");
+        require(res.get(0), QUEUE_NAMES);
+        JsonNode names = res.get(0).attribute(QUEUE_NAMES);
         List<String> addressQueues = names == null || !names.isArray()
                 ? List.of()
                 : names.valueStream().map(JsonNode::asString).toList();
         if (!addressQueues.contains(queueName)) {
             return new DeleteState(false, 0L, addressQueues);
         }
-        require(res.get(1), "ConsumerCount");
-        JsonNode consumers = res.get(1).attribute("ConsumerCount");
+        require(res.get(1), CONSUMER_COUNT);
+        JsonNode consumers = res.get(1).attribute(CONSUMER_COUNT);
         return new DeleteState(true, consumers == null ? 0L : consumers.asLong(), addressQueues);
     }
 
@@ -203,17 +207,17 @@ public class QueueLifecycleOperations {
 
     /** {@code MessageCount} on the queue MBean — the delete estimate the bulk cap is checked against (D6). */
     public long messageCount(JolokiaBrokerClient client, String queueMbean) {
-        JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, "MessageCount"));
-        require(res, "MessageCount");
-        JsonNode count = res.attribute("MessageCount");
+        JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, MESSAGE_COUNT));
+        require(res, MESSAGE_COUNT);
+        JsonNode count = res.attribute(MESSAGE_COUNT);
         return count == null ? 0L : count.asLong();
     }
 
     /** Whether the queue is currently paused — the {@code ALREADY} test for pause / resume. */
     public boolean isPaused(JolokiaBrokerClient client, String queueMbean) {
-        JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, "Paused"));
-        require(res, "Paused");
-        JsonNode paused = res.attribute("Paused");
+        JolokiaResponse res = client.single(JolokiaRequest.read(queueMbean, PAUSED));
+        require(res, PAUSED);
+        JsonNode paused = res.attribute(PAUSED);
         return paused != null && paused.asBoolean();
     }
 
@@ -264,11 +268,11 @@ public class QueueLifecycleOperations {
 
     /** The queues bound to an address — what a {@link ManagementRefusal.Kind#BOUND_QUEUES} refusal names. */
     public List<String> boundQueues(JolokiaBrokerClient client, String addressMbean) {
-        JolokiaResponse res = client.single(JolokiaRequest.read(addressMbean, "QueueNames"));
+        JolokiaResponse res = client.single(JolokiaRequest.read(addressMbean, QUEUE_NAMES));
         if (!res.ok()) {
             return List.of();
         }
-        JsonNode names = res.attribute("QueueNames");
+        JsonNode names = res.attribute(QUEUE_NAMES);
         if (names == null || !names.isArray()) {
             return List.of();
         }

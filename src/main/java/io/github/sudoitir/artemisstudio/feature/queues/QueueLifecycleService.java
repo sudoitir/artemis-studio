@@ -54,6 +54,18 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class QueueLifecycleService {
 
+    private static final String ADDRESS = "address";
+    private static final String ROUTING_TYPE = "routing-type";
+    private static final String DURABLE = "durable";
+    private static final String FILTER_STRING = "filter-string";
+    private static final String MAX_CONSUMERS = "max-consumers";
+    private static final String PURGE_ON_NO_CONSUMERS = "purge-on-no-consumers";
+    private static final String EXCLUSIVE = "exclusive";
+    private static final String NON_DESTRUCTIVE = "non-destructive";
+    private static final String RING_SIZE = "ring-size";
+    private static final String REQUESTED = ", requested ";
+    private static final String QUEUES_TOPIC = "queues";
+
     private final QueueLocator queueLocator;
     private final QueueSnapshotUpsert snapshotWriter;
     private final Optional<DeclaredDiverts> declaredDiverts;
@@ -139,7 +151,7 @@ public class QueueLifecycleService {
                     // so the delete reads as though it did nothing and the row that is
                     // left fails every action against a destroyed MBean.
                     snapshotWriter.forget(clusterId, queueName);
-                    sseHub.publish(clusterId, "queues");
+                    sseHub.publish(clusterId, QUEUES_TOPIC);
                 })
                 .build()));
     }
@@ -169,25 +181,12 @@ public class QueueLifecycleService {
         if (!state.present()) {
             return new DeletePlan(queue, state, List.of(), List.of(), List.of(), List.of(), List.of());
         }
-        String address = queue.address();
         List<DivertRow> incoming = new ArrayList<>();
         List<DivertRow> kept = new ArrayList<>();
         List<DivertRow> tapsGone = new ArrayList<>();
         List<DivertRow> tapsKept = new ArrayList<>();
         for (DivertRow d : divertOps.listDiverts(client, null, null)) {
-            boolean capture = d.uniqueName() != null && d.uniqueName().startsWith(DivertOperations.CAPTURE_PREFIX);
-            if (capture) {
-                if (address.equals(d.address())) {
-                    boolean stays = captureTaps
-                            .map(t -> t.coversWithout(clusterId, d.uniqueName(), address, queue.queueName()))
-                            .orElse(false);
-                    (stays ? tapsKept : tapsGone).add(d);
-                }
-            } else if (address.equals(d.forwardingAddress())) {
-                incoming.add(d);
-            } else if (address.equals(d.address())) {
-                kept.add(d);
-            }
+            sortDivert(d, clusterId, queue, incoming, kept, tapsGone, tapsKept);
         }
         // Only an address left with no binding at all breaks or re-creates through an incoming
         // divert. A divert from it keeps it bound and routing, so the incoming one still feeds it.
@@ -201,6 +200,31 @@ public class QueueLifecycleService {
                 kept,
                 tapsGone,
                 tapsKept);
+    }
+
+    /** Files one divert by how deleting {@code queue} touches it: forwarding in, routing out, or a capture tap. */
+    private void sortDivert(
+            DivertRow d,
+            UUID clusterId,
+            ResolvedQueue queue,
+            List<DivertRow> incoming,
+            List<DivertRow> kept,
+            List<DivertRow> tapsGone,
+            List<DivertRow> tapsKept) {
+        String address = queue.address();
+        boolean capture = d.uniqueName() != null && d.uniqueName().startsWith(DivertOperations.CAPTURE_PREFIX);
+        if (capture) {
+            if (address.equals(d.address())) {
+                boolean stays = captureTaps
+                        .map(t -> t.coversWithout(clusterId, d.uniqueName(), address, queue.queueName()))
+                        .orElse(false);
+                (stays ? tapsKept : tapsGone).add(d);
+            }
+        } else if (address.equals(d.forwardingAddress())) {
+            incoming.add(d);
+        } else if (address.equals(d.address())) {
+            kept.add(d);
+        }
     }
 
     private static Check deletePreflight(
@@ -415,7 +439,7 @@ public class QueueLifecycleService {
                 .dryRun(dryRun)
                 .preflight((client, broker) -> divertPreflight(client, broker, req))
                 .action((client, broker) -> divertOps.createVerified(client, broker, config))
-                .signal(() -> sseHub.publish(clusterId, "queues"))
+                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
                 .build()));
     }
 
@@ -504,7 +528,7 @@ public class QueueLifecycleService {
                 .dryRun(dryRun)
                 .override(override)
                 .action(action)
-                .signal(() -> sseHub.publish(clusterId, "queues"))
+                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
                 .build()));
     }
 
@@ -544,16 +568,16 @@ public class QueueLifecycleService {
     private static Map<String, Object> queueConfig(CreateQueueRequest req) {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("name", req.name());
-        config.put("address", req.address());
-        config.put("routing-type", req.routingType().toUpperCase());
-        config.put("durable", req.durable());
+        config.put(ADDRESS, req.address());
+        config.put(ROUTING_TYPE, req.routingType().toUpperCase());
+        config.put(DURABLE, req.durable());
         config.put("auto-create-address", req.autoCreateAddress());
-        putIfPresent(config, "filter-string", blankToNull(req.filter()));
-        putIfPresent(config, "max-consumers", req.maxConsumers());
-        putIfPresent(config, "purge-on-no-consumers", req.purgeOnNoConsumers());
-        putIfPresent(config, "exclusive", req.exclusive());
-        putIfPresent(config, "non-destructive", req.nonDestructive());
-        putIfPresent(config, "ring-size", req.ringSize());
+        putIfPresent(config, FILTER_STRING, blankToNull(req.filter()));
+        putIfPresent(config, MAX_CONSUMERS, req.maxConsumers());
+        putIfPresent(config, PURGE_ON_NO_CONSUMERS, req.purgeOnNoConsumers());
+        putIfPresent(config, EXCLUSIVE, req.exclusive());
+        putIfPresent(config, NON_DESTRUCTIVE, req.nonDestructive());
+        putIfPresent(config, RING_SIZE, req.ringSize());
         return config;
     }
 
@@ -561,12 +585,12 @@ public class QueueLifecycleService {
         Map<String, Object> patch = new LinkedHashMap<>();
         // A filter is patchable to empty on purpose — clearing it is a real edit —
         // so it is included whenever the field was sent at all.
-        putIfPresent(patch, "filter-string", req.filter());
-        putIfPresent(patch, "max-consumers", req.maxConsumers());
-        putIfPresent(patch, "purge-on-no-consumers", req.purgeOnNoConsumers());
-        putIfPresent(patch, "exclusive", req.exclusive());
-        putIfPresent(patch, "non-destructive", req.nonDestructive());
-        putIfPresent(patch, "ring-size", req.ringSize());
+        putIfPresent(patch, FILTER_STRING, req.filter());
+        putIfPresent(patch, MAX_CONSUMERS, req.maxConsumers());
+        putIfPresent(patch, PURGE_ON_NO_CONSUMERS, req.purgeOnNoConsumers());
+        putIfPresent(patch, EXCLUSIVE, req.exclusive());
+        putIfPresent(patch, NON_DESTRUCTIVE, req.nonDestructive());
+        putIfPresent(patch, RING_SIZE, req.ringSize());
         return patch;
     }
 
@@ -582,9 +606,9 @@ public class QueueLifecycleService {
 
     private static Map<String, Object> params(CreateQueueRequest req) {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("address", req.address());
+        params.put(ADDRESS, req.address());
         params.put("routingType", req.routingType());
-        params.put("durable", req.durable());
+        params.put(DURABLE, req.durable());
         putIfPresent(params, "filter", blankToNull(req.filter()));
         return params;
     }
@@ -600,15 +624,15 @@ public class QueueLifecycleService {
         if (existing == null || !existing.isObject()) {
             return false;
         }
-        return sameText(existing, "address", req.address())
-                && sameText(existing, "routing-type", req.routingType().toUpperCase())
-                && sameText(existing, "filter-string", blankToNull(req.filter()))
-                && sameBoolean(existing, "durable", req.durable())
-                && sameNumber(existing, "max-consumers", req.maxConsumers())
-                && sameBoolean(existing, "purge-on-no-consumers", req.purgeOnNoConsumers())
-                && sameBoolean(existing, "exclusive", req.exclusive())
-                && sameBoolean(existing, "non-destructive", req.nonDestructive())
-                && sameNumber(existing, "ring-size", req.ringSize());
+        return sameText(existing, ADDRESS, req.address())
+                && sameText(existing, ROUTING_TYPE, req.routingType().toUpperCase())
+                && sameText(existing, FILTER_STRING, blankToNull(req.filter()))
+                && sameBoolean(existing, DURABLE, req.durable())
+                && sameNumber(existing, MAX_CONSUMERS, req.maxConsumers())
+                && sameBoolean(existing, PURGE_ON_NO_CONSUMERS, req.purgeOnNoConsumers())
+                && sameBoolean(existing, EXCLUSIVE, req.exclusive())
+                && sameBoolean(existing, NON_DESTRUCTIVE, req.nonDestructive())
+                && sameNumber(existing, RING_SIZE, req.ringSize());
     }
 
     /**
@@ -647,14 +671,14 @@ public class QueueLifecycleService {
     /** Describe a differing existing queue well enough that the operator can act on it. */
     static String describeDifference(JsonNode existing, CreateQueueRequest req) {
         List<String> differences = new ArrayList<>();
-        if (!sameText(existing, "address", req.address())) {
-            differences.add("address is " + text(existing, "address") + ", requested " + req.address());
+        if (!sameText(existing, ADDRESS, req.address())) {
+            differences.add("address is " + text(existing, ADDRESS) + REQUESTED + req.address());
         }
-        if (!sameText(existing, "routing-type", req.routingType().toUpperCase())) {
-            differences.add("routing type is " + text(existing, "routing-type") + ", requested " + req.routingType());
+        if (!sameText(existing, ROUTING_TYPE, req.routingType().toUpperCase())) {
+            differences.add("routing type is " + text(existing, ROUTING_TYPE) + REQUESTED + req.routingType());
         }
-        if (!sameText(existing, "filter-string", blankToNull(req.filter()))) {
-            differences.add("filter is " + text(existing, "filter-string") + ", requested " + req.filter());
+        if (!sameText(existing, FILTER_STRING, blankToNull(req.filter()))) {
+            differences.add("filter is " + text(existing, FILTER_STRING) + REQUESTED + req.filter());
         }
         return differences.isEmpty() ? "the existing queue differs from the request" : String.join("; ", differences);
     }

@@ -233,7 +233,7 @@ public class PluginAdminController {
     /** Fetches the offered update and inspects it like an upload; activating it is a separate step. */
     @PostMapping("/{id}/download-update")
     @ResponseStatus(HttpStatus.CREATED)
-    public PluginUploadView downloadUpdate(@PathVariable String id) throws IOException {
+    public PluginUploadView downloadUpdate(@PathVariable String id) {
         var inspection = administration.downloadUpdate(id);
         return new PluginUploadView(
                 inspection.sha256(),

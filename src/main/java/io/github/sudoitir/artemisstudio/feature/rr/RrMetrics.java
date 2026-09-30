@@ -114,8 +114,7 @@ public class RrMetrics {
             }
         }
 
-        Double coverage =
-                estimateCoverage(clusterId, address, completed + timedOut + orphaned + responderDropped, window);
+        Double coverage = estimateCoverage(clusterId, address, completed + timedOut + orphaned + responderDropped);
 
         return new AddressStatsView(
                 address,
@@ -133,7 +132,7 @@ public class RrMetrics {
                 window.toMillis());
     }
 
-    private Double estimateCoverage(UUID clusterId, String address, long observedInWindow, Duration window) {
+    private Double estimateCoverage(UUID clusterId, String address, long observedInWindow) {
         long currentAdded = queueSnapshots.forCluster(clusterId).stream()
                 .filter(s -> address.equals(s.address()))
                 .mapToLong(QueueSnapshot::messagesAdded)

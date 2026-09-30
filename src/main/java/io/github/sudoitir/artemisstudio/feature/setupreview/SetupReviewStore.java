@@ -66,15 +66,11 @@ class SetupReviewStore {
             node.put("nodeName", n.nodeName());
             node.put("live", n.live());
             node.put("reviewed", n.readable());
-            node.put(
-                    "reason",
-                    n.readable()
-                            ? null
-                            : n.manageable() ? n.unavailableReason() : "Studio has no management URL for this node.");
+            node.put("reason", n.readable() ? null : unreadReason(n));
             nodes.add(node);
         }
         SetupReviewEntity review = reviews.findById(clusterId).orElseGet(() -> new SetupReviewEntity(clusterId));
-        review.record(
+        review.recordReview(
                 now,
                 durationMs,
                 reads.size(),
@@ -83,5 +79,9 @@ class SetupReviewStore {
                 mapper.writeValueAsString(result.notAssessed()),
                 result.clusterEvaluated());
         reviews.save(review);
+    }
+
+    private static String unreadReason(NodeRead n) {
+        return n.manageable() ? n.unavailableReason() : "Studio has no management URL for this node.";
     }
 }

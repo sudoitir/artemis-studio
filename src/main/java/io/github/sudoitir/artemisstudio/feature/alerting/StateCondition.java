@@ -31,6 +31,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StateCondition implements AlertCondition {
 
+    private static final String NODE_PREFIX = "node:";
     private static final String CLUSTER_SUBJECT = "cluster";
 
     /** The one subject that is not a broker: Studio's own host, when it is the suspect. */
@@ -56,7 +57,7 @@ public class StateCondition implements AlertCondition {
             case "NODE_DOWN" -> nodeDown(rows);
             case "REPLICATION_BEHIND" -> replicationBehind(rows);
             case "CLUSTER_DEGRADED" -> clusterDegraded(clusterId, rows);
-            case "CLOCK_SKEW" -> clockSkew(clusterId, rows);
+            case "CLOCK_SKEW" -> clockSkew(clusterId);
             default -> signal(rule.stateCondition(), clusterId);
         };
     }
@@ -76,7 +77,7 @@ public class StateCondition implements AlertCondition {
             if (node.getJolokiaUrl() == null) {
                 continue; // not manageable — nothing to be "down" from Studio's view
             }
-            String key = "node:" + node.getId();
+            String key = NODE_PREFIX + node.getId();
             universe.add(key);
             boolean down = "STOPPED".equals(node.getState()) || node.getLastError() != null;
             if (down) {
@@ -93,7 +94,7 @@ public class StateCondition implements AlertCondition {
             if (!"BACKUP".equals(node.getHaRole())) {
                 continue;
             }
-            String key = "node:" + node.getId();
+            String key = NODE_PREFIX + node.getId();
             universe.add(key);
             if (Boolean.FALSE.equals(node.getReplicaSync())) {
                 active.put(key, 1.0);
@@ -114,22 +115,20 @@ public class StateCondition implements AlertCondition {
      * agent strips the response timestamp is unknown, not in agreement, and putting
      * it in the universe would resolve an alert on the strength of no evidence.
      */
-    private Evaluation clockSkew(UUID clusterId, List<ClusterNode> rows) {
+    private Evaluation clockSkew(UUID clusterId) {
         ClockOffsetService.Assessment assessment = clocks.assessmentFor(clusterId);
         if (assessment.verdict() == ClockOffsetService.Verdict.UNKNOWN) {
             return Evaluation.EMPTY;
         }
         Set<String> universe = new HashSet<>();
         Map<String, Double> active = new HashMap<>();
-        for (ClockOffsetService.NodeSkew measured : assessment.measured()) {
-            universe.add("node:" + measured.nodeId());
-        }
+        assessment.measured().forEach(measured -> universe.add(NODE_PREFIX + measured.nodeId()));
         if (assessment.verdict() == ClockOffsetService.Verdict.STUDIO_SUSPECT) {
             universe.add(STUDIO_SUBJECT);
             active.put(STUDIO_SUBJECT, 1.0);
         } else {
             for (ClockOffsetService.NodeSkew skewed : assessment.skewed()) {
-                active.put("node:" + skewed.nodeId(), (double)
+                active.put(NODE_PREFIX + skewed.nodeId(), (double)
                         Math.abs(skewed.offset().offsetMs()));
             }
         }

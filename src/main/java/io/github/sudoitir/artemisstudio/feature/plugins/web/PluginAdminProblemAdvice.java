@@ -19,12 +19,17 @@ class PluginAdminProblemAdvice {
 
     private static final Set<String> CONFLICTS = Set.of("lifecycle-busy", "already-active");
 
+    private static HttpStatus statusOf(String firstViolationCode) {
+        if ("not-found".equals(firstViolationCode)) {
+            return HttpStatus.NOT_FOUND;
+        }
+        return CONFLICTS.contains(firstViolationCode) ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_CONTENT;
+    }
+
     @ExceptionHandler(PluginRefusedException.class)
     ProblemDetail onRefused(PluginRefusedException e) {
         String first = e.violations().isEmpty() ? "" : e.violations().getFirst().code();
-        HttpStatus status = "not-found".equals(first)
-                ? HttpStatus.NOT_FOUND
-                : CONFLICTS.contains(first) ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_CONTENT;
+        HttpStatus status = statusOf(first);
         ProblemDetail problem = Problems.of(status, "plugin-refused", "Refused", e.getMessage());
         problem.setProperty(
                 "violations",

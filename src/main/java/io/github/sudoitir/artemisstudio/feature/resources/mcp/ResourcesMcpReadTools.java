@@ -27,6 +27,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ResourcesMcpReadTools {
 
+    private static final String PROTOCOL_LABEL = "protocol=";
+
     private final McpProperties props;
     private final CrossNodeAggregator queues;
     private final PagedListService lists;
@@ -101,7 +103,7 @@ public class ResourcesMcpReadTools {
                             "consumer",
                             c.queueName(),
                             c.nodeName(),
-                            "protocol=" + c.protocol() + " acked=" + c.messagesAcknowledged(),
+                            PROTOCOL_LABEL + c.protocol() + " acked=" + c.messagesAcknowledged(),
                             c.messagesDelivered()));
                 }
             }
@@ -125,7 +127,7 @@ public class ResourcesMcpReadTools {
                             "connection",
                             x.remoteAddress(),
                             x.nodeName(),
-                            "protocol=" + x.protocol() + " client=" + x.clientId(),
+                            PROTOCOL_LABEL + x.protocol() + " client=" + x.clientId(),
                             x.sessionCount()));
                 }
             }
@@ -134,7 +136,7 @@ public class ResourcesMcpReadTools {
                 for (ResourceViews.ProducerView x :
                         lists.producers(clusterId, query).data()) {
                     rows.add(new McpViews.ResourceRow(
-                            "producer", x.address(), x.nodeName(), "protocol=" + x.protocol(), x.messagesSent()));
+                            "producer", x.address(), x.nodeName(), PROTOCOL_LABEL + x.protocol(), x.messagesSent()));
                 }
             }
             default -> throw McpErrors.invalidParams("unsupported kind");

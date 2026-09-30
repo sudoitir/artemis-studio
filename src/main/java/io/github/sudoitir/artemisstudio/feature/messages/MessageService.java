@@ -72,6 +72,9 @@ public class MessageService {
     /** {@code managementBrowsePageSize} default — the broker will not return more per page. */
     static final int BROKER_PAGE_CAP = 200;
 
+    private static final String CORRELATION_ID = "correlationId";
+    private static final String GROUP_ID = "groupId";
+
     private final QueueLocator queueLocator;
     private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
@@ -198,16 +201,7 @@ public class MessageService {
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
 
-        Map<String, Object> params = new HashMap<>();
-        if (req.byFilter()) {
-            params.put("filter", req.filter());
-        } else {
-            params.put("ids", req.ids().size());
-        }
-        if (req.targetQueue() != null) {
-            params.put("target", req.targetQueue());
-        }
-        AuditEvent event = begin(action.auditName(), queueName, clusterId, node, params, dryRun);
+        AuditEvent event = begin(action.auditName(), queueName, clusterId, node, auditParams(req), dryRun);
 
         if (action == MessageAction.MOVE
                 && (req.targetQueue() == null || req.targetQueue().isBlank())) {
@@ -243,20 +237,7 @@ public class MessageService {
             }
 
             if (idBased) {
-                MessageOperations.BulkResult result = performByIds(client, mbean, action, req);
-                publishQueuesAfterCommit(clusterId);
-                if (result.partial()) {
-                    // Reported as partial, never as a plain failure: some messages already moved.
-                    audit.failPartial(
-                            event,
-                            result.affected(),
-                            "Stopped after " + result.affected() + " of "
-                                    + req.ids().size() + ": " + result.error());
-                    return new Attempt.Ok<>(
-                            new Outcome.Partial(result.affected(), result.notDone(), result.error(), node));
-                }
-                audit.succeed(event, result.affected());
-                return new Attempt.Ok<>(new Outcome.Affected(result.affected(), node));
+                return executeByIds(event, client, mbean, action, req, clusterId, node);
             }
             long affected = perform(client, mbean, action, req);
             audit.succeed(event, affected);
@@ -270,6 +251,41 @@ public class MessageService {
             audit.fail(event, e.getMessage());
             throw e;
         }
+    }
+
+    private static Map<String, Object> auditParams(MessageActionRequest req) {
+        Map<String, Object> params = new HashMap<>();
+        if (req.byFilter()) {
+            params.put("filter", req.filter());
+        } else {
+            params.put("ids", req.ids().size());
+        }
+        if (req.targetQueue() != null) {
+            params.put("target", req.targetQueue());
+        }
+        return params;
+    }
+
+    private Attempt<Outcome> executeByIds(
+            AuditEvent event,
+            JolokiaBrokerClient client,
+            String mbean,
+            MessageAction action,
+            MessageActionRequest req,
+            UUID clusterId,
+            UUID node) {
+        MessageOperations.BulkResult result = performByIds(client, mbean, action, req);
+        publishQueuesAfterCommit(clusterId);
+        if (result.partial()) {
+            // Reported as partial, never as a plain failure: some messages already moved.
+            audit.failPartial(
+                    event,
+                    result.affected(),
+                    "Stopped after " + result.affected() + " of " + req.ids().size() + ": " + result.error());
+            return new Attempt.Ok<>(new Outcome.Partial(result.affected(), result.notDone(), result.error(), node));
+        }
+        audit.succeed(event, result.affected());
+        return new Attempt.Ok<>(new Outcome.Affected(result.affected(), node));
     }
 
     // ---- purge (Slice 7) ---------------------------------------------
@@ -443,8 +459,8 @@ public class MessageService {
      */
     public static MessageContent content(BrowsedMessage m) {
         Map<String, String> headers = new HashMap<>();
-        headers.put("correlationId", m.correlationId());
-        headers.put("groupId", m.groupId());
+        headers.put(CORRELATION_ID, m.correlationId());
+        headers.put(GROUP_ID, m.groupId());
         headers.put("userId", m.userId());
         headers.put("replyTo", m.replyTo());
         Map<String, Object> properties = new LinkedHashMap<>();
@@ -467,12 +483,19 @@ public class MessageService {
                 m.timestamp(),
                 m.expiration(),
                 m.size(),
-                g.headers().get("groupId"),
-                g.headers().get("correlationId"),
-                body == null ? null : body.length() <= 200 ? body : body.substring(0, 200),
+                g.headers().get(GROUP_ID),
+                g.headers().get(CORRELATION_ID),
+                preview(body),
                 m.bodyTruncated(),
                 m.propertyCount(),
                 GovernanceViews.redactions(g));
+    }
+
+    private static String preview(String body) {
+        if (body == null || body.length() <= 200) {
+            return body;
+        }
+        return body.substring(0, 200);
     }
 
     private static MessageDetailView toDetail(BrowsedMessage m, GovernedMessage g, UUID node, String transport) {
@@ -483,16 +506,12 @@ public class MessageService {
         Map<String, Double> doubles = new LinkedHashMap<>();
         Map<String, Boolean> booleans = new LinkedHashMap<>();
         g.properties().forEach((name, value) -> {
-            if (value instanceof Long l && m.intProperties().containsKey(name)) {
-                ints.put(name, l);
-            } else if (value instanceof Long l && m.longProperties().containsKey(name)) {
-                longs.put(name, l);
-            } else if (value instanceof Double d) {
-                doubles.put(name, d);
-            } else if (value instanceof Boolean b) {
-                booleans.put(name, b);
-            } else {
-                strings.put(name, String.valueOf(value));
+            switch (value) {
+                case Long l when m.intProperties().containsKey(name) -> ints.put(name, l);
+                case Long l when m.longProperties().containsKey(name) -> longs.put(name, l);
+                case Double d -> doubles.put(name, d);
+                case Boolean b -> booleans.put(name, b);
+                case null, default -> strings.put(name, String.valueOf(value));
             }
         });
         return new MessageDetailView(
@@ -503,8 +522,8 @@ public class MessageService {
                 m.timestamp(),
                 m.expiration(),
                 m.size(),
-                g.headers().get("groupId"),
-                g.headers().get("correlationId"),
+                g.headers().get(GROUP_ID),
+                g.headers().get(CORRELATION_ID),
                 g.headers().get("userId"),
                 g.body(),
                 m.bodyEncoding().name(),

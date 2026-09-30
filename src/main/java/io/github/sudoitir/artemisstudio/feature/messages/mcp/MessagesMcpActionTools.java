@@ -90,7 +90,7 @@ public class MessagesMcpActionTools {
                             new MessageActionRequest(parseIds(messageIds), filter, targetQueue),
                             dry,
                             over);
-            return outcome(kind.name().toLowerCase(Locale.ROOT), q, dry, attempt);
+            return outcome(kind.name().toLowerCase(Locale.ROOT), q, attempt);
         });
     }
 
@@ -124,7 +124,7 @@ public class MessagesMcpActionTools {
                     new SendMessageRequest(
                             type == null ? 3 : type, McpArgs.flag(durable, true), payload, false, Map.of(), Map.of()),
                     dry);
-            return outcome("send", q, dry, attempt);
+            return outcome("send", q, attempt);
         });
     }
 
@@ -140,7 +140,7 @@ public class MessagesMcpActionTools {
             }
             try {
                 ids.add(Long.parseLong(trimmed));
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 throw McpErrors.invalidParams("messageIds must be comma-separated numbers; got \"" + trimmed + "\".");
             }
         }
@@ -148,43 +148,41 @@ public class MessagesMcpActionTools {
     }
 
     /** A broker that could not be reached is a failed operation, not a failed call. */
-    private static McpViews.MutationOutcome outcome(
-            String action, String subject, boolean dryRun, Attempt<Outcome> attempt) {
+    private static McpViews.MutationOutcome outcome(String action, String subject, Attempt<Outcome> attempt) {
         return switch (attempt) {
-            case Attempt.Failed<Outcome> f ->
-                throw new io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException(
-                        f.kind(), f.detail());
-            case Attempt.Ok<Outcome> ok ->
-                switch (ok.value()) {
-                    case Outcome.DryRun d ->
+            case Attempt.Failed<Outcome>(var kind, var detail) ->
+                throw new io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException(kind, detail);
+            case Attempt.Ok<Outcome>(var value) ->
+                switch (value) {
+                    case Outcome.DryRun(var count, var cap, var overCap, var node) ->
                         new McpViews.MutationOutcome(
                                 action,
                                 subject,
                                 true,
-                                d.count(),
-                                d.cap(),
-                                d.overCap(),
-                                String.valueOf(d.node()),
-                                d.overCap()
+                                count,
+                                cap,
+                                overCap,
+                                String.valueOf(node),
+                                overCap
                                         ? "Nothing was changed. A real run is over the bulk cap and would need override=true."
                                         : "Nothing was changed. Re-run with dryRun=false and confirm=\"" + subject
                                                 + "\".");
-                    case Outcome.Affected a ->
+                    case Outcome.Affected(var count, var node) ->
                         new McpViews.MutationOutcome(
-                                action, subject, false, a.count(), null, false, String.valueOf(a.node()), "Applied.");
-                    case Outcome.Partial p ->
+                                action, subject, false, count, null, false, String.valueOf(node), "Applied.");
+                    case Outcome.Partial(var count, var notDone, var error, var node) ->
                         new McpViews.MutationOutcome(
                                 action,
                                 subject,
                                 false,
-                                p.count(),
+                                count,
                                 null,
                                 false,
-                                String.valueOf(p.node()),
-                                "Partially applied: " + p.count() + " message(s) were acted on before it stopped ("
-                                        + p.error() + "). " + p.notDone().size()
+                                String.valueOf(node),
+                                "Partially applied: " + count + " message(s) were acted on before it stopped ("
+                                        + error + "). " + notDone.size()
                                         + " id(s) were not done, starting with "
-                                        + p.notDone().getFirst()
+                                        + notDone.getFirst()
                                         + ".");
                 };
         };

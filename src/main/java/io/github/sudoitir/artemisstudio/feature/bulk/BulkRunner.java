@@ -82,12 +82,13 @@ class BulkRunner {
                             null,
                             Instant.now());
                     items.save(item);
-                    continue;
+                } else {
+                    actOn(run, item, event, operator);
+                    progress(run, rows, BulkRunStatus.RUNNING);
+                    boolean bad =
+                            item.getStatus() == BulkItemStatus.FAILED || item.getStatus() == BulkItemStatus.PARTIAL;
+                    halted = bad && !run.isContinueOnFailure();
                 }
-                actOn(run, item, event, operator);
-                progress(run, rows, BulkRunStatus.RUNNING);
-                boolean bad = item.getStatus() == BulkItemStatus.FAILED || item.getStatus() == BulkItemStatus.PARTIAL;
-                halted = bad && !run.isContinueOnFailure();
             }
         } catch (RuntimeException e) {
             // A failure outside any one queue's command, such as the database going away.
@@ -162,8 +163,8 @@ class BulkRunner {
                         run.getClusterId(), item.getQueueName(), node.nodeId(), false, run.isOverrideCap())) {
                     case Attempt.Ok<MessageService.Outcome>(MessageService.Outcome.Affected affected) ->
                         new NodeOutcome(node.nodeId(), node.nodeName(), NodeStatus.APPLIED, affected.count(), null);
-                    case Attempt.Ok<MessageService.Outcome> other ->
-                        NodeOutcome.failed(node.nodeId(), node.nodeName(), "Unexpected purge result: " + other.value());
+                    case Attempt.Ok<MessageService.Outcome>(var other) ->
+                        NodeOutcome.failed(node.nodeId(), node.nodeName(), "Unexpected purge result: " + other);
                     case Attempt.Failed<MessageService.Outcome> failed ->
                         NodeOutcome.failed(node.nodeId(), node.nodeName(), failed.detail());
                 };
@@ -177,8 +178,8 @@ class BulkRunner {
 
     private static LifecycleOutcome unwrap(Attempt<LifecycleOutcome> attempt) {
         return switch (attempt) {
-            case Attempt.Ok<LifecycleOutcome> ok -> ok.value();
-            case Attempt.Failed<LifecycleOutcome> failed -> throw new IllegalStateException(failed.detail());
+            case Attempt.Ok<LifecycleOutcome>(var value) -> value;
+            case Attempt.Failed<LifecycleOutcome>(var _, var detail) -> throw new IllegalStateException(detail);
         };
     }
 
@@ -221,6 +222,16 @@ class BulkRunner {
                 null);
     }
 
+    private static BulkRunStatus terminalStatus(List<BulkRunItemEntity> rows, boolean stopped, long succeeded) {
+        if (stopped && rows.stream().anyMatch(i -> i.getStatus() == BulkItemStatus.CANCELLED)) {
+            return BulkRunStatus.STOPPED;
+        }
+        if (succeeded == rows.size()) {
+            return BulkRunStatus.SUCCEEDED;
+        }
+        return succeeded == 0 ? BulkRunStatus.FAILED : BulkRunStatus.PARTIAL;
+    }
+
     /** Always reached: the run gets a terminal status and its audit event an outcome, whatever happened. */
     private void finish(
             BulkRunEntity run, List<BulkRunItemEntity> rows, AuditEvent event, boolean stopped, String error) {
@@ -238,11 +249,7 @@ class BulkRunner {
             }
         }
         long succeeded = rows.stream().filter(i -> i.getStatus().succeeded()).count();
-        BulkRunStatus status = stopped && rows.stream().anyMatch(i -> i.getStatus() == BulkItemStatus.CANCELLED)
-                ? BulkRunStatus.STOPPED
-                : succeeded == rows.size()
-                        ? BulkRunStatus.SUCCEEDED
-                        : succeeded == 0 ? BulkRunStatus.FAILED : BulkRunStatus.PARTIAL;
+        BulkRunStatus status = terminalStatus(rows, stopped, succeeded);
         try {
             run.finish(status, error, now);
             progress(run, rows, status);

@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,8 @@ public class MetricQueryService {
     private static final Duration MIN_STEP = Duration.ofSeconds(15);
 
     private static final int MAX_POINTS = 500;
+
+    private static final String GAUGE = "GAUGE";
 
     /** A split by node draws at most this many nodes (ADR-0110). */
     static final int MAX_SPLIT_NODES = 16;
@@ -94,6 +97,32 @@ public class MetricQueryService {
         // Before input validation, so a caller with no grant cannot use the
         // difference between a 400 and a 404 to probe which clusters exist.
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        requireValid(metrics, subjectType, subject, splitBy);
+        String subjectName = "QUEUE".equals(subjectType) ? subject : null;
+
+        Window requested = window(from, to, requestedStep);
+        List<ClusterNode> nodes = splitBy == null ? List.of() : directory.nodes(clusterId);
+        Window window = splitBy == null ? requested : splitWindow(requested, to, nodes.size());
+
+        List<MetricSeries> series = metrics.stream()
+                .map(metric -> buildSeries(clusterId, metric, subjectName, window.from(), to, window.step()))
+                .toList();
+        if (splitBy == null) {
+            return new MetricSeriesResponse(window.from(), to, window.step().toString(), window.truncated(), series);
+        }
+
+        Split split = split(clusterId, metrics, subjectName, window.from(), to, window.step(), nodes);
+        return new MetricSeriesResponse(
+                window.from(),
+                to,
+                window.step().toString(),
+                window.truncated() || split.clamped(),
+                series,
+                SPLIT_BY_NODE,
+                split.nodes());
+    }
+
+    private static void requireValid(List<String> metrics, String subjectType, String subject, String splitBy) {
         if (metrics.isEmpty() || metrics.size() > 4) {
             throw new IllegalArgumentException("metric must list between 1 and 4 metric names");
         }
@@ -102,52 +131,32 @@ public class MetricQueryService {
                 throw new IllegalArgumentException("unknown metric: " + m);
             }
         }
-        if ("QUEUE".equals(subjectType) && (subject == null || subject.isBlank())) {
+        boolean queue = "QUEUE".equals(subjectType);
+        boolean subjectMissing = subject == null || subject.isBlank();
+        if (queue && subjectMissing) {
             throw new IllegalArgumentException("subject is required when subjectType=QUEUE");
         }
-        String subjectName = "QUEUE".equals(subjectType) ? subject : null;
-        if (splitBy != null) {
-            if (!SPLIT_BY_NODE.equals(splitBy)) {
-                throw new IllegalArgumentException("splitBy must be NODE");
-            }
-            // The per-node read is per queue (ADR-0110); a cluster-wide split per node is not built.
-            if (subjectName == null) {
-                throw new IllegalArgumentException("a split by node needs one queue: subjectType=QUEUE and a subject");
-            }
+        if (splitBy != null && !SPLIT_BY_NODE.equals(splitBy)) {
+            throw new IllegalArgumentException("splitBy must be NODE");
         }
-
-        Window window = window(from, to, requestedStep);
-        Instant effectiveFrom = window.from();
-        Duration step = window.step();
-        boolean truncated = window.truncated();
-        Duration range = Duration.between(effectiveFrom, to);
-
-        List<ClusterNode> nodes = splitBy == null ? List.of() : directory.nodes(clusterId);
-        if (splitBy != null) {
-            // The step widens until every node's series together stays within the point bound.
-            int drawn = Math.max(1, Math.min(nodes.size(), MAX_SPLIT_NODES));
-            long splitStep = range.multipliedBy(drawn)
-                    .dividedBy(MAX_SPLIT_POINTS)
-                    .plusSeconds(1)
-                    .getSeconds();
-            if (step.toSeconds() < splitStep) {
-                step = Duration.ofSeconds(splitStep);
-                truncated = true;
-            }
+        // The per-node read is per queue (ADR-0110); a cluster-wide split per node is not built.
+        if (splitBy != null && !queue) {
+            throw new IllegalArgumentException("a split by node needs one queue: subjectType=QUEUE and a subject");
         }
+    }
 
-        Instant finalFrom = effectiveFrom;
-        Duration finalStep = step;
-        List<MetricSeries> series = metrics.stream()
-                .map(metric -> buildSeries(clusterId, metric, subjectName, finalFrom, to, finalStep))
-                .toList();
-        if (splitBy == null) {
-            return new MetricSeriesResponse(effectiveFrom, to, step.toString(), truncated, series);
+    /** The step widens until every node's series together stays within the point bound. */
+    private static Window splitWindow(Window window, Instant to, int nodeCount) {
+        int drawn = Math.clamp(nodeCount, 1, MAX_SPLIT_NODES);
+        long splitStep = Duration.between(window.from(), to)
+                .multipliedBy(drawn)
+                .dividedBy(MAX_SPLIT_POINTS)
+                .plusSeconds(1)
+                .getSeconds();
+        if (window.step().toSeconds() < splitStep) {
+            return new Window(window.from(), Duration.ofSeconds(splitStep), true);
         }
-
-        Split split = split(clusterId, metrics, subjectName, finalFrom, to, finalStep, nodes);
-        return new MetricSeriesResponse(
-                effectiveFrom, to, step.toString(), truncated || split.clamped(), series, SPLIT_BY_NODE, split.nodes());
+        return window;
     }
 
     /**
@@ -178,7 +187,7 @@ public class MetricQueryService {
                 to,
                 window.step().toString(),
                 window.truncated(),
-                List.of(new MetricSeries(metric, "GAUGE", declared.metric().unit(), points)));
+                List.of(new MetricSeries(metric, GAUGE, declared.metric().unit(), points)));
     }
 
     private record Window(Instant from, Duration step, boolean truncated) {}
@@ -196,7 +205,7 @@ public class MetricQueryService {
         Duration step = requestedStep != null ? requestedStep : Duration.ofMinutes(1);
         if (step.compareTo(MIN_STEP) < 0) {
             step = MIN_STEP;
-            truncated = requestedStep != null ? true : truncated;
+            truncated = requestedStep != null || truncated;
         }
         long maxPointStep = range.dividedBy(MAX_POINTS).plusSeconds(1).getSeconds();
         if (step.toSeconds() < maxPointStep) {
@@ -231,16 +240,8 @@ public class MetricQueryService {
         }
         Map<String, Map<UUID, List<MetricPoint>>> perMetric = new HashMap<>();
         for (String metric : metrics) {
-            boolean gauge = GAUGE_METRICS.contains(metric);
-            List<NodeBucket> buckets = gauge
-                    ? repository.gaugeSeriesByNode(clusterId, metric, subjectName, from, to, step)
-                    : repository.rateSeriesByNode(clusterId, metric, subjectName, from, to, step);
-            Map<UUID, List<MetricPoint>> byNode = new HashMap<>();
-            for (NodeBucket b : buckets) {
-                byNode.computeIfAbsent(b.nodeId(), k -> new ArrayList<>())
-                        .add(new MetricPoint(b.ts(), b.value(), b.peak()));
-                ids.add(b.nodeId());
-            }
+            Map<UUID, List<MetricPoint>> byNode = pointsByNode(clusterId, metric, subjectName, from, to, step);
+            ids.addAll(byNode.keySet());
             perMetric.put(metric, byNode);
         }
 
@@ -248,14 +249,7 @@ public class MetricQueryService {
         for (UUID id : ids) {
             boolean sampled = perMetric.values().stream().anyMatch(m -> m.containsKey(id));
             List<MetricSeries> series = metrics.stream()
-                    .map(metric -> {
-                        boolean gauge = GAUGE_METRICS.contains(metric);
-                        return new MetricSeries(
-                                metric,
-                                gauge ? "GAUGE" : "RATE",
-                                gauge ? "count" : "msg/s",
-                                perMetric.get(metric).getOrDefault(id, List.of()));
-                    })
+                    .map(metric -> nodeSeries(metric, perMetric.get(metric).getOrDefault(id, List.of())))
                     .toList();
             // A node since removed from the cluster still owns its samples; it is named as such.
             String name = names.getOrDefault(id, "removed node " + id.toString().substring(0, 8));
@@ -264,6 +258,25 @@ public class MetricQueryService {
         out.sort(Comparator.comparing(MetricNodeSeries::nodeName));
         boolean clamped = out.size() > MAX_SPLIT_NODES;
         return new Split(clamped ? List.copyOf(out.subList(0, MAX_SPLIT_NODES)) : out, clamped);
+    }
+
+    /** In the order the nodes first appear, so equal names keep a stable order after the sort. */
+    private Map<UUID, List<MetricPoint>> pointsByNode(
+            UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        List<NodeBucket> buckets = GAUGE_METRICS.contains(metric)
+                ? repository.gaugeSeriesByNode(clusterId, metric, subjectName, from, to, step)
+                : repository.rateSeriesByNode(clusterId, metric, subjectName, from, to, step);
+        Map<UUID, List<MetricPoint>> byNode = new LinkedHashMap<>();
+        for (NodeBucket b : buckets) {
+            byNode.computeIfAbsent(b.nodeId(), k -> new ArrayList<>())
+                    .add(new MetricPoint(b.ts(), b.value(), b.peak()));
+        }
+        return byNode;
+    }
+
+    private static MetricSeries nodeSeries(String metric, List<MetricPoint> points) {
+        boolean gauge = GAUGE_METRICS.contains(metric);
+        return new MetricSeries(metric, gauge ? GAUGE : "RATE", gauge ? "count" : "msg/s", points);
     }
 
     private MetricSeries buildSeries(
@@ -275,6 +288,6 @@ public class MetricQueryService {
         List<MetricPoint> points = buckets.stream()
                 .map(b -> new MetricPoint(b.ts(), b.value(), b.peak()))
                 .toList();
-        return new MetricSeries(metric, isGauge ? "GAUGE" : "RATE", isGauge ? "count" : "msg/s", points);
+        return new MetricSeries(metric, isGauge ? GAUGE : "RATE", isGauge ? "count" : "msg/s", points);
     }
 }

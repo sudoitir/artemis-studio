@@ -71,7 +71,7 @@ public record AlertMessage(
     private static UUID uuid(String value) {
         try {
             return value == null ? null : UUID.fromString(value);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }
@@ -79,7 +79,7 @@ public record AlertMessage(
     private static Instant parseInstant(String value) {
         try {
             return Instant.parse(value);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

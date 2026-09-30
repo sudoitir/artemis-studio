@@ -43,6 +43,13 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class DivertOperations {
 
+    private static final String ADDRESS = "address";
+    private static final String FORWARDING_ADDRESS = "forwarding-address";
+    private static final String ROUTING_NAME = "routing-name";
+    private static final String FILTER_STRING = "filter-string";
+    private static final String EXCLUSIVE = "exclusive";
+    private static final String ROUTING_TYPE = "routing-type";
+
     /**
      * The name prefix Studio reserves for the diverts that serve message capture (ADR-0079).
      * A divert under it is Studio's by construction, and is never created or deleted as an
@@ -150,14 +157,14 @@ public class DivertOperations {
     /** The configuration keys on which a deployed divert differs from the requested one. */
     static List<String> differences(DivertRow row, Map<String, Object> config) {
         List<String> differing = new ArrayList<>();
-        compare(differing, "address", row.address(), config.get("address"));
-        compare(differing, "forwarding-address", row.forwardingAddress(), config.get("forwarding-address"));
-        compare(differing, "routing-name", row.routingName(), config.get("routing-name"));
-        compare(differing, "filter-string", row.filter(), config.get("filter-string"));
-        compare(differing, "exclusive", String.valueOf(row.exclusive()), config.get("exclusive"));
+        compare(differing, ADDRESS, row.address(), config.get(ADDRESS));
+        compare(differing, FORWARDING_ADDRESS, row.forwardingAddress(), config.get(FORWARDING_ADDRESS));
+        compare(differing, ROUTING_NAME, row.routingName(), config.get(ROUTING_NAME));
+        compare(differing, FILTER_STRING, row.filter(), config.get(FILTER_STRING));
+        compare(differing, EXCLUSIVE, String.valueOf(row.exclusive()), config.get(EXCLUSIVE));
         // Unset means the broker's default, which is not compared rather than guessed.
-        if (config.containsKey("routing-type")) {
-            compare(differing, "routing-type", row.routingType(), config.get("routing-type"));
+        if (config.containsKey(ROUTING_TYPE)) {
+            compare(differing, ROUTING_TYPE, row.routingType(), config.get(ROUTING_TYPE));
         }
         BridgeOperations.transformerDifferences(
                 differing, config, row.transformerClassName(), row.transformerProperties());
@@ -184,7 +191,7 @@ public class DivertOperations {
             }
         }
         List<String> path = pathTo(edges, forwardingAddress, address, new HashSet<>());
-        if (path == null) {
+        if (path.isEmpty()) {
             return null;
         }
         List<String> cycle = new ArrayList<>();
@@ -198,16 +205,16 @@ public class DivertOperations {
             return new ArrayList<>(List.of(from));
         }
         if (!seen.add(from)) {
-            return null;
+            return List.of();
         }
         for (String next : edges.getOrDefault(from, List.of())) {
             List<String> rest = pathTo(edges, next, to, seen);
-            if (rest != null) {
+            if (!rest.isEmpty()) {
                 rest.addFirst(from);
                 return rest;
             }
         }
-        return null;
+        return List.of();
     }
 
     /** Destroy a divert. One that is already gone raises {@link ManagementRefusal.Kind#ALREADY}. */
@@ -233,15 +240,15 @@ public class DivertOperations {
             String routingType) {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("name", name);
-        config.put("routing-name", routingName == null || routingName.isBlank() ? name : routingName);
-        config.put("address", address);
-        config.put("forwarding-address", forwardingAddress);
-        config.put("exclusive", exclusive);
+        config.put(ROUTING_NAME, routingName == null || routingName.isBlank() ? name : routingName);
+        config.put(ADDRESS, address);
+        config.put(FORWARDING_ADDRESS, forwardingAddress);
+        config.put(EXCLUSIVE, exclusive);
         if (filter != null && !filter.isBlank()) {
-            config.put("filter-string", filter);
+            config.put(FILTER_STRING, filter);
         }
         if (routingType != null && !routingType.isBlank()) {
-            config.put("routing-type", routingType.toUpperCase());
+            config.put(ROUTING_TYPE, routingType.toUpperCase());
         }
         return config;
     }

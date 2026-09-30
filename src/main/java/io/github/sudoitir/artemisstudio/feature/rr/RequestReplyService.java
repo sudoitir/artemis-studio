@@ -60,6 +60,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class RequestReplyService {
 
+    private static final String AUDIT_TARGET = "RR_EXPECTATION";
     private static final TypeReference<Map<String, Object>> DETAIL_TYPE = new TypeReference<>() {};
 
     private final RrExpectationRepository expectations;
@@ -104,7 +105,7 @@ public class RequestReplyService {
         AuditEvent audited = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_RR_EXPECTATION",
-                "RR_EXPECTATION",
+                AUDIT_TARGET,
                 request.requestAddress(),
                 clusterId,
                 null,
@@ -133,7 +134,7 @@ public class RequestReplyService {
         AuditEvent audited = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_RR_EXPECTATION",
-                "RR_EXPECTATION",
+                AUDIT_TARGET,
                 entity.getRequestAddress(),
                 clusterId,
                 null,
@@ -162,7 +163,7 @@ public class RequestReplyService {
         AuditEvent audited = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_RR_EXPECTATION",
-                "RR_EXPECTATION",
+                AUDIT_TARGET,
                 entity.getRequestAddress(),
                 clusterId,
                 null,
@@ -219,7 +220,7 @@ public class RequestReplyService {
             int size) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         int p = Math.max(page, 1);
-        int s = Math.min(Math.max(size, 1), 500);
+        int s = Math.clamp(size, 1, 500);
         Page<RrFlowEntity> result = flows.findPage(
                 clusterId,
                 blankToNull(state),
@@ -304,9 +305,9 @@ public class RequestReplyService {
 
     private String notificationsState(UUID clusterId) {
         return switch (subscriptions.verdictFor(clusterId)) {
-            case SubscriptionVerdict.Connected ignored -> "CONNECTED";
-            case SubscriptionVerdict.Failed ignored -> "FAILED";
-            case SubscriptionVerdict.NotAttempted ignored -> "NOT_ATTEMPTED";
+            case SubscriptionVerdict.Connected _ -> "CONNECTED";
+            case SubscriptionVerdict.Failed _ -> "FAILED";
+            case SubscriptionVerdict.NotAttempted _ -> "NOT_ATTEMPTED";
         };
     }
 
@@ -422,10 +423,9 @@ public class RequestReplyService {
         boolean payloadsReadable = permissions.can(clusterId, MessagePermissions.MESSAGE_READ);
         boolean clearAccess = payloadsReadable && permissions.can(clusterId, GovernancePermissions.MESSAGE_CLEAR);
         List<GovernedMessage> served = new ArrayList<>();
-        List<RrEventView> views = new ArrayList<>();
-        for (RrEventEntity e : events.findByFlowIdOrderByTsAsc(flow.getId())) {
-            views.add(toEventView(flow, e, payloadsReadable, clearAccess, served));
-        }
+        List<RrEventView> views = events.findByFlowIdOrderByTsAsc(flow.getId()).stream()
+                .map(e -> toEventView(flow, e, payloadsReadable, clearAccess, served))
+                .toList();
         clearViews.record(
                 new GovernContext(clusterId, flow.getRequestAddress(), clearAccess),
                 "RR_FLOW",
@@ -465,7 +465,7 @@ public class RequestReplyService {
         }
         try {
             return mapper.readValue(json, DETAIL_TYPE);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

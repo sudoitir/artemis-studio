@@ -51,7 +51,7 @@ public class SetupReviewEntity {
         this.clusterId = clusterId;
     }
 
-    public void record(
+    public void recordReview(
             Instant reviewedAt,
             long durationMs,
             int nodesTotal,
