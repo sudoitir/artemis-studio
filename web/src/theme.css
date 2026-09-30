@@ -32,7 +32,15 @@ html:root[data-mantine-color-scheme='light'] {
 html:root[data-mantine-color-scheme] {
   --mantine-color-error: var(--as-danger);
   --mantine-color-red-text: var(--as-danger);
-  --mantine-color-red-light-color: var(--as-danger);
+}
+
+/* A red alert's title and icon sit on the red tint of its own background, which is lighter than the card:
+   "Not reset" measured 3.83:1 in dark and 4.51:1 in light with --as-danger. Lighter and darker steps clear it. */
+html:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-red-light-color: var(--mantine-color-red-3);
+}
+html:root[data-mantine-color-scheme='light'] {
+  --mantine-color-red-light-color: color-mix(in srgb, var(--as-danger), black 25%);
 }
 
 /* A filled button's label is white by default: on pine-5 that is 3.15:1 (and on red-5 2.8:1), under the AA 4.5:1
