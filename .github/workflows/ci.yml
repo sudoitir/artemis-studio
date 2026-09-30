@@ -130,16 +130,18 @@ jobs:
           cache: maven
       # Round-robin over the sorted paths of every class Surefire runs (pom.xml includes), so each
       # shard gets a third and neighbouring heavy suites (Transfer*) land on different runners.
+      # The shard goes in as -Dtest, which replaces the pom's includes; an includesFile would be
+      # appended to them and every shard would run the whole suite.
       # ponytail: count-balanced, not time-balanced; weigh by surefire report times if a shard lags.
       - name: Pick shard ${{ matrix.shard }} of 3
         run: |
           find src/test/java -type f \
             \( -name '*Test.java' -o -name '*Tests.java' -o -name 'Test*.java' -o -name '*TestCase.java' -o -name '*IT.java' \) \
-            | sed 's|^src/test/java/||' | sort \
+            | sed 's|^src/test/java/||; s|\.java$||; s|/|.|g' | sort \
             | awk -v n=3 -v i=${{ matrix.shard }} 'NR % n == i' > "$RUNNER_TEMP/shard.txt"
           echo "$(wc -l < "$RUNNER_TEMP/shard.txt") test classes in this shard"
       - name: Verify (Spotless check, Liquibase vs Testcontainers Postgres, tests)
-        run: ./mvnw -B verify -Dsurefire.includesFile="$RUNNER_TEMP/shard.txt"
+        run: ./mvnw -B verify -Dtest="$(paste -sd, "$RUNNER_TEMP/shard.txt")" -Dsurefire.failIfNoSpecifiedTests=false
       - name: Fail on unformatted sources or a stale OpenAPI snapshot
         run: git diff --exit-code
       # This shard's coverage; the `coverage` job merges the three (ADR-0128).
