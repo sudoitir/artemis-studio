@@ -160,6 +160,7 @@ function Legend() {
       ))}
       <span className={styles.legendItem}>
         <span className={styles.legendAxis} aria-hidden="true" />
+        {/* The flex gap spaces the mark from its label. */}
         shared NodeID — serving above, standby below
       </span>
     </div>

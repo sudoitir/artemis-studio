@@ -194,7 +194,8 @@ function QueuesEmpty({
       <Text fw={600}>No queues yet</Text>
       <Text size="sm">
         A queue is where messages wait for a consumer. Studio fills this grid from each broker's <code>listQueues</code>
-        ; produce to an address or create a queue and it appears here within a scrape tick.
+        {/* The semicolon follows the code with no space. */}; produce to an address or create a queue and it appears
+        here within a scrape tick.
       </Text>
       {mayCreate ? (
         <Button size="xs" variant="light" onClick={onCreate}>

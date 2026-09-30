@@ -16,15 +16,15 @@ function Keys({ keys }: Readonly<{ keys: string[][] }>) {
   return (
     <Group gap={6} wrap="nowrap">
       {keys.map((combo, i) => (
-        <Fragment key={i}>
+        <Fragment key={combo.join('+')}>
           {i > 0 ? (
             <Text span size="xs" c="dimmed">
               or
             </Text>
           ) : null}
           <Group gap={2} wrap="nowrap">
-            {combo.map((k, j) => (
-              <Kbd key={j} size="xs">
+            {combo.map((k) => (
+              <Kbd key={k} size="xs">
                 {k}
               </Kbd>
             ))}

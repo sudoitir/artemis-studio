@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import { RATE_CAP, widthPx } from './edgeEncoding.ts';
 import classes from './FlowCanvas.module.css';
@@ -13,73 +13,53 @@ const REFERENCE_RATES = [
   { rate: RATE_CAP, label: `${RATE_CAP}+ msg/s` },
 ];
 
+/** One legend entry: a mark the stylesheet draws, then what it means. */
+function LegendItem({ mark, children }: Readonly<{ mark?: ReactNode; children: ReactNode }>) {
+  return (
+    <span className={classes.legendItem}>
+      {mark}
+      {children}
+    </span>
+  );
+}
+
+const shape = (name: string) => <span className={classes.legendShape} data-shape={name} aria-hidden="true" />;
+
+const line = (attribute: Record<string, string>, style?: CSSProperties) => (
+  <span className={classes.legendLine} {...attribute} style={style} aria-hidden="true" />
+);
+
 /** Every mark and line the canvas can draw, docked under it rather than floating over nodes. */
 export function FlowLegend({ motion }: Readonly<{ motion: 'running' | 'paused' | 'off' }>) {
   return (
     <div className={classes.legend} aria-label="Legend">
-      <span className={classes.legendItem}>
-        <span className={classes.legendShape} data-shape="pill" aria-hidden="true" />
-        client
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendShape} data-shape="tag" aria-hidden="true" />
-        address
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendShape} data-shape="box" aria-hidden="true" />
-        queue, bar = backlog
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendShape} data-shape="hex" aria-hidden="true" />
-        other node or broker
-      </span>
+      <LegendItem mark={shape('pill')}>client</LegendItem>
+      <LegendItem mark={shape('tag')}>address</LegendItem>
+      <LegendItem mark={shape('box')}>queue, bar = backlog</LegendItem>
+      <LegendItem mark={shape('hex')}>other node or broker</LegendItem>
       {REFERENCE_RATES.map(({ rate, label }) => (
-        <span key={rate} className={classes.legendItem}>
-          <span
-            className={classes.legendLine}
-            data-line="flowing"
-            style={{ '--edge-width': `${widthPx(rate)}px` } as CSSProperties}
-            aria-hidden="true"
-          />
+        <LegendItem
+          key={rate}
+          mark={line({ 'data-line': 'flowing' }, { '--edge-width': `${widthPx(rate)}px` } as CSSProperties)}
+        >
           {label}
-        </span>
+        </LegendItem>
       ))}
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-line="idle" aria-hidden="true" />
-        idle (thinnest, dashed)
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-line="unknown" aria-hidden="true" />
-        measuring (thinnest, dotted)
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-kind="DIVERT" aria-hidden="true" />
-        divert (not counted by the broker)
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-kind="BRIDGE" aria-hidden="true" />
-        bridge
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-kind="CLUSTER_HOP" aria-hidden="true" />
-        cluster redistribution
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-kind="DEAD_LETTER" aria-hidden="true" />
-        dead letter or expiry
-      </span>
-      <span className={classes.legendItem}>
-        <span className={classes.legendLine} data-fault="true" aria-hidden="true" />
-        fault, named in words
-      </span>
-      <span className={classes.legendItem}>
+      <LegendItem mark={line({ 'data-line': 'idle' })}>idle (thinnest, dashed)</LegendItem>
+      <LegendItem mark={line({ 'data-line': 'unknown' })}>measuring (thinnest, dotted)</LegendItem>
+      <LegendItem mark={line({ 'data-kind': 'DIVERT' })}>divert (not counted by the broker)</LegendItem>
+      <LegendItem mark={line({ 'data-kind': 'BRIDGE' })}>bridge</LegendItem>
+      <LegendItem mark={line({ 'data-kind': 'CLUSTER_HOP' })}>cluster redistribution</LegendItem>
+      <LegendItem mark={line({ 'data-kind': 'DEAD_LETTER' })}>dead letter or expiry</LegendItem>
+      <LegendItem mark={line({ 'data-fault': 'true' })}>fault, named in words</LegendItem>
+      <LegendItem>
         Line width and dot speed both follow throughput (square-root scale, capped at {RATE_CAP} msg/s).
-      </span>
-      <span className={classes.legendItem}>
+      </LegendItem>
+      <LegendItem>
         {motion === 'off'
           ? 'Motion is off (reduced motion); width and labels carry the rate.'
           : 'Dots move left to right; faster and denser means busier.'}
-      </span>
+      </LegendItem>
     </div>
   );
 }
