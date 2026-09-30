@@ -2,27 +2,14 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Group, Loader, Stack, Table, Text, VisuallyHidden } from '@mantine/core';
 
 import { useLogout } from '../../kernel/auth/api.ts';
-import { absoluteLabel, elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
+import { useServerNow } from '../../kernel/time/time.ts';
+import { When } from '../../kernel/time/When.tsx';
 import { useEndOtherSessions, useEndSession, useSessions, type AccountSessionView } from './api.ts';
-import { describeClient } from './clientLabel.ts';
+import { describeClient } from '../../kernel/auth/clientLabel.ts';
 
 interface Outcome {
   text: string;
   failed: boolean;
-}
-
-/** How long ago, in words, with the exact time beneath it so nothing is hidden behind a hover. */
-function When({ at, now }: { at: string; now: number }) {
-  return (
-    <>
-      <Text size="sm" component="time" dateTime={at} display="block">
-        {elapsedLabel(now - Date.parse(at))} ago
-      </Text>
-      <Text size="xs" c="dimmed">
-        {absoluteLabel(at)}
-      </Text>
-    </>
-  );
 }
 
 const describeSession = (s: AccountSessionView) =>
@@ -128,7 +115,7 @@ export function SessionsManager({ userId }: { userId?: string }) {
                       {describeClient(s.userAgent)}
                     </Text>
                     {s.current ? (
-                      <Badge size="xs" variant="outline" color="gray">
+                      <Badge size="xs" variant="default">
                         This session
                       </Badge>
                     ) : null}

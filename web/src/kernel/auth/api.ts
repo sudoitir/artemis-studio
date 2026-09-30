@@ -10,6 +10,9 @@ export type IdentityProviderView = Schemas['IdentityProviderView'];
 export type LoginRequest = Schemas['LoginRequest'];
 export type MeView = Schemas['MeView'];
 export type AuthResult = Schemas['AuthResult'];
+export type SecondFactorRequest = Schemas['SecondFactorRequest'];
+/** How a person can prove a second factor: an authenticator code, a passkey, or a recovery code. */
+export type SecondFactorMethod = NonNullable<AuthResult['methods']>[number];
 
 export const keys = {
   authProviders: ['auth', 'providers'] as const,
@@ -53,6 +56,58 @@ export function useLogin() {
   });
 }
 
+/** The server wants a fresh sign-in before it acts (ADR-0103). */
+export function needsReauthentication(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403 && error.type.endsWith('/reauthentication-required');
+}
+
+/**
+ * Step-up with a password (ADR-0103). An account with a second factor answers `SECOND_FACTOR_REQUIRED` and
+ * is not fresh until {@link useSecondFactor} finishes it; an account without one is fresh now, so `/auth/me`,
+ * which carries when the session last signed in, is refreshed.
+ */
+export function useReauthenticate() {
+  const qc = useQueryClient();
+  return useMutation<AuthResult, ApiError, string>({
+    mutationFn: (password) =>
+      request<AuthResult>('/auth/reauthenticate', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+      }),
+    onSuccess: (result) => {
+      if (result.status === 'AUTHENTICATED') void qc.invalidateQueries({ queryKey: keys.me });
+    },
+  });
+}
+
+/**
+ * The second factor of a sign-in, when no one is signed in yet, or of a step-up, when someone is: the server
+ * tells them apart by the session. Either way `/auth/me` is refreshed, since what it carries has changed.
+ */
+export function useSecondFactor() {
+  const qc = useQueryClient();
+  return useMutation<AuthResult, ApiError, SecondFactorRequest>({
+    mutationFn: (body) =>
+      request<AuthResult>('/auth/second-factor', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (result) => {
+      if (result.me) {
+        // Whoever signs in next sees every notice again, including on a shared browser.
+        clearDismissedNotices();
+        qc.setQueryData(keys.me, result.me);
+      }
+      void qc.invalidateQueries({ queryKey: keys.me });
+    },
+  });
+}
+
+/** The options for a passkey answer to the second factor now owed, as `parseRequestOptionsFromJSON` takes them. */
+export function fetchPasskeyRequestOptions() {
+  return request<PublicKeyCredentialRequestOptionsJSON>('/auth/second-factor/options', { method: 'POST' });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, void>({
@@ -61,23 +116,5 @@ export function useLogout() {
       clearDismissedNotices();
       qc.setQueryData(keys.me, undefined);
     },
-  });
-}
-
-/** The server wants a fresh sign-in before it acts (ADR-0103). */
-export function needsReauthentication(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && error.type.endsWith('/reauthentication-required');
-}
-
-/** Step-up with a password (ADR-0103); refreshes `/auth/me`, which carries when this session last signed in. */
-export function useReauthenticate() {
-  const qc = useQueryClient();
-  return useMutation<Schemas['AuthResult'], ApiError, string>({
-    mutationFn: (password) =>
-      request<Schemas['AuthResult']>('/auth/reauthenticate', {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
   });
 }

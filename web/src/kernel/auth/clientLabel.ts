@@ -8,12 +8,17 @@ const MAX_LENGTH = 40;
 export function describeClient(userAgent: string | null | undefined): string {
   const ua = userAgent?.trim();
   if (!ua) return 'Unknown client';
-  const browser = browserOf(ua);
-  const os = osOf(ua);
-  if (browser && os) return `${browser} on ${os}`;
+  const browser = describeBrowser(ua);
   if (browser) return browser;
   const token = ua.split(/\s/)[0] ?? ua;
   return token.length > MAX_LENGTH ? `${token.slice(0, MAX_LENGTH)}…` : token;
+}
+
+/** "Firefox on Linux", or null when the string is not a browser's: for a name that must not be a guess. */
+export function describeBrowser(userAgent: string): string | null {
+  const browser = browserOf(userAgent);
+  const os = osOf(userAgent);
+  return browser && os ? `${browser} on ${os}` : browser;
 }
 
 // Order matters: Edge and Opera also say Chrome, and Chrome also says Safari.

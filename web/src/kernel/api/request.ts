@@ -79,6 +79,19 @@ function csrfToken(): string | undefined {
     ?.split('=')[1];
 }
 
+/**
+ * A wrong code answered to a step-up is a 401 too, but the session is fine: the person stays where they
+ * are and tries again. (The attempt that ends the session answers a different problem type.)
+ */
+async function isWrongSecondFactor(res: Response): Promise<boolean> {
+  try {
+    const body = (await res.clone().json()) as { type?: unknown };
+    return typeof body.type === 'string' && body.type.endsWith('/second-factor-invalid');
+  } catch {
+    return false;
+  }
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();
   const headers: Record<string, string> = {
@@ -97,7 +110,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: merged,
   });
-  if (res.status === 401 && !globalThis.location.pathname.startsWith('/login')) {
+  if (res.status === 401 && !globalThis.location.pathname.startsWith('/login') && !(await isWrongSecondFactor(res))) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
     globalThis.location.assign(confirmedSignedIn ? `/login?reason=${SESSION_ENDED_REASON}` : '/login');

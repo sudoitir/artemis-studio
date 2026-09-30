@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { describeClient } from './clientLabel.ts';
+import { describeBrowser, describeClient } from './clientLabel.ts';
 
 describe('describeClient', () => {
   it.each([
@@ -37,5 +37,14 @@ describe('describeClient', () => {
 
   it('cuts a very long token', () => {
     expect(describeClient('x'.repeat(100))).toBe(`${'x'.repeat(40)}…`);
+  });
+});
+
+describe('describeBrowser', () => {
+  it('names a browser and refuses to guess for anything else', () => {
+    expect(describeBrowser('Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0')).toBe(
+      'Firefox on Linux',
+    );
+    expect(describeBrowser('curl/8.5.0')).toBeNull();
   });
 });

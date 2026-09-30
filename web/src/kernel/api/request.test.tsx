@@ -53,6 +53,21 @@ describe('request() 401 handling', () => {
     expect(window.location.assign).not.toHaveBeenCalled();
   });
 
+  it('keeps the session when a step-up code is wrong', async () => {
+    server.use(
+      http.post('*/api/v1/auth/second-factor', () =>
+        HttpResponse.json(
+          { type: 'https://artemis-studio.dev/problems/second-factor-invalid', title: 'Code not accepted' },
+          { status: 401 },
+        ),
+      ),
+    );
+
+    await expect(request('/auth/second-factor', { method: 'POST' })).rejects.toThrow('Code not accepted');
+
+    expect(window.location.assign).not.toHaveBeenCalled();
+  });
+
   // Last in this block: once a page has seen a sign-in confirmed, a later 401 always says the session ended.
   it('says the session ended when the page had been signed in', async () => {
     server.use(
