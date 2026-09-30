@@ -1,9 +1,11 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.artemisstudio.kernel.security.PersonalTokens;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import java.time.Duration;
+import java.util.Optional;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -23,16 +25,16 @@ class StreamJobs {
     }
 
     /**
-     * Ends the streams of sessions that timed out or ended elsewhere, at a fixed gap: how soon a
-     * signed-out user stops receiving events must not depend on the proxy-tuned heartbeat.
+     * Ends the streams of sessions that timed out or ended elsewhere, and of API tokens that stopped
+     * being accepted, at a fixed gap: how soon a signed-out user, or a revoked token, stops receiving
+     * events must not depend on the proxy-tuned heartbeat. The token module is optional.
      */
     @Bean
-    ScheduledJob sseSessionCheckJob(SseHub hub, SessionAuthentication sessions) {
+    ScheduledJob sseSessionCheckJob(SseHub hub, SessionAuthentication sessions, Optional<PersonalTokens> tokens) {
         return ScheduledJob.fixedDelay(
-                "sse-session-check",
-                "stream",
-                ScheduledJob.Scope.INSTANCE,
-                () -> SESSION_CHECK_INTERVAL,
-                () -> hub.closeEndedSessions(sessions::isLive));
+                "sse-session-check", "stream", ScheduledJob.Scope.INSTANCE, () -> SESSION_CHECK_INTERVAL, () -> {
+                    hub.closeEndedSessions(sessions::isLive);
+                    tokens.ifPresent(t -> hub.closeEndedTokens(t::isLive));
+                });
     }
 }

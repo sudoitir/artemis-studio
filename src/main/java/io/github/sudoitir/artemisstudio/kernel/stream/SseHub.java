@@ -164,6 +164,16 @@ public class SseHub {
         complete(s -> s.sessionId() != null && !live.computeIfAbsent(s.sessionId(), isLive::test));
     }
 
+    /**
+     * Complete the streams opened with an API token that {@code isLive} no longer accepts: revoked,
+     * expired, or its owner disabled or now required to hold a second factor it was minted without.
+     * Asks once per token however many streams it holds.
+     */
+    public void closeEndedTokens(Predicate<UUID> isLive) {
+        Map<UUID, Boolean> live = new HashMap<>();
+        complete(s -> s.tokenId() != null && !live.computeIfAbsent(s.tokenId(), isLive::test));
+    }
+
     private void complete(Predicate<Subscriber> ended) {
         byCluster.forEach((clusterId, set) -> set.stream().filter(ended).forEach(s -> {
             remove(clusterId, s);
