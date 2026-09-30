@@ -1092,6 +1092,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/second-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["secondFactor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/reauthenticate": {
         parameters: {
             query?: never;
@@ -1118,6 +1134,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startTotp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/totp/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmTotp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["regenerateRecoveryCodes"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2404,6 +2468,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -2696,6 +2776,8 @@ export interface components {
         RoleRequest: {
             name: string;
             permissions: string[];
+            /** @description Whether local accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA. */
+            requiresMfa: boolean;
         };
         RoleView: {
             /** Format: uuid */
@@ -2703,6 +2785,7 @@ export interface components {
             name: string;
             builtin: boolean;
             permissions: string[];
+            requiresMfa: boolean;
         };
         DefaultRoleRequest: {
             /** Format: uuid */
@@ -4284,8 +4367,35 @@ export interface components {
             config?: string;
             secret?: string;
         };
-        ReauthenticateRequest: {
-            password: string;
+        SecondFactorRequest: {
+            /** @description A code from an authenticator app. */
+            totpCode?: string | null;
+            /** @description A single-use recovery code; dashes and case are ignored. */
+            recoveryCode?: string | null;
+        };
+        AuthResult: {
+            /** @enum {string} */
+            status: "AUTHENTICATED" | "SECOND_FACTOR_REQUIRED";
+            /** @description The signed-in user; set when the status is AUTHENTICATED. */
+            me?: components["schemas"]["MeView"];
+            /** @description How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, RECOVERY_CODE one of the single-use codes. */
+            methods?: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[] | null;
+        };
+        GrantView: {
+            scopeType: string;
+            /** Format: uuid */
+            scopeId?: string | null;
+            permissions: string[];
+        };
+        MeView: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            mustChangePassword: boolean;
+            /** @description The user's role requires two-step verification and they have none: the session may only enrol one until they do. */
+            secondFactorEnrolmentRequired: boolean;
+            grants: components["schemas"]["GrantView"][];
+            reauthentication: components["schemas"]["ReauthenticationView"];
         };
         ReauthenticationView: {
             /**
@@ -4299,29 +4409,31 @@ export interface components {
             /** Format: int64 */
             windowSeconds: number;
         };
+        ReauthenticateRequest: {
+            password: string;
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        TotpEnrolmentView: {
+            secret: string;
+            otpauthUri: string;
+        };
+        ConfirmTotpRequest: {
+            code: string;
+        };
+        TotpConfirmedView: {
+            recoveryCodes?: string[] | null;
+        };
+        RecoveryCodesView: {
+            codes: string[];
         };
         LoginRequest: {
             /** @description The credential provider to sign in with. Omit for local. */
             provider?: string | null;
             username: string;
             password: string;
-        };
-        GrantView: {
-            scopeType: string;
-            /** Format: uuid */
-            scopeId?: string | null;
-            permissions: string[];
-        };
-        MeView: {
-            /** Format: uuid */
-            id: string;
-            username: string;
-            mustChangePassword: boolean;
-            grants: components["schemas"]["GrantView"][];
-            reauthentication: components["schemas"]["ReauthenticationView"];
         };
         PluginPurgePlanView: {
             schema: string;
@@ -5809,6 +5921,18 @@ export interface components {
             label: string;
             /** @description Where a redirect provider's sign-in begins. */
             startPath?: string | null;
+        };
+        MfaStatusView: {
+            required: boolean;
+            enrolled: boolean;
+            totpEnrolled: boolean;
+            /** Format: int32 */
+            recoveryCodesRemaining: number;
+            webauthn: components["schemas"]["WebAuthnAvailabilityView"];
+        };
+        WebAuthnAvailabilityView: {
+            available: boolean;
+            reason?: string | null;
         };
         ClusterFiringCountView: {
             /**
@@ -8179,6 +8303,30 @@ export interface operations {
             };
         };
     };
+    secondFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecondFactorRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuthResult"];
+                };
+            };
+        };
+    };
     reauthenticate: {
         parameters: {
             query?: never;
@@ -8198,7 +8346,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ReauthenticationView"];
+                    "*/*": components["schemas"]["AuthResult"];
                 };
             };
         };
@@ -8222,6 +8370,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    startTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TotpEnrolmentView"];
+                };
+            };
+        };
+    };
+    confirmTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmTotpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TotpConfirmedView"];
+                };
+            };
+        };
+    };
+    regenerateRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryCodesView"];
+                };
             };
         };
     };
@@ -8262,7 +8474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["MeView"];
+                    "*/*": components["schemas"]["AuthResult"];
                 };
             };
         };
@@ -10188,6 +10400,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["IdentityProviderView"][];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MfaStatusView"];
                 };
             };
         };

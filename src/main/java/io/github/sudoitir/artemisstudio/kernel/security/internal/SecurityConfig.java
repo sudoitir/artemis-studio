@@ -77,6 +77,7 @@ public class SecurityConfig {
                         new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/second-factor",
                                 "/api/v1/auth/providers",
                                 "/actuator/health",
                                 "/actuator/health/**")
@@ -110,7 +111,7 @@ public class SecurityConfig {
                 // this filter must come after, not before.
                 .addFilterAfter(new BearerAuthenticationFilter(identityProviders), SecurityContextHolderFilter.class)
                 .addFilterAfter(
-                        new MustChangePasswordFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
+                        new RestrictedSessionFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
 
         // Redirect sign-in (ADR-0040) adds what it needs; a module with nothing to add adds nothing.

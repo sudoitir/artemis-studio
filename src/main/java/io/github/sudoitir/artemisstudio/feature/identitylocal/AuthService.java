@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginAttemptLimiter;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
@@ -31,6 +32,7 @@ public class AuthService {
     private final ActorResolver actorResolver;
     private final PasswordPolicy passwordPolicy;
     private final LoginAttemptLimiter limiter;
+    private final SecondFactors secondFactors;
 
     @Transactional
     public void changePassword(
@@ -58,9 +60,11 @@ public class AuthService {
                 1);
         // The session's principal still carries the old mustChangePassword=true —
         // re-establish it with a fresh one so the must-change-password gate unlocks
-        // immediately, without forcing a separate login. The user's other sessions end with it.
+        // immediately, without forcing a separate login. The user's other sessions end with it. A required
+        // user without a second factor moves on from the password to enrolment, so the flag is worked out anew.
         sessions.reestablishEndingOthers(
-                new StudioPrincipal(user.id(), user.username(), grantLoader.loadFor(user.id()), false),
+                new StudioPrincipal(user.id(), user.username(), grantLoader.loadFor(user.id()), false)
+                        .withSecondFactorEnrolmentRequired(secondFactors.enrolmentRequired(user.id())),
                 request,
                 response);
     }

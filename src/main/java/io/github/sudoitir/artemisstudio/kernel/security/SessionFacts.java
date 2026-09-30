@@ -43,7 +43,17 @@ public record SessionFacts(
         return new SessionFacts(now, null, null, now, request.getRemoteAddr(), userAgent);
     }
 
+    /** A sign-in that just proved the user in full and verified a second factor. */
+    public static SessionFacts signedInWithSecondFactor(HttpServletRequest request, Method method) {
+        return signedIn(request).withMfaVerified(Instant.now(), method);
+    }
+
     public SessionFacts withAuthenticatedAt(Instant at) {
         return new SessionFacts(at, mfaVerifiedAt, mfaMethod, signedInAt, clientAddress, userAgent);
+    }
+
+    /** These facts after a second factor was verified {@code at}, by {@code method}. */
+    public SessionFacts withMfaVerified(Instant at, Method method) {
+        return new SessionFacts(authenticatedAt, at, method, signedInAt, clientAddress, userAgent);
     }
 }

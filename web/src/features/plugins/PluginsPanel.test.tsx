@@ -318,12 +318,7 @@ describe('Administration → Plugins', () => {
       ),
       http.post('*/api/v1/auth/reauthenticate', async () => {
         reauthenticated = true;
-        return HttpResponse.json({
-          method: 'PASSWORD',
-          startPath: null,
-          authenticatedAt: new Date().toISOString(),
-          windowSeconds: 300,
-        });
+        return HttpResponse.json({ status: 'AUTHENTICATED', me: null, methods: null });
       }),
     );
     const user = userEvent.setup();

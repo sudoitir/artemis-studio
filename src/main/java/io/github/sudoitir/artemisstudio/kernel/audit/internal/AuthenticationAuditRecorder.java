@@ -5,7 +5,9 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +26,36 @@ class AuthenticationAuditRecorder implements AuthenticationAudit {
     @Override
     public void accountLocked(String username, HttpServletRequest request) {
         audit.succeed(audit.begin(anonymous(request), "ACCOUNT_LOCK", "user", username, null, null, null, false), 1);
+    }
+
+    @Override
+    public void secondFactorFailed(String username, String reason) {
+        audit.succeed(
+                audit.begin(
+                        actors.resolve(),
+                        "SECOND_FACTOR_FAILED",
+                        "user",
+                        username,
+                        null,
+                        null,
+                        Map.of("reason", reason),
+                        false),
+                1);
+    }
+
+    @Override
+    public void secondFactorVerified(String username, SessionFacts.Method method) {
+        audit.succeed(
+                audit.begin(
+                        actors.resolve(),
+                        "SECOND_FACTOR",
+                        "user",
+                        username,
+                        null,
+                        null,
+                        Map.of("method", method.name()),
+                        false),
+                1);
     }
 
     /** No session exists yet, so the actor is the anonymous caller at this address. */

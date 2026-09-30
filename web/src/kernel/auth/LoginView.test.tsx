@@ -19,6 +19,14 @@ const BOOTED = { manifest: { version: '1' } as never, plugins: [], failures: new
 
 const LOCAL = { id: 'local', kind: 'CREDENTIAL', label: 'Password', startPath: null };
 
+/** What `POST /auth/login` answers once the sign-in is complete. */
+function signedIn(username: string, mustChangePassword: boolean) {
+  return {
+    status: 'AUTHENTICATED',
+    me: { id: 'u1', username, mustChangePassword, secondFactorEnrolmentRequired: false, grants: [] },
+  };
+}
+
 describe('LoginView', () => {
   beforeEach(() => {
     server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([LOCAL])));
@@ -33,11 +41,7 @@ describe('LoginView', () => {
     setBootState({ plugins: [], failures: new Map() });
     const replace = vi.fn();
     vi.stubGlobal('location', { ...window.location, replace, pathname: '/login' });
-    server.use(
-      http.post('*/api/v1/auth/login', () =>
-        HttpResponse.json({ id: 'u1', username: 'alice', mustChangePassword: false, grants: [] }),
-      ),
-    );
+    server.use(http.post('*/api/v1/auth/login', () => HttpResponse.json(signedIn('alice', false))));
     const user = userEvent.setup();
     renderWithProviders(<LoginView />);
 
@@ -51,11 +55,7 @@ describe('LoginView', () => {
   });
 
   it('submits credentials and navigates home on success', async () => {
-    server.use(
-      http.post('*/api/v1/auth/login', () =>
-        HttpResponse.json({ id: 'u1', username: 'alice', mustChangePassword: false, grants: [] }),
-      ),
-    );
+    server.use(http.post('*/api/v1/auth/login', () => HttpResponse.json(signedIn('alice', false))));
     const user = userEvent.setup();
     renderWithProviders(<LoginView />);
 
@@ -66,12 +66,25 @@ describe('LoginView', () => {
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/' }));
   });
 
-  it('navigates to change-password when the account must change it', async () => {
+  it('does not sign in when the password alone is not enough', async () => {
     server.use(
       http.post('*/api/v1/auth/login', () =>
-        HttpResponse.json({ id: 'u1', username: 'admin', mustChangePassword: true, grants: [] }),
+        HttpResponse.json({ status: 'SECOND_FACTOR_REQUIRED', me: null, methods: ['TOTP', 'RECOVERY_CODE'] }),
       ),
     );
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    await user.type(screen.getByLabelText(/Username/), 'alice');
+    await user.type(screen.getByLabelText(/Password/), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates to change-password when the account must change it', async () => {
+    server.use(http.post('*/api/v1/auth/login', () => HttpResponse.json(signedIn('admin', true))));
     const user = userEvent.setup();
     renderWithProviders(<LoginView />);
 
@@ -126,7 +139,7 @@ describe('LoginView', () => {
       ),
       http.post('*/api/v1/auth/login', async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ id: 'u1', username: 'alice', mustChangePassword: false, grants: [] });
+        return HttpResponse.json(signedIn('alice', false));
       }),
     );
     const user = userEvent.setup();

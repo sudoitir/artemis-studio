@@ -4,9 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.jayway.jsonpath.JsonPath;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
@@ -53,6 +57,9 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     RoleRepository roles;
+
+    @Autowired
+    RolePermissionRepository rolePermissions;
 
     @Autowired
     UserRoleRepository userRoles;
@@ -142,11 +149,12 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
         user.setMustChangePassword(false);
         UUID id = users.save(user).getId();
         if (administrator) {
+            // A role of its own holding everything, because the built-in ADMIN role requires a second factor.
+            UUID role = roles.save(new RoleEntity("admin-" + UUID.randomUUID(), false))
+                    .getId();
+            rolePermissions.save(new RolePermissionEntity(role, Permissions.WILDCARD));
             userRoles.save(new UserRoleEntity(
-                    id,
-                    roles.findByName("ADMIN").orElseThrow().getId(),
-                    "GLOBAL",
-                    io.github.sudoitir.artemisstudio.kernel.security.ScopeIds.GLOBAL));
+                    id, role, "GLOBAL", io.github.sudoitir.artemisstudio.kernel.security.ScopeIds.GLOBAL));
         }
     }
 

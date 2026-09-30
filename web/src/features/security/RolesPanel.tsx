@@ -136,7 +136,12 @@ export function RolesPanel() {
           <Button
             loading={create.isPending || update.isPending}
             onClick={() => {
-              const body = { name, permissions };
+              // Keeps the role's setting; the switch for it comes with the admin screen for two-step verification.
+              const body = {
+                name,
+                permissions,
+                requiresMfa: editing !== 'new' && editing !== null && editing.requiresMfa,
+              };
               if (editing === 'new') {
                 create.mutate(body, {
                   onSuccess: () => setEditing(null),

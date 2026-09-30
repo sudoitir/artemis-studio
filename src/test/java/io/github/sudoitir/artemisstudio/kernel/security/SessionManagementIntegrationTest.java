@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
@@ -54,6 +57,9 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     RoleRepository roles;
+
+    @Autowired
+    RolePermissionRepository rolePermissions;
 
     @Autowired
     UserRoleRepository userRoles;
@@ -133,10 +139,13 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         return users.save(user).getId();
     }
 
+    /** Holds every permission through a role of its own, because the built-in ADMIN role requires a second factor. */
     private UUID newAdministrator(String username) {
         UUID id = newUser(username);
-        UUID admin = roles.findByName("ADMIN").orElseThrow().getId();
-        userRoles.save(new UserRoleEntity(id, admin, "GLOBAL", ScopeIds.GLOBAL));
+        UUID role =
+                roles.save(new RoleEntity("admin-" + UUID.randomUUID(), false)).getId();
+        rolePermissions.save(new RolePermissionEntity(role, Permissions.WILDCARD));
+        userRoles.save(new UserRoleEntity(id, role, "GLOBAL", ScopeIds.GLOBAL));
         return id;
     }
 

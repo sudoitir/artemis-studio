@@ -46,8 +46,11 @@ export function LoginView() {
     login.mutate(
       { provider: chosen, username, password },
       {
-        onSuccess: (me) => {
-          const to = me.mustChangePassword ? '/change-password' : '/';
+        onSuccess: (result) => {
+          if (result.me === null || result.me === undefined) {
+            return;
+          }
+          const to = result.me.mustChangePassword ? '/change-password' : '/';
           // A page that started signed out loaded no plugins (it could not read the manifest), so it
           // starts again, signed in; one that already has them just moves on.
           if (bootState().manifest === undefined) {

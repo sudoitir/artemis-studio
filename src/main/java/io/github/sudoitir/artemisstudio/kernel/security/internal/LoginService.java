@@ -3,12 +3,16 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
+import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginAttemptLimiter;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationFailedException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorInvalidException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
+import io.github.sudoitir.artemisstudio.kernel.security.SignInExpiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +23,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,9 +48,19 @@ public class LoginService {
     private final AuthenticationAudit audit;
     private final UserAccounts accounts;
     private final AccountLockout lockout;
+    private final GrantLoader grants;
+    /** Absent when the module holding the factors is off, which leaves sign-in password only. */
+    private final Optional<SecondFactors> secondFactors;
+
+    /** How far a password got a caller: signed in, or waiting for the second factor that completes it. */
+    public sealed interface Outcome {
+        record Authenticated(StudioPrincipal principal) implements Outcome {}
+
+        record SecondFactorRequired(List<SessionFacts.Method> methods) implements Outcome {}
+    }
 
     @Transactional
-    public StudioPrincipal login(
+    public Outcome login(
             String providerId,
             String username,
             String password,
@@ -76,10 +92,107 @@ public class LoginService {
             attempt.failed("account locked");
             throw new BadCredentialsException("Invalid username or password");
         }
-        sessions.establish(principal.get(), SessionFacts.signedIn(request), request, response);
-        completed(principal.get(), request);
+        StudioPrincipal found = principal.get();
+        if (secondFactors.isPresent() && secondFactors.get().enrolled(found.userId())) {
+            // The password alone opens nothing: no principal, and no success recorded, until the factor.
+            sessions.awaitSecondFactor(found.userId(), provider, request, response);
+            attempt.succeeded();
+            return new Outcome.SecondFactorRequired(secondFactors.get().methods(found.userId()));
+        }
+        StudioPrincipal user =
+                secondFactors.filter(f -> f.enrolmentRequired(found.userId())).isPresent()
+                        ? found.withSecondFactorEnrolmentRequired(true)
+                        : found;
+        sessions.establish(user, SessionFacts.signedIn(request), request, response);
+        completed(user, request);
         attempt.succeeded();
-        return principal.get();
+        return new Outcome.Authenticated(user);
+    }
+
+    /**
+     * The second factor of a sign-in or a step-up. With no principal it completes the sign-in the
+     * password started; with one, the step-up its password started. A wrong factor counts against the
+     * account and the source address exactly as a wrong password does.
+     */
+    @Transactional
+    public Outcome secondFactor(SecondFactors.Proof proof, HttpServletRequest request, HttpServletResponse response) {
+        SecondFactors factors = secondFactors.orElseThrow(SignInExpiredException::new);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof StudioPrincipal current
+                ? completeStepUp(factors, current, proof, request, response)
+                : completeSignIn(factors, proof, request, response);
+    }
+
+    private Outcome completeSignIn(
+            SecondFactors factors,
+            SecondFactors.Proof proof,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        var pending = sessions.pendingSecondFactor(request).orElseThrow(SignInExpiredException::new);
+        UserAccounts.Account account = accounts.byId(pending.userId())
+                .filter(a -> a.providerId().equals(pending.providerId()))
+                .filter(a -> !a.disabled() && !lockout.isLocked(a.id()))
+                .orElse(null);
+        if (account == null) {
+            // Locked or disabled since the password: answered as a wrong password, and the password is forgotten.
+            sessions.clearPending(request);
+            throw new BadCredentialsException("Invalid username or password");
+        }
+        SessionFacts.Method method = verified(factors, account.id(), account.username(), proof, request)
+                .orElseThrow(SecondFactorInvalidException::new);
+        sessions.clearPending(request);
+        StudioPrincipal principal = new StudioPrincipal(
+                account.id(), account.username(), grants.loadFor(account.id()), account.mustChangePassword());
+        sessions.establish(principal, SessionFacts.signedInWithSecondFactor(request, method), request, response);
+        completed(principal, request);
+        audit.secondFactorVerified(account.username(), method);
+        return new Outcome.Authenticated(principal);
+    }
+
+    private Outcome completeStepUp(
+            SecondFactors factors,
+            StudioPrincipal current,
+            SecondFactors.Proof proof,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        sessions.pendingStepUp(request)
+                .filter(p -> p.userId().equals(current.userId()))
+                .orElseThrow(() -> new ReauthenticationFailedException("Enter your password first, then your code."));
+        Optional<SessionFacts.Method> method =
+                verified(factors, current.userId(), current.getUsername(), proof, request);
+        if (method.isEmpty()) {
+            if (limiter.isLocked(current.getUsername(), request.getRemoteAddr())) {
+                sessions.end(request, response);
+                throw new BadCredentialsException("Too many failed attempts; the session was ended.");
+            }
+            throw new SecondFactorInvalidException();
+        }
+        limiter.recordSuccess(current.getUsername(), request.getRemoteAddr());
+        sessions.reauthenticated(request, method.get());
+        audit.secondFactorVerified(current.getUsername(), method.get());
+        return new Outcome.Authenticated(current);
+    }
+
+    /**
+     * Throttles and checks one attempt. The result is empty only in step-up, when the caller should
+     * end the session; a failed sign-in throws.
+     */
+    private Optional<SessionFacts.Method> verified(
+            SecondFactors factors,
+            UUID userId,
+            String username,
+            SecondFactors.Proof proof,
+            HttpServletRequest request) {
+        if (limiter.isLocked(username, request.getRemoteAddr())) {
+            audit.secondFactorFailed(username, "throttled");
+            throw new LoginThrottledException();
+        }
+        Optional<SessionFacts.Method> method = factors.verify(userId, proof);
+        if (method.isEmpty()) {
+            lockout.failed(userId, username, request);
+            audit.secondFactorFailed(username, "invalid code");
+        }
+        return method;
     }
 
     /**
@@ -110,11 +223,11 @@ public class LoginService {
 
     /**
      * Step-up for a signed-in user whose provider checks a password (ADR-0103): the password must
-     * identify this same user. Throttled like a login; the attempt that reaches the lockout also
+     * identify this same user, and a user with a second factor then gives it to {@link #secondFactor}. Throttled like a login; the attempt that reaches the lockout also
      * ends the session, so a stolen cookie cannot be used to guess the password at leisure.
      */
     @Transactional
-    public void reauthenticate(
+    public Outcome reauthenticate(
             StudioPrincipal current, String password, HttpServletRequest request, HttpServletResponse response) {
         String username = current.getUsername();
         String sourceIp = request.getRemoteAddr();
@@ -147,9 +260,15 @@ public class LoginService {
             }
             throw new ReauthenticationFailedException("That password is not right.");
         }
+        attempt.succeeded();
+        if (secondFactors.isPresent() && secondFactors.get().enrolled(current.userId())) {
+            // The password alone never makes an account with a factor fresh, and does not clear its failures.
+            sessions.awaitStepUp(current.userId(), request);
+            return new Outcome.SecondFactorRequired(secondFactors.get().methods(current.userId()));
+        }
         limiter.recordSuccess(username, sourceIp);
         sessions.reauthenticated(request);
-        attempt.succeeded();
+        return new Outcome.Authenticated(current);
     }
 
     @Transactional

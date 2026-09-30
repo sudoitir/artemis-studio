@@ -9,6 +9,7 @@ export type GrantView = Schemas['GrantView'];
 export type IdentityProviderView = Schemas['IdentityProviderView'];
 export type LoginRequest = Schemas['LoginRequest'];
 export type MeView = Schemas['MeView'];
+export type AuthResult = Schemas['AuthResult'];
 
 export const keys = {
   authProviders: ['auth', 'providers'] as const,
@@ -35,16 +36,19 @@ export function useAuthProviders(): UseQueryResult<IdentityProviderView[], ApiEr
 
 export function useLogin() {
   const qc = useQueryClient();
-  return useMutation<MeView, ApiError, LoginRequest>({
+  return useMutation<AuthResult, ApiError, LoginRequest>({
     mutationFn: (body) =>
-      request<MeView>('/auth/login', {
+      request<AuthResult>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    onSuccess: (me) => {
-      // Whoever signs in next sees every notice again, including on a shared browser.
-      clearDismissedNotices();
-      qc.setQueryData(keys.me, me);
+    onSuccess: (result) => {
+      // A correct password for an account with a second factor signs nobody in yet.
+      if (result.me) {
+        // Whoever signs in next sees every notice again, including on a shared browser.
+        clearDismissedNotices();
+        qc.setQueryData(keys.me, result.me);
+      }
     },
   });
 }
@@ -68,9 +72,9 @@ export function needsReauthentication(error: unknown): boolean {
 /** Step-up with a password (ADR-0103); refreshes `/auth/me`, which carries when this session last signed in. */
 export function useReauthenticate() {
   const qc = useQueryClient();
-  return useMutation<Schemas['ReauthenticationView'], ApiError, string>({
+  return useMutation<Schemas['AuthResult'], ApiError, string>({
     mutationFn: (password) =>
-      request<Schemas['ReauthenticationView']>('/auth/reauthenticate', {
+      request<Schemas['AuthResult']>('/auth/reauthenticate', {
         method: 'POST',
         body: JSON.stringify({ password }),
       }),

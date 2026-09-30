@@ -3202,6 +3202,34 @@
         }
       }
     },
+    "/api/v1/auth/second-factor" : {
+      "post" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "secondFactor",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SecondFactorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuthResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/reauthenticate" : {
       "post" : {
         "tags" : [ "auth-session-controller" ],
@@ -3222,7 +3250,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ReauthenticationView"
+                  "$ref" : "#/components/schemas/AuthResult"
                 }
               }
             }
@@ -3247,6 +3275,70 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/totp" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "startTotp",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TotpEnrolmentView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/totp/confirm" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "confirmTotp",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConfirmTotpRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TotpConfirmedView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/recovery-codes" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "regenerateRecoveryCodes",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecoveryCodesView"
+                }
+              }
+            }
           }
         }
       }
@@ -3282,7 +3374,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/MeView"
+                  "$ref" : "#/components/schemas/AuthResult"
                 }
               }
             }
@@ -6147,6 +6239,24 @@
         }
       }
     },
+    "/api/v1/auth/mfa" : {
+      "get" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MfaStatusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/me" : {
       "get" : {
         "tags" : [ "auth-session-controller" ],
@@ -6682,9 +6792,13 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "requiresMfa" : {
+            "type" : "boolean",
+            "description" : "Whether local accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA."
           }
         },
-        "required" : [ "name", "permissions" ]
+        "required" : [ "name", "permissions", "requiresMfa" ]
       },
       "RoleView" : {
         "type" : "object",
@@ -6704,9 +6818,12 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "requiresMfa" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "builtin", "id", "name", "permissions" ]
+        "required" : [ "builtin", "id", "name", "permissions", "requiresMfa" ]
       },
       "DefaultRoleRequest" : {
         "type" : "object",
@@ -10712,69 +10829,41 @@
         },
         "required" : [ "kind" ]
       },
-      "ReauthenticateRequest" : {
+      "SecondFactorRequest" : {
         "type" : "object",
         "properties" : {
-          "password" : {
-            "type" : "string",
-            "minLength" : 1
-          }
-        },
-        "required" : [ "password" ]
-      },
-      "ReauthenticationView" : {
-        "type" : "object",
-        "properties" : {
-          "method" : {
-            "type" : "string",
-            "description" : "PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.",
-            "enum" : [ "PASSWORD", "REDIRECT" ]
-          },
-          "startPath" : {
-            "type" : [ "string", "null" ]
-          },
-          "authenticatedAt" : {
+          "totpCode" : {
             "type" : [ "string", "null" ],
-            "format" : "date-time"
+            "description" : "A code from an authenticator app."
           },
-          "windowSeconds" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "method", "windowSeconds" ]
-      },
-      "ChangePasswordRequest" : {
-        "type" : "object",
-        "properties" : {
-          "currentPassword" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "newPassword" : {
-            "type" : "string",
-            "minLength" : 1
-          }
-        },
-        "required" : [ "currentPassword", "newPassword" ]
-      },
-      "LoginRequest" : {
-        "type" : "object",
-        "properties" : {
-          "provider" : {
+          "recoveryCode" : {
             "type" : [ "string", "null" ],
-            "description" : "The credential provider to sign in with. Omit for local."
-          },
-          "username" : {
+            "description" : "A single-use recovery code; dashes and case are ignored."
+          }
+        }
+      },
+      "AuthResult" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
             "type" : "string",
-            "minLength" : 1
+            "enum" : [ "AUTHENTICATED", "SECOND_FACTOR_REQUIRED" ]
           },
-          "password" : {
-            "type" : "string",
-            "minLength" : 1
+          "me" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/MeView",
+            "description" : "The signed-in user; set when the status is AUTHENTICATED."
+          },
+          "methods" : {
+            "type" : [ "array", "null" ],
+            "description" : "How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, RECOVERY_CODE one of the single-use codes.",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "TOTP", "WEBAUTHN", "RECOVERY_CODE", "TRUSTED_DEVICE" ]
+            }
           }
         },
-        "required" : [ "password", "username" ]
+        "required" : [ "status" ]
       },
       "GrantView" : {
         "type" : "object",
@@ -10808,6 +10897,10 @@
           "mustChangePassword" : {
             "type" : "boolean"
           },
+          "secondFactorEnrolmentRequired" : {
+            "type" : "boolean",
+            "description" : "The user's role requires two-step verification and they have none: the session may only enrol one until they do."
+          },
           "grants" : {
             "type" : "array",
             "items" : {
@@ -10818,7 +10911,116 @@
             "$ref" : "#/components/schemas/ReauthenticationView"
           }
         },
-        "required" : [ "grants", "id", "mustChangePassword", "reauthentication", "username" ]
+        "required" : [ "grants", "id", "mustChangePassword", "reauthentication", "secondFactorEnrolmentRequired", "username" ]
+      },
+      "ReauthenticationView" : {
+        "type" : "object",
+        "properties" : {
+          "method" : {
+            "type" : "string",
+            "description" : "PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.",
+            "enum" : [ "PASSWORD", "REDIRECT" ]
+          },
+          "startPath" : {
+            "type" : [ "string", "null" ]
+          },
+          "authenticatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "windowSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "method", "windowSeconds" ]
+      },
+      "ReauthenticateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password" ]
+      },
+      "ChangePasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "newPassword" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "currentPassword", "newPassword" ]
+      },
+      "TotpEnrolmentView" : {
+        "type" : "object",
+        "properties" : {
+          "secret" : {
+            "type" : "string"
+          },
+          "otpauthUri" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "otpauthUri", "secret" ]
+      },
+      "ConfirmTotpRequest" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "code" ]
+      },
+      "TotpConfirmedView" : {
+        "type" : "object",
+        "properties" : {
+          "recoveryCodes" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "RecoveryCodesView" : {
+        "type" : "object",
+        "properties" : {
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "codes" ]
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "provider" : {
+            "type" : [ "string", "null" ],
+            "description" : "The credential provider to sign in with. Omit for local."
+          },
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password", "username" ]
       },
       "PluginPurgePlanView" : {
         "type" : "object",
@@ -14561,6 +14763,40 @@
           }
         },
         "required" : [ "id", "kind", "label" ]
+      },
+      "MfaStatusView" : {
+        "type" : "object",
+        "properties" : {
+          "required" : {
+            "type" : "boolean"
+          },
+          "enrolled" : {
+            "type" : "boolean"
+          },
+          "totpEnrolled" : {
+            "type" : "boolean"
+          },
+          "recoveryCodesRemaining" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "webauthn" : {
+            "$ref" : "#/components/schemas/WebAuthnAvailabilityView"
+          }
+        },
+        "required" : [ "enrolled", "recoveryCodesRemaining", "required", "totpEnrolled", "webauthn" ]
+      },
+      "WebAuthnAvailabilityView" : {
+        "type" : "object",
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "available" ]
       },
       "ClusterFiringCountView" : {
         "type" : "object",

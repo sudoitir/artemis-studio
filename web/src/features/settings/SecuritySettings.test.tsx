@@ -107,12 +107,7 @@ describe('SecuritySettings', () => {
       }),
       http.post('*/api/v1/auth/reauthenticate', () => {
         signedIn = fresh();
-        return HttpResponse.json({
-          method: 'PASSWORD',
-          startPath: null,
-          authenticatedAt: signedIn,
-          windowSeconds: 300,
-        });
+        return HttpResponse.json({ status: 'AUTHENTICATED', methods: [] });
       }),
     );
     renderWithProviders(<SecuritySettings />);

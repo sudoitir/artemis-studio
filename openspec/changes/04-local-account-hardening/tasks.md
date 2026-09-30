@@ -21,11 +21,11 @@
 - [x] 5.2 Own and admin session list/end endpoints with hashed handles; `SESSION_END`
 
 ## 6. Second factors (D)
-- [ ] 6.1 `SecondFactors` SPI; `role.requires_mfa` (ADMIN true); local-only rule; grant of a required role ends sessions
-- [ ] 6.2 TOTP (RFC 6238, sealed secret, pending/active, atomic replay guard) and enrolment endpoints
-- [ ] 6.3 Recovery codes (atomic single use, regenerate with step-up)
+- [x] 6.1 `SecondFactors` SPI; `role.requires_mfa` (ADMIN true); local-only rule; grant of a required role ends sessions
+- [x] 6.2 TOTP (RFC 6238, sealed secret, pending/active, atomic replay guard) and enrolment endpoints
+- [x] 6.3 Recovery codes (atomic single use, regenerate with step-up)
 - [ ] 6.4 WebAuthn via `WebAuthnRelyingPartyOperations`, `artemis-studio.public-url`, JDBC repositories, availability report
-- [ ] 6.5 Login second step, `RestrictedSessionFilter`, step-up with factor
+- [x] 6.5 Login second step, `RestrictedSessionFilter`, step-up with factor
 - [ ] 6.6 Trusted devices (cookie, hashed rows, lifetime setting, lock bypass, revocations)
 - [ ] 6.7 Tokens: `minted_with_mfa`, session-only minting, rejection when required
 - [ ] 6.8 Factor management (step-up for add/replace/remove, last-factor guard), admin reset, break-glass recovery; audit events

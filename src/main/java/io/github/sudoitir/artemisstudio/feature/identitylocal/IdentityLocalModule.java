@@ -13,5 +13,8 @@ public final class IdentityLocalModule {
             .settingKey(IdentityLocalSettings.BREACH_LOOKUP)
             .build();
 
+    /** The id of the credential provider whose accounts this module owns. */
+    public static final String PROVIDER_ID = "local";
+
     private IdentityLocalModule() {}
 }

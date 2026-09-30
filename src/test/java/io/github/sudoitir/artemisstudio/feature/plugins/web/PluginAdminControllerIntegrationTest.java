@@ -231,7 +231,8 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"%s\"}".formatted(PASSWORD)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.method").value("PASSWORD"))
+                .andExpect(jsonPath("$.status").value("AUTHENTICATED"))
+                .andExpect(jsonPath("$.me.reauthentication.method").value("PASSWORD"))
                 .andReturn();
         assertThat(stepUp.getRequest().getSession().getId())
                 .as("step-up rotates the session id")

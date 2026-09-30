@@ -2,10 +2,13 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
+import io.github.sudoitir.artemisstudio.kernel.security.MfaEnrolmentRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.MustChangePasswordException;
 import io.github.sudoitir.artemisstudio.kernel.security.PasswordPolicyException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationFailedException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorInvalidException;
+import io.github.sudoitir.artemisstudio.kernel.security.SignInExpiredException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -20,6 +23,22 @@ class SessionProblemAdvice {
     @ExceptionHandler(MustChangePasswordException.class)
     ProblemDetail onMustChangePassword(MustChangePasswordException e) {
         return Problems.of(HttpStatus.LOCKED, "must-change-password", "Password change required", e.getMessage());
+    }
+
+    @ExceptionHandler(MfaEnrolmentRequiredException.class)
+    ProblemDetail onMfaEnrolmentRequired(MfaEnrolmentRequiredException e) {
+        return Problems.of(
+                HttpStatus.LOCKED, "mfa-enrolment-required", "Two-step verification required", e.getMessage());
+    }
+
+    @ExceptionHandler(SecondFactorInvalidException.class)
+    ProblemDetail onSecondFactorInvalid(SecondFactorInvalidException e) {
+        return Problems.of(HttpStatus.UNAUTHORIZED, "second-factor-invalid", "Code not accepted", e.getMessage());
+    }
+
+    @ExceptionHandler(SignInExpiredException.class)
+    ProblemDetail onSignInExpired(SignInExpiredException e) {
+        return Problems.of(HttpStatus.UNAUTHORIZED, "sign-in-expired", "Sign-in timed out", e.getMessage());
     }
 
     @ExceptionHandler(LoginThrottledException.class)

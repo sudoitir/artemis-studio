@@ -3,7 +3,9 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.LoginService;
@@ -32,8 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Sign-in, sign-out, the current identity and the providers to sign in with
- * (identity-and-sessions spec). {@code /login} and {@code /providers} are the only endpoints
- * reachable with no session — see {@code SecurityConfig}'s allow-list.
+ * (identity-and-sessions spec). {@code /login}, {@code /second-factor} and {@code /providers} are
+ * the only endpoints reachable with no session — see {@code SecurityConfig}'s allow-list.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -62,6 +64,13 @@ public class AuthSessionController {
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String username,
             @Schema(requiredMode = REQUIRED) boolean mustChangePassword,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The user's role requires two-step verification and they have none: "
+                            + "the session may only enrol one until they do.")
+            boolean secondFactorEnrolmentRequired,
+
             @Schema(requiredMode = REQUIRED) List<GrantView> grants,
             @Schema(requiredMode = REQUIRED) ReauthenticationView reauthentication) {}
 
@@ -83,6 +92,47 @@ public class AuthSessionController {
             @Schema(requiredMode = REQUIRED) long windowSeconds) {}
 
     public record ReauthenticateRequest(@NotBlank String password) {}
+
+    public enum AuthStatus {
+        AUTHENTICATED,
+        SECOND_FACTOR_REQUIRED
+    }
+
+    /**
+     * Where a sign-in or step-up stands. {@code AUTHENTICATED} carries the signed-in user;
+     * {@code SECOND_FACTOR_REQUIRED} means the password was right and the user must now give a
+     * second factor to {@code POST /auth/second-factor}, with one of {@code methods}.
+     */
+    public record AuthResult(
+            @Schema(requiredMode = REQUIRED) AuthStatus status,
+
+            @Schema(nullable = true, description = "The signed-in user; set when the status is AUTHENTICATED.")
+            MeView me,
+
+            @Schema(
+                    nullable = true,
+                    description = "How the user can prove a second factor; set when the status is "
+                            + "SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, RECOVERY_CODE one "
+                            + "of the single-use codes.")
+            List<SessionFacts.Method> methods) {}
+
+    /** Exactly one of the fields is set. */
+    public record SecondFactorRequest(
+            @Schema(nullable = true, description = "A code from an authenticator app.")
+            String totpCode,
+
+            @Schema(nullable = true, description = "A single-use recovery code; dashes and case are ignored.")
+            String recoveryCode) {
+
+        SecondFactors.Proof proof() {
+            boolean totp = totpCode != null && !totpCode.isBlank();
+            boolean recovery = recoveryCode != null && !recoveryCode.isBlank();
+            if (totp == recovery) {
+                throw new IllegalArgumentException("Send either totpCode or recoveryCode.");
+            }
+            return totp ? new SecondFactors.TotpCode(totpCode) : new SecondFactors.RecoveryCode(recoveryCode);
+        }
+    }
 
     public record IdentityProviderView(
             @Schema(requiredMode = REQUIRED) String id,
@@ -107,19 +157,32 @@ public class AuthSessionController {
     }
 
     @PostMapping("/login")
-    public MeView login(@Valid @RequestBody LoginRequest request, HttpServletRequest req, HttpServletResponse resp) {
-        return view(logins.login(request.provider(), request.username(), request.password(), req, resp), req);
+    public AuthResult login(
+            @Valid @RequestBody LoginRequest request, HttpServletRequest req, HttpServletResponse resp) {
+        return result(logins.login(request.provider(), request.username(), request.password(), req, resp), req);
     }
 
-    /** Step-up with a password (ADR-0103); a single-sign-on user steps up at {@code reauthentication.startPath}. */
+    /**
+     * Step-up with a password (ADR-0103); a single-sign-on user steps up at {@code reauthentication.startPath}.
+     * A user with a second factor is not fresh until they also give it to {@code /second-factor}.
+     */
     @PostMapping("/reauthenticate")
-    public ReauthenticationView reauthenticate(
+    public AuthResult reauthenticate(
             @AuthenticationPrincipal StudioPrincipal principal,
             @Valid @RequestBody ReauthenticateRequest request,
             HttpServletRequest req,
             HttpServletResponse resp) {
-        logins.reauthenticate(principal, request.password(), req, resp);
-        return reauthentication(principal, req);
+        return result(logins.reauthenticate(principal, request.password(), req, resp), req);
+    }
+
+    /**
+     * The second factor that completes a sign-in whose password was right, or a step-up whose password
+     * was right. Reachable without a session, because the first is; it still needs the CSRF token.
+     */
+    @PostMapping("/second-factor")
+    public AuthResult secondFactor(
+            @RequestBody SecondFactorRequest request, HttpServletRequest req, HttpServletResponse resp) {
+        return result(logins.secondFactor(request.proof(), req, resp), req);
     }
 
     @PostMapping("/logout")
@@ -157,6 +220,15 @@ public class AuthSessionController {
         return view(principal, req);
     }
 
+    private AuthResult result(LoginService.Outcome outcome, HttpServletRequest req) {
+        return switch (outcome) {
+            case LoginService.Outcome.Authenticated done ->
+                new AuthResult(AuthStatus.AUTHENTICATED, view(done.principal(), req), null);
+            case LoginService.Outcome.SecondFactorRequired pending ->
+                new AuthResult(AuthStatus.SECOND_FACTOR_REQUIRED, null, pending.methods());
+        };
+    }
+
     private MeView view(StudioPrincipal principal, HttpServletRequest req) {
         var grants = principal.grantList().stream()
                 .map(g -> new GrantView(
@@ -168,6 +240,7 @@ public class AuthSessionController {
                 principal.userId(),
                 principal.getUsername(),
                 principal.mustChangePassword(),
+                principal.secondFactorEnrolmentRequired(),
                 grants,
                 reauthentication(principal, req));
     }

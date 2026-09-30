@@ -22,6 +22,7 @@ public class StudioPrincipal extends User {
     private final Set<Grant> grants;
     private final boolean mustChangePassword;
     private final String tokenName;
+    private final boolean secondFactorEnrolmentRequired;
 
     public StudioPrincipal(UUID userId, String username, Set<Grant> grants, boolean mustChangePassword) {
         this(userId, username, grants, mustChangePassword, null);
@@ -30,11 +31,35 @@ public class StudioPrincipal extends User {
     /** {@code tokenName} is non-null only when authenticated via an API token (api-tokens spec). */
     public StudioPrincipal(
             UUID userId, String username, Set<Grant> grants, boolean mustChangePassword, String tokenName) {
+        this(userId, username, grants, mustChangePassword, tokenName, false);
+    }
+
+    /**
+     * {@code secondFactorEnrolmentRequired} is true for a session whose user must hold a second factor and
+     * has none yet (ADR-0142): it may do nothing but enrol one.
+     */
+    public StudioPrincipal(
+            UUID userId,
+            String username,
+            Set<Grant> grants,
+            boolean mustChangePassword,
+            String tokenName,
+            boolean secondFactorEnrolmentRequired) {
         super(username, "", authorities(grants));
         this.userId = userId;
         this.grants = grants;
         this.mustChangePassword = mustChangePassword;
         this.tokenName = tokenName;
+        this.secondFactorEnrolmentRequired = secondFactorEnrolmentRequired;
+    }
+
+    /** The same principal with the enrolment restriction set or lifted. */
+    public StudioPrincipal withSecondFactorEnrolmentRequired(boolean required) {
+        return new StudioPrincipal(userId, getUsername(), grants, mustChangePassword, tokenName, required);
+    }
+
+    public boolean secondFactorEnrolmentRequired() {
+        return secondFactorEnrolmentRequired;
     }
 
     public String tokenName() {

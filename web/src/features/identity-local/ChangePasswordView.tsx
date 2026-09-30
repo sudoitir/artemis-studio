@@ -9,7 +9,7 @@ import { useLogout, useMe } from '../../kernel/auth/api.ts';
  * Forced password change for the bootstrap admin, or a voluntary change from
  * the user menu (identity-and-sessions spec). Every other request is rejected
  * with `423` until this succeeds when the account is flagged
- * `mustChangePassword` (`MustChangePasswordFilter`).
+ * `mustChangePassword` (`RestrictedSessionFilter`).
  */
 export function ChangePasswordView() {
   const [currentPassword, setCurrentPassword] = useState('');

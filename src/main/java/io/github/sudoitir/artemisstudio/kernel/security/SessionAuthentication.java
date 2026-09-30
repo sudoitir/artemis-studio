@@ -5,11 +5,13 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionTerminat
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
@@ -50,6 +52,21 @@ public class SessionAuthentication {
      */
     public static final String PENDING_PREFIX = "PENDING_";
 
+    /** Held by a session whose user gave the right password and has yet to give a second factor; it has no principal. */
+    public static final String PENDING_SECOND_FACTOR = PENDING_PREFIX + "SECOND_FACTOR";
+
+    /** Held by a signed-in session whose user gave the right password for a step-up and has yet to give a second factor. */
+    public static final String PENDING_STEP_UP = PENDING_PREFIX + "STEP_UP";
+
+    /** How long a password stays good for the second factor that completes it. */
+    public static final Duration PENDING_WINDOW = Duration.ofMinutes(5);
+
+    /** A sign-in awaiting its second factor: who gave the right password, through which provider, and when. */
+    public record PendingSecondFactor(UUID userId, String providerId, Instant at) implements Serializable {}
+
+    /** A step-up awaiting its second factor. */
+    public record PendingStepUp(UUID userId, Instant at) implements Serializable {}
+
     private final SecurityContextRepository securityContextRepository;
     private final CsrfTokenRepository csrfTokenRepository;
     private final InitialInstallers initialInstallers;
@@ -69,10 +86,59 @@ public class SessionAuthentication {
         if (session != null) {
             session.removeAttribute(FACTS);
             session.removeAttribute(LAST_ACTIVITY_AT);
+        }
+        clearPending(request);
+    }
+
+    /** Forget every half-finished sign-in or step-up in the session. */
+    public void clearPending(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
             Collections.list(session.getAttributeNames()).stream()
                     .filter(name -> name.startsWith(PENDING_PREFIX))
                     .forEach(session::removeAttribute);
         }
+    }
+
+    /**
+     * The right password was given for an account with a second factor: the session gets a new id
+     * and remembers who, and stays without a principal, so the password alone opens nothing. It
+     * expires with {@link #PENDING_WINDOW}.
+     */
+    public void awaitSecondFactor(
+            UUID userId, String providerId, HttpServletRequest request, HttpServletResponse response) {
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
+        HttpSession session = request.getSession();
+        session.setAttribute(PENDING_SECOND_FACTOR, new PendingSecondFactor(userId, providerId, Instant.now()));
+        session.setMaxInactiveInterval((int) PENDING_WINDOW.toSeconds());
+        reissueCsrfToken(request, response);
+    }
+
+    /** The sign-in this session is waiting to complete, when there is one and it is not too old. */
+    public Optional<PendingSecondFactor> pendingSecondFactor(HttpServletRequest request) {
+        return pending(request, PENDING_SECOND_FACTOR, PendingSecondFactor.class)
+                .filter(p -> current(p.at()));
+    }
+
+    /** The signed-in user gave the right password for a step-up; the second factor completes it. */
+    public void awaitStepUp(UUID userId, HttpServletRequest request) {
+        request.getSession().setAttribute(PENDING_STEP_UP, new PendingStepUp(userId, Instant.now()));
+    }
+
+    /** The step-up this session is waiting to complete, when there is one and it is not too old. */
+    public Optional<PendingStepUp> pendingStepUp(HttpServletRequest request) {
+        return pending(request, PENDING_STEP_UP, PendingStepUp.class).filter(p -> current(p.at()));
+    }
+
+    private static <T> Optional<T> pending(HttpServletRequest request, String attribute, Class<T> type) {
+        HttpSession session = request.getSession(false);
+        return session == null ? Optional.empty() : Optional.ofNullable(type.cast(session.getAttribute(attribute)));
+    }
+
+    private static boolean current(Instant at) {
+        return at.isAfter(Instant.now().minus(PENDING_WINDOW));
     }
 
     /**
@@ -128,6 +194,38 @@ public class SessionAuthentication {
         SessionFacts facts = facts(request).orElseThrow(() -> new IllegalStateException("No session to step up"));
         request.changeSessionId();
         request.getSession().setAttribute(FACTS, facts.withAuthenticatedAt(Instant.now()));
+    }
+
+    /** Step-up for an account with a second factor: the password was checked earlier, and {@code method} completes it. */
+    public void reauthenticated(HttpServletRequest request, SessionFacts.Method method) {
+        SessionFacts facts = facts(request).orElseThrow(() -> new IllegalStateException("No session to step up"));
+        Instant now = Instant.now();
+        request.changeSessionId();
+        HttpSession session = request.getSession();
+        session.removeAttribute(PENDING_STEP_UP);
+        session.setAttribute(FACTS, facts.withAuthenticatedAt(now).withMfaVerified(now, method));
+    }
+
+    /**
+     * The user enrolled a second factor and proved it with {@code method}: a new session id and a
+     * principal without the enrolment restriction. Authentication counts as fresh only if it already
+     * was, because entering a code for a factor just created proves nothing about who holds the
+     * password, so a stale session cannot use enrolling to skip a step-up.
+     */
+    public void reestablishAfterEnrolment(
+            StudioPrincipal principal,
+            SessionFacts.Method method,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        SessionFacts facts = facts(request)
+                .orElseThrow(() -> new AccessDeniedException("Enrol a second factor from a signed-in session"));
+        Instant now = Instant.now();
+        boolean fresh = recentlyAuthenticated(request);
+        establish(
+                principal.withSecondFactorEnrolmentRequired(false),
+                (fresh ? facts.withAuthenticatedAt(now) : facts).withMfaVerified(now, method),
+                request,
+                response);
     }
 
     /** The facts of this session; empty without a session or before sign-in. */

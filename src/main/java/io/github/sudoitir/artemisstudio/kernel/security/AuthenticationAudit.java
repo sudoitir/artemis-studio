@@ -17,6 +17,12 @@ public interface AuthenticationAudit {
     /** Record that repeated failed sign-ins just locked the account; there is no session, so the caller is anonymous. */
     void accountLocked(String username, HttpServletRequest request);
 
+    /** Record a second factor that was wrong, already used or throttled; the caller is the signed-in user of a step-up, else anonymous. */
+    void secondFactorFailed(String username, String reason);
+
+    /** Record a second factor that completed a sign-in or step-up. */
+    void secondFactorVerified(String username, SessionFacts.Method method);
+
     /** Record that the current caller signed out. */
     void loggedOut();
 

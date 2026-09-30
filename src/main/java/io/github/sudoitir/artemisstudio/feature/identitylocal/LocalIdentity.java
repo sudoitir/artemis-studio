@@ -40,7 +40,7 @@ class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
 
     @Override
     public String id() {
-        return "local";
+        return IdentityLocalModule.PROVIDER_ID;
     }
 
     @Override
