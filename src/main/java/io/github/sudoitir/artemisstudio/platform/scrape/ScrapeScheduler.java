@@ -18,7 +18,9 @@ import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +67,9 @@ import tools.jackson.databind.JsonNode;
 public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     private static final String FEATURE = "scrape";
+
+    /** The clusters a tier A pass is running for on this replica. */
+    private final Set<UUID> tierAInFlight = ConcurrentHashMap.newKeySet();
 
     /**
      * Registers the three tiers as trigger tasks whose {@code nextExecution}
@@ -175,7 +180,24 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         }
     }
 
+    /**
+     * One tier A pass for one cluster. Skipped when a pass for it is already running: taking a cluster
+     * over runs one at once, which can overlap the scheduled one, and two at a time would count the
+     * cycle twice and scrape every node twice.
+     */
     private void tierA(ExecutorService pool, UUID clusterId) {
+        if (!tierAInFlight.add(clusterId)) {
+            log.debug("Tier A for cluster {} is already running; skipping this pass", clusterId);
+            return;
+        }
+        try {
+            scrapeTierA(pool, clusterId);
+        } finally {
+            tierAInFlight.remove(clusterId);
+        }
+    }
+
+    private void scrapeTierA(ExecutorService pool, UUID clusterId) {
         long cycle = scrapeCycle.next(clusterId);
         fanOut(pool, manageableNodes(clusterId), node -> scrapeTierA(clusterId, node, cycle));
         try {

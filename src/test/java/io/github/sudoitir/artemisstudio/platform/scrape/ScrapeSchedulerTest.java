@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -212,6 +213,30 @@ class ScrapeSchedulerTest {
 
         verify(persist, timeout(5000)).applyTierA(any(), any(), eq(1L));
         verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
+    }
+
+    @Test
+    void aTierAPassForAClusterIsSkippedWhileAnotherIsRunningForIt() throws Exception {
+        ClusterEntity cluster = cluster("c");
+        java.util.concurrent.CountDownLatch inside = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenAnswer(call -> {
+            inside.countDown();
+            release.await();
+            return List.of();
+        });
+        scheduler.onDutyAcquired(new ClusterDutyAcquired(cluster.getId()));
+        assertThat(inside.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        scheduler.tierA();
+        release.countDown();
+
+        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
+        verify(clusters, times(1)).nodes(cluster.getId());
+        verify(eventPublisher, after(300).times(1)).publishEvent(any(ScrapeTierCompleted.class));
+        scheduler.tierA();
+        verify(eventPublisher, times(2)).publishEvent(any(ScrapeTierCompleted.class));
     }
 
     @Test
