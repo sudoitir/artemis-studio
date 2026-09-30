@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Java client of the Artemis Studio API (ADR-0148): generated from ../../web/openapi.json, the
+  document the contract tests check, so it cannot drift from the API. A standalone pom, because the
+  Studio pom has no modules. CI builds it on every pull request and publishes it on every release
+  (`versions:set` writes the release version, as for the plugin API); run `../../mvnw verify` here.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.sudoitir</groupId>
+    <artifactId>artemis-studio-client</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <name>Artemis Studio client</name>
+    <description>A Java client for the Artemis Studio API, generated from its OpenAPI document</description>
+    <url>https://github.com/sudoitir/artemis-studio</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>sudoitir</id>
+            <name>Mahdi Amirabdollahi</name>
+            <url>https://github.com/sudoitir</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/sudoitir/artemis-studio.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/sudoitir/artemis-studio.git</developerConnection>
+        <url>https://github.com/sudoitir/artemis-studio</url>
+    </scm>
+
+    <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <openapi-generator.version>7.25.0</openapi-generator.version>
+        <!-- The same Jackson 2 line as Studio itself. -->
+        <jackson-2-bom.version>2.21.6</jackson-2-bom.version>
+        <jakarta-annotation.version>3.0.0</jakarta-annotation.version>
+        <central-publishing.version>0.11.0</central-publishing.version>
+        <maven-gpg.version>3.2.8</maven-gpg.version>
+        <maven-source.version>3.4.0</maven-source.version>
+        <maven-javadoc.version>3.12.0</maven-javadoc.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson-2-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>${jakarta-annotation.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi-generator.version}</version>
+                <executions>
+                    <execution>
+                        <goals><goal>generate</goal></goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../web/openapi.json</inputSpec>
+                            <generatorName>java</generatorName>
+                            <library>native</library>
+                            <apiPackage>io.github.sudoitir.artemisstudio.client.api</apiPackage>
+                            <modelPackage>io.github.sudoitir.artemisstudio.client.model</modelPackage>
+                            <invokerPackage>io.github.sudoitir.artemisstudio.client</invokerPackage>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <configOptions>
+                                <useJakartaEe>true</useJakartaEe>
+                                <openApiNullable>false</openApiNullable>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <supportUrlQuery>false</supportUrlQuery>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Central needs sources, javadoc and signatures (as for the plugin API, ADR-0102).
+         Run with -Prelease and MAVEN_GPG_PASSPHRASE / MAVEN_GPG_KEY in the environment. -->
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc.version}</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg.version}</version>
+                        <configuration>
+                            <bestPractices>true</bestPractices>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.app.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "../../node_modules/.tmp/client.tsbuildinfo"
+  },
+  "include": ["src/index.ts", "src/schema.d.ts"]
+}

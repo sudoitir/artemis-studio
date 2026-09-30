@@ -2,6 +2,7 @@
 dist/
 coverage/
 node_modules/
+packages/client/dist/
 packages/plugin-sdk/dist/
 src/kernel/api/schema.d.ts
 openapi.json
