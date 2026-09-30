@@ -440,4 +440,238 @@ class BrokerQueryExecutorTest {
 
         assertThat(result.notices()).extracting(Notice::kind).doesNotContain(Notice.Kind.BODY_TRUNCATED);
     }
+
+    // ---- edges ----------------------------------------------------------
+
+    /** What a browse does, so an edge case can be written as one lambda. */
+    @FunctionalInterface
+    private interface Browse {
+        BrowseResult apply(TransportTarget target, int page, int size, String filter);
+    }
+
+    private MessageTransport transport(Browse browse) {
+        return new MessageTransport() {
+            @Override
+            public Channel channel() {
+                return Channel.JOLOKIA;
+            }
+
+            @Override
+            public BrowseResult browse(TransportTarget target, int page, int size, String filter) {
+                return browse.apply(target, page, size, filter);
+            }
+
+            @Override
+            public void send(TransportTarget target, SendSpec spec) {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    private static BrowseResult fullPage(int size, Channel channel) {
+        List<BrowsedMessage> messages = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            messages.add(message(i, false));
+        }
+        return new BrowseResult(new BrowsePage(messages, 100_000), channel);
+    }
+
+    @Test
+    void anUnexpectedBrowseFailureIsReportedWithItsMessageOrItsClassName() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 3)));
+        SqlProperties properties = props(50_000, 2_000, Duration.ofSeconds(30));
+
+        QueryResult withMessage = run(
+                "SELECT * FROM \"ORDER.IN\"",
+                transport((t, page, size, filter) -> {
+                    throw new IllegalStateException("boom");
+                }),
+                properties);
+        QueryResult withoutMessage = run(
+                "SELECT * FROM \"ORDER.IN\"",
+                transport((t, page, size, filter) -> {
+                    throw new IllegalStateException();
+                }),
+                properties);
+
+        assertThat(withMessage.nodes().getFirst().status()).isEqualTo(NodeOutcome.Status.FAILED);
+        assertThat(withMessage.nodes().getFirst().detail()).isEqualTo("boom");
+        assertThat(withoutMessage.nodes().getFirst().detail()).isEqualTo("IllegalStateException");
+    }
+
+    @Test
+    void abandoningTheQueryBetweenPagesEndsTheTargetAsNotRead() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 100_000)));
+        CountingSink sink = new CountingSink();
+        AtomicInteger browses = new AtomicInteger();
+
+        QueryResult result = run(
+                "SELECT * FROM \"ORDER.IN\"",
+                transport((t, page, size, filter) -> {
+                    browses.incrementAndGet();
+                    sink.cancelled = true;
+                    return fullPage(size, Channel.JOLOKIA);
+                }),
+                props(50_000, 2_000, Duration.ofSeconds(30)),
+                sink);
+
+        assertThat(browses.get()).isEqualTo(1);
+        assertThat(result.nodes()).hasSize(1);
+        assertThat(result.nodes().getFirst().status()).isEqualTo(NodeOutcome.Status.NOT_READ);
+        assertThat(result.nodes().getFirst().detail()).isEqualTo("The query was abandoned.");
+    }
+
+    @Test
+    void theChannelThatServedTheLastPageIsWhatTheOutcomeReports() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 100_000)));
+        AtomicInteger calls = new AtomicInteger();
+
+        QueryResult result = run(
+                "SELECT * FROM \"ORDER.IN\" LIMIT 1000",
+                transport((t, page, size, filter) ->
+                        fullPage(size, calls.getAndIncrement() == 0 ? Channel.JOLOKIA : Channel.CORE)),
+                props(50_000, 2_000, Duration.ofSeconds(30)));
+
+        assertThat(calls.get()).isGreaterThan(1);
+        assertThat(result.nodes().getFirst().servedBy()).isEqualTo(Channel.CORE);
+    }
+
+    @Test
+    void aTailsExtraSelectorIsAndedIntoThePushedDownOneOrStandsAlone() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 3)));
+        SqlProperties properties = props(50_000, 2_000, Duration.ofSeconds(30));
+        QueryPlanner planner = planner(properties);
+        BrokerQueryExecutor executor =
+                new BrokerQueryExecutor(nodes, residuals, planner, properties, clearGovernance());
+        List<String> filters = new ArrayList<>();
+        MessageTransport capturing = transport((t, page, size, filter) -> {
+            filters.add(filter);
+            return fullPage(1, Channel.JOLOKIA);
+        });
+
+        executor.execute(
+                CLUSTER,
+                planner.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\" WHERE priority = 4")),
+                capturing,
+                new CountingSink(),
+                target -> "AMQTimestamp > 5");
+        executor.execute(
+                CLUSTER,
+                planner.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\"")),
+                capturing,
+                new CountingSink(),
+                target -> "AMQTimestamp > 5");
+        executor.execute(
+                CLUSTER,
+                planner.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\" WHERE priority = 4")),
+                capturing,
+                new CountingSink(),
+                target -> " ");
+
+        assertThat(filters.get(0))
+                .startsWith("(")
+                .endsWith(") AND (AMQTimestamp > 5)")
+                .contains("JMSPriority");
+        assertThat(filters.get(1)).isEqualTo("AMQTimestamp > 5");
+        assertThat(filters.get(2)).contains("JMSPriority").doesNotContain("AMQTimestamp");
+    }
+
+    @Test
+    void maxPagesPerTargetBoundsHowMuchOfOneQueueACallReads() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 100_000)));
+        SqlProperties properties = props(500_000, 2_000, Duration.ofSeconds(30));
+        QueryPlanner planner = planner(properties);
+        BrokerQueryExecutor executor =
+                new BrokerQueryExecutor(nodes, residuals, planner, properties, clearGovernance());
+        AtomicInteger browses = new AtomicInteger();
+
+        QueryResult result = executor.execute(
+                CLUSTER,
+                planner.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\" WHERE body LIKE '%haystack%'")),
+                transport((t, page, size, filter) -> {
+                    browses.incrementAndGet();
+                    return fullPage(size, Channel.JOLOKIA);
+                }),
+                new CountingSink(),
+                target -> null,
+                2);
+
+        assertThat(browses.get()).isEqualTo(2);
+        assertThat(result.nodes().getFirst().examined()).isEqualTo(2L * BrokerQueryExecutor.PAGE_SIZE);
+    }
+
+    @Test
+    void aQueueSkippedBecauseABoundWasReachedSaysWhichBound() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.A", 1_000), snapshot(node, "ORDER.B", 1_000)));
+
+        QueryResult capped = run(
+                "SELECT * FROM \"ORDER.#\" WHERE body LIKE '%haystack%'",
+                transportServing(1_000, false), props(200, 2_000, Duration.ofSeconds(30)));
+        QueryResult timedOut = run(
+                "SELECT * FROM \"ORDER.#\" WHERE body LIKE '%needle%'",
+                transportServing(1_000, false), props(50_000, 2_000, Duration.ZERO));
+
+        assertThat(capped.nodes())
+                .filteredOn(n -> n.status() == NodeOutcome.Status.NOT_READ)
+                .isNotEmpty()
+                .allSatisfy(n -> assertThat(n.detail()).contains("the scan cap of 200 messages was reached"));
+        assertThat(timedOut.nodes())
+                .filteredOn(n -> n.status() == NodeOutcome.Status.NOT_READ)
+                .isNotEmpty()
+                .allSatisfy(n -> assertThat(n.detail()).contains("timed out"));
+    }
+
+    @Test
+    void aSinkThatFailsEndsItsNodeButNotTheQuery() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 3)));
+        CountingSink failing = new CountingSink() {
+            @Override
+            public synchronized void row(Row row) {
+                throw new IllegalStateException("caller went away");
+            }
+        };
+
+        QueryResult result = run(
+                "SELECT * FROM \"ORDER.IN\"",
+                transportServing(3, false),
+                props(50_000, 2_000, Duration.ofSeconds(30)),
+                failing);
+
+        assertThat(result.nodes()).isEmpty();
+    }
+
+    @Test
+    void theCollectingSinkKeepsRowsAndReportsCancellation() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 3)));
+        BrokerQueryExecutor.CollectingSink sink = new BrokerQueryExecutor.CollectingSink();
+
+        assertThat(sink.first()).isEmpty();
+        assertThat(sink.isCancelled()).isFalse();
+        assertThat(sink.clearServed()).isEmpty();
+
+        run(
+                "SELECT * FROM \"ORDER.IN\"",
+                transportServing(3, false),
+                props(50_000, 2_000, Duration.ofSeconds(30)),
+                sink);
+
+        assertThat(sink.first()).isPresent();
+        assertThat(sink.first().orElseThrow().queueName()).isEqualTo("ORDER.IN");
+        sink.cancel();
+        assertThat(sink.isCancelled()).isTrue();
+    }
+
+    @Test
+    void theExecutorWithoutAnExtraSelectorMatchesTheOneWithANullSelector() {
+        given(List.of(node), List.of(snapshot(node, "ORDER.IN", 2)));
+        SqlProperties properties = props(50_000, 2_000, Duration.ofSeconds(30));
+        QueryPlanner planner = planner(properties);
+        BrokerQueryExecutor executor =
+                new BrokerQueryExecutor(nodes, residuals, planner, properties, clearGovernance());
+        QueryPlan plan = planner.plan(CLUSTER, parser.parse("SELECT * FROM \"ORDER.IN\""));
+
+        QueryResult result = executor.execute(CLUSTER, plan, transportServing(2, false), new CountingSink(), t -> null);
+
+        assertThat(result.rows()).hasSize(2);
+    }
 }
