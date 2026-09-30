@@ -112,8 +112,8 @@ public class ClusterController {
     /** A {@link Attempt.Failed} becomes a classified {@link BrokerConnectionException} for the advice to render. */
     private static <T> T unwrap(Attempt<T> attempt) {
         return switch (attempt) {
-            case Attempt.Ok<T> ok -> ok.value();
-            case Attempt.Failed<T> failed -> throw new BrokerConnectionException(failed.kind(), failed.detail());
+            case Attempt.Ok<T>(var value) -> value;
+            case Attempt.Failed<T>(var kind, var detail) -> throw new BrokerConnectionException(kind, detail);
         };
     }
 }

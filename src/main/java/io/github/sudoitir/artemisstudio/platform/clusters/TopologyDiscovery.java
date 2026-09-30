@@ -87,12 +87,16 @@ public class TopologyDiscovery {
         }
 
         // 3. Re-read and evaluate.
-        return currentTopology(clusterId);
+        return evaluated(clusterId);
     }
 
     /** The persisted topology, evaluated — no broker calls. */
     @Transactional(readOnly = true)
     public ClusterTopology currentTopology(UUID clusterId) {
+        return evaluated(clusterId);
+    }
+
+    private ClusterTopology evaluated(UUID clusterId) {
         List<NodeEndpoint> endpoints = nodeMapper.toEndpoints(nodes.findByClusterIdOrderByNameAsc(clusterId));
         return new ClusterTopology(
                 clusterId, evaluator.toLogicalNodes(endpoints, splitBrainRegistry.statusesFor(clusterId)));

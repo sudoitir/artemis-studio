@@ -68,6 +68,8 @@ public class ClusterService {
 
     private static final String JOLOKIA_BASIC = "JOLOKIA_BASIC";
     private static final String CORE = "CORE";
+    private static final String REGISTER_CLUSTER = "REGISTER_CLUSTER";
+    private static final String CLUSTER = "CLUSTER";
     private static final UUID UNBOUND = new UUID(0L, 0L);
 
     private final ClusterRepository clusters;
@@ -113,8 +115,8 @@ public class ClusterService {
     public Attempt<RegisterPreview> checkConnection(RegisterClusterRequest request) {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
-                "REGISTER_CLUSTER",
-                "CLUSTER",
+                REGISTER_CLUSTER,
+                CLUSTER,
                 request.name(),
                 null,
                 null,
@@ -184,14 +186,7 @@ public class ClusterService {
         List<Probe> reachable = probes.stream().filter(Probe::ok).toList();
         if (reachable.isEmpty()) {
             AuditEvent event = audit.begin(
-                    actorResolver.resolve(),
-                    "REGISTER_CLUSTER",
-                    "CLUSTER",
-                    request.name(),
-                    null,
-                    null,
-                    Map.of(),
-                    false);
+                    actorResolver.resolve(), REGISTER_CLUSTER, CLUSTER, request.name(), null, null, Map.of(), false);
             return failed(event, probes.get(0).error());
         }
 
@@ -205,8 +200,8 @@ public class ClusterService {
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
-                "REGISTER_CLUSTER",
-                "CLUSTER",
+                REGISTER_CLUSTER,
+                CLUSTER,
                 cluster.getName(),
                 clusterId,
                 null,
@@ -285,7 +280,7 @@ public class ClusterService {
                 cluster.getName(),
                 cluster.getDescription(),
                 viewMapper.topology(topology),
-                capabilities(clusterId),
+                viewMapper.capabilities(assessCapabilities(clusterId)),
                 viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
                 cluster.getEnvironmentId());
     }
@@ -312,12 +307,16 @@ public class ClusterService {
      */
     @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
-        return viewMapper.capabilities(brokerCapabilities(clusterId));
+        return viewMapper.capabilities(assessCapabilities(clusterId));
     }
 
     /** The same assessment as {@link #capabilities}, before it becomes a DTO. */
     @Transactional(readOnly = true)
     public BrokerCapabilities brokerCapabilities(UUID clusterId) {
+        return assessCapabilities(clusterId);
+    }
+
+    private BrokerCapabilities assessCapabilities(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         requireCluster(clusterId);
         BrokerNodeEntity manageable = manageableNode(clusterId);
@@ -421,7 +420,7 @@ public class ClusterService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "ROTATE_CREDENTIALS",
-                "CLUSTER",
+                CLUSTER,
                 cluster.getName(),
                 clusterId,
                 null,
@@ -446,7 +445,7 @@ public class ClusterService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_CLUSTER",
-                "CLUSTER",
+                CLUSTER,
                 cluster.getName(),
                 clusterId,
                 null,
