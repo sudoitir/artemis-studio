@@ -20,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRun
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStoreException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -108,6 +110,11 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
     private final List<String> seededIds = new java.util.ArrayList<>();
     private final List<String> uploadedShas = new java.util.ArrayList<>();
     private MockMvc mvc;
+
+    @BeforeEach
+    void trustThePublisher() {
+        TrustedTestKey.trust(jdbc);
+    }
 
     @AfterEach
     void cleanUp() {
@@ -379,7 +386,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         assertThat(schemaPlan.activationClass()).isEqualTo(ActivationClass.BRIEF_MAINTENANCE);
         assertThat(schemaPlan.pendingChangesets()).hasSize(1);
 
-        host.activate(shaV3, "tester");
+        host.activate(shaV3, "tester", false);
         // During the window the plugin alone answers 503; poll briefly, tolerating that the window
         // may already have closed by the time this test thread gets scheduled.
         pollFor503IfStillUpdating(mvc, id);
@@ -398,13 +405,13 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         assertThat(codeOnlyPlan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(codeOnlyPlan.pendingChangesets()).isEmpty();
 
-        host.activate(shaV4, "tester");
+        host.activate(shaV4, "tester", false);
         awaitVersion(id, "4.0.0");
         assertThat(store.find(id))
                 .hasValueSatisfying(e -> assertThat(e.isSchemaChanged()).isFalse());
 
         // ---- code rollback (v4.0.0 -> v3.0.0: applied no schema changes, so it is offered) -------
-        ActivationPlan rollbackPlan = host.rollback(id, "tester");
+        ActivationPlan rollbackPlan = host.rollback(id, "tester", false);
         assertThat(rollbackPlan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(rollbackPlan.toVersion()).isEqualTo("3.0.0");
         awaitVersion(id, "3.0.0");
@@ -428,7 +435,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
                 .doesNotContain(toolName);
 
         // ---- enable --------------------------------------------------------------------------------
-        host.enable(id, "tester");
+        host.enable(id, "tester", false);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
@@ -489,7 +496,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         ActivationPlan installPlan = host.plan(shaV1);
         assertThat(installPlan.activationClass()).isEqualTo(ActivationClass.INSTANT);
 
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -525,7 +532,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         assertThat(updatePlan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(updatePlan.fromVersion()).isEqualTo("1.0.0");
 
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
         awaitVersion(id, "2.0.0");
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
@@ -591,13 +598,13 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String id = uniqueId("acme-broken");
         MockMvc mvc = mvc();
         String shaV1 = upload(lifeJar(id, "1.0.0", false));
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
 
         String shaV2 = upload(brokenBeanJar(id, "2.0.0"));
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
 
         var failed = awaitStatus(id, PluginInstallStatus.FAILED);
         assertThat(failed.failure()).contains("BrokenComponent");
@@ -656,7 +663,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String id = uniqueId("acme-badsql");
         MockMvc mvc = mvc();
         String shaV1 = upload(lifeJar(id, "1.0.0", false));
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -665,7 +672,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         ActivationPlan plan = host.plan(shaV2);
         assertThat(plan.activationClass()).isEqualTo(ActivationClass.BRIEF_MAINTENANCE);
 
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
         var failed = awaitStatus(id, PluginInstallStatus.FAILED);
         assertThat(failed.failure()).isNotBlank();
 
@@ -727,7 +734,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String sha = upload(irreversibleThenBrokenJar(id, "1.0.0"));
         seededIds.add(id);
 
-        host.activate(sha, "tester");
+        host.activate(sha, "tester", false);
         var failed = awaitStatus(id, PluginInstallStatus.FAILED);
 
         assertThat(failed.failure()).containsIgnoringCase("schema").contains("1.0.0");
@@ -742,7 +749,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String id = uniqueId("acme-stalelock");
         String schema = "plugin_" + id.replace('-', '_');
         String shaV1 = upload(lifeJar(id, "1.0.0", true));
-        host.activate(shaV1, "tester");
+        host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
@@ -756,7 +763,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String shaV2 = upload(lifeJar(id, "2.0.0", true));
         // (2.0.0 has the same single changeset as 1.0.0, already applied — an Instant, no-op
         // migration step — but PluginMigrations.migrate() still runs release-locks first either way.)
-        host.activate(shaV2, "tester");
+        host.activate(shaV2, "tester", false);
         awaitVersion(id, "2.0.0");
     }
 

@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
@@ -30,6 +31,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -87,6 +89,11 @@ class PluginAdminControllerIT extends PostgresIntegrationTest {
     JsonMapper json;
 
     private final java.util.List<String> pluginIds = new java.util.ArrayList<>();
+
+    @BeforeEach
+    void trustThePublisher() {
+        TrustedTestKey.trust(jdbc);
+    }
 
     @AfterEach
     void cleanUp() {

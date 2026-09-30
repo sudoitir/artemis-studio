@@ -145,17 +145,17 @@ public class PluginAdministration {
                 "PLUGIN_ACTIVATE",
                 pluginId,
                 Map.of("sha256", sha256),
-                () -> host.activateUpload(sha256, actor().username()));
+                () -> host.activateUpload(sha256, actor().username(), false));
     }
 
     public ActivationPlan enable(HttpServletRequest request, String id) {
         requireStepUp(request);
-        return activation("PLUGIN_ENABLE", id, Map.of(), () -> host.enable(id, actor().username()));
+        return activation("PLUGIN_ENABLE", id, Map.of(), () -> host.enable(id, actor().username(), false));
     }
 
     public ActivationPlan rollback(HttpServletRequest request, String id) {
         requireStepUp(request);
-        return activation("PLUGIN_ROLLBACK", id, Map.of(), () -> host.rollback(id, actor().username()));
+        return activation("PLUGIN_ROLLBACK", id, Map.of(), () -> host.rollback(id, actor().username(), false));
     }
 
     public void disable(HttpServletRequest request, String id, boolean cascade) {

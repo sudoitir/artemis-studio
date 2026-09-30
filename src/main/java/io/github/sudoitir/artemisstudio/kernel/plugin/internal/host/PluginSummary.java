@@ -8,6 +8,8 @@ import java.time.Instant;
  * {@link PluginHost#list()}/{@link PluginHost#status(String)}: {@code plugin_install} joined with the live runtime state.
  *
  * @param rollbackAvailable a previous version is on record and the current one changed no schema
+ * @param signerFingerprint who signed the installed jar; {@code null} when it was unsigned
+ * @param verified the signer is a trusted key right now (computed, so removing a key flips it)
  * @param descriptor the installed version's descriptor; {@code null} only when the stored copy is unreadable
  */
 public record PluginSummary(
@@ -25,4 +27,7 @@ public record PluginSummary(
         String installedBy,
         boolean stuck,
         boolean rollbackAvailable,
+        String signerFingerprint,
+        String signerSubject,
+        boolean verified,
         PluginDescriptor descriptor) {}

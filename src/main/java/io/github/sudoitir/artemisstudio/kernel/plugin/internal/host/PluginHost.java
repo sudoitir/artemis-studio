@@ -20,8 +20,11 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRun
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry.Active;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.TrustDecision;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.PluginValidator;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Signer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ValidationReport;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
 import jakarta.servlet.ServletContext;
@@ -114,6 +117,7 @@ public class PluginHost implements SmartLifecycle {
     private final TransactionTemplate transactions;
     private final PluginProperties properties;
     private final StudioRestart restart;
+    private final PluginTrust trust;
 
     /**
      * One lifecycle operation at a time, Studio-wide (design.md §7: "at most one activation in
@@ -146,7 +150,8 @@ public class PluginHost implements SmartLifecycle {
             ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager,
             PluginProperties properties,
-            StudioRestart restart) {
+            StudioRestart restart,
+            PluginTrust trust) {
         this.store = store;
         this.validator = validator;
         this.migrations = migrations;
@@ -165,6 +170,7 @@ public class PluginHost implements SmartLifecycle {
         this.transactions = new TransactionTemplate(transactionManager);
         this.properties = properties;
         this.restart = restart;
+        this.trust = trust;
     }
 
     // ---- SmartLifecycle: boot, shutdown, safe mode (design.md §2, task 6.8) -----------------------
@@ -570,6 +576,9 @@ public class PluginHost implements SmartLifecycle {
                 e.getInstalledBy(),
                 stuck,
                 e.getPreviousSha256() != null && !e.isSchemaChanged() && e.status() != PluginInstallStatus.UNINSTALLED,
+                e.getSignerFingerprint(),
+                e.getSignerSubject(),
+                trust.decide(e.getSignerFingerprint(), e.getSignerSubject()).status() == TrustDecision.Status.TRUSTED,
                 tryParseStoredDescriptor(e));
     }
 
@@ -594,7 +603,9 @@ public class PluginHost implements SmartLifecycle {
      * Validates {@code jar}, and only when it is valid stores it as an inert upload and plans what
      * activating it would do (design.md §6/§7). No plugin code runs and nothing is installed.
      * A plan the host refuses (a vendor mismatch, a downgrade) forgets the upload again, so an
-     * artifact is only ever kept when it could be activated.
+     * artifact is only ever kept when it could be activated. An untrusted or unsigned jar is not
+     * refused here: the plan reports it, and the upload stays pending so the signer can be trusted
+     * from the review (design.md §5).
      */
     public Inspection inspect(Path jar, String actor) throws IOException {
         jdbc.update(EXPIRE_UPLOADS);
@@ -645,9 +656,9 @@ public class PluginHost implements SmartLifecycle {
     }
 
     /** Activates a pending upload: an install, or an update of the plugin it names. */
-    public ActivationPlan activateUpload(String sha256, String actor) {
+    public ActivationPlan activateUpload(String sha256, String actor, boolean acknowledged) {
         requirePendingUpload(sha256);
-        return activate(sha256, actor);
+        return activate(sha256, actor, acknowledged);
     }
 
     private void requirePendingUpload(String sha256) {
@@ -698,19 +709,22 @@ public class PluginHost implements SmartLifecycle {
     // ---- activate -------------------------------------------------------------------------------
 
     /**
-     * Refuses synchronously (a missing {@code requires}, the connection budget — everything else
-     * {@link #plan(String)} already refuses), then persists the {@code activating} transition and
-     * hands the rest to a virtual thread. Returns the same plan {@link #plan(String)} would have.
+     * Refuses synchronously (an untrusted or unsigned jar, a missing acknowledgement, a missing
+     * {@code requires}, the connection budget — everything else {@link #plan(String)} already
+     * refuses), then persists the {@code activating} transition and hands the rest to a virtual
+     * thread. Returns the same plan {@link #plan(String)} would have.
+     *
+     * @param acknowledged the installer confirmed every reason in the plan's {@code acknowledgements}
      */
-    public ActivationPlan activate(String sha256, String actor) {
-        return activateSha(sha256, actor, false);
+    public ActivationPlan activate(String sha256, String actor, boolean acknowledged) {
+        return activateSha(sha256, actor, false, acknowledged);
     }
 
-    private ActivationPlan activateSha(String sha256, String actor, boolean allowDowngrade) {
+    private ActivationPlan activateSha(String sha256, String actor, boolean allowDowngrade, boolean acknowledged) {
         acquire();
         boolean handedOff = false;
         try {
-            ActivationPlan plan = beginActivation(sha256, actor, allowDowngrade);
+            ActivationPlan plan = beginActivation(sha256, actor, allowDowngrade, acknowledged);
             handedOff = true;
             return plan;
         } finally {
@@ -721,9 +735,33 @@ public class PluginHost implements SmartLifecycle {
     }
 
     /** Runs with {@link #busy} held; once it returns normally, the activation thread owns the permit. */
-    private ActivationPlan beginActivation(String sha256, String actor, boolean allowDowngrade) {
+    private ActivationPlan beginActivation(String sha256, String actor, boolean allowDowngrade, boolean acknowledged) {
         PlanContext ctx = buildPlan(sha256, allowDowngrade);
         ActivationPlan plan = ctx.plan();
+        if (!plan.trust().allowed()) {
+            boolean unsigned = plan.trust().status() == TrustDecision.Status.UNSIGNED;
+            throw new PluginRefusedException(
+                    List.of(
+                            new Violation(
+                                    unsigned ? "plugin-unsigned" : "plugin-untrusted",
+                                    unsigned
+                                            ? "Plugin '%s' is not signed.".formatted(plan.pluginId())
+                                            : "Plugin '%s' is signed by %s (%s), which is not a trusted key."
+                                                    .formatted(
+                                                            plan.pluginId(),
+                                                            plan.trust().fingerprint(),
+                                                            plan.trust().subject()),
+                                    unsigned
+                                            ? "Install a signed build, or allow unverified plugins."
+                                            : "Trust the publisher's key after comparing its fingerprint, or install a build signed by a trusted key.")));
+        }
+        if (!acknowledged && !plan.acknowledgements().isEmpty()) {
+            throw new PluginRefusedException(List.of(new Violation(
+                    "acknowledgement-required",
+                    "Activating '%s' needs your confirmation: %s."
+                            .formatted(plan.pluginId(), String.join(", ", plan.acknowledgements())),
+                    "Review the plan and confirm it.")));
+        }
         if (!plan.missingRequires().isEmpty()) {
             throw new PluginRefusedException(List.of(new Violation(
                     "requires-missing",
@@ -764,6 +802,9 @@ public class PluginHost implements SmartLifecycle {
                         if (!sha256.equals(e.getSha256())) {
                             e.update(ctx.plan().toVersion(), sha256, descriptorJson, schemaChanged);
                         }
+                        e.signer(
+                                ctx.plan().trust().fingerprint(),
+                                ctx.plan().trust().subject());
                         e.needsRestart("Restart Studio to start %s %s."
                                 .formatted(id, ctx.plan().toVersion()));
                     });
@@ -843,6 +884,7 @@ public class PluginHost implements SmartLifecycle {
         if (fresh) {
             store.update(id, e -> {
                 e.schemaChanged(schemaChanged);
+                e.signer(ctx.plan().trust().fingerprint(), ctx.plan().trust().subject());
                 e.transitionTo(PluginInstallStatus.ACTIVE);
             });
         } else {
@@ -854,6 +896,7 @@ public class PluginHost implements SmartLifecycle {
                 } else if (schemaChanged) {
                     e.schemaChanged(true);
                 }
+                e.signer(ctx.plan().trust().fingerprint(), ctx.plan().trust().subject());
                 e.transitionTo(PluginInstallStatus.ACTIVE);
             });
         }
@@ -1035,7 +1078,7 @@ public class PluginHost implements SmartLifecycle {
     }
 
     /** Starts the plugin again from its current sha (design.md §5): Instant, or Brief maintenance if its schema has pending changesets. */
-    public ActivationPlan enable(String id, String actor) {
+    public ActivationPlan enable(String id, String actor, boolean acknowledged) {
         PluginInstallEntity entity = requireInstall(id);
         if (entity.status() == PluginInstallStatus.ACTIVE || entity.status() == PluginInstallStatus.ACTIVATING) {
             throw new PluginRefusedException(List.of(new Violation(
@@ -1043,7 +1086,7 @@ public class PluginHost implements SmartLifecycle {
                     "Plugin '%s' is already %s.".formatted(id, entity.status().dbValue()),
                     "")));
         }
-        return activateSha(entity.getSha256(), actor, false);
+        return activateSha(entity.getSha256(), actor, false, acknowledged);
     }
 
     // ---- rollback ---------------------------------------------------------------------------------
@@ -1053,7 +1096,7 @@ public class PluginHost implements SmartLifecycle {
      * current version applied no changeset (design.md §5/§6.4 — "reversible" here means the schema,
      * not the data). Otherwise refuses, naming the fix.
      */
-    public ActivationPlan rollback(String id, String actor) {
+    public ActivationPlan rollback(String id, String actor, boolean acknowledged) {
         PluginInstallEntity entity = requireInstall(id);
         if (entity.status() == PluginInstallStatus.UNINSTALLED) {
             throw new PluginRefusedException(List.of(new Violation(
@@ -1067,7 +1110,7 @@ public class PluginHost implements SmartLifecycle {
                     "Plugin '%s' cannot be rolled back: the current version changed the database.".formatted(id),
                     "Upload a fixed version, or restore from backup.")));
         }
-        return activateSha(entity.getPreviousSha256(), actor, true);
+        return activateSha(entity.getPreviousSha256(), actor, true, acknowledged);
     }
 
     // ---- purge --------------------------------------------------------------------------------------
@@ -1223,6 +1266,8 @@ public class PluginHost implements SmartLifecycle {
         boolean compatible =
                 compat != StudioVersion.Compatibility.TOO_OLD && compat != StudioVersion.Compatibility.TOO_NEW;
 
+        TrustPart trustPart = trustOf(report.signer(), existingOpt, previousDescriptor != null, diff);
+
         ActivationPlan plan = new ActivationPlan(
                 pluginId,
                 previousDescriptor == null ? null : previousDescriptor.version(),
@@ -1235,8 +1280,45 @@ public class PluginHost implements SmartLifecycle {
                 compatible,
                 missing,
                 descriptor,
-                restartOf(activationClass));
+                restartOf(activationClass),
+                trustPart.trust(),
+                trustPart.acknowledgements());
         return new PlanContext(sha256, jarPath, descriptor, previousDescriptor, previousSha, plan);
+    }
+
+    private record TrustPart(PlanTrust trust, List<String> acknowledgements) {}
+
+    /**
+     * Who signed the jar, whether that key is trusted now, and what activating it must be
+     * confirmed for. Reported, never thrown: {@link #beginActivation} enforces it (design.md §5).
+     */
+    private TrustPart trustOf(
+            Signer signer, Optional<PluginInstallEntity> existing, boolean update, ContributionDiff diff) {
+        TrustDecision decision = trust.decide(signer);
+        String previousFingerprint =
+                existing.map(PluginInstallEntity::getSignerFingerprint).orElse(null);
+        boolean signerChanged = previousFingerprint != null && !previousFingerprint.equals(decision.fingerprint());
+        boolean allowed = decision.status() == TrustDecision.Status.TRUSTED || trust.allowUnverified();
+        List<String> acknowledgements = new ArrayList<>();
+        if (update && !diff.permissionsAdded().isEmpty()) {
+            acknowledgements.add("permissions-added");
+        }
+        if (signerChanged) {
+            acknowledgements.add("signer-changed");
+        }
+        if (decision.status() != TrustDecision.Status.TRUSTED && allowed) {
+            acknowledgements.add("unverified");
+        }
+        return new TrustPart(
+                new PlanTrust(
+                        decision.status(),
+                        decision.fingerprint(),
+                        decision.subject(),
+                        decision.keyName(),
+                        previousFingerprint,
+                        signerChanged,
+                        allowed),
+                acknowledgements);
     }
 
     /**

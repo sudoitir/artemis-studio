@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -73,6 +75,11 @@ class PluginUnloadIT extends PostgresIntegrationTest {
 
     @Autowired
     ApiTokenService tokens;
+
+    @BeforeEach
+    void trustThePublisher() {
+        TrustedTestKey.trust(jdbc);
+    }
 
     @AfterEach
     void cleanUp() {
@@ -186,7 +193,7 @@ class PluginUnloadIT extends PostgresIntegrationTest {
         var key = McpFixture.mintKey(
                 users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
         String sha = store.put(Files.readAllBytes(plugin().build()));
-        host.activate(sha, "test");
+        host.activate(sha, "test", false);
         for (int i = 0;
                 i < 300
                         && host.status(ID)

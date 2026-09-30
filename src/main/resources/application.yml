@@ -129,7 +129,7 @@ management:
           out-of-service: 503
       group:
         studio:
-          include: jobs,brokers,subscriptions,permissions
+          include: jobs,brokers,subscriptions,permissions,pluginTrust
           show-details: when-authorized
   info:
     build:

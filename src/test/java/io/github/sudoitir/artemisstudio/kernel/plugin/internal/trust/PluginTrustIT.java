@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Signer
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.TestSigningKeys;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,6 +24,11 @@ class PluginTrustIT extends PostgresIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbc;
+
+    @BeforeEach
+    void noKeys() {
+        jdbc.update("DELETE FROM plugin_trusted_key");
+    }
 
     @AfterEach
     void tearDown() {

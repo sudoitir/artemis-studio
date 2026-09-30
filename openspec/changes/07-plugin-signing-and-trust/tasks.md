@@ -143,7 +143,7 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
   - `unverified` when the status is not TRUSTED and the allowance lets it through.
 - `allowed` = TRUSTED, or the allowance is on.
 
-- [ ] 3.1 Write `PluginTrustGateIT`:
+- [x] 3.1 Write `PluginTrustGateIT`:
   - trusted install activates;
   - unsigned and allowance off → `plugin-unsigned`, and the upload stays pending;
   - signed by `other` → `plugin-untrusted`, and the plan's `trust.fingerprint` equals OTHER's;
@@ -153,10 +153,10 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
   - update signed by a second trusted key → `signer-changed`;
   - rollback to an unsigned previous version with the allowance off → refused;
   - after removing the key, `PluginSummary.verified()` is false and health is `DEGRADED` naming the id.
-- [ ] 3.2 Run it. Expect FAIL.
-- [ ] 3.3 Implement. `inspect` no longer forgets an upload because of trust, since `buildPlan` does not throw for it. The health indicator returns `StudioHealth.DEGRADED` with detail `unverified: [ids]` when any installed (non-uninstalled) plugin is not TRUSTED, and `UP` otherwise.
-- [ ] 3.4 Update every existing test that activates a plugin to call `TrustedTestKey.trust(jdbc)`, and pass `acknowledged` where the new signatures need it. Run `./mvnw -q test -Dtest='*Plugin*'`. Expect PASS.
-- [ ] 3.5 Commit `feat(plugins)!: refuse unsigned and untrusted plugins unless allowed`, with the footer `BREAKING CHANGE: unsigned plugins no longer install unless an installer allows unverified plugins.`
+- [x] 3.2 Run it. Expect FAIL.
+- [x] 3.3 Implement. `inspect` no longer forgets an upload because of trust, since `buildPlan` does not throw for it. The health indicator returns `StudioHealth.DEGRADED` with detail `unverified: [ids]` when any installed (non-uninstalled) plugin is not TRUSTED, and `UP` otherwise.
+- [x] 3.4 Update every existing test that activates a plugin to call `TrustedTestKey.trust(jdbc)`, and pass `acknowledged` where the new signatures need it. Run `./mvnw -q test -Dtest='*Plugin*'`. Expect PASS.
+- [x] 3.5 Commit `feat(plugins)!: refuse unsigned and untrusted plugins unless allowed`, with the footer `BREAKING CHANGE: unsigned plugins no longer install unless an installer allows unverified plugins.`
 
 ### Task 4: Admin API for keys, policy and acknowledgement
 
