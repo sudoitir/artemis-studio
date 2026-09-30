@@ -6,11 +6,14 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -19,16 +22,21 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Per-token and per-user request limits (api-tokens spec, ADR-0136). */
-class TokenRequestLimitFilterTest {
+class TokenRequestLimitFilterTest extends PostgresIntegrationTest {
 
     private final SettingsService settings = mock(SettingsService.class);
     private final TokenUsage usage = mock(TokenUsage.class);
-    private final TokenRequestLimitFilter filter =
-            new TokenRequestLimitFilter(settings, usage, JsonMapper.builder().build());
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    private TokenRequestLimitFilter filter;
     private final UUID owner = UUID.randomUUID();
 
     @BeforeEach
     void limits() {
+        filter = new TokenRequestLimitFilter(
+                settings, usage, JsonMapper.builder().build(), jdbc);
         when(settings.intValue(ApiTokensSettings.TOKEN_REQUESTS_PER_MINUTE)).thenReturn(2);
         when(settings.intValue(ApiTokensSettings.USER_REQUESTS_PER_MINUTE)).thenReturn(3);
         when(settings.intValue(ApiTokensSettings.TOKEN_CONCURRENCY)).thenReturn(8);

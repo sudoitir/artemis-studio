@@ -1,13 +1,10 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,51 +17,54 @@ import org.springframework.stereotype.Component;
  * hits a URL length limit on a long query. A ticket is opaque, single-use, and
  * expires in a minute.
  *
- * <p>In memory on purpose. A ticket is worthless a minute after it is issued and
- * meaningless to another instance, so persisting it would add a table and a reaper to
- * store something whose whole value is that it is transient.
+ * <p>Kept in an unlogged table, so that the request that issues a ticket and the stream that
+ * redeems it may reach different replicas (ADR-0148). Redeeming is one {@code DELETE ... RETURNING},
+ * so a ticket is used once however many replicas race for it. The rows that expire unredeemed are
+ * purged by the data lifecycle ({@link SqlQueryTicketStore}).
  */
 @Component
 @RequiredArgsConstructor
 public class SqlQueryTickets {
 
-    /** Long enough for the browser to open the stream, short enough to be worthless if leaked. */
-    private static final Duration TTL = Duration.ofMinutes(1);
+    /** What a ticket stands for. */
+    public record Ticket(String sql, boolean tail) {}
 
     private final ActorResolver actors;
-    private final Map<UUID, Ticket> tickets = new ConcurrentHashMap<>();
+    private final JdbcTemplate jdbc;
 
-    /**
-     * @param owner the authenticated name that issued it. The stream re-checks cluster
-     *     permission on its own, and this stops a leaked id being redeemed by someone
-     *     else who happens to have access to the same cluster.
-     */
-    public record Ticket(UUID clusterId, String sql, boolean tail, String owner, Instant expiresAt) {}
-
+    /** Valid for a minute: long enough for the browser to open the stream, short enough to be worthless if leaked. */
     public UUID issue(UUID clusterId, String sql, boolean tail, String owner) {
-        expire();
         UUID id = UUID.randomUUID();
-        tickets.put(id, new Ticket(clusterId, sql, tail, owner, Instant.now().plus(TTL)));
+        jdbc.update(
+                "INSERT INTO sql_query_ticket (expires_at, sql, owner, id, cluster_id, tail)"
+                        + " VALUES (now() + interval '1 minute', ?, ?, ?, ?, ?)",
+                sql,
+                owner,
+                id,
+                clusterId,
+                tail);
         return id;
     }
 
-    /** Redeem a ticket. Single use: a second attempt with the same id finds nothing. */
+    /**
+     * Redeem a ticket. Single use: a second attempt with the same id finds nothing, and neither does
+     * one for another cluster, by another owner, or after the ticket expired.
+     */
     public Optional<Ticket> redeem(UUID id, UUID clusterId, String owner) {
-        expire();
-        Ticket ticket = tickets.remove(id);
-        if (ticket == null || !ticket.clusterId().equals(clusterId)) {
-            return Optional.empty();
-        }
-        return java.util.Objects.equals(ticket.owner(), owner) ? Optional.of(ticket) : Optional.empty();
+        return jdbc
+                .query(
+                        "DELETE FROM sql_query_ticket WHERE id = ? AND cluster_id = ? AND owner = ?"
+                                + " AND expires_at > now() RETURNING sql, tail",
+                        (rs, row) -> new Ticket(rs.getString("sql"), rs.getBoolean("tail")),
+                        id,
+                        clusterId,
+                        owner)
+                .stream()
+                .findFirst();
     }
 
     /** The caller to bind a ticket to: the same name when it is issued and when it is redeemed. */
     public String currentOwner() {
         return actors.resolve().username();
-    }
-
-    private void expire() {
-        Instant now = Instant.now();
-        tickets.values().removeIf(ticket -> ticket.expiresAt().isBefore(now));
     }
 }
