@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -130,7 +129,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
             BrokerNodeEntity n = nodes.findById(id).orElseThrow();
             JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
             when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
-            when(connections.forCluster(eq(clusterId), eq(n.getJolokiaUrl()))).thenReturn(client);
+            when(connections.forCluster(clusterId, n.getJolokiaUrl())).thenReturn(client);
             clientToNode.put(client, id);
         }
 
@@ -320,9 +319,8 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 .findFirst()
                 .orElseThrow());
         assertThat(canaryDone).isLessThan(secondFirst);
-        assertThat(frames).anyMatch(f -> "VERIFYING".equals(f.get("phase")));
         // A frame is for one apply, so a screen can tell this run from the last one.
-        assertThat(frames).allMatch(f -> f.get("applyId") != null);
+        assertThat(frames).anyMatch(f -> "VERIFYING".equals(f.get("phase"))).allMatch(f -> f.get("applyId") != null);
     }
 
     @Test
@@ -377,17 +375,9 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
                 .anyMatch(h -> h.kind() == Plan.HazardKind.BROAD_MATCH
                         && h.hazardClass().name().equals("HIGH"));
 
-        assertThatThrownBy(() -> apply.apply(
-                        clusterId,
-                        new BrokerConfigApplyRequest(
-                                null,
-                                Set.of(),
-                                null,
-                                false,
-                                List.of(),
-                                preview.plan().planHash(),
-                                false,
-                                Set.of())))
+        BrokerConfigApplyRequest unacknowledged = new BrokerConfigApplyRequest(
+                null, Set.of(), null, false, List.of(), preview.plan().planHash(), false, Set.of());
+        assertThatThrownBy(() -> apply.apply(clusterId, unacknowledged))
                 .isInstanceOf(HazardNotAcknowledgedException.class)
                 .hasMessageContaining(high.get(0));
         verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
@@ -400,10 +390,9 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
     void aPlanThatChangedSinceThePreviewIsRefused() {
         declare(MATCH, Map.of("maxSizeBytes", 10_485_760L));
 
-        assertThatThrownBy(() -> apply.apply(
-                        clusterId,
-                        new BrokerConfigApplyRequest(
-                                null, Set.of(), null, false, List.of(), "not-the-hash", false, Set.of())))
+        BrokerConfigApplyRequest stale =
+                new BrokerConfigApplyRequest(null, Set.of(), null, false, List.of(), "not-the-hash", false, Set.of());
+        assertThatThrownBy(() -> apply.apply(clusterId, stale))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("plan");
         verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
@@ -422,14 +411,15 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
             held.countDown();
             try {
                 release.await(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }));
         other.start();
         assertThat(held.await(10, TimeUnit.SECONDS)).isTrue();
         try {
-            assertThatThrownBy(() -> apply.apply(clusterId, confirmed(preview)))
+            BrokerConfigApplyRequest request = confirmed(preview);
+            assertThatThrownBy(() -> apply.apply(clusterId, request))
                     .isInstanceOf(ConflictException.class)
                     .hasMessageContaining("apply");
             verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
@@ -644,7 +634,8 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         BrokerConfigApplyOutcome preview = apply.plan(clusterId, BrokerConfigApplyRequest.everything());
         assertThat(preview.plan().stepCount()).isEqualTo(2);
 
-        assertThatThrownBy(() -> apply.apply(clusterId, confirmed(preview)))
+        BrokerConfigApplyRequest request = confirmed(preview);
+        assertThatThrownBy(() -> apply.apply(clusterId, request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("managed outside Studio");
         verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());
@@ -658,7 +649,8 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         splitBrain.publish(
                 clusterId, Map.of(nodes.findById(firstId).orElseThrow().getArtemisNodeId(), SplitBrainStatus.CRITICAL));
         try {
-            assertThatThrownBy(() -> apply.apply(clusterId, confirmed(preview)))
+            BrokerConfigApplyRequest request = confirmed(preview);
+            assertThatThrownBy(() -> apply.apply(clusterId, request))
                     .isInstanceOf(ConflictException.class)
                     .hasMessageContaining("split-brain");
             verify(ops, never()).addAddressSettings(any(), anyString(), anyString(), any());

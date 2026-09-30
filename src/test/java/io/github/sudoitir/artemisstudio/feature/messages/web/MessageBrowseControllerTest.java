@@ -117,7 +117,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void browseReturnsAPageAndEchoesTheNode() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse.json", 4)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse.json", 4)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "PHASE3.SRC"))
                 .andExpect(status().isOk())
@@ -130,7 +130,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void detailFindsOneMessageById() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse.json", 4)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse.json", 4)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages/{id}", clusterId, "PHASE3.SRC", 133))
                 .andExpect(status().isOk())
@@ -141,7 +141,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void detailIsA404WhenTheIdIsNotInRange() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse.json", 4)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse.json", 4)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages/{id}", clusterId, "PHASE3.SRC", 999999))
                 .andExpect(status().isNotFound());
@@ -149,7 +149,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     @Test
     void anInvalidFilterIsA400() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A))).thenReturn(client(batch("browse-bad-filter.json", 0)));
+        when(connections.forCluster(clusterId, URL_A)).thenReturn(client(batch("browse-bad-filter.json", 0)));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "PHASE3.SRC")
                         .param("filter", "this is not a filter =="))
@@ -193,7 +193,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
         server.expect(requestTo(urlB))
                 .andRespond(withSuccess(fixture("search-broker.json"), MediaType.APPLICATION_JSON));
         server.expect(requestTo(urlB)).andRespond(withSuccess(batch("browse.json", 4), MediaType.APPLICATION_JSON));
-        when(connections.forCluster(eq(clusterId), eq(urlB)))
+        when(connections.forCluster(clusterId, urlB))
                 .thenReturn(new JolokiaBrokerClient(builder.build(), urlB, mapper));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "SPLIT"))
@@ -223,7 +223,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
                 .andRespond(withSuccess(fixture("search-broker.json"), MediaType.APPLICATION_JSON));
         server.expect(requestTo(URL_A)).andRespond(withSuccess(located, MediaType.APPLICATION_JSON));
         server.expect(requestTo(URL_A)).andRespond(withSuccess(batch("browse.json", 4), MediaType.APPLICATION_JSON));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenReturn(new JolokiaBrokerClient(builder.build(), URL_A, mapper));
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "FRESH"))

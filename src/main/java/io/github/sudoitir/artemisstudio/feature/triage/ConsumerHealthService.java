@@ -264,26 +264,6 @@ public class ConsumerHealthService {
         return byAddress;
     }
 
-    private static Instant newest(SubjectRate a, SubjectRate b) {
-        if (a == null) {
-            return b == null ? null : b.asOf();
-        }
-        if (b == null) {
-            return a.asOf();
-        }
-        return a.asOf().isAfter(b.asOf()) ? a.asOf() : b.asOf();
-    }
-
-    private static Duration longestSpan(SubjectRate a, SubjectRate b) {
-        if (a == null) {
-            return b == null ? null : b.span();
-        }
-        if (b == null) {
-            return a.span();
-        }
-        return a.span().compareTo(b.span()) >= 0 ? a.span() : b.span();
-    }
-
     private static String humanise(Duration d) {
         long minutes = d.toMinutes();
         if (minutes < 1) {
@@ -355,6 +335,26 @@ public class ConsumerHealthService {
             this.asOf = newest(add, ack);
             this.span = longestSpan(add, ack);
             this.stale = row.perNode().stream().anyMatch(QueueNodeCell::stale);
+        }
+
+        private static Instant newest(SubjectRate a, SubjectRate b) {
+            if (a == null) {
+                return b == null ? null : b.asOf();
+            }
+            if (b == null) {
+                return a.asOf();
+            }
+            return a.asOf().isAfter(b.asOf()) ? a.asOf() : b.asOf();
+        }
+
+        private static Duration longestSpan(SubjectRate a, SubjectRate b) {
+            if (a == null) {
+                return b == null ? null : b.span();
+            }
+            if (b == null) {
+                return a.span();
+            }
+            return a.span().compareTo(b.span()) >= 0 ? a.span() : b.span();
         }
 
         private Builder broker(String consumerName) {

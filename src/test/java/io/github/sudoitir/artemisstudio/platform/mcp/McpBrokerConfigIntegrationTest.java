@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -137,7 +136,7 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
         UUID id = nodes.save(n).getId();
         JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
-        when(connections.forCluster(eq(clusterId), eq(url))).thenReturn(client);
+        when(connections.forCluster(clusterId, url)).thenReturn(client);
         clientToNode.put(client, id);
     }
 

@@ -167,6 +167,31 @@ public class PluginValidator {
         return true;
     }
 
+    /** What an entry's name gives away (unsafe, duplicate, nested archive), or null when it is fine. */
+    private static Violation nameViolation(ZipEntry entry, Set<String> seen) {
+        String name = entry.getName();
+        if (!isSafeName(name)) {
+            return new Violation(
+                    "jar-unsafe-entry-name",
+                    "\"%s\" is an absolute, backslash or path-traversal entry name.".formatted(name),
+                    "Rebuild the jar with a standard zip tool; do not hand-craft entries.");
+        }
+        if (!seen.add(name)) {
+            return new Violation(
+                    "jar-duplicate-entry",
+                    "\"%s\" appears more than once in the jar.".formatted(name),
+                    "Rebuild the jar without duplicate entries.");
+        }
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        if (!entry.isDirectory() && (lower.endsWith(".jar") || lower.endsWith(".zip"))) {
+            return new Violation(
+                    "jar-nested-archive",
+                    "\"%s\" is a nested jar or zip.".formatted(name),
+                    "Shade and relocate dependencies into this jar's own classes instead of bundling nested archives.");
+        }
+        return null;
+    }
+
     /**
      * A raw, sequential scan for zip-slip and zip-bomb shapes, done before the jar is trusted to
      * {@link JarFile}. Returns the entry names, or empty once a structural violation has
@@ -193,30 +218,12 @@ public class PluginValidator {
                             "Remove unused resources from the jar."));
                     return Optional.empty();
                 }
+                Violation badName = nameViolation(entry, seen);
+                if (badName != null) {
+                    violations.add(badName);
+                    return Optional.empty();
+                }
                 String name = entry.getName();
-                if (!isSafeName(name)) {
-                    violations.add(new Violation(
-                            "jar-unsafe-entry-name",
-                            "\"%s\" is an absolute, backslash or path-traversal entry name.".formatted(name),
-                            "Rebuild the jar with a standard zip tool; do not hand-craft entries."));
-                    return Optional.empty();
-                }
-                if (!seen.add(name)) {
-                    violations.add(new Violation(
-                            "jar-duplicate-entry",
-                            "\"%s\" appears more than once in the jar.".formatted(name),
-                            "Rebuild the jar without duplicate entries."));
-                    return Optional.empty();
-                }
-                String lower = name.toLowerCase(java.util.Locale.ROOT);
-                if (!entry.isDirectory() && (lower.endsWith(".jar") || lower.endsWith(".zip"))) {
-                    violations.add(
-                            new Violation(
-                                    "jar-nested-archive",
-                                    "\"%s\" is a nested jar or zip.".formatted(name),
-                                    "Shade and relocate dependencies into this jar's own classes instead of bundling nested archives."));
-                    return Optional.empty();
-                }
                 long entryRead = discard(zis, MAX_READ_BYTES - totalRead);
                 totalRead += entryRead;
                 if (totalRead > MAX_READ_BYTES) {

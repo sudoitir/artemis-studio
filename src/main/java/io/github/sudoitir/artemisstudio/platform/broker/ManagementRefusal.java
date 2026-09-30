@@ -147,20 +147,24 @@ public class ManagementRefusal extends RuntimeException {
             return new ManagementRefusal(Kind.ALREADY, "Already absent: " + error);
         }
         if (error.contains(SETTING_PARSE)) {
-            Matcher name = SETTING_NAME.matcher(error);
-            String field = null;
-            while (name.find()) {
-                field = name.group(1);
-            }
-            return new ManagementRefusal(
-                    Kind.ARGUMENT,
-                    "The broker could not parse the value of " + (field == null ? "an address-setting key" : field)
-                            + ".");
+            return settingParseRefusal(error);
         }
         if (error.contains(PAGE_SIZE_VS_MAX)) {
             return new ManagementRefusal(
                     Kind.ARGUMENT, "page-size-bytes must be lower than max-size-bytes; the broker refused the pair.");
         }
         return null;
+    }
+
+    /** Names the last address-setting key the broker quoted, or says it could not tell which. */
+    private static ManagementRefusal settingParseRefusal(String error) {
+        Matcher name = SETTING_NAME.matcher(error);
+        String field = null;
+        while (name.find()) {
+            field = name.group(1);
+        }
+        return new ManagementRefusal(
+                Kind.ARGUMENT,
+                "The broker could not parse the value of " + (field == null ? "an address-setting key" : field) + ".");
     }
 }

@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.DivertRow;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateDivertRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.DivertView;
+import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
@@ -119,7 +120,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).nodesPresent()).isEqualTo(2);
         assertThat(rows.get(0).nodesTotal()).isEqualTo(2);
-        assertThat(rows.get(0).perNode()).extracting(n -> n.nodeName()).containsExactly("node-a", "node-b");
+        assertThat(rows.get(0).perNode()).extracting(NodeRef::nodeName).containsExactly("node-a", "node-b");
     }
 
     /**
@@ -136,9 +137,9 @@ class RoutingServiceTest extends PostgresIntegrationTest {
 
         List<DivertView> rows = diverts().data();
 
-        assertThat(rows).hasSize(2);
-        assertThat(rows).allMatch(r -> r.nodesPresent() == 1 && r.nodesTotal() == 2);
         assertThat(rows)
+                .hasSize(2)
+                .allMatch(r -> r.nodesPresent() == 1 && r.nodesTotal() == 2)
                 .extracting(DivertView::forwardingAddress)
                 .containsExactlyInAnyOrder("AUDIT.IN", "ELSEWHERE.IN");
     }

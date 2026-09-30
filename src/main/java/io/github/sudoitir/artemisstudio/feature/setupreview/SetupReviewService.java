@@ -313,25 +313,20 @@ public class SetupReviewService {
     }
 
     private List<ReviewedNodeView> reviewedNodes(SetupReviewEntity review) {
-        List<ReviewedNodeView> nodes = new ArrayList<>();
-        for (Map<String, Object> n :
-                mapper.readValue(review.getNodes(), new TypeReference<List<Map<String, Object>>>() {})) {
-            nodes.add(new ReviewedNodeView(
-                    UUID.fromString(String.valueOf(n.get("nodeId"))),
-                    String.valueOf(n.get("nodeName")),
-                    Boolean.TRUE.equals(n.get("live")),
-                    Boolean.TRUE.equals(n.get("reviewed")),
-                    n.get(REASON) == null ? null : String.valueOf(n.get(REASON))));
-        }
-        return nodes;
+        return mapper.readValue(review.getNodes(), new TypeReference<List<Map<String, Object>>>() {}).stream()
+                .map(n -> new ReviewedNodeView(
+                        UUID.fromString(String.valueOf(n.get("nodeId"))),
+                        String.valueOf(n.get("nodeName")),
+                        Boolean.TRUE.equals(n.get("live")),
+                        Boolean.TRUE.equals(n.get("reviewed")),
+                        n.get(REASON) == null ? null : String.valueOf(n.get(REASON))))
+                .toList();
     }
 
     private List<NotAssessedView> notAssessedViews(SetupReviewEntity review, Map<String, String> labels) {
-        List<NotAssessedView> notAssessed = new ArrayList<>();
-        for (NotAssessed na : mapper.readValue(review.getNotAssessed(), new TypeReference<List<NotAssessed>>() {})) {
-            notAssessed.add(new NotAssessedView(
-                    na.code(), na.subject(), labels.getOrDefault(na.subject(), na.subject()), na.reason()));
-        }
-        return notAssessed;
+        return mapper.readValue(review.getNotAssessed(), new TypeReference<List<NotAssessed>>() {}).stream()
+                .map(na -> new NotAssessedView(
+                        na.code(), na.subject(), labels.getOrDefault(na.subject(), na.subject()), na.reason()))
+                .toList();
     }
 }

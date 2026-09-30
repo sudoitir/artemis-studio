@@ -62,7 +62,7 @@ class RrDeadlineSweepTest extends PostgresIntegrationTest {
 
     @Test
     void noResponderEverObservedIsOrphaned() {
-        UUID clusterId = cluster();
+        cluster();
         RrFlowEntity flow = overdueFlow(clusterId, null);
 
         sweep.sweep();
@@ -74,7 +74,7 @@ class RrDeadlineSweepTest extends PostgresIntegrationTest {
 
     @Test
     void aResponderHavingBeenObservedTimesOut() {
-        UUID clusterId = cluster();
+        cluster();
         RrFlowEntity flow = overdueFlow(clusterId, "consumer-1");
 
         sweep.sweep();
@@ -85,7 +85,7 @@ class RrDeadlineSweepTest extends PostgresIntegrationTest {
 
     @Test
     void aFlowNotYetPastItsDeadlineIsUntouched() {
-        UUID clusterId = cluster();
+        cluster();
         Instant now = Instant.now();
         RrFlowEntity flow = flows.save(new RrFlowEntity(new RrFlowEntity.Awaiting(
                 clusterId,

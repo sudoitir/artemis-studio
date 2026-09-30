@@ -200,7 +200,7 @@ function KeysTable({
   );
 }
 
-function RotateModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+function RotateModal({ token, onClose }: Readonly<{ token: TokenView | null; onClose: () => void }>) {
   const rotate = useRotateToken();
   const close = () => {
     rotate.reset();
@@ -234,7 +234,7 @@ function RotateModal({ token, onClose }: { token: TokenView | null; onClose: () 
   );
 }
 
-function RevokeModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+function RevokeModal({ token, onClose }: Readonly<{ token: TokenView | null; onClose: () => void }>) {
   const revoke = useRevokeToken();
   return (
     <Modal opened={token !== null} onClose={onClose} title={token ? `Revoke ${token.name}` : ''}>

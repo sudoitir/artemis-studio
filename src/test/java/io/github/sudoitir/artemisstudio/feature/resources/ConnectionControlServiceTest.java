@@ -235,7 +235,8 @@ class ConnectionControlServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aNodeThatIsNotPartOfTheClusterIsNotFound() {
-        assertThatThrownBy(() -> control.closeConnection(clusterId, UUID.randomUUID(), CONNECTION, false))
+        UUID unknownNode = UUID.randomUUID();
+        assertThatThrownBy(() -> control.closeConnection(clusterId, unknownNode, CONNECTION, false))
                 .isInstanceOf(NotFoundException.class);
     }
 

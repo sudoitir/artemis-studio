@@ -108,12 +108,11 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void kindShapeCheckRejectsAThresholdRuleWithAStateCondition() {
-        UUID c = cluster();
+        var params = java.util.Map.of("c", cluster());
         assertThatThrownBy(() -> jdbc.update("""
                         INSERT INTO alert_rule (cluster_id, kind, metric, comparator, threshold, state_condition, name)
                         VALUES (:c, 'METRIC_THRESHOLD', 'messageCount', 'GT', 1, 'SPLIT_BRAIN', 'bad')
-                        """, java.util.Map.of("c", c)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                        """, params)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -121,8 +120,8 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
         String name = "ops-" + UUID.randomUUID();
         NotificationChannelEntity first = channels.save(new NotificationChannelEntity(name, "SLACK", "{}", null));
         createdChannels.add(first.getId());
-        assertThatThrownBy(() -> channels.save(new NotificationChannelEntity(name, "WEBHOOK", "{}", null)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        NotificationChannelEntity duplicate = new NotificationChannelEntity(name, "WEBHOOK", "{}", null);
+        assertThatThrownBy(() -> channels.save(duplicate)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

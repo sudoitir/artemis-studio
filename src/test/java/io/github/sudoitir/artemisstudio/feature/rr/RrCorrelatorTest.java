@@ -71,7 +71,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
      */
     @Test
     void aDeadlineFromAFastClockIsNormalisedOntoStudiosTimeline() {
-        UUID clusterId = cluster();
+        cluster();
         String jolokiaUrl = "http://broker-1:8161/console/jolokia/" + UUID.randomUUID();
         var node = io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.fromSeed(
                 clusterId, "broker-1", "PRIMARY", null);
@@ -103,7 +103,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void requestThenReplyCompletesTheFlow() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
 
         correlator.accept(new Observation.RequestSeen(
@@ -126,7 +126,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void aReplyOnTheSecondOfSeveralReplyAddressesCompletesTheFlowAndRecordsThatAddress() {
-        UUID clusterId = cluster();
+        cluster();
         // Three declared reply addresses, so no destination is knowable at request
         // time and the flow takes it from whichever responder answers (design.md D5).
         expectations.save(new RrExpectationEntity(
@@ -152,7 +152,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void aSingleLiteralReplyAddressIsStampedAtRequestTime() {
-        UUID clusterId = cluster();
+        cluster();
         expectations.save(
                 new RrExpectationEntity(clusterId, "rr.single", List.of("rr.reply.only"), null, 99_000, 10, false));
 
@@ -167,7 +167,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void temporaryQueueReplyMatchesByDestination() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
 
         correlator.accept(new Observation.RequestSeen(
@@ -186,7 +186,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void aReplyWithNoMatchingRequestIsOrphaned() {
-        UUID clusterId = cluster();
+        cluster();
         correlator.accept(new Observation.ReplySeen(
                 clusterId, null, Instant.now(), "rr.reply", "m9", "no-such-correlation", null, Map.of()));
 
@@ -205,7 +205,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void theOnlyResponderDisappearingDropsAwaitingFlows() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
         correlator.accept(new Observation.ResponderUp(clusterId, null, t0, "rr.request", "consumer-1"));
         correlator.accept(new Observation.RequestSeen(
@@ -222,7 +222,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
     @Test
     void deadlineResolutionPrefersMessageExpirationOverExpectation() {
-        UUID clusterId = cluster();
+        cluster();
         expectations.save(new RrExpectationEntity(clusterId, "rr.request", List.of(), null, 99_000, 10, false));
         Instant t0 = Instant.now();
         long expirationEpochMs = t0.plusSeconds(3).toEpochMilli();
@@ -242,7 +242,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
         // responderConsumer null. A responder that attaches afterward, while the flow is
         // still awaiting reply, must be backfilled onto it — otherwise the deadline sweep
         // would misclassify an eventual timeout as ORPHANED instead of TIMED_OUT.
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
         correlator.accept(new Observation.RequestSeen(
                 clusterId, null, t0, "rr.request", "m-late-responder", "corr-4", null, 0L, null, Map.of()));

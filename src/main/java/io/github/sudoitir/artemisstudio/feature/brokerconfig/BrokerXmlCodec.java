@@ -138,8 +138,7 @@ public final class BrokerXmlCodec {
      * A DOCTYPE, with any internal subset. It is dropped, never resolved: DTDs are off,
      * and inside the wrapper below a DOCTYPE would make the whole file unreadable.
      */
-    private static final Pattern DOCTYPE =
-            Pattern.compile("(?s)<!DOCTYPE[^\\[>]*+(\\[(?:[^\\]]++|](?!\\s*>))*+])?+\\s*>");
+    private static final Pattern DOCTYPE = Pattern.compile("(?s)<!DOCTYPE[^\\[>]*+(?:\\[.*?]\\s*)?>");
 
     /**
      * A fragment may have several top-level elements; wrap it so the reader sees one
