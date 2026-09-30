@@ -290,6 +290,7 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           tags: artemis-studio:ci
           # Warm from the release job's registry cache (anonymous pull); keep a
           # per-branch GHA layer so successive PR pushes stay incremental.
@@ -297,6 +298,18 @@ jobs:
             type=registry,ref=${{ env.BUILDCACHE }}
             type=gha
           cache-to: type=gha,mode=max
+      # Grype, pinned by digest like actionlint (ADR-0139). The first run reports every finding,
+      # fixed or not; the second fails on a fixable high or critical and names the fixed version.
+      - name: Scan the image
+        run: |
+          grype() {
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$RUNNER_TEMP/grype:/grype" -e GRYPE_DB_CACHE_DIR=/grype \
+              anchore/grype:v0.119.0@sha256:8c2c9234a345577a6d321a4753aa3ee1276d8975c8452d2344a56b57733ecad3 \
+              artemis-studio:ci "$@"
+          }
+          echo "Every finding:"; grype
+          echo "Fixable findings (fails on high or critical):"; grype --only-fixed --fail-on high
 
   # The documentation site builds (ADR-0061 D5). pages.yml deploys it from main.
   site:
@@ -434,6 +447,9 @@ jobs:
       contents: write
       # To rebuild the site's changelog once the release exists (ADR-0129).
       actions: write
+      # Keyless attestations of the image and the jar (ADR-0139).
+      id-token: write
+      attestations: write
     outputs:
       version: ${{ steps.ver.outputs.version }}
     concurrency:
@@ -489,6 +505,26 @@ jobs:
           cp target/artemis-studio-exec.jar "artemis-studio-$V.jar"
           sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
 
+      # Signed SLSA provenance and a CycloneDX SBOM for the jar, verifiable with
+      # `gh attestation verify` and no key of ours (ADR-0139). The bundle is a release asset too.
+      - uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          file: artemis-studio-${{ steps.ver.outputs.version }}.jar
+          format: cyclonedx-json
+          output-file: artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
+          upload-artifact: false
+      - name: Attest the jar's provenance
+        id: jar-provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artemis-studio-${{ steps.ver.outputs.version }}.jar
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artemis-studio-${{ steps.ver.outputs.version }}.jar
+          sbom-path: artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
+      - name: Stage the jar's provenance bundle
+        run: cp "${{ steps.jar-provenance.outputs.bundle-path }}" "artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl"
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
@@ -525,14 +561,14 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image
+        id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          # No SBOM/provenance attestations: they add `unknown/unknown` manifest
-          # entries that clutter the Docker Hub tag view and hide the real arches.
-          # ADR-0042 defers supply-chain attestation until there are verifiers.
+          # Buildkit's own attestations add `unknown/unknown` entries that clutter the Docker Hub
+          # tag view. The image is attested below instead, as OCI referrers (ADR-0139).
           provenance: false
           sbom: false
           # Registry cache: not size-capped like GHA, shared across every run and
@@ -554,6 +590,25 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.licenses=Apache-2.0
 
+      # Provenance and a CycloneDX SBOM for the image, signed and stored next to it on Docker Hub.
+      - uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          image: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio@${{ steps.push.outputs.digest }}
+          format: cyclonedx-json
+          output-file: artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
+          upload-artifact: false
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: index.docker.io/${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: index.docker.io/${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
+          push-to-registry: true
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
@@ -564,6 +619,24 @@ jobs:
           files: |
             artemis-studio-${{ steps.ver.outputs.version }}.jar
             artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
+            artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl
+            artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
+            artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
+
+      # What users run (site/src/guide/verify-releases.md): if it fails here, the release fails.
+      - name: Verify the attestations as a user would
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+        run: |
+          set -euo pipefail
+          V=${{ steps.ver.outputs.version }}
+          SIGNER=(--repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml")
+          gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}"
+          gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
+          gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}"
+          gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
+          gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --bundle-from-oci
 
       # A release made with the workflow token triggers no workflow, so the site that lists the
       # release notes is rebuilt explicitly.
@@ -606,6 +679,11 @@ jobs:
     needs: release
     runs-on: ubuntu-26.04
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # Keyless provenance for the files deployed to Central (ADR-0139).
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -677,6 +755,13 @@ jobs:
           ./mvnw -B versions:set -DnewVersion="${{ needs.release.outputs.version }}" -DgenerateBackupPoms=false
           ./mvnw -B -Prelease,api-check -DskipTests -Dspring-boot.repackage.skip=true -Dgpg.signer=bc \
             -Djapicmp.skip=${{ steps.contract.outputs.skip }} deploy
+      # The bytes Central serves: the plain, sources and javadoc jars and the pom.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: steps.needed.outputs.publish == 'true'
+        with:
+          subject-path: |
+            target/artemis-studio*.jar
+            pom.xml
 
   # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Only when
   # what the SDK is built from changed since the newest version on npm (ADR-0126). Trusted
