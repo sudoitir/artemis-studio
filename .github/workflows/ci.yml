@@ -240,15 +240,23 @@ jobs:
           node packages/plugin-sdk/build.mjs 2026.01.0
           (cd packages/plugin-sdk/dist && npm pack)
 
-      - name: Build the template as 1.0.0 and 1.0.1, each checked as Studio will check it
+      - name: Build the template as 1.0.0 and 1.0.1, signed with a throwaway key and checked as Studio will check it
         run: |
           set -euo pipefail
           SDK=$(ls "$GITHUB_WORKSPACE"/web/packages/plugin-sdk/dist/*.tgz)
+          export PLUGIN_SIGNING_STOREPASS="$(openssl rand -hex 16)"
+          keytool -genkeypair -alias ci -keyalg EC -groupname secp256r1 -sigalg SHA256withECDSA -validity 2 \
+            -dname "CN=Template CI" -keystore "$RUNNER_TEMP/ci.p12" -storetype PKCS12 \
+            -storepass "$PLUGIN_SIGNING_STOREPASS" -keypass "$PLUGIN_SIGNING_STOREPASS"
+          keytool -exportcert -rfc -alias ci -keystore "$RUNNER_TEMP/ci.p12" \
+            -storepass "$PLUGIN_SIGNING_STOREPASS" -file "$RUNNER_TEMP/publisher.pem"
           for V in 1.0.0 1.0.1; do
             rm -rf "$RUNNER_TEMP/tpl" && cp -r examples/plugin-template "$RUNNER_TEMP/tpl"
             sed -i "0,/<version>1.0.0<\/version>/s//<version>$V<\/version>/" "$RUNNER_TEMP/tpl/pom.xml"
             ./mvnw -B -f "$RUNNER_TEMP/tpl/pom.xml" verify \
-              -Dstudio.version=0.1.0-SNAPSHOT -Dstudio.since=2026.01.0 -Dstudio.sdk="$SDK"
+              -Dstudio.version=0.1.0-SNAPSHOT -Dstudio.since=2026.01.0 -Dstudio.sdk="$SDK" \
+              -Dplugin.signing.keystore="$RUNNER_TEMP/ci.p12" -Dplugin.signing.alias=ci \
+              -Dartemis-studio.plugin.certificate="$RUNNER_TEMP/publisher.pem"
             cp "$RUNNER_TEMP/tpl/target/acme-notes-$V.jar" "$RUNNER_TEMP/"
           done
 
@@ -270,6 +278,7 @@ jobs:
           npx playwright install --with-deps chromium
           STUDIO=http://localhost:8080 NEW_PASSWORD="ci-$(openssl rand -hex 12)" \
           JAR_V1="$RUNNER_TEMP/acme-notes-1.0.0.jar" JAR_V2="$RUNNER_TEMP/acme-notes-1.0.1.jar" \
+          PUBLISHER_CERT="$RUNNER_TEMP/publisher.pem" \
             node --experimental-strip-types scripts/plugin-e2e.ts
 
       - name: Studio's log

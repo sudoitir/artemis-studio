@@ -165,4 +165,38 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Signs the jar so Studio can tell who built it: active when -Dplugin.signing.keystore is
+             set. Studio refuses an unsigned plugin unless an installer allows unverified ones.
+             The store password comes from the environment, never from the command line or this
+             file: export PLUGIN_SIGNING_STOREPASS. See README.md, "Sign your plugin". -->
+        <profile>
+            <id>sign</id>
+            <activation>
+                <property><name>plugin.signing.keystore</name></property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jarsigner-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>sign-plugin</id>
+                                <phase>package</phase>
+                                <goals><goal>sign</goal></goals>
+                                <configuration>
+                                    <keystore>${plugin.signing.keystore}</keystore>
+                                    <alias>${plugin.signing.alias}</alias>
+                                    <storepass>${env.PLUGIN_SIGNING_STOREPASS}</storepass>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
