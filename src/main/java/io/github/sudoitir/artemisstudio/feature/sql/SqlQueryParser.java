@@ -463,7 +463,7 @@ public class SqlQueryParser {
             // getValue() keeps SQL's doubled quotes; the AST holds the real string,
             // so the renderer escapes exactly once on the way back out.
             case StringValue s -> new Literal.Str(s.getNotExcapedValue());
-            case LongValue l -> new Literal.Num((double) l.getValue(), true);
+            case LongValue l -> new Literal.Num(l.getValue(), true);
             case DoubleValue d -> new Literal.Num(d.getValue(), false);
             case BooleanValue b -> new Literal.Bool(b.getValue());
             case SignedExpression signed -> signedLiteral(signed);

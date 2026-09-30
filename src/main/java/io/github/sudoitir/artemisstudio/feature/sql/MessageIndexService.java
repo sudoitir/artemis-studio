@@ -354,14 +354,6 @@ public class MessageIndexService {
     private static final String RETENTION_DAYS = "retentionDays";
     private static final String CLUSTER = "CLUSTER";
 
-    /**
-     * Bounds outside their range are refused, naming the field and the range, never adjusted.
-     * A value silently changed into range is a value the operator did not choose, applied to
-     * how much production payload is copied and stored (operator-ui spec). An unset bound keeps
-     * whatever the entity already carries, which for a new subscription is the field's own
-     * default — the defaults live on the entity so that a subscription created any other way is
-     * bounded too.
-     */
     /** Why a capture cannot start, or null when nothing stands in its way. */
     private String refusal(List<String> addresses, MessageIndexSubscriptionEntity draft) {
         if (addresses.isEmpty()) {
@@ -376,6 +368,14 @@ public class MessageIndexService {
         return null;
     }
 
+    /**
+     * Bounds outside their range are refused, naming the field and the range, never adjusted.
+     * A value silently changed into range is a value the operator did not choose, applied to
+     * how much production payload is copied and stored (operator-ui spec). An unset bound keeps
+     * whatever the entity already carries, which for a new subscription is the field's own
+     * default — the defaults live on the entity so that a subscription created any other way is
+     * bounded too.
+     */
     private static void applyBounds(MessageIndexSubscriptionEntity entity, Spec spec) {
         if (spec.ringSize() != null) {
             entity.setRingSize(inRange("ringSize", spec.ringSize(), 100L, MAX_RING_SIZE));

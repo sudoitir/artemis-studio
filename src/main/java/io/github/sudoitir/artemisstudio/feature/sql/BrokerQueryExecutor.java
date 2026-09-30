@@ -362,6 +362,60 @@ public class BrokerQueryExecutor {
             }
             return null;
         }
+
+        /** Both clauses, parenthesised, so operator precedence cannot change either one's meaning. */
+        private String and(String selector, String extra) {
+            if (extra == null || extra.isBlank()) {
+                return selector;
+            }
+            if (selector == null || selector.isBlank()) {
+                return extra;
+            }
+            return "(" + selector + ") AND (" + extra + ")";
+        }
+
+        private String describe(Bound bound) {
+            return switch (bound.kind()) {
+                case SCAN_CAP -> "the scan cap of " + bound.value() + " messages was reached";
+                case ROW_LIMIT -> "the row limit of " + bound.value() + " was reached";
+                case TIMEOUT -> "the query timed out after " + bound.value() + "s";
+                case TARGET_CAP -> "the target cap of " + bound.value() + " queues was reached";
+            };
+        }
+
+        private Row toRow(BrowsedMessage message, ClusterNode node, Target target) {
+            Map<String, Object> merged = new HashMap<>();
+            merged.putAll(message.stringProperties());
+            merged.putAll(message.intProperties());
+            merged.putAll(message.longProperties());
+            merged.putAll(message.doubleProperties());
+            merged.putAll(message.booleanProperties());
+            return new Row(
+                    node.getId(),
+                    target.nodeName(),
+                    target.queueName(),
+                    target.address(),
+                    message.messageId(),
+                    message.type(),
+                    message.durable(),
+                    message.priority(),
+                    message.timestamp(),
+                    message.expiration(),
+                    message.size(),
+                    message.contentType(),
+                    message.correlationId(),
+                    message.groupId(),
+                    message.userId(),
+                    message.replyTo(),
+                    message.body(),
+                    message.bodyTruncated(),
+                    Map.copyOf(merged),
+                    Source.BROKER,
+                    null,
+                    null,
+                    null,
+                    null);
+        }
     }
 
     /** Where one target's read has got to: what it is reading with, and what it has seen so far. */
@@ -399,62 +453,6 @@ public class BrokerQueryExecutor {
                     servedBy,
                     detail);
         }
-    }
-
-    /** Both clauses, parenthesised, so operator precedence cannot change either one's meaning. */
-    private String and(String selector, String extra) {
-        if (extra == null || extra.isBlank()) {
-            return selector;
-        }
-        if (selector == null || selector.isBlank()) {
-            return extra;
-        }
-        return "(" + selector + ") AND (" + extra + ")";
-    }
-
-    private String describe(Bound bound) {
-        return switch (bound.kind()) {
-            case SCAN_CAP -> "the scan cap of " + bound.value() + " messages was reached";
-            case ROW_LIMIT -> "the row limit of " + bound.value() + " was reached";
-            case TIMEOUT -> "the query timed out after " + bound.value() + "s";
-            case TARGET_CAP -> "the target cap of " + bound.value() + " queues was reached";
-        };
-    }
-
-    // ---- mapping --------------------------------------------------------
-
-    private Row toRow(BrowsedMessage message, ClusterNode node, Target target) {
-        Map<String, Object> merged = new HashMap<>();
-        merged.putAll(message.stringProperties());
-        merged.putAll(message.intProperties());
-        merged.putAll(message.longProperties());
-        merged.putAll(message.doubleProperties());
-        merged.putAll(message.booleanProperties());
-        return new Row(
-                node.getId(),
-                target.nodeName(),
-                target.queueName(),
-                target.address(),
-                message.messageId(),
-                message.type(),
-                message.durable(),
-                message.priority(),
-                message.timestamp(),
-                message.expiration(),
-                message.size(),
-                message.contentType(),
-                message.correlationId(),
-                message.groupId(),
-                message.userId(),
-                message.replyTo(),
-                message.body(),
-                message.bodyTruncated(),
-                Map.copyOf(merged),
-                Source.BROKER,
-                null,
-                null,
-                null,
-                null);
     }
 
     /** A sink that only collects, for callers that want the whole result at once. */
