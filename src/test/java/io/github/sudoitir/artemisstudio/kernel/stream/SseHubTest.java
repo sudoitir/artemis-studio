@@ -29,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
@@ -149,6 +150,23 @@ class SseHubTest {
         hub.publish(clusterId, "queues");
 
         verify(bus).publish(new BusFrame(clusterId, "queues", null, null));
+    }
+
+    @Test
+    void aDatabaseThatCannotTakeASignalDoesNotFailThePublisher() {
+        UUID clusterId = UUID.randomUUID();
+        doThrow(new CannotGetJdbcConnectionException("pool exhausted"))
+                .when(bus)
+                .publish(any(BusMessage.class));
+
+        assertThatCode(() -> {
+                    hub.publish(clusterId, "queues");
+                    hub.publish(clusterId, "queues");
+                    hub.publish(clusterId, "events", Map.of("seq", 7), "7");
+                })
+                .doesNotThrowAnyException();
+
+        verify(bus, times(3)).publish(any(BusMessage.class));
     }
 
     @Test

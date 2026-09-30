@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
@@ -51,6 +52,9 @@ public class SseHub {
     public static final String RECONNECT = "reconnect";
 
     private final Map<UUID, Set<Subscriber>> byCluster = new ConcurrentHashMap<>();
+    /** Topics whose last publish failed, so an outage is logged once per topic and not once per frame. */
+    private final Set<String> unpublished = ConcurrentHashMap.newKeySet();
+
     private final StudioBus bus;
     private final ObjectMapper mapper;
 
@@ -91,9 +95,31 @@ public class SseHub {
      * (the {@code broker_event.seq}), which becomes the SSE {@code id:} line and
      * powers {@code Last-Event-ID} replay (ADR-0027). Sent over the bus: it reaches the subscribers of
      * every replica, and of this one only when it arrives back.
+     *
+     * <p>A signal is best effort: when the database cannot take it, because it or its pool is unavailable,
+     * the failure is logged, once per topic until a publish succeeds again, and not thrown at the caller,
+     * whose own work is not undone by a missed nudge. Clients refetch on the next reconnect or resync.
+     * Nothing protects a caller's transaction specially: {@code pg_notify} with a capped payload cannot fail
+     * as a statement, so inside a transaction the only failure is a lost connection, which ends that
+     * transaction whatever is done here, and its commit reports it.
      */
     public void publish(UUID clusterId, String topic, Object data, String eventId) {
-        bus.publish(new BusFrame(clusterId, topic, data == null ? null : mapper.valueToTree(data), eventId));
+        BusFrame frame = new BusFrame(clusterId, topic, data == null ? null : mapper.valueToTree(data), eventId);
+        try {
+            bus.publish(frame);
+            if (!unpublished.isEmpty()) {
+                unpublished.clear();
+            }
+        } catch (DataAccessException e) {
+            if (unpublished.add(topic)) {
+                log.warn(
+                        "Could not publish a '{}' frame for cluster {}: {}. Clients refetch when they reconnect;"
+                                + " further failures of this topic are not logged until one succeeds",
+                        topic,
+                        clusterId,
+                        e.getMessage());
+            }
+        }
     }
 
     /** A frame arrived, from this replica or another: deliver it to the local subscribers. */
