@@ -278,9 +278,10 @@ final class PolicyEngine {
             return text;
         }
         int bytes = 0;
-        for (int i = 0; i < text.length(); ) {
+        int i = 0;
+        while (i < text.length()) {
             int codePoint = text.codePointAt(i);
-            int size = codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4;
+            int size = utf8Size(codePoint);
             if (bytes + size > limit) {
                 return text.substring(0, i);
             }
@@ -288,5 +289,15 @@ final class PolicyEngine {
             i += Character.charCount(codePoint);
         }
         return text;
+    }
+
+    private static int utf8Size(int codePoint) {
+        if (codePoint < 0x80) {
+            return 1;
+        }
+        if (codePoint < 0x800) {
+            return 2;
+        }
+        return codePoint < 0x10000 ? 3 : 4;
     }
 }

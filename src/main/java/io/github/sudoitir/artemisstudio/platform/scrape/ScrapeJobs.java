@@ -10,16 +10,18 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class ScrapeJobs {
 
+    private static final String FEATURE = "scrape";
+
     @Bean
     ShutdownStep scrapeShutdown(ScrapeScheduler scheduler) {
-        return new ShutdownStep("scrape", ShutdownPhases.BROKER_CALLS, scheduler::stopTiers, scheduler::startTiers);
+        return new ShutdownStep(FEATURE, ShutdownPhases.BROKER_CALLS, scheduler::stopTiers, scheduler::startTiers);
     }
 
     @Bean
     ScheduledJob metricReaperJob(MetricSampleReaper reaper, SettingsService settings) {
         return ScheduledJob.cron(
                 "metric-reaper",
-                "scrape",
+                FEATURE,
                 ScheduledJob.Scope.INSTALLATION,
                 () -> settings.value(ScrapeSettings.METRIC_REAPER_CRON),
                 reaper::reap);
@@ -29,7 +31,7 @@ class ScrapeJobs {
     ScheduledJob metricPartitionJob(MetricPartitionMaintainer maintainer, SettingsService settings) {
         return ScheduledJob.cron(
                 "metric-partitions",
-                "scrape",
+                FEATURE,
                 ScheduledJob.Scope.INSTALLATION,
                 () -> settings.value(ScrapeSettings.METRIC_PARTITION_CRON),
                 maintainer::maintain);

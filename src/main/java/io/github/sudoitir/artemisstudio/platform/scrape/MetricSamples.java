@@ -31,6 +31,10 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class MetricSamples {
 
+    private static final String SUBJECT_NAME = "subject_name";
+    private static final String NODE_ID = "node_id";
+    private static final String BUCKET = "bucket";
+
     public record Bucket(Instant ts, double value, Double peak) {}
 
     /** One node's bucket of a per-node series (ADR-0110). */
@@ -95,13 +99,12 @@ public class MetricSamples {
                         HAVING count(*) >= 2 AND max(ts) > min(ts)) per_node
                  GROUP BY subject_name
                 """;
-        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
-                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
+        MapSqlParameterSource p = windowParams(clusterId, metric, from, to);
         Map<String, SubjectRate> out = new java.util.HashMap<>();
         jdbc.query(sql, p, rs -> {
             double spanSeconds = rs.getDouble("span_seconds");
             out.put(
-                    rs.getString("subject_name"),
+                    rs.getString(SUBJECT_NAME),
                     new SubjectRate(
                             rs.getDouble("rate"),
                             rs.getTimestamp("as_of").toInstant(),
@@ -130,14 +133,13 @@ public class MetricSamples {
                  GROUP BY subject_name, node_id
                 HAVING count(*) >= 2 AND max(ts) > min(ts)
                 """;
-        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
-                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
+        MapSqlParameterSource p = windowParams(clusterId, metric, from, to);
         Map<String, Map<UUID, SubjectRate>> out = new java.util.HashMap<>();
         jdbc.query(sql, p, rs -> {
             double spanSeconds = rs.getDouble("span_seconds");
-            out.computeIfAbsent(rs.getString("subject_name"), k -> new java.util.HashMap<>())
+            out.computeIfAbsent(rs.getString(SUBJECT_NAME), k -> new java.util.HashMap<>())
                     .put(
-                            rs.getObject("node_id", UUID.class),
+                            rs.getObject(NODE_ID, UUID.class),
                             new SubjectRate(
                                     rs.getDouble("delta") / spanSeconds,
                                     rs.getTimestamp("as_of").toInstant(),
@@ -178,11 +180,10 @@ public class MetricSamples {
                  WHERE slope IS NOT NULL
                  GROUP BY subject_name
                 """;
-        MapSqlParameterSource p = new MapSqlParameterSource(Map.of(
-                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
+        MapSqlParameterSource p = windowParams(clusterId, metric, from, to);
         Map<String, Double> out = new java.util.HashMap<>();
         jdbc.query(sql, p, rs -> {
-            out.put(rs.getString("subject_name"), rs.getDouble("slope"));
+            out.put(rs.getString(SUBJECT_NAME), rs.getDouble("slope"));
         });
         return out;
     }
@@ -239,8 +240,7 @@ public class MetricSamples {
                 """;
         MapSqlParameterSource p = rateParams(clusterId, metric, null, from, to, step)
                 .addValue("fallbackSeconds", (double) lookback().toSeconds());
-        return jdbc.query(
-                sql, p, (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
+        return jdbc.query(sql, p, (rs, i) -> new Bucket(rs.getTimestamp(BUCKET).toInstant(), rs.getDouble("v"), null));
     }
 
     /** A plugin metric's gauge buckets for one subject (ADR-0113). */
@@ -270,7 +270,7 @@ public class MetricSamples {
                 sql,
                 params(clusterId, metric, subjectName, from, to, step).addValue("subjectType", subjectType),
                 (rs, i) -> new Bucket(
-                        rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), (Double) rs.getObject("peak")));
+                        rs.getTimestamp(BUCKET).toInstant(), rs.getDouble("v"), (Double) rs.getObject("peak")));
     }
 
     public List<Bucket> rateSeries(
@@ -283,7 +283,7 @@ public class MetricSamples {
         return jdbc.query(
                 sql,
                 rateParams(clusterId, metric, subjectName, from, to, step),
-                (rs, i) -> new Bucket(rs.getTimestamp("bucket").toInstant(), rs.getDouble("v"), null));
+                (rs, i) -> new Bucket(rs.getTimestamp(BUCKET).toInstant(), rs.getDouble("v"), null));
     }
 
     /**
@@ -340,8 +340,8 @@ public class MetricSamples {
                 sql,
                 params(clusterId, metric, subjectName, from, to, step),
                 (rs, i) -> new NodeBucket(
-                        rs.getObject("node_id", UUID.class),
-                        rs.getTimestamp("bucket").toInstant(),
+                        rs.getObject(NODE_ID, UUID.class),
+                        rs.getTimestamp(BUCKET).toInstant(),
                         rs.getDouble("v"),
                         (Double) rs.getObject("peak")));
     }
@@ -361,8 +361,8 @@ public class MetricSamples {
                 sql,
                 rateParams(clusterId, metric, subjectName, from, to, step),
                 (rs, i) -> new NodeBucket(
-                        rs.getObject("node_id", UUID.class),
-                        rs.getTimestamp("bucket").toInstant(),
+                        rs.getObject(NODE_ID, UUID.class),
+                        rs.getTimestamp(BUCKET).toInstant(),
                         rs.getDouble("v"),
                         null));
     }
@@ -386,19 +386,16 @@ public class MetricSamples {
 
     private MapSqlParameterSource params(
             UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+        return windowParams(clusterId, metric, from, to)
+                .addValue("subjectName", subjectName)
+                .addValue("stepSeconds", (double) step.toSeconds());
+    }
+
+    private static MapSqlParameterSource windowParams(UUID clusterId, String metric, Instant from, Instant to) {
         // pgjdbc cannot infer a SQL type for a bare java.time.Instant parameter
         // ("Can't infer the SQL type to use..."); java.sql.Timestamp maps to
         // timestamptz without ambiguity.
         return new MapSqlParameterSource(Map.of(
-                        "clusterId",
-                        clusterId,
-                        "metric",
-                        metric,
-                        "from",
-                        Timestamp.from(from),
-                        "to",
-                        Timestamp.from(to)))
-                .addValue("subjectName", subjectName)
-                .addValue("stepSeconds", (double) step.toSeconds());
+                "clusterId", clusterId, "metric", metric, "from", Timestamp.from(from), "to", Timestamp.from(to)));
     }
 }

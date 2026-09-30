@@ -28,6 +28,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class McpRunbookPrompts {
 
+    private static final String DIAGNOSE = "diagnose";
+
     private final McpToolCatalog catalog;
     private final FeatureRegistry features;
 
@@ -55,7 +57,7 @@ public class McpRunbookPrompts {
                 the time the symptom started.
 
                 Report what you found and what you did not check. Do not run any mutating tool \
-                as part of triage.""".formatted(target), "diagnose", "list_resources", "activity_log");
+                as part of triage.""".formatted(target), DIAGNOSE, "list_resources", "activity_log");
     }
 
     @McpPrompt(
@@ -84,7 +86,7 @@ public class McpRunbookPrompts {
 
                 State the cause before proposing an action. If the cause is consumer-side, say so \
                 and stop — no broker-side action fixes it.""".formatted(queue == null || queue.isBlank() ? "the queue" : queue, target(clusterId)),
-                "diagnose",
+                DIAGNOSE,
                 "list_resources",
                 "browse_messages",
                 "activity_log");
@@ -118,7 +120,7 @@ public class McpRunbookPrompts {
                 dryRun=false on your own initiative; the confirm argument exists so that a human \
                 decision is what unlocks a destructive run, and supplying it yourself defeats it.""".formatted(subject(queue, clusterId)),
                 "message_action",
-                "diagnose",
+                DIAGNOSE,
                 "browse_messages");
     }
 

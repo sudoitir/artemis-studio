@@ -74,9 +74,7 @@ public class GovernanceRuleService {
         }
         Map<String, Object> params = describe(request);
         params.put("wasEnabled", entity.isEnabled());
-        String action = entity.isEnabled() && !request.enabled()
-                ? "DISABLE_GOVERNANCE_RULE"
-                : !entity.isEnabled() && request.enabled() ? "ENABLE_GOVERNANCE_RULE" : "UPDATE_GOVERNANCE_RULE";
+        String action = updateAction(entity.isEnabled(), request.enabled());
         AuditEvent event = begin(action, entity.getSelector(), params);
         if (!entity.isBuiltin()) {
             entity.setAddressPattern(blankToNull(request.addressPattern()));
@@ -90,6 +88,13 @@ public class GovernanceRuleService {
         changed();
         audit.succeed(event, 1);
         return toView(saved);
+    }
+
+    private static String updateAction(boolean wasEnabled, boolean enabled) {
+        if (wasEnabled && !enabled) {
+            return "DISABLE_GOVERNANCE_RULE";
+        }
+        return !wasEnabled && enabled ? "ENABLE_GOVERNANCE_RULE" : "UPDATE_GOVERNANCE_RULE";
     }
 
     @PreAuthorize(
