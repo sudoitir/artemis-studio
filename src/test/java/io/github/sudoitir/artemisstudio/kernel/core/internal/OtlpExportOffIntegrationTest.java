@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.core.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
@@ -52,7 +53,7 @@ class OtlpExportOffIntegrationTest extends PostgresIntegrationTest {
     void nothingIsCreatedAndNothingIsSent() throws Exception {
         Observation.createNotStarted("test.off", observations)
                 .observe(() -> LoggerFactory.getLogger("off").error("an error line"));
-        Thread.sleep(Duration.ofSeconds(3));
+        await().during(Duration.ofSeconds(3)).atMost(Duration.ofSeconds(8)).until(() -> OTLP.requests() == 0);
 
         assertThat(context.getBeansOfType(SpanExporter.class)).isEmpty();
         assertThat(context.getBeansOfType(LogRecordExporter.class)).isEmpty();

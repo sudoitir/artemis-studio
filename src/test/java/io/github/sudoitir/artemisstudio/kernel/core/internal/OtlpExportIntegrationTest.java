@@ -174,7 +174,7 @@ class OtlpExportIntegrationTest extends PostgresIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         String node = ArtemisIntegrationTest.jolokiaUrl().replaceFirst("^http://([^/]+)/.*$", "$1");
-        assertThat(jolokia.getAttributes().asMap().values()).contains(node);
+        assertThat(jolokia.getAttributes().asMap()).containsValue(node);
     }
 
     @Test

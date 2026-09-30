@@ -72,21 +72,20 @@ class TransferLargeQueueTest extends TransferTestSupport {
         long started = System.nanoTime();
         TransferRunView executing = execute(preview, true);
         // Paced: the run saves its counts once per batch, and an unpaced loop would compete with it.
-        Thread sampler = Thread.ofVirtual().start(() -> {
-            while (sampling.get()) {
-                mostHeld.accumulateAndGet(held(executing), Math::max);
-                try {
-                    brokerSaw.accumulateAndGet(p.depth(stagingQueue), Math::max);
-                } catch (RuntimeException notYetCreated) {
-                    // before the run creates staging, and after it removes it
-                }
-                try {
-                    Thread.sleep(5);
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-        });
+        Thread sampler = Thread.ofVirtual()
+                .start(() -> org.awaitility.Awaitility.await()
+                        .pollInSameThread()
+                        .pollInterval(Duration.ofMillis(5))
+                        .forever()
+                        .until(() -> {
+                            mostHeld.accumulateAndGet(held(executing), Math::max);
+                            try {
+                                brokerSaw.accumulateAndGet(p.depth(stagingQueue), Math::max);
+                            } catch (RuntimeException _) {
+                                // before the run creates staging, and after it removes it
+                            }
+                            return !sampling.get();
+                        }));
         TransferRunView run;
         try {
             run = awaitEnded(executing, Duration.ofMinutes(5));

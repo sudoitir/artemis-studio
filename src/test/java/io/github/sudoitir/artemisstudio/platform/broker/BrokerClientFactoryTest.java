@@ -80,8 +80,8 @@ class BrokerClientFactoryTest {
             JolokiaBrokerClient client = factory.forNode(
                     SETTINGS, "http://127.0.0.1:" + server.getAddress().getPort() + "/console");
 
-            org.assertj.core.api.Assertions.assertThatThrownBy(
-                            () -> client.single(JolokiaRequest.search("org.apache.activemq.artemis:*")))
+            JolokiaRequest request = JolokiaRequest.search("org.apache.activemq.artemis:*");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.single(request))
                     .isInstanceOf(BrokerConnectionException.class)
                     .hasMessageContaining("redirected");
         } finally {

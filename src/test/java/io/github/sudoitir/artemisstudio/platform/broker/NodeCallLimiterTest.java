@@ -2,7 +2,9 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,8 +34,10 @@ class NodeCallLimiterTest {
             third.set(true);
         });
         t.start();
-        Thread.sleep(150);
-        assertThat(third).as("blocked at the per-node ceiling").isFalse();
+        await().during(Duration.ofMillis(150))
+                .atMost(Duration.ofSeconds(2))
+                .untilAsserted(() ->
+                        assertThat(third).as("blocked at the per-node ceiling").isFalse());
 
         limiter.refill();
         t.join(2_000);
@@ -68,13 +72,16 @@ class NodeCallLimiterTest {
             try {
                 limiter.acquire(NODE, 1);
                 overCeiling.set(true);
-            } catch (BrokerConnectionException interrupted) {
+            } catch (BrokerConnectionException _) {
                 // expected once interrupted below
             }
         });
         t.start();
-        Thread.sleep(150);
-        assertThat(overCeiling).as("no 4th permit despite 10 refills").isFalse();
+        await().during(Duration.ofMillis(150))
+                .atMost(Duration.ofSeconds(2))
+                .untilAsserted(() -> assertThat(overCeiling)
+                        .as("no 4th permit despite 10 refills")
+                        .isFalse());
         t.interrupt();
         t.join(2_000);
     }
@@ -88,10 +95,12 @@ class NodeCallLimiterTest {
             done.set(true);
         });
         t.start();
-        for (int i = 0; i < 3 && !done.get(); i++) {
-            Thread.sleep(100);
-            limiter.refill();
-        }
+        await().pollInterval(Duration.ofMillis(100))
+                .atMost(Duration.ofSeconds(2))
+                .until(() -> {
+                    limiter.refill();
+                    return done.get();
+                });
         t.join(2_000);
 
         assertThat(done)
@@ -109,7 +118,8 @@ class NodeCallLimiterTest {
             interruptKept.set(Thread.currentThread().isInterrupted());
         });
         t.start();
-        Thread.sleep(100);
+        await().atMost(Duration.ofSeconds(2))
+                .until(() -> t.getState() != Thread.State.NEW && t.getState() != Thread.State.RUNNABLE);
         t.interrupt();
         t.join(2_000);
 
@@ -138,7 +148,7 @@ class NodeCallLimiterTest {
 
         assertThat(meters.getMeters())
                 .flatExtracting(m -> m.getId().getTags())
-                .extracting(t -> t.getValue())
+                .extracting(Tag::getValue)
                 .contains("c:8161")
                 .noneMatch(v -> v.contains("hunter2"));
     }
