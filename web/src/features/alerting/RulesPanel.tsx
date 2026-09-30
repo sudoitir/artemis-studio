@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActionIcon, Badge, Group, Stack, Switch, Table, Text, Title } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -20,6 +20,26 @@ function ruleCondition(rule: AlertRuleView): string {
     return `${rule.metric} ${comparatorSymbol(rule.comparator ?? '')} ${rule.threshold}`;
   }
   return stateConditionLabel(rule.stateCondition ?? '');
+}
+
+/** What stands in for the table while rules load or when there are none. */
+function rulesNotice(rules: ReturnType<typeof useAlertRules>): ReactNode {
+  if (rules.isPending) {
+    return (
+      <Text size="sm" c="dimmed">
+        Loading…
+      </Text>
+    );
+  }
+  if ((rules.data ?? []).length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        No rules yet — add one above, or edit the built-in split-brain / node-down / replication-behind rules seeded
+        when this cluster was registered.
+      </Text>
+    );
+  }
+  return null;
 }
 
 /** Rule CRUD — thresholds and cluster-state conditions share one form and table (alerting spec). */
@@ -65,16 +85,7 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
         }}
       />
 
-      {rules.isPending ? (
-        <Text size="sm" c="dimmed">
-          Loading…
-        </Text>
-      ) : (rules.data ?? []).length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No rules yet — add one above, or edit the built-in split-brain / node-down / replication-behind rules seeded
-          when this cluster was registered.
-        </Text>
-      ) : (
+      {rulesNotice(rules) ?? (
         <Table>
           <Table.Thead>
             <Table.Tr>

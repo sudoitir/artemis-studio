@@ -18,12 +18,35 @@ import {
 import { IconCopy, IconTrash } from '@tabler/icons-react';
 
 import { useClusters } from '../clusters/index.ts';
-import { useCreateToken, useRevokeToken, useTokens, type TokenGrantRequest } from './api.ts';
+import { useCreateToken, useRevokeToken, useTokens, type TokenGrantRequest, type TokenView } from './api.ts';
 import { usePermissionsCatalogue } from '../security/index.ts';
 import { serverNow } from '../../kernel/time/time.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 
 const GLOBAL = 'GLOBAL';
+
+/** Revoked, expired or active, in words as well as colour. */
+function TokenStatus({ token }: Readonly<{ token: TokenView }>) {
+  if (token.revokedAt) {
+    return (
+      <Badge size="xs" color="red" variant="light">
+        revoked
+      </Badge>
+    );
+  }
+  if (token.expiresAt && Date.parse(token.expiresAt) < serverNow()) {
+    return (
+      <Badge size="xs" color="orange" variant="light">
+        expired
+      </Badge>
+    );
+  }
+  return (
+    <Badge size="xs" color="green" variant="light">
+      active
+    </Badge>
+  );
+}
 
 /**
  * Personal API keys (ADR-0039), and the only place a key is minted. A key is the
@@ -111,19 +134,7 @@ export function ApiKeysPanel() {
                 </Text>
               </Table.Td>
               <Table.Td>
-                {t.revokedAt ? (
-                  <Badge size="xs" color="red" variant="light">
-                    revoked
-                  </Badge>
-                ) : t.expiresAt && Date.parse(t.expiresAt) < serverNow() ? (
-                  <Badge size="xs" color="orange" variant="light">
-                    expired
-                  </Badge>
-                ) : (
-                  <Badge size="xs" color="green" variant="light">
-                    active
-                  </Badge>
-                )}
+                <TokenStatus token={t} />
               </Table.Td>
               <Table.Td>
                 <Text size="xs" c="dimmed">

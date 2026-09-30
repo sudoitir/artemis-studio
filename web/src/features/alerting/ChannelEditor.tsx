@@ -80,6 +80,135 @@ export function ChannelEditor({
   );
 }
 
+/** What the per-kind field groups need from the form. */
+type KindFieldsProps = Readonly<{
+  fields: ChannelFields;
+  errors: Partial<Record<Field, string>>;
+  set: (f: keyof ChannelFields) => (value: string) => void;
+  blur: (f: Field) => () => void;
+  register: (f: Field) => (el: HTMLElement | null) => void;
+}>;
+
+/** The SMTP-specific fields of an EMAIL channel. */
+function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
+  return (
+    <>
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
+        <TextInput
+          ref={register('host')}
+          label="SMTP server"
+          value={fields.host}
+          onChange={(e) => set('host')(e.currentTarget.value)}
+          onBlur={blur('host')}
+          error={errors.host}
+          placeholder="smtp.example.com"
+          required
+        />
+        <TextInput
+          ref={register('port')}
+          label="Port"
+          inputMode="numeric"
+          value={fields.port}
+          onChange={(e) => set('port')(e.currentTarget.value)}
+          onBlur={blur('port')}
+          error={errors.port}
+          required
+        />
+        <Stack gap={4}>
+          <Text size="sm" fw={500} id="smtp-security-label">
+            Transport security
+          </Text>
+          <SegmentedControl
+            aria-labelledby="smtp-security-label"
+            size="xs"
+            value={fields.security}
+            onChange={(v) => {
+              set('security')(v);
+              if (v === 'TLS' && fields.port === '587') set('port')('465');
+              if (v === 'STARTTLS' && fields.port === '465') set('port')('587');
+            }}
+            data={[
+              { value: 'STARTTLS', label: 'STARTTLS' },
+              { value: 'TLS', label: 'TLS' },
+              { value: 'NONE', label: 'None' },
+            ]}
+          />
+        </Stack>
+      </SimpleGrid>
+      {fields.security === 'NONE' ? (
+        <Text size="xs" c="var(--as-warning)">
+          Without TLS the password and the alert cross the network in clear. STARTTLS, when chosen, is required — a
+          server that does not offer it fails the delivery rather than receiving it unencrypted.
+        </Text>
+      ) : null}
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+        <TextInput
+          ref={register('from')}
+          label="From"
+          value={fields.from}
+          onChange={(e) => set('from')(e.currentTarget.value)}
+          onBlur={blur('from')}
+          error={errors.from}
+          placeholder="artemis-studio@example.com"
+          required
+        />
+        <TextInput
+          label="Username"
+          description="Blank when the server needs no authentication."
+          value={fields.username}
+          onChange={(e) => set('username')(e.currentTarget.value)}
+          autoComplete="off"
+        />
+      </SimpleGrid>
+      <Textarea
+        ref={register('to')}
+        label="Recipients"
+        description="Separated by commas or new lines."
+        value={fields.to}
+        onChange={(e) => set('to')(e.currentTarget.value)}
+        onBlur={blur('to')}
+        error={errors.to}
+        autosize
+        minRows={2}
+        required
+      />
+      <TextInput
+        label="Subject prefix"
+        description="Put before every subject, so a mail rule can file alerts."
+        value={fields.subjectPrefix}
+        onChange={(e) => set('subjectPrefix')(e.currentTarget.value)}
+      />
+    </>
+  );
+}
+
+/** The endpoint choice of a PAGERDUTY channel, with a URL field for a custom one. */
+function PagerDutyFields({ fields, errors, set, blur, register }: KindFieldsProps) {
+  return (
+    <>
+      <Select
+        label="Endpoint"
+        data={PAGERDUTY_ENDPOINTS.map((e) => ({ value: e.value, label: e.label }))}
+        value={fields.pagerDutyEndpoint}
+        onChange={(v) => v && set('pagerDutyEndpoint')(v)}
+        allowDeselect={false}
+      />
+      {fields.pagerDutyEndpoint === 'custom' ? (
+        <TextInput
+          ref={register('url')}
+          label="Events API v2 URL"
+          value={fields.url}
+          onChange={(e) => set('url')(e.currentTarget.value)}
+          onBlur={blur('url')}
+          error={errors.url}
+          placeholder="https://oncall.example.com/v2/enqueue"
+          required
+        />
+      ) : null}
+    </>
+  );
+}
+
 function ChannelForm({
   channel,
   onClose,
@@ -108,7 +237,11 @@ function ChannelForm({
   const info = CHANNEL_KINDS[kind];
   const hasSecret = channel?.hasSecret ?? false;
 
-  const valueOf = (f: Field): string => (f === 'name' ? name : f === 'secret' ? secret : String(fields[f]));
+  const valueOf = (f: Field): string => {
+    if (f === 'name') return name;
+    if (f === 'secret') return secret;
+    return String(fields[f]);
+  };
   const check = (f: Field, value = valueOf(f)) => validateField(kind, f, value, { editing, hasSecret, fields });
   const blur = (f: Field) => () => setErrors((e) => ({ ...e, [f]: check(f) ?? undefined }));
   const set = (f: keyof ChannelFields) => (value: string) => {
@@ -236,93 +369,7 @@ function ChannelForm({
       ) : null}
 
       {kind === 'EMAIL' ? (
-        <>
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
-            <TextInput
-              ref={register('host')}
-              label="SMTP server"
-              value={fields.host}
-              onChange={(e) => set('host')(e.currentTarget.value)}
-              onBlur={blur('host')}
-              error={errors.host}
-              placeholder="smtp.example.com"
-              required
-            />
-            <TextInput
-              ref={register('port')}
-              label="Port"
-              inputMode="numeric"
-              value={fields.port}
-              onChange={(e) => set('port')(e.currentTarget.value)}
-              onBlur={blur('port')}
-              error={errors.port}
-              required
-            />
-            <Stack gap={4}>
-              <Text size="sm" fw={500} id="smtp-security-label">
-                Transport security
-              </Text>
-              <SegmentedControl
-                aria-labelledby="smtp-security-label"
-                size="xs"
-                value={fields.security}
-                onChange={(v) => {
-                  set('security')(v);
-                  if (v === 'TLS' && fields.port === '587') set('port')('465');
-                  if (v === 'STARTTLS' && fields.port === '465') set('port')('587');
-                }}
-                data={[
-                  { value: 'STARTTLS', label: 'STARTTLS' },
-                  { value: 'TLS', label: 'TLS' },
-                  { value: 'NONE', label: 'None' },
-                ]}
-              />
-            </Stack>
-          </SimpleGrid>
-          {fields.security === 'NONE' ? (
-            <Text size="xs" c="var(--as-warning)">
-              Without TLS the password and the alert cross the network in clear. STARTTLS, when chosen, is required — a
-              server that does not offer it fails the delivery rather than receiving it unencrypted.
-            </Text>
-          ) : null}
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-            <TextInput
-              ref={register('from')}
-              label="From"
-              value={fields.from}
-              onChange={(e) => set('from')(e.currentTarget.value)}
-              onBlur={blur('from')}
-              error={errors.from}
-              placeholder="artemis-studio@example.com"
-              required
-            />
-            <TextInput
-              label="Username"
-              description="Blank when the server needs no authentication."
-              value={fields.username}
-              onChange={(e) => set('username')(e.currentTarget.value)}
-              autoComplete="off"
-            />
-          </SimpleGrid>
-          <Textarea
-            ref={register('to')}
-            label="Recipients"
-            description="Separated by commas or new lines."
-            value={fields.to}
-            onChange={(e) => set('to')(e.currentTarget.value)}
-            onBlur={blur('to')}
-            error={errors.to}
-            autosize
-            minRows={2}
-            required
-          />
-          <TextInput
-            label="Subject prefix"
-            description="Put before every subject, so a mail rule can file alerts."
-            value={fields.subjectPrefix}
-            onChange={(e) => set('subjectPrefix')(e.currentTarget.value)}
-          />
-        </>
+        <EmailFields fields={fields} errors={errors} set={set} blur={blur} register={register} />
       ) : null}
 
       <PasswordInput
@@ -352,27 +399,7 @@ function ChannelForm({
       ) : null}
 
       {kind === 'PAGERDUTY' ? (
-        <>
-          <Select
-            label="Endpoint"
-            data={PAGERDUTY_ENDPOINTS.map((e) => ({ value: e.value, label: e.label }))}
-            value={fields.pagerDutyEndpoint}
-            onChange={(v) => v && set('pagerDutyEndpoint')(v)}
-            allowDeselect={false}
-          />
-          {fields.pagerDutyEndpoint === 'custom' ? (
-            <TextInput
-              ref={register('url')}
-              label="Events API v2 URL"
-              value={fields.url}
-              onChange={(e) => set('url')(e.currentTarget.value)}
-              onBlur={blur('url')}
-              error={errors.url}
-              placeholder="https://oncall.example.com/v2/enqueue"
-              required
-            />
-          ) : null}
-        </>
+        <PagerDutyFields fields={fields} errors={errors} set={set} blur={blur} register={register} />
       ) : null}
 
       <Switch

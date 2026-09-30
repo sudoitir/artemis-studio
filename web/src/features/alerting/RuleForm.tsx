@@ -54,8 +54,73 @@ function metricOptions(pluginMetrics: PluginMetricView[], current: string | null
       ]
     : STUDIO_METRIC_OPTIONS;
 }
-const STATE_OPTIONS = STATE_CONDITIONS.map((c) => ({ value: c, label: c.replace(/_/g, ' ').toLowerCase() }));
+const STATE_OPTIONS = STATE_CONDITIONS.map((c) => ({ value: c, label: c.replaceAll('_', ' ').toLowerCase() }));
 const SEVERITY_OPTIONS = ['INFO', 'WARNING', 'CRITICAL'];
+
+function TemplateLink({ label, onClick }: Readonly<{ label: string; onClick: () => void }>) {
+  return (
+    <Anchor
+      component="button"
+      type="button"
+      size="xs"
+      onClick={onClick}
+      style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
+    >
+      {`Start from the ${label} template`}
+    </Anchor>
+  );
+}
+
+/** The prefilled starting points that fit the chosen kind. */
+function TemplateLinks({
+  kind,
+  onSlowConsumer,
+  onConfigDrift,
+  onSetupRisk,
+}: Readonly<{
+  kind: 'METRIC_THRESHOLD' | 'STATE';
+  onSlowConsumer: () => void;
+  onConfigDrift: () => void;
+  onSetupRisk: () => void;
+}>) {
+  if (kind === 'METRIC_THRESHOLD') return <TemplateLink label="slow-consumer" onClick={onSlowConsumer} />;
+  return (
+    <>
+      <TemplateLink label="configuration-drift" onClick={onConfigDrift} />
+      <TemplateLink label="setup-risk" onClick={onSetupRisk} />
+    </>
+  );
+}
+
+type RuleDraft = {
+  name: string;
+  kind: 'METRIC_THRESHOLD' | 'STATE';
+  metric: string | null;
+  comparator: string | null;
+  threshold: number | '';
+  stateCondition: string | null;
+  forSeconds: number | '';
+  severity: string;
+  enabled: boolean;
+  channelIds: string[];
+};
+
+/** The request for a validated draft: only the fields of the chosen kind are sent. */
+function ruleRequest(d: RuleDraft): AlertRuleRequest {
+  const metricRule = d.kind === 'METRIC_THRESHOLD';
+  return {
+    name: d.name.trim(),
+    kind: d.kind,
+    metric: metricRule ? (d.metric ?? undefined) : undefined,
+    comparator: metricRule ? (d.comparator ?? undefined) : undefined,
+    threshold: metricRule && d.threshold !== '' ? d.threshold : undefined,
+    stateCondition: metricRule ? undefined : (d.stateCondition ?? undefined),
+    forSeconds: d.forSeconds === '' ? 0 : d.forSeconds,
+    severity: d.severity,
+    enabled: d.enabled,
+    channelIds: d.channelIds,
+  };
+}
 
 /**
  * Create/edit an alert rule — a threshold rule (metric + comparator + threshold)
@@ -127,19 +192,21 @@ export function RuleForm({
     (kind === 'METRIC_THRESHOLD' ? metric && comparator && threshold !== '' : Boolean(stateCondition));
 
   const submit = () => {
-    if (!valid) return;
-    onSubmit({
-      name: name.trim(),
-      kind,
-      metric: kind === 'METRIC_THRESHOLD' ? (metric ?? undefined) : undefined,
-      comparator: kind === 'METRIC_THRESHOLD' ? (comparator ?? undefined) : undefined,
-      threshold: kind === 'METRIC_THRESHOLD' && threshold !== '' ? threshold : undefined,
-      stateCondition: kind === 'STATE' ? (stateCondition ?? undefined) : undefined,
-      forSeconds: forSeconds === '' ? 0 : forSeconds,
-      severity: severity!,
-      enabled,
-      channelIds,
-    });
+    if (!valid || !severity) return;
+    onSubmit(
+      ruleRequest({
+        name,
+        kind,
+        metric,
+        comparator,
+        threshold,
+        stateCondition,
+        forSeconds,
+        severity,
+        enabled,
+        channelIds,
+      }),
+    );
   };
 
   return (
@@ -164,39 +231,14 @@ export function RuleForm({
           w={200}
         />
 
-        {kind === 'METRIC_THRESHOLD' && !initial ? (
-          <Anchor
-            component="button"
-            type="button"
-            size="xs"
-            onClick={applySlowConsumerTemplate}
-            style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
-          >
-            Start from the slow-consumer template
-          </Anchor>
-        ) : null}
-        {kind === 'STATE' && !initial ? (
-          <Anchor
-            component="button"
-            type="button"
-            size="xs"
-            onClick={applyConfigDriftTemplate}
-            style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
-          >
-            Start from the configuration-drift template
-          </Anchor>
-        ) : null}
-        {kind === 'STATE' && !initial ? (
-          <Anchor
-            component="button"
-            type="button"
-            size="xs"
-            onClick={applySetupRiskTemplate}
-            style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
-          >
-            Start from the setup-risk template
-          </Anchor>
-        ) : null}
+        {initial ? null : (
+          <TemplateLinks
+            kind={kind}
+            onSlowConsumer={applySlowConsumerTemplate}
+            onConfigDrift={applyConfigDriftTemplate}
+            onSetupRisk={applySetupRiskTemplate}
+          />
+        )}
 
         {kind === 'METRIC_THRESHOLD' ? (
           <>
