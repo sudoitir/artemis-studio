@@ -27,10 +27,15 @@ so the need is that a break is visible, not that it is avoided.
 - **`info.version` is the running Studio version**, so a client can read what it talks to; the snapshot
   test pins a placeholder to keep the committed file stable, and the release stamps the real version into
   the published document.
-- **Deprecation is one annotation.** `@ApiDeprecation(since, sunset, link)` on a handler adds the
-  `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and `Link; rel="deprecation"` headers and marks the
-  operation `deprecated` in the document. Before stable a removal needs only the break marker; from
-  `36-stable-release` it needs a deprecation announced for a period that change sets.
+- **Versioning and deprecation use Spring Framework 7 API versioning.** The version stays a path segment
+  (`/api/v1/...`): controllers drop the literal prefix and one `/api/{version}` path prefix supplies it, the
+  supported version is `1`, and any other gets 400 `invalid-api-version`. An incompatible endpoint later
+  ships as `version = "2"` beside the v1 mapping. Deprecation uses the built-in
+  `StandardApiVersionDeprecationHandler` (`Deprecation`, RFC 9745; `Sunset`, RFC 8594; `Link` with
+  `rel="deprecation"` and `rel="sunset"`), fed by one list of declarations, `ApiDeprecations`, which also
+  marks the matching operations `deprecated` in the document. There is no hand-written interceptor or
+  annotation. The document keeps concrete `/api/v1/...` paths. Before stable a removal needs only the
+  break marker; from `36-stable-release` it needs a deprecation announced for a period that change sets.
 - **One list shape.** `PagedView<T>` is `{data, page, pageSize, count, hasNext}`; `count` is null only
   where the total is unknown. Every list takes 1-based `page` and `size` (default 50, at most 500;
   out of range is 400 `invalid-value`). The bespoke page views and `limit` parameters are removed, bare
@@ -58,7 +63,8 @@ so the need is that a break is visible, not that it is avoided.
 - **An `ApiContract.VERSION` integer**, like `Contract.VERSION`. A second version number beside CalVer
   that says nothing in the release notes.
 - **openapi-diff** instead of oasdiff. Less maintained, and no stable exit codes.
-- **A `/api/v2` path or content-negotiated versions.** Nothing needs it before stable.
+- **A hand-written `@ApiDeprecation` interceptor.** The framework already implements the RFC headers and version routing.
+- **Header or media-type versioning.** URLs stay `/api/v1/...`, which the clients and `schema.d.ts` already use.
 - **Cursor pagination everywhere.** No stable cursor exists over the in-memory fan-out; an endpoint that
   needs one can add it without changing the envelope.
 - **Baseline from a release download.** The snapshot is committed at every tag, so `git show` needs no
