@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
@@ -24,6 +26,12 @@ public final class Subscriber {
     private final Set<String> topics;
     private final UUID tokenId;
     private volatile String sessionId;
+
+    /** Frames held back while a replay runs, or null once live. Guarded by this subscriber's monitor. */
+    private List<Held> held;
+
+    /** A frame that arrived while the subscriber was buffering. */
+    record Held(String topic, Object data, String id) {}
 
     public Subscriber(SseEmitter emitter, Set<String> topics, String sessionId, UUID tokenId) {
         this.emitter = emitter;
@@ -67,6 +75,30 @@ public final class Subscriber {
 
     void followSession(String newId) {
         this.sessionId = newId;
+    }
+
+    /**
+     * Hold the frames this subscriber would receive until {@link SseHub#release}, so a replay can be
+     * sent first and the live frames that arrived meanwhile follow it.
+     */
+    public synchronized void buffer() {
+        held = new ArrayList<>();
+    }
+
+    /** Keeps {@code frame} for {@link SseHub#release} and says so, or returns false when the subscriber is live. */
+    synchronized boolean hold(Held frame) {
+        if (held == null) {
+            return false;
+        }
+        held.add(frame);
+        return true;
+    }
+
+    /** Goes live and returns what was held, oldest first. */
+    synchronized List<Held> unbuffer() {
+        List<Held> frames = held == null ? List.of() : held;
+        held = null;
+        return frames;
     }
 
     public boolean wants(String topic) {

@@ -1,11 +1,15 @@
 package io.github.sudoitir.artemisstudio.kernel.stream.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
@@ -16,6 +20,7 @@ import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
@@ -25,10 +30,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.LongStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -36,6 +44,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * {@code GET /api/v1/stream}: subscriber registration, topic parsing, no-buffering header.
@@ -149,15 +158,83 @@ class StreamControllerTest extends PostgresIntegrationTest {
         var registry = new FeatureRegistry(new InstalledFeatures(StudioFeatures.descriptors()), env, event -> {});
         var topics = new io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry(registry, List.of());
         SseHub localHub = mock(SseHub.class);
-        var controller = new StreamController(localHub, mock(ClusterAccessGuard.class), topics);
+        var controller =
+                new StreamController(localHub, mock(ClusterAccessGuard.class), topics, mock(ReplicaRegistry.class));
         UUID clusterId = UUID.randomUUID();
 
         controller.stream(
-                clusterId, "alerts,topology", null, new MockHttpServletRequest(), new MockHttpServletResponse());
+                clusterId, "alerts,topology", null, null, new MockHttpServletRequest(), new MockHttpServletResponse());
 
         ArgumentCaptor<Subscriber> captor = ArgumentCaptor.forClass(Subscriber.class);
         verify(localHub).register(eq(clusterId), captor.capture());
         assertThat(captor.getValue().topics()).containsExactly("topology");
+    }
+
+    @Test
+    void theLastEventIdMayBeAQueryParameter() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        when(events.since(clusterId, 10L, 500)).thenReturn(List.of(view(11L)));
+
+        mvc.perform(get("/api/v1/stream")
+                        .param("clusterId", clusterId.toString())
+                        .param("topics", "events")
+                        .param("lastEventId", "10"))
+                .andExpect(request().asyncStarted());
+
+        ArgumentCaptor<Subscriber> subscriber = ArgumentCaptor.forClass(Subscriber.class);
+        InOrder order = inOrder(hub);
+        order.verify(hub).register(eq(clusterId), subscriber.capture());
+        order.verify(hub).sendTo(eq(subscriber.getValue()), eq("events"), any(), eq("11"));
+        order.verify(hub).release(clusterId, subscriber.getValue(), Map.of("events", 11L));
+    }
+
+    @Test
+    void aReplayThatHitTheCapIsFollowedByAResync() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        when(events.since(clusterId, 10L, 500))
+                .thenReturn(LongStream.rangeClosed(11, 510)
+                        .mapToObj(StreamControllerTest::view)
+                        .toList());
+
+        mvc.perform(get("/api/v1/stream")
+                        .param("clusterId", clusterId.toString())
+                        .param("topics", "events")
+                        .param("lastEventId", "10"))
+                .andExpect(request().asyncStarted());
+
+        ArgumentCaptor<Subscriber> subscriber = ArgumentCaptor.forClass(Subscriber.class);
+        verify(hub).register(eq(clusterId), subscriber.capture());
+        InOrder order = inOrder(hub);
+        order.verify(hub).sendTo(eq(subscriber.getValue()), eq("events"), any(), eq("510"));
+        order.verify(hub).sendTo(eq(subscriber.getValue()), eq(SseHub.RESYNC), any(), isNull());
+        order.verify(hub).release(clusterId, subscriber.getValue(), Map.of("events", 510L));
+    }
+
+    @Test
+    void aReplicaThatIsDrainingRefusesANewStream() {
+        for (ReplicaRegistry.State state : List.of(ReplicaRegistry.State.DRAINING, ReplicaRegistry.State.STOPPED)) {
+            ReplicaRegistry replica = mock(ReplicaRegistry.class);
+            when(replica.state()).thenReturn(state);
+            SseHub localHub = mock(SseHub.class);
+            var controller = new StreamController(
+                    localHub,
+                    mock(ClusterAccessGuard.class),
+                    mock(io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry.class),
+                    replica);
+
+            assertThatThrownBy(() -> controller.stream(
+                            UUID.randomUUID(),
+                            "queues",
+                            null,
+                            null,
+                            new MockHttpServletRequest(),
+                            new MockHttpServletResponse()))
+                    .isInstanceOfSatisfying(
+                            ResponseStatusException.class,
+                            e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+
+            verifyNoInteractions(localHub);
+        }
     }
 
     private static BrokerEventView view(long seq) {

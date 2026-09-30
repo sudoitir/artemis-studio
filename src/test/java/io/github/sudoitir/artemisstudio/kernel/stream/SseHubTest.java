@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
@@ -19,6 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
@@ -158,6 +161,35 @@ class SseHubTest {
     }
 
     @Test
+    void aBufferingSubscriberGetsLiveFramesAfterTheReplayAndNoRepeat() throws IOException {
+        UUID clusterId = UUID.randomUUID();
+        SseEmitter emitter = mock(SseEmitter.class);
+        Subscriber subscriber = new Subscriber(emitter, Set.of("events", "queues"), null);
+        subscriber.buffer();
+        hub.register(clusterId, subscriber);
+        hub.sendTo(subscriber, "events", "replayed", "11");
+        hub.sendTo(subscriber, "events", "replayed", "12");
+
+        hub.on(new BusFrame(clusterId, "events", mapper.readTree("12"), "12"));
+        hub.on(new BusFrame(clusterId, "queues", null, null));
+        hub.on(new BusFrame(clusterId, "events", mapper.readTree("13"), "13"));
+        verify(emitter, times(2)).send(any(SseEmitter.SseEventBuilder.class));
+
+        hub.release(clusterId, subscriber, Map.of("events", 12L));
+        hub.on(new BusFrame(clusterId, "events", mapper.readTree("14"), "14"));
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter, times(5)).send(sent.capture());
+        assertThat(sent.getAllValues().stream().map(SseHubTest::render))
+                .satisfiesExactly(
+                        a -> assertThat(a).contains("id:11"),
+                        a -> assertThat(a).contains("id:12"),
+                        a -> assertThat(a).contains("event:queues"),
+                        a -> assertThat(a).contains("id:13"),
+                        a -> assertThat(a).contains("id:14"));
+    }
+
+    @Test
     void theBusComingBackTellsEverySubscriberToResync() throws IOException {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
@@ -168,6 +200,22 @@ class SseHubTest {
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(emitter).send(frame.capture());
         assertThat(render(frame.getValue())).contains("event:" + SseHub.RESYNC);
+    }
+
+    @Test
+    void closingTellsEverySubscriberToReconnectBeforeItIsCompleted() throws IOException {
+        UUID clusterId = UUID.randomUUID();
+        SseEmitter emitter = mock(SseEmitter.class);
+        hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
+
+        hub.closeAll();
+
+        InOrder order = inOrder(emitter);
+        ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        order.verify(emitter).send(frame.capture());
+        order.verify(emitter).complete();
+        assertThat(render(frame.getValue())).contains("event:" + SseHub.RECONNECT);
+        assertThat(hub.clientCount()).isZero();
     }
 
     private static String render(SseEmitter.SseEventBuilder builder) {

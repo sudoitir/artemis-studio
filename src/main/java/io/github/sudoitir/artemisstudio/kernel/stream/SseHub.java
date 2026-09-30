@@ -43,6 +43,9 @@ public class SseHub {
     /** Sent to every subscriber when the bus came back after a loss: frames in the gap are gone, so refetch. */
     public static final String RESYNC = "resync";
 
+    /** Sent to every subscriber before its stream is closed: reconnect at once, presenting the last event id. */
+    public static final String RECONNECT = "reconnect";
+
     private final Map<UUID, Set<Subscriber>> byCluster = new ConcurrentHashMap<>();
     private final StudioBus bus;
     private final ObjectMapper mapper;
@@ -108,7 +111,27 @@ public class SseHub {
                         Instant.now().toEpochMilli());
         for (Subscriber s : set) {
             if (s.wants(topic)) {
-                sendTo(clusterId, s, topic, payload, eventId);
+                synchronized (s) {
+                    if (!s.hold(new Subscriber.Held(topic, payload, eventId))) {
+                        sendTo(clusterId, s, topic, payload, eventId);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * End buffering: send what arrived while the replay ran, in order, and go live. A frame of a topic
+     * in {@code replayed} whose id is not above the id already replayed for it is a repeat and is skipped.
+     */
+    public void release(UUID clusterId, Subscriber subscriber, Map<String, Long> replayed) {
+        synchronized (subscriber) {
+            for (Subscriber.Held frame : subscriber.unbuffer()) {
+                Long upTo = replayed.get(frame.topic());
+                if (upTo != null && frame.id() != null && Long.parseLong(frame.id()) <= upTo) {
+                    continue;
+                }
+                sendTo(clusterId, subscriber, frame.topic(), frame.data(), frame.id());
             }
         }
     }
@@ -235,8 +258,12 @@ public class SseHub {
         }));
     }
 
-    /** End every open stream and forget its subscribers. Clients reconnect to the next instance. */
+    /**
+     * Tell every client to reconnect, then end every open stream and forget its subscribers. A client
+     * told to reconnect does so at once, without backoff, presenting its last event id.
+     */
     public void closeAll() {
+        toAll(RECONNECT);
         byCluster.forEach((clusterId, set) -> set.forEach(s -> {
             try {
                 s.emitter().complete();
