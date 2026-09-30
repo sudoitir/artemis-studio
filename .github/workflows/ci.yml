@@ -128,13 +128,13 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
-      # Round-robin over the sorted paths of every class Surefire would run by default, so each
+      # Round-robin over the sorted paths of every class Surefire runs (pom.xml includes), so each
       # shard gets a third and neighbouring heavy suites (Transfer*) land on different runners.
       # ponytail: count-balanced, not time-balanced; weigh by surefire report times if a shard lags.
       - name: Pick shard ${{ matrix.shard }} of 3
         run: |
           find src/test/java -type f \
-            \( -name '*Test.java' -o -name '*Tests.java' -o -name 'Test*.java' -o -name '*TestCase.java' \) \
+            \( -name '*Test.java' -o -name '*Tests.java' -o -name 'Test*.java' -o -name '*TestCase.java' -o -name '*IT.java' \) \
             | sed 's|^src/test/java/||' | sort \
             | awk -v n=3 -v i=${{ matrix.shard }} 'NR % n == i' > "$RUNNER_TEMP/shard.txt"
           echo "$(wc -l < "$RUNNER_TEMP/shard.txt") test classes in this shard"

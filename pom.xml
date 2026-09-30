@@ -448,6 +448,21 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <!-- The *IT classes are ordinary JUnit tests (Spring context, Testcontainers), so Surefire
+                 runs them with the rest; without this include they never ran anywhere. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/Test*.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*TestCase.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
             <!-- Test coverage (ADR-0128): the agent records every test run into target/jacoco.exec,
                  and verify writes the HTML, XML and CSV report to target/site/jacoco. CI merges
                  the shards' exec files into one report. Informational: no threshold fails a build. -->
