@@ -70,6 +70,8 @@ Today nothing checks who built a jar, and the validator's allowlist refuses a si
      from an untrusted key stays a pending upload, so "Trust this key" can re-plan it. Nothing runs
      from a pending upload, and it expires after a day like any other upload.
    - A key removed between review and activation is caught by the re-plan.
+   - A restart-class activation that waits for a restart is checked again at boot: if its key
+     was removed meanwhile (allowance off), the row fails with `plugin-untrusted` instead of starting.
    - An installed plugin whose key was removed keeps running, marked unverified. Its next update
      is refused unless that update is signed by a trusted key.
 6. **Explicit acknowledgement is enforced on the server.** The plan returns `requiresAcknowledgement`
