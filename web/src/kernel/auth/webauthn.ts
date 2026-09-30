@@ -6,7 +6,7 @@
 /** Whether this browser can take the server's passkey options as they are sent. */
 export function passkeysSupported(): boolean {
   return (
-    typeof window !== 'undefined' &&
+    globalThis.window !== undefined &&
     typeof globalThis.PublicKeyCredential === 'function' &&
     typeof PublicKeyCredential.parseRequestOptionsFromJSON === 'function' &&
     typeof PublicKeyCredential.parseCreationOptionsFromJSON === 'function' &&

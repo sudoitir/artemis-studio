@@ -22,8 +22,8 @@ export function EnrolSecondFactorView() {
 
   useEffect(() => {
     if (!me.data) return;
-    if (me.data.mustChangePassword) navigate({ to: '/change-password' });
-    else if (!me.data.secondFactorEnrolmentRequired && !wasRequired.current) navigate({ to: '/account' });
+    if (me.data.mustChangePassword) void navigate({ to: '/change-password' });
+    else if (!me.data.secondFactorEnrolmentRequired && !wasRequired.current) void navigate({ to: '/account' });
   }, [me.data, navigate]);
 
   return (
@@ -58,7 +58,7 @@ export function EnrolSecondFactorView() {
         codes={codes}
         onContinue={() => {
           setCodes(null);
-          navigate({ to: '/' });
+          void navigate({ to: '/' });
         }}
       />
     </Center>

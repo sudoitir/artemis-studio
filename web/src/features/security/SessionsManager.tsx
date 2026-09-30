@@ -16,27 +16,13 @@ interface Outcome {
 const describeSession = (s: AccountSessionView) =>
   `${describeClient(s.userAgent)} at ${s.clientAddress ?? 'an unknown address'}`;
 
-/**
- * The signed-in sessions of the caller, or of the user `userId` names when an administrator looks
- * (ADR-0145), each ended with one action. The caller's own current session is marked in words and
- * ends by signing out, wherever it is listed. Every outcome is announced, and a failure says why and
- * what to do.
- */
-export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
+/** Ending sessions, one or every other, and saying how it went. */
+function useSessionEnding(userId: string | undefined) {
   const admin = userId !== undefined;
-  const verb = admin ? 'End' : 'Sign out';
-  const sessions = useSessions(userId);
   const end = useEndSession(userId);
   const endOthers = useEndOtherSessions(userId);
   const logout = useLogout();
-  const now = useServerNow(30_000);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-
-  const busy = end.isPending || endOthers.isPending || logout.isPending;
-  const list = sessions.data ?? [];
-  const others = list.filter((s) => !s.current);
-  const endOthersLabel = admin ? 'End all sessions' : 'Sign out all other sessions';
-  const noOthersReason = admin ? 'This user has no other sessions.' : 'You are not signed in anywhere else.';
 
   function endOne(s: AccountSessionView) {
     setOutcome(null);
@@ -75,6 +61,28 @@ export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
     });
   }
 
+  return {
+    outcome,
+    busy: end.isPending || endOthers.isPending || logout.isPending,
+    endingAll: endOthers.isPending,
+    isEnding: (s: AccountSessionView) =>
+      (end.isPending && end.variables === s.handle) || (s.current && logout.isPending),
+    endOne,
+    endAllOthers,
+  };
+}
+
+/**
+ * The signed-in sessions of the caller, or of the user `userId` names when an administrator looks
+ * (ADR-0145), each ended with one action. The caller's own current session is marked in words and
+ * ends by signing out, wherever it is listed. Every outcome is announced, and a failure says why and
+ * what to do.
+ */
+export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
+  const admin = userId !== undefined;
+  const sessions = useSessions(userId);
+  const ending = useSessionEnding(userId);
+
   if (sessions.isPending) return <Loader size="sm" aria-label="Loading sessions" />;
   if (sessions.isError) {
     return (
@@ -89,86 +97,118 @@ export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
     );
   }
 
+  const list = sessions.data;
+  const others = list.filter((s) => !s.current).length;
   return (
     <Stack gap="md">
-      {list.length === 0 ? (
-        <Text size="sm">
-          {admin
-            ? 'This user is not signed in anywhere. A session is listed here from the moment they sign in.'
-            : 'No sessions are listed.'}
-        </Text>
-      ) : (
-        <Rows label={admin ? 'Sessions of this user' : 'Your sessions'}>
-          {list.map((s) => (
-            <Row
-              key={s.handle}
-              title={
-                <Group gap="xs" wrap="wrap">
-                  <Text size="sm" fw={500} title={s.userAgent ?? undefined}>
-                    {describeClient(s.userAgent)}
-                  </Text>
-                  {s.current ? (
-                    <Badge size="xs" variant="default">
-                      This session
-                    </Badge>
-                  ) : null}
-                </Group>
-              }
-              facts={
-                <>
-                  {s.clientAddress ?? 'Address unknown'} · signed in <Ago at={s.signedInAt} now={now} /> · last active{' '}
-                  <Ago at={s.lastActivityAt} now={now} />
-                </>
-              }
-              action={
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  color="red"
-                  aria-label={s.current ? 'Sign out of this session' : `${verb} ${describeSession(s)}`}
-                  loading={(end.isPending && end.variables === s.handle) || (s.current && logout.isPending)}
-                  disabled={busy}
-                  onClick={() => endOne(s)}
-                >
-                  {admin && !s.current ? 'End' : 'Sign out'}
-                </Button>
-              }
-            />
-          ))}
-        </Rows>
-      )}
+      <SessionRows list={list} admin={admin} ending={ending} />
 
-      <Group gap="sm">
-        <Button
-          size="xs"
-          variant="default"
-          loading={endOthers.isPending}
-          disabled={busy || others.length === 0}
-          onClick={endAllOthers}
-        >
-          {endOthersLabel}
-          {others.length > 0 ? ` (${others.length})` : ''}
-        </Button>
-        {others.length === 0 ? (
-          <Text size="xs" c="dimmed">
-            {noOthersReason}
-          </Text>
-        ) : null}
-      </Group>
+      <EndOthers others={others} admin={admin} ending={ending} />
 
-      <div aria-live="polite">
-        {busy ? (
-          <Text size="sm" c="dimmed">
-            {admin ? 'Ending' : 'Signing out of'} the session{endOthers.isPending ? 's' : ''}…
-          </Text>
-        ) : null}
-        {!busy && outcome ? (
-          <Text size="sm" c={outcome.failed ? 'red' : 'dimmed'}>
-            {outcome.text}
-          </Text>
-        ) : null}
-      </div>
+      <Status ending={ending} admin={admin} />
     </Stack>
+  );
+}
+
+function EndOthers({
+  others,
+  admin,
+  ending,
+}: Readonly<{ others: number; admin: boolean; ending: ReturnType<typeof useSessionEnding> }>) {
+  return (
+    <Group gap="sm">
+      <Button
+        size="xs"
+        variant="default"
+        loading={ending.endingAll}
+        disabled={ending.busy || others === 0}
+        onClick={ending.endAllOthers}
+      >
+        {admin ? 'End all sessions' : 'Sign out all other sessions'}
+        {others > 0 ? ` (${others})` : ''}
+      </Button>
+      {others === 0 ? (
+        <Text size="xs" c="dimmed">
+          {admin ? 'This user has no other sessions.' : 'You are not signed in anywhere else.'}
+        </Text>
+      ) : null}
+    </Group>
+  );
+}
+
+function Status({ ending, admin }: Readonly<{ ending: ReturnType<typeof useSessionEnding>; admin: boolean }>) {
+  return (
+    <div aria-live="polite">
+      {ending.busy ? (
+        <Text size="sm" c="dimmed">
+          {admin ? 'Ending' : 'Signing out of'} the session{ending.endingAll ? 's' : ''}…
+        </Text>
+      ) : null}
+      {!ending.busy && ending.outcome ? (
+        <Text size="sm" c={ending.outcome.failed ? 'red' : 'dimmed'}>
+          {ending.outcome.text}
+        </Text>
+      ) : null}
+    </div>
+  );
+}
+
+function SessionRows({
+  list,
+  admin,
+  ending,
+}: Readonly<{ list: AccountSessionView[]; admin: boolean; ending: ReturnType<typeof useSessionEnding> }>) {
+  const now = useServerNow(30_000);
+  if (list.length === 0) {
+    return (
+      <Text size="sm">
+        {admin
+          ? 'This user is not signed in anywhere. A session is listed here from the moment they sign in.'
+          : 'No sessions are listed.'}
+      </Text>
+    );
+  }
+  return (
+    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'}>
+      {list.map((s) => (
+        <Row
+          key={s.handle}
+          title={
+            <Group gap="xs" wrap="wrap">
+              <Text size="sm" fw={500} title={s.userAgent ?? undefined}>
+                {describeClient(s.userAgent)}
+              </Text>
+              {s.current ? (
+                <Badge size="xs" variant="default">
+                  This session
+                </Badge>
+              ) : null}
+            </Group>
+          }
+          facts={
+            <>
+              {s.clientAddress ?? 'Address unknown'} · signed in <Ago at={s.signedInAt} now={now} /> · last active{' '}
+              <Ago at={s.lastActivityAt} now={now} />
+            </>
+          }
+          action={
+            <Button
+              size="xs"
+              variant="subtle"
+              color="red"
+              aria-label={
+                s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
+              }
+              loading={ending.isEnding(s)}
+              disabled={ending.busy}
+              onClick={() => ending.endOne(s)}
+            >
+              {admin && !s.current ? 'End' : 'Sign out'}
+            </Button>
+          }
+        />
+      ))}
+    </Rows>
   );
 }
 

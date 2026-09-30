@@ -51,7 +51,7 @@ let lastInteractionAt: number | null = null;
 const INTERACTIONS = ['pointerdown', 'pointermove', 'wheel', 'keydown'] as const;
 
 // One passive listener per kind for the page's whole life; recording is a single assignment.
-if (typeof window !== 'undefined') {
+if (globalThis.window !== undefined) {
   for (const type of INTERACTIONS) {
     globalThis.addEventListener(type, () => (lastInteractionAt = performance.now()), { capture: true, passive: true });
   }

@@ -106,7 +106,7 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
     wasFresh.current = fresh;
   }, [fresh, start]);
 
-  function submit(e: React.FormEvent) {
+  function submit(e: React.SubmitEvent) {
     e.preventDefault();
     const digits = code.replace(/\s/g, '');
     if (!CODE.test(digits)) {
@@ -248,7 +248,7 @@ function PasskeySetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) 
   const [asking, setAsking] = useState(false);
   const field = useRef<HTMLInputElement>(null);
 
-  async function create(e: React.FormEvent) {
+  async function create(e: React.SubmitEvent) {
     e.preventDefault();
     if (!label.trim()) {
       setFieldError('Name this passkey so you can tell it apart later.');

@@ -21,7 +21,7 @@ import {
   type TrustedDeviceView,
 } from './api.ts';
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
-import { SecondFactorEnrolment, type EnrolMethod } from './SecondFactorEnrolment.tsx';
+import { SecondFactorEnrolment, type EnrolMethod, type Enrolled } from './SecondFactorEnrolment.tsx';
 
 /** Recovery codes issued at a time (ADR-0143). */
 const CODES_ISSUED = 10;
@@ -78,29 +78,244 @@ function TwoStep({ status }: Readonly<{ status: MfaStatusView }>) {
   const [pending, setPending] = useState<Pending | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const removeTotp = useRemoveTotp();
-  const removePasskey = useRemovePasskey();
-  const regenerate = useRegenerateRecoveryCodes();
+  const factors = status.passkeys.length + (status.totpEnrolled ? 1 : 0);
+  const devices = useDeviceRevocation(setOutcome);
+
+  const close = () => setPending(null);
+  const done = (text: string) => setOutcome({ text, failed: false });
+
+  return (
+    <Stack gap="lg">
+      <Summary status={status} />
+      <TotpBlock status={status} onChange={setPending} />
+      <PasskeysBlock status={status} now={now} onChange={setPending} />
+      <RecoveryCodesBlock status={status} onRegenerate={() => setPending({ kind: 'regenerate' })} />
+      <TrustedDevicesBlock devices={devices} trusted={status.trustedDevices} now={now} />
+
+      <div aria-live="polite">
+        {devices.busy ? (
+          <Text size="sm" c="dimmed">
+            Revoking…
+          </Text>
+        ) : null}
+        {!devices.busy && outcome ? (
+          <Text size="sm" c={outcome.failed ? 'red' : 'dimmed'}>
+            {outcome.text}
+          </Text>
+        ) : null}
+      </div>
+
+      <EnrolModal
+        pending={pending}
+        onClose={close}
+        onEnrolled={(result, replacing) => {
+          done(`${enrolledSubject(result.method, replacing)}.`);
+          close();
+          if (result.recoveryCodes) setCodes(result.recoveryCodes);
+        }}
+      />
+      <RemoveTotpConfirm
+        opened={pending?.kind === 'remove-totp'}
+        factors={factors}
+        status={status}
+        onClose={close}
+        onDone={done}
+      />
+      <RemovePasskeyConfirm pending={pending} factors={factors} status={status} onClose={close} onDone={done} />
+      <RegenerateConfirm
+        opened={pending?.kind === 'regenerate'}
+        onClose={close}
+        onDone={(text, fresh) => {
+          done(text);
+          setCodes(fresh);
+        }}
+      />
+
+      <RecoveryCodesDialog codes={codes} onContinue={() => setCodes(null)} />
+    </Stack>
+  );
+}
+
+function Summary({ status }: Readonly<{ status: MfaStatusView }>) {
+  return (
+    <Stack gap={4}>
+      <Group gap="xs">
+        <Text size="sm" fw={600}>
+          Two-step verification is {status.enrolled ? 'on' : 'off'}
+        </Text>
+        {status.required ? (
+          <Badge size="sm" variant="default">
+            Required by your role
+          </Badge>
+        ) : null}
+      </Group>
+      <Text size="sm" c="dimmed">
+        {status.enrolled
+          ? 'Signing in asks for a code, a passkey or a recovery code as well as your password.'
+          : 'Signing in asks for your password only. Add an authenticator app or a passkey to ask for more.'}
+      </Text>
+    </Stack>
+  );
+}
+
+function TotpBlock({ status, onChange }: Readonly<{ status: MfaStatusView; onChange: (next: Pending) => void }>) {
+  return (
+    <Block
+      title="Authenticator app"
+      detail={
+        status.totpEnrolled
+          ? 'Set up. Its 6-digit codes complete your sign-in.'
+          : 'Not set up. A 6-digit code from an app on your phone.'
+      }
+      actions={
+        status.totpEnrolled ? (
+          <>
+            <Button
+              size="xs"
+              variant="default"
+              aria-label="Replace authenticator app"
+              onClick={() => onChange({ kind: 'enrol', method: 'totp', replacing: true })}
+            >
+              Replace
+            </Button>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="red"
+              aria-label="Remove authenticator app"
+              onClick={() => onChange({ kind: 'remove-totp' })}
+            >
+              Remove
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="xs"
+            variant="default"
+            aria-label="Set up authenticator app"
+            onClick={() => onChange({ kind: 'enrol', method: 'totp', replacing: false })}
+          >
+            Set up
+          </Button>
+        )
+      }
+    />
+  );
+}
+
+function passkeysDetailOf(status: MfaStatusView, reason: string | null): string | undefined {
+  if (reason) return `Not available. ${reason}`;
+  if (status.passkeys.length === 0) {
+    return 'None yet. A passkey signs you in with your fingerprint, face or screen lock, or a security key.';
+  }
+  return undefined;
+}
+
+function PasskeysBlock({
+  status,
+  now,
+  onChange,
+}: Readonly<{ status: MfaStatusView; now: number; onChange: (next: Pending) => void }>) {
+  const reason = passkeyUnavailableReason(status.webauthn);
+  return (
+    <Block
+      title="Passkeys"
+      detailId="passkeys-detail"
+      detail={passkeysDetailOf(status, reason)}
+      actions={
+        <Button
+          size="xs"
+          variant="default"
+          data-disabled={reason ? true : undefined}
+          aria-disabled={reason ? true : undefined}
+          aria-describedby={reason ? 'passkeys-detail' : undefined}
+          onClick={() => {
+            if (!reason) onChange({ kind: 'enrol', method: 'passkey', replacing: false });
+          }}
+        >
+          Add passkey
+        </Button>
+      }
+    >
+      {status.passkeys.length > 0 ? (
+        <Rows label="Passkeys">
+          {status.passkeys.map((p) => (
+            <Row
+              key={p.id}
+              title={
+                <Text size="sm" fw={500}>
+                  {p.label}
+                </Text>
+              }
+              facts={
+                <>
+                  Added <Ago at={p.created} now={now} /> · last used <Ago at={p.lastUsed} now={now} />
+                </>
+              }
+              action={
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  aria-label={`Remove passkey ${p.label}`}
+                  onClick={() => onChange({ kind: 'remove-passkey', passkey: p })}
+                >
+                  Remove
+                </Button>
+              }
+            />
+          ))}
+        </Rows>
+      ) : null}
+    </Block>
+  );
+}
+
+function recoveryCodesDetailOf(status: MfaStatusView): ReactNode {
+  if (!status.enrolled) return 'Created when you set up your first method.';
+  const left = status.recoveryCodesRemaining;
+  return (
+    <>
+      {left} of {CODES_ISSUED} left.{' '}
+      {left <= CODES_LOW ? (
+        <Text component="span" size="sm" style={{ color: 'var(--as-warning)' }}>
+          {left === 0 ? 'You have none left.' : 'You are running low.'} Regenerate them before you are locked out.
+        </Text>
+      ) : (
+        'Each signs you in once if you lose your device.'
+      )}
+    </>
+  );
+}
+
+function RecoveryCodesBlock({ status, onRegenerate }: Readonly<{ status: MfaStatusView; onRegenerate: () => void }>) {
+  return (
+    <Block
+      title="Recovery codes"
+      detailId="recovery-codes-detail"
+      detail={recoveryCodesDetailOf(status)}
+      actions={
+        <Button
+          size="xs"
+          variant="default"
+          data-disabled={status.enrolled ? undefined : true}
+          aria-disabled={status.enrolled ? undefined : true}
+          aria-describedby={status.enrolled ? undefined : 'recovery-codes-detail'}
+          onClick={() => {
+            if (status.enrolled) onRegenerate();
+          }}
+        >
+          Regenerate
+        </Button>
+      }
+    />
+  );
+}
+
+/** Revoking trusted devices, one or all, and saying how it went. */
+function useDeviceRevocation(setOutcome: (outcome: Outcome | null) => void) {
   const revoke = useRevokeTrustedDevice();
   const revokeAll = useRevokeAllTrustedDevices();
-
-  const passkeyReason = passkeyUnavailableReason(status.webauthn);
-  const factors = status.passkeys.length + (status.totpEnrolled ? 1 : 0);
-  let passkeysDetail: string | undefined;
-  if (passkeyReason) {
-    passkeysDetail = `Not available. ${passkeyReason}`;
-  } else if (status.passkeys.length === 0) {
-    passkeysDetail = 'None yet. A passkey signs you in with your fingerprint, face or screen lock, or a security key.';
-  }
-  const codesLeft = status.recoveryCodesRemaining;
-  const busy = revoke.isPending || revokeAll.isPending;
-
-  function close() {
-    setPending(null);
-    removeTotp.reset();
-    removePasskey.reset();
-    regenerate.reset();
-  }
 
   function revokeOne(device: TrustedDeviceView) {
     setOutcome(null);
@@ -126,309 +341,215 @@ function TwoStep({ status }: Readonly<{ status: MfaStatusView }>) {
     });
   }
 
+  return {
+    busy: revoke.isPending || revokeAll.isPending,
+    revokingAll: revokeAll.isPending,
+    revoking: revoke.isPending ? revoke.variables : undefined,
+    revokeOne,
+    revokeEvery,
+  };
+}
+
+function TrustedDevicesBlock({
+  devices,
+  trusted,
+  now,
+}: Readonly<{ devices: ReturnType<typeof useDeviceRevocation>; trusted: TrustedDeviceView[]; now: number }>) {
+  const any = trusted.length > 0;
   return (
-    <Stack gap="lg">
-      <Stack gap={4}>
-        <Group gap="xs">
-          <Text size="sm" fw={600}>
-            Two-step verification is {status.enrolled ? 'on' : 'off'}
-          </Text>
-          {status.required ? (
-            <Badge size="sm" variant="default">
-              Required by your role
-            </Badge>
-          ) : null}
-        </Group>
-        <Text size="sm" c="dimmed">
-          {status.enrolled
-            ? 'Signing in asks for a code, a passkey or a recovery code as well as your password.'
-            : 'Signing in asks for your password only. Add an authenticator app or a passkey to ask for more.'}
-        </Text>
-      </Stack>
-
-      <Block
-        title="Authenticator app"
-        detail={
-          status.totpEnrolled
-            ? 'Set up. Its 6-digit codes complete your sign-in.'
-            : 'Not set up. A 6-digit code from an app on your phone.'
-        }
-        actions={
-          status.totpEnrolled ? (
-            <>
-              <Button
-                size="xs"
-                variant="default"
-                aria-label="Replace authenticator app"
-                onClick={() => setPending({ kind: 'enrol', method: 'totp', replacing: true })}
-              >
-                Replace
-              </Button>
-              <Button
-                size="xs"
-                variant="subtle"
-                color="red"
-                aria-label="Remove authenticator app"
-                onClick={() => setPending({ kind: 'remove-totp' })}
-              >
-                Remove
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="xs"
-              variant="default"
-              aria-label="Set up authenticator app"
-              onClick={() => setPending({ kind: 'enrol', method: 'totp', replacing: false })}
-            >
-              Set up
-            </Button>
-          )
-        }
-      />
-
-      <Block
-        title="Passkeys"
-        detailId="passkeys-detail"
-        detail={passkeysDetail}
-        actions={
+    <Block
+      title="Trusted devices"
+      detail={
+        any
+          ? undefined
+          : 'None. When you sign in, you can trust that browser so it asks for your password only, until the trust expires. Trusted browsers are listed here.'
+      }
+      actions={
+        any ? (
           <Button
             size="xs"
             variant="default"
-            data-disabled={passkeyReason ? true : undefined}
-            aria-disabled={passkeyReason ? true : undefined}
-            aria-describedby={passkeyReason ? 'passkeys-detail' : undefined}
-            onClick={() => {
-              if (!passkeyReason) setPending({ kind: 'enrol', method: 'passkey', replacing: false });
-            }}
+            loading={devices.revokingAll}
+            disabled={devices.busy}
+            onClick={devices.revokeEvery}
           >
-            Add passkey
+            Revoke all
           </Button>
-        }
-      >
-        {status.passkeys.length > 0 ? (
-          <Rows label="Passkeys">
-            {status.passkeys.map((p) => (
-              <Row
-                key={p.id}
-                title={
-                  <Text size="sm" fw={500}>
-                    {p.label}
+        ) : null
+      }
+    >
+      {any ? (
+        <Rows label="Trusted devices">
+          {trusted.map((d) => (
+            <Row
+              key={d.id}
+              title={
+                <Group gap="xs" wrap="wrap">
+                  <Text size="sm" fw={500} title={d.client ?? undefined}>
+                    {describeClient(d.client)}
                   </Text>
-                }
-                facts={
-                  <>
-                    Added <Ago at={p.created} now={now} /> · last used <Ago at={p.lastUsed} now={now} />
-                  </>
-                }
-                action={
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    color="red"
-                    aria-label={`Remove passkey ${p.label}`}
-                    onClick={() => setPending({ kind: 'remove-passkey', passkey: p })}
-                  >
-                    Remove
-                  </Button>
-                }
-              />
-            ))}
-          </Rows>
-        ) : null}
-      </Block>
-
-      <Block
-        title="Recovery codes"
-        detailId="recovery-codes-detail"
-        detail={
-          status.enrolled ? (
-            <>
-              {codesLeft} of {CODES_ISSUED} left.{' '}
-              {codesLeft <= CODES_LOW ? (
-                <Text component="span" size="sm" style={{ color: 'var(--as-warning)' }}>
-                  {codesLeft === 0 ? 'You have none left.' : 'You are running low.'} Regenerate them before you are
-                  locked out.
-                </Text>
-              ) : (
-                'Each signs you in once if you lose your device.'
-              )}
-            </>
-          ) : (
-            'Created when you set up your first method.'
-          )
-        }
-        actions={
-          <Button
-            size="xs"
-            variant="default"
-            data-disabled={status.enrolled ? undefined : true}
-            aria-disabled={status.enrolled ? undefined : true}
-            aria-describedby={status.enrolled ? undefined : 'recovery-codes-detail'}
-            onClick={() => {
-              if (status.enrolled) setPending({ kind: 'regenerate' });
-            }}
-          >
-            Regenerate
-          </Button>
-        }
-      />
-
-      <Block
-        title="Trusted devices"
-        detail={
-          status.trustedDevices.length === 0
-            ? 'None. When you sign in, you can trust that browser so it asks for your password only, until the trust expires. Trusted browsers are listed here.'
-            : undefined
-        }
-        actions={
-          status.trustedDevices.length > 0 ? (
-            <Button size="xs" variant="default" loading={revokeAll.isPending} disabled={busy} onClick={revokeEvery}>
-              Revoke all
-            </Button>
-          ) : null
-        }
-      >
-        {status.trustedDevices.length > 0 ? (
-          <Rows label="Trusted devices">
-            {status.trustedDevices.map((d) => (
-              <Row
-                key={d.id}
-                title={
-                  <Group gap="xs" wrap="wrap">
-                    <Text size="sm" fw={500} title={d.client ?? undefined}>
-                      {describeClient(d.client)}
-                    </Text>
-                    {d.current ? (
-                      <Badge size="xs" variant="default">
-                        This device
-                      </Badge>
-                    ) : null}
-                  </Group>
-                }
-                facts={
-                  <>
-                    {d.address ?? 'Address unknown'} · trusted <Ago at={d.created} now={now} /> · last used{' '}
-                    <Ago at={d.lastUsed} now={now} /> · expires <Ago at={d.expires} now={now} future />
-                  </>
-                }
-                action={
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    color="red"
-                    aria-label={`Revoke ${describeDevice(d)}`}
-                    loading={revoke.isPending && revoke.variables === d.id}
-                    disabled={busy}
-                    onClick={() => revokeOne(d)}
-                  >
-                    Revoke
-                  </Button>
-                }
-              />
-            ))}
-          </Rows>
-        ) : null}
-      </Block>
-
-      <div aria-live="polite">
-        {busy ? (
-          <Text size="sm" c="dimmed">
-            Revoking…
-          </Text>
-        ) : null}
-        {!busy && outcome ? (
-          <Text size="sm" c={outcome.failed ? 'red' : 'dimmed'}>
-            {outcome.text}
-          </Text>
-        ) : null}
-      </div>
-
-      <Modal
-        opened={pending?.kind === 'enrol'}
-        onClose={close}
-        size="lg"
-        title={pending?.kind === 'enrol' ? enrolTitle(pending) : ''}
-      >
-        {pending?.kind === 'enrol' ? (
-          <Stack gap="md">
-            {pending.replacing ? (
-              <Text size="sm" c="dimmed">
-                The app you have now keeps working until you confirm a code from the new one.
-              </Text>
-            ) : null}
-            <SecondFactorEnrolment
-              methods={[pending.method]}
-              onEnrolled={(done) => {
-                setOutcome({ text: `${enrolledSubject(done.method, pending.replacing)}.`, failed: false });
-                setPending(null);
-                if (done.recoveryCodes) setCodes(done.recoveryCodes);
-              }}
+                  {d.current ? (
+                    <Badge size="xs" variant="default">
+                      This device
+                    </Badge>
+                  ) : null}
+                </Group>
+              }
+              facts={
+                <>
+                  {d.address ?? 'Address unknown'} · trusted <Ago at={d.created} now={now} /> · last used{' '}
+                  <Ago at={d.lastUsed} now={now} /> · expires <Ago at={d.expires} now={now} future />
+                </>
+              }
+              action={
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  aria-label={`Revoke ${describeDevice(d)}`}
+                  loading={devices.revoking === d.id}
+                  disabled={devices.busy}
+                  onClick={() => devices.revokeOne(d)}
+                >
+                  Revoke
+                </Button>
+              }
             />
-          </Stack>
-        ) : null}
-      </Modal>
+          ))}
+        </Rows>
+      ) : null}
+    </Block>
+  );
+}
 
-      <ConfirmChange
-        opened={pending?.kind === 'remove-totp'}
-        title="Remove the authenticator app?"
-        consequence={removalConsequence('Its codes stop working.', factors, status)}
-        blocked={removalBlock(factors, status)}
-        confirmLabel="Remove authenticator app"
-        pending={removeTotp.isPending}
-        error={removeTotp.error}
-        onClose={close}
-        onConfirm={() =>
-          removeTotp.mutate(undefined, {
-            onSuccess: () => {
-              setOutcome({ text: 'Authenticator app removed.', failed: false });
-              close();
-            },
-          })
-        }
-      />
-      <ConfirmChange
-        opened={pending?.kind === 'remove-passkey'}
-        title={pending?.kind === 'remove-passkey' ? `Remove passkey "${pending.passkey.label}"?` : ''}
-        consequence={removalConsequence('You can no longer sign in with it.', factors, status)}
-        blocked={removalBlock(factors, status)}
-        confirmLabel="Remove passkey"
-        pending={removePasskey.isPending}
-        error={removePasskey.error}
-        onClose={close}
-        onConfirm={() => {
-          if (pending?.kind !== 'remove-passkey') return;
-          const label = pending.passkey.label;
-          removePasskey.mutate(pending.passkey.id, {
-            onSuccess: () => {
-              setOutcome({ text: `Passkey "${label}" removed.`, failed: false });
-              close();
-            },
-          });
-        }}
-      />
-      <ConfirmChange
-        opened={pending?.kind === 'regenerate'}
-        title="Regenerate recovery codes?"
-        consequence="Your current recovery codes stop working at once. You get 10 new ones, shown once."
-        confirmLabel="Regenerate codes"
-        pending={regenerate.isPending}
-        error={regenerate.error}
-        onClose={close}
-        onConfirm={() =>
-          regenerate.mutate(undefined, {
-            onSuccess: (result) => {
-              setOutcome({ text: 'Recovery codes regenerated. The old ones no longer work.', failed: false });
-              close();
-              setCodes(result.codes);
-              regenerate.reset();
-            },
-          })
-        }
-      />
+function EnrolModal({
+  pending,
+  onClose,
+  onEnrolled,
+}: Readonly<{
+  pending: Pending | null;
+  onClose: () => void;
+  onEnrolled: (result: Enrolled, replacing: boolean) => void;
+}>) {
+  const enrol = pending?.kind === 'enrol' ? pending : null;
+  return (
+    <Modal opened={enrol !== null} onClose={onClose} size="lg" title={enrol ? enrolTitle(enrol) : ''}>
+      {enrol ? (
+        <Stack gap="md">
+          {enrol.replacing ? (
+            <Text size="sm" c="dimmed">
+              The app you have now keeps working until you confirm a code from the new one.
+            </Text>
+          ) : null}
+          <SecondFactorEnrolment
+            methods={[enrol.method]}
+            onEnrolled={(result) => onEnrolled(result, enrol.replacing)}
+          />
+        </Stack>
+      ) : null}
+    </Modal>
+  );
+}
 
-      <RecoveryCodesDialog codes={codes} onContinue={() => setCodes(null)} />
-    </Stack>
+type ConfirmProps = Readonly<{
+  factors: number;
+  status: MfaStatusView;
+  onClose: () => void;
+  onDone: (text: string) => void;
+}>;
+
+function RemoveTotpConfirm({ opened, factors, status, onClose, onDone }: ConfirmProps & Readonly<{ opened: boolean }>) {
+  const removeTotp = useRemoveTotp();
+  const close = () => {
+    removeTotp.reset();
+    onClose();
+  };
+  return (
+    <ConfirmChange
+      opened={opened}
+      title="Remove the authenticator app?"
+      consequence={removalConsequence('Its codes stop working.', factors, status)}
+      blocked={removalBlock(factors, status)}
+      confirmLabel="Remove authenticator app"
+      pending={removeTotp.isPending}
+      error={removeTotp.error}
+      onClose={close}
+      onConfirm={() =>
+        removeTotp.mutate(undefined, {
+          onSuccess: () => {
+            onDone('Authenticator app removed.');
+            close();
+          },
+        })
+      }
+    />
+  );
+}
+
+function RemovePasskeyConfirm({
+  pending,
+  factors,
+  status,
+  onClose,
+  onDone,
+}: ConfirmProps & Readonly<{ pending: Pending | null }>) {
+  const removePasskey = useRemovePasskey();
+  const passkey = pending?.kind === 'remove-passkey' ? pending.passkey : null;
+  const close = () => {
+    removePasskey.reset();
+    onClose();
+  };
+  return (
+    <ConfirmChange
+      opened={passkey !== null}
+      title={passkey ? `Remove passkey "${passkey.label}"?` : ''}
+      consequence={removalConsequence('You can no longer sign in with it.', factors, status)}
+      blocked={removalBlock(factors, status)}
+      confirmLabel="Remove passkey"
+      pending={removePasskey.isPending}
+      error={removePasskey.error}
+      onClose={close}
+      onConfirm={() => {
+        if (!passkey) return;
+        removePasskey.mutate(passkey.id, {
+          onSuccess: () => {
+            onDone(`Passkey "${passkey.label}" removed.`);
+            close();
+          },
+        });
+      }}
+    />
+  );
+}
+
+function RegenerateConfirm({
+  opened,
+  onClose,
+  onDone,
+}: Readonly<{ opened: boolean; onClose: () => void; onDone: (text: string, codes: string[]) => void }>) {
+  const regenerate = useRegenerateRecoveryCodes();
+  const close = () => {
+    regenerate.reset();
+    onClose();
+  };
+  return (
+    <ConfirmChange
+      opened={opened}
+      title="Regenerate recovery codes?"
+      consequence="Your current recovery codes stop working at once. You get 10 new ones, shown once."
+      confirmLabel="Regenerate codes"
+      pending={regenerate.isPending}
+      error={regenerate.error}
+      onClose={close}
+      onConfirm={() =>
+        regenerate.mutate(undefined, {
+          onSuccess: (result) => {
+            onDone('Recovery codes regenerated. The old ones no longer work.', result.codes);
+            close();
+          },
+        })
+      }
+    />
   );
 }
 
