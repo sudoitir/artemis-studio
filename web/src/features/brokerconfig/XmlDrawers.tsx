@@ -66,6 +66,77 @@ export function CountsList({ current, next }: Readonly<{ current: ConfigDocument
   );
 }
 
+/** What the pasted XML would become: counts against the current declaration, what is not carried, what is wrong. */
+function ImportPreview({
+  declaration,
+  result,
+  next,
+  merging,
+}: Readonly<{
+  declaration: ConfigDeclarationView;
+  result: ConfigImportResultView;
+  next: ConfigDocumentView;
+  merging: boolean;
+}>) {
+  return (
+    <Stack gap="sm">
+      <Stack gap={4}>
+        <Text size="sm" fw={600}>
+          {merging ? 'After merging' : 'Recognised'}
+        </Text>
+        <CountsList current={declaration.document} next={next} />
+      </Stack>
+
+      <Stack gap={4}>
+        <Text size="sm" fw={600}>
+          Not applied ({result.unsupported.length})
+        </Text>
+        {result.unsupported.length === 0 ? (
+          <Text size="xs" c="dimmed">
+            Every element was recognised.
+          </Text>
+        ) : (
+          <List size="xs" spacing={2}>
+            {result.unsupported.map((u) => (
+              <List.Item key={u.path}>
+                <Text size="xs" component="span" ff="monospace">
+                  {u.path}
+                </Text>{' '}
+                — {u.reason}
+              </List.Item>
+            ))}
+          </List>
+        )}
+      </Stack>
+
+      {result.errors.length > 0 ? (
+        <Alert color="red" variant="light" title={`${result.errors.length} error(s) — fix them to save`} role="alert">
+          <List size="xs" spacing={2}>
+            {result.errors.map((e) => (
+              <List.Item key={`${e.field}:${e.message}`}>
+                <Text size="xs" component="span" ff="monospace">
+                  {e.field}
+                </Text>{' '}
+                — {e.message}
+              </List.Item>
+            ))}
+          </List>
+        </Alert>
+      ) : null}
+    </Stack>
+  );
+}
+
+/** The document the import would save: the paste merged into the declaration, or the paste alone. */
+function importedDocument(
+  declaration: ConfigDeclarationView,
+  result: ConfigImportResultView | null,
+  merging: boolean,
+): ConfigDocumentView | null {
+  if (!result) return null;
+  return merging ? mergeDocuments(declaration.document, result.document) : result.document;
+}
+
 /**
  * Paste a `broker.xml` (or a fragment) and preview what Studio recognised, what
  * it cannot carry, and what is wrong — before anything is saved. Raw XML is an
@@ -119,7 +190,7 @@ export function ImportXmlDrawer({
   };
   const canSave = result !== null && result.errors.length === 0;
   const merging = combine === 'merge' && declaration.declared;
-  const next = result ? (merging ? mergeDocuments(declaration.document, result.document) : result.document) : null;
+  const next = importedDocument(declaration, result, merging);
 
   return (
     <Drawer opened={opened} onClose={onClose} title="Import broker.xml" position="right" size="xl" padding="md">
@@ -184,56 +255,7 @@ export function ImportXmlDrawer({
 
         <div aria-live="polite">
           {result && next ? (
-            <Stack gap="sm">
-              <Stack gap={4}>
-                <Text size="sm" fw={600}>
-                  {merging ? 'After merging' : 'Recognised'}
-                </Text>
-                <CountsList current={declaration.document} next={next} />
-              </Stack>
-
-              <Stack gap={4}>
-                <Text size="sm" fw={600}>
-                  Not applied ({result.unsupported.length})
-                </Text>
-                {result.unsupported.length === 0 ? (
-                  <Text size="xs" c="dimmed">
-                    Every element was recognised.
-                  </Text>
-                ) : (
-                  <List size="xs" spacing={2}>
-                    {result.unsupported.map((u) => (
-                      <List.Item key={u.path}>
-                        <Text size="xs" component="span" ff="monospace">
-                          {u.path}
-                        </Text>{' '}
-                        — {u.reason}
-                      </List.Item>
-                    ))}
-                  </List>
-                )}
-              </Stack>
-
-              {result.errors.length > 0 ? (
-                <Alert
-                  color="red"
-                  variant="light"
-                  title={`${result.errors.length} error(s) — fix them to save`}
-                  role="alert"
-                >
-                  <List size="xs" spacing={2}>
-                    {result.errors.map((e, i) => (
-                      <List.Item key={i}>
-                        <Text size="xs" component="span" ff="monospace">
-                          {e.field}
-                        </Text>{' '}
-                        — {e.message}
-                      </List.Item>
-                    ))}
-                  </List>
-                </Alert>
-              ) : null}
-            </Stack>
+            <ImportPreview declaration={declaration} result={result} next={next} merging={merging} />
           ) : null}
         </div>
 
@@ -310,7 +332,8 @@ export function ExportXmlDrawer({
             </Group>
             <CodeHighlight code={xml.data} language="xml" />
           </>
-        ) : xml.isPending && opened ? (
+        ) : null}
+        {!xml.data && xml.isPending && opened ? (
           <Text size="xs" c="dimmed">
             Rendering…
           </Text>
@@ -378,8 +401,8 @@ export function AdoptDrawer({
                     The first node's value was taken where they differ; check these before saving.
                   </Text>
                   <List size="xs" spacing={2}>
-                    {result.disagreements.map((d, i) => (
-                      <List.Item key={i}>{d}</List.Item>
+                    {result.disagreements.map((d) => (
+                      <List.Item key={d}>{d}</List.Item>
                     ))}
                   </List>
                 </Alert>
@@ -396,8 +419,8 @@ export function AdoptDrawer({
                     is wrong.
                   </Text>
                   <List size="xs" spacing={2}>
-                    {closes.map((c, i) => (
-                      <List.Item key={i}>
+                    {closes.map((c) => (
+                      <List.Item key={`${c.nodeName}:${c.finding.detail}`}>
                         {c.nodeName}: {c.finding.detail}
                       </List.Item>
                     ))}
@@ -406,8 +429,8 @@ export function AdoptDrawer({
               ) : null}
               {result.notes.length > 0 ? (
                 <List size="xs" spacing={2}>
-                  {result.notes.map((n, i) => (
-                    <List.Item key={i}>{n}</List.Item>
+                  {result.notes.map((n) => (
+                    <List.Item key={n}>{n}</List.Item>
                   ))}
                 </List>
               ) : null}

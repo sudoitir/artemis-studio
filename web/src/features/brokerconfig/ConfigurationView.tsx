@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Button, Group, Skeleton, Stack, Tabs, Text, Tooltip } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
@@ -84,6 +84,33 @@ export function ConfigurationView() {
     </CapabilityGate>
   );
 
+  const panes: Record<NonNullable<ConfigurationSearch['tab']>, ReactNode> = {
+    recommended: (
+      <RecommendedTab
+        clusterId={clusterId}
+        query={recommendations}
+        onReview={() => setScope({})}
+        disabledReason={recommendedReason(d, writeGate)}
+      />
+    ),
+    history: <HistoryTab declaration={d} catalogue={catalogue.data} />,
+    declared: (
+      <>
+        <DeclaredTab
+          declaration={d}
+          catalogue={catalogue.data}
+          canWrite={canWrite}
+          applyGate={applyGate}
+          onApply={setScope}
+          openSection={search.section}
+          openItem={search.item}
+          onEdit={(section, item) => setSearch({ section, item })}
+        />
+        <NodesPanel declaration={d} catalogue={catalogue.data} />
+      </>
+    ),
+  };
+
   return (
     <Stack gap="md">
       <StatusBar declaration={d} applyGate={applyGate} studioManaged={studioManaged} onReview={() => setScope({})} />
@@ -105,30 +132,7 @@ export function ConfigurationView() {
         </Group>
       </Group>
 
-      {!d.declared ? (
-        <>
-          <AdoptionSuggestion
-            declaration={d}
-            onAdopt={() => setDrawer('adopt')}
-            canWrite={writeGate.kind !== 'blocked'}
-            blockedReason={writeGate.kind === 'blocked' ? writeGate.reason : undefined}
-          />
-          <Alert variant="light" color="gray" title="Declare what this cluster should run">
-            <Stack gap="xs">
-              <Text size="sm">
-                A declaration is the configuration Studio can apply over the management API and measure every live node
-                against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is
-                declared for this cluster yet, so there is nothing to compare the nodes with.
-              </Text>
-              <Text size="sm">
-                Start with <b>Adopt from cluster</b> to take what the brokers run today, <b>Import XML</b> to paste a
-                broker.xml, or open a section below and add an entry. Static settings — the rest of broker.xml — cannot
-                be applied over management and are not part of a declaration.
-              </Text>
-            </Stack>
-          </Alert>
-        </>
-      ) : null}
+      {d.declared ? null : <DeclarePrompt declaration={d} writeGate={writeGate} onAdopt={() => setDrawer('adopt')} />}
 
       <Tabs value={tab} onChange={(next) => setSearch({ tab: (next as ConfigurationSearch['tab']) ?? undefined })}>
         <Tabs.List>
@@ -138,36 +142,7 @@ export function ConfigurationView() {
         </Tabs.List>
       </Tabs>
 
-      {tab === 'recommended' ? (
-        <RecommendedTab
-          clusterId={clusterId}
-          query={recommendations}
-          onReview={() => setScope({})}
-          disabledReason={
-            d.applyMode === 'CONFIG_MANAGED'
-              ? CONFIG_MANAGED_REASON
-              : writeGate.kind === 'blocked'
-                ? writeGate.reason
-                : undefined
-          }
-        />
-      ) : tab === 'history' ? (
-        <HistoryTab declaration={d} catalogue={catalogue.data} />
-      ) : (
-        <>
-          <DeclaredTab
-            declaration={d}
-            catalogue={catalogue.data}
-            canWrite={canWrite}
-            applyGate={applyGate}
-            onApply={setScope}
-            openSection={search.section}
-            openItem={search.item}
-            onEdit={(section, item) => setSearch({ section, item })}
-          />
-          <NodesPanel declaration={d} catalogue={catalogue.data} />
-        </>
-      )}
+      {panes[tab]}
 
       <ReviewApplyDrawer declaration={d} scope={scope} opened={scope !== null} onClose={() => setScope(null)} />
       <AdoptDrawer declaration={d} opened={drawer === 'adopt'} onClose={() => setDrawer(null)} />
@@ -175,6 +150,51 @@ export function ConfigurationView() {
       <ExportXmlDrawer declaration={d} opened={drawer === 'export'} onClose={() => setDrawer(null)} />
     </Stack>
   );
+}
+
+/** Shown while nothing is declared: what a declaration is, and the ways to make the first one. */
+function DeclarePrompt({
+  declaration,
+  writeGate,
+  onAdopt,
+}: Readonly<{ declaration: ConfigDeclarationView; writeGate: GateVerdict; onAdopt: () => void }>) {
+  return (
+    <>
+      <AdoptionSuggestion
+        declaration={declaration}
+        onAdopt={onAdopt}
+        canWrite={writeGate.kind !== 'blocked'}
+        blockedReason={writeGate.kind === 'blocked' ? writeGate.reason : undefined}
+      />
+      <Alert variant="light" color="gray" title="Declare what this cluster should run">
+        <Stack gap="xs">
+          <Text size="sm">
+            A declaration is the configuration Studio can apply over the management API and measure every live node
+            against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is declared
+            for this cluster yet, so there is nothing to compare the nodes with.
+          </Text>
+          <Text size="sm">
+            Start with <b>Adopt from cluster</b> to take what the brokers run today, <b>Import XML</b> to paste a
+            broker.xml, or open a section below and add an entry. Static settings — the rest of broker.xml — cannot be
+            applied over management and are not part of a declaration.
+          </Text>
+        </Stack>
+      </Alert>
+    </>
+  );
+}
+
+/** Why the recommendations cannot be declared from here, when they cannot. */
+function recommendedReason(declaration: ConfigDeclarationView, writeGate: GateVerdict): string | undefined {
+  if (declaration.applyMode === 'CONFIG_MANAGED') return CONFIG_MANAGED_REASON;
+  return writeGate.kind === 'blocked' ? writeGate.reason : undefined;
+}
+
+/** "Saved <when> by <who> · <source>" — the revision's provenance. */
+function savedLabel(declaration: ConfigDeclarationView): string {
+  const by = declaration.updatedBy ? ` by ${declaration.updatedBy}` : '';
+  const source = declaration.source ? ` · ${declaration.source.toLowerCase().replaceAll('_', ' ')}` : '';
+  return `Saved ${absoluteLabel(declaration.updatedAt)}${by}${source}`;
 }
 
 /**
@@ -199,7 +219,7 @@ function StatusBar({
   const latest = declaration.nodes
     .map((n) => n.evaluatedAt)
     .filter((t): t is string => !!t)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .at(-1);
 
   return (
@@ -210,11 +230,7 @@ function StatusBar({
             {applied.text}
           </Text>
           <Text size="xs" c="dimmed">
-            {declaration.declared
-              ? `Saved ${absoluteLabel(declaration.updatedAt)}${declaration.updatedBy ? ` by ${declaration.updatedBy}` : ''}${
-                  declaration.source ? ` · ${declaration.source.toLowerCase().replace(/_/g, ' ')}` : ''
-                } · `
-              : ''}
+            {declaration.declared ? `${savedLabel(declaration)} · ` : ''}
             {latest ? (
               <Tooltip label={absoluteLabel(latest)} withArrow>
                 <span tabIndex={0}>

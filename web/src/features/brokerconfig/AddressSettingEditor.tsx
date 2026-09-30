@@ -55,7 +55,8 @@ function toValues(item: ConfigAddressSettingView | null): Values {
   const out: Values = {};
   if (!item) return out;
   for (const [k, v] of Object.entries(item.values)) {
-    if (v !== null && v !== undefined) out[k] = String(v);
+    if (v !== null && v !== undefined)
+      out[k] = typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? String(v) : JSON.stringify(v);
   }
   return out;
 }
@@ -207,6 +208,7 @@ export function AddressSettingEditor({
   );
   const rest = keys.filter((k) => !COMMON_KEYS.includes(k.jsonName));
   const declaredInRest = rest.filter((k) => values[k.jsonName] !== undefined && values[k.jsonName] !== '').length;
+  const declaredSuffix = declaredInRest ? `, ${declaredInRest} declared` : '';
   // Fifty-odd keys behind one disclosure need a way in: match the element name,
   // the JSON name or a word of the explanation.
   const needle = filter.trim().toLowerCase();
@@ -365,9 +367,7 @@ export function AddressSettingEditor({
 
       <div>
         <Button variant="subtle" size="xs" px={0} onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced}>
-          {advanced
-            ? 'Hide the other keys'
-            : `Other keys (${rest.length}${declaredInRest ? `, ${declaredInRest} declared` : ''})`}
+          {advanced ? 'Hide the other keys' : `Other keys (${rest.length}${declaredSuffix})`}
         </Button>
         <Collapse expanded={advanced}>
           <Stack gap="sm" mt="sm">

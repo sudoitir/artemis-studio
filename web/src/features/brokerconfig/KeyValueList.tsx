@@ -24,6 +24,7 @@ export function KeyValueList({
   }
   const shown = open ? rows : rows.slice(0, limit);
   const hidden = rows.length - shown.length;
+  const more = hidden === 1 ? 'key' : 'keys';
   return (
     <div>
       <dl className={classes.kv}>
@@ -36,7 +37,7 @@ export function KeyValueList({
       </dl>
       {hidden > 0 || open ? (
         <Button variant="subtle" size="compact-xs" px={0} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          {open ? 'Show fewer' : `${hidden} more ${hidden === 1 ? 'key' : 'keys'}`}
+          {open ? 'Show fewer' : `${hidden} more ${more}`}
         </Button>
       ) : null}
     </div>

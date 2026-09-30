@@ -7,6 +7,8 @@ import { OutcomeSummary, type OutcomeRow } from '../../ui/NodeOutcomeSummary.tsx
 import classes from './Configuration.module.css';
 import { stepStatusWords, wireSectionLabel } from './words.ts';
 
+const plural = (n: number) => (n === 1 ? '' : 's');
+
 /** A step the broker already agrees with: no write, in a preview or in a result. */
 function isAlready(step: { status: string }): boolean {
   return step.status === 'ALREADY';
@@ -18,16 +20,16 @@ function verdictFor(o: ConfigApplyOutcomeView): { text: string; tone?: 'warning'
   const skipped = o.nodes.length - targets.length;
   const suffix = skipped > 0 ? ` · ${skipped} not live, will inherit through replication` : '';
   if (o.dryRun) {
+    if (o.plan.stepCount === 0) {
+      return { text: `Nothing to do: every targeted node already matches revision ${o.revision}${suffix}` };
+    }
     return {
-      text:
-        o.plan.stepCount === 0
-          ? `Nothing to do: every targeted node already matches revision ${o.revision}${suffix}`
-          : `Would apply ${o.plan.stepCount} step${o.plan.stepCount === 1 ? '' : 's'} to ${targets.length} live node${targets.length === 1 ? '' : 's'}, canary first${suffix}`,
+      text: `Would apply ${o.plan.stepCount} step${plural(o.plan.stepCount)} to ${targets.length} live node${plural(targets.length)}, canary first${suffix}`,
     };
   }
   switch (o.outcome) {
     case 'APPLIED':
-      return { text: `Applied to all ${targets.length} live node${targets.length === 1 ? '' : 's'}${suffix}` };
+      return { text: `Applied to all ${targets.length} live node${plural(targets.length)}${suffix}` };
     case 'HALTED':
       return { text: 'Halted — applied to some nodes and not others', tone: 'warning' };
     case 'FAILED':
@@ -35,6 +37,18 @@ function verdictFor(o: ConfigApplyOutcomeView): { text: string; tone?: 'warning'
     default:
       return { text: o.outcome };
   }
+}
+
+/** Why a node shows no step: every one is already as declared, or none matches the filter. */
+function hiddenStepsNote(steps: { status: string }[]): string {
+  const n = steps.length;
+  if (steps.every(isAlready)) return `all ${n} step${n === 1 ? ' is' : 's are'} already as declared.`;
+  return `none of its ${n} step${plural(n)} match the filter.`;
+}
+
+/** ", 3 already as declared" — the steps a broker already agrees with, when there are any. */
+function alreadyNote(already: number, tail: string): string {
+  return already ? `, ${already} already${tail}` : '';
 }
 
 function nodeRow(node: ConfigNodeApplyView): OutcomeRow {
@@ -62,7 +76,7 @@ function nodeRow(node: ConfigNodeApplyView): OutcomeRow {
     return {
       key: node.nodeId,
       name,
-      status: `${would} step${would === 1 ? '' : 's'} would apply${already ? `, ${already} already as declared` : ''}`,
+      status: `${would} step${plural(would)} would apply${alreadyNote(already, ' as declared')}`,
       detail: node.note,
     };
   if (failed > 0) {
@@ -91,7 +105,7 @@ function nodeRow(node: ConfigNodeApplyView): OutcomeRow {
   return {
     key: node.nodeId,
     name,
-    status: `${applied} applied and verified${already ? `, ${already} already` : ''}`,
+    status: `${applied} applied and verified${alreadyNote(already, '')}`,
     detail: node.note,
   };
 }
@@ -126,7 +140,9 @@ export function ApplyResult({
   const [showAlready, setShowAlready] = useState(false);
   const alreadyCount = outcome.nodes.reduce((n, node) => n + node.steps.filter(isAlready).length, 0);
   const allSections = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.section)))];
-  const allKeys = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.key)))].sort();
+  const allKeys = [...new Set(outcome.nodes.flatMap((n) => n.steps.map((s) => s.key)))].sort((a, b) =>
+    a.localeCompare(b),
+  );
   const filtering = sections.length > 0 || keys.length > 0;
   const withSteps = outcome.nodes.filter((n) => n.live && n.steps.length > 0);
   // The canary is always open: it is the node that decides whether the rest run
@@ -189,18 +205,15 @@ export function ApplyResult({
       {/* Filtered-empty is not empty (frontend rule): a node whose steps all fall
           outside the filter says so instead of vanishing from the page. */}
       {withSteps
-        .filter((node) => node.steps.filter(shows).length === 0)
+        .filter((node) => !node.steps.some(shows))
         .map((node) => (
           <Text key={node.nodeId} size="xs" c="dimmed">
-            {node.nodeName}:{' '}
-            {node.steps.every(isAlready)
-              ? `all ${node.steps.length} step${node.steps.length === 1 ? ' is' : 's are'} already as declared.`
-              : `none of its ${node.steps.length} step${node.steps.length === 1 ? '' : 's'} match the filter.`}
+            {node.nodeName}: {hiddenStepsNote(node.steps)}
           </Text>
         ))}
       <Accordion multiple defaultValue={openByDefault} variant="contained" chevronPosition="left">
         {withSteps
-          .filter((node) => node.steps.filter(shows).length > 0)
+          .filter((node) => node.steps.some(shows))
           .map((node) => {
             const planned = outcome.plan.nodes.find((p) => p.nodeId === node.nodeId);
             const shown = node.steps.filter(shows);
@@ -213,7 +226,7 @@ export function ApplyResult({
                   </Text>{' '}
                   <Text size="xs" c="dimmed" component="span">
                     {shown.length === node.steps.length
-                      ? `${node.steps.length} step${node.steps.length === 1 ? '' : 's'}`
+                      ? `${node.steps.length} step${plural(node.steps.length)}`
                       : `${shown.length} of ${node.steps.length} steps shown`}
                   </Text>
                 </Accordion.Control>
@@ -282,8 +295,8 @@ export function ApplyResult({
 function one(value: unknown): string {
   if (value === undefined) return '—';
   if (Array.isArray(value)) return value.length === 0 ? '—' : value.join(',');
-  if (typeof value === 'object' && value !== null) return JSON.stringify(value);
-  return String(value);
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return JSON.stringify(value);
 }
 
 /**
@@ -297,7 +310,7 @@ function one(value: unknown): string {
  * being written.
  */
 function Diff({ before, after }: Readonly<{ before: Record<string, unknown>; after: Record<string, unknown> }>) {
-  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort((a, b) => a.localeCompare(b));
   if (keys.length === 0) return <>—</>;
   // Nothing is there yet, so every key would read `— → value`. The step's own
   // description already says it creates the thing; what is worth reading is what

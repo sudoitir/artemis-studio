@@ -235,5 +235,5 @@ function ValuePreview({ recommendation, ml }: Readonly<{ recommendation: ConfigR
 function rolesOf(r: ConfigRecommendationView): string[] {
   const all = new Set<string>();
   Object.values(r.roles).forEach((names) => names.forEach((n) => all.add(n)));
-  return [...all].sort();
+  return [...all].sort((a, b) => a.localeCompare(b));
 }

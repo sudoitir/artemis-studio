@@ -49,8 +49,8 @@ export interface RoutingEdgeData extends Record<string, unknown> {
  * moves under the operator's cursor.
  */
 export function layoutSignature(graph: RoutingGraph): string {
-  const nodes = graph.nodes.map((n) => n.id).sort();
-  const edges = graph.edges.map((e) => `${e.source}>${e.target}`).sort();
+  const nodes = graph.nodes.map((n) => n.id).sort((a, b) => a.localeCompare(b));
+  const edges = graph.edges.map((e) => `${e.source}>${e.target}`).sort((a, b) => a.localeCompare(b));
   return `${nodes.join('|')}#${edges.join('|')}`;
 }
 
@@ -81,6 +81,12 @@ export function positionsFrom(laidOut: ElkNode): Positions {
   return out;
 }
 
+/** An edge next to the selection stands forward; every other recedes. Nothing selected, no emphasis. */
+function edgeEmphasis(e: RoutingEdgeView, selectedId: string | null | undefined): RoutingEdgeData['emphasis'] {
+  if (!selectedId) return undefined;
+  return e.source === selectedId || e.target === selectedId ? 'forward' : 'recede';
+}
+
 /**
  * The React Flow model at known positions. An element whose position is not known
  * yet — it appeared since the last layout — is left out, with its lines, until the
@@ -108,11 +114,7 @@ export function toReactFlow(
   const edges: Edge[] = graph.edges
     .filter((e) => ids.has(e.source) && ids.has(e.target))
     .map((e) => {
-      const emphasis: RoutingEdgeData['emphasis'] = !selectedId
-        ? undefined
-        : e.source === selectedId || e.target === selectedId
-          ? 'forward'
-          : 'recede';
+      const emphasis = edgeEmphasis(e, selectedId);
       return {
         id: e.id,
         source: e.source,
@@ -136,6 +138,14 @@ export function toReactFlow(
 
 export type Direction = 'left' | 'right' | 'up' | 'down';
 
+/** Distance along the direction of travel, and across it, for an offset from the origin. */
+const AXES: Record<Direction, (dx: number, dy: number) => [number, number]> = {
+  right: (dx, dy) => [dx, dy],
+  left: (dx, dy) => [-dx, dy],
+  down: (dx, dy) => [dy, dx],
+  up: (dx, dy) => [-dy, dx],
+};
+
 const centre = (n: Node) => ({ x: n.position.x + (n.width ?? 0) / 2, y: n.position.y + (n.height ?? 0) / 2 });
 
 /**
@@ -155,8 +165,7 @@ export function neighbour(nodes: Node[], fromId: string, direction: Direction): 
     const at = centre(n);
     const dx = at.x - origin.x;
     const dy = at.y - origin.y;
-    const [along, across] =
-      direction === 'right' ? [dx, dy] : direction === 'left' ? [-dx, dy] : direction === 'down' ? [dy, dx] : [-dy, dx];
+    const [along, across] = AXES[direction](dx, dy);
     // Strictly ahead: an element level with this one is not "to its right" by a rounding error.
     if (along <= 1) continue;
     const score = along + 2 * Math.abs(across);

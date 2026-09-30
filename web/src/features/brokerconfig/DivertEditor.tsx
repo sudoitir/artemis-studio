@@ -66,7 +66,7 @@ export function DivertEditor({
     setRoutingType(item?.routingType ?? '');
     setTransformer({
       className: item?.transformerClassName ?? '',
-      properties: { ...(item?.transformerProperties ?? {}) },
+      properties: { ...item?.transformerProperties },
     });
     setTouched({});
     setSubmitted(false);

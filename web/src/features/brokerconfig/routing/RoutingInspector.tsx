@@ -7,8 +7,11 @@ import { addressRows, bridgeRows, divertRows, type Row } from '../pretty.ts';
 import { useSaveDocument } from '../useSaveDocument.ts';
 import { CapabilityGate } from '../../../ui/CapabilityGate.tsx';
 import type { GateVerdict } from '../../../ui/capabilityGate.ts';
-import { KIND_WORDS, STATE_WORDS, type RoutingNodeView } from './routingGraph.ts';
+import { KIND_WORDS, STATE_WORDS, type RoutingKind, type RoutingNodeView } from './routingGraph.ts';
 import classes from '../Configuration.module.css';
+
+/** The kinds a declaration can drop, and the section each lives in. */
+const REMOVABLE: Partial<Record<RoutingKind, 'diverts' | 'bridges'>> = { divert: 'diverts', bridge: 'bridges' };
 
 /** What the declaration says about the selected element, or why there is nothing to say. */
 function rowsFor(declaration: ConfigDeclarationView, node: RoutingNodeView): Row[] {
@@ -35,6 +38,74 @@ function rowsFor(declaration: ConfigDeclarationView, node: RoutingNodeView): Row
   }
 }
 
+/** The inspector before anything is chosen: says how to choose. */
+function NothingSelected() {
+  return (
+    <Stack gap={4}>
+      <Text size="sm" fw={600}>
+        Nothing selected
+      </Text>
+      <Text size="xs" c="dimmed">
+        Choose an element on the canvas, or enter the graph and move with the arrow keys. Everything it shows is also on
+        the Configuration screen's Declared &amp; live tab, with the same editors.
+      </Text>
+    </Stack>
+  );
+}
+
+/** Edit and remove, or why there is nothing here to edit. */
+function InspectorActions({
+  node,
+  writeGate,
+  onEdit,
+  remove,
+  removing,
+}: Readonly<{
+  node: RoutingNodeView;
+  writeGate: GateVerdict;
+  onEdit: (section: string, item: string) => void;
+  remove: (() => void) | null;
+  removing: boolean;
+}>) {
+  if (!node.edit) {
+    return (
+      <Text size="xs" c="dimmed">
+        {node.kind === 'target'
+          ? 'This is on another broker. Declare the bridge that reaches it, not the target itself.'
+          : 'Studio does not declare this element, so there is nothing here to edit. Declare it to bring it under the declaration.'}
+      </Text>
+    );
+  }
+  return (
+    <Group gap="xs">
+      <CapabilityGate verdict={writeGate} what={`editing ${node.kind} ${node.name}`}>
+        <Button
+          variant="default"
+          size="xs"
+          onClick={() => onEdit(node.edit!.section, node.edit!.item)}
+          disabled={writeGate.kind === 'blocked'}
+        >
+          Edit {node.kind} {node.name}
+        </Button>
+      </CapabilityGate>
+      {remove ? (
+        <CapabilityGate verdict={writeGate} what={`removing ${node.kind} ${node.name}`}>
+          <Button
+            variant="subtle"
+            color="red"
+            size="xs"
+            loading={removing}
+            onClick={remove}
+            disabled={writeGate.kind === 'blocked'}
+          >
+            Remove from declaration
+          </Button>
+        </CapabilityGate>
+      ) : null}
+    </Group>
+  );
+}
+
 /**
  * The selected element: what it is, what it connects, which of the declared and
  * observed states it is in, and the actions that change it. Its editor is the
@@ -54,28 +125,14 @@ export function RoutingInspector({
 }>) {
   const { save, isPending } = useSaveDocument(declaration, () => {});
 
-  if (!node) {
-    return (
-      <Stack gap={4}>
-        <Text size="sm" fw={600}>
-          Nothing selected
-        </Text>
-        <Text size="xs" c="dimmed">
-          Choose an element on the canvas, or enter the graph and move with the arrow keys. Everything it shows is also
-          on the Configuration screen's Declared &amp; live tab, with the same editors.
-        </Text>
-      </Stack>
-    );
-  }
+  if (!node) return <NothingSelected />;
 
   const rows = rowsFor(declaration, node);
   const attention = node.state === 'DECLARED_ONLY' || node.state === 'OBSERVED_ONLY' || node.fault !== null;
-  const remove =
-    node.edit && node.kind === 'divert'
-      ? () => save(removeItem(declaration.document, 'diverts', node.name), `Removed divert ${node.name}`)
-      : node.edit && node.kind === 'bridge'
-        ? () => save(removeItem(declaration.document, 'bridges', node.name), `Removed bridge ${node.name}`)
-        : null;
+  const section = node.edit ? REMOVABLE[node.kind] : undefined;
+  const remove = section
+    ? () => save(removeItem(declaration.document, section, node.name), `Removed ${node.kind} ${node.name}`)
+    : null;
 
   return (
     <Stack gap="xs">
@@ -103,40 +160,7 @@ export function RoutingInspector({
 
       {rows.length > 0 ? <KeyValueList rows={rows} limit={12} /> : null}
 
-      {node.edit ? (
-        <Group gap="xs">
-          <CapabilityGate verdict={writeGate} what={`editing ${node.kind} ${node.name}`}>
-            <Button
-              variant="default"
-              size="xs"
-              onClick={() => onEdit(node.edit!.section, node.edit!.item)}
-              disabled={writeGate.kind === 'blocked'}
-            >
-              Edit {node.kind} {node.name}
-            </Button>
-          </CapabilityGate>
-          {remove ? (
-            <CapabilityGate verdict={writeGate} what={`removing ${node.kind} ${node.name}`}>
-              <Button
-                variant="subtle"
-                color="red"
-                size="xs"
-                loading={isPending}
-                onClick={remove}
-                disabled={writeGate.kind === 'blocked'}
-              >
-                Remove from declaration
-              </Button>
-            </CapabilityGate>
-          ) : null}
-        </Group>
-      ) : (
-        <Text size="xs" c="dimmed">
-          {node.kind === 'target'
-            ? 'This is on another broker. Declare the bridge that reaches it, not the target itself.'
-            : 'Studio does not declare this element, so there is nothing here to edit. Declare it to bring it under the declaration.'}
-        </Text>
-      )}
+      <InspectorActions node={node} writeGate={writeGate} onEdit={onEdit} remove={remove} removing={isPending} />
     </Stack>
   );
 }

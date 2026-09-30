@@ -123,7 +123,7 @@ export function ForwardingAddressField({
     );
   };
 
-  const onSectionKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const onSectionKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       collapse();
@@ -197,9 +197,8 @@ export function ForwardingAddressField({
       </Combobox>
 
       {creating !== null ? (
-        <div
+        <fieldset
           className={classes.inlineSection}
-          role="group"
           aria-label={`Create queue on address ${creating}`}
           onKeyDown={onSectionKeyDown}
         >
@@ -248,7 +247,7 @@ export function ForwardingAddressField({
               applied.
             </Text>
           </Stack>
-        </div>
+        </fieldset>
       ) : null}
 
       <Text size="xs" role="status" aria-live="polite">

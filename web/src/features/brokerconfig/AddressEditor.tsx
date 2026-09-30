@@ -9,6 +9,12 @@ import { useSaveDocument } from './useSaveDocument.ts';
 
 type RoutingType = 'ANYCAST' | 'MULTICAST';
 
+/** A queue being edited; the row key identifies it across edits and removals and is never saved. */
+type QueueRow = { rowKey: number; queue: ConfigQueueView };
+
+let nextRowKey = 0;
+const toRows = (queues: ConfigQueueView[]): QueueRow[] => queues.map((queue) => ({ rowKey: nextRowKey++, queue }));
+
 interface Errors {
   name?: string;
   routingTypes?: string;
@@ -37,7 +43,7 @@ export function AddressEditor({
 }>) {
   const [name, setName] = useState(item?.name ?? '');
   const [routingTypes, setRoutingTypes] = useState<RoutingType[]>(item?.routingTypes ?? ['ANYCAST']);
-  const [queues, setQueues] = useState<ConfigQueueView[]>(item?.queues ?? []);
+  const [queues, setQueues] = useState<QueueRow[]>(() => toRows(item?.queues ?? []));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -46,7 +52,7 @@ export function AddressEditor({
     if (!opened) return;
     setName(item?.name ?? prefill?.name ?? '');
     setRoutingTypes(item?.routingTypes ?? prefill?.routingTypes ?? ['ANYCAST']);
-    setQueues(item?.queues ?? prefill?.queues ?? []);
+    setQueues(toRows(item?.queues ?? prefill?.queues ?? []));
     setTouched({});
     setSubmitted(false);
   }, [opened, item, prefill]);
@@ -61,10 +67,10 @@ export function AddressEditor({
       errors.name = `"${n}" is already declared. Edit that address instead.`;
     }
     if (routingTypes.length === 0) errors.routingTypes = 'An address has at least one routing type.';
-    const names = queues.map((q) => q.name.trim());
+    const names = queues.map((q) => q.queue.name.trim());
     if (names.some((q) => !q)) errors.queues = 'Every queue needs a name.';
     else if (new Set(names).size !== names.length) errors.queues = 'Queue names must be unique on an address.';
-    else if (queues.some((q) => !routingTypes.includes(q.routingType))) {
+    else if (queues.some((q) => !routingTypes.includes(q.queue.routingType))) {
       errors.queues = "A queue's routing type must be one the address supports.";
     }
     return errors;
@@ -81,7 +87,7 @@ export function AddressEditor({
     const next: ConfigAddressView = {
       name: name.trim(),
       routingTypes,
-      queues: queues.map((q) => ({ ...q, name: q.name.trim(), filter: q.filter?.trim() || null })),
+      queues: queues.map(({ queue }) => ({ ...queue, name: queue.name.trim(), filter: queue.filter?.trim() || null })),
     };
     save(upsertAddress(declaration.document, next, item?.name), `${item ? 'Edited' : 'Added'} address ${next.name}`);
   };
@@ -93,7 +99,7 @@ export function AddressEditor({
     );
 
   const setQueue = (index: number, patch: Partial<ConfigQueueView>) =>
-    setQueues((qs) => qs.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+    setQueues((qs) => qs.map((q, i) => (i === index ? { ...q, queue: { ...q.queue, ...patch } } : q)));
 
   return (
     <EditorDrawer
@@ -154,7 +160,10 @@ export function AddressEditor({
             variant="default"
             size="xs"
             onClick={() =>
-              setQueues((qs) => [...qs, { name: '', routingType: routingTypes[0] ?? 'ANYCAST', durable: true }])
+              setQueues((qs) => [
+                ...qs,
+                ...toRows([{ name: '', routingType: routingTypes[0] ?? 'ANYCAST', durable: true }]),
+              ])
             }
           >
             Add queue
@@ -170,8 +179,8 @@ export function AddressEditor({
             No queues declared on this address. An apply creates the address alone.
           </Text>
         ) : null}
-        {queues.map((q, i) => (
-          <Group key={i} align="flex-end" gap="xs" wrap="nowrap">
+        {queues.map(({ rowKey, queue: q }, i) => (
+          <Group key={rowKey} align="flex-end" gap="xs" wrap="nowrap">
             <TextInput
               label="Queue name"
               value={q.name}

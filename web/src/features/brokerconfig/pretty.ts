@@ -20,8 +20,8 @@ export function prettyKey(jsonName: string, catalogue?: ConfigCatalogueView): st
   const known = catalogue?.addressSettingKeys.find((k) => k.jsonName === jsonName);
   if (known) return known.xmlName;
   return jsonName
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replaceAll(/([A-Z])([A-Z][a-z])/g, '$1-$2')
     .toLowerCase();
 }
 
@@ -39,7 +39,8 @@ function bytes(n: number): string | undefined {
     v /= 1024;
     u += 1;
   }
-  const shown = Number.isInteger(v) ? String(v) : v.toFixed(v < 10 ? 2 : 1);
+  const digits = v < 10 ? 2 : 1;
+  const shown = Number.isInteger(v) ? String(v) : v.toFixed(digits);
   return `${shown} ${units[u]}`;
 }
 
@@ -55,33 +56,36 @@ function trim(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
 }
 
+/** A number with its unit and reading, by what the key measures. */
+function prettyNumber(jsonName: string, value: number): string {
+  if (value === -1 && (BYTES.test(jsonName) || MILLIS.test(jsonName) || /^max|Limit$|Threshold$/.test(jsonName))) {
+    return '-1 (no limit)';
+  }
+  if (BYTES.test(jsonName)) {
+    const b = bytes(value);
+    return b ? `${value.toLocaleString()} (${b})` : value.toLocaleString();
+  }
+  if (MILLIS.test(jsonName)) {
+    const m = millis(value);
+    return m ? `${value.toLocaleString()} ms (${m})` : `${value.toLocaleString()} ms`;
+  }
+  if (SECONDS.has(jsonName)) return `${value} s`;
+  if (DAYS.has(jsonName)) return `${value} ${value === 1 ? 'day' : 'days'}`;
+  return value.toLocaleString();
+}
+
 /** A value with its reading: `104857600 (100 MiB)`, `2500 ms (2.5 s)`, `-1 (no limit)`. */
 export function prettyValue(jsonName: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'number') {
-    if (value === -1 && (BYTES.test(jsonName) || MILLIS.test(jsonName) || /^max|Limit$|Threshold$/.test(jsonName))) {
-      return '-1 (no limit)';
-    }
-    if (BYTES.test(jsonName)) {
-      const b = bytes(value);
-      return b ? `${value.toLocaleString()} (${b})` : value.toLocaleString();
-    }
-    if (MILLIS.test(jsonName)) {
-      const m = millis(value);
-      return m ? `${value.toLocaleString()} ms (${m})` : `${value.toLocaleString()} ms`;
-    }
-    if (SECONDS.has(jsonName)) return `${value} s`;
-    if (DAYS.has(jsonName)) return `${value} ${value === 1 ? 'day' : 'days'}`;
-    return value.toLocaleString();
-  }
+  if (typeof value === 'number') return prettyNumber(jsonName, value);
   if (Array.isArray(value)) return value.length === 0 ? 'none' : value.map((v) => prettyValue(jsonName, v)).join(', ');
   if (typeof value === 'object') {
     return Object.entries(value as Record<string, unknown>)
       .map(([k, v]) => `${prettyKey(k)}: ${prettyValue(k, v)}`)
       .join('; ');
   }
-  return String(value);
+  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
 export interface Row {
@@ -169,17 +173,21 @@ export function bridgeRows(item: ConfigBridgeView): Row[] {
   return rows;
 }
 
+function queueFacts(q: ConfigAddressView['queues'][number]): string[] {
+  const facts = [q.routingType, q.durable === false ? 'non-durable' : 'durable'];
+  if (q.filter) facts.push(`filter ${q.filter}`);
+  if (q.maxConsumers != null && q.maxConsumers !== -1) facts.push(`max ${q.maxConsumers} consumers`);
+  if (q.purgeOnNoConsumers) facts.push('purge on no consumers');
+  if (q.exclusive) facts.push('exclusive');
+  if (q.nonDestructive) facts.push('non-destructive');
+  if (q.ringSize != null && q.ringSize !== -1) facts.push(`ring ${q.ringSize}`);
+  return facts;
+}
+
 export function addressRows(item: ConfigAddressView): Row[] {
   const rows: Row[] = [{ key: 'routing', value: item.routingTypes.join(', ') }];
   for (const q of item.queues) {
-    const facts = [q.routingType, q.durable === false ? 'non-durable' : 'durable'];
-    if (q.filter) facts.push(`filter ${q.filter}`);
-    if (q.maxConsumers != null && q.maxConsumers !== -1) facts.push(`max ${q.maxConsumers} consumers`);
-    if (q.purgeOnNoConsumers) facts.push('purge on no consumers');
-    if (q.exclusive) facts.push('exclusive');
-    if (q.nonDestructive) facts.push('non-destructive');
-    if (q.ringSize != null && q.ringSize !== -1) facts.push(`ring ${q.ringSize}`);
-    rows.push({ key: `queue ${q.name}`, value: facts.join(', ') });
+    rows.push({ key: `queue ${q.name}`, value: queueFacts(q).join(', ') });
   }
   return rows;
 }

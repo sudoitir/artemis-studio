@@ -45,18 +45,14 @@ export function NodeOutcomeSummary({
   verbPast?: string;
 }>) {
   const verdict = verdictFor(outcome);
+  const verb = outcome.dryRun ? verbFuture : verbPast;
+  const plural = outcome.totalAffected === 1 ? '' : 's';
 
   return (
     <OutcomeSummary
       verdict={verdict.text}
       verdictTone={verdict.tone}
-      total={
-        destructive
-          ? `${outcome.dryRun ? verbFuture : verbPast} ${outcome.totalAffected.toLocaleString()} ${countNoun}${
-              outcome.totalAffected === 1 ? '' : 's'
-            }`
-          : undefined
-      }
+      total={destructive ? `${verb} ${outcome.totalAffected.toLocaleString()} ${countNoun}${plural}` : undefined}
       rows={outcome.nodes.map((node) => {
         const { text, tone } = statusWords(node.status, alreadyLabel);
         return {
@@ -161,9 +157,10 @@ function verdictFor(outcome: LifecycleOutcomeView): { text: string; tone?: 'warn
     // would put "would apply" above a row that says "failed".
     const refused = failed > 0 ? `, ${failed} refused` : '';
     const suffix = skipped > 0 ? `, ${skipped} not live and will be skipped` : '';
+    const tone = failed === targets ? 'danger' : 'warning';
     return {
       text: `Would apply to ${targets - failed} of ${outcome.nodes.length} nodes${refused}${suffix}`,
-      tone: failed === 0 ? undefined : failed === targets ? 'danger' : 'warning',
+      tone: failed === 0 ? undefined : tone,
     };
   }
   if (outcome.partial) {

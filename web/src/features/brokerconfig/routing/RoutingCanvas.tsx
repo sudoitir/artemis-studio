@@ -166,7 +166,7 @@ function FollowFocus({
   follow,
   frame,
 }: {
-  follow: React.MutableRefObject<((id: string) => void) | null>;
+  follow: React.RefObject<((id: string) => void) | null>;
   frame: React.RefObject<HTMLDivElement | null>;
 }) {
   const flow = useReactFlow();

@@ -71,9 +71,10 @@ export function useConfigDiff(
   if (left) params.set('left', left);
   if (right) params.set('right', right);
   const query = params.toString();
+  const queryString = query ? `?${query}` : '';
   return useQuery({
     queryKey: ['clusters', clusterId, 'config-diff', left, right],
-    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${query ? `?${query}` : ''}`),
+    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${queryString}`),
     staleTime: 30_000,
   });
 }
