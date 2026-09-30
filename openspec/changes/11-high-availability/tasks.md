@@ -44,5 +44,5 @@
 - [x] 10.4 ADR-0152 (supersedes parts of ADR-0018 and ADR-0093); `site/src/guide/high-availability.md` and nav
 
 ## 11. Finish
-- [ ] 11.1 `just verify` green; self-health screenshots (light, dark, empty, error)
+- [x] 11.1 `just verify` green; self-health screenshots (light, dark, empty, error)
 - [ ] 11.2 Review, PR, green CI and Sonar, merge; `/opsx:archive`
