@@ -2,7 +2,7 @@
 - [x] 1.1 Brainstorm and investigate; `/opsx:update` adds design.md, sharpens specs and replaces these tasks
 
 ## 2. Fixes found on the way (own commits)
-- [ ] 2.1 `StudioInstance.mint`: concurrent first boot mints once (INSERT ON CONFLICT DO NOTHING, re-read)
+- [x] 2.1 `StudioInstance.mint`: concurrent first boot mints once (INSERT ON CONFLICT DO NOTHING, re-read)
 - [ ] 2.2 `BrokerEventWriter`: publish the seqs its own insert produced, after commit, not a global cursor
 
 ## 3. Foundation (D1, D3, D8)

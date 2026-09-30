@@ -52,9 +52,14 @@ public class StudioInstance {
 
     private String mint() {
         String minted = UUID.randomUUID().toString().substring(0, 8);
-        settings.save(new StudioSettingEntity(SETTING_KEY, '"' + minted + '"'));
-        log.info("This Studio instance is '{}'; capture objects it creates carry that name", minted);
-        return minted;
+        // Replicas booting together race here; the first insert wins and all of them read it back.
+        if (settings.insertIfAbsent(SETTING_KEY, '"' + minted + '"') == 1) {
+            log.info("This Studio instance is '{}'; capture objects it creates carry that name", minted);
+        }
+        return settings.findById(SETTING_KEY)
+                .map(StudioSettingEntity::getValue)
+                .map(StudioInstance::unquote)
+                .orElseThrow();
     }
 
     private static String unquote(String json) {
