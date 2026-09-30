@@ -5,7 +5,7 @@ import type { ApiError } from '../../kernel/api/request.ts';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { describeClient } from '../../kernel/auth/clientLabel.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
-import { passkeysSupported, PASSKEYS_UNSUPPORTED } from '../../kernel/auth/webauthn.ts';
+import { passkeyUnavailableReason } from '../../kernel/auth/webauthn.ts';
 import { Ago } from '../../kernel/time/Ago.tsx';
 import { useServerNow } from '../../kernel/time/time.ts';
 import { Row, Rows } from '../../ui/ListRows.tsx';
@@ -73,7 +73,7 @@ type Pending =
   | { kind: 'remove-passkey'; passkey: PasskeyView }
   | { kind: 'regenerate' };
 
-function TwoStep({ status }: { status: MfaStatusView }) {
+function TwoStep({ status }: Readonly<{ status: MfaStatusView }>) {
   const now = useServerNow(30_000);
   const [pending, setPending] = useState<Pending | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
@@ -84,12 +84,14 @@ function TwoStep({ status }: { status: MfaStatusView }) {
   const revoke = useRevokeTrustedDevice();
   const revokeAll = useRevokeAllTrustedDevices();
 
-  const passkeyReason = !passkeysSupported()
-    ? PASSKEYS_UNSUPPORTED
-    : !status.webauthn.available
-      ? (status.webauthn.reason ?? 'Passkeys are not available on this installation.')
-      : null;
+  const passkeyReason = passkeyUnavailableReason(status.webauthn);
   const factors = status.passkeys.length + (status.totpEnrolled ? 1 : 0);
+  let passkeysDetail: string | undefined;
+  if (passkeyReason) {
+    passkeysDetail = `Not available. ${passkeyReason}`;
+  } else if (status.passkeys.length === 0) {
+    passkeysDetail = 'None yet. A passkey signs you in with your fingerprint, face or screen lock, or a security key.';
+  }
   const codesLeft = status.recoveryCodesRemaining;
   const busy = revoke.isPending || revokeAll.isPending;
 
@@ -188,13 +190,7 @@ function TwoStep({ status }: { status: MfaStatusView }) {
       <Block
         title="Passkeys"
         detailId="passkeys-detail"
-        detail={
-          passkeyReason
-            ? `Not available. ${passkeyReason}`
-            : status.passkeys.length === 0
-              ? 'None yet. A passkey signs you in with your fingerprint, face or screen lock, or a security key.'
-              : undefined
-        }
+        detail={passkeysDetail}
         actions={
           <Button
             size="xs"
@@ -340,7 +336,8 @@ function TwoStep({ status }: { status: MfaStatusView }) {
           <Text size="sm" c="dimmed">
             Revoking…
           </Text>
-        ) : outcome ? (
+        ) : null}
+        {!busy && outcome ? (
           <Text size="sm" c={outcome.failed ? 'red' : 'dimmed'}>
             {outcome.text}
           </Text>
@@ -351,15 +348,7 @@ function TwoStep({ status }: { status: MfaStatusView }) {
         opened={pending?.kind === 'enrol'}
         onClose={close}
         size="lg"
-        title={
-          pending?.kind === 'enrol'
-            ? pending.method === 'passkey'
-              ? 'Add a passkey'
-              : pending.replacing
-                ? 'Replace your authenticator app'
-                : 'Set up an authenticator app'
-            : ''
-        }
+        title={pending?.kind === 'enrol' ? enrolTitle(pending) : ''}
       >
         {pending?.kind === 'enrol' ? (
           <Stack gap="md">
@@ -371,13 +360,7 @@ function TwoStep({ status }: { status: MfaStatusView }) {
             <SecondFactorEnrolment
               methods={[pending.method]}
               onEnrolled={(done) => {
-                const subject =
-                  done.method === 'passkey'
-                    ? 'Passkey added'
-                    : pending.replacing
-                      ? 'Authenticator app replaced'
-                      : 'Authenticator app set up';
-                setOutcome({ text: `${subject}.`, failed: false });
+                setOutcome({ text: `${enrolledSubject(done.method, pending.replacing)}.`, failed: false });
                 setPending(null);
                 if (done.recoveryCodes) setCodes(done.recoveryCodes);
               }}
@@ -449,6 +432,16 @@ function TwoStep({ status }: { status: MfaStatusView }) {
   );
 }
 
+const enrolTitle = ({ method, replacing }: { method: EnrolMethod; replacing: boolean }) => {
+  if (method === 'passkey') return 'Add a passkey';
+  return replacing ? 'Replace your authenticator app' : 'Set up an authenticator app';
+};
+
+const enrolledSubject = (method: EnrolMethod, replacing: boolean) => {
+  if (method === 'passkey') return 'Passkey added';
+  return replacing ? 'Authenticator app replaced' : 'Authenticator app set up';
+};
+
 const describeDevice = (d: TrustedDeviceView) => `${describeClient(d.client)} at ${d.address ?? 'an unknown address'}`;
 
 /** What removing a factor costs: the factor itself and, when it is the last, everything that hangs on having one. */
@@ -470,13 +463,13 @@ function Block({
   detailId,
   actions,
   children,
-}: {
+}: Readonly<{
   title: string;
   detail?: ReactNode;
   detailId?: string;
   actions?: ReactNode;
   children?: ReactNode;
-}) {
+}>) {
   return (
     <Stack gap="xs">
       <Group justify="space-between" align="flex-start" wrap="nowrap">
@@ -513,7 +506,7 @@ function ConfirmChange({
   error,
   onClose,
   onConfirm,
-}: {
+}: Readonly<{
   opened: boolean;
   title: string;
   consequence: string;
@@ -523,7 +516,7 @@ function ConfirmChange({
   error: ApiError | null;
   onClose: () => void;
   onConfirm: () => void;
-}) {
+}>) {
   const refusal = error && !needsReauthentication(error) ? error : null;
   return (
     <Modal opened={opened} onClose={onClose} title={title}>

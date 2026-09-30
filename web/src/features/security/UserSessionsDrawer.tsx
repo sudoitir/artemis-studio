@@ -9,10 +9,10 @@ import { SessionsManager } from './SessionsManager.tsx';
 export function UserSessionsDrawer({
   user,
   onClose,
-}: {
+}: Readonly<{
   user: { id: string; username: string } | null;
   onClose: () => void;
-}) {
+}>) {
   return (
     <Drawer
       opened={user !== null}

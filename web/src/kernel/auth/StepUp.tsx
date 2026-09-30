@@ -110,7 +110,7 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
  * What an action shows when the server refused it with `reauthentication-required`: the step-up itself, then, once
  * confirmed, a line saying to try again, since the refused action did not run. Renders nothing for any other error.
  */
-export function StepUpPrompt({ error, returnTo }: { error: unknown; returnTo: string }) {
+export function StepUpPrompt({ error, returnTo }: Readonly<{ error: unknown; returnTo: string }>) {
   const fresh = useFreshSignIn();
   if (!needsReauthentication(error)) return null;
   return (

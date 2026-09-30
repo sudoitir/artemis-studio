@@ -17,6 +17,15 @@ export function passkeysSupported(): boolean {
 /** Said where a passkey cannot be used, so the reason and the alternative are one sentence. */
 export const PASSKEYS_UNSUPPORTED = 'This browser cannot use passkeys. Update it, or use another browser.';
 
+/** Why passkeys cannot be used here, or null. Until the server has said (`undefined`), unknown is not unavailable. */
+export function passkeyUnavailableReason(
+  webauthn: { available: boolean; reason?: string | null } | undefined,
+): string | null {
+  if (!passkeysSupported()) return PASSKEYS_UNSUPPORTED;
+  if (webauthn && !webauthn.available) return webauthn.reason ?? 'Passkeys are not available on this installation.';
+  return null;
+}
+
 /** The person closed the browser's passkey prompt, or it timed out: not a failure to report as one. */
 function dismissed(error: unknown): boolean {
   return error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'AbortError');

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Divider, Group, Stack, Text } from '@mantine/core';
 
 /** A list of {@link Row}s, named for assistive technology. */
-export function Rows({ label, children }: { label: string; children: ReactNode }) {
+export function Rows({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
     <Stack component="ul" gap={0} m={0} p={0} aria-label={label} style={{ listStyle: 'none' }}>
       {children}
@@ -11,7 +11,7 @@ export function Rows({ label, children }: { label: string; children: ReactNode }
 }
 
 /** One thing a list holds: what it is, the facts about it beneath, and the action for it at the inline end. */
-export function Row({ title, facts, action }: { title: ReactNode; facts: ReactNode; action: ReactNode }) {
+export function Row({ title, facts, action }: Readonly<{ title: ReactNode; facts: ReactNode; action: ReactNode }>) {
   return (
     <li>
       <Divider />

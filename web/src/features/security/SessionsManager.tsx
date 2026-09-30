@@ -22,8 +22,9 @@ const describeSession = (s: AccountSessionView) =>
  * ends by signing out, wherever it is listed. Every outcome is announced, and a failure says why and
  * what to do.
  */
-export function SessionsManager({ userId }: { userId?: string }) {
+export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
   const admin = userId !== undefined;
+  const verb = admin ? 'End' : 'Sign out';
   const sessions = useSessions(userId);
   const end = useEndSession(userId);
   const endOthers = useEndOtherSessions(userId);
@@ -63,8 +64,9 @@ export function SessionsManager({ userId }: { userId?: string }) {
     endOthers.mutate(undefined, {
       onSuccess: ({ ended }) => {
         const noun = `${admin ? '' : 'other '}session${ended === 1 ? '' : 's'}`;
+        const done = admin ? 'Ended' : 'Signed out';
         setOutcome({
-          text: ended === 0 ? `There were no ${noun} to end.` : `${admin ? 'Ended' : 'Signed out'} ${ended} ${noun}.`,
+          text: ended === 0 ? `There were no ${noun} to end.` : `${done} ${ended} ${noun}.`,
           failed: false,
         });
       },
@@ -123,9 +125,7 @@ export function SessionsManager({ userId }: { userId?: string }) {
                   size="xs"
                   variant="subtle"
                   color="red"
-                  aria-label={
-                    s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
-                  }
+                  aria-label={s.current ? 'Sign out of this session' : `${verb} ${describeSession(s)}`}
                   loading={(end.isPending && end.variables === s.handle) || (s.current && logout.isPending)}
                   disabled={busy}
                   onClick={() => endOne(s)}
@@ -161,7 +161,8 @@ export function SessionsManager({ userId }: { userId?: string }) {
           <Text size="sm" c="dimmed">
             {admin ? 'Ending' : 'Signing out of'} the session{endOthers.isPending ? 's' : ''}…
           </Text>
-        ) : outcome ? (
+        ) : null}
+        {!busy && outcome ? (
           <Text size="sm" c={outcome.failed ? 'red' : 'dimmed'}>
             {outcome.text}
           </Text>

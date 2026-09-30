@@ -49,11 +49,7 @@ export function LoginView() {
 
   function finish(me: MeView) {
     // Changing the password comes first: nothing else works until it is done.
-    const to = me.mustChangePassword
-      ? '/change-password'
-      : me.secondFactorEnrolmentRequired
-        ? '/enrol-second-factor'
-        : '/';
+    const to = landingFor(me);
     // A page that started signed out loaded no plugins (it could not read the manifest), so it
     // starts again, signed in; one that already has them just moves on.
     if (bootState().manifest === undefined) {
@@ -185,6 +181,13 @@ export function LoginView() {
       </Paper>
     </Center>
   );
+}
+
+/** Where a fresh sign-in goes: what must be done before anything else, then home. */
+function landingFor(me: MeView): string {
+  if (me.mustChangePassword) return '/change-password';
+  if (me.secondFactorEnrolmentRequired) return '/enrol-second-factor';
+  return '/';
 }
 
 function loginErrorMessage(error: ApiError): string {

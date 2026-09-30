@@ -39,11 +39,11 @@ function download(codes: string[]) {
 export function RecoveryCodesDialog({
   codes,
   onContinue,
-}: {
+}: Readonly<{
   /** The codes to show, or null while there are none to show. */
   codes: string[] | null;
   onContinue: () => void;
-}) {
+}>) {
   const [saved, setSaved] = useState(false);
   const [missing, setMissing] = useState(false);
   const [downloaded, setDownloaded] = useState(false);

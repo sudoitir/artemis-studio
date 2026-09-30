@@ -7,7 +7,7 @@ import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { describeBrowser } from '../../kernel/auth/clientLabel.ts';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
-import { createPasskey, passkeyFailure, passkeysSupported, PASSKEYS_UNSUPPORTED } from '../../kernel/auth/webauthn.ts';
+import { createPasskey, passkeyFailure, passkeyUnavailableReason } from '../../kernel/auth/webauthn.ts';
 import { fetchPasskeyCreationOptions, useConfirmTotp, useMfaStatus, useRegisterPasskey, useStartTotp } from './api.ts';
 import { QrCode } from './QrCode.tsx';
 
@@ -35,19 +35,15 @@ const groupedKey = (secret: string) => secret.replace(/(.{4})(?=.)/g, '$1 ');
 export function SecondFactorEnrolment({
   methods,
   onEnrolled,
-}: {
+}: Readonly<{
   methods: EnrolMethod[];
   onEnrolled: (result: Enrolled) => void;
-}) {
+}>) {
   const status = useMfaStatus();
   const [choice, setChoice] = useState<EnrolMethod>(methods[0]);
 
   // Unknown is not unavailable: until the server has said, passkeys stay selectable.
-  const passkeyReason = !passkeysSupported()
-    ? PASSKEYS_UNSUPPORTED
-    : status.data && !status.data.webauthn.available
-      ? (status.data.webauthn.reason ?? 'Passkeys are not available on this installation.')
-      : null;
+  const passkeyReason = passkeyUnavailableReason(status.data?.webauthn);
 
   return (
     <Stack gap="lg">
@@ -86,7 +82,7 @@ export function SecondFactorEnrolment({
   );
 }
 
-function AuthenticatorSetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => void }) {
+function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) => void }>) {
   const start = useStartTotp();
   const confirm = useConfirmTotp();
   const fresh = useFreshSignIn();
@@ -233,7 +229,8 @@ function AuthenticatorSetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => 
             </Alert>
           ) : null}
         </>
-      ) : start.isPending ? (
+      ) : null}
+      {!setup && start.isPending ? (
         <Text size="sm" c="dimmed" role="status">
           Preparing your setup key…
         </Text>
@@ -242,7 +239,7 @@ function AuthenticatorSetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => 
   );
 }
 
-function PasskeySetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => void }) {
+function PasskeySetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) => void }>) {
   const register = useRegisterPasskey();
   const [label, setLabel] = useState(() => describeBrowser(navigator.userAgent) ?? 'This device');
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -278,12 +275,10 @@ function PasskeySetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => void }
   }
 
   const problem = failure instanceof ApiError ? failure : null;
-  const message =
-    failure === null || needsReauthentication(failure)
-      ? null
-      : problem
-        ? `${problem.message} Try again.`
-        : passkeyFailure(failure);
+  let message: string | null = null;
+  if (failure !== null && !needsReauthentication(failure)) {
+    message = problem ? `${problem.message} Try again.` : passkeyFailure(failure);
+  }
 
   return (
     <Stack gap="md">
@@ -318,9 +313,8 @@ function PasskeySetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => void }
           <Text size="sm" c="dimmed">
             Waiting for your passkey…
           </Text>
-        ) : notice ? (
-          <Text size="sm">{notice}</Text>
         ) : null}
+        {!asking && notice ? <Text size="sm">{notice}</Text> : null}
       </div>
       {message ? (
         <Alert color="red" variant="light" role="alert" title="Passkey not created">

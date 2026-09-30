@@ -194,11 +194,13 @@ export function UsersPanel() {
           <Text size="sm" c="dimmed">
             Unlocking {(users.data ?? []).find((u) => u.id === unlock.variables)?.username}…
           </Text>
-        ) : reset.isPending ? (
+        ) : null}
+        {!unlock.isPending && reset.isPending ? (
           <Text size="sm" c="dimmed">
             Resetting two-step verification of {resetting?.username}…
           </Text>
-        ) : unlockOutcome ? (
+        ) : null}
+        {!unlock.isPending && !reset.isPending && unlockOutcome ? (
           <Text size="sm" c={unlockOutcome.failed ? 'red' : 'dimmed'}>
             {unlockOutcome.text}
           </Text>
@@ -328,32 +330,40 @@ export function UsersPanel() {
 const FACTOR_WORDS = { TOTP: 'Authenticator app', WEBAUTHN: 'Passkey' } as const;
 
 /** What a user's second step is, in words, with the way to reset it beside it when there is something to reset. */
-function TwoStepStatus({ user, onReset }: { user: UserView; onReset: () => void }) {
+function TwoStepStatus({ user, onReset }: Readonly<{ user: UserView; onReset: () => void }>) {
   const factors = user.secondFactors.flatMap((f) =>
     f in FACTOR_WORDS ? [FACTOR_WORDS[f as keyof typeof FACTOR_WORDS]] : [],
   );
   const statusId = `two-step-${user.id}`;
   const local = user.providerId === 'local';
   const nothing = factors.length === 0;
+  let status = (
+    <Text id={statusId} size="sm">
+      {factors.join(', ')}
+    </Text>
+  );
+  if (!local) {
+    status = (
+      <Text id={statusId} size="sm" c="dimmed">
+        Managed by their identity provider
+      </Text>
+    );
+  } else if (nothing && user.secondFactorRequired) {
+    status = (
+      <Text id={statusId} size="sm" fw={600} style={{ color: 'var(--as-warning)' }}>
+        Required, not set up
+      </Text>
+    );
+  } else if (nothing) {
+    status = (
+      <Text id={statusId} size="sm" c="dimmed">
+        Not set up
+      </Text>
+    );
+  }
   return (
     <Stack gap={2} align="flex-start">
-      {!local ? (
-        <Text id={statusId} size="sm" c="dimmed">
-          Managed by their identity provider
-        </Text>
-      ) : nothing && user.secondFactorRequired ? (
-        <Text id={statusId} size="sm" fw={600} style={{ color: 'var(--as-warning)' }}>
-          Required, not set up
-        </Text>
-      ) : nothing ? (
-        <Text id={statusId} size="sm" c="dimmed">
-          Not set up
-        </Text>
-      ) : (
-        <Text id={statusId} size="sm">
-          {factors.join(', ')}
-        </Text>
-      )}
+      {status}
       {nothing ? null : (
         <Anchor
           component="button"

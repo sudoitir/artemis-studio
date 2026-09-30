@@ -40,13 +40,13 @@ export function SecondFactorForm({
   onDone,
   onRestart,
   onBack,
-}: {
+}: Readonly<{
   methods: SecondFactorMethod[];
   trustDeviceDays: number;
   onDone: (result: AuthResult) => void;
   onRestart: (why: Restart) => void;
   onBack: () => void;
-}) {
+}>) {
   const hasTotp = methods.includes('TOTP');
   const hasRecovery = methods.includes('RECOVERY_CODE');
   const hasPasskey = methods.includes('WEBAUTHN');
@@ -151,11 +151,12 @@ export function SecondFactorForm({
     setEntry(next);
   }
 
-  const intro = canUsePasskey
-    ? 'Use your passkey, or enter a code, to finish signing in.'
-    : entry === 'code'
-      ? 'Enter the code from your authenticator app to finish signing in.'
-      : 'Enter one of the recovery codes you saved when you set up two-step verification.';
+  let intro = 'Enter one of the recovery codes you saved when you set up two-step verification.';
+  if (canUsePasskey) {
+    intro = 'Use your passkey, or enter a code, to finish signing in.';
+  } else if (entry === 'code') {
+    intro = 'Enter the code from your authenticator app to finish signing in.';
+  }
 
   return (
     <Stack gap="md">
@@ -243,7 +244,8 @@ export function SecondFactorForm({
               >
                 Use a recovery code instead
               </Anchor>
-            ) : entry === 'recovery' && hasTotp ? (
+            ) : null}
+            {entry === 'recovery' && hasTotp ? (
               <Anchor
                 component="button"
                 type="button"
@@ -283,9 +285,8 @@ export function SecondFactorForm({
           <Text size="sm" c="dimmed">
             Waiting for your passkey…
           </Text>
-        ) : notice ? (
-          <Text size="sm">{notice}</Text>
         ) : null}
+        {!waitingForPasskey && notice ? <Text size="sm">{notice}</Text> : null}
       </div>
       {failure ? (
         <Alert color="red" variant="light" role="alert">

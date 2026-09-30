@@ -9,7 +9,7 @@ const QUIET_ZONE = 4;
  * light field, and an inverted code fails on many of them — so the light quiet zone is part of the picture and
  * stays light on the dark theme. `label` names it for a screen reader; the same secret is offered as text beside it.
  */
-export function QrCode({ value, label, size = 176 }: { value: string; label: string; size?: number }) {
+export function QrCode({ value, label, size = 176 }: Readonly<{ value: string; label: string; size?: number }>) {
   const { path, modules } = useMemo(() => {
     const { data, size: modules } = encode(value, { ecc: 'M', border: QUIET_ZONE });
     // One path, a run of dark modules per row, so the markup stays small and the edges stay sharp.
