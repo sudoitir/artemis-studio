@@ -7,7 +7,7 @@
 export function passkeysSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
-    typeof window.PublicKeyCredential === 'function' &&
+    typeof globalThis.PublicKeyCredential === 'function' &&
     typeof PublicKeyCredential.parseRequestOptionsFromJSON === 'function' &&
     typeof PublicKeyCredential.parseCreationOptionsFromJSON === 'function' &&
     !!navigator.credentials

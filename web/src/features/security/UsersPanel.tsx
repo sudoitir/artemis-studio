@@ -229,7 +229,10 @@ export function UsersPanel() {
                 ? 'Their role requires two-step verification, so they set it up again the next time they sign in.'
                 : 'Signing in then needs only their password.'}
             </Text>
-            <StepUpPrompt error={reset.error} returnTo={`${window.location.pathname}${window.location.search}`} />
+            <StepUpPrompt
+              error={reset.error}
+              returnTo={`${globalThis.location.pathname}${globalThis.location.search}`}
+            />
             {reset.error && !needsReauthentication(reset.error) ? (
               <Alert color="red" variant="light" role="alert" title="Not reset">
                 {resetFailure(reset.error)}

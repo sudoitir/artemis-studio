@@ -21,7 +21,7 @@ export interface Enrolled {
 
 const CODE = /^\d{6}$/;
 
-const returnTo = () => `${window.location.pathname}${window.location.search}`;
+const returnTo = () => `${globalThis.location.pathname}${globalThis.location.search}`;
 
 /** The key as it is typed into an app: groups of four. */
 const groupedKey = (secret: string) => secret.replace(/(.{4})(?=.)/g, '$1 ');

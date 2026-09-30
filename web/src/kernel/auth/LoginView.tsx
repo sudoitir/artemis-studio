@@ -45,7 +45,7 @@ export function LoginView() {
   const listed = providers.data !== undefined;
   const showForm = !listed || credential.length > 0;
   const chosen = provider ?? credential[0]?.id ?? null;
-  const sessionEnded = new URLSearchParams(window.location.search).get('reason') === SESSION_ENDED_REASON;
+  const sessionEnded = new URLSearchParams(globalThis.location.search).get('reason') === SESSION_ENDED_REASON;
 
   function finish(me: MeView) {
     // Changing the password comes first: nothing else works until it is done.
@@ -53,7 +53,7 @@ export function LoginView() {
     // A page that started signed out loaded no plugins (it could not read the manifest), so it
     // starts again, signed in; one that already has them just moves on.
     if (bootState().manifest === undefined) {
-      window.location.replace(to);
+      globalThis.location.replace(to);
     } else {
       void navigate({ to });
     }

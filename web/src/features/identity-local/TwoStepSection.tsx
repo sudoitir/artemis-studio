@@ -33,7 +33,7 @@ interface Outcome {
   failed: boolean;
 }
 
-const returnTo = () => `${window.location.pathname}${window.location.search}`;
+const returnTo = () => `${globalThis.location.pathname}${globalThis.location.search}`;
 
 /**
  * Account section: the signed-in local user's second factors (ADR-0143) — the authenticator app, passkeys,

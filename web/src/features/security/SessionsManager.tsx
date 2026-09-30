@@ -43,7 +43,7 @@ export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
     const label = describeSession(s);
     if (s.current) {
       logout.mutate(undefined, {
-        onSuccess: () => window.location.assign('/login'),
+        onSuccess: () => globalThis.location.assign('/login'),
         onError: (e) => setOutcome({ text: `Could not sign you out. ${e.message} Try again.`, failed: true }),
       });
       return;
