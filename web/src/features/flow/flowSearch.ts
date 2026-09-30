@@ -78,13 +78,13 @@ export function parseLayers(layers: string | undefined): FlowLayer[] {
     .split(',')
     .map((l) => l.trim().toUpperCase())
     .filter((l): l is FlowLayer => (FLOW_LAYERS as readonly string[]).includes(l))
-    .sort();
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /** The URL value for a set of layers: undefined for the defaults, `NONE` for an empty set. */
 export function layersParam(layers: readonly FlowLayer[]): string | undefined {
-  const sorted = [...new Set(layers)].sort();
-  if (sorted.join(',') === [...DEFAULT_LAYERS].sort().join(',')) return undefined;
+  const sorted = [...new Set(layers)].sort((a, b) => a.localeCompare(b));
+  if (sorted.join(',') === [...DEFAULT_LAYERS].sort((a, b) => a.localeCompare(b)).join(',')) return undefined;
   return sorted.length === 0 ? 'NONE' : sorted.join(',');
 }
 

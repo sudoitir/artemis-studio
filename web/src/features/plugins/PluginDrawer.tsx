@@ -292,7 +292,7 @@ export function PluginDrawer({
                       <Table.Td>
                         {e.action
                           .replace(/^PLUGIN_/, '')
-                          .replace(/_/g, ' ')
+                          .replaceAll('_', ' ')
                           .toLowerCase()}
                       </Table.Td>
                       <Table.Td>

@@ -139,7 +139,7 @@ export function SqlConsoleView() {
   const run = useSqlTail(clusterId);
 
   const queueNames = useMemo(
-    () => Array.from(new Set((queues.data?.data ?? []).map((q) => q.queueName))).sort(),
+    () => Array.from(new Set((queues.data?.data ?? []).map((q) => q.queueName))).sort((a, b) => a.localeCompare(b)),
     [queues.data],
   );
   // An absent completion entry reads as "there is no such queue". Say when the list

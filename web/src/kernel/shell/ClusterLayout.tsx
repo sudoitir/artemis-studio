@@ -18,7 +18,9 @@ import { Breadcrumb } from './Breadcrumb.tsx';
  */
 export function ClusterLayout() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const topics = [...new Set(useFeatures().flatMap((feature) => Object.keys(feature.streamTopics ?? {})))].sort();
+  const topics = [...new Set(useFeatures().flatMap((feature) => Object.keys(feature.streamTopics ?? {})))].sort(
+    (a, b) => a.localeCompare(b),
+  );
   useClusterStream(clusterId, topics);
   const header = useSlot('cluster.header');
 
