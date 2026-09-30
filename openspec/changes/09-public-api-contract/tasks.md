@@ -3,11 +3,11 @@
 - [x] 1.2 ADRs: 0146 public API contract (versioning, `!` flag, deprecation, pagination/error/limit convention), 0147 idempotency keys, 0148 published generated clients (revisits ADR-0019 in part); 0143 to 0145 were taken by the account-security changes
 
 ## 2. Errors and limits (D4)
-- [ ] 2.1 Problem+json `AuthenticationEntryPoint` (401 `unauthenticated`) and `AccessDeniedHandler` (403 `forbidden`, `csrf`) wired in `SecurityConfig`; `BearerAuthenticationFilter` delegates to the entry point
-- [ ] 2.2 `ApiExceptionHandler` extends `ResponseEntityExceptionHandler`: framework exceptions, method-security denials and a 500 `internal-error` catch-all through `Problems`; `/error` fallback returns problem+json
-- [ ] 2.3 `Retry-After` on `login-throttled` and `too-many-queries`
-- [ ] 2.4 `OpenApiCustomizer`: `4XX`/`5XX` problem+json responses on every operation; 429 with `RateLimit-*`/`Retry-After` headers
-- [ ] 2.5 Tests: 401 no credentials, 401 bad token, 403, CSRF 403, 400 unreadable body, 405, unknown route 404, 500 hides detail
+- [x] 2.1 Problem+json `AuthenticationEntryPoint` (401 `unauthenticated`) and `AccessDeniedHandler` (403 `forbidden`, `csrf`) wired in `SecurityConfig`; `BearerAuthenticationFilter` delegates to the entry point
+- [x] 2.2 `ApiExceptionHandler` extends `ResponseEntityExceptionHandler`: framework exceptions, method-security denials and a 500 `internal-error` catch-all through `Problems`; `/error` fallback returns problem+json
+- [x] 2.3 `Retry-After` on `login-throttled` and `too-many-queries`
+- [x] 2.4 `OpenApiCustomizer`: `4XX`/`5XX` problem+json responses on every operation; 429 with `RateLimit-*`/`Retry-After` headers
+- [x] 2.5 Tests: 401 no credentials, 401 bad token, 403, CSRF 403, 400 unreadable body, 405, unknown route 404, 500 hides detail
 
 ## 3. Pagination (D3)
 - [ ] 3.1 `PagedView` becomes `{data, page, pageSize, count, hasNext}`; `ResourceQuery` refuses out-of-range `page`/`size` with `invalid-value`

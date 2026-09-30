@@ -11,8 +11,10 @@ import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorInvalidExcep
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SignInExpiredException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -54,8 +56,12 @@ class SessionProblemAdvice {
     }
 
     @ExceptionHandler(LoginThrottledException.class)
-    ProblemDetail onLoginThrottled(LoginThrottledException e) {
-        return Problems.of(HttpStatus.TOO_MANY_REQUESTS, "login-throttled", "Too many attempts", e.getMessage());
+    ResponseEntity<ProblemDetail> onLoginThrottled(LoginThrottledException e) {
+        // ponytail: fixed hint, the limiter's real unlock time is not exposed; surface it if clients need precision
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, "60")
+                .body(Problems.of(
+                        HttpStatus.TOO_MANY_REQUESTS, "login-throttled", "Too many attempts", e.getMessage()));
     }
 
     @ExceptionHandler(PasswordPolicyException.class)

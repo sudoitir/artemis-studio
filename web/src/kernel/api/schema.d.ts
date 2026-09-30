@@ -5132,12 +5132,12 @@ export interface components {
             type?: string;
             title?: string;
             /** Format: int32 */
-            status: number;
+            status?: number;
             detail?: string;
             /** Format: uri */
             instance?: string;
             properties?: {
-                [key: string]: unknown;
+                [key: string]: Record<string, never>;
             };
         };
         RedactionView: {
@@ -6450,6 +6450,41 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     setDisabled: {
@@ -6476,6 +6511,41 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     put: {
@@ -6500,6 +6570,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     reset: {
@@ -6519,6 +6624,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6546,6 +6686,41 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     delete: {
@@ -6565,6 +6740,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6590,6 +6800,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GroupMappingsView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -6618,6 +6863,41 @@ export interface operations {
                     "*/*": components["schemas"]["RuleView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     delete_1: {
@@ -6637,6 +6917,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6664,6 +6979,41 @@ export interface operations {
                     "*/*": components["schemas"]["EnvironmentView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     delete_2: {
@@ -6683,6 +7033,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6707,6 +7092,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6735,6 +7155,41 @@ export interface operations {
                     "*/*": components["schemas"]["ExpectationView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     deleteExpectation: {
@@ -6755,6 +7210,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6780,6 +7270,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     rotateCredentials: {
@@ -6804,6 +7329,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     get: {
@@ -6824,6 +7384,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -6852,6 +7447,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     setBridgeCredential: {
@@ -6877,6 +7507,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     forgetBridgeCredential: {
@@ -6897,6 +7562,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6925,6 +7625,41 @@ export interface operations {
                     "*/*": components["schemas"]["AlertRuleView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     deleteRule: {
@@ -6945,6 +7680,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -6972,6 +7742,41 @@ export interface operations {
                     "*/*": components["schemas"]["NotificationChannelView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     delete_3: {
@@ -6992,6 +7797,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     upload: {
@@ -7010,6 +7850,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginUploadView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7034,6 +7909,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list: {
@@ -7052,6 +7962,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UserView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7078,6 +8023,41 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     addGrant: {
@@ -7102,6 +8082,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_1: {
@@ -7120,6 +8135,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TokenView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7146,6 +8196,41 @@ export interface operations {
                     "*/*": components["schemas"]["CreatedTokenView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     rotate: {
@@ -7168,6 +8253,41 @@ export interface operations {
                     "*/*": components["schemas"]["CreatedTokenView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     rotate_1: {
@@ -7188,6 +8308,41 @@ export interface operations {
                     "*/*": components["schemas"]["RotationView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_2: {
@@ -7206,6 +8361,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RoleView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7232,6 +8422,41 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_3: {
@@ -7252,6 +8477,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GroupMappingsView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7280,6 +8540,41 @@ export interface operations {
                     "*/*": components["schemas"]["GroupMappingView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     rules: {
@@ -7298,6 +8593,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RuleView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7324,6 +8654,41 @@ export interface operations {
                     "*/*": components["schemas"]["RuleView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     dismiss: {
@@ -7344,6 +8709,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FindingView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7368,6 +8768,41 @@ export interface operations {
                     "*/*": components["schemas"]["FindingView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_4: {
@@ -7386,6 +8821,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["EnvironmentView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7410,6 +8880,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["EnvironmentView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7438,6 +8943,41 @@ export interface operations {
                     "*/*": components["schemas"]["PreviewResponse"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_5: {
@@ -7456,6 +8996,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ClusterSummary"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7493,6 +9068,41 @@ export interface operations {
                     "*/*": components["schemas"]["ClusterDetail"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     stop: {
@@ -7514,6 +9124,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7539,6 +9184,41 @@ export interface operations {
                     "*/*": components["schemas"]["TransferRunView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     resume: {
@@ -7560,6 +9240,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7589,6 +9304,41 @@ export interface operations {
                     "*/*": components["schemas"]["TransferRunView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     preview_1: {
@@ -7613,6 +9363,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TransferRunView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7641,6 +9426,41 @@ export interface operations {
                     "*/*": components["schemas"]["OrphanReturnView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     verify: {
@@ -7665,6 +9485,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["VerifyView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7693,6 +9548,41 @@ export interface operations {
                     "*/*": components["schemas"]["SqlQueryTicketView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     plan: {
@@ -7719,6 +9609,41 @@ export interface operations {
                     "*/*": components["schemas"]["PlanView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_6: {
@@ -7739,6 +9664,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["IndexSubscriptionView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7767,6 +9727,41 @@ export interface operations {
                     "*/*": components["schemas"]["CapturePreviewView"] | components["schemas"]["IndexSubscriptionView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     runSetupReview: {
@@ -7787,6 +9782,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SetupReviewView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7815,6 +9845,41 @@ export interface operations {
                     "*/*": components["schemas"]["SetupReviewView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     revokeSetupRisk: {
@@ -7840,6 +9905,41 @@ export interface operations {
                     "*/*": components["schemas"]["SetupReviewView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     listExpectations: {
@@ -7860,6 +9960,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ExpectationView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7888,6 +10023,41 @@ export interface operations {
                     "*/*": components["schemas"]["ExpectationView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     queues: {
@@ -7910,6 +10080,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewQueueView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7940,6 +10145,41 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     resumeQueue: {
@@ -7963,6 +10203,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -7990,6 +10265,41 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     pauseQueue: {
@@ -8013,6 +10323,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8041,6 +10386,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MessagePageView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8073,6 +10453,41 @@ export interface operations {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     purge: {
@@ -8098,6 +10513,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8132,6 +10582,41 @@ export interface operations {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     closeSession: {
@@ -8156,6 +10641,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConnectionCloseView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8184,6 +10704,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConnectionCloseView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     closeConnection: {
@@ -8210,6 +10765,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConnectionCloseView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     diverts: {
@@ -8232,6 +10822,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewDivertView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8262,6 +10887,41 @@ export interface operations {
                     "*/*": components["schemas"]["DivertMutationView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     declareRecommended: {
@@ -8286,6 +10946,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8315,6 +11010,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigImportResultView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     evaluate: {
@@ -8335,6 +11065,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDriftReportView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8366,6 +11131,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigApplyOutcomeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     adopt: {
@@ -8386,6 +11186,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigAdoptionView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8409,6 +11244,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BulkRunView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8438,6 +11308,41 @@ export interface operations {
                     "*/*": components["schemas"]["BulkRunView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     preview_2: {
@@ -8464,6 +11369,41 @@ export interface operations {
                     "*/*": components["schemas"]["BulkRunDetailView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     rules_1: {
@@ -8484,6 +11424,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AlertRuleView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8512,6 +11487,41 @@ export interface operations {
                     "*/*": components["schemas"]["AlertRuleView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     addresses: {
@@ -8534,6 +11544,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewAddressView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8564,6 +11609,41 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     closeAddressConsumers: {
@@ -8590,6 +11670,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConnectionCloseView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_7: {
@@ -8608,6 +11723,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["NotificationChannelView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8634,6 +11784,41 @@ export interface operations {
                     "*/*": components["schemas"]["NotificationChannelView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     test: {
@@ -8654,6 +11839,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChannelTestResultView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8677,6 +11897,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AlertDeliveryView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8703,6 +11958,41 @@ export interface operations {
                     "*/*": components["schemas"]["ChannelTestResultView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     secondFactor: {
@@ -8727,6 +12017,41 @@ export interface operations {
                     "*/*": components["schemas"]["AuthResult"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     secondFactorOptions: {
@@ -8747,6 +12072,41 @@ export interface operations {
                     "*/*": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -8773,6 +12133,41 @@ export interface operations {
                     "*/*": components["schemas"]["AuthResult"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     changePassword: {
@@ -8794,6 +12189,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -8819,6 +12249,41 @@ export interface operations {
                     "*/*": components["schemas"]["PasskeyRegisteredView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     passkeyOptions: {
@@ -8841,6 +12306,41 @@ export interface operations {
                     };
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     startTotp: {
@@ -8861,6 +12361,41 @@ export interface operations {
                     "*/*": components["schemas"]["TotpEnrolmentView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     removeTotp: {
@@ -8878,6 +12413,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -8903,6 +12473,41 @@ export interface operations {
                     "*/*": components["schemas"]["TotpConfirmedView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     regenerateRecoveryCodes: {
@@ -8923,6 +12528,41 @@ export interface operations {
                     "*/*": components["schemas"]["RecoveryCodesView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     logout: {
@@ -8940,6 +12580,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -8965,6 +12640,41 @@ export interface operations {
                     "*/*": components["schemas"]["AuthResult"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     uninstall: {
@@ -8986,6 +12696,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -9009,6 +12754,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginPlanView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9035,6 +12815,41 @@ export interface operations {
                     "*/*": components["schemas"]["PluginPurgePlanView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     enable: {
@@ -9059,6 +12874,41 @@ export interface operations {
                     "*/*": components["schemas"]["PluginPlanView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     downloadUpdate: {
@@ -9079,6 +12929,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginUploadView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9102,6 +12987,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -9127,6 +13047,41 @@ export interface operations {
                     "*/*": components["schemas"]["PluginPlanView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     restart: {
@@ -9144,6 +13099,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -9163,6 +13153,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TrustedKeysView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9189,6 +13214,41 @@ export interface operations {
                     "*/*": components["schemas"]["TrustedKeyView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     installers: {
@@ -9207,6 +13267,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginInstallerView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9231,6 +13326,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     checkUpdates: {
@@ -9249,6 +13379,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginUpdateView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9320,6 +13485,41 @@ export interface operations {
                     "*/*": components["schemas"]["DeletedView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     update_5: {
@@ -9347,6 +13547,41 @@ export interface operations {
                     "*/*": components["schemas"]["IndexSubscriptionView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     deleteQueue: {
@@ -9372,6 +13607,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9403,6 +13673,41 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     overrideNode: {
@@ -9428,6 +13733,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["NodeEndpointView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9456,6 +13796,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     sessionsOf: {
@@ -9476,6 +13851,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AccountSessionView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9500,6 +13910,41 @@ export interface operations {
                     "*/*": components["schemas"]["EndedSessionsView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     effectivePermissions: {
@@ -9520,6 +13965,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["EffectivePermissionView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9546,6 +14026,41 @@ export interface operations {
                     "*/*": components["schemas"]["UsageView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     policy: {
@@ -9564,6 +14079,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TokenPolicyView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9586,6 +14136,41 @@ export interface operations {
                     "*/*": components["schemas"]["TimeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     jobs: {
@@ -9604,6 +14189,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["JobStatusView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9651,6 +14271,41 @@ export interface operations {
                     "text/event-stream": components["schemas"]["SseEmitter"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_8: {
@@ -9669,6 +14324,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9691,6 +14381,41 @@ export interface operations {
                     "*/*": components["schemas"]["SecretsStatus"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     permissions: {
@@ -9709,6 +14434,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PermissionView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9731,6 +14491,41 @@ export interface operations {
                     "*/*": components["schemas"]["McpToolView"][];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     manifest: {
@@ -9749,6 +14544,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ManifestView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9771,6 +14601,41 @@ export interface operations {
                     "*/*": components["schemas"]["PolicyView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     findings: {
@@ -9791,6 +14656,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FindingView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9833,6 +14733,41 @@ export interface operations {
                     "*/*": components["schemas"]["StoresResponse"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     health: {
@@ -9851,6 +14786,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9875,6 +14845,41 @@ export interface operations {
                     "*/*": components["schemas"]["ClusterDetail"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     delete_5: {
@@ -9894,6 +14899,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -9915,6 +14955,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TransferRunView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9940,6 +15015,41 @@ export interface operations {
                     "*/*": components["schemas"]["TransferRunView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     orphans: {
@@ -9962,6 +15072,41 @@ export interface operations {
                     "*/*": components["schemas"]["OrphanView"][];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     topology: {
@@ -9982,6 +15127,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TopologyView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10008,6 +15188,41 @@ export interface operations {
                     "text/event-stream": components["schemas"]["StreamFrameView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     setupReview: {
@@ -10028,6 +15243,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SetupReviewView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10054,6 +15304,41 @@ export interface operations {
                     "*/*": components["schemas"]["PagedViewSessionView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     stats: {
@@ -10076,6 +15361,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StatsResponse"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10108,6 +15428,41 @@ export interface operations {
                     "*/*": components["schemas"]["FlowPageView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     flow: {
@@ -10131,6 +15486,41 @@ export interface operations {
                     "*/*": components["schemas"]["FlowView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     diagnostics: {
@@ -10151,6 +15541,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RrDiagnosticsView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10180,6 +15605,41 @@ export interface operations {
                     "*/*": components["schemas"]["MessageDetailView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     configuration: {
@@ -10201,6 +15661,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["QueueConfiguration"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10227,6 +15722,41 @@ export interface operations {
                     "*/*": components["schemas"]["PagedViewProducerView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     nodeConfig: {
@@ -10248,6 +15778,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["NodeConfigView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10280,6 +15845,41 @@ export interface operations {
                     "*/*": components["schemas"]["MetricSeriesResponse"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     plugin: {
@@ -10308,6 +15908,41 @@ export interface operations {
                     "*/*": components["schemas"]["MetricSeriesResponse"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     health_1: {
@@ -10328,6 +15963,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["HealthView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10360,6 +16030,41 @@ export interface operations {
                     "*/*": components["schemas"]["FlowGraphView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_10: {
@@ -10390,6 +16095,41 @@ export interface operations {
                     "*/*": components["schemas"]["BrokerEventPageView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     get_3: {
@@ -10411,6 +16151,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BrokerEventView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10435,6 +16210,41 @@ export interface operations {
                     "*/*": components["schemas"]["DlqView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     consumers: {
@@ -10457,6 +16267,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewConsumerView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10487,6 +16332,41 @@ export interface operations {
                     "*/*": components["schemas"]["PagedViewConsumerHealthView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     connections: {
@@ -10511,6 +16391,41 @@ export interface operations {
                     "*/*": components["schemas"]["PagedViewConnectionView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     revisions: {
@@ -10531,6 +16446,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigRevisionView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10556,6 +16506,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigRevisionView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     recommendations: {
@@ -10576,6 +16561,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigRecommendationsView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10602,6 +16622,41 @@ export interface operations {
                     "application/xml": string;
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     drift: {
@@ -10622,6 +16677,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDriftReportView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10646,6 +16736,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigNodeConnectorsView"][];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     catalogue: {
@@ -10668,6 +16793,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigCatalogueView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     bridgeCredentials: {
@@ -10688,6 +16848,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigBridgeCredentialView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10714,6 +16909,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigApplyHistoryView"][];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     applyDetail: {
@@ -10735,6 +16965,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigApplyDetailView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10762,6 +17027,41 @@ export interface operations {
                     "*/*": components["schemas"]["ConfigDiffView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     capabilities: {
@@ -10784,6 +17084,41 @@ export interface operations {
                     "*/*": components["schemas"]["CapabilitiesView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     history_1: {
@@ -10804,6 +17139,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BulkRunView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10829,6 +17199,41 @@ export interface operations {
                     "*/*": components["schemas"]["BulkRunDetailView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     bridges: {
@@ -10851,6 +17256,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewBridgeView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10884,6 +17324,41 @@ export interface operations {
                     "*/*": components["schemas"]["AuditPageView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     get_5: {
@@ -10907,6 +17382,41 @@ export interface operations {
                     "*/*": components["schemas"]["AuditEventView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     pluginMetrics: {
@@ -10927,6 +17437,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginMetricView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10954,6 +17499,41 @@ export interface operations {
                     "*/*": components["schemas"]["AlertFiringPageView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     firing: {
@@ -10974,6 +17554,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AlertFiringView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11000,6 +17615,41 @@ export interface operations {
                     "*/*": components["schemas"]["AlertDeliveryView"][];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     ownSessions: {
@@ -11018,6 +17668,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AccountSessionView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11040,6 +17725,41 @@ export interface operations {
                     "*/*": components["schemas"]["EndedSessionsView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     providers: {
@@ -11058,6 +17778,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["IdentityProviderView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11080,6 +17835,41 @@ export interface operations {
                     "*/*": components["schemas"]["MfaStatusView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     me: {
@@ -11098,6 +17888,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11120,6 +17945,41 @@ export interface operations {
                     "*/*": components["schemas"]["ClusterFiringCountView"][];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_12: {
@@ -11138,6 +17998,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TokenView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11164,6 +18059,41 @@ export interface operations {
                     "*/*": components["schemas"]["UsageView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_13: {
@@ -11182,6 +18112,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginsView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11206,6 +18171,41 @@ export interface operations {
                     "*/*": components["schemas"]["PluginView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     history_3: {
@@ -11226,6 +18226,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AuditEventView"][];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11250,6 +18285,41 @@ export interface operations {
                     "*/*": components["schemas"]["PluginPlanView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     discard: {
@@ -11269,6 +18339,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -11291,6 +18396,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     resetSecondFactors: {
@@ -11311,6 +18451,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UserView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11337,6 +18512,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     revoke: {
@@ -11356,6 +18566,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -11377,6 +18622,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -11401,6 +18681,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11428,6 +18743,41 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     endOwnSession: {
@@ -11447,6 +18797,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -11468,6 +18853,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     revokeTrustedDevices: {
@@ -11485,6 +18905,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -11506,6 +18961,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     revoke_1: {
@@ -11525,6 +19015,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -11546,6 +19071,41 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     revokeInstaller: {
@@ -11565,6 +19125,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };

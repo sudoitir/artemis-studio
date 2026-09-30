@@ -10,9 +10,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -24,7 +26,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * authentication with the session-less empty context it loads.
  *
  * <p>Any other {@code Authorization} header, and a bearer token no provider accepts, is answered
- * with 401 here. Only a request this filter authenticated skips the CSRF check
+ * with the 401 problem here. Only a request this filter authenticated skips the CSRF check
  * ({@link #AUTHENTICATED}); otherwise a junk header plus the session cookie would skip it too.
  */
 class BearerAuthenticationFilter extends OncePerRequestFilter {
@@ -38,8 +40,11 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     private final RequestAttributeSecurityContextRepository requestContexts =
             new RequestAttributeSecurityContextRepository();
 
-    BearerAuthenticationFilter(List<IdentityProviders> contributions) {
+    private final AuthenticationEntryPoint entryPoint;
+
+    BearerAuthenticationFilter(List<IdentityProviders> contributions, AuthenticationEntryPoint entryPoint) {
         this.contributions = contributions;
+        this.entryPoint = entryPoint;
     }
 
     @Override
@@ -54,7 +59,7 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
                 ? authenticate(header.substring(BEARER_PREFIX.length()).trim())
                 : Optional.empty();
         if (principal.isEmpty()) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            entryPoint.commence(request, response, new BadCredentialsException("Bearer token not accepted"));
             return;
         }
         StudioPrincipal p = principal.get();

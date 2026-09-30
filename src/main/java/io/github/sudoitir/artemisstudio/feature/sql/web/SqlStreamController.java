@@ -214,7 +214,7 @@ public class SqlStreamController {
             return problems.onGovernanceRefused(refused);
         }
         if (e instanceof SqlConsoleService.TooManyQueriesException tooMany) {
-            return problems.onTooManyQueries(tooMany);
+            return problems.onTooManyQueries(tooMany).getBody();
         }
         log.debug("SQL console query failed", e);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(

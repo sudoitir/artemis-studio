@@ -13,7 +13,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
@@ -24,6 +23,7 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The one security chain: session-cookie authentication and dynamic, scope-walked
@@ -58,10 +58,12 @@ public class SecurityConfig {
             HttpSecurity http,
             List<IdentityProviders> identityProviders,
             HandlerExceptionResolver handlerExceptionResolver,
+            JsonMapper json,
             CsrfTokenRepository csrfTokenRepository,
             SessionAuthentication sessions,
             PermissionResolver perm)
             throws Exception {
+        ProblemAuthenticationEntryPoint entryPoint = new ProblemAuthenticationEntryPoint(json);
         http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
                 .sessionManagement(session -> session.sessionCreationPolicy(
                         org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED))
@@ -70,12 +72,12 @@ public class SecurityConfig {
                         // A request a bearer token authenticated carries no ambient browser
                         // credential, so there is nothing for a cross-site request to ride on
                         // (design.md decision 1). Any other Authorization header never gets here:
-                        // BearerAuthenticationFilter answers it with 401.
+                        // BearerAuthenticationFilter answers it with a 401 problem.
                         .ignoringRequestMatchers(
                                 request -> request.getAttribute(BearerAuthenticationFilter.AUTHENTICATED) != null))
                 .headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY)))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(
-                        new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(new ProblemAccessDeniedHandler(json)))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/second-factor",
@@ -113,7 +115,9 @@ public class SecurityConfig {
                 // SecurityContextHolderFilter loads (empty, session-less) context from the
                 // repository and would overwrite a bearer authentication set before it runs —
                 // this filter must come after, not before.
-                .addFilterAfter(new BearerAuthenticationFilter(identityProviders), SecurityContextHolderFilter.class)
+                .addFilterAfter(
+                        new BearerAuthenticationFilter(identityProviders, entryPoint),
+                        SecurityContextHolderFilter.class)
                 .addFilterAfter(
                         new RestrictedSessionFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);

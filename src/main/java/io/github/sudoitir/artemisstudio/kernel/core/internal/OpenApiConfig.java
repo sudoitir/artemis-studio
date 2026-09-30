@@ -1,13 +1,23 @@
 package io.github.sudoitir.artemisstudio.kernel.core.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Branding;
+import io.swagger.v3.core.converter.AnnotatedType;
+import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.IntegerSchema;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import java.util.List;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.PropertyCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.ProblemDetail;
 
 /**
  * Pins the OpenAPI document's {@code info} and drops the generated server list so
@@ -44,5 +54,51 @@ class OpenApiConfig {
             }
             return property;
         };
+    }
+
+    /**
+     * Every operation can fail, and every failure is a problem (api-contract spec): {@code 4XX} and
+     * {@code 5XX} carry {@code application/problem+json}, and 429 names the headers a client backs off by.
+     * An operation that documents one of these itself keeps its own.
+     */
+    @Bean
+    OpenApiCustomizer problemResponses() {
+        return openApi -> {
+            var resolved =
+                    ModelConverters.getInstance().resolveAsResolvedSchema(new AnnotatedType(ProblemDetail.class));
+            resolved.referencedSchemas.forEach(openApi.getComponents()::addSchemas);
+            Content problem = new Content()
+                    .addMediaType(
+                            org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            new MediaType().schema(new Schema<>().$ref("#/components/schemas/ProblemDetail")));
+            ApiResponse tooMany = new ApiResponse()
+                    .description("Too many requests. Wait for Retry-After seconds.")
+                    .content(problem)
+                    .addHeaderObject("Retry-After", header("Seconds to wait before retrying."))
+                    .addHeaderObject("RateLimit-Limit", header("Requests allowed in the window (API tokens)."))
+                    .addHeaderObject("RateLimit-Remaining", header("Requests left in the window (API tokens)."))
+                    .addHeaderObject("RateLimit-Reset", header("Seconds until the window resets (API tokens)."));
+            openApi.getPaths()
+                    .values()
+                    .forEach(path -> path.readOperations().forEach(op -> {
+                        op.getResponses()
+                                .putIfAbsent(
+                                        "4XX",
+                                        new ApiResponse()
+                                                .description("Client error")
+                                                .content(problem));
+                        op.getResponses()
+                                .putIfAbsent(
+                                        "5XX",
+                                        new ApiResponse()
+                                                .description("Server error")
+                                                .content(problem));
+                        op.getResponses().putIfAbsent("429", tooMany);
+                    }));
+        };
+    }
+
+    private static Header header(String description) {
+        return new Header().description(description).schema(new IntegerSchema());
     }
 }

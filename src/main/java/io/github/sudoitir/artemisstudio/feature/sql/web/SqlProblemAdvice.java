@@ -5,8 +5,10 @@ import io.github.sudoitir.artemisstudio.feature.sql.GovernanceRefusedException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlConsoleService;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -62,10 +64,13 @@ public class SqlProblemAdvice {
     }
 
     @ExceptionHandler(SqlConsoleService.TooManyQueriesException.class)
-    public ProblemDetail onTooManyQueries(SqlConsoleService.TooManyQueriesException e) {
+    public ResponseEntity<ProblemDetail> onTooManyQueries(SqlConsoleService.TooManyQueriesException e) {
         ProblemDetail problem = Problems.of(
                 HttpStatus.TOO_MANY_REQUESTS, "too-many-queries", "Too many queries at once", e.getMessage());
         problem.setProperty("cap", e.cap());
-        return problem;
+        // ponytail: fixed hint, a running query has no known end; add an estimate if clients need one
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, "5")
+                .body(problem);
     }
 }
