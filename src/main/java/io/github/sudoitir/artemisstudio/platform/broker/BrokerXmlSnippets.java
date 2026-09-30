@@ -8,6 +8,9 @@ package io.github.sudoitir.artemisstudio.platform.broker;
  */
 public final class BrokerXmlSnippets {
 
+    /** The line break and indentation of a nested element in the XML written through StAX. */
+    private static final String INDENT = "\n    ";
+
     private BrokerXmlSnippets() {}
 
     /**
@@ -40,7 +43,6 @@ public final class BrokerXmlSnippets {
             </broker-plugins>
             """;
 
-    /** Both snippets, in the order they appear in {@code broker.xml}. */
     /**
      * The {@code <divert>} that would make a broker's configuration carry a divert
      * Studio created over management. Built from the operator's own entered values so
@@ -71,7 +73,7 @@ public final class BrokerXmlSnippets {
             element(w, "address", address);
             element(w, "forwarding-address", forwardingAddress);
             if (filter != null && !filter.isBlank()) {
-                w.writeCharacters("\n    ");
+                w.writeCharacters(INDENT);
                 w.writeEmptyElement("filter");
                 w.writeAttribute("string", filter);
             }
@@ -120,19 +122,19 @@ public final class BrokerXmlSnippets {
             element(w, "queue-name", queueName);
             element(w, "forwarding-address", forwardingAddress);
             if (filter != null && !filter.isBlank()) {
-                w.writeCharacters("\n    ");
+                w.writeCharacters(INDENT);
                 w.writeEmptyElement("filter");
                 w.writeAttribute("string", filter);
             }
             if (credentialRef != null && !credentialRef.isBlank()) {
-                w.writeCharacters("\n    ");
+                w.writeCharacters(INDENT);
                 w.writeComment(" Credential '" + credentialRef
                         + "' is held in Artemis Studio's vault and is not exported. Supply it here. ");
                 element(w, "user", "${" + credentialRef + ".user}");
                 element(w, "password", "${" + credentialRef + ".password}");
             }
             if (staticConnectors != null && !staticConnectors.isEmpty()) {
-                w.writeCharacters("\n    ");
+                w.writeCharacters(INDENT);
                 w.writeStartElement("static-connectors");
                 for (String connector : staticConnectors) {
                     w.writeCharacters("\n      ");
@@ -140,10 +142,10 @@ public final class BrokerXmlSnippets {
                     w.writeCharacters(connector);
                     w.writeEndElement();
                 }
-                w.writeCharacters("\n    ");
+                w.writeCharacters(INDENT);
                 w.writeEndElement();
             } else if (discoveryGroupName != null && !discoveryGroupName.isBlank()) {
-                w.writeCharacters("\n    ");
+                w.writeCharacters(INDENT);
                 w.writeEmptyElement("discovery-group-ref");
                 w.writeAttribute("discovery-group-name", discoveryGroupName);
             }
@@ -161,7 +163,7 @@ public final class BrokerXmlSnippets {
 
     private static void element(javax.xml.stream.XMLStreamWriter w, String tag, String text)
             throws javax.xml.stream.XMLStreamException {
-        w.writeCharacters("\n    ");
+        w.writeCharacters(INDENT);
         w.writeStartElement(tag);
         w.writeCharacters(text);
         w.writeEndElement();

@@ -96,17 +96,7 @@ public final class CoreEventClient implements AutoCloseable {
             try {
                 Message message = consumer.receive(RECEIVE_TIMEOUT_MILLIS);
                 if (message != null) {
-                    BrokerEvent event = mapper.toEvent(clusterId, nodeId, message);
-                    for (BrokerEventSink sink : sinks) {
-                        try {
-                            sink.accept(event);
-                        } catch (RuntimeException e) {
-                            log.warn(
-                                    "Notification sink {} rejected an event: {}",
-                                    sink.getClass().getSimpleName(),
-                                    e.toString());
-                        }
-                    }
+                    dispatch(message);
                 }
             } catch (JMSException e) {
                 if (running) {
@@ -120,6 +110,20 @@ public final class CoreEventClient implements AutoCloseable {
                     log.warn("Core notification subscription for node {} errored", nodeId, e);
                 }
                 return;
+            }
+        }
+    }
+
+    private void dispatch(Message message) throws JMSException {
+        BrokerEvent event = mapper.toEvent(clusterId, nodeId, message);
+        for (BrokerEventSink sink : sinks) {
+            try {
+                sink.accept(event);
+            } catch (RuntimeException e) {
+                log.warn(
+                        "Notification sink {} rejected an event: {}",
+                        sink.getClass().getSimpleName(),
+                        e.toString());
             }
         }
     }

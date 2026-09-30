@@ -14,21 +14,19 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class BrokerJobs {
 
+    private static final String FEATURE = "broker";
+
     @Bean
     ScheduledJob nodeCallRefillJob(NodeCallLimiter limiter) {
         return ScheduledJob.fixedDelay(
-                "node-call-refill",
-                "broker",
-                ScheduledJob.Scope.INSTANCE,
-                () -> Duration.ofSeconds(1),
-                limiter::refill);
+                "node-call-refill", FEATURE, ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), limiter::refill);
     }
 
     @Bean
     ScheduledJob clockOffsetRefreshJob(ClockOffsetService offsets) {
         return ScheduledJob.fixedDelay(
                 "clock-offset-refresh",
-                "broker",
+                FEATURE,
                 ScheduledJob.Scope.INSTANCE,
                 () -> ClockOffsetService.REFRESH_INTERVAL,
                 offsets::refresh);
@@ -38,7 +36,7 @@ class BrokerJobs {
     ScheduledJob monotonicClockWatchJob(MonotonicClockWatch watch) {
         return ScheduledJob.fixedDelay(
                 "monotonic-clock-watch",
-                "broker",
+                FEATURE,
                 ScheduledJob.Scope.INSTANCE,
                 () -> MonotonicClockWatch.INTERVAL,
                 watch::check);

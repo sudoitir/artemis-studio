@@ -128,7 +128,7 @@ public class ClockOffsetRegistry {
         synchronized void accept(long offsetMs, long rttMs, Instant at) {
             if (samples == 0) {
                 bestRttMs = rttMs;
-                smoothedOffsetMs = offsetMs;
+                smoothedOffsetMs = (double) offsetMs;
                 samples = 1;
                 measuredAt = at;
                 return;

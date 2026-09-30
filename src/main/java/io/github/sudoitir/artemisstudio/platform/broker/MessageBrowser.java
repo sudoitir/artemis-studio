@@ -108,16 +108,7 @@ public class MessageBrowser {
                 JolokiaRequest.read(queueMbean, ATTR_MESSAGE_COUNT)));
 
         JolokiaResponse browse = responses.get(0);
-        if (!browse.ok()) {
-            String error = browse.error() == null ? "" : browse.error();
-            if (error.contains("AMQ229020") || error.toLowerCase().contains("invalid filter")) {
-                // Never echo the filter: it can carry sensitive literals (data-governance spec).
-                throw new IllegalArgumentException("Invalid message filter.");
-            }
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.BAD_RESPONSE,
-                    "browse() failed: " + (error.isEmpty() ? "status " + browse.status() : error));
-        }
+        requireBrowsed(browse);
 
         java.util.ArrayList<BrowsedMessage> messages = new java.util.ArrayList<>();
         JsonNode array = browse.value();
@@ -132,6 +123,20 @@ public class MessageBrowser {
             return new BrowsePage(List.copyOf(messages), null, "The broker did not return this queue's message count.");
         }
         return new BrowsePage(List.copyOf(messages), totalNode.asLong());
+    }
+
+    private static void requireBrowsed(JolokiaResponse browse) {
+        if (browse.ok()) {
+            return;
+        }
+        String error = browse.error() == null ? "" : browse.error();
+        if (error.contains("AMQ229020") || error.toLowerCase().contains("invalid filter")) {
+            // Never echo the filter: it can carry sensitive literals (data-governance spec).
+            throw new IllegalArgumentException("Invalid message filter.");
+        }
+        throw new BrokerConnectionException(
+                BrokerConnectionException.Kind.BAD_RESPONSE,
+                "browse() failed: " + (error.isEmpty() ? "status " + browse.status() : error));
     }
 
     private static BrowsedMessage decodeRow(JsonNode row) {

@@ -9,6 +9,7 @@ import jakarta.jms.BytesMessage;
 import jakarta.jms.DeliveryMode;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
+import jakarta.jms.MessageProducer;
 import jakarta.jms.Queue;
 import jakarta.jms.QueueBrowser;
 import jakarta.jms.Session;
@@ -179,7 +180,9 @@ public class CoreMessageTransport implements MessageTransport {
             applyProperties(message, spec.headers());
             applyProperties(message, spec.properties());
             int deliveryMode = spec.durable() ? DeliveryMode.PERSISTENT : DeliveryMode.NON_PERSISTENT;
-            session.createProducer(queue).send(message, deliveryMode, Message.DEFAULT_PRIORITY, 0L);
+            try (MessageProducer producer = session.createProducer(queue)) {
+                producer.send(message, deliveryMode, Message.DEFAULT_PRIORITY, 0L);
+            }
         } catch (JMSException ex) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE, "Core send failed: " + ex.getMessage());
@@ -225,19 +228,23 @@ public class CoreMessageTransport implements MessageTransport {
     public static BrowsedMessage toBrowsed(Message m) throws JMSException {
         String body;
         BodyEncoding encoding;
-        if (m instanceof TextMessage text) {
-            body = text.getText();
-            encoding = BodyEncoding.TEXT;
-        } else if (m instanceof BytesMessage bytes) {
-            bytes.reset();
-            long len = bytes.getBodyLength();
-            byte[] raw = new byte[(int) Math.min(len, Integer.MAX_VALUE)];
-            bytes.readBytes(raw);
-            body = Base64.getEncoder().encodeToString(raw);
-            encoding = BodyEncoding.BASE64;
-        } else {
-            body = null;
-            encoding = BodyEncoding.TEXT;
+        switch (m) {
+            case TextMessage text -> {
+                body = text.getText();
+                encoding = BodyEncoding.TEXT;
+            }
+            case BytesMessage bytes -> {
+                bytes.reset();
+                long len = bytes.getBodyLength();
+                byte[] raw = new byte[(int) Math.min(len, Integer.MAX_VALUE)];
+                bytes.readBytes(raw);
+                body = Base64.getEncoder().encodeToString(raw);
+                encoding = BodyEncoding.BASE64;
+            }
+            default -> {
+                body = null;
+                encoding = BodyEncoding.TEXT;
+            }
         }
 
         Map<String, String> strings = new LinkedHashMap<>();
@@ -297,7 +304,7 @@ public class CoreMessageTransport implements MessageTransport {
         return 0L;
     }
 
-    private static int jmsTypeInt(Message m) throws JMSException {
+    private static int jmsTypeInt(Message m) {
         if (m instanceof TextMessage) {
             return 3;
         }
