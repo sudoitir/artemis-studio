@@ -30,6 +30,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
             "kernel.core",
             "kernel.jobs",
             "kernel.plugin",
+            "kernel.replica",
             "kernel.security",
             "kernel.settings",
             "kernel.stream"
