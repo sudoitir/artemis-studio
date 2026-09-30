@@ -205,7 +205,7 @@ class FlowGraphServiceTest {
                 service.graph(clusterId, FlowQuery.of("queue:orders", 2, Rank.IN, 40, GroupBy.CLIENT_ID, null));
         FlowGraphView none = service.graph(clusterId, query("queue:gone", 40));
 
-        assertThat(one.nodes()).extracting(FlowNodeView::id).doesNotContain("queue:refunds");
+        assertThat(one.nodes()).isNotEmpty().extracting(FlowNodeView::id).doesNotContain("queue:refunds");
         assertThat(two.nodes()).extracting(FlowNodeView::id).contains("queue:refunds");
         assertThat(none.focus().matched()).isFalse();
         assertThat(none.nodes()).isEmpty();
@@ -816,6 +816,7 @@ class FlowGraphServiceTest {
                 service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "CAPTURE"));
 
         assertThat(hidden.nodes())
+                .isNotEmpty()
                 .extracting(FlowNodeView::id)
                 .doesNotContain("consumer:tap", "producer:tapper", "consumer:cluster");
         assertThat(shown.nodes()).extracting(FlowNodeView::id).doesNotContain("consumer:cluster");
@@ -1027,6 +1028,7 @@ class FlowGraphServiceTest {
 
         assertThat(graph.nodes())
                 .filteredOn(n -> n.role() == NodeRole.TEMPORARY || n.id().equals("queue:fresh"))
+                .isNotEmpty()
                 .allSatisfy(n -> assertThat(n.byNode()).isNullOrEmpty());
     }
 

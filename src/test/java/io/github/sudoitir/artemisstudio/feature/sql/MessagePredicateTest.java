@@ -97,7 +97,10 @@ class MessagePredicateTest {
 
     @Test
     void matchCannotBeEvaluatedAgainstABrokerMessage() {
-        assertThatThrownBy(() -> matches(new Predicate.Match("foo"), message("x")))
+        var match = new Predicate.Match("foo");
+        var msg = message("x");
+
+        assertThatThrownBy(() -> matches(match, msg))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("MATCH()");
     }
@@ -234,13 +237,13 @@ class MessagePredicateTest {
 
     @Test
     void likeToRegexQuotesMetacharactersAndHonoursEscape() {
-        assertThat("a.b".matches(MessagePredicate.likeToRegex("a.b", null))).isTrue();
-        assertThat("axb".matches(MessagePredicate.likeToRegex("a.b", null))).isFalse();
-        assertThat("50%".matches(MessagePredicate.likeToRegex("50!%", '!'))).isTrue();
-        assertThat("50x".matches(MessagePredicate.likeToRegex("50!%", '!'))).isFalse();
-        assertThat("a_".matches(MessagePredicate.likeToRegex("a!_", '!'))).isTrue();
+        assertThat("a.b").matches(MessagePredicate.likeToRegex("a.b", null));
+        assertThat("axb").doesNotMatch(MessagePredicate.likeToRegex("a.b", null));
+        assertThat("50%").matches(MessagePredicate.likeToRegex("50!%", '!'));
+        assertThat("50x").doesNotMatch(MessagePredicate.likeToRegex("50!%", '!'));
+        assertThat("a_").matches(MessagePredicate.likeToRegex("a!_", '!'));
         // a trailing escape is a literal, not dropped
-        assertThat("a!".matches(MessagePredicate.likeToRegex("a!", '!'))).isTrue();
+        assertThat("a!").matches(MessagePredicate.likeToRegex("a!", '!'));
     }
 
     @Test

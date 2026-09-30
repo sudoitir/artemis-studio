@@ -750,7 +750,7 @@ class BrokerConfigPlannerEdgeCasesTest {
                         "DIVERT:foreign-divert:REMOVE");
         assertThat(plan.hazards())
                 .filteredOn(h -> h.kind() == HazardKind.REMOVE_UNDECLARED)
-                .extracting(h -> h.key())
+                .extracting(Plan.Hazard::key)
                 .contains("foreign-divert");
         assertThat(plan.hazards())
                 .filteredOn(h -> h.kind() == HazardKind.BRIDGE_REMOVE)
@@ -822,7 +822,7 @@ class BrokerConfigPlannerEdgeCasesTest {
         Plan plan = BrokerConfigPlanner.plan(
                 settingsDoc(), List.of(node.build()), Set.of(), PlanOptions.drift(false, List.of()));
 
-        assertThat(plan.findings()).extracting(Plan.Finding::kind).doesNotContain(FindingKind.UNDECLARED);
+        assertThat(plan.findings()).isEmpty();
     }
 
     // ---- address settings that are already there or replace an explicit entry ------------------

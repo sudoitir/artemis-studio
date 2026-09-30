@@ -75,8 +75,9 @@ class MessageIndexCoverageTest {
 
         // Not "no results for ORDER.RETRY": the queue is named, because an operator
         // reading a wildcard result has no other way to learn one target was silent.
-        assertThat(notices).anySatisfy(notice -> assertThat(notice.detail()).contains("ORDER.RETRY"));
-        assertThat(notices).noneSatisfy(notice -> assertThat(notice.detail()).contains("ORDER.IN —"));
+        assertThat(notices)
+                .anySatisfy(notice -> assertThat(notice.detail()).contains("ORDER.RETRY"))
+                .noneSatisfy(notice -> assertThat(notice.detail()).contains("ORDER.IN —"));
     }
 
     @Test

@@ -8,8 +8,10 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -324,8 +326,9 @@ class MessageServiceTest {
 
     @Test
     void aRequestedNodeThatDoesNotHoldTheQueueIs404() {
-        assertThatThrownBy(() -> service.resolve(CLUSTER, "orders", UUID.randomUUID()))
-                .isInstanceOf(NotFoundException.class);
+        UUID otherNode = UUID.randomUUID();
+
+        assertThatThrownBy(() -> service.resolve(CLUSTER, "orders", otherNode)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -388,8 +391,7 @@ class MessageServiceTest {
 
     @Test
     void aSendThatTheBrokerRefusesIsReportedAndAuditedAsFailed() {
-        org.mockito.Mockito.doThrow(
-                        new BrokerConnectionException(BrokerConnectionException.Kind.UNAUTHORIZED, "denied"))
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNAUTHORIZED, "denied"))
                 .when(jolokia)
                 .send(any(), any());
 
@@ -429,7 +431,9 @@ class MessageServiceTest {
 
     @Test
     void aMoveWithoutATargetIsRefusedAndTheAuditRowClosedAsFailed() {
-        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.MOVE, ids(1L), false, false))
+        var request = ids(1L);
+
+        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.MOVE, request, false, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("MOVE requires a target queue.");
         verify(audit).fail(event, "MOVE requires a target queue.");
@@ -438,14 +442,9 @@ class MessageServiceTest {
 
     @Test
     void aMoveWithABlankTargetIsRefusedToo() {
-        assertThatThrownBy(() -> service.execute(
-                        CLUSTER,
-                        "orders",
-                        null,
-                        MessageAction.MOVE,
-                        new MessageActionRequest(List.of(1L), null, " "),
-                        false,
-                        false))
+        var request = new MessageActionRequest(List.of(1L), null, " ");
+
+        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.MOVE, request, false, false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -547,12 +546,13 @@ class MessageServiceTest {
         when(messageOps.countMessages(client, queueMbean(), "f")).thenReturn(9L);
         when(messageOps.deleteByFilter(client, queueMbean(), "f")).thenReturn(9L);
 
-        assertThatThrownBy(() ->
-                        service.execute(CLUSTER, "orders", null, MessageAction.DELETE, filter("f", null), false, false))
+        var request = filter("f", null);
+
+        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.DELETE, request, false, false))
                 .isInstanceOf(BulkCapExceededException.class);
         verify(audit).fail(event, "Over the safety cap (9 > 5).");
 
-        assertThat(service.execute(CLUSTER, "orders", null, MessageAction.DELETE, filter("f", null), false, true))
+        assertThat(service.execute(CLUSTER, "orders", null, MessageAction.DELETE, request, false, true))
                 .isInstanceOfSatisfying(
                         Attempt.Ok.class, ok -> assertThat(ok.value()).isEqualTo(new Outcome.Affected(9, NODE_B)));
     }
@@ -610,8 +610,9 @@ class MessageServiceTest {
         when(messageOps.countMessages(any(), anyString(), anyString()))
                 .thenThrow(new IllegalArgumentException("bad selector"));
 
-        assertThatThrownBy(() ->
-                        service.execute(CLUSTER, "orders", null, MessageAction.DELETE, filter("f", null), false, false))
+        var request = filter("f", null);
+
+        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.DELETE, request, false, false))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(audit).fail(event, "bad selector");
     }
@@ -636,7 +637,7 @@ class MessageServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
-        verify(audit, org.mockito.Mockito.times(2))
+        verify(audit, times(2))
                 .begin(
                         any(),
                         eq("MOVE_MESSAGES"),

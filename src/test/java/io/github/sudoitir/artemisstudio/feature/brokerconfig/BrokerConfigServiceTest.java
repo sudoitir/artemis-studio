@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -341,7 +342,9 @@ class BrokerConfigServiceTest {
 
     @Test
     void aSaveOfAnInvalidDocumentIsRefusedBeforeAnythingIsWritten() {
-        assertThatThrownBy(() -> service.save(CLUSTER, document("dup", "dup"), null, null, Source.EDIT))
+        var duplicated = document("dup", "dup");
+
+        assertThatThrownBy(() -> service.save(CLUSTER, duplicated, null, null, Source.EDIT))
                 .isInstanceOf(BrokerConfigInvalidException.class);
         verify(revisions, never()).save(any());
         verify(audit, never()).begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), eq(false));
@@ -465,7 +468,7 @@ class BrokerConfigServiceTest {
         verify(secrets).forget(CLUSTER, "dc2");
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
-        verify(audit, org.mockito.Mockito.times(3))
+        verify(audit, times(3))
                 .begin(
                         any(),
                         eq(BrokerConfigService.AUDIT_CREDENTIAL),

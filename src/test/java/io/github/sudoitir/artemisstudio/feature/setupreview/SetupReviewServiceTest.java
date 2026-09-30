@@ -97,8 +97,9 @@ class SetupReviewServiceTest {
         when(findings.findByClusterId(CLUSTER)).thenReturn(List.of());
         when(acceptances.findByClusterId(CLUSTER)).thenReturn(List.of());
         when(actors.resolve()).thenReturn(new Actor("alice", "127.0.0.1", "req", null));
+        AuditEvent event = mock(AuditEvent.class);
         when(audit.begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), eq(false)))
-                .thenReturn(mock(AuditEvent.class));
+                .thenReturn(event);
     }
 
     private static ClusterNode node(UUID id, String name, String jolokiaUrl, Boolean active) {
@@ -159,10 +160,10 @@ class SetupReviewServiceTest {
         verify(store, never()).persist(any(), any(), any(), any(), anyLong());
     }
 
-    @Test
-    void viewSortsFindingsBySeverityAndCountsOnlyUnacceptedOnesAsOpen() {
-        Instant reviewed = Instant.now().minusSeconds(60);
-        UUID staleNode = UUID.randomUUID();
+    private final Instant reviewed = Instant.now().minusSeconds(60);
+    private final UUID staleNode = UUID.randomUUID();
+
+    private SetupReviewView mixedView() {
         Finding critical = finding("A_CRITICAL", Category.DURABILITY, Severity.CRITICAL, "node:" + NODE);
         Finding warning = finding("B_WARNING", Category.CLUSTERING, Severity.WARNING, SetupRules.CLUSTER);
         Finding acceptedWarning = finding("C_WARNING", Category.SECURITY, Severity.WARNING, "node:" + NODE);
@@ -195,7 +196,12 @@ class SetupReviewServiceTest {
                                 reviewed,
                                 Instant.now().minusSeconds(5))));
 
-        SetupReviewView view = service.view(CLUSTER);
+        return service.view(CLUSTER);
+    }
+
+    @Test
+    void viewSortsFindingsBySeverityAndCountsOnlyUnacceptedOnesAsOpen() {
+        SetupReviewView view = mixedView();
 
         assertThat(view.reviewedAt()).isEqualTo(reviewed);
         assertThat(view.durationMs()).isEqualTo(250);
@@ -210,6 +216,11 @@ class SetupReviewServiceTest {
         assertThat(view.open().warning()).isEqualTo(1);
         assertThat(view.open().info()).isEqualTo(1);
         assertThat(view.accepted()).isEqualTo(1);
+    }
+
+    @Test
+    void viewCarriesTheAcceptanceAndLabelOfEachFinding() {
+        SetupReviewView view = mixedView();
 
         SetupFindingView accepted = view.findings().get(2);
         assertThat(accepted.acceptance().active()).isTrue();
@@ -232,6 +243,11 @@ class SetupReviewServiceTest {
         // Last seen before the latest review: this node did not answer, so the finding is a remembered one.
         assertThat(expired.stale()).isTrue();
         assertThat(expired.subjectLabel()).isEqualTo("node:" + staleNode);
+    }
+
+    @Test
+    void viewListsEachNodeAndWhatWasNotAssessed() {
+        SetupReviewView view = mixedView();
 
         assertThat(view.nodes()).hasSize(2);
         assertThat(view.nodes().get(0).reviewed()).isTrue();
@@ -353,8 +369,9 @@ class SetupReviewServiceTest {
     void acceptingAnUnknownFindingIs404() {
         when(findings.findById(any())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.accept(CLUSTER, new AcceptRiskRequest("NOPE", "cluster", "why", null)))
-                .isInstanceOf(NotFoundException.class);
+        var request = new AcceptRiskRequest("NOPE", "cluster", "why", null);
+
+        assertThatThrownBy(() -> service.accept(CLUSTER, request)).isInstanceOf(NotFoundException.class);
         verify(access).requireCluster(CLUSTER, AlertPermissions.ALERT_WRITE);
         verify(acceptances, never()).save(any());
     }
@@ -363,10 +380,10 @@ class SetupReviewServiceTest {
     void anAcceptanceThatExpiresInThePastIsRefused() {
         findingExists("CODE", "cluster");
 
-        assertThatThrownBy(() -> service.accept(
-                        CLUSTER,
-                        new AcceptRiskRequest(
-                                "CODE", "cluster", "why", Instant.now().minusSeconds(1))))
+        var request =
+                new AcceptRiskRequest("CODE", "cluster", "why", Instant.now().minusSeconds(1));
+
+        assertThatThrownBy(() -> service.accept(CLUSTER, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expiresAt");
         verify(acceptances, never()).save(any());

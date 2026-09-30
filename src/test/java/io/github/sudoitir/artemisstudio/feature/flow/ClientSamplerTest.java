@@ -197,8 +197,7 @@ class ClientSamplerTest {
 
     // ---- sampleNode ----------------------------------------------------
 
-    @Test
-    void oneHealthyPostBecomesMembersAndEveryKindOfRoute() {
+    private NodeResult oneHealthyPost() {
         Batch batch = new Batch();
         batch.producers = listing(1, producer(1, 5));
         batch.consumers = listing(1, consumer(2, 3));
@@ -221,7 +220,12 @@ class ClientSamplerTest {
                 "{\"name\":\"f3\",\"address\":\"fa\"}");
         batch.addressSettings = ok("{\"deadLetterAddress\":\"DLQ\",\"expiryAddress\":\" \"}");
 
-        NodeResult result = sample(batch);
+        return sample(batch);
+    }
+
+    @Test
+    void oneHealthyPostIsCountedWithoutError() {
+        NodeResult result = oneHealthyPost();
 
         NodeSample sample = result.sample();
         assertThat(sample.errorKind()).isNull();
@@ -231,6 +235,11 @@ class ClientSamplerTest {
         assertThat(sample.consumersSeen()).isEqualTo(1);
         assertThat(result.partial()).isTrue();
         assertThat(result.truncated()).isFalse();
+    }
+
+    @Test
+    void oneHealthyPostBecomesMembersWithTheirReadings() {
+        NodeResult result = oneHealthyPost();
 
         assertThat(result.members()).hasSize(2);
         assertThat(result.members().get(0).kind()).isEqualTo(Kind.PRODUCE);
@@ -249,6 +258,11 @@ class ClientSamplerTest {
             assertThat(r.counter()).isEqualTo(3);
             assertThat(r.unacked()).isEqualTo(1);
         });
+    }
+
+    @Test
+    void oneHealthyPostBecomesEveryKindOfRoute() {
+        NodeResult result = oneHealthyPost();
 
         assertThat(result.routes())
                 .extracting(Route::kind)

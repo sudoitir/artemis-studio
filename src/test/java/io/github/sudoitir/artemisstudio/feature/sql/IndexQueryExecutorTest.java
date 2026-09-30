@@ -51,7 +51,9 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
         }
 
         @Override
-        public void nodeFinished(NodeOutcome outcome) {}
+        public void nodeFinished(NodeOutcome outcome) {
+            // Only the rows are under test; how each node finished is not asserted here.
+        }
 
         @Override
         public boolean isCancelled() {

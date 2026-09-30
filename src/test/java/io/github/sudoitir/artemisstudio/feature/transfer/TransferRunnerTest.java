@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -94,7 +95,7 @@ class TransferRunnerTest {
     private final Operator operator = new Operator(null, null);
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         runs = mock(TransferRunRepository.class);
         ledger = mock(TransferLedger.class);
         nodes = mock(TransferNodes.class);
@@ -755,14 +756,13 @@ class TransferRunnerTest {
         verify(ledger).recordCopied(RUN, List.of(1L, 2L));
         verify(faults).afterTargetCommit(RUN);
         // only the id that was not already in doubt is taken out again
-        verify(ledger).remove(eq(RUN), eq(Set.of(2L)));
+        verify(ledger).remove(RUN, Set.of(2L));
     }
 
     @Test
     void aStagingQueueTheSourceBrokerWillNotCreateFailsWithTheSecuritySnippet() {
         TransferRunEntity run = moveAcross(SelectionKind.ALL, null);
-        org.mockito.Mockito.doThrow(
-                        new BrokerConnectionException(BrokerConnectionException.Kind.BAD_RESPONSE, "denied"))
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.BAD_RESPONSE, "denied"))
                 .when(staging)
                 .create(any(), any());
 
@@ -937,12 +937,12 @@ class TransferRunnerTest {
 
         assertThat(run.getState()).isEqualTo(TransferState.RETURNED);
         // they arrived on the target, so they are settled there and not put back
-        verify(ledger).remove(eq(RUN), eq(Set.of(1L, 2L)));
+        verify(ledger).remove(RUN, Set.of(1L, 2L));
         verify(link).close();
     }
 
     @Test
-    void aReturnWhoseSettlingTheTargetCouldNotAnswerKeepsTheInDoubtMessagesInStaging() throws Exception {
+    void aReturnWhoseSettlingTheTargetCouldNotAnswerKeepsTheInDoubtMessagesInStaging() {
         TransferRunEntity run = returning();
         when(ledger.all(RUN)).thenReturn(Set.of(1L, 2L));
         when(nodes.serving(eq(TGT_CLUSTER), any(), any()))
@@ -1045,7 +1045,7 @@ class TransferRunnerTest {
     }
 
     @Test
-    void aSegmentWithinOneClusterAnnouncesItsQueuesOnce() throws Exception {
+    void aSegmentWithinOneClusterAnnouncesItsQueuesOnce() {
         moveOnOneNode(SelectionKind.IDS, List.of());
 
         execute();

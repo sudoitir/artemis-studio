@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.ColumnCatalogue.Column;
@@ -230,7 +231,7 @@ class SqlGovernanceTest {
         assertThat(governance.forStorage(CLUSTER, "orders", SqlGovernance.content(row("orders", 3))))
                 .isSameAs(governed);
 
-        org.mockito.Mockito.verify(policy).govern(eq(new GovernContext(CLUSTER, "orders", true)), any());
+        verify(policy).govern(eq(new GovernContext(CLUSTER, "orders", true)), any());
     }
 
     // ---- masked fields -------------------------------------------------

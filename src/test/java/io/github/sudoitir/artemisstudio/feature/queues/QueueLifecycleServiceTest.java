@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -704,11 +705,9 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     void anUpdateThatChangesNothingIsRejectedBeforeTouchingAnyNode() {
         seedQueue();
 
-        assertThatThrownBy(() -> lifecycle.updateQueue(
-                        clusterId,
-                        QUEUE,
-                        new LifecycleRequests.UpdateQueueRequest(null, null, null, null, null, null),
-                        false))
+        var request = new LifecycleRequests.UpdateQueueRequest(null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> lifecycle.updateQueue(clusterId, QUEUE, request, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("at least one field");
         verify(ops, never()).updateQueue(any(), anyString(), anyString(), any());
@@ -739,7 +738,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         when(ops.isPaused(any(), anyString())).thenReturn(true);
         assertThat(status(ok(lifecycle.setPaused(clusterId, QUEUE, true, false)), liveId))
                 .isEqualTo(NodeStatus.ALREADY);
-        verify(ops, org.mockito.Mockito.times(1)).pause(any(), anyString());
+        verify(ops, times(1)).pause(any(), anyString());
     }
 
     @Test
@@ -754,7 +753,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         when(ops.isPaused(any(), anyString())).thenReturn(false);
         assertThat(status(ok(lifecycle.setPaused(clusterId, QUEUE, false, false)), liveId))
                 .isEqualTo(NodeStatus.ALREADY);
-        verify(ops, org.mockito.Mockito.times(1)).resume(any(), anyString());
+        verify(ops, times(1)).resume(any(), anyString());
         assertThat(auditFor("RESUME_QUEUE")).isNotEmpty();
     }
 
@@ -890,11 +889,10 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aDivertRequestThatFailsValidationIsRejectedWithEveryViolation() {
-        assertThatThrownBy(() -> lifecycle.createDivert(
-                        clusterId,
-                        new LifecycleRequests.CreateDivertRequest(
-                                "bad name", null, "src", "src", null, null, "NOPE", null),
-                        false))
+        var request =
+                new LifecycleRequests.CreateDivertRequest("bad name", null, "src", "src", null, null, "NOPE", null);
+
+        assertThatThrownBy(() -> lifecycle.createDivert(clusterId, request, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name:")
                 .hasMessageContaining("routingType:");
@@ -902,12 +900,13 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
     @Test
     void divertNamesInTheNamespacesStudioReservesAreRefused() {
-        assertThatThrownBy(() -> lifecycle.createDivert(
-                        clusterId, divertRequest(DivertOperations.CAPTURE_PREFIX + "x", false, false), false))
+        var captureRequest = divertRequest(DivertOperations.CAPTURE_PREFIX + "x", false, false);
+        var tapRequest = divertRequest(DivertOperations.PLUGIN_TAP_PREFIX + "x", false, false);
+
+        assertThatThrownBy(() -> lifecycle.createDivert(clusterId, captureRequest, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("reserved for message capture");
-        assertThatThrownBy(() -> lifecycle.createDivert(
-                        clusterId, divertRequest(DivertOperations.PLUGIN_TAP_PREFIX + "x", false, false), false))
+        assertThatThrownBy(() -> lifecycle.createDivert(clusterId, tapRequest, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("reserved for plugins' message taps");
         assertThatThrownBy(() -> lifecycle.deleteDivert(clusterId, DivertOperations.CAPTURE_PREFIX + "x", false))

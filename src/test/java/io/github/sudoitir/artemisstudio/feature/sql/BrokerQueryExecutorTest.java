@@ -18,7 +18,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMe
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -88,7 +87,7 @@ class BrokerQueryExecutorTest {
     private QueryPlanner planner(SqlProperties properties) {
         return new QueryPlanner(
                 snapshots,
-                org.mockito.Mockito.mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
+                mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.class),
                 nodes,
                 splitter,
                 renderer,
@@ -438,7 +437,7 @@ class BrokerQueryExecutorTest {
                 transportServing(3, true),
                 props(50_000, 2_000, Duration.ofSeconds(30)));
 
-        assertThat(result.notices()).extracting(Notice::kind).doesNotContain(Notice.Kind.BODY_TRUNCATED);
+        assertThat(result.notices()).isEmpty();
     }
 
     // ---- edges ----------------------------------------------------------

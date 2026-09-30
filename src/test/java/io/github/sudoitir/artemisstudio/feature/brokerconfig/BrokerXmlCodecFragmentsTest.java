@@ -62,9 +62,10 @@ class BrokerXmlCodecFragmentsTest {
 
     @Test
     void aPrologWithBomDeclarationAndDoctypeIsDropped() {
-        String xml = "﻿<?xml version=\"1.0\"?>\n<!DOCTYPE configuration [<!ENTITY x \"y\">]>\n"
-                + "<configuration><core><addresses><address name=\"a\"><anycast/></address></addresses></core>"
-                + "</configuration>";
+        String xml = """
+                \uFEFF<?xml version="1.0"?>
+                <!DOCTYPE configuration [<!ENTITY x "y">]>
+                <configuration><core><addresses><address name="a"><anycast/></address></addresses></core></configuration>""";
 
         ParseResult r = BrokerXmlCodec.parse(xml);
 
@@ -469,9 +470,11 @@ class BrokerXmlCodecFragmentsTest {
 
         String xml = BrokerXmlCodec.write(doc(List.of(), List.of(security), List.of(bare, full), List.of()));
 
-        assertThat(xml).contains("<permission type=\"send\" roles=\"a,b\"/>").doesNotContain("browse");
-        assertThat(xml).contains("<filter string=\"x = 1\"/>").contains("<routing-type>STRIP</routing-type>");
         assertThat(xml)
+                .contains("<permission type=\"send\" roles=\"a,b\"/>")
+                .doesNotContain("browse")
+                .contains("<filter string=\"x = 1\"/>")
+                .contains("<routing-type>STRIP</routing-type>")
                 .contains("<class-name>com.example.T</class-name>")
                 .contains("<property key=\"k\" value=\"v\"/>");
         ParseResult back = BrokerXmlCodec.parse(xml);

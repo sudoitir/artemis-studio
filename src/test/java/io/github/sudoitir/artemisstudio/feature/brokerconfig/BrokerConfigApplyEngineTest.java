@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -283,11 +284,11 @@ class BrokerConfigApplyEngineTest {
         }
         assertThat(of(outcome, NODE_A).canary()).isTrue();
         assertThat(of(outcome, NODE_B).canary()).isFalse();
-        verify(ops, org.mockito.Mockito.times(4)).createAddress(eq(client), eq(BROKER), anyString(), any());
-        verify(ops, org.mockito.Mockito.times(4)).createQueue(eq(client), eq(BROKER), anyMap());
-        verify(ops, org.mockito.Mockito.times(2)).addAddressSettings(eq(client), eq(BROKER), eq("orders.#"), anyMap());
-        verify(ops, org.mockito.Mockito.times(2)).addSecuritySettings(eq(client), eq(BROKER), eq("orders.#"), anyMap());
-        verify(ops, org.mockito.Mockito.times(2)).createDivert(eq(client), eq(BROKER), anyMap());
+        verify(ops, times(4)).createAddress(eq(client), eq(BROKER), anyString(), any());
+        verify(ops, times(4)).createQueue(eq(client), eq(BROKER), anyMap());
+        verify(ops, times(2)).addAddressSettings(eq(client), eq(BROKER), eq("orders.#"), anyMap());
+        verify(ops, times(2)).addSecuritySettings(eq(client), eq(BROKER), eq("orders.#"), anyMap());
+        verify(ops, times(2)).createDivert(eq(client), eq(BROKER), anyMap());
         // Ownership is recorded for what a later apply may remove; an address or a queue is never owned.
         ArgumentCaptor<BrokerConfigOwnedItemEntity> owns = ArgumentCaptor.forClass(BrokerConfigOwnedItemEntity.class);
         verify(ownedItems, org.mockito.Mockito.atLeastOnce()).save(owns.capture());
@@ -297,7 +298,7 @@ class BrokerConfigApplyEngineTest {
         verify(capabilities, org.mockito.Mockito.atLeastOnce()).recordWriteSucceeded(CLUSTER);
         // Each node's drift state records a verified apply.
         ArgumentCaptor<BrokerConfigNodeStateEntity> states = ArgumentCaptor.forClass(BrokerConfigNodeStateEntity.class);
-        verify(nodeStates, org.mockito.Mockito.times(2)).save(states.capture());
+        verify(nodeStates, times(2)).save(states.capture());
         assertThat(states.getAllValues()).allSatisfy(s -> {
             assertThat(s.state()).isEqualTo(BrokerConfigNodeStateEntity.State.IN_SYNC);
             assertThat(s.basis()).isEqualTo(BrokerConfigNodeStateEntity.Basis.VERIFIED_APPLY);
@@ -376,8 +377,8 @@ class BrokerConfigApplyEngineTest {
         BrokerConfigApplyOutcome outcome = applyConfirmed();
 
         assertThat(outcome.outcome()).isEqualTo(Outcome.APPLIED);
-        verify(ops, org.mockito.Mockito.times(2)).updateAddress(eq(client), eq(BROKER), eq("orders"), any());
-        verify(ops, org.mockito.Mockito.times(2)).updateQueue(eq(client), eq(BROKER), anyMap());
+        verify(ops, times(2)).updateAddress(eq(client), eq(BROKER), eq("orders"), any());
+        verify(ops, times(2)).updateQueue(eq(client), eq(BROKER), anyMap());
         verify(ops, never()).createQueue(any(), anyString(), anyMap());
     }
 
@@ -410,10 +411,10 @@ class BrokerConfigApplyEngineTest {
         BrokerConfigApplyOutcome outcome = applyConfirmed();
 
         assertThat(outcome.outcome()).isEqualTo(Outcome.APPLIED);
-        verify(ops, org.mockito.Mockito.times(2)).removeAddressSettings(client, BROKER, "old.#");
-        verify(ops, org.mockito.Mockito.times(2)).removeSecuritySettings(client, BROKER, "old.sec");
-        verify(ops, org.mockito.Mockito.times(2)).destroyDivert(client, BROKER, "old-divert");
-        verify(ownedItems, org.mockito.Mockito.times(6)).delete(ownedRow);
+        verify(ops, times(2)).removeAddressSettings(client, BROKER, "old.#");
+        verify(ops, times(2)).removeSecuritySettings(client, BROKER, "old.sec");
+        verify(ops, times(2)).destroyDivert(client, BROKER, "old-divert");
+        verify(ownedItems, times(6)).delete(ownedRow);
         assertThat(of(outcome, NODE_A).steps()).extracting(StepApply::verified).containsOnly(Verification.VERIFIED);
     }
 
@@ -462,7 +463,7 @@ class BrokerConfigApplyEngineTest {
         assertThat(outcome.outcome()).isEqualTo(Outcome.APPLIED);
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> config = ArgumentCaptor.forClass(Map.class);
-        verify(ops, org.mockito.Mockito.times(2)).createBridge(eq(client), eq(BROKER), config.capture());
+        verify(ops, times(2)).createBridge(eq(client), eq(BROKER), config.capture());
         assertThat(config.getValue()).containsEntry("user", "bridge-user").containsEntry("password", BRIDGE_SECRET);
         // The credential is on the wire only: the plan and the stored apply row never carry it.
         assertThat(mapper.writeValueAsString(outcome.plan())).doesNotContain(BRIDGE_SECRET);
@@ -520,7 +521,7 @@ class BrokerConfigApplyEngineTest {
         BrokerConfigApplyOutcome outcome = applyConfirmed();
 
         assertThat(outcome.outcome()).isEqualTo(Outcome.APPLIED);
-        verify(ops, org.mockito.Mockito.times(2)).destroyBridge(client, BROKER, "to-dc2");
+        verify(ops, times(2)).destroyBridge(client, BROKER, "to-dc2");
     }
 
     // ---- what goes wrong -------------------------------------------------------------------------------------
@@ -528,7 +529,7 @@ class BrokerConfigApplyEngineTest {
     @Test
     void aNodeThatCannotBeConnectedToIsReportedAndTheRunHaltsWithNothingAttempted() {
         document = fullDocument();
-        when(reads.client(eq(CLUSTER), eq(nodeA)))
+        when(reads.client(CLUSTER, nodeA))
                 .thenThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "no route"));
 
         BrokerConfigApplyOutcome outcome = applyConfirmed();
@@ -684,7 +685,7 @@ class BrokerConfigApplyEngineTest {
     void aClusterWithoutADeclarationCannotBeApplied() {
         when(configs.current(CLUSTER)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> preview())
+        assertThatThrownBy(this::preview)
                 .isInstanceOfSatisfying(
                         ConflictException.class,
                         e -> assertThat(e.getMessage()).contains("Declare the cluster's configuration"));
@@ -710,7 +711,7 @@ class BrokerConfigApplyEngineTest {
                 List.of(new DivertDecl("d", "orders", "nowhere", null, false, null, null, null)),
                 List.of());
 
-        assertThatThrownBy(() -> applyConfirmedWithoutPreview()).isInstanceOf(BrokerConfigInvalidException.class);
+        assertThatThrownBy(this::applyConfirmedWithoutPreview).isInstanceOf(BrokerConfigInvalidException.class);
         verify(ops, never()).createDivert(any(), anyString(), anyMap());
     }
 
@@ -724,7 +725,7 @@ class BrokerConfigApplyEngineTest {
         header.configure(ApplyMode.CONFIG_MANAGED, false, "[]");
 
         assertThat(preview().dryRun()).isTrue();
-        assertThatThrownBy(() -> applyConfirmedWithoutPreview())
+        assertThatThrownBy(this::applyConfirmedWithoutPreview)
                 .isInstanceOfSatisfying(
                         ConflictException.class, e -> assertThat(e.getMessage()).contains("managed outside Studio"));
         verify(ops, never()).createAddress(any(), anyString(), anyString(), any());
@@ -751,11 +752,10 @@ class BrokerConfigApplyEngineTest {
         assertThat(preview.overCap()).isTrue();
         assertThat(preview.summary()).contains("Over the step cap of 3; an override is needed.");
 
-        assertThatThrownBy(() -> service.apply(
-                        CLUSTER,
-                        new BrokerConfigApplyRequest(
-                                null, Set.of(), null, false, preview.plan().highHazardIds(), null, false, Set.of())))
-                .isInstanceOf(BulkCapExceededException.class);
+        var withoutOverride = new BrokerConfigApplyRequest(
+                null, Set.of(), null, false, preview.plan().highHazardIds(), null, false, Set.of());
+
+        assertThatThrownBy(() -> service.apply(CLUSTER, withoutOverride)).isInstanceOf(BulkCapExceededException.class);
 
         assertThat(service.apply(
                                 CLUSTER,
@@ -779,7 +779,7 @@ class BrokerConfigApplyEngineTest {
         // The plan was computed while the node answered live; the topology has since changed.
         when(reads.targets(CLUSTER)).thenReturn(List.of(wentDown, nodeB));
 
-        assertThatThrownBy(() -> applyConfirmedWithoutPreview())
+        assertThatThrownBy(this::applyConfirmedWithoutPreview)
                 .isInstanceOfSatisfying(
                         ConflictException.class,
                         e -> assertThat(e.getMessage()).contains("a-first").contains("no longer live"));
@@ -791,7 +791,7 @@ class BrokerConfigApplyEngineTest {
         when(lock.runIfHeld(eq(CLUSTER), eq(ClusterLock.Scope.CONFIG_APPLY), any()))
                 .thenReturn(false);
 
-        assertThatThrownBy(() -> applyConfirmedWithoutPreview())
+        assertThatThrownBy(this::applyConfirmedWithoutPreview)
                 .isInstanceOfSatisfying(
                         ConflictException.class,
                         e -> assertThat(e.getMessage()).contains("Another configuration apply is running"));
@@ -801,7 +801,7 @@ class BrokerConfigApplyEngineTest {
     void aFailureInsideTheLockedRunIsRethrownToTheCaller() {
         when(configs.current(CLUSTER)).thenThrow(new IllegalStateException("db down"));
 
-        assertThatThrownBy(() -> applyConfirmedWithoutPreview())
+        assertThatThrownBy(this::applyConfirmedWithoutPreview)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("db down");
     }
@@ -878,7 +878,7 @@ class BrokerConfigApplyEngineTest {
         assertThat(service.history(CLUSTER, 10_000)).containsExactly(mine);
         assertThat(service.history(CLUSTER, 0)).containsExactly(mine);
         ArgumentCaptor<PageRequest> page = ArgumentCaptor.forClass(PageRequest.class);
-        verify(applies, org.mockito.Mockito.times(2)).findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), page.capture());
+        verify(applies, times(2)).findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), page.capture());
         assertThat(page.getAllValues()).extracting(PageRequest::getPageSize).containsExactly(200, 1);
         verify(access, org.mockito.Mockito.atLeast(2)).requireCluster(CLUSTER, Permissions.CLUSTER_READ);
 
@@ -940,9 +940,9 @@ class BrokerConfigApplyEngineTest {
     @Test
     void aSplitBrainClusterIsRefusedBeforeAnyWrite() {
         document = fullDocument();
-        when(splitBrain.statusFor(eq(CLUSTER), eq("artemis-b-second"))).thenReturn(SplitBrainStatus.CRITICAL);
+        when(splitBrain.statusFor(CLUSTER, "artemis-b-second")).thenReturn(SplitBrainStatus.CRITICAL);
 
-        assertThatThrownBy(() -> applyConfirmedWithoutPreview())
+        assertThatThrownBy(this::applyConfirmedWithoutPreview)
                 .isInstanceOfSatisfying(
                         ConflictException.class, e -> assertThat(e.getMessage()).contains("split-brain (b-second)"));
     }

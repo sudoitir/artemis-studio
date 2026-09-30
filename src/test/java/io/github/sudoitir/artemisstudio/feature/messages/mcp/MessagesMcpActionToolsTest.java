@@ -155,9 +155,11 @@ class MessagesMcpActionToolsTest {
 
     @Test
     void malformedArgumentsAreProtocolErrors() {
+        String clusterId = cluster.toString();
+
         assertThatThrownBy(() -> tools.queueAction("not-a-uuid", "orders", "move", null, null, null, true, null, null))
                 .isInstanceOf(McpError.class);
-        assertThatThrownBy(() -> tools.queueAction(cluster.toString(), " ", "move", null, null, null, true, null, null))
+        assertThatThrownBy(() -> tools.queueAction(clusterId, " ", "move", null, null, null, true, null, null))
                 .isInstanceOf(McpError.class)
                 .hasMessageContaining("queue is required");
         assertThatThrownBy(() -> action("explode", null, true, null, null))
@@ -218,10 +220,12 @@ class MessagesMcpActionToolsTest {
 
     @Test
     void sendMessageRequiresABodyAndAQueue() {
-        assertThatThrownBy(() -> tools.sendMessage(cluster.toString(), "orders", " ", null, null, null))
+        String clusterId = cluster.toString();
+
+        assertThatThrownBy(() -> tools.sendMessage(clusterId, "orders", " ", null, null, null))
                 .isInstanceOf(McpError.class)
                 .hasMessageContaining("body is required");
-        assertThatThrownBy(() -> tools.sendMessage(cluster.toString(), null, "x", null, null, null))
+        assertThatThrownBy(() -> tools.sendMessage(clusterId, null, "x", null, null, null))
                 .isInstanceOf(McpError.class);
         verifyNoInteractions(messages);
     }

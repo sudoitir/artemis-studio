@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -184,7 +185,7 @@ class BrokerConfigOperationsTest {
         ops.removeSecuritySettings(client, BROKER, "s.#");
 
         ArgumentCaptor<JolokiaRequest> sent = ArgumentCaptor.forClass(JolokiaRequest.class);
-        verify(client, org.mockito.Mockito.times(2)).single(sent.capture());
+        verify(client, times(2)).single(sent.capture());
         assertThat(sent.getAllValues().get(0).operation()).isEqualTo(BrokerConfigOperations.REMOVE_ADDRESS_SETTINGS);
         assertThat(sent.getAllValues().get(0).arguments()).containsExactly("a.#");
         assertThat(sent.getAllValues().get(1).operation()).isEqualTo(BrokerConfigOperations.REMOVE_SECURITY_SETTINGS);
@@ -419,7 +420,7 @@ class BrokerConfigOperationsTest {
         assertThat(observed.queues().get("orders.extra"))
                 .containsEntry("name", "orders.extra")
                 .containsEntry("routing-type", "ANYCAST");
-        assertThat(observed.queues().get("loose")).isEqualTo(Map.of("name", "loose"));
+        assertThat(observed.queues().get("loose")).hasSize(1).containsEntry("name", "loose");
     }
 
     @Test
@@ -452,8 +453,9 @@ class BrokerConfigOperationsTest {
         on(r -> true, json("{\"Active\":true}"));
         dropLastResponse = true;
 
-        assertThatThrownBy(() ->
-                        ops.read(client, NODE, "node-a", scope(Set.of(), Set.of(), Map.of(), Set.of(), List.of())))
+        var readScope = scope(Set.of(), Set.of(), Map.of(), Set.of(), List.of());
+
+        assertThatThrownBy(() -> ops.read(client, NODE, "node-a", readScope))
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessageContaining("answered")
                 .hasMessageContaining("batched requests");
@@ -569,9 +571,8 @@ class BrokerConfigOperationsTest {
 
     private BridgeRow bridgeRow(String name) {
         return BridgeRow.parse(
-                name == null
-                        ? mapper.readTree("{}")
-                        : mapper.readTree("{\"Name\":\"" + name + "\",\"Started\":true,\"Connected\":true}"),
+                mapper.readTree(
+                        name == null ? "{}" : "{\"Name\":\"" + name + "\",\"Started\":true,\"Connected\":true}"),
                 NODE,
                 "node-a");
     }

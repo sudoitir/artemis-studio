@@ -430,7 +430,9 @@ class TriageMcpToolsTest {
 
     @Test
     void anUnknownSourceIsAProtocolError() {
-        assertThatThrownBy(() -> tools.activityLog(CLUSTER.toString(), "syslog", null, null))
+        String clusterId = CLUSTER.toString();
+
+        assertThatThrownBy(() -> tools.activityLog(clusterId, "syslog", null, null))
                 .isInstanceOf(McpError.class)
                 .hasMessageContaining("source must be one of");
     }

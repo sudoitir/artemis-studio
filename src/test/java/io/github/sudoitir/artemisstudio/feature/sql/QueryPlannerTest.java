@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -307,7 +308,9 @@ class QueryPlannerTest {
         BrokerNodeEntity a = node("broker-1", "node-a");
         given(List.of(a), List.of(snapshot(a, "ORDER.IN", 500)));
 
-        planner.enforceCostCeiling(plan("SELECT * FROM \"ORDER.IN\" WHERE body LIKE '%x%'"));
+        QueryPlan plan = plan("SELECT * FROM \"ORDER.IN\" WHERE body LIKE '%x%'");
+
+        assertThatNoException().isThrownBy(() -> planner.enforceCostCeiling(plan));
     }
 
     // ---- clock ----------------------------------------------------------
@@ -473,11 +476,13 @@ class QueryPlannerTest {
     void fullTextSearchAndMatchRankAreIndexOnlyAgainstABroker() {
         oneQueue(10);
 
-        assertThatThrownBy(() -> planOf(Source.BROKER, new QueryAst.Predicate.Match("acme")))
+        var match = new QueryAst.Predicate.Match("acme");
+        var rank = compare(new QueryAst.Term.MatchRank(), new QueryAst.Literal.Num(1, true));
+
+        assertThatThrownBy(() -> planOf(Source.BROKER, match))
                 .isInstanceOf(SqlSyntaxException.class)
                 .hasMessageContaining("MATCH(body, ...)");
-        assertThatThrownBy(() -> planOf(
-                        Source.BROKER, compare(new QueryAst.Term.MatchRank(), new QueryAst.Literal.Num(1, true))))
+        assertThatThrownBy(() -> planOf(Source.BROKER, rank))
                 .isInstanceOf(SqlSyntaxException.class)
                 .hasMessageContaining("match_rank");
     }
@@ -486,7 +491,9 @@ class QueryPlannerTest {
     void anIndexOnlyProjectionColumnIsRefusedAgainstABroker() {
         oneQueue(10);
 
-        assertThatThrownBy(() -> planner.plan(CLUSTER, astOf(Source.BROKER, List.of(Column.LAST_SEEN_AT), null, null)))
+        var ast = astOf(Source.BROKER, List.of(Column.LAST_SEEN_AT), null, null);
+
+        assertThatThrownBy(() -> planner.plan(CLUSTER, ast))
                 .isInstanceOf(SqlSyntaxException.class)
                 .hasMessageContaining(Column.LAST_SEEN_AT.sqlName());
     }

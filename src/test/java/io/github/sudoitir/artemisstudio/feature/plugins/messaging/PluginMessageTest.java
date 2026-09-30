@@ -26,8 +26,10 @@ class PluginMessageTest {
     void equalityComparesEveryComponent() {
         PluginMessage base = message(new byte[] {1});
 
-        assertThat(base).isEqualTo(base).isEqualTo(message(new byte[] {1})).isNotEqualTo("not a message");
         assertThat(base)
+                .isEqualTo(base)
+                .isEqualTo(message(new byte[] {1}))
+                .isNotEqualTo("not a message")
                 .isNotEqualTo(new PluginMessage(
                         "x", CLUSTER, NODE, "q", new byte[] {1}, true, Map.of("h", 1), Map.of("p", "v"), 1))
                 .isNotEqualTo(new PluginMessage(
