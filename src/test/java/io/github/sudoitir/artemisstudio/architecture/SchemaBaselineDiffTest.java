@@ -104,7 +104,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Text bodies of bytes messages are full-text indexed; binary is body_base64 (ADR-0148,
                     // changeset feature-sql 0005).
                     "ix_message_index_body_fts",
-                    "message_index_default_to_tsvector_idx")
+                    "message_index_default_to_tsvector_idx",
+                    // Support bundle previews shared by the replicas (ADR-0152, changeset feature-diagnostics 0001).
+                    "diagnostics_snapshot")
             .map(Pattern::compile)
             .toList();
 

@@ -8,6 +8,7 @@
         allowedDependencies = {
             "kernel.audit",
             "kernel.core",
+            "kernel.lifecycle",
             "kernel.plugin",
             "kernel.plugin::host",
             "kernel.security",

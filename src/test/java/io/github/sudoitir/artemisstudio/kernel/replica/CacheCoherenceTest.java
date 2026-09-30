@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
+import io.github.sudoitir.artemisstudio.feature.diagnostics.DiagnosticsService;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
@@ -55,6 +56,9 @@ class CacheCoherenceTest extends PostgresIntegrationTest {
 
     @Autowired
     GovernanceRuleService rulesA;
+
+    @Autowired
+    DiagnosticsService diagnosticsA;
 
     @Autowired
     StudioBus busA;
@@ -128,6 +132,17 @@ class CacheCoherenceTest extends PostgresIntegrationTest {
 
         await().atMost(WITHIN).untilAsserted(() -> assertThat(policyB.version()).isGreaterThan(before));
         rulesA.delete(rule);
+    }
+
+    @Test
+    void aSupportBundlePreparedOnOneReplicaCanBeDownloadedFromTheOther() {
+        DiagnosticsService diagnosticsB = other.getBean(DiagnosticsService.class);
+
+        UUID id = diagnosticsA.prepare().id();
+
+        assertThat(diagnosticsB.take(id, List.of("about")).sections())
+                .singleElement()
+                .satisfies(section -> assertThat(section.key()).isEqualTo("about"));
     }
 
     @Test
