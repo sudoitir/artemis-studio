@@ -141,3 +141,39 @@ describe('RootLayout user menu', () => {
     expect(screen.queryByText('Administration')).not.toBeInTheDocument();
   });
 });
+
+describe('RootLayout second-factor enrolment', () => {
+  afterEach(() => navigate.mockClear());
+
+  const meWith = (over: object) =>
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({
+          id: 'u1',
+          username: 'admin',
+          mustChangePassword: false,
+          secondFactorEnrolmentRequired: false,
+          grants: [],
+          ...over,
+        }),
+      ),
+    );
+
+  it('sends a session whose role requires a second factor to enrol one, and shows no shell', async () => {
+    meWith({ secondFactorEnrolmentRequired: true });
+    mockEmptyQueues();
+    renderWithProviders(<RootLayout />);
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/enrol-second-factor' }));
+    expect(screen.queryByRole('button', { name: 'User menu' })).not.toBeInTheDocument();
+  });
+
+  it('asks for the new password first when both are due', async () => {
+    meWith({ secondFactorEnrolmentRequired: true, mustChangePassword: true });
+    mockEmptyQueues();
+    renderWithProviders(<RootLayout />);
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/change-password' }));
+    expect(navigate).not.toHaveBeenCalledWith({ to: '/enrol-second-factor' });
+  });
+});
