@@ -43,6 +43,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -119,6 +120,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         jdbc.update("DELETE FROM audit_event WHERE action = 'SECRET_ROTATION_START'");
         jdbc.update("UPDATE secret_key_state SET current_kek_version = 1");
         vault.refreshCurrentVersion();
+        ReflectionTestUtils.setField(rotations, "counts", null);
         jdbc.update("INSERT INTO cluster (id, name) VALUES (?, ?)", clusterId, "rotation-" + clusterId);
     }
 
@@ -132,7 +134,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         // Other rows in the shared database were rotated too; bring them back so a context holding only key 1 opens
         // them.
         for (SealedStore store : stores) {
-            store.rewrapBatch(null, Integer.MAX_VALUE, 1, Integer.MAX_VALUE, blob -> vault.rewrap(blob, 1));
+            store.rewrapBatch(null, Integer.MAX_VALUE, Integer.MAX_VALUE, blob -> vault.rewrap(blob, 1));
         }
         jdbc.update("UPDATE secret_key_state SET current_kek_version = 1");
         vault.refreshCurrentVersion();
@@ -275,7 +277,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         for (SealedStore store : stores) {
             Object after = null;
             do {
-                after = store.rewrapBatch(after, 2, 2, 1, blob -> vault.rewrap(blob, 2))
+                after = store.rewrapBatch(after, 2, 1, blob -> vault.rewrap(blob, 2))
                         .last();
             } while (after != null);
             assertThat(store.countBelow(2)).as(store.name()).isZero();
@@ -291,7 +293,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
 
         // A pass that stopped after one row per store.
         for (SealedStore store : stores) {
-            store.rewrapBatch(null, 2, 2, 1, blob -> vault.rewrap(blob, 2));
+            store.rewrapBatch(null, 2, 1, blob -> vault.rewrap(blob, 2));
         }
         assertThat(rotations.running()).isPresent();
 
@@ -426,6 +428,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.currentVersion").value(1))
                 .andExpect(jsonPath("$.availableVersions[0]").value(1))
                 .andExpect(jsonPath("$.availableVersions[1]").value(2))
+                .andExpect(jsonPath("$.missingVersions").isEmpty())
                 .andExpect(jsonPath("$.countsByVersion['1']").isNumber())
                 .andExpect(jsonPath("$.lastRotation").doesNotExist())
                 .andReturn()
@@ -449,5 +452,50 @@ class SecretRotationTest extends PostgresIntegrationTest {
                 .getContentAsString();
 
         assertThat(before + after).doesNotContain(KEY_1).doesNotContain(KEY_2);
+    }
+
+    @Test
+    void anOldFormatOrMalformedSealedValueIsInNoCountAndNeverBreaksTheStatusOrARotation() throws Exception {
+        seedEveryStore();
+        // the old rr shape (bare ciphertext plus nonce), and a long value that is not the current format
+        jdbc.update(
+                "INSERT INTO rr_event (kind, detail, flow_id) VALUES ('REQUEST',"
+                        + " jsonb_build_object('sealed', ?::text, 'nonce', 'AAAAAAAAAAAAAAAA'), ?)",
+                Base64.getEncoder().encodeToString(new byte[40]),
+                flowId);
+        jdbc.update(
+                "INSERT INTO rr_event (kind, detail, flow_id) VALUES ('REQUEST', jsonb_build_object('sealed', ?::text),"
+                        + " ?)",
+                Base64.getEncoder().encodeToString(new byte[SecretVault.MIN_BLOB_BYTES + 10]),
+                flowId);
+        jdbc.update(
+                "INSERT INTO rr_event (kind, detail, flow_id) VALUES ('REQUEST', jsonb_build_object('sealed', ''), ?)",
+                flowId);
+        ReflectionTestUtils.setField(rotations, "counts", null);
+        MockMvc mvc = webAppContextSetup(webContext).build();
+
+        mvc.perform(get("/api/v1/settings/secrets"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.countsByVersion.length()").value(1))
+                .andExpect(jsonPath("$.countsByVersion['1']").isNumber());
+
+        service.start(freshSession());
+        settleAndSweep();
+
+        assertThat(rotations.last().orElseThrow().status()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void secretsUnderAVersionTheProviderLacksAreReportedAsMissing() throws Exception {
+        secretsOf(plugin).put("orphan", "sealed under a lost key");
+        jdbc.update("UPDATE plugin_secret SET sealed = set_byte(sealed, 4, 9) WHERE plugin_id = ?", plugin);
+        ReflectionTestUtils.setField(rotations, "counts", null);
+
+        webAppContextSetup(webContext)
+                .build()
+                .perform(get("/api/v1/settings/secrets"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.missingVersions[0]").value(9))
+                .andExpect(jsonPath("$.countsByVersion['9']").value(1));
     }
 }

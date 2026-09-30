@@ -10496,6 +10496,13 @@
               "format" : "int32"
             }
           },
+          "missingVersions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
           "countsByVersion" : {
             "type" : "object",
             "additionalProperties" : {
@@ -10507,7 +10514,7 @@
             "$ref" : "#/components/schemas/RotationView"
           }
         },
-        "required" : [ "availableVersions", "countsByVersion", "currentVersion", "provider" ]
+        "required" : [ "availableVersions", "countsByVersion", "currentVersion", "missingVersions", "provider" ]
       },
       "PermissionView" : {
         "type" : "object",

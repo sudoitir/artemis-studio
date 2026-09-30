@@ -10,8 +10,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import javax.crypto.SecretKey;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.vault.authentication.AppRoleAuthentication;
 import org.springframework.vault.authentication.AppRoleAuthenticationOptions;
 import org.springframework.vault.authentication.AppRoleAuthenticationOptions.RoleId;
@@ -19,7 +21,7 @@ import org.springframework.vault.authentication.AppRoleAuthenticationOptions.Sec
 import org.springframework.vault.authentication.ClientAuthentication;
 import org.springframework.vault.authentication.KubernetesAuthentication;
 import org.springframework.vault.authentication.KubernetesAuthenticationOptions;
-import org.springframework.vault.authentication.SimpleSessionManager;
+import org.springframework.vault.authentication.LifecycleAwareSessionManager;
 import org.springframework.vault.authentication.TokenAuthentication;
 import org.springframework.vault.client.VaultClients;
 import org.springframework.vault.client.VaultEndpoint;
@@ -31,12 +33,16 @@ import org.springframework.web.client.RestTemplate;
 
 /**
  * Keys from a Vault KV version 2 secret: each version that is neither deleted nor destroyed and has a {@code kek}
- * field (base64) is that key version, and named secrets are fields of the latest version. Every call logs in afresh,
- * since it runs at startup and on a rotation only. Failures name the provider and the path, never a token or key.
+ * field (base64) is that key version, and named secrets are fields of the latest version of the OIDC path. All calls
+ * share one session, which logs in on first use, renews itself, and is revoked on shutdown. Failures name the
+ * provider and the path, never a token or key.
  */
-class VaultKeyProvider implements KeyProvider {
+class VaultKeyProvider implements KeyProvider, DisposableBean {
 
     private final SecretProviderProperties.Vault config;
+    private ThreadPoolTaskScheduler scheduler;
+    private LifecycleAwareSessionManager session;
+    private VaultVersionedKeyValueTemplate kv;
 
     VaultKeyProvider(SecretProviderProperties.Vault config) {
         require("uri", config.uri());
@@ -79,7 +85,8 @@ class VaultKeyProvider implements KeyProvider {
     @Override
     public Optional<String> secret(String name) {
         return call("cannot read " + name, ops -> {
-            Versioned<Map<String, Object>> latest = ops.get(config.path());
+            String path = config.oidcPath() == null || config.oidcPath().isBlank() ? config.path() : config.oidcPath();
+            Versioned<Map<String, Object>> latest = ops.get(path);
             if (latest == null || !latest.hasData()) {
                 return Optional.<String>empty();
             }
@@ -96,16 +103,39 @@ class VaultKeyProvider implements KeyProvider {
 
     private <T> T call(String what, java.util.function.Function<VaultVersionedKeyValueTemplate, T> action) {
         try {
-            VaultEndpoint endpoint = VaultEndpoint.from(URI.create(config.uri()));
-            var requests = new JdkClientHttpRequestFactory();
-            VaultTemplate template =
-                    new VaultTemplate(endpoint, requests, new SimpleSessionManager(authentication(endpoint, requests)));
-            return action.apply(new VaultVersionedKeyValueTemplate(template, config.mount()));
+            return action.apply(template());
         } catch (IllegalStateException e) {
             throw e;
         } catch (RuntimeException e) {
             // The cause keeps Vault's own status text (denied, unreachable) for the log; the message stays safe.
             throw new IllegalStateException(failure(what), e);
+        }
+    }
+
+    private synchronized VaultVersionedKeyValueTemplate template() {
+        if (kv == null) {
+            VaultEndpoint endpoint = VaultEndpoint.from(URI.create(config.uri()));
+            var requests = new JdkClientHttpRequestFactory();
+            scheduler = new ThreadPoolTaskScheduler();
+            scheduler.setDaemon(true);
+            scheduler.setThreadNamePrefix("vault-session-");
+            scheduler.initialize();
+            session = new LifecycleAwareSessionManager(
+                    authentication(endpoint, requests), scheduler, VaultClients.createRestTemplate(endpoint, requests));
+            kv = new VaultVersionedKeyValueTemplate(new VaultTemplate(endpoint, requests, session), config.mount());
+        }
+        return kv;
+    }
+
+    /** Revokes the session token and stops its renewal. */
+    @Override
+    public synchronized void destroy() {
+        if (session != null) {
+            session.destroy();
+            scheduler.shutdown();
+            session = null;
+            scheduler = null;
+            kv = null;
         }
     }
 

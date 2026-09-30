@@ -23,6 +23,17 @@ public record Keyring(SortedMap<Integer, SecretKey> keys) {
         return keys.lastKey();
     }
 
+    /** The versions only: a key's own {@code toString} and hash code derive from its bytes. */
+    @Override
+    public String toString() {
+        return "Keyring" + keys.keySet();
+    }
+
+    @Override
+    public int hashCode() {
+        return keys.keySet().hashCode();
+    }
+
     public Optional<SecretKey> get(int version) {
         return Optional.ofNullable(keys.get(version));
     }

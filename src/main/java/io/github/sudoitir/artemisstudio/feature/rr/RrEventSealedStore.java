@@ -37,13 +37,12 @@ class RrEventSealedStore implements SealedStore {
     }
 
     @Override
-    public Batch rewrapBatch(
-            Object after, int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
+    public Batch rewrapBatch(Object after, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT seq, " + SEALED + " AS sealed FROM rr_event WHERE seq > ? AND " + SEALED + " IS NOT NULL AND "
                         + VERSION + " < ? ORDER BY seq LIMIT ?",
                 after == null ? Long.MIN_VALUE : after,
-                belowVersion,
+                targetVersion,
                 limit);
         int updated = 0;
         for (Map<String, Object> row : rows) {
@@ -73,7 +72,10 @@ class RrEventSealedStore implements SealedStore {
                 "SELECT " + VERSION + " AS version, count(*) AS n FROM rr_event WHERE " + SEALED
                         + " IS NOT NULL GROUP BY 1",
                 rs -> {
-                    counts.put(rs.getInt("version"), rs.getLong("n"));
+                    int version = rs.getInt("version");
+                    if (!rs.wasNull()) {
+                        counts.put(version, rs.getLong("n"));
+                    }
                 });
         return counts;
     }

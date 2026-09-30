@@ -9,8 +9,7 @@
 CREATE TABLE secret_key_state (
     updated_at timestamp with time zone NOT NULL,
     current_kek_version integer NOT NULL,
-    singleton boolean DEFAULT true NOT NULL,
-    provider text NOT NULL
+    singleton boolean DEFAULT true NOT NULL
 );
 
 ALTER TABLE ONLY secret_key_state

@@ -60,10 +60,13 @@ By now five stores hold its output:
 - An installation-scope job under ShedLock (ADR-0125) then re-wraps each store's data keys in
   batches, walking each store by primary key so a pass converges cheaply and completely. It
   never touches ciphertext or plaintext.
-- It finishes only when no row in any store is under an older version and 30 seconds have passed
-  since the start, which is longer than a replica takes to learn the new current version. That
-  condition makes it resumable after a restart, and it sweeps up rows a stale replica wrote
-  meanwhile.
+- A replica seals only while it has read the current version from the database within the last 30
+  seconds; otherwise it refuses, so a replica that cannot reach the database or lacks the new key
+  never writes under the old one for longer than that.
+- It finishes only when no row in any store is under an older version and 45 seconds have passed
+  since the start, measured by the database clock, which is longer than that window: afterwards
+  every replica has either written under the new version or refused. That condition makes it
+  resumable after a restart, and it sweeps up rows a stale replica wrote meanwhile.
 - A blob that cannot be unwrapped fails the rotation with the store and row. A failed rotation
   can be started again: it re-wraps what is still under an older version and keeps the current
   one, and only a rotation that is already running is refused.

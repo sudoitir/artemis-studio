@@ -49,10 +49,9 @@ public class TableSealedStore implements SealedStore {
     }
 
     @Override
-    public Batch rewrapBatch(
-            Object after, int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
+    public Batch rewrapBatch(Object after, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
         List<Object> select = new ArrayList<>();
-        select.add(belowVersion);
+        select.add(targetVersion);
         if (after != null) {
             select.addAll(Arrays.asList((Object[]) after));
         }
@@ -91,7 +90,10 @@ public class TableSealedStore implements SealedStore {
                 "SELECT " + VERSION + " AS version, count(*) AS n FROM " + table
                         + " WHERE sealed IS NOT NULL GROUP BY 1",
                 rs -> {
-                    counts.put(rs.getInt("version"), rs.getLong("n"));
+                    int version = rs.getInt("version");
+                    if (!rs.wasNull()) {
+                        counts.put(version, rs.getLong("n"));
+                    }
                 });
         return counts;
     }

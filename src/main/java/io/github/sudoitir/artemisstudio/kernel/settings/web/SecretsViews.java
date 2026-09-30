@@ -15,6 +15,7 @@ public final class SecretsViews {
     private SecretsViews() {}
 
     /**
+     * @param missingVersions key versions that stored secrets are wrapped under but the provider does not hold
      * @param countsByVersion how many stored secrets each key version protects
      * @param lastRotation the most recent rotation, absent before the first
      */
@@ -22,6 +23,7 @@ public final class SecretsViews {
             @Schema(requiredMode = REQUIRED) String provider,
             @Schema(requiredMode = REQUIRED) int currentVersion,
             @Schema(requiredMode = REQUIRED) List<Integer> availableVersions,
+            @Schema(requiredMode = REQUIRED) List<Integer> missingVersions,
             @Schema(requiredMode = REQUIRED) Map<String, Long> countsByVersion,
             RotationView lastRotation) {}
 
@@ -63,6 +65,7 @@ public final class SecretsViews {
                 s.provider(),
                 s.currentVersion(),
                 s.availableVersions(),
+                s.missingVersions(),
                 counts,
                 s.lastRotation().map(RotationView::of).orElse(null));
     }

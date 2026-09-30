@@ -9,9 +9,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -25,17 +28,24 @@ import org.springframework.transaction.support.TransactionTemplate;
  * version; that condition, not a list of rows, ends the rotation, so a replica that wrote under a stale version
  * and a restart are both covered. Who may start one, and its audit, are the caller's.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
-public class SecretRotations {
+public class SecretRotations implements SmartInitializingSingleton {
 
     static final int BATCH = 500;
 
     /**
-     * How long after the start a rotation must have stood before it can succeed: longer than every replica takes to
-     * learn the new current version, so none can still write under the old one.
+     * How long after the start (by the database clock) a rotation must have stood before it can succeed: longer than
+     * {@link SecretVault#CONFIRM_WINDOW}, so afterwards every replica has either learned the new current version or
+     * refuses to seal.
      */
-    static final Duration SETTLE = SecretVault.REFRESH_INTERVAL.multipliedBy(3);
+    static final Duration SETTLE = SecretVault.CONFIRM_WINDOW.plusSeconds(15);
+
+    /** The stored counts and the provider's keys are read again at most this often by the status view. */
+    static final Duration STATUS_TTL = Duration.ofSeconds(10);
+
+    private static final Duration KEYRING_TTL = Duration.ofSeconds(30);
 
     private static final String COLUMNS =
             "id, from_version, to_version, status, started_by, started_at, finished_at, rewrapped, remaining, error";
@@ -45,6 +55,12 @@ public class SecretRotations {
     private final SecretVault vault;
     private final List<SealedStore> stores;
     private final Clock clock;
+
+    private volatile Counts counts;
+    private volatile Instant keyringLoadedAt = Instant.MIN;
+    private volatile Set<Integer> warnedMissing = Set.of();
+
+    private record Counts(Instant at, Map<Integer, Long> byVersion) {}
 
     public record Rotation(
             UUID id,
@@ -58,13 +74,24 @@ public class SecretRotations {
             long remaining,
             String error) {}
 
-    /** Provider, versions and counts; never a key. */
+    /**
+     * Provider, versions and counts; never a key.
+     *
+     * @param missingVersions versions that stored secrets are wrapped under but the provider does not hold
+     */
     public record Status(
             String provider,
             int currentVersion,
             List<Integer> availableVersions,
+            List<Integer> missingVersions,
             Map<Integer, Long> countsByVersion,
             Optional<Rotation> lastRotation) {}
+
+    /** Reports secrets stored under a key version the provider does not hold. */
+    @Override
+    public void afterSingletonsInstantiated() {
+        countsByVersion();
+    }
 
     /**
      * Rotates to the highest version the provider holds now, or, when that is already current, finishes what a failed
@@ -99,12 +126,11 @@ public class SecretRotations {
             tx.executeWithoutResult(s -> {
                 jdbc.update(
                         "INSERT INTO secret_rotation (id, from_version, to_version, status, started_by, started_at,"
-                                + " remaining) VALUES (?, ?, ?, 'RUNNING', ?, ?, ?)",
+                                + " remaining) VALUES (?, ?, ?, 'RUNNING', ?, now(), ?)",
                         id,
                         fromVersion,
                         to,
                         startedBy,
-                        java.sql.Timestamp.from(clock.instant()),
                         remaining);
                 if (to > current) {
                     jdbc.update("UPDATE secret_key_state SET current_kek_version = ?, updated_at = now()", to);
@@ -114,6 +140,7 @@ public class SecretRotations {
             throw new ConflictException("rotation-running", "A key rotation is already running.");
         }
         vault.refreshCurrentVersion();
+        counts = null;
         return byId(id);
     }
 
@@ -133,22 +160,31 @@ public class SecretRotations {
                 .findFirst();
     }
 
-    /** The keyring is asked again only while no rotation runs, so polling a running one does not hit the provider. */
+    /**
+     * The keyring is asked again at most every {@link #KEYRING_TTL} and only while no rotation runs; the counts are
+     * cached for {@link #STATUS_TTL}, so polling does not scan the sealed tables or hit the provider each time.
+     */
     public Status status() {
         Keyring keyring = vault.keyring();
-        if (running().isEmpty()) {
+        Instant now = clock.instant();
+        if (now.isAfter(keyringLoadedAt.plus(KEYRING_TTL)) && running().isEmpty()) {
+            keyringLoadedAt = now;
             try {
                 keyring = vault.reloadKeyring();
             } catch (RuntimeException e) {
                 // the provider is unreachable now; the keys loaded at start are still shown
             }
         }
-        Map<Integer, Long> counts = countsByVersion();
+        Counts cached = counts;
+        Map<Integer, Long> byVersion =
+                cached != null && now.isBefore(cached.at().plus(STATUS_TTL)) ? cached.byVersion() : countsByVersion();
+        Keyring shown = keyring;
         return new Status(
                 vault.providerName(),
                 vault.refreshCurrentVersion(),
-                List.copyOf(keyring.keys().keySet()),
-                counts,
+                List.copyOf(shown.keys().keySet()),
+                byVersion.keySet().stream().filter(v -> shown.get(v).isEmpty()).toList(),
+                byVersion,
                 last());
     }
 
@@ -167,7 +203,7 @@ public class SecretRotations {
                 Object after = null;
                 do {
                     SealedStore.Batch batch =
-                            store.rewrapBatch(after, target, target, BATCH, blob -> vault.rewrap(blob, target));
+                            store.rewrapBatch(after, target, BATCH, blob -> vault.rewrap(blob, target));
                     after = batch.last();
                     rewrapped += batch.updated();
                     jdbc.update("UPDATE secret_rotation SET rewrapped = ? WHERE id = ?", rewrapped, rotation.id());
@@ -175,28 +211,47 @@ public class SecretRotations {
             }
         } catch (SealedStore.RewrapException e) {
             jdbc.update(
-                    "UPDATE secret_rotation SET status = 'FAILED', finished_at = ?, error = ? WHERE id = ?",
-                    java.sql.Timestamp.from(clock.instant()),
+                    "UPDATE secret_rotation SET status = 'FAILED', finished_at = now(), error = ? WHERE id = ?",
                     e.getMessage(),
                     rotation.id());
             return;
         }
         long remaining = countBelow(target);
         progress(rotation.id(), rewrapped, remaining);
-        if (remaining == 0 && clock.instant().isAfter(rotation.startedAt().plus(SETTLE))) {
+        counts = null;
+        if (remaining == 0) {
+            // The settle time is measured by the database clock that stamped started_at, not this replica's.
             jdbc.update(
-                    "UPDATE secret_rotation SET status = 'SUCCEEDED', finished_at = ? WHERE id = ?",
-                    java.sql.Timestamp.from(clock.instant()),
-                    rotation.id());
+                    "UPDATE secret_rotation SET status = 'SUCCEEDED', finished_at = now() WHERE id = ?"
+                            + " AND now() - started_at > make_interval(secs => ?)",
+                    rotation.id(),
+                    (double) SETTLE.toSeconds());
         }
     }
 
+    /** Scans every store, caches the result and warns about versions the provider does not hold. */
     private Map<Integer, Long> countsByVersion() {
-        Map<Integer, Long> counts = new TreeMap<>();
+        Map<Integer, Long> byVersion = new TreeMap<>();
         for (SealedStore store : stores) {
-            store.countByVersion().forEach((version, n) -> counts.merge(version, n, Long::sum));
+            store.countByVersion().forEach((version, n) -> byVersion.merge(version, n, Long::sum));
         }
-        return counts;
+        counts = new Counts(clock.instant(), byVersion);
+        Keyring keyring = vault.keyring();
+        Set<Integer> missing = Set.copyOf(byVersion.keySet().stream()
+                .filter(v -> keyring.get(v).isEmpty())
+                .toList());
+        if (!missing.equals(warnedMissing)) {
+            warnedMissing = missing;
+            missing.stream()
+                    .sorted()
+                    .forEach(v -> log.warn(
+                            "{} stored secrets are wrapped under key version {}, which secret provider '{}' does not"
+                                    + " hold. They cannot be opened until that version is restored.",
+                            byVersion.get(v),
+                            v,
+                            vault.providerName()));
+        }
+        return byVersion;
     }
 
     private long countBelow(int version) {

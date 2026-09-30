@@ -3,8 +3,14 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
@@ -27,12 +33,22 @@ import org.springframework.stereotype.Component;
  * version. {@link #rewrap} moves a blob to another KEK without touching the ciphertext or needing the row AAD.
  * New secrets are wrapped with the stored current version ({@link SecretKeyState}). Key bytes are never logged or
  * put in a message.
+ *
+ * <p>A replica seals only while it has confirmed the current version from the database within
+ * {@link #CONFIRM_WINDOW}; otherwise {@link #seal} refuses, so a replica cut off from the database or the provider
+ * cannot go on writing under a key that a rotation has replaced.
  */
 @Component
 public class SecretVault implements SmartInitializingSingleton {
 
     /** How often each replica reads the stored current version again (ADR-0132 D5). */
-    public static final java.time.Duration REFRESH_INTERVAL = java.time.Duration.ofSeconds(10);
+    public static final Duration REFRESH_INTERVAL = Duration.ofSeconds(10);
+
+    /** How long the current version stays valid for sealing after it was last read from the database. */
+    public static final Duration CONFIRM_WINDOW = REFRESH_INTERVAL.multipliedBy(3);
+
+    /** A version missing from the keyring asks the provider again at most this often. */
+    static final Duration RELOAD_BACKOFF = Duration.ofSeconds(30);
 
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final byte FORMAT = 1;
@@ -44,16 +60,23 @@ public class SecretVault implements SmartInitializingSingleton {
     private static final int NONCE_AT = WRAPPED_AT + WRAPPED_DEK_BYTES;
     private static final int CIPHERTEXT_AT = NONCE_AT + NONCE_BYTES;
 
+    /** The shortest well-formed blob: header, wrapped DEK, nonce and an empty ciphertext's tag. */
+    public static final int MIN_BLOB_BYTES = CIPHERTEXT_AT + TAG_BITS / 8;
+
     private final KeyProvider provider;
     private final SecretKeyState state;
+    private final Clock clock;
     private final SecureRandom random = new SecureRandom();
+    private final Map<Integer, Instant> reloadedFor = new ConcurrentHashMap<>();
     private volatile Keyring keyring;
     private volatile int currentVersion;
+    private volatile Instant confirmedAt;
 
     /** Fails when the provider cannot deliver a valid keyring. */
-    public SecretVault(KeyProvider provider, SecretKeyState state) {
+    public SecretVault(KeyProvider provider, SecretKeyState state, Clock clock) {
         this.provider = provider;
         this.state = state;
+        this.clock = clock;
         this.keyring = provider.load();
     }
 
@@ -70,15 +93,13 @@ public class SecretVault implements SmartInitializingSingleton {
 
     /** Reads the stored current version again, for a rotation that changed it. */
     public int refreshCurrentVersion() {
-        int version = state.currentOrInit(keyring.highest(), provider.name());
-        if (keyring.get(version).isEmpty()) {
-            reloadKeyring();
-        }
-        if (keyring.get(version).isEmpty()) {
+        int version = state.currentOrInit(keyring.highest());
+        if (lookup(version).isEmpty()) {
             throw new IllegalStateException("Secret key provider '" + provider.name() + "' does not hold key version "
                     + version + ", the current version of stored secrets.");
         }
         currentVersion = version;
+        confirmedAt = clock.instant();
         return version;
     }
 
@@ -98,13 +119,24 @@ public class SecretVault implements SmartInitializingSingleton {
         return keyring;
     }
 
+    /**
+     * @throws IllegalStateException when the current version has not been confirmed within {@link #CONFIRM_WINDOW},
+     *     or the keyring lacks it
+     */
     public byte[] seal(String aad, String plaintext) {
         int version = currentVersion;
+        Instant confirmed = confirmedAt;
+        if (confirmed == null || clock.instant().isAfter(confirmed.plus(CONFIRM_WINDOW))) {
+            throw new IllegalStateException("Cannot seal a secret: the current key version has not been confirmed "
+                    + "from the database for " + CONFIRM_WINDOW.toSeconds() + " seconds.");
+        }
         byte[] dek = new byte[Keyring.KEY_BYTES];
         random.nextBytes(dek);
         byte[] nonce = randomNonce();
         try {
-            SecretKey kek = kek(version);
+            SecretKey kek = keyring.get(version)
+                    .orElseThrow(() -> new IllegalStateException("Cannot seal a secret: provider '" + provider.name()
+                            + "' does not hold the current key version " + version + "."));
             byte[] ciphertext = gcm(
                     Cipher.ENCRYPT_MODE,
                     new SecretKeySpec(dek, "AES"),
@@ -121,8 +153,8 @@ public class SecretVault implements SmartInitializingSingleton {
                     .put(nonce)
                     .put(ciphertext)
                     .array();
-        } catch (SecretDecryptException e) {
-            throw new IllegalStateException(e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to encrypt secret", e);
         }
@@ -183,10 +215,24 @@ public class SecretVault implements SmartInitializingSingleton {
         return gcm(Cipher.DECRYPT_MODE, kek(version), wrapNonce, wrapAad(version), wrapped);
     }
 
-    /** A missing version reloads the provider once, then fails naming the version. */
+    /** A missing version asks the provider again, at most once per {@link #RELOAD_BACKOFF}. */
+    private Optional<SecretKey> lookup(int version) {
+        Optional<SecretKey> key = keyring.get(version);
+        if (key.isPresent()) {
+            return key;
+        }
+        Instant now = clock.instant();
+        Instant last = reloadedFor.get(version);
+        if (last != null && now.isBefore(last.plus(RELOAD_BACKOFF))) {
+            return Optional.empty();
+        }
+        reloadedFor.put(version, now);
+        return reloadKeyring().get(version);
+    }
+
+    /** A missing version fails naming the version. */
     private SecretKey kek(int version) {
-        return keyring.get(version)
-                .or(() -> reloadKeyring().get(version))
+        return lookup(version)
                 .orElseThrow(() -> new SecretDecryptException(
                         "Secret is sealed under key version " + version + ", which provider '" + provider.name()
                                 + "' does not hold.",

@@ -75,10 +75,28 @@ class OidcClientSecretSourceTest {
     }
 
     @Test
-    void aProviderWithoutTheSecretLeavesTheRegistrationAlone() {
+    void aConfiguredSecretFailsWhenTheProviderIsNotEnvEvenIfItHoldsNoOidcSecret() {
         var source = new OidcClientSecretSource(() -> provider("file", null));
+
+        assertThatThrownBy(() -> source.postProcessAfterInitialization(repository("configured"), "repo"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("exactly one source")
+                .hasMessageNotContaining("configured");
+    }
+
+    @Test
+    void aProviderWithoutTheSecretLeavesTheRegistrationAlone() {
+        var source = new OidcClientSecretSource(() -> provider("env", null));
 
         assertThat(secretOf(source.postProcessAfterInitialization(repository("configured"), "repo")))
                 .isEqualTo("configured");
+    }
+
+    @Test
+    void aProviderWithoutTheSecretLeavesAnUnconfiguredRegistrationAlone() {
+        var source = new OidcClientSecretSource(() -> provider("file", null));
+
+        assertThat(secretOf(source.postProcessAfterInitialization(repository(null), "repo")))
+                .isEmpty();
     }
 }

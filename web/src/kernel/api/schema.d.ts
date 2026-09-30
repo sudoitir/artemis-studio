@@ -4128,6 +4128,7 @@ export interface components {
             /** Format: int32 */
             currentVersion: number;
             availableVersions: number[];
+            missingVersions: number[];
             countsByVersion: {
                 [key: string]: number;
             };

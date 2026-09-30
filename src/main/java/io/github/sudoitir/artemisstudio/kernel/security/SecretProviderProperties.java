@@ -16,7 +16,8 @@ public record SecretProviderProperties(
 
     /**
      * KV version 2 at {@code mount}/{@code path}: every live version's {@code kek} field is a key version, and
-     * {@code oidc-client-secret} is read from the latest version.
+     * {@code oidc-client-secret} is read from the latest version of {@code oidcPath}, which defaults to {@code path};
+     * keeping it on its own path stops an edit to it from pushing a key version out of KV's version history.
      *
      * @param authentication {@code token}, {@code approle} or {@code kubernetes}
      */
@@ -24,6 +25,7 @@ public record SecretProviderProperties(
             String uri,
             @DefaultValue("secret") String mount,
             String path,
+            String oidcPath,
             @DefaultValue("token") String authentication,
             String token,
             String roleId,

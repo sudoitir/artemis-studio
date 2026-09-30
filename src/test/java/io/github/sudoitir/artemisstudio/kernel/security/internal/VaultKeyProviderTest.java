@@ -43,7 +43,7 @@ class VaultKeyProviderTest {
 
     private static VaultKeyProvider provider(String path) {
         return new VaultKeyProvider(new SecretProviderProperties.Vault(
-                VAULT.getHttpHostAddress(), "secret", path, "token", TOKEN, null, null, null, null));
+                VAULT.getHttpHostAddress(), "secret", path, null, "token", TOKEN, null, null, null, null));
     }
 
     @Test
@@ -56,6 +56,27 @@ class VaultKeyProviderTest {
         assertThat(provider.load().keys()).containsOnlyKeys(1, 2);
         assertThat(provider.secret("oidc-client-secret")).contains("s3cret");
         assertThat(provider.secret("absent")).isEmpty();
+    }
+
+    @Test
+    void theOidcSecretComesFromItsOwnPathWhenSet() {
+        kv.put("keys-only", Map.of("kek", b64(1)));
+        kv.put("oidc-only", Map.of("oidc-client-secret", "own-path"));
+        var provider = new VaultKeyProvider(new SecretProviderProperties.Vault(
+                VAULT.getHttpHostAddress(),
+                "secret",
+                "keys-only",
+                "oidc-only",
+                "token",
+                TOKEN,
+                null,
+                null,
+                null,
+                null));
+
+        assertThat(provider.load().keys()).containsOnlyKeys(1);
+        assertThat(provider.secret("oidc-client-secret")).contains("own-path");
+        provider.destroy();
     }
 
     @Test
@@ -79,7 +100,16 @@ class VaultKeyProviderTest {
     @Test
     void aDeniedTokenFailsWithoutRevealingIt() {
         var denied = new VaultKeyProvider(new SecretProviderProperties.Vault(
-                VAULT.getHttpHostAddress(), "secret", "two-versions", "token", "wrong-token", null, null, null, null));
+                VAULT.getHttpHostAddress(),
+                "secret",
+                "two-versions",
+                null,
+                "token",
+                "wrong-token",
+                null,
+                null,
+                null,
+                null));
 
         assertThatThrownBy(denied::load)
                 .hasMessageContaining("'vault'")
@@ -90,7 +120,7 @@ class VaultKeyProviderTest {
     @Test
     void anUnreachableVaultFailsNamingVault() {
         var unreachable = new VaultKeyProvider(new SecretProviderProperties.Vault(
-                "http://127.0.0.1:1", "secret", "any", "token", TOKEN, null, null, null, null));
+                "http://127.0.0.1:1", "secret", "any", null, "token", TOKEN, null, null, null, null));
 
         assertThatThrownBy(unreachable::load).hasMessageContaining("'vault'").hasMessageContaining("any");
     }
