@@ -110,9 +110,9 @@ public class RoutingController {
     private static LifecycleOutcomeView respond(Attempt<LifecycleOutcome> attempt) {
         LifecycleOutcome outcome =
                 switch (attempt) {
-                    case Attempt.Ok<LifecycleOutcome> ok -> ok.value();
-                    case Attempt.Failed<LifecycleOutcome> failed ->
-                        throw new BrokerConnectionException(failed.kind(), failed.detail());
+                    case Attempt.Ok<LifecycleOutcome>(var value) -> value;
+                    case Attempt.Failed<LifecycleOutcome>(var kind, var detail) ->
+                        throw new BrokerConnectionException(kind, detail);
                 };
         return LifecycleOutcomeView.of(outcome);
     }
