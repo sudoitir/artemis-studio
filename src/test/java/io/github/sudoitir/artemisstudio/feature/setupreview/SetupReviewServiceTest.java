@@ -345,7 +345,7 @@ class SetupReviewServiceTest {
         when(first.getId()).thenReturn(CLUSTER);
         RegisteredCluster second = mock(RegisteredCluster.class);
         when(second.getId()).thenReturn(other);
-        when(clusters.clusters()).thenReturn(List.of(first, second));
+        when(clusters.owned()).thenReturn(List.of(first, second));
         doThrow(new IllegalStateException("lock db down"))
                 .when(lock)
                 .runIfHeld(eq(CLUSTER), eq(ClusterLock.Scope.SETUP_REVIEW), any());

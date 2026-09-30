@@ -7,6 +7,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import io.github.sudoitir.artemisstudio.app.StudioFeatures;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -18,7 +19,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -56,6 +59,15 @@ public abstract class ModuleIntegrationTest {
     /** Background scraping would call mocked broker beans; no module test relies on it. */
     @MockitoBean
     ScrapeScheduler scrapeScheduler;
+
+    /** The module under test owns every cluster; every cached context is a replica of the same database. */
+    @MockitoBean
+    protected ClusterOwnership clusterOwnership;
+
+    @BeforeEach
+    void ownEveryCluster() {
+        Mockito.when(clusterOwnership.owns(ArgumentMatchers.any())).thenReturn(true);
+    }
 
     @Autowired
     ConfigurableApplicationContext context;

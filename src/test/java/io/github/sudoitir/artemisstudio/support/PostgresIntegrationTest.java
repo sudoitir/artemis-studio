@@ -1,7 +1,12 @@
 package io.github.sudoitir.artemisstudio.support;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -31,6 +36,19 @@ public abstract class PostgresIntegrationTest {
      */
     @MockitoBean
     ScrapeScheduler scrapeScheduler;
+
+    /**
+     * Every cached context is a replica of the same database, so real ownership would spread a test's
+     * cluster over contexts that are not running the test. The context under test owns every cluster;
+     * {@code ClusterOwnershipTest} builds real ones.
+     */
+    @MockitoBean
+    protected ClusterOwnership clusterOwnership;
+
+    @BeforeEach
+    void ownEveryCluster() {
+        when(clusterOwnership.owns(any())).thenReturn(true);
+    }
 
     /**
      * Spring keeps every distinct test context cached, each with its own connection pool, so the

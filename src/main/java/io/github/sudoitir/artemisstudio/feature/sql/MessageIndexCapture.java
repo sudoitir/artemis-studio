@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -47,6 +48,7 @@ public class MessageIndexCapture {
     private final SqlTailPoller poller;
     private final SqlConsoleService console;
     private final MessageIndexWriter writer;
+    private final ClusterOwnership ownership;
 
     /** Running captures, by subscription id. */
     private final Map<UUID, Capture> running = new ConcurrentHashMap<>();
@@ -78,13 +80,18 @@ public class MessageIndexCapture {
         return walkingBacklog.contains(subscriptionId);
     }
 
-    /** Registered with {@code JobScheduler}; the tail poller does the actual reading. */
+    /**
+     * Registered with {@code JobScheduler}; the tail poller does the actual reading. Only the owner of a
+     * cluster tails it, so a subscription of a cluster this replica does not own is not wanted here and
+     * its tail is stopped.
+     */
     public void reconcileSampling() {
         // A CAPTURE subscription is drained by the capture consumer, not polled here.
         // Running both would double the broker load and write the same message twice,
         // once as SAMPLED and once as CAPTURED (ADR-0062).
         List<MessageIndexSubscriptionEntity> enabled = subscriptions.findByEnabledTrue().stream()
                 .filter(s -> s.getMode() != io.github.sudoitir.artemisstudio.feature.sql.CaptureMode.CAPTURE)
+                .filter(s -> ownership.owns(s.getClusterId()))
                 .toList();
         Set<UUID> wanted = enabled.stream()
                 .map(MessageIndexSubscriptionEntity::getId)

@@ -25,12 +25,14 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -85,6 +87,7 @@ public class ClientSampler {
     private final ClusterDirectory directory;
     private final BrokerConnections connections;
     private final ClusterLock lock;
+    private final ClusterOwnership ownership;
     private final SettingsService settings;
     private final SseHub hub;
     private final MeterRegistry meters;
@@ -98,11 +101,15 @@ public class ClientSampler {
 
     private final Set<UUID> running = ConcurrentHashMap.newKeySet();
 
-    /** One pass over every observed cluster. Clusters run concurrently; a slow one delays no other. */
+    /**
+     * One pass over every observed cluster this replica owns. Clusters run concurrently; a slow one
+     * delays no other. What a replica held for a cluster it no longer owns is dropped here.
+     */
     public void sweepObserved() {
         Instant now = clock.instant();
         store.forgetUnobserved(now.minus(FlowSettings.sampleInterval(settings).multipliedBy(3)));
-        Set<UUID> observed = store.observedClusters(now);
+        Set<UUID> observed = new HashSet<>(store.observedClusters(now));
+        observed.removeIf(clusterId -> !ownership.owns(clusterId));
         deltas.keySet().retainAll(observed);
         digests.keySet().retainAll(observed);
         if (observed.isEmpty()) {

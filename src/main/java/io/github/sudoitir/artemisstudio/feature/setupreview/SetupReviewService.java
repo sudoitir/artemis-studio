@@ -114,9 +114,9 @@ public class SetupReviewService {
         return render(clusterId, null);
     }
 
-    /** The scheduled pass: every cluster, under its lock, never throwing. */
+    /** The scheduled pass: every cluster this replica owns, under its lock, never throwing. */
     public void reviewAll() {
-        for (RegisteredCluster cluster : clusters.clusters()) {
+        for (RegisteredCluster cluster : clusters.owned()) {
             try {
                 lock.runIfHeld(cluster.getId(), ClusterLock.Scope.SETUP_REVIEW, () -> review(cluster.getId()));
             } catch (RuntimeException e) {

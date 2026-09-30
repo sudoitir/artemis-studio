@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMe
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -48,6 +49,7 @@ public class RrSampler {
 
     private final RrExpectationRepository expectations;
     private final ClusterDirectory nodes;
+    private final ClusterOwnership ownership;
     private final CoreMessageTransport coreTransport;
     private final ObjectProvider<RrObservationSink> sink;
     private final ReplyAddressResolver replyAddresses;
@@ -70,7 +72,7 @@ public class RrSampler {
 
     /**
      * Scheduled by {@code JobScheduler} on {@code rr.sample-interval}. It used to
-     * hardcode 5s and ignore the configured value entirely.
+     * hardcode 5s and ignore the configured value entirely. Samples only the clusters this replica owns.
      */
     public void tick() {
         RrObservationSink target = sink.getIfAvailable();
@@ -78,7 +80,7 @@ public class RrSampler {
             return;
         }
         for (RrExpectationEntity expectation : expectations.findByEnabledTrue()) {
-            if (!due(expectation)) {
+            if (!ownership.owns(expectation.getClusterId()) || !due(expectation)) {
                 continue;
             }
             try {

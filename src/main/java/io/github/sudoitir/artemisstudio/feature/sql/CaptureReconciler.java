@@ -14,6 +14,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,6 +60,7 @@ public class CaptureReconciler {
     private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final ClusterLock clusterLock;
+    private final ClusterOwnership ownership;
     private final CaptureTap tap;
     private final CaptureConsumer consumers;
     private final CaptureBus bus;
@@ -102,10 +104,12 @@ public class CaptureReconciler {
         reconcile();
     }
 
-    /** Registered with {@code JobScheduler}. One pass per cluster that captures anything. */
+    /** Registered with {@code JobScheduler}. One pass per owned cluster that captures anything. */
     public void reconcile() {
         for (UUID clusterId : capturingClusters()) {
-            reconcileNow(clusterId);
+            if (ownership.owns(clusterId)) {
+                reconcileNow(clusterId);
+            }
         }
     }
 

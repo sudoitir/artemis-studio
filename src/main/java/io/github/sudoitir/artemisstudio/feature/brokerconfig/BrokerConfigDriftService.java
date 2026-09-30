@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -57,6 +58,7 @@ public class BrokerConfigDriftService {
     private final BrokerConfigOwnedItemRepository ownedItems;
     private final ClusterAccessGuard clusterAccess;
     private final ClusterLock lock;
+    private final ClusterOwnership ownership;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
 
@@ -113,10 +115,13 @@ public class BrokerConfigDriftService {
         return report.get();
     }
 
-    /** The scheduled pass: every declared cluster, under the cluster lock, never throwing. */
+    /** The scheduled pass: every declared cluster this replica owns, under the cluster lock, never throwing. */
     public void evaluateAll() {
         for (var header : declarations.findAll()) {
             UUID clusterId = header.getClusterId();
+            if (!ownership.owns(clusterId)) {
+                continue;
+            }
             try {
                 lock.runIfHeld(clusterId, ClusterLock.Scope.CONFIG_DRIFT, () -> {
                     if (applyInFlight(clusterId)) {

@@ -168,7 +168,7 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity a = node(clusterId, "a", GOOD);
         BrokerNodeEntity b = node(clusterId, "b", GOOD);
 
-        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.owned()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(a, b));
         when(connections.forCluster(cluster.getId(), GOOD))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"))
@@ -181,13 +181,25 @@ class ScrapeSchedulerTest {
     }
 
     @Test
+    void tiersAAndBLeaveAClusterThisReplicaDoesNotOwnAlone() {
+        when(clusters.owned()).thenReturn(List.of());
+        when(clusters.clusters()).thenReturn(List.of(cluster("c")));
+
+        scheduler.tierA();
+        scheduler.tierB();
+
+        verify(connections, never()).forCluster(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
     void aFailingNodeIsRecordedAndDoesNotAbortItsSiblings() {
         UUID clusterId = UUID.randomUUID();
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity good = node(clusterId, "good", GOOD);
         BrokerNodeEntity bad = node(clusterId, "bad", BAD);
 
-        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.owned()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(bad, good));
         when(connections.forCluster(cluster.getId(), BAD))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
@@ -209,7 +221,7 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity nodeA = node(clusterAId, "na", BAD);
         BrokerNodeEntity nodeB = node(clusterBId, "nb", GOOD);
 
-        when(clusters.clusters()).thenReturn(List.of(clusterA, clusterB));
+        when(clusters.owned()).thenReturn(List.of(clusterA, clusterB));
         when(clusters.nodes(clusterA.getId())).thenReturn(List.of(nodeA));
         when(clusters.nodes(clusterB.getId())).thenReturn(List.of(nodeB));
         when(connections.forCluster(clusterA.getId(), BAD))

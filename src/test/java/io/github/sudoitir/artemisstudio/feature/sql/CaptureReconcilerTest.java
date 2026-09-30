@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
@@ -20,6 +21,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.time.Instant;
 import java.util.List;
@@ -55,6 +57,7 @@ class CaptureReconcilerTest {
     private AuditService audit;
     private BrokerNodeEntity nodeEntity;
     private BrokerConnections connections;
+    private ClusterOwnership ownership;
 
     @BeforeEach
     void setUp() {
@@ -63,6 +66,8 @@ class CaptureReconcilerTest {
         nodes = mock(ClusterDirectory.class);
         connections = mock(BrokerConnections.class);
         ClusterLock lock = mock(ClusterLock.class);
+        ownership = mock(ClusterOwnership.class);
+        when(ownership.owns(CLUSTER)).thenReturn(true);
         tap = mock(CaptureTap.class);
         consumers = mock(CaptureConsumer.class);
         CaptureBus bus = mock(CaptureBus.class);
@@ -97,6 +102,7 @@ class CaptureReconcilerTest {
                 nodes,
                 connections,
                 lock,
+                ownership,
                 tap,
                 consumers,
                 bus,
@@ -114,6 +120,15 @@ class CaptureReconcilerTest {
 
         verify(tap).install(any(), eq(INSTANCE), any());
         verify(consumers).start(any());
+    }
+
+    @Test
+    void doesNotVisitAClusterThisReplicaDoesNotOwn() {
+        when(ownership.owns(CLUSTER)).thenReturn(false);
+
+        reconciler.reconcile();
+
+        verifyNoInteractions(tap, consumers);
     }
 
     @Test

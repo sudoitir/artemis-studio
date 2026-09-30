@@ -161,9 +161,10 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         }
     }
 
+    /** Tiers A and B visit the clusters this replica owns; C and discovery run once for all (ShedLock). */
     public void tierA() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (RegisteredCluster cluster : clusters.clusters()) {
+            for (RegisteredCluster cluster : clusters.owned()) {
                 UUID clusterId = cluster.getId();
                 long cycle = scrapeCycle.next(clusterId);
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeTierA(clusterId, node, cycle));
@@ -184,7 +185,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     public void tierB() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (RegisteredCluster cluster : clusters.clusters()) {
+            for (RegisteredCluster cluster : clusters.owned()) {
                 UUID clusterId = cluster.getId();
                 fanOut(pool, manageableNodes(clusterId), node -> scrapeHotQueues(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.B));

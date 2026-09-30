@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
 import java.time.Clock;
 import java.util.HashMap;
@@ -54,6 +55,7 @@ public class PluginMessagingReconciler {
     private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final ClusterLock clusterLock;
+    private final ClusterOwnership ownership;
     private final StudioInstance instance;
     private final PluginTap tap;
     private final PluginDrains drains;
@@ -76,11 +78,11 @@ public class PluginMessagingReconciler {
         reconcile();
     }
 
-    /** The scheduled pass. */
+    /** The scheduled pass, over the clusters this replica owns. */
     public void reconcile() {
         Set<UUID> clusters = new LinkedHashSet<>(installedOn);
         registrations.findAll().forEach(r -> clusters.add(r.getClusterId()));
-        clusters.forEach(this::reconcileNow);
+        clusters.stream().filter(ownership::owns).forEach(this::reconcileNow);
     }
 
     /** One pass over one cluster, if this instance holds its lock. */
