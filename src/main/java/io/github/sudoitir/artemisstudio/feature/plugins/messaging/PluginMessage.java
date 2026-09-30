@@ -41,16 +41,27 @@ public record PluginMessage(
     /** Equal when every component is, the body by content. */
     @Override
     public boolean equals(Object other) {
-        return other instanceof PluginMessage m
-                && Objects.equals(registrationKey, m.registrationKey)
-                && Objects.equals(clusterId, m.clusterId)
-                && Objects.equals(nodeId, m.nodeId)
-                && Objects.equals(queue, m.queue)
-                && Arrays.equals(body, m.body)
-                && text == m.text
-                && Objects.equals(headers, m.headers)
-                && Objects.equals(properties, m.properties)
-                && deliveryCount == m.deliveryCount;
+        return other
+                        instanceof
+                        PluginMessage(
+                                var otherRegistrationKey,
+                                var otherClusterId,
+                                var otherNodeId,
+                                var otherQueue,
+                                var otherBody,
+                                var otherText,
+                                var otherHeaders,
+                                var otherProperties,
+                                var otherDeliveryCount)
+                && Objects.equals(registrationKey, otherRegistrationKey)
+                && Objects.equals(clusterId, otherClusterId)
+                && Objects.equals(nodeId, otherNodeId)
+                && Objects.equals(queue, otherQueue)
+                && Arrays.equals(body, otherBody)
+                && text == otherText
+                && Objects.equals(headers, otherHeaders)
+                && Objects.equals(properties, otherProperties)
+                && deliveryCount == otherDeliveryCount;
     }
 
     @Override

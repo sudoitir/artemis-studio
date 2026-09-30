@@ -29,15 +29,25 @@ public record OutboundMessage(
     /** Equal when every component is, the body by content. */
     @Override
     public boolean equals(Object other) {
-        return other instanceof OutboundMessage m
-                && Objects.equals(clusterId, m.clusterId)
-                && Objects.equals(address, m.address)
-                && Arrays.equals(body, m.body)
-                && text == m.text
-                && Objects.equals(headers, m.headers)
-                && Objects.equals(properties, m.properties)
-                && durable == m.durable
-                && Objects.equals(actingUserId, m.actingUserId);
+        return other
+                        instanceof
+                        OutboundMessage(
+                                var otherClusterId,
+                                var otherAddress,
+                                var otherBody,
+                                var otherText,
+                                var otherHeaders,
+                                var otherProperties,
+                                var otherDurable,
+                                var otherActingUserId)
+                && Objects.equals(clusterId, otherClusterId)
+                && Objects.equals(address, otherAddress)
+                && Arrays.equals(body, otherBody)
+                && text == otherText
+                && Objects.equals(headers, otherHeaders)
+                && Objects.equals(properties, otherProperties)
+                && durable == otherDurable
+                && Objects.equals(actingUserId, otherActingUserId);
     }
 
     @Override

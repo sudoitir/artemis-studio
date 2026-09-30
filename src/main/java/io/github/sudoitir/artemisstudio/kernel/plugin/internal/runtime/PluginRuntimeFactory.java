@@ -20,6 +20,7 @@ import java.util.Enumeration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,6 +86,7 @@ public class PluginRuntimeFactory {
         try {
             HikariDataSource dataSource = buildDataSource(pluginId, schema);
             GenericWebApplicationContext ctx = null;
+            boolean activated = false;
             try {
                 onStep.accept("migrating");
                 migrations.migrate(dataSource, schema, pluginId, descriptor.version(), jarPath);
@@ -100,7 +102,7 @@ public class PluginRuntimeFactory {
                 emfBean.setJpaPropertyMap(
                         Map.of("hibernate.hbm2ddl.auto", "validate", "hibernate.default_schema", schema));
                 emfBean.afterPropertiesSet();
-                EntityManagerFactory emf = emfBean.getObject();
+                EntityManagerFactory emf = Objects.requireNonNull(emfBean.getObject());
 
                 ctx = new GenericWebApplicationContext();
                 ctx.getBeanFactory().registerSingleton(PluginContextOnly.MARKER, Boolean.TRUE);
@@ -134,14 +136,16 @@ public class PluginRuntimeFactory {
                         jarPath,
                         sha256Hex(jarPath));
                 attachBridges(runtime, pluginId);
+                activated = true;
                 return runtime;
-            } catch (Exception | Error e) {
-                if (ctx != null) {
-                    ctx.close();
+            } finally {
+                if (!activated) {
+                    if (ctx != null) {
+                        ctx.close();
+                    }
+                    dataSource.close();
+                    loader.close();
                 }
-                dataSource.close();
-                loader.close();
-                throw e;
             }
         } finally {
             Thread.currentThread().setContextClassLoader(previousTccl);
