@@ -108,22 +108,13 @@ function MessageBody({
     () => detectPayload({ body, bodyEncoding, bodyCompression, contentType, bodyTruncated, stringProperties }),
     [body, bodyEncoding, bodyCompression, contentType, bodyTruncated, stringProperties],
   );
-  // The tree is offered only for JSON that parsed, so it inherits every size ceiling the formatter has.
-  const tree = useMemo(
-    () =>
-      detected.format === 'json' && detected.formatted !== null ? (JSON.parse(detected.formatted) as unknown) : null,
-    [detected],
-  );
+  const tree = useMemo(() => parsedJson(detected), [detected]);
 
   const raw = body ?? '';
   const shown = view !== 'raw' && detected.formatted !== null ? detected.formatted : raw;
   const note = unavailableMessage(detected);
 
-  // A binary body is handed over as its bytes, not as the base64 that carried it.
-  const downloadBody = () =>
-    bodyEncoding === 'BASE64'
-      ? download(`message-${messageId}.bin`, new Blob([base64Bytes(raw)]))
-      : download(`message-${messageId}.${FILE_EXTENSION[detected.format] ?? 'txt'}`, raw);
+  const downloadBody = () => downloadMessageBody(messageId, bodyEncoding, raw, detected.format);
 
   return (
     <Stack gap={4}>
@@ -147,11 +138,7 @@ function MessageBody({
               size="xs"
               value={view}
               onChange={(v) => setView(v as BodyView)}
-              data={[
-                { label: 'Formatted', value: 'formatted' },
-                ...(tree === null ? [] : [{ label: 'Tree', value: 'tree' }]),
-                { label: 'Raw', value: 'raw' },
-              ]}
+              data={viewOptions(tree !== null)}
             />
           ) : null}
           <CopyButton value={raw}>
@@ -195,6 +182,29 @@ function MessageBody({
 }
 
 type BodyView = 'formatted' | 'tree' | 'raw';
+
+/** Formatted and Raw always; Tree only for a body that parsed as JSON. */
+function viewOptions(withTree: boolean): { label: string; value: BodyView }[] {
+  return [
+    { label: 'Formatted', value: 'formatted' },
+    ...(withTree ? [{ label: 'Tree', value: 'tree' as const }] : []),
+    { label: 'Raw', value: 'raw' },
+  ];
+}
+
+/** The body as a value for the tree. Offered only for JSON that parsed, so it inherits every formatting ceiling. */
+function parsedJson(detected: ReturnType<typeof detectPayload>): unknown {
+  return detected.format === 'json' && detected.formatted !== null ? JSON.parse(detected.formatted) : null;
+}
+
+/** A binary body is handed over as its bytes, not as the base64 that carried it. */
+function downloadMessageBody(messageId: number, bodyEncoding: string, raw: string, format: string): void {
+  if (bodyEncoding === 'BASE64') {
+    download(`message-${messageId}.bin`, new Blob([base64Bytes(raw)]));
+  } else {
+    download(`message-${messageId}.${FILE_EXTENSION[format] ?? 'txt'}`, raw);
+  }
+}
 
 function base64Bytes(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64.replaceAll(/\s/g, ''));
