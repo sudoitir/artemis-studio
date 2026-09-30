@@ -17,6 +17,8 @@ public class LifecycleSettings implements SettingsContribution {
     public static final String HOUSEKEEPING_CRON = "lifecycle.housekeeping-cron";
     public static final String STORAGE_SAMPLE_CRON = "lifecycle.storage-sample-cron";
 
+    private static final String GROUP = "Data lifecycle";
+
     static final String RETENTION = "retention";
     static final String QUOTA = "quota";
     static final String QUOTA_WARN_PERCENT = "quota-warn-percent";
@@ -31,7 +33,7 @@ public class LifecycleSettings implements SettingsContribution {
         return List.of(
                 new SettingDef(
                         HOUSEKEEPING_CRON,
-                        "Data lifecycle",
+                        GROUP,
                         "Purge schedule",
                         "When every store is purged to its retention, in bounded batches. Six-field cron.",
                         Kind.CRON,
@@ -39,7 +41,7 @@ public class LifecycleSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         STORAGE_SAMPLE_CRON,
-                        "Data lifecycle",
+                        GROUP,
                         "Storage sample schedule",
                         "When table sizes are sampled for growth and storage alerts are evaluated. Six-field cron.",
                         Kind.CRON,
@@ -70,7 +72,7 @@ public class LifecycleSettings implements SettingsContribution {
         return List.of(
                 new SettingDef(
                         key(store, RETENTION),
-                        "Data lifecycle",
+                        GROUP,
                         def.label() + " retention",
                         "Older data is purged by the next housekeeping run.",
                         Kind.DURATION,
@@ -80,7 +82,7 @@ public class LifecycleSettings implements SettingsContribution {
                         def.maxRetention() == null ? SettingDef.FOREVER : format(def.maxRetention())),
                 new SettingDef(
                         key(store, QUOTA),
-                        "Data lifecycle",
+                        GROUP,
                         def.label() + " quota (" + unit + ")",
                         "0 means no quota.",
                         Kind.INT,
@@ -90,7 +92,7 @@ public class LifecycleSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         key(store, QUOTA_WARN_PERCENT),
-                        "Data lifecycle",
+                        GROUP,
                         def.label() + " quota warning (%)",
                         "Usage at this share of the quota raises a storage alert.",
                         Kind.INT,

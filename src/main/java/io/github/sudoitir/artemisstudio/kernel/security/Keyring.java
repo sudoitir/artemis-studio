@@ -45,7 +45,7 @@ public record Keyring(SortedMap<Integer, SecretKey> keys) {
         byte[] decoded;
         try {
             decoded = Base64.getDecoder().decode(base64.trim());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalStateException("Secret key provider '" + provider + "': " + label
                     + " is not valid base64. Expected base64 of " + KEY_BYTES + " bytes.");
         }

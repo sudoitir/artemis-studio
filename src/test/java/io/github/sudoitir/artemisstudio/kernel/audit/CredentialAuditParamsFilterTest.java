@@ -12,7 +12,7 @@ class CredentialAuditParamsFilterTest {
 
     @Test
     void masksCredentialNamedParametersAtEveryDepth() {
-        Map<String, ?> out = filter.filter(Map.of(
+        Map<String, Object> out = filter.filter(Map.of(
                 "password",
                 "hunter2",
                 "name",
@@ -22,17 +22,17 @@ class CredentialAuditParamsFilterTest {
                 "list",
                 List.of(Map.of("secret", "s"), "plain")));
 
-        assertThat(out.get("password")).isEqualTo("[redacted]");
-        assertThat(out.get("name")).isEqualTo("orders");
-        assertThat(out.get("bridge")).isEqualTo(Map.of("apiKey", "[redacted]", "queue", "q"));
-        assertThat(out.get("list")).isEqualTo(List.of(Map.of("secret", "[redacted]"), "plain"));
+        assertThat(out).containsEntry("password", "[redacted]");
+        assertThat(out).containsEntry("name", "orders");
+        assertThat(out).containsEntry("bridge", Map.of("apiKey", "[redacted]", "queue", "q"));
+        assertThat(out).containsEntry("list", List.of(Map.of("secret", "[redacted]"), "plain"));
     }
 
     @Test
     void masksCredentialShapedStrings() {
-        Map<String, ?> out = filter.filter(Map.of("url", "tcp://bob:pw@broker:61616", "note", "token=abc"));
+        Map<String, Object> out = filter.filter(Map.of("url", "tcp://bob:pw@broker:61616", "note", "token=abc"));
 
-        assertThat(out.get("url")).isEqualTo("tcp://[redacted]@broker:61616");
-        assertThat(out.get("note")).isEqualTo("token=[redacted]");
+        assertThat(out).containsEntry("url", "tcp://[redacted]@broker:61616");
+        assertThat(out).containsEntry("note", "token=[redacted]");
     }
 }

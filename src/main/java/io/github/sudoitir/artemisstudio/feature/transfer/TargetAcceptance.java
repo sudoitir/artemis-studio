@@ -123,23 +123,7 @@ public final class TargetAcceptance {
             return;
         }
         if (Boolean.FALSE.equals(f.queueExists())) {
-            JsonNode auto = settings == null ? null : settings.get("autoCreateQueues");
-            if (auto == null || auto.isNull()) {
-                out.add(unknown(
-                        "queue-missing",
-                        "Queue %s does not exist on the target node, and whether the broker would create it could not be read."
-                                .formatted(queue)));
-            } else if (!auto.asBoolean()) {
-                out.add(refuse(
-                        "queue-missing",
-                        "Queue %s does not exist on the target node, and address %s does not create queues automatically."
-                                .formatted(queue, address),
-                        """
-                        <address-setting match="%s">
-                          <auto-create-queues>true</auto-create-queues>
-                        </address-setting>
-                        """.formatted(address)));
-            }
+            queueMissing(settings, address, queue, out);
             return;
         }
         if (f.filter() == null) {
@@ -151,24 +135,7 @@ public final class TargetAcceptance {
                             .formatted(queue, f.filter())));
         }
         if (f.ringSize() != null && f.ringSize() > 0) {
-            long ring = f.ringSize();
-            if (in.count() == null) {
-                out.add(unknown(
-                        "ring-unknown",
-                        "Queue %s is a ring queue of %d messages, and the selection's size is unknown."
-                                .formatted(queue, ring)));
-            } else if (in.count() > ring) {
-                out.add(refuse(
-                        "ring-too-small",
-                        "Queue %s is a ring queue of %d messages; the %d selected would push each other out."
-                                .formatted(queue, ring, in.count())));
-            } else if (in.count() + (f.messageCount() == null ? 0 : f.messageCount()) > ring) {
-                out.add(warn(
-                        "ring-pushes-out",
-                        "Queue %s is a ring queue of %d messages; adding %d pushes out some of the messages already on it."
-                                .formatted(queue, ring, in.count()),
-                        null));
-            }
+            ring(in, f, queue, out);
         }
         if (Boolean.TRUE.equals(f.lastValue())) {
             out.add(warn(
@@ -176,6 +143,47 @@ public final class TargetAcceptance {
                     "Queue %s is a last-value queue: messages sharing a last-value key replace each other, so fewer may"
                                     .formatted(queue)
                             + " remain than arrive.",
+                    null));
+        }
+    }
+
+    private static void queueMissing(JsonNode settings, String address, String queue, List<Finding> out) {
+        JsonNode auto = settings == null ? null : settings.get("autoCreateQueues");
+        if (auto == null || auto.isNull()) {
+            out.add(unknown(
+                    "queue-missing",
+                    "Queue %s does not exist on the target node, and whether the broker would create it could not be read."
+                            .formatted(queue)));
+        } else if (!auto.asBoolean()) {
+            out.add(refuse(
+                    "queue-missing",
+                    "Queue %s does not exist on the target node, and address %s does not create queues automatically."
+                            .formatted(queue, address),
+                    """
+                    <address-setting match="%s">
+                      <auto-create-queues>true</auto-create-queues>
+                    </address-setting>
+                    """.formatted(address)));
+        }
+    }
+
+    private static void ring(Input in, Facts f, String queue, List<Finding> out) {
+        long ring = f.ringSize();
+        if (in.count() == null) {
+            out.add(unknown(
+                    "ring-unknown",
+                    "Queue %s is a ring queue of %d messages, and the selection's size is unknown."
+                            .formatted(queue, ring)));
+        } else if (in.count() > ring) {
+            out.add(refuse(
+                    "ring-too-small",
+                    "Queue %s is a ring queue of %d messages; the %d selected would push each other out."
+                            .formatted(queue, ring, in.count())));
+        } else if (in.count() + (f.messageCount() == null ? 0 : f.messageCount()) > ring) {
+            out.add(warn(
+                    "ring-pushes-out",
+                    "Queue %s is a ring queue of %d messages; adding %d pushes out some of the messages already on it."
+                            .formatted(queue, ring, in.count()),
                     null));
         }
     }

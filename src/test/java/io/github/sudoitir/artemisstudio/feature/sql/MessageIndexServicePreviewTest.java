@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -130,7 +132,9 @@ class MessageIndexServicePreviewTest {
         MessageIndexService.Spec spec = new MessageIndexService.Spec(
                 "ORDER.IN", null, 8, null, CaptureMode.CAPTURE, null, null, null, null, null);
 
-        assertThatThrownBy(() -> service("studio").preview(CLUSTER, spec))
+        MessageIndexService service = service("studio");
+
+        assertThatThrownBy(() -> service.preview(CLUSTER, spec))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("between 1 and 7")
                 .hasMessageContaining("got 8");
@@ -138,7 +142,10 @@ class MessageIndexServicePreviewTest {
 
     @Test
     void anOutOfRangeBoundIsRefusedNotClamped() {
-        assertThatThrownBy(() -> service("studio").preview(CLUSTER, spec("ORDER.IN", 50_000_000L)))
+        MessageIndexService service = service("studio");
+        MessageIndexService.Spec spec = spec("ORDER.IN", 50_000_000L);
+
+        assertThatThrownBy(() -> service.preview(CLUSTER, spec))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("ringSize must be between 100 and 1000000");
     }
@@ -155,8 +162,9 @@ class MessageIndexServicePreviewTest {
         entity.setRetentionDays(7);
         when(subscriptions.findById(id)).thenReturn(java.util.Optional.of(entity));
         when(addresses.of(any(), any())).thenReturn(Set.of("ORDER.IN"));
+        AuditEvent auditEvent = mock(AuditEvent.class);
         when(audit.begin(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
-                .thenReturn(mock(io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent.class));
+                .thenReturn(auditEvent);
         CaptureConsumer consumers = mock(CaptureConsumer.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(
@@ -210,8 +218,9 @@ class MessageIndexServicePreviewTest {
         when(subscriptions.findById(id)).thenReturn(java.util.Optional.of(entity));
         when(subscriptions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(addresses.of(any(), any())).thenReturn(Set.of());
+        AuditEvent auditEvent = mock(AuditEvent.class);
         when(audit.begin(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
-                .thenReturn(mock(io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent.class));
+                .thenReturn(auditEvent);
 
         service("studio")
                 .update(
@@ -222,12 +231,15 @@ class MessageIndexServicePreviewTest {
         // The divert keeps copying every message into its capture queue until it is removed, and
         // with the drain stopped nothing empties that queue. No transaction is active in this test,
         // so the after-commit sweep runs straight away.
-        org.mockito.Mockito.verify(reconciler).reconcileNow(CLUSTER);
+        verify(reconciler).reconcileNow(CLUSTER);
     }
 
     @Test
     void studiosOwnCaptureAddressesCannotBeCaptured() {
-        assertThatThrownBy(() -> service("studio").preview(CLUSTER, spec("artemis-studio.capture.#", null)))
+        MessageIndexService service = service("studio");
+        MessageIndexService.Spec spec = spec("artemis-studio.capture.#", null);
+
+        assertThatThrownBy(() -> service.preview(CLUSTER, spec))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot be captured");
     }

@@ -96,7 +96,7 @@ class HousekeeperTest {
         assertThat(fake.backlog).isZero();
         assertThat(fake.cutoff).isEqualTo(NOW.minus(Duration.ofDays(3)));
         verify(audit).succeed(event, 12_000);
-        verify(status).record("events", NOW, 12_000, null);
+        verify(status).recordRun("events", NOW, 12_000, null);
     }
 
     @Test
@@ -124,8 +124,8 @@ class HousekeeperTest {
         housekeeper.purgeAll();
 
         verify(audit).failPartial(event, 0, "disk on fire");
-        verify(status).record("plugin.broken", NOW, 0, "disk on fire");
+        verify(status).recordRun("plugin.broken", NOW, 0, "disk on fire");
         assertThat(fine.backlog).isZero();
-        verify(status).record(eq("events"), eq(NOW), anyLong(), isNull());
+        verify(status).recordRun(eq("events"), eq(NOW), anyLong(), isNull());
     }
 }

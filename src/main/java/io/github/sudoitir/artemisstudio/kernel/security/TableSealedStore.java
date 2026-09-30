@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,7 +54,7 @@ public class TableSealedStore implements SealedStore {
         List<Object> select = new ArrayList<>();
         select.add(targetVersion);
         if (after != null) {
-            select.addAll(Arrays.asList((Object[]) after));
+            select.addAll((List<?>) after);
         }
         select.add(limit);
         List<Row> rows = jdbc.query(
@@ -63,21 +64,21 @@ public class TableSealedStore implements SealedStore {
                     for (int c = 0; c < values.length; c++) {
                         values[c] = rs.getObject(c + 1);
                     }
-                    return new Row(values, rs.getBytes(values.length + 1));
+                    return new Row(Arrays.asList(values), ByteBuffer.wrap(rs.getBytes(values.length + 1)));
                 },
                 select.toArray());
         int updated = 0;
         for (Row row : rows) {
             byte[] rewrapped;
             try {
-                rewrapped = rewrap.apply(row.sealed());
+                rewrapped = rewrap.apply(row.sealed().array());
             } catch (RuntimeException e) {
-                throw new RewrapException(table, Arrays.toString(row.key()), e);
+                throw new RewrapException(table, row.key().toString(), e);
             }
             List<Object> args = new ArrayList<>();
             args.add(rewrapped);
-            args.addAll(Arrays.asList(row.key()));
-            args.add(row.sealed());
+            args.addAll(row.key());
+            args.add(row.sealed().array());
             updated += jdbc.update(update, args.toArray());
         }
         return new Batch(updated, rows.size() < limit ? null : rows.getLast().key());
@@ -98,5 +99,6 @@ public class TableSealedStore implements SealedStore {
         return counts;
     }
 
-    private record Row(Object[] key, byte[] sealed) {}
+    /** {@code sealed} is a buffer, not an array, so the record compares by content. */
+    private record Row(List<Object> key, ByteBuffer sealed) {}
 }

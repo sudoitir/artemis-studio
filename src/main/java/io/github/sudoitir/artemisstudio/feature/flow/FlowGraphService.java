@@ -941,14 +941,8 @@ public class FlowGraphService {
             if (q.role != null) {
                 continue;
             }
-            SubjectRate a = picture.added().get(q.name);
-            SubjectRate k = picture.acked().get(q.name);
-            if (a != null) {
-                in = (in == null ? 0 : in) + a.rate();
-            }
-            if (k != null) {
-                out = (out == null ? 0 : out) + k.rate();
-            }
+            in = plusRate(in, picture.added().get(q.name));
+            out = plusRate(out, picture.acked().get(q.name));
             backlog += q.messageCount == null ? 0 : q.messageCount;
             faults += q.noConsumer() ? 1 : 0;
         }
@@ -956,6 +950,14 @@ public class FlowGraphService {
         Set<String> clients = new TreeSet<>(picture.producers().keySet());
         clients.addAll(picture.consumers().keySet());
         return new FlowKpis(in, out, backlog, clients.size(), faults);
+    }
+
+    /** A total stays unknown (null) until some subject reports a rate. */
+    private static Double plusRate(Double total, SubjectRate rate) {
+        if (rate == null) {
+            return total;
+        }
+        return (total == null ? 0 : total) + rate.rate();
     }
 
     private static int clientRoutingAndNodeFaults(

@@ -134,7 +134,7 @@ class KubernetesKeyProvider implements KeyProvider {
     private String decode(JsonNode base64) {
         try {
             return new String(Base64.getDecoder().decode(base64.asString("")), StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalStateException(failure("holds a value that is not base64"));
         }
     }

@@ -209,6 +209,18 @@ public class BrokerConfigOperations {
         }
     }
 
+    private static List<BridgeRow> readBridgeRows(
+            Iterator<JolokiaResponse> responses, int count, UUID nodeId, String nodeName) {
+        List<BridgeRow> rows = new ArrayList<>();
+        for (int k = 0; k < count; k++) {
+            JolokiaResponse res = responses.next();
+            if (res.ok() && res.value() != null && res.value().isObject()) {
+                rows.add(BridgeRow.parse(res.value(), nodeId, nodeName));
+            }
+        }
+        return rows;
+    }
+
     /**
      * Read one live node. Two batched POSTs: the first fetches the broker's names,
      * every scoped address setting and role set, and searches the divert MBeans; the
@@ -265,14 +277,8 @@ public class BrokerConfigOperations {
         Iterator<JolokiaResponse> r2 = batch(client, second).iterator();
 
         Map<String, DivertDecl> diverts = readDiverts(r2, divertMbeans.size(), nodeId, nodeName);
-        List<BridgeRow> bridgeRows = new ArrayList<>();
-        for (int k = 0; k < bridgeMbeans.size(); k++) {
-            JolokiaResponse res = r2.next();
-            if (res.ok() && res.value() != null && res.value().isObject()) {
-                bridgeRows.add(BridgeRow.parse(res.value(), nodeId, nodeName));
-            }
-        }
-        Map<String, ObservedBridge> bridges = groupBridges(bridgeRows, scope.bridges());
+        Map<String, ObservedBridge> bridges =
+                groupBridges(readBridgeRows(r2, bridgeMbeans.size(), nodeId, nodeName), scope.bridges());
         Map<String, Set<String>> addresses = new LinkedHashMap<>();
         addressNames.forEach(a -> addresses.put(a, Set.of()));
         Map<String, AddressUsage> usage = new LinkedHashMap<>();

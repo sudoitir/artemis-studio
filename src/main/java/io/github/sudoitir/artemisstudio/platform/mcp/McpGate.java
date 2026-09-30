@@ -118,18 +118,15 @@ class McpGate {
     }
 
     private JSONRPCResponse list(JSONRPCResponse response) {
-        if (response == null || !(response.result() instanceof McpSchema.ListToolsResult r)) {
+        if (response == null
+                || !(response.result() instanceof McpSchema.ListToolsResult(var tools, var nextCursor, var meta))) {
             return response;
         }
         return new JSONRPCResponse(
                 response.jsonrpc(),
                 response.id(),
                 new McpSchema.ListToolsResult(
-                        r.tools().stream()
-                                .filter(t -> catalog.offered(t.name()))
-                                .toList(),
-                        r.nextCursor(),
-                        r.meta()),
+                        tools.stream().filter(t -> catalog.offered(t.name())).toList(), nextCursor, meta),
                 null);
     }
 
@@ -207,7 +204,7 @@ class McpGate {
     private static UUID clusterId(Map<?, ?> arguments) {
         try {
             return arguments.get("clusterId") instanceof String s ? UUID.fromString(s) : null;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }

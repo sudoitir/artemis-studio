@@ -10,6 +10,11 @@ function growth(t: TableView): string {
   return `${t.growthBytes >= 0 ? '+' : ''}${bytes(t.growthBytes)}`;
 }
 
+function partitions(t: TableView): string {
+  if (!t.partitioned) return 'n/a';
+  return t.missingPartitions.length ? `missing ${t.missingPartitions.join(', ')}` : 'ready';
+}
+
 /** Every table's size, growth, dead tuples, vacuum and partitions (data-lifecycle spec). */
 export function HealthTable() {
   const health = useStorageHealth();
@@ -58,8 +63,7 @@ export function HealthTable() {
       id: 'partitions',
       header: 'Partitions',
       width: 100,
-      accessor: (t) =>
-        !t.partitioned ? 'n/a' : t.missingPartitions.length ? `missing ${t.missingPartitions.join(', ')}` : 'ready',
+      accessor: partitions,
     },
   ];
 
