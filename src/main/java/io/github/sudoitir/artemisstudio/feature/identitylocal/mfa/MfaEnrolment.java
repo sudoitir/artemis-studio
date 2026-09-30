@@ -62,6 +62,7 @@ public class MfaEnrolment {
 
     @Transactional(readOnly = true)
     public MfaStatusView status(StudioPrincipal principal, HttpServletRequest request) {
+        requireSession(principal);
         UUID userId = principal.userId();
         Duration lifetime = trustedDevices.lifetime();
         String cookie = TrustedDeviceCookie.read(request).orElse(null);
@@ -279,10 +280,15 @@ public class MfaEnrolment {
                 .isPresent();
     }
 
-    private void requireLocalSession(StudioPrincipal principal) {
+    /** A key acts within its narrowed grants; it neither manages nor reads its owner's second factors. */
+    private static void requireSession(StudioPrincipal principal) {
         if (principal.tokenName() != null) {
             throw new AccessDeniedException("Second factors are managed from a signed-in session, not with a token.");
         }
+    }
+
+    private void requireLocalSession(StudioPrincipal principal) {
+        requireSession(principal);
         if (!isLocal(principal)) {
             throw new ConflictException(
                     "mfa-not-local",

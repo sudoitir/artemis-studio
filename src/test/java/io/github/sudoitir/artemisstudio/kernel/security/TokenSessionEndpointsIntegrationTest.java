@@ -9,12 +9,13 @@ import org.junit.jupiter.api.Test;
 
 /**
  * An API key acts within the grants it was narrowed to, so it cannot look at or end the sessions of
- * the person who owns it: a leaked read-only key would otherwise sign its owner out everywhere.
+ * the person who owns it, nor read their second factors and trusted devices: a leaked read-only key would
+ * otherwise sign its owner out everywhere and show where they sign in from.
  */
 class TokenSessionEndpointsIntegrationTest extends AccountIntegrationTest {
 
     @Test
-    void aTokenCanNeitherListNorEndItsOwnersSessions() throws Exception {
+    void aTokenCanNeitherReadNorEndItsOwnersSessionsOrSecondFactorsStatus() throws Exception {
         newAdministrator("tse-owner");
         Browser session = signedIn("tse-owner");
         Browser other = signedIn("tse-owner");
