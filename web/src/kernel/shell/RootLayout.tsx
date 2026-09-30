@@ -52,9 +52,9 @@ export function RootLayout() {
   useEffect(() => {
     if (isPublicRoute) return;
     if (me.isError && me.error.status === 401) {
-      navigate({ to: '/login' });
+      void navigate({ to: '/login' });
     } else if (me.data?.mustChangePassword && location.pathname !== '/change-password') {
-      navigate({ to: '/change-password' });
+      void navigate({ to: '/change-password' });
     }
   }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
 

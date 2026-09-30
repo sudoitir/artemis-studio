@@ -297,7 +297,7 @@ export function PluginsPanel() {
         source={source}
         onClose={() => {
           setSource(null);
-          if (search.upload) setSearch({ upload: undefined });
+          if (search.upload) void setSearch({ upload: undefined });
         }}
       />
       <InstallersDialog opened={installersOpen} onClose={() => setInstallersOpen(false)} />

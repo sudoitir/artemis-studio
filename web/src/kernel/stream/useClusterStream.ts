@@ -72,10 +72,10 @@ function backoff(failures: number): number {
 function invalidate(qc: QueryClient, queryKey: readonly unknown[]) {
   if (isPollingPaused()) {
     markPendingChange();
-    qc.invalidateQueries({ queryKey, refetchType: 'none' });
+    void qc.invalidateQueries({ queryKey, refetchType: 'none' });
     return;
   }
-  qc.invalidateQueries({ queryKey });
+  void qc.invalidateQueries({ queryKey });
 }
 
 /**

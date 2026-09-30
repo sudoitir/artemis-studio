@@ -122,7 +122,7 @@ export function BulkPreviewDialog({
       {
         onSuccess: (run) => {
           close();
-          navigate({ to: `/clusters/${clusterId}/bulk/${run.id}` });
+          void navigate({ to: `/clusters/${clusterId}/bulk/${run.id}` });
           onStarted();
         },
       },

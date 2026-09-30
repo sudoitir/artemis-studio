@@ -138,7 +138,7 @@ const nodeTypes = { broker: BrokerNode, unmanaged: UnmanagedNode, pair: PairGrou
 function RefitOnNodeSetChange({ signature }: { signature: string }) {
   const flow = useReactFlow();
   useEffect(() => {
-    flow.fitView({ padding: 0.15, maxZoom: 1 });
+    void flow.fitView({ padding: 0.15, maxZoom: 1 });
   }, [flow, signature]);
   return null;
 }

@@ -162,7 +162,7 @@ export function SqlConsoleView() {
     if (gate.kind === 'blocked' || !text.trim()) return;
     // The shareable state is written when the query is actually run, not on every
     // keystroke — a history entry per character would make Back useless.
-    navigate({
+    void navigate({
       to: '.',
       search: () => ({ q: text, live: tailing || undefined }),
     });
@@ -249,7 +249,7 @@ export function SqlConsoleView() {
   const stopTail = () => {
     setLive(false);
     run.stop();
-    navigate({ to: '.', search: () => ({ q: text }) });
+    void navigate({ to: '.', search: () => ({ q: text }) });
   };
 
   const { result, rows, status, error } = run;

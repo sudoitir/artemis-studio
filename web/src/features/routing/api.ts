@@ -43,7 +43,7 @@ export function useCreateDivert(clusterId: string) {
       }),
     onSuccess: (result) => {
       if (result.outcome.dryRun) return;
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
     },
   });
 }
@@ -61,7 +61,7 @@ export function useDeleteDivert(clusterId: string, name: string) {
       }),
     onSuccess: (result) => {
       if (result.dryRun) return;
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
     },
   });
 }

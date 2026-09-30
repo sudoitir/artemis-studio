@@ -52,7 +52,7 @@ export function LoginView() {
           if (bootState().manifest === undefined) {
             window.location.replace(to);
           } else {
-            navigate({ to });
+            void navigate({ to });
           }
         },
       },

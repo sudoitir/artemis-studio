@@ -328,7 +328,7 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
 
   useEffect(() => {
     if ((search.q ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({
         ...prev,

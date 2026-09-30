@@ -120,8 +120,8 @@ export function useSendMessage(clusterId: string, queueName: string) {
     onSuccess: (result) => {
       // DryRunView carries `cap`; AffectedView does not. Only a real run changes state.
       if ('cap' in result) return;
-      qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      void qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
+      void qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
     },
   });
 }
@@ -145,8 +145,8 @@ export function useMessageAction(clusterId: string, queueName: string) {
     onSuccess: (result) => {
       // DryRunView carries `cap`; AffectedView does not. Only a real run changes state.
       if ('cap' in result) return;
-      qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      void qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
+      void qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
     },
   });
 }
@@ -167,8 +167,8 @@ export function usePurgeQueue(clusterId: string, queueName: string) {
     onSuccess: (result) => {
       // DryRunView carries `cap`; AffectedView does not. Only a real run changes state.
       if ('cap' in result) return;
-      qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      void qc.invalidateQueries({ queryKey: keys.messages(clusterId, queueName) });
+      void qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
     },
   });
 }

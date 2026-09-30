@@ -132,7 +132,7 @@ export function MessagesView() {
 
   useEffect(() => {
     if ((search.filter ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({
         ...prev,

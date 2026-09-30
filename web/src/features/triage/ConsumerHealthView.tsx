@@ -106,7 +106,7 @@ export function ConsumerHealthView() {
 
   useEffect(() => {
     if ((search.q ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({ ...prev, q: debounced || undefined, page: undefined }),
     });

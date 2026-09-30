@@ -274,7 +274,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
                     });
                     setF(EMPTY);
                     onRegistered?.();
-                    navigate({ to: `/clusters/${detail.id}/topology` });
+                    void navigate({ to: `/clusters/${detail.id}/topology` });
                   },
                 })
               }

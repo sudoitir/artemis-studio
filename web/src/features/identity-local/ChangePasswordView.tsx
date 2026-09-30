@@ -36,7 +36,7 @@ export function ChangePasswordView() {
           if (forced) {
             logout.mutate(undefined, { onSettled: () => navigate({ to: '/login' }) });
           } else {
-            navigate({ to: '/' });
+            void navigate({ to: '/' });
           }
         },
       },

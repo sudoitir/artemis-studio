@@ -57,7 +57,7 @@ function useCloseMutation<V extends LifecycleVars>(clusterId: string, send: (var
     onSuccess: (result) => {
       if (result.outcome.dryRun) return;
       for (const topic of ['connections', 'sessions', 'consumers'] as const) {
-        qc.invalidateQueries({ queryKey: keys.topic(clusterId, topic) });
+        void qc.invalidateQueries({ queryKey: keys.topic(clusterId, topic) });
       }
     },
   });

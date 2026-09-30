@@ -264,10 +264,10 @@ export function useApplyBrokerConfig(clusterId: string) {
       }),
     onSuccess: (result) => {
       if (result.dryRun) return;
-      qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
-      qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
-      qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
+      void qc.invalidateQueries({ queryKey: keys.brokerConfig(clusterId) });
+      void qc.invalidateQueries({ queryKey: keys.topic(clusterId, 'queues') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'addresses') });
+      void qc.invalidateQueries({ queryKey: keys.resource(clusterId, 'diverts') });
     },
   });
 }

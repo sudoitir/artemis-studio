@@ -31,7 +31,7 @@ export function SettingsView() {
 
   const open = (id: string | null) => {
     if (!id) return;
-    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: id }), replace: true });
+    void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: id }), replace: true });
     requestAnimationFrame(() => headings.current.get(id)?.focus());
   };
 

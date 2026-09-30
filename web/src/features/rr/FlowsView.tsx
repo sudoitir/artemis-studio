@@ -95,7 +95,7 @@ export function FlowsView() {
                 setAddress(e.currentTarget.value);
                 // A filter change invalidates the position: page 4 of the old
                 // result is page 4 of nothing.
-                if (page > 1) setPage(1);
+                if (page > 1) void setPage(1);
               }}
               size="xs"
               w={220}

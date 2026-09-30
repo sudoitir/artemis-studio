@@ -103,7 +103,7 @@ export function QueuesView() {
 
   useEffect(() => {
     if ((search.q ?? '') === debounced) return;
-    navigate({
+    void navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({ ...prev, q: debounced || undefined, page: undefined }),
     });
@@ -302,7 +302,7 @@ export function QueuesView() {
                   variant="light"
                   onClick={() => {
                     setFilter('');
-                    navigate({
+                    void navigate({
                       to: '.',
                       search: (prev: Record<string, unknown>) => ({
                         ...prev,

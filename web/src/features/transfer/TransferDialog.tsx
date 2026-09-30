@@ -231,7 +231,7 @@ export function TransferDialog({
       {
         onSuccess: (run) => {
           close();
-          navigate({ to: `/clusters/${clusterId}/transfers/${run.id}` });
+          void navigate({ to: `/clusters/${clusterId}/transfers/${run.id}` });
           onStarted();
         },
       },
