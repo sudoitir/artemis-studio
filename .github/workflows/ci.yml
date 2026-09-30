@@ -728,7 +728,12 @@ jobs:
           gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
-          gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --bundle-from-oci
+          # Docker Hub lists a freshly pushed referrer only after a delay, so give it a minute.
+          for i in {1..6}; do
+            gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --bundle-from-oci && break
+            [ "$i" -lt 6 ] || exit 1
+            sleep 10
+          done
 
       # A release made with the workflow token triggers no workflow, so the site that lists the
       # release notes is rebuilt explicitly.
