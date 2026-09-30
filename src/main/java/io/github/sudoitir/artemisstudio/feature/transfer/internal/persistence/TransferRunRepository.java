@@ -34,4 +34,17 @@ public interface TransferRunRepository extends JpaRepository<TransferRunEntity, 
     @Transactional
     @Query("update TransferRunEntity r set r.state = :to where r.id = :id and r.state in :from")
     int transition(@Param("id") UUID id, @Param("from") Collection<TransferState> from, @Param("to") TransferState to);
+
+    /**
+     * Take the row lock of a run that is still active on {@code replica}: one when it is, zero when
+     * recovery or another replica has taken it over. Called at the start of the runner's own transaction,
+     * so what it writes next commits before anything else can change the run, and never after.
+     */
+    @Modifying
+    @Query("update TransferRunEntity r set r.state = r.state where r.id = :id"
+            + " and r.state in (io.github.sudoitir.artemisstudio.feature.transfer.TransferState.RUNNING,"
+            + " io.github.sudoitir.artemisstudio.feature.transfer.TransferState.WAITING_FOR_CAPACITY,"
+            + " io.github.sudoitir.artemisstudio.feature.transfer.TransferState.RETURNING)"
+            + " and r.replicaId = :replica")
+    int fence(@Param("id") UUID id, @Param("replica") UUID replica);
 }

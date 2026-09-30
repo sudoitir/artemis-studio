@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Trans
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferSelection;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -41,6 +42,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -55,7 +57,12 @@ import tools.jackson.databind.ObjectMapper;
  *   <li><b>Copy</b>: the source is browsed and relayed, and the copied ids recorded, so a resume skips them.
  * </ul>
  *
- * <p>A segment always ends with the run in a state and its audit events finished, whatever happened.
+ * <p>A segment always ends with the run in a state and its audit events finished, whatever happened,
+ * unless the run was taken over (ADR-0152): every write of the run's row takes its row lock first
+ * ({@link TransferRunRepository#fence}) in the same transaction, only while this replica still
+ * executes it. A run that recovery interrupted, because this replica's heartbeat lapsed, is never
+ * overwritten; the runner stops acting, with no further broker call, and leaves the audit events as
+ * recovery wrote them.
  */
 @Slf4j
 @Component
@@ -85,6 +92,15 @@ class TransferRunner {
     private final SettingsService settings;
     private final BackgroundRuns background;
     private final ObjectMapper json;
+    private final ReplicaRegistry replicas;
+    private final TransactionTemplate tx;
+
+    /** This replica no longer holds the run: someone else marked it, or this replica cannot prove it is alive. */
+    private static final class RunLost extends RuntimeException {
+        RunLost(String why) {
+            super(why, null, false, false);
+        }
+    }
 
     void start(UUID runId, Operator operator) {
         background.start(runId, operator, () -> execute(runId, operator));
@@ -180,6 +196,12 @@ class TransferRunner {
                                                     + " the node answers, or return them to the source."
                                             : "Resume once the node answers."),
                     null);
+        } catch (RunLost e) {
+            log.warn(
+                    "Transfer {} is no longer executing on this replica ({}); stopped without writing",
+                    runId,
+                    e.getMessage());
+            return;
         } catch (RuntimeException e) {
             log.error("Transfer {} stopped unexpectedly", runId, e);
             end = new End(TransferState.FAILED, "The run stopped unexpectedly: " + e.getMessage(), null);
@@ -607,6 +629,9 @@ class TransferRunner {
      * target's room. Null to go on; otherwise how the segment ends.
      */
     private End guard(Segment s) {
+        if (!replicas.heartbeatFresh()) {
+            throw new RunLost("this replica's heartbeat has lapsed");
+        }
         if (background.stopRequested(s.id())) {
             return End.stopped("Stopped by the operator.");
         }
@@ -766,8 +791,23 @@ class TransferRunner {
 
     // ---- state and progress ------------------------------------------------------------
 
+    /**
+     * Writes the run's row, in a transaction that first takes its row lock, and only while this replica
+     * still executes it.
+     *
+     * @throws RunLost when it does not, so nothing is written
+     */
     private void save(Segment s) {
-        runs.save(s.run);
+        boolean held = Boolean.TRUE.equals(tx.execute(status -> {
+            if (runs.fence(s.id(), replicas.id()) == 0) {
+                return false;
+            }
+            runs.save(s.run);
+            return true;
+        }));
+        if (!held) {
+            throw new RunLost("the run was taken over");
+        }
     }
 
     /** Messages a cross-node move has taken into staging and not yet delivered, expired or returned. */
@@ -801,6 +841,7 @@ class TransferRunner {
                 ? new End(TransferState.INTERRUPTED, TransferRecovery.INTERRUPTED, ended.snippet())
                 : ended;
         TransferRunEntity run = s.run;
+        boolean lost = false;
         try {
             run.finish(end.state(), end.error(), end.snippet(), Instant.now());
             save(s);
@@ -809,30 +850,38 @@ class TransferRunner {
             if (!run.getTargetClusterId().equals(run.getSourceClusterId())) {
                 sse.publish(run.getTargetClusterId(), "queues");
             }
+        } catch (RunLost e) {
+            lost = true;
+            log.warn(
+                    "Transfer {} was taken over before it could finish ({}); left as it is",
+                    run.getId(),
+                    e.getMessage());
         } finally {
-            boolean ok = end.state() == TransferState.SUCCEEDED || end.state() == TransferState.RETURNED;
-            long affected = end.state() == TransferState.RETURNED ? run.getReturned() : run.getDelivered();
-            String summary = ok
-                    ? null
-                    : Objects.requireNonNullElse(
-                            end.error(),
-                            "%s: %d delivered, %d not transferred, %d expired."
-                                    .formatted(
-                                            end.state(),
-                                            run.getDelivered(),
-                                            run.getNotTransferred(),
-                                            run.getExpired()));
-            Map<String, Object> detail = new LinkedHashMap<>();
-            detail.put("runId", run.getId().toString());
-            detail.put("state", end.state().name());
-            detail.put("delivered", run.getDelivered());
-            detail.put("notTransferred", run.getNotTransferred());
-            detail.put("expired", run.getExpired());
-            detail.put("returned", run.getReturned());
-            for (Long id : new Long[] {run.getAuditEventId(), run.getTargetAuditEventId()}) {
-                if (id != null) {
-                    audit.byId(id).ifPresent(event -> audit.finish(event, !ok, affected, summary, detail));
-                }
+            if (!lost) {
+                finishAudit(run, end);
+            }
+        }
+    }
+
+    private void finishAudit(TransferRunEntity run, End end) {
+        boolean ok = end.state() == TransferState.SUCCEEDED || end.state() == TransferState.RETURNED;
+        long affected = end.state() == TransferState.RETURNED ? run.getReturned() : run.getDelivered();
+        String summary = ok
+                ? null
+                : Objects.requireNonNullElse(
+                        end.error(),
+                        "%s: %d delivered, %d not transferred, %d expired."
+                                .formatted(end.state(), run.getDelivered(), run.getNotTransferred(), run.getExpired()));
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("runId", run.getId().toString());
+        detail.put("state", end.state().name());
+        detail.put("delivered", run.getDelivered());
+        detail.put("notTransferred", run.getNotTransferred());
+        detail.put("expired", run.getExpired());
+        detail.put("returned", run.getReturned());
+        for (Long id : new Long[] {run.getAuditEventId(), run.getTargetAuditEventId()}) {
+            if (id != null) {
+                audit.byId(id).ifPresent(event -> audit.finish(event, !ok, affected, summary, detail));
             }
         }
     }

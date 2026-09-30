@@ -61,6 +61,7 @@ public class ReplicaRegistry implements SmartLifecycle {
 
     private volatile State state = State.STARTING;
     private volatile Thread heartbeat;
+    private volatile long lastBeatNanos = System.nanoTime();
 
     public ReplicaRegistry(JdbcTemplate jdbc, HaProperties ha, ObjectProvider<BuildProperties> build) {
         this.jdbc = jdbc;
@@ -76,6 +77,15 @@ public class ReplicaRegistry implements SmartLifecycle {
 
     public State state() {
         return state;
+    }
+
+    /**
+     * Whether this replica has recorded a heartbeat within the ttl. Once it has not, the other replicas
+     * count it gone and take its clusters and runs, so whatever this process executes must stop acting
+     * rather than go on claiming a liveness it cannot prove.
+     */
+    public boolean heartbeatFresh() {
+        return System.nanoTime() - lastBeatNanos < ha.ttl().toNanos();
     }
 
     /** Starting to ready, once the plugin boot sequence has finished. Anything else is left alone. */
@@ -166,6 +176,7 @@ public class ReplicaRegistry implements SmartLifecycle {
             return;
         }
         state = State.STARTING;
+        lastBeatNanos = System.nanoTime();
         jdbc.update("""
                 INSERT INTO studio_replica (started_at, heartbeat_at, host, version, state, id)
                 VALUES (now(), now(), ?, ?, 'starting', ?)
@@ -205,6 +216,7 @@ public class ReplicaRegistry implements SmartLifecycle {
                         "UPDATE studio_replica SET heartbeat_at = now(), state = ? WHERE id = ? AND stopped_at IS NULL",
                         state.column(),
                         id);
+                lastBeatNanos = System.nanoTime();
             } catch (InterruptedException _) {
                 return;
             } catch (RuntimeException e) {
@@ -233,6 +245,7 @@ public class ReplicaRegistry implements SmartLifecycle {
         state = to;
         try {
             jdbc.update("UPDATE studio_replica SET state = ?, heartbeat_at = now() WHERE id = ?", to.column(), id);
+            lastBeatNanos = System.nanoTime();
         } catch (DataAccessException e) {
             log.warn("Could not record replica {} as {}; the next heartbeat will: {}", id, to.column(), e.getMessage());
         }

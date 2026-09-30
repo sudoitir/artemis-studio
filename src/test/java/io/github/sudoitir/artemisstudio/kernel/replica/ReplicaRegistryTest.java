@@ -1,17 +1,24 @@
 package io.github.sudoitir.artemisstudio.kernel.replica;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry.State;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** The registry: this process is live, a stopped one is not a crash, a silent one is. */
@@ -145,5 +152,31 @@ class ReplicaRegistryTest extends PostgresIntegrationTest {
         Thread.sleep(1500);
 
         assertThat(own.live()).extracting(ReplicaRegistry.Replica::id).contains(own.id());
+    }
+
+    @Test
+    void theHeartbeatIsFreshUntilItHasFailedForLongerThanTheTtl() {
+        JdbcTemplate flaky = spy(jdbc);
+        AtomicBoolean down = new AtomicBoolean();
+        doAnswer(call -> {
+                    if (down.get()) {
+                        throw new DataAccessResourceFailureException("database unreachable");
+                    }
+                    return call.callRealMethod();
+                })
+                .when(flaky)
+                .update(anyString(), any(Object[].class));
+        own = new ReplicaRegistry(
+                flaky,
+                new HaProperties(Duration.ofMillis(100), Duration.ofMillis(800), Duration.ZERO, Duration.ZERO),
+                builds);
+        own.start();
+        await().atMost(Duration.ofSeconds(2)).until(own::heartbeatFresh);
+
+        down.set(true);
+
+        await().atMost(Duration.ofSeconds(5)).until(() -> !own.heartbeatFresh());
+        down.set(false);
+        await().atMost(Duration.ofSeconds(5)).until(own::heartbeatFresh);
     }
 }

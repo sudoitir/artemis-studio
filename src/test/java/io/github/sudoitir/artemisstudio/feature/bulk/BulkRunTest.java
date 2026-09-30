@@ -361,6 +361,44 @@ class BulkRunTest extends BulkTestSupport {
         assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
     }
 
+    @Test
+    void aRunInterruptedByRecoveryWhileItExecutesIsNotOverwrittenAndStops() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                // Another replica's recovery finds this run orphaned while its second queue is in flight.
+                jdbc.update("UPDATE bulk_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), runId[0]);
+                recovery.recover();
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+
+        bulk.execute(clusterId, runId[0], new BulkExecuteRequest(preview.run().planHash(), false, false));
+        await(() -> !background.isActive(runId[0]));
+
+        BulkRunDetailView run = bulk.get(clusterId, runId[0]);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
+        assertThat(run.run().error()).as("what recovery wrote").contains("It was not resumed");
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.UNKNOWN,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(seen).as("no queue is touched after the takeover").containsExactly("orders.1", "orders.2");
+        assertThat(jdbc.queryForObject(
+                        "SELECT outcome_detail IS NULL FROM audit_event WHERE id = ?",
+                        Boolean.class,
+                        run.run().auditEventId()))
+                .as("the audit event is left as recovery wrote it")
+                .isTrue();
+    }
+
     /** Waits for what another thread has yet to do, such as a signal travelling through the database. */
     private static void await(java.util.function.BooleanSupplier condition) {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(10));

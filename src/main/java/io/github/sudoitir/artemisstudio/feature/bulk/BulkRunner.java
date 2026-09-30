@@ -14,6 +14,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
@@ -31,12 +32,18 @@ import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
  * Executes a bulk run as a {@link BackgroundRuns} run (ADR-0093 D4): one queue at a time, in preview
  * order, each through the single-queue command as the operator who executed the run and under the
  * run's audit event. Nothing here re-implements a safety check; the commands carry them.
+ *
+ * <p>The run's rows are written only while this replica still executes the run (ADR-0152): every write
+ * takes the run's row lock first ({@link BulkRunRepository#fence}) in the same transaction, so a run
+ * that recovery interrupted, because this replica's heartbeat lapsed, is never overwritten. The runner
+ * then stops acting: no further queue is touched and the run's audit event is left as recovery wrote it.
  */
 @Slf4j
 @Component
@@ -57,6 +64,15 @@ class BulkRunner {
     private final SseHub sse;
     private final ObjectMapper json;
     private final BackgroundRuns background;
+    private final ReplicaRegistry replicas;
+    private final TransactionTemplate tx;
+
+    /** This replica no longer holds the run: someone else marked it, or this replica cannot prove it is alive. */
+    private static final class RunLost extends RuntimeException {
+        RunLost(String why) {
+            super(why, null, false, false);
+        }
+    }
 
     void start(BulkRunEntity run, AuditEvent event, Operator operator) {
         background.start(run.getId(), operator, () -> execute(run, event, operator));
@@ -76,11 +92,15 @@ class BulkRunner {
         BooleanSupplier stop = () -> background.stopRequested(run.getId());
         List<BulkRunItemEntity> rows = items.findByRunIdOrderByOrdinal(run.getId());
         String error = null;
+        boolean lost = false;
         try {
             boolean halted = false;
             for (BulkRunItemEntity item : rows) {
                 if (item.getStatus() != BulkItemStatus.PENDING) {
                     continue;
+                }
+                if (!replicas.heartbeatFresh()) {
+                    throw new RunLost("this replica's heartbeat has lapsed");
                 }
                 if (stop.getAsBoolean() || halted) {
                     item.finish(
@@ -89,7 +109,7 @@ class BulkRunner {
                             null,
                             null,
                             Instant.now());
-                    items.save(item);
+                    write(run, () -> items.save(item));
                 } else {
                     actOn(run, item, event, operator);
                     progress(run, rows, BulkRunStatus.RUNNING);
@@ -98,18 +118,45 @@ class BulkRunner {
                     halted = bad && !run.isContinueOnFailure();
                 }
             }
+        } catch (RunLost e) {
+            lost = true;
+            log.warn(
+                    "Bulk run {} is no longer executing on this replica ({}); stopped without writing",
+                    run.getId(),
+                    e.getMessage());
         } catch (RuntimeException e) {
             // A failure outside any one queue's command, such as the database going away.
             log.error("Bulk run {} stopped unexpectedly", run.getId(), e);
             error = "The run stopped unexpectedly: " + e.getMessage();
         } finally {
-            finish(run, rows, event, stop.getAsBoolean(), background.stoppedForShutdown(run.getId()), error);
+            if (!lost) {
+                finish(run, rows, event, stop.getAsBoolean(), background.stoppedForShutdown(run.getId()), error);
+            }
+        }
+    }
+
+    /**
+     * Runs {@code writes} in one transaction that first takes the run's row lock, and only while this
+     * replica still executes the run.
+     *
+     * @throws RunLost when it does not, so nothing is written
+     */
+    private void write(BulkRunEntity run, Runnable writes) {
+        boolean held = Boolean.TRUE.equals(tx.execute(status -> {
+            if (runs.fence(run.getId(), replicas.id()) == 0) {
+                return false;
+            }
+            writes.run();
+            return true;
+        }));
+        if (!held) {
+            throw new RunLost("the run was taken over");
         }
     }
 
     private void actOn(BulkRunEntity run, BulkRunItemEntity item, AuditEvent event, Operator operator) {
         item.begin(Instant.now());
-        items.save(item);
+        write(run, () -> items.save(item));
         LifecycleOutcome[] result = new LifecycleOutcome[1];
         String[] failure = new String[1];
         String permission = run.getOperation().permission();
@@ -139,7 +186,7 @@ class BulkRunner {
                     json.writeValueAsString(nodes),
                     Instant.now());
         }
-        items.save(item);
+        write(run, () -> items.save(item));
     }
 
     /** The single-queue command for this operation, with the run's override and options. */
@@ -222,7 +269,7 @@ class BulkRunner {
         int failed = (int) rows.stream().filter(i -> i.getStatus().failed()).count();
         int skipped = (int) rows.stream().filter(i -> i.getStatus().skipped()).count();
         run.count(succeeded, failed, skipped);
-        runs.save(run);
+        write(run, () -> runs.save(run));
         sse.publish(
                 run.getClusterId(),
                 TOPIC,
@@ -241,7 +288,11 @@ class BulkRunner {
         return succeeded == 0 ? BulkRunStatus.FAILED : BulkRunStatus.PARTIAL;
     }
 
-    /** Always reached: the run gets a terminal status and its audit event an outcome, whatever happened. */
+    /**
+     * Always reached while this replica still holds the run: the run gets a terminal status and its audit
+     * event an outcome, whatever happened. A run that was taken over is left to whoever took it, audit
+     * event included.
+     */
     private void finish(
             BulkRunEntity run,
             List<BulkRunItemEntity> rows,
@@ -250,42 +301,69 @@ class BulkRunner {
             boolean shutdown,
             String error) {
         Instant now = Instant.now();
-        for (BulkRunItemEntity item : rows) {
-            // Only after an unexpected failure can an item be left unfinished.
-            if (item.getStatus() == BulkItemStatus.PENDING || item.getStatus() == BulkItemStatus.RUNNING) {
-                item.finish(
-                        item.getStatus() == BulkItemStatus.RUNNING ? BulkItemStatus.UNKNOWN : BulkItemStatus.CANCELLED,
-                        item.getStatus() == BulkItemStatus.RUNNING ? error : null,
-                        null,
-                        null,
-                        now);
-                items.save(item);
+        try {
+            for (BulkRunItemEntity item : rows) {
+                // Only after an unexpected failure can an item be left unfinished.
+                if (item.getStatus() == BulkItemStatus.PENDING || item.getStatus() == BulkItemStatus.RUNNING) {
+                    item.finish(
+                            item.getStatus() == BulkItemStatus.RUNNING
+                                    ? BulkItemStatus.UNKNOWN
+                                    : BulkItemStatus.CANCELLED,
+                            item.getStatus() == BulkItemStatus.RUNNING ? error : null,
+                            null,
+                            null,
+                            now);
+                    write(run, () -> items.save(item));
+                }
             }
+        } catch (RunLost e) {
+            tookOver(run, e);
+            return;
         }
         long succeeded = rows.stream().filter(i -> i.getStatus().succeeded()).count();
         BulkRunStatus status = terminalStatus(rows, stopped, shutdown, succeeded);
         if (status == BulkRunStatus.INTERRUPTED) {
             error = SHUTDOWN;
         }
+        boolean lost = false;
         try {
             run.finish(status, error, now);
             progress(run, rows, status);
+        } catch (RunLost e) {
+            lost = true;
+            tookOver(run, e);
         } finally {
-            long affected = rows.stream()
-                    .map(BulkRunItemEntity::getAffected)
-                    .filter(Objects::nonNull)
-                    .mapToLong(Long::longValue)
-                    .sum();
-            String summary = status == BulkRunStatus.SUCCEEDED
-                    ? null
-                    : Objects.requireNonNullElse(
-                            error, "%s: %d of %d queues succeeded.".formatted(status, succeeded, rows.size()));
-            audit.finish(
-                    event,
-                    status != BulkRunStatus.SUCCEEDED,
-                    affected,
-                    summary,
-                    Map.of("runId", run.getId().toString(), "status", status.name()));
+            if (!lost) {
+                finishAudit(run, rows, event, status, succeeded, error);
+            }
         }
+    }
+
+    private static void tookOver(BulkRunEntity run, RunLost e) {
+        log.warn("Bulk run {} was taken over before it could finish ({}); left as it is", run.getId(), e.getMessage());
+    }
+
+    private void finishAudit(
+            BulkRunEntity run,
+            List<BulkRunItemEntity> rows,
+            AuditEvent event,
+            BulkRunStatus status,
+            long succeeded,
+            String error) {
+        long affected = rows.stream()
+                .map(BulkRunItemEntity::getAffected)
+                .filter(Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
+        String summary = status == BulkRunStatus.SUCCEEDED
+                ? null
+                : Objects.requireNonNullElse(
+                        error, "%s: %d of %d queues succeeded.".formatted(status, succeeded, rows.size()));
+        audit.finish(
+                event,
+                status != BulkRunStatus.SUCCEEDED,
+                affected,
+                summary,
+                Map.of("runId", run.getId().toString(), "status", status.name()));
     }
 }
