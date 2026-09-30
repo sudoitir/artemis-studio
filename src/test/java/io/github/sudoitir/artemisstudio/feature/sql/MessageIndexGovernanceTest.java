@@ -72,7 +72,9 @@ class MessageIndexGovernanceTest extends PostgresIntegrationTest {
         }
 
         @Override
-        public void nodeFinished(NodeOutcome outcome) {}
+        public void nodeFinished(NodeOutcome outcome) {
+            // This sink only records rows; per-node outcomes are not under test.
+        }
 
         @Override
         public boolean isCancelled() {
@@ -167,7 +169,7 @@ class MessageIndexGovernanceTest extends PostgresIntegrationTest {
                 .contains("[dropped credential]", "[redacted email]", "acme")
                 .doesNotContain("dXNlcjpwYXNzd29yZA", "jane.doe@example.com");
         assertThat(stored.get("sealed")).isNotNull();
-        assertThat(stored.get("policy_version")).isEqualTo(policy.version());
+        assertThat(stored).containsEntry("policy_version", policy.version());
 
         Map<String, String> originals =
                 sealer.unseal(MessageIndexWriter.aad(CLUSTER, NODE, "ORDER.IN", 1), (byte[]) stored.get("sealed"));

@@ -234,7 +234,7 @@ function RotateModal({
           {explanation} Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
         </Text>
         {needsReauthentication(rotate.error) ? (
-          <StepUp returnTo={`${window.location.pathname}?tab=settings-security`} />
+          <StepUp returnTo={`${globalThis.location.pathname}?tab=settings-security`} />
         ) : null}
         {conflict ? (
           <Alert color="red" variant="light" role="alert" title="Not started">

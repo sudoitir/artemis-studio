@@ -232,9 +232,9 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
                     quota.getName(), "STATE", null, null, null, "NODE_DOWN", 0, "WARNING", null, true, List.of());
             assertThatThrownBy(() -> ruleService.update(clusterId, quotaId, nodeDown))
                     .isInstanceOf(IllegalArgumentException.class);
-            AlertRuleRequest health = new AlertRuleRequest(
+            AlertRuleRequest storageHealth = new AlertRuleRequest(
                     "Mine", "STATE", null, null, null, "STORAGE_HEALTH", 0, "WARNING", null, true, List.of());
-            assertThatThrownBy(() -> ruleService.create(clusterId, health))
+            assertThatThrownBy(() -> ruleService.create(clusterId, storageHealth))
                     .isInstanceOf(IllegalArgumentException.class);
 
             ruleService.update(
