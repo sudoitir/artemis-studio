@@ -25,7 +25,7 @@ Today nothing checks who built a jar, and the validator's allowlist refuses a si
   publisher is an organisation with a key, and many installations are air-gapped.
 - Certificate chains, CAs, expiry, timestamps or revocation lists. Trust is the key, not the certificate.
 - Several signers on one jar.
-- Re-gating plugins that are already installed at boot or on enable (the spec keeps them running, marked unverified).
+- Re-gating plugins that are already running at boot (the spec keeps them running, marked unverified).
 
 ## Decisions
 
@@ -53,16 +53,19 @@ Today nothing checks who built a jar, and the validator's allowlist refuses a si
    `kernel.plugin.internal.trust`, with changeset `0008-plugin-trust`:
    - `plugin_trusted_key(added_at, fingerprint PK, name, subject, public_key bytea, added_by)`;
    - `plugin_trust_policy`, a single row with `changed_at, changed_by, allow_unverified boolean default false`;
-   - `plugin_upload` and `plugin_install` gain `signer_fingerprint` and `signer_subject`, both text and null for unsigned jars.
+   - `plugin_install` gains `signer_fingerprint` and `signer_subject`, both text and null for unsigned
+     jars. A pending upload needs no columns: every plan re-validates the stored jar and reads its signer.
    The allowance is not a `SettingDef`, because settings are edited under an ordinary permission
    and this switch needs the installer tier with fresh authentication.
 4. **The trust decision is computed, never stored.** `PluginTrust.decide(fingerprint)` returns
    `TRUSTED(key)`, `UNTRUSTED` or `UNSIGNED`. Tables store only facts (who signed), so removing a
    key flags every plugin it signed without a fan-out update, in the plugin list, the manifest and health.
-5. **Gates sit in `buildPlan`**, so install, update download, rollback and the re-plan inside
-   `beginActivation` all pass through them:
-   - An untrusted or unsigned jar is refused unless `allow_unverified` is on. The refusal still
-     returns the plan's signer, so the review screen can name the fingerprint.
+5. **The plan reports trust and `beginActivation` enforces it**, the same pattern as `missingRequires`.
+   Install, update download, rollback and enable all start there:
+   - `buildPlan` puts the signer, the trust decision and the previous signer into the plan, and never
+     throws for trust, so the review screen can name the fingerprint.
+   - Activation refuses an untrusted or unsigned jar unless `allow_unverified` is on
+     (`plugin-untrusted`, `plugin-unsigned`).
    - A jar whose signature is invalid fails validation and is never stored. A validly signed jar
      from an untrusted key stays a pending upload, so "Trust this key" can re-plan it. Nothing runs
      from a pending upload, and it expires after a day like any other upload.
