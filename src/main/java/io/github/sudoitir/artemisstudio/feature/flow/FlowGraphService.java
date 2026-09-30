@@ -192,23 +192,20 @@ public class FlowGraphService {
             if (n.getArtemisNodeId() != null) {
                 // A live/backup pair shares one NodeID: name the logical node by its serving endpoint,
                 // never by whichever of the pair happens to be listed last.
-                String nodeId = n.getArtemisNodeId();
-                if (!byArtemisId.containsKey(nodeId) || Boolean.TRUE.equals(n.getActive())) {
-                    byArtemisId.put(nodeId, n.getName());
-                }
+                byArtemisId.merge(
+                        n.getArtemisNodeId(),
+                        n.getName(),
+                        (first, next) -> Boolean.TRUE.equals(n.getActive()) ? next : first);
             }
         }
         return new NodeNames(byId, byArtemisId);
     }
 
     private static Set<String> temporaryQueues(List<StoredRoute> routes) {
-        Set<String> temporaryQueues = new TreeSet<>();
-        for (StoredRoute r : routes) {
-            if (r.route().kind() == RouteKind.TEMPORARY_QUEUE) {
-                temporaryQueues.add(r.route().target());
-            }
-        }
-        return temporaryQueues;
+        return routes.stream()
+                .filter(r -> r.route().kind() == RouteKind.TEMPORARY_QUEUE)
+                .map(r -> r.route().target())
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     private static Map<String, String> queueFilters(List<StoredRoute> routes) {
@@ -392,12 +389,9 @@ public class FlowGraphService {
 
     private static Set<Path> neighbourhood(
             Focus focus, int hops, List<Path> all, Map<String, ClientAgg> producers, Map<String, ClientAgg> consumers) {
-        Set<Path> reach = new LinkedHashSet<>();
-        for (Path p : all) {
-            if (focused(focus, p, producers, consumers)) {
-                reach.add(p);
-            }
-        }
+        Set<Path> reach = all.stream()
+                .filter(p -> focused(focus, p, producers, consumers))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         for (int hop = 1; hop < hops && !reach.isEmpty(); hop++) {
             reach = widen(reach, all, producers, consumers);
         }

@@ -189,12 +189,11 @@ public class BrokerCommands {
             throw new BulkCapExceededException(total, cap);
         }
 
-        for (Target t : targets) {
-            outcomes.add(
-                    t.live()
-                            ? applyTo(c, t, estimates.get(t.node().getId()))
-                            : NodeOutcome.skipped(t.node().getId(), t.node().getName()));
-        }
+        targets.stream()
+                .map(t -> t.live()
+                        ? applyTo(c, t, estimates.get(t.node().getId()))
+                        : NodeOutcome.skipped(t.node().getId(), t.node().getName()))
+                .forEach(outcomes::add);
 
         LifecycleOutcome outcome = new LifecycleOutcome(false, cap, overCap, outcomes);
         audit.finish(
