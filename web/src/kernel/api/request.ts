@@ -60,10 +60,10 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: merged,
   });
-  if (res.status === 401 && !window.location.pathname.startsWith('/login')) {
+  if (res.status === 401 && !globalThis.location.pathname.startsWith('/login')) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
-    window.location.assign('/login');
+    globalThis.location.assign('/login');
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();

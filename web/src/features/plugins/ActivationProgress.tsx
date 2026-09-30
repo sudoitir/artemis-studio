@@ -11,8 +11,8 @@ function useElapsed(from: string | null | undefined): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!from) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
+    const timer = globalThis.setInterval(() => setNow(Date.now()), 1_000);
+    return () => globalThis.clearInterval(timer);
   }, [from]);
   return from ? Math.max(0, Math.round((now - new Date(from).getTime()) / 1000)) : null;
 }
@@ -56,7 +56,7 @@ function OutcomeNote({
           {plan.info.contributions.ui ? (
             <>
               <Text size="sm">Reload Studio to load its screens.</Text>
-              <Button w="fit-content" onClick={() => window.location.reload()}>
+              <Button w="fit-content" onClick={() => globalThis.location.reload()}>
                 Reload Studio
               </Button>
             </>

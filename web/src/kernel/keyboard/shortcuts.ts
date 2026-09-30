@@ -11,13 +11,13 @@ const listeners = new Set<() => void>();
 
 function read(): boolean {
   try {
-    return window.localStorage.getItem(KEY) !== 'off';
+    return globalThis.localStorage.getItem(KEY) !== 'off';
   } catch {
     return true;
   }
 }
 
-let enabled = typeof window === 'undefined' ? true : read();
+let enabled = typeof globalThis.window === 'undefined' ? true : read();
 
 export function singleKeyShortcutsEnabled(): boolean {
   return enabled;
@@ -26,7 +26,7 @@ export function singleKeyShortcutsEnabled(): boolean {
 export function setSingleKeyShortcuts(next: boolean) {
   enabled = next;
   try {
-    window.localStorage.setItem(KEY, next ? 'on' : 'off');
+    globalThis.localStorage.setItem(KEY, next ? 'on' : 'off');
   } catch {
     // Storage refused: the choice holds for this visit.
   }

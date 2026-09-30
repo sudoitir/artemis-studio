@@ -64,7 +64,7 @@ export function InstallersDialog({ opened, onClose }: Readonly<{ opened: boolean
             The only installer cannot be removed; add another first.
           </Text>
         ) : null}
-        <StepUp returnTo={`${window.location.pathname}?tab=plugins`} />
+        <StepUp returnTo={`${globalThis.location.pathname}?tab=plugins`} />
         {error && !stale ? (
           <Alert color="red" variant="light" role="alert">
             {violationsOf(error)

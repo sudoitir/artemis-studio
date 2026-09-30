@@ -39,7 +39,7 @@ const MAX_FRACTION = 0.7;
 /** Remember a per-viewer preference; a private window, or storage turned off, only costs the memory. */
 function remember(key: string, value: string) {
   try {
-    window.localStorage.setItem(key, value);
+    globalThis.localStorage.setItem(key, value);
   } catch {
     // The preference is lost; nothing else depends on it.
   }
@@ -47,7 +47,7 @@ function remember(key: string, value: string) {
 
 function readFraction(): number {
   try {
-    const raw = window.localStorage.getItem(EDITOR_FRACTION_KEY);
+    const raw = globalThis.localStorage.getItem(EDITOR_FRACTION_KEY);
     const parsed = raw ? Number.parseFloat(raw) : Number.NaN;
     return Number.isFinite(parsed) ? Math.min(MAX_FRACTION, Math.max(MIN_FRACTION, parsed)) : 0.32;
   } catch {
@@ -60,7 +60,7 @@ const COLUMNS_KEY = 'artemis-studio.sql.columns';
 
 function readColumns(): string[] {
   try {
-    const raw = window.localStorage.getItem(COLUMNS_KEY);
+    const raw = globalThis.localStorage.getItem(COLUMNS_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (!Array.isArray(parsed)) return [...ALL_COLUMN_IDS];
     const known = parsed.filter((id): id is string => ALL_COLUMN_IDS.includes(id as never));
@@ -367,15 +367,15 @@ function useEditorFraction() {
       setEditorFraction(Math.min(MAX_FRACTION, Math.max(MIN_FRACTION, next)));
     };
     const end = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', end);
+      globalThis.removeEventListener('pointermove', move);
+      globalThis.removeEventListener('pointerup', end);
       setEditorFraction((current) => {
         remember(EDITOR_FRACTION_KEY, String(current));
         return current;
       });
     };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', end);
+    globalThis.addEventListener('pointermove', move);
+    globalThis.addEventListener('pointerup', end);
   };
 
   return { editorFraction, splitRef, nudge, startDrag };

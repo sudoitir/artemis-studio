@@ -13,7 +13,7 @@ import { branding } from '../../branding.ts';
  * keeps a screenshot of this page from being a credential.
  */
 export function McpConnectionPanel() {
-  const endpoint = `${window.location.origin}/mcp`;
+  const endpoint = `${globalThis.location.origin}/mcp`;
   const config = JSON.stringify(
     {
       mcpServers: {

@@ -30,7 +30,7 @@ export interface HistoryEntry {
 
 export function readHistory(): HistoryEntry[] {
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = globalThis.localStorage.getItem(KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as HistoryEntry[]) : [];
@@ -46,7 +46,7 @@ export function readHistory(): HistoryEntry[] {
 export function recordHistory(entry: HistoryEntry): HistoryEntry[] {
   const next = [entry, ...readHistory().filter((e) => e.sql !== entry.sql)].slice(0, MAX_ENTRIES);
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
+    globalThis.localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
     // Storage is unavailable or full. The console works without history.
   }
@@ -55,7 +55,7 @@ export function recordHistory(entry: HistoryEntry): HistoryEntry[] {
 
 export function clearHistory(): HistoryEntry[] {
   try {
-    window.localStorage.removeItem(KEY);
+    globalThis.localStorage.removeItem(KEY);
   } catch {
     // Nothing to clear, or nowhere to clear it from.
   }

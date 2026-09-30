@@ -12,5 +12,5 @@ export function clusterHref(clusterId: string, path: string, search: Record<stri
 
 /** An in-app address as a full URL, for sharing. */
 export function absoluteHref(href: string): string {
-  return new URL(href, window.location.origin).href;
+  return new URL(href, globalThis.location.origin).href;
 }
