@@ -158,7 +158,6 @@ function statusWordOf(kind: NodeKind, endpoint: NodeEndpointView): string {
 }
 
 function brokerNode(
-  id: string,
   parentId: string,
   x: number,
   y: number,
@@ -171,7 +170,7 @@ function brokerNode(
   const statusWord = statusWordOf(kind, endpoint);
   const version = endpoint.version ? `, Artemis ${endpoint.version}` : '';
   return {
-    id,
+    id: endpoint.id,
     type: kind === 'unmanaged' ? 'unmanaged' : 'broker',
     parentId,
     extent: 'parent',
@@ -220,7 +219,7 @@ function splitBrainChildren(
   serving: NodeEndpointView[],
 ): { children: Node<BrokerNodeData>[]; edges: Edge[] } {
   const children = serving.map((e, i) =>
-    brokerNode(e.id, groupId, GROUP_PAD + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId ?? null),
+    brokerNode(groupId, GROUP_PAD + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId ?? null),
   );
   return { children, edges: [] };
 }
@@ -237,20 +236,11 @@ function pairChildren(
   const top = serving[0] ?? null;
   const bottom = others[0] ?? null;
   if (top) {
-    children.push(brokerNode(top.id, groupId, GROUP_PAD, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
+    children.push(brokerNode(groupId, GROUP_PAD, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
   }
   if (bottom) {
     children.push(
-      brokerNode(
-        bottom.id,
-        groupId,
-        GROUP_PAD,
-        BACKUP_Y,
-        bottom,
-        false,
-        logical.replicationBehind,
-        logical.artemisNodeId ?? null,
-      ),
+      brokerNode(groupId, GROUP_PAD, BACKUP_Y, bottom, false, logical.replicationBehind, logical.artemisNodeId ?? null),
     );
   }
   if (top && bottom) {

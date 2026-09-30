@@ -145,7 +145,7 @@ export function mergeByTimestamp(
 export function latest(series: MetricSeries | undefined): number | null {
   const points = series?.points;
   if (!points || points.length === 0) return null;
-  return points[points.length - 1].value;
+  return points.at(-1)!.value;
 }
 
 /** The first point of a series, for stating movement across the window. */

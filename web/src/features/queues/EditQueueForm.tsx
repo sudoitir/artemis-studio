@@ -65,7 +65,7 @@ export function EditQueueForm({
 }>) {
   const [filter, setFilter] = useState('');
   const [maxConsumers, setMaxConsumers] = useState<number | ''>('');
-  const [purgeOnNoConsumers, setPurge] = useState(false);
+  const [purgeOnNoConsumers, setPurgeOnNoConsumers] = useState(false);
   const [exclusive, setExclusive] = useState(false);
   const [ringSize, setRingSize] = useState<number | ''>('');
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
@@ -89,7 +89,7 @@ export function EditQueueForm({
     if (!current) return;
     setFilter(str(current['filter-string']));
     setMaxConsumers(num(current['max-consumers']));
-    setPurge(current['purge-on-no-consumers'] === true);
+    setPurgeOnNoConsumers(current['purge-on-no-consumers'] === true);
     setExclusive(current['exclusive'] === true);
     setRingSize(num(current['ring-size']));
     // Seeding is keyed by the values themselves, so an applied update reseeds the
@@ -190,7 +190,7 @@ export function EditQueueForm({
             <Switch
               label="Purge when the last consumer disconnects"
               checked={purgeOnNoConsumers}
-              onChange={(e) => setPurge(e.currentTarget.checked)}
+              onChange={(e) => setPurgeOnNoConsumers(e.currentTarget.checked)}
             />
             <Switch
               label="Exclusive"

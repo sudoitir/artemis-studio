@@ -23,7 +23,7 @@ export function ChangePasswordView() {
 
   const mismatch = confirm.length > 0 && newPassword !== confirm;
 
-  function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     if (mismatch || newPassword.length === 0) return;
     changePassword.mutate(

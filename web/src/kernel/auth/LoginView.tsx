@@ -40,7 +40,7 @@ export function LoginView() {
   const showForm = !listed || credential.length > 0;
   const chosen = provider ?? credential[0]?.id ?? null;
 
-  function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     login.mutate(
       { provider: chosen, username, password },

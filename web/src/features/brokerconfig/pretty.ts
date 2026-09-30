@@ -25,7 +25,7 @@ export function prettyKey(jsonName: string, catalogue?: ConfigCatalogueView): st
     .toLowerCase();
 }
 
-const BYTES = /Bytes$/;
+const isBytes = (jsonName: string) => jsonName.endsWith('Bytes');
 const MILLIS = /(Delay|delay)$/;
 const SECONDS = new Set(['slowConsumerCheckPeriod']);
 const DAYS = new Set(['messageCounterHistoryDayLimit']);
@@ -58,10 +58,10 @@ function trim(v: number): string {
 
 /** A number with its unit and reading, by what the key measures. */
 function prettyNumber(jsonName: string, value: number): string {
-  if (value === -1 && (BYTES.test(jsonName) || MILLIS.test(jsonName) || /^max|Limit$|Threshold$/.test(jsonName))) {
+  if (value === -1 && (isBytes(jsonName) || MILLIS.test(jsonName) || /^max|Limit$|Threshold$/.test(jsonName))) {
     return '-1 (no limit)';
   }
-  if (BYTES.test(jsonName)) {
+  if (isBytes(jsonName)) {
     const b = bytes(value);
     return b ? `${value.toLocaleString()} (${b})` : value.toLocaleString();
   }

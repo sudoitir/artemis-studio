@@ -47,7 +47,7 @@ describe('QueueHealthPanel', () => {
   it('states the verdict and the evidence behind it', async () => {
     serve();
 
-    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" onClose={() => {}} />);
+    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" />);
 
     expect(await screen.findByText('Stalled')).toBeInTheDocument();
     expect(screen.getByText('Consumers are holding messages and acknowledging none')).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('QueueHealthPanel', () => {
   it('credits the broker when the broker is what judged', async () => {
     serve({ verdict: 'BROKER_SLOW', source: 'BROKER', brokerConsumerName: 'consumer-7' });
 
-    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" onClose={() => {}} />);
+    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" />);
 
     expect(await screen.findByText('Slow consumer')).toBeInTheDocument();
     expect(screen.getByText(/consumer-7/)).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe('QueueHealthPanel', () => {
   it('says the numbers cover only the reporting nodes', async () => {
     serve({ nodesPresent: 1, nodesTotal: 3 });
 
-    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" onClose={() => {}} />);
+    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" />);
 
     expect(await screen.findByText(/Present on 1 of 3 nodes/)).toBeInTheDocument();
   });
@@ -80,7 +80,7 @@ describe('QueueHealthPanel', () => {
       ),
     );
 
-    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" onClose={() => {}} />);
+    renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" />);
 
     expect(await screen.findByText('Consumer health is unavailable')).toBeInTheDocument();
   });

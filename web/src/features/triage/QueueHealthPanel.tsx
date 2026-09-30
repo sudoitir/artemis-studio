@@ -17,7 +17,6 @@ export function QueueHealthPanel({
 }: Readonly<{
   clusterId: string;
   queueName: string;
-  onClose: () => void;
 }>) {
   const query = useQueueHealth(clusterId, queueName);
 
