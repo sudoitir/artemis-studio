@@ -22,6 +22,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
@@ -72,6 +73,7 @@ public class BulkService {
     private final AuditService audit;
     private final SettingsService settings;
     private final ObjectMapper json;
+    private final ReplicaRegistry replicas;
 
     // ---- preview -----------------------------------------------------------
 
@@ -277,7 +279,12 @@ public class BulkService {
                     "bulk-run-in-progress",
                     "Bulk run " + running + " is executing on this cluster. Wait for it to finish, or stop it.");
         }
-        run.start(operator.actor().displayName(), request.override(), request.continueOnFailure(), Instant.now());
+        run.start(
+                operator.actor().displayName(),
+                request.override(),
+                request.continueOnFailure(),
+                replicas.id(),
+                Instant.now());
         AuditEvent event = audit.begin(
                 operator.actor(),
                 operation.auditAction(),

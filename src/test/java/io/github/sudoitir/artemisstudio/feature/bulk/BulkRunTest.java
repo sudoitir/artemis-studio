@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessageService;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
@@ -50,6 +51,9 @@ class BulkRunTest extends BulkTestSupport {
 
     @Autowired
     BulkRecovery recovery;
+
+    @Autowired
+    ReplicaRegistry replicas;
 
     private final List<String> seen = new CopyOnWriteArrayList<>();
 
@@ -311,7 +315,10 @@ class BulkRunTest extends BulkTestSupport {
         BulkRunDetailView done = execute(preview(BulkOperation.PAUSE, "orders"), false);
         UUID id = done.run().id();
         // Rewind it to what a crash while the second queue was in flight leaves behind.
-        jdbc.update("UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL WHERE id = ?", id);
+        jdbc.update(
+                "UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL, replica_id = ? WHERE id = ?",
+                UUID.randomUUID(),
+                id);
         jdbc.update("UPDATE bulk_run_item SET status = 'RUNNING' WHERE run_id = ? AND ordinal = 1", id);
         jdbc.update("UPDATE bulk_run_item SET status = 'PENDING' WHERE run_id = ? AND ordinal > 1", id);
         jdbc.update(
@@ -330,5 +337,23 @@ class BulkRunTest extends BulkTestSupport {
                         BulkItemStatus.CANCELLED);
         assertThat(run.items().get(1).error()).contains("check the broker");
         assertThat(auditOutcome(done.run().auditEventId())).isEqualTo("FAILURE");
+    }
+
+    @Test
+    void recoveryLeavesALiveReplicasRunAloneAndInterruptsAGoneReplicasRun() {
+        fourQueues();
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenReturn(ok(NodeStatus.APPLIED));
+        UUID id = execute(preview(BulkOperation.PAUSE, "orders"), false).run().id();
+        assertThat(jdbc.queryForObject("SELECT replica_id FROM bulk_run WHERE id = ?", UUID.class, id))
+                .as("the run records the replica that executed it")
+                .isEqualTo(replicas.id());
+        jdbc.update("UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL WHERE id = ?", id);
+
+        recovery.recover();
+        assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.RUNNING);
+
+        jdbc.update("UPDATE bulk_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), id);
+        recovery.recover();
+        assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
     }
 }

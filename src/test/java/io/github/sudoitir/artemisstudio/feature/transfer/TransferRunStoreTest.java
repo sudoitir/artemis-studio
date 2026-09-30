@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferLedger;
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunEntity;
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunRepository;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -52,6 +53,9 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
 
     @Autowired
     TransferRecovery recovery;
+
+    @Autowired
+    ReplicaRegistry replicas;
 
     @Autowired
     ClusterRepository clusters;
@@ -194,6 +198,21 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
         assertThat(after.getState()).isEqualTo(TransferState.INTERRUPTED);
         assertThat(after.getState().resumable()).isTrue();
         assertThat(after.getLastError()).isEqualTo(TransferRecovery.INTERRUPTED);
+    }
+
+    @Test
+    void aRunOfALiveReplicaIsLeftAloneAndOneOfAGoneReplicaIsInterrupted() {
+        TransferRunEntity live = preview(TransferMode.MOVE, "live");
+        TransferRunEntity gone = preview(TransferMode.MOVE, "gone");
+        state(live, TransferState.RUNNING);
+        state(gone, TransferState.RUNNING);
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", replicas.id(), live.getId());
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), gone.getId());
+
+        recovery.recover();
+
+        assertThat(runs.findById(live.getId()).orElseThrow().getState()).isEqualTo(TransferState.RUNNING);
+        assertThat(runs.findById(gone.getId()).orElseThrow().getState()).isEqualTo(TransferState.INTERRUPTED);
     }
 
     // ---- API refusals --------------------------------------------------------------

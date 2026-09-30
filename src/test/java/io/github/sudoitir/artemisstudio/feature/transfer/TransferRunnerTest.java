@@ -888,7 +888,7 @@ class TransferRunnerTest {
 
     private TransferRunEntity returning() {
         TransferRunEntity run = moveAcross(SelectionKind.ALL, null);
-        run.begin(TransferState.RETURNING, "alice", null, Instant.now());
+        run.begin(TransferState.RETURNING, "alice", null, null, Instant.now());
         return run;
     }
 

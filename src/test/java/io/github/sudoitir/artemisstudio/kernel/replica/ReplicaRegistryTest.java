@@ -107,6 +107,21 @@ class ReplicaRegistryTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aliveCountsADrainingReplicaButNotAStoppedOrSilentOne() {
+        UUID draining = UUID.randomUUID();
+        UUID stopped = UUID.randomUUID();
+        UUID silent = UUID.randomUUID();
+        insert(draining, "draining", "NULL", "1 second");
+        insert(stopped, "stopped", "now()", "1 second");
+        insert(silent, "ready", "NULL", "1 hour");
+        try {
+            assertThat(running.aliveIds()).contains(running.id(), draining).doesNotContain(stopped, silent);
+        } finally {
+            jdbc.update("DELETE FROM studio_replica WHERE id IN (?, ?, ?)", draining, stopped, silent);
+        }
+    }
+
+    @Test
     void stoppingRecordsTheStop() {
         ReplicaRegistry replica = start();
 

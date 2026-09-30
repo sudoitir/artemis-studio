@@ -4,8 +4,10 @@ import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -106,6 +108,18 @@ public class ReplicaRegistry implements SmartLifecycle {
                         rs.getTimestamp("started_at").toInstant(),
                         rs.getTimestamp("heartbeat_at").toInstant()),
                 seconds(ha.ttl()));
+    }
+
+    /**
+     * The replicas that have not stopped and whose heartbeat is younger than the ttl, draining ones
+     * included: a draining replica is still finishing the runs it holds. A run whose replica is not here
+     * is orphaned. A {@code HashSet}, so a run with no replica (a null) asks {@code contains} safely.
+     */
+    public Set<UUID> aliveIds() {
+        return new HashSet<>(jdbc.queryForList("""
+                SELECT id FROM studio_replica
+                WHERE stopped_at IS NULL AND heartbeat_at > now() - make_interval(secs => ?)
+                """, UUID.class, seconds(ha.ttl())));
     }
 
     /** Replicas that ended without recording a stop, whose last heartbeat fell within {@code window}. */

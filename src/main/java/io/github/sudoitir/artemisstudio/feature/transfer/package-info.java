@@ -12,6 +12,7 @@
             "kernel.jobs",
             "kernel.lifecycle",
             "kernel.plugin",
+            "kernel.replica",
             "kernel.security",
             "kernel.settings",
             "kernel.stream",

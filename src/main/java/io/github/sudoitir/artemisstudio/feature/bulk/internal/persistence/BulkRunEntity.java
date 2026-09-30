@@ -89,6 +89,10 @@ public class BulkRunEntity {
     @Column(name = "error")
     private String error;
 
+    /** The replica executing the run: recovery leaves the run alone while that replica is alive (ADR-0148). */
+    @Column(name = "replica_id")
+    private UUID replicaId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -132,8 +136,9 @@ public class BulkRunEntity {
         this.expiresAt = expiresAt;
     }
 
-    public void start(String username, boolean overrideCap, boolean continueOnFailure, Instant now) {
+    public void start(String username, boolean overrideCap, boolean continueOnFailure, UUID replicaId, Instant now) {
         this.status = BulkRunStatus.RUNNING;
+        this.replicaId = replicaId;
         this.username = username;
         this.overrideCap = overrideCap;
         this.continueOnFailure = continueOnFailure;

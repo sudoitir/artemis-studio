@@ -20,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
@@ -99,6 +100,7 @@ public class TransferService {
     private final AuditService audit;
     private final SettingsService settings;
     private final ObjectMapper json;
+    private final ReplicaRegistry replicas;
 
     // ---- preview -----------------------------------------------------------
 
@@ -468,6 +470,7 @@ public class TransferService {
                 TransferState.RUNNING,
                 operator.actor().displayName(),
                 operator.principal().userId(),
+                replicas.id(),
                 Instant.now());
         run.overrideCap(request.override());
         beginAudit(run, operator, AUDIT_ACTION, auditParams(run));
@@ -513,6 +516,7 @@ public class TransferService {
                 TransferState.RUNNING,
                 operator.actor().displayName(),
                 operator.principal().userId(),
+                replicas.id(),
                 Instant.now());
         TransferRunEntity resumed = run;
         childOf(previous, () -> {
@@ -544,6 +548,7 @@ public class TransferService {
                 TransferState.RETURNING,
                 operator.actor().displayName(),
                 operator.principal().userId(),
+                replicas.id(),
                 Instant.now());
         TransferRunEntity returning = run;
         AuditEvent event = childOf(

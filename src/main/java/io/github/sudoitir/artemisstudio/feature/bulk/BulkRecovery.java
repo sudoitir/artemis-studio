@@ -5,8 +5,11 @@ import io.github.sudoitir.artemisstudio.feature.bulk.internal.persistence.BulkRu
 import io.github.sudoitir.artemisstudio.feature.bulk.internal.persistence.BulkRunItemRepository;
 import io.github.sudoitir.artemisstudio.feature.bulk.internal.persistence.BulkRunRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -14,8 +17,10 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * A run still recorded as executing when Studio starts was cut off by the stop (ADR-0093 D6). It is
- * marked, never resumed: its preview is stale and its operator is not watching.
+ * A run still recorded as executing by a replica that is gone was cut off by its stop or crash
+ * (ADR-0093 D6, ADR-0148). It is marked, never resumed: its preview is stale and its operator is not
+ * watching. A run another live replica is executing is left alone. Runs once at startup and then every
+ * 30 seconds, on one replica.
  */
 @Slf4j
 @Component
@@ -28,10 +33,18 @@ class BulkRecovery {
     private final BulkRunRepository runs;
     private final BulkRunItemRepository items;
     private final AuditService audit;
+    private final ReplicaRegistry replicas;
 
     @EventListener(ApplicationReadyEvent.class)
     void recover() {
-        for (BulkRunEntity run : runs.findByStatus(BulkRunStatus.RUNNING)) {
+        // Read the runs first: a replica that registers after this read is not one of their owners.
+        List<BulkRunEntity> executing = runs.findByStatus(BulkRunStatus.RUNNING);
+        Set<UUID> alive = replicas.aliveIds();
+        for (BulkRunEntity run : executing) {
+            if (alive.contains(run.getReplicaId())
+                    || runs.transition(run.getId(), BulkRunStatus.RUNNING, BulkRunStatus.INTERRUPTED) == 0) {
+                continue;
+            }
             Instant now = Instant.now();
             List<BulkRunItemEntity> rows = items.findByRunIdOrderByOrdinal(run.getId());
             for (BulkRunItemEntity item : rows) {

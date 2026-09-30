@@ -3,7 +3,11 @@ package io.github.sudoitir.artemisstudio.feature.transfer;
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunEntity;
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -11,8 +15,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * A run still recorded as executing when Studio starts was cut off by the stop (transfer design D6).
- * It is marked interrupted and offered for resume: a move's held messages are safe in its durable
+ * A run still recorded as executing by a replica that is gone was cut off by its stop or crash
+ * (transfer design D6, ADR-0148). A run another live replica is executing is left alone; the others
+ * are marked interrupted, once at startup and then every 30 seconds on one replica, and offered for resume: a move's held messages are safe in its durable
  * staging queue, and a copy's ledger says what it has copied. The large-message spool is swept by
  * {@code CoreRelay}; a staging queue whose run is gone shows as orphaned in the transfers list.
  */
@@ -26,10 +31,18 @@ class TransferRecovery {
 
     private final TransferRunRepository runs;
     private final AuditService audit;
+    private final ReplicaRegistry replicas;
 
     @EventListener(ApplicationReadyEvent.class)
     void recover() {
-        for (TransferRunEntity run : runs.findByStateIn(TransferState.ACTIVE)) {
+        // Read the runs first: a replica that registers after this read is not one of their owners.
+        List<TransferRunEntity> executing = runs.findByStateIn(TransferState.ACTIVE);
+        Set<UUID> alive = replicas.aliveIds();
+        for (TransferRunEntity run : executing) {
+            if (alive.contains(run.getReplicaId())
+                    || runs.transition(run.getId(), TransferState.ACTIVE, TransferState.INTERRUPTED) == 0) {
+                continue;
+            }
             run.finish(TransferState.INTERRUPTED, INTERRUPTED, null, Instant.now());
             runs.save(run);
             for (Long id : new Long[] {run.getAuditEventId(), run.getTargetAuditEventId()}) {
