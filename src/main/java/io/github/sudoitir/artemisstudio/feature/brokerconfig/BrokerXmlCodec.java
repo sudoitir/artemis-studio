@@ -49,11 +49,42 @@ public final class BrokerXmlCodec {
      */
     static final int MAX_IMPORT_CHARS = 256 * 1024;
 
+    private static final String QUEUE = "queue";
+    private static final String PERMISSION = "permission";
+    private static final String DIVERTS = "diverts";
+    private static final String SECURITY_SETTINGS = "security-settings";
+    private static final String ADDRESSES = "addresses";
+    private static final String ADDRESS_SETTINGS = "address-settings";
+    private static final String BRIDGES = "bridges";
+    private static final String FILTER = "filter";
+    private static final String DIVERT = "divert";
+    private static final String BRIDGE = "bridge";
+    private static final String STRING = "string";
+    private static final String AT_NAME = "@name";
+    private static final String AT_STRING = "@string";
+    private static final String NOT_A_NUMBER = "' is not a number.";
+    private static final String FALSE = "false";
+    private static final String FORWARDING_ADDRESS = "forwarding-address";
+    private static final String ROUTING_TYPE = "routing-type";
+    private static final String TRANSFORMER = "transformer";
+    private static final String STATIC_CONNECTORS = "static-connectors";
+    private static final String DISCOVERY_GROUP_NAME = "discovery-group-name";
+    private static final String MAX_CONSUMERS = "max-consumers";
+    private static final String EXCLUSIVE = "exclusive";
+    private static final String RING_SIZE = "ring-size";
+    private static final String NON_DESTRUCTIVE = "non-destructive";
+    private static final String DURABLE = "durable";
+    private static final String PURGE_ON_NO_CONSUMERS = "purge-on-no-consumers";
+    private static final String ADDRESS = "address";
+    private static final String ADDRESS_SETTING = "address-setting";
+    private static final String SECURITY_SETTING = "security-setting";
+    private static final String MATCH = "match";
+
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{[^}]*}");
     private static final Set<String> SECTIONS =
-            Set.of("addresses", "address-settings", "security-settings", "diverts", "bridges");
-    private static final Set<String> QUEUE_CHILDREN = Set.of(
-            "filter", "durable", "max-consumers", "purge-on-no-consumers", "exclusive", "non-destructive", "ring-size");
+            Set.of(ADDRESSES, ADDRESS_SETTINGS, SECURITY_SETTINGS, DIVERTS, BRIDGES);
+    private static final Set<String> QUEUE_CHILDREN =
+            Set.of(FILTER, DURABLE, MAX_CONSUMERS, PURGE_ON_NO_CONSUMERS, EXCLUSIVE, NON_DESTRUCTIVE, RING_SIZE);
 
     private BrokerXmlCodec() {}
 
@@ -107,7 +138,8 @@ public final class BrokerXmlCodec {
      * A DOCTYPE, with any internal subset. It is dropped, never resolved: DTDs are off,
      * and inside the wrapper below a DOCTYPE would make the whole file unreadable.
      */
-    private static final Pattern DOCTYPE = Pattern.compile("(?s)<!DOCTYPE[^\\[>]*(\\[.*?])?\\s*>");
+    private static final Pattern DOCTYPE =
+            Pattern.compile("(?s)<!DOCTYPE[^\\[>]*+(\\[(?:[^\\]]++|](?!\\s*>))*+])?+\\s*>");
 
     /**
      * A fragment may have several top-level elements; wrap it so the reader sees one
@@ -177,17 +209,17 @@ public final class BrokerXmlCodec {
                 String here = path.isEmpty() ? name : path + "/" + name;
                 switch (name) {
                     case "configuration", "core" -> container(here);
-                    case "addresses" -> addresses(here);
-                    case "address-settings" -> addressSettings(here);
-                    case "security-settings" -> securitySettings(here);
-                    case "diverts" -> diverts(here);
-                    case "bridges" -> bridges(here);
+                    case ADDRESSES -> addresses(here);
+                    case ADDRESS_SETTINGS -> addressSettings(here);
+                    case SECURITY_SETTINGS -> securitySettings(here);
+                    case DIVERTS -> diverts(here);
+                    case BRIDGES -> bridges(here);
                     // Bare items, as a pasted fragment or a capability snippet writes them.
-                    case "address" -> address(here);
-                    case "address-setting" -> addressSetting(here);
-                    case "security-setting" -> securitySetting(here);
-                    case "divert" -> divert(here);
-                    case "bridge" -> bridge(here);
+                    case ADDRESS -> address(here);
+                    case ADDRESS_SETTING -> addressSetting(here);
+                    case SECURITY_SETTING -> securitySetting(here);
+                    case DIVERT -> divert(here);
+                    case BRIDGE -> bridge(here);
                     default -> {
                         unsupported.add(new Unsupported(here, notTaken(name)));
                         skip();
@@ -205,14 +237,14 @@ public final class BrokerXmlCodec {
             if (SECTIONS.contains(name)) {
                 return "Duplicate section.";
             }
-            if (name.equals("queue") || name.equals("queues")) {
+            if (name.equals(QUEUE) || name.equals("queues")) {
                 return "A queue belongs inside an address and its routing type: wrap it in"
                         + " <address name=\"…\"><anycast>…</anycast></address>.";
             }
             if (name.equals("anycast") || name.equals("multicast")) {
                 return "A routing type belongs inside an address: wrap it in <address name=\"…\">…</address>.";
             }
-            if (name.equals("permission")) {
+            if (name.equals(PERMISSION)) {
                 return "A permission belongs inside a security setting: wrap it in"
                         + " <security-setting match=\"…\">…</security-setting>.";
             }
@@ -222,12 +254,17 @@ public final class BrokerXmlCodec {
             return "Not applied: the management API cannot set this at runtime.";
         }
 
+        /** A path to a named item: {@code addresses/address[name=orders]}. */
+        private static String named(String path, String name) {
+            return path + "[name=" + name + "]";
+        }
+
         // ---- <addresses> ---------------------------------------------------
 
         private void addresses(String path) throws XMLStreamException {
             while (nextStartOrEnd()) {
                 String here = path + "/" + local();
-                if (!local().equals("address")) {
+                if (!local().equals(ADDRESS)) {
                     unsupported.add(new Unsupported(here, "Only <address> is expected here."));
                     skip();
                     continue;
@@ -239,7 +276,7 @@ public final class BrokerXmlCodec {
         /** One <address>, with the reader on its start element; consumed through its end. */
         private void address(String here) throws XMLStreamException {
             String name = attr("name");
-            String ap = here + "[name=" + name + "]";
+            String ap = named(here, name);
             Set<String> routingTypes = new LinkedHashSet<>();
             List<QueueDecl> queues = new ArrayList<>();
             while (nextStartOrEnd()) {
@@ -248,7 +285,7 @@ public final class BrokerXmlCodec {
                     String routingType = rt.toUpperCase(Locale.ROOT);
                     routingTypes.add(routingType);
                     while (nextStartOrEnd()) {
-                        if (local().equals("queue")) {
+                        if (local().equals(QUEUE)) {
                             queues.add(queue(ap + "/" + rt + "/queue", routingType));
                         } else {
                             unsupported.add(
@@ -262,13 +299,13 @@ public final class BrokerXmlCodec {
                     skip();
                 }
             }
-            placeholder(name, ap + "@name");
+            placeholder(name, ap + AT_NAME);
             addresses.add(new AddressDecl(name, routingTypes, queues));
         }
 
         private QueueDecl queue(String path, String routingType) throws XMLStreamException {
             String name = attr("name");
-            String qp = path + "[name=" + name + "]";
+            String qp = named(path, name);
             String filter = null;
             Boolean durable = null;
             Integer maxConsumers = null;
@@ -283,30 +320,28 @@ public final class BrokerXmlCodec {
                     unsupported.add(new Unsupported(
                             cp, "Not carried: Studio declares the queue fields its create action accepts."));
                     skip();
-                    continue;
-                }
-                if (child.equals("filter")) {
-                    filter = attr("string");
-                    placeholder(filter, cp + "@string");
+                } else if (child.equals(FILTER)) {
+                    filter = attr(STRING);
+                    placeholder(filter, cp + AT_STRING);
                     skip();
-                    continue;
-                }
-                String text = text();
-                placeholder(text, cp);
-                try {
-                    switch (child) {
-                        case "durable" -> durable = Boolean.parseBoolean(text);
-                        case "max-consumers" -> maxConsumers = Integer.parseInt(text.trim());
-                        case "purge-on-no-consumers" -> purge = Boolean.parseBoolean(text);
-                        case "exclusive" -> exclusive = Boolean.parseBoolean(text);
-                        case "non-destructive" -> nonDestructive = Boolean.parseBoolean(text);
-                        case "ring-size" -> ringSize = Long.parseLong(text.trim());
-                        default -> {
-                            // Other children carry no queue setting.
+                } else {
+                    String text = text();
+                    placeholder(text, cp);
+                    try {
+                        switch (child) {
+                            case DURABLE -> durable = Boolean.parseBoolean(text);
+                            case MAX_CONSUMERS -> maxConsumers = Integer.parseInt(text.trim());
+                            case PURGE_ON_NO_CONSUMERS -> purge = Boolean.parseBoolean(text);
+                            case EXCLUSIVE -> exclusive = Boolean.parseBoolean(text);
+                            case NON_DESTRUCTIVE -> nonDestructive = Boolean.parseBoolean(text);
+                            case RING_SIZE -> ringSize = Long.parseLong(text.trim());
+                            default -> {
+                                // Other children carry no queue setting.
+                            }
                         }
+                    } catch (NumberFormatException _) {
+                        errors.add(new Violation(cp, "'" + text + NOT_A_NUMBER));
                     }
-                } catch (NumberFormatException _) {
-                    errors.add(new Violation(cp, "'" + text + "' is not a number."));
                 }
             }
             return new QueueDecl(
@@ -318,7 +353,7 @@ public final class BrokerXmlCodec {
         private void addressSettings(String path) throws XMLStreamException {
             while (nextStartOrEnd()) {
                 String here = path + "/" + local();
-                if (!local().equals("address-setting")) {
+                if (!local().equals(ADDRESS_SETTING)) {
                     unsupported.add(new Unsupported(here, "Only <address-setting> is expected here."));
                     skip();
                     continue;
@@ -329,7 +364,7 @@ public final class BrokerXmlCodec {
 
         /** One <address-setting>, with the reader on its start element; consumed through its end. */
         private void addressSetting(String here) throws XMLStreamException {
-            String match = attr("match");
+            String match = attr(MATCH);
             String sp = here + "[match=" + match + "]";
             Map<String, Object> values = new TreeMap<>();
             while (nextStartOrEnd()) {
@@ -346,27 +381,32 @@ public final class BrokerXmlCodec {
                             "'" + child + "' is not an address-setting key Studio knows. Correct the spelling, or"
                                     + " remove it: a broker accepts an unknown key and silently ignores it."));
                     skip();
-                    continue;
+                } else {
+                    settingValue(key, cp, values);
                 }
-                String text = text();
-                if (placeholder(text, cp)) {
-                    continue;
-                }
-                if (!key.applicable()) {
-                    unsupported.add(
-                            new Unsupported(cp, "Governs a configuration-file reload; not applied at runtime."));
-                    continue;
-                }
-                values.put(key.jsonName(), coerce(key, text.trim(), cp));
             }
             addressSettings.add(new AddressSettingDecl(match, values));
+        }
+
+        /** The text of one known address-setting key, taken into {@code values} when it can be applied. */
+        private void settingValue(AddressSettingKey key, String cp, Map<String, Object> values)
+                throws XMLStreamException {
+            String text = text();
+            if (placeholder(text, cp)) {
+                return;
+            }
+            if (!key.applicable()) {
+                unsupported.add(new Unsupported(cp, "Governs a configuration-file reload; not applied at runtime."));
+                return;
+            }
+            values.put(key.jsonName(), coerce(key, text.trim(), cp));
         }
 
         private Object coerce(AddressSettingKey key, String text, String path) {
             try {
                 return switch (key.type()) {
                     case BOOLEAN -> {
-                        if (!text.equalsIgnoreCase("true") && !text.equalsIgnoreCase("false")) {
+                        if (!text.equalsIgnoreCase("true") && !text.equalsIgnoreCase(FALSE)) {
                             errors.add(new Violation(path, "'" + text + "' is not true or false."));
                         }
                         yield Boolean.parseBoolean(text);
@@ -377,7 +417,7 @@ public final class BrokerXmlCodec {
                     case STRING -> text;
                 };
             } catch (NumberFormatException _) {
-                errors.add(new Violation(path, "'" + text + "' is not a number."));
+                errors.add(new Violation(path, "'" + text + NOT_A_NUMBER));
                 return text;
             }
         }
@@ -387,7 +427,7 @@ public final class BrokerXmlCodec {
         private void securitySettings(String path) throws XMLStreamException {
             while (nextStartOrEnd()) {
                 String here = path + "/" + local();
-                if (!local().equals("security-setting")) {
+                if (!local().equals(SECURITY_SETTING)) {
                     unsupported.add(new Unsupported(
                             here,
                             "Not carried: only <security-setting> with <permission> children is applied at runtime."));
@@ -400,11 +440,11 @@ public final class BrokerXmlCodec {
 
         /** One <security-setting>, with the reader on its start element; consumed through its end. */
         private void securitySetting(String here) throws XMLStreamException {
-            String match = attr("match");
+            String match = attr(MATCH);
             String sp = here + "[match=" + match + "]";
             Map<PermissionType, Set<String>> permissions = new EnumMap<>(PermissionType.class);
             while (nextStartOrEnd()) {
-                if (!local().equals("permission")) {
+                if (!local().equals(PERMISSION)) {
                     unsupported.add(new Unsupported(sp + "/" + local(), "Only <permission> is expected here."));
                     skip();
                     continue;
@@ -432,7 +472,7 @@ public final class BrokerXmlCodec {
         private void diverts(String path) throws XMLStreamException {
             while (nextStartOrEnd()) {
                 String here = path + "/" + local();
-                if (!local().equals("divert")) {
+                if (!local().equals(DIVERT)) {
                     unsupported.add(new Unsupported(here, "Only <divert> is expected here."));
                     skip();
                     continue;
@@ -444,7 +484,7 @@ public final class BrokerXmlCodec {
         /** One <divert>, with the reader on its start element; consumed through its end. */
         private void divert(String here) throws XMLStreamException {
             String name = attr("name");
-            String dp = here + "[name=" + name + "]";
+            String dp = named(here, name);
             String address = null;
             String forwarding = null;
             String filter = null;
@@ -456,10 +496,10 @@ public final class BrokerXmlCodec {
                 String child = local();
                 String cp = dp + "/" + child;
                 switch (child) {
-                    case "address" -> address = placeholderChecked(text(), cp);
-                    case "forwarding-address" -> forwarding = placeholderChecked(text(), cp);
-                    case "exclusive" -> exclusive = Boolean.parseBoolean(text().trim());
-                    case "routing-type" -> routingType = text().trim();
+                    case ADDRESS -> address = placeholderChecked(text(), cp);
+                    case FORWARDING_ADDRESS -> forwarding = placeholderChecked(text(), cp);
+                    case EXCLUSIVE -> exclusive = Boolean.parseBoolean(text().trim());
+                    case ROUTING_TYPE -> routingType = text().trim();
                     case "routing-name" -> {
                         String rn = text().trim();
                         if (!rn.isEmpty() && !rn.equals(name)) {
@@ -469,11 +509,11 @@ public final class BrokerXmlCodec {
                                             "Studio names the routing after the divert; a different routing name is not carried."));
                         }
                     }
-                    case "filter" -> {
-                        filter = placeholderChecked(attr("string"), cp + "@string");
+                    case FILTER -> {
+                        filter = placeholderChecked(attr(STRING), cp + AT_STRING);
                         skip();
                     }
-                    case "transformer" -> {
+                    case TRANSFORMER -> {
                         TransformerDecl t = transformer(cp);
                         transformerClass = t == null ? null : t.className();
                         transformerProps.putAll(t == null ? Map.of() : t.properties());
@@ -514,7 +554,7 @@ public final class BrokerXmlCodec {
         private void bridges(String path) throws XMLStreamException {
             while (nextStartOrEnd()) {
                 String here = path + "/" + local();
-                if (!local().equals("bridge")) {
+                if (!local().equals(BRIDGE)) {
                     unsupported.add(new Unsupported(here, "Only <bridge> is expected here."));
                     skip();
                     continue;
@@ -526,20 +566,20 @@ public final class BrokerXmlCodec {
         /** One {@code <bridge>}, with the reader on its start element; consumed through its end. */
         private void bridge(String here) throws XMLStreamException {
             String name = attr("name");
-            String bp = here + "[name=" + name + "]";
+            String bp = named(here, name);
             BridgeFields f = new BridgeFields();
             while (nextStartOrEnd()) {
                 String child = local();
                 String cp = bp + "/" + child;
                 switch (child) {
                     case "queue-name" -> f.queueName = placeholderChecked(text(), cp);
-                    case "forwarding-address" -> f.forwardingAddress = placeholderChecked(text(), cp);
-                    case "filter" -> {
-                        f.filter = placeholderChecked(attr("string"), cp + "@string");
+                    case FORWARDING_ADDRESS -> f.forwardingAddress = placeholderChecked(text(), cp);
+                    case FILTER -> {
+                        f.filter = placeholderChecked(attr(STRING), cp + AT_STRING);
                         skip();
                     }
-                    case "transformer" -> f.transformer = transformer(cp);
-                    case "static-connectors" -> {
+                    case TRANSFORMER -> f.transformer = transformer(cp);
+                    case STATIC_CONNECTORS -> {
                         while (nextStartOrEnd()) {
                             if (local().equals("connector-ref")) {
                                 f.staticConnectors.add(placeholderChecked(text(), cp + "/connector-ref"));
@@ -551,10 +591,10 @@ public final class BrokerXmlCodec {
                         }
                     }
                     case "discovery-group-ref" -> {
-                        f.discoveryGroupName = placeholderChecked(attr("discovery-group-name"), cp + "@name");
+                        f.discoveryGroupName = placeholderChecked(attr(DISCOVERY_GROUP_NAME), cp + AT_NAME);
                         skip();
                     }
-                    case "discovery-group-name" -> f.discoveryGroupName = placeholderChecked(text(), cp);
+                    case DISCOVERY_GROUP_NAME -> f.discoveryGroupName = placeholderChecked(text(), cp);
                     case "ha" -> f.ha = bool(cp);
                     case "use-duplicate-detection" -> f.useDuplicateDetection = bool(cp);
                     case "retry-interval" -> f.retryInterval = whole(cp);
@@ -567,7 +607,7 @@ public final class BrokerXmlCodec {
                     case "min-large-message-size" -> f.minLargeMessageSize = count(cp);
                     case "check-period" -> f.checkPeriod = whole(cp);
                     case "connection-ttl" -> f.connectionTtl = whole(cp);
-                    case "routing-type" -> f.routingType = text().trim();
+                    case ROUTING_TYPE -> f.routingType = text().trim();
                     case "concurrency" -> f.concurrency = count(cp);
                     case "client-id" -> f.clientId = placeholderChecked(text(), cp);
                     case "user", "password" -> {
@@ -586,7 +626,7 @@ public final class BrokerXmlCodec {
                     }
                 }
             }
-            placeholder(name, bp + "@name");
+            placeholder(name, bp + AT_NAME);
             bridges.add(new BridgeDecl(
                     name,
                     f.queueName,
@@ -643,7 +683,7 @@ public final class BrokerXmlCodec {
             if (placeholder(text, cp)) {
                 return null;
             }
-            if (!text.equalsIgnoreCase("true") && !text.equalsIgnoreCase("false")) {
+            if (!text.equalsIgnoreCase("true") && !text.equalsIgnoreCase(FALSE)) {
                 errors.add(new Violation(cp, "'" + text + "' is not true or false."));
                 return null;
             }
@@ -658,7 +698,7 @@ public final class BrokerXmlCodec {
             try {
                 return Long.parseLong(text);
             } catch (NumberFormatException _) {
-                errors.add(new Violation(cp, "'" + text + "' is not a number."));
+                errors.add(new Violation(cp, "'" + text + NOT_A_NUMBER));
                 return null;
             }
         }
@@ -683,7 +723,7 @@ public final class BrokerXmlCodec {
             try {
                 return Double.parseDouble(text);
             } catch (NumberFormatException _) {
-                errors.add(new Violation(cp, "'" + text + "' is not a number."));
+                errors.add(new Violation(cp, "'" + text + NOT_A_NUMBER));
                 return null;
             }
         }
@@ -820,57 +860,60 @@ public final class BrokerXmlCodec {
         }
 
         void addresses(List<AddressDecl> addresses) throws XMLStreamException {
-            open("addresses");
+            open(ADDRESSES);
             for (AddressDecl a : addresses) {
-                open("address", "name", a.name());
+                open(ADDRESS, "name", a.name());
                 for (String rt : new TreeSet<>(a.routingTypes())) {
                     open(rt.toLowerCase(Locale.ROOT));
                     for (QueueDecl q : a.queues()) {
-                        if (!q.routingType().equalsIgnoreCase(rt)) {
-                            continue;
+                        if (q.routingType().equalsIgnoreCase(rt)) {
+                            queue(q);
                         }
-                        boolean simple = q.filter() == null
-                                && q.maxConsumers() == null
-                                && q.purgeOnNoConsumers() == null
-                                && q.exclusive() == null
-                                && q.nonDestructive() == null
-                                && q.ringSize() == null
-                                && q.durable();
-                        if (simple) {
-                            indent();
-                            w.writeEmptyElement("queue");
-                            w.writeAttribute("name", q.name());
-                            newline();
-                            continue;
-                        }
-                        open("queue", "name", q.name());
-                        if (q.filter() != null) {
-                            indent();
-                            w.writeEmptyElement("filter");
-                            w.writeAttribute("string", q.filter());
-                            newline();
-                        }
-                        if (!q.durable()) {
-                            leaf("durable", "false");
-                        }
-                        leafIf("max-consumers", q.maxConsumers());
-                        leafIf("purge-on-no-consumers", q.purgeOnNoConsumers());
-                        leafIf("exclusive", q.exclusive());
-                        leafIf("non-destructive", q.nonDestructive());
-                        leafIf("ring-size", q.ringSize());
-                        close("queue");
                     }
-                    close(rt.toLowerCase(Locale.ROOT));
+                    close();
                 }
-                close("address");
+                close();
             }
-            close("addresses");
+            close();
+        }
+
+        private void queue(QueueDecl q) throws XMLStreamException {
+            boolean simple = q.filter() == null
+                    && q.maxConsumers() == null
+                    && q.purgeOnNoConsumers() == null
+                    && q.exclusive() == null
+                    && q.nonDestructive() == null
+                    && q.ringSize() == null
+                    && q.durable();
+            if (simple) {
+                indent();
+                w.writeEmptyElement(QUEUE);
+                w.writeAttribute("name", q.name());
+                newline();
+                return;
+            }
+            open(QUEUE, "name", q.name());
+            if (q.filter() != null) {
+                indent();
+                w.writeEmptyElement(FILTER);
+                w.writeAttribute(STRING, q.filter());
+                newline();
+            }
+            if (Boolean.FALSE.equals(q.durable())) {
+                leaf(DURABLE, FALSE);
+            }
+            leafIf(MAX_CONSUMERS, q.maxConsumers());
+            leafIf(PURGE_ON_NO_CONSUMERS, q.purgeOnNoConsumers());
+            leafIf(EXCLUSIVE, q.exclusive());
+            leafIf(NON_DESTRUCTIVE, q.nonDestructive());
+            leafIf(RING_SIZE, q.ringSize());
+            close();
         }
 
         void addressSettings(List<AddressSettingDecl> settings) throws XMLStreamException {
-            open("address-settings");
+            open(ADDRESS_SETTINGS);
             for (AddressSettingDecl s : settings) {
-                open("address-setting", "match", s.match());
+                open(ADDRESS_SETTING, MATCH, s.match());
                 // Catalogue order, so two exports of the same declaration are identical.
                 for (AddressSettingKey key : AddressSettingKey.values()) {
                     Object v = s.values().get(key.jsonName());
@@ -878,63 +921,63 @@ public final class BrokerXmlCodec {
                         leaf(key.xmlName(), String.valueOf(Values.normalise(key, v)));
                     }
                 }
-                close("address-setting");
+                close();
             }
-            close("address-settings");
+            close();
         }
 
         void securitySettings(List<SecuritySettingDecl> settings) throws XMLStreamException {
-            open("security-settings");
+            open(SECURITY_SETTINGS);
             for (SecuritySettingDecl s : settings) {
-                open("security-setting", "match", s.match());
+                open(SECURITY_SETTING, MATCH, s.match());
                 for (PermissionType t : PermissionType.values()) {
                     Set<String> roles = s.roles(t);
                     if (roles.isEmpty()) {
                         continue;
                     }
                     indent();
-                    w.writeEmptyElement("permission");
+                    w.writeEmptyElement(PERMISSION);
                     w.writeAttribute("type", t.xmlName());
                     w.writeAttribute("roles", String.join(",", new TreeSet<>(roles)));
                     newline();
                 }
-                close("security-setting");
+                close();
             }
-            close("security-settings");
+            close();
         }
 
         void diverts(List<DivertDecl> diverts) throws XMLStreamException {
-            open("diverts");
+            open(DIVERTS);
             for (DivertDecl d : diverts) {
-                open("divert", "name", d.name());
-                leaf("address", d.address());
-                leaf("forwarding-address", d.forwardingAddress());
+                open(DIVERT, "name", d.name());
+                leaf(ADDRESS, d.address());
+                leaf(FORWARDING_ADDRESS, d.forwardingAddress());
                 if (d.filter() != null) {
                     indent();
-                    w.writeEmptyElement("filter");
-                    w.writeAttribute("string", d.filter());
+                    w.writeEmptyElement(FILTER);
+                    w.writeAttribute(STRING, d.filter());
                     newline();
                 }
-                leaf("exclusive", String.valueOf(d.exclusive()));
+                leaf(EXCLUSIVE, String.valueOf(d.exclusive()));
                 if (d.routingType() != null) {
-                    leaf("routing-type", d.routingType());
+                    leaf(ROUTING_TYPE, d.routingType());
                 }
                 transformer(d.transformer());
-                close("divert");
+                close();
             }
-            close("diverts");
+            close();
         }
 
         void bridges(List<BridgeDecl> bridges) throws XMLStreamException {
-            open("bridges");
+            open(BRIDGES);
             for (BridgeDecl b : bridges) {
-                open("bridge", "name", b.name());
+                open(BRIDGE, "name", b.name());
                 leaf("queue-name", b.queueName());
-                leaf("forwarding-address", b.forwardingAddress());
+                leaf(FORWARDING_ADDRESS, b.forwardingAddress());
                 if (b.filter() != null) {
                     indent();
-                    w.writeEmptyElement("filter");
-                    w.writeAttribute("string", b.filter());
+                    w.writeEmptyElement(FILTER);
+                    w.writeAttribute(STRING, b.filter());
                     newline();
                 }
                 transformer(b.transformer());
@@ -950,25 +993,25 @@ public final class BrokerXmlCodec {
                 leafIf("min-large-message-size", b.minLargeMessageSize());
                 leafIf("check-period", b.checkPeriod());
                 leafIf("connection-ttl", b.connectionTtl());
-                leafIf("routing-type", b.routingType());
+                leafIf(ROUTING_TYPE, b.routingType());
                 leafIf("concurrency", b.concurrency());
                 leafIf("client-id", b.clientId());
                 credential(b.credentialRef());
                 if (!b.staticConnectors().isEmpty()) {
-                    open("static-connectors");
+                    open(STATIC_CONNECTORS);
                     for (String c : b.staticConnectors()) {
                         leaf("connector-ref", c);
                     }
-                    close("static-connectors");
+                    close();
                 } else if (b.discoveryGroupName() != null) {
                     indent();
                     w.writeEmptyElement("discovery-group-ref");
-                    w.writeAttribute("discovery-group-name", b.discoveryGroupName());
+                    w.writeAttribute(DISCOVERY_GROUP_NAME, b.discoveryGroupName());
                     newline();
                 }
-                close("bridge");
+                close();
             }
-            close("bridges");
+            close();
         }
 
         /**
@@ -992,7 +1035,7 @@ public final class BrokerXmlCodec {
             if (t == null) {
                 return;
             }
-            open("transformer");
+            open(TRANSFORMER);
             leaf("class-name", t.className());
             for (Map.Entry<String, String> e : t.properties().entrySet()) {
                 indent();
@@ -1001,7 +1044,7 @@ public final class BrokerXmlCodec {
                 w.writeAttribute("value", e.getValue());
                 newline();
             }
-            close("transformer");
+            close();
         }
 
         private void open(String name) throws XMLStreamException {
@@ -1019,7 +1062,7 @@ public final class BrokerXmlCodec {
             depth++;
         }
 
-        private void close(String name) throws XMLStreamException {
+        private void close() throws XMLStreamException {
             depth--;
             indent();
             w.writeEndElement();
