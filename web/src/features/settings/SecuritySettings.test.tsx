@@ -204,6 +204,25 @@ describe('SecuritySettings', () => {
     expect(screen.getByText('Missing from the provider: restore it')).toBeInTheDocument();
   });
 
+  it('says a rotation can start now when no rotation has run and a newer key exists', async () => {
+    server.use(me(fresh()), status());
+    renderWithProviders(<SecuritySettings />);
+    expect(await screen.findByText(/A newer key version is ready, so you can rotate now/)).toBeInTheDocument();
+  });
+
+  it('explains the settle wait once every secret is re-wrapped', async () => {
+    server.use(
+      me(fresh()),
+      status({
+        currentVersion: 2,
+        countsByVersion: { '2': 7 },
+        lastRotation: { ...ROTATION, status: 'RUNNING', finishedAt: undefined, rewrapped: 7, remaining: 0 },
+      }),
+    );
+    renderWithProviders(<SecuritySettings />);
+    expect(await screen.findByText(/Every secret is re-wrapped/)).toBeInTheDocument();
+  });
+
   it('shows the cause of a failed rotation', async () => {
     server.use(me(fresh()), status({ lastRotation: { ...ROTATION, status: 'FAILED', error: 'Vault is sealed' } }));
     renderWithProviders(<SecuritySettings />);

@@ -167,9 +167,11 @@ export function SecuritySettings() {
       {last ? (
         <RotationSummary rotation={last} />
       ) : (
-        <Alert variant="light" title="No rotation has run">
-          Rotation re-wraps stored secrets under a newer key. It needs a newer key version in the provider; add one
-          there, then rotate here.
+        <Alert variant="light" color="gray" title="No rotation has run">
+          Rotation re-wraps stored secrets under a newer key.{' '}
+          {rotatable
+            ? 'A newer key version is ready, so you can rotate now.'
+            : 'It needs a newer key version in the provider; add one there, then rotate here.'}
         </Alert>
       )}
 
@@ -236,10 +238,12 @@ function nextAction(type: string): string {
 
 function RotationSummary({ rotation: r }: { rotation: RotationView }) {
   const counting = r.status === 'RUNNING' && r.rewrapped + r.remaining === 0;
+  // Every row is re-wrapped, but the rotation waits out the settle window so no replica still writes under the old key.
+  const settling = r.status === 'RUNNING' && !counting && r.remaining === 0;
   return (
     <Alert
       variant="light"
-      color={r.status === 'FAILED' ? 'red' : undefined}
+      color={r.status === 'FAILED' ? 'red' : r.status === 'RUNNING' ? 'blue' : 'gray'}
       title={`Last rotation: ${STATUSES[r.status] ?? r.status}`}
     >
       <Stack gap={2}>
@@ -250,6 +254,8 @@ function RotationSummary({ rotation: r }: { rotation: RotationView }) {
           <Progress
             aria-label="Rotation progress"
             value={(100 * r.rewrapped) / (r.rewrapped + r.remaining)}
+            color="blue"
+            size="md"
             animated
             my={4}
           />
@@ -257,6 +263,12 @@ function RotationSummary({ rotation: r }: { rotation: RotationView }) {
         <Text size="sm" style={numeric}>
           {counting ? 'Progress: counting…' : `Progress: ${r.rewrapped} re-wrapped, ${r.remaining} remaining.`}
         </Text>
+        {settling ? (
+          <Text size="sm">
+            Every secret is re-wrapped. Studio is confirming that no replica still writes under the old key; this
+            finishes within a minute.
+          </Text>
+        ) : null}
         {r.status === 'RUNNING' ? <Text size="sm">Running for {elapsed(r.startedAt)}.</Text> : null}
         {r.finishedAt ? <Text size="sm">Finished at {when(r.finishedAt)}.</Text> : null}
         {r.status === 'FAILED' ? (
