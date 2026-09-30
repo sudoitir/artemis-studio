@@ -3281,6 +3281,8 @@ export interface components {
             notifications: components["schemas"]["CapabilityView"];
             messageIo: components["schemas"]["CapabilityView"];
             slowConsumerDetection: components["schemas"]["CapabilityView"];
+            /** @description Operations that need a newer Artemis release than some node runs */
+            versionGates: components["schemas"]["VersionGateView"][];
         };
         CapabilityView: {
             status: string;
@@ -3305,12 +3307,24 @@ export interface components {
             active: boolean;
             replicaSync?: boolean | null;
             version?: string | null;
+            /**
+             * @description Where version sits against the supported Artemis range
+             * @enum {string}
+             */
+            versionSupport: "SUPPORTED" | "BELOW_MINIMUM" | "NEWER_THAN_TESTED" | "UNKNOWN";
             lastError?: string | null;
             /** Format: date-time */
             lastSeenAt?: string | null;
             discovered: boolean;
             manualOverride: boolean;
             manageable: boolean;
+        };
+        NodeVersionView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            version?: string | null;
+            supported: boolean;
         };
         RegisterPreview: {
             capabilities: components["schemas"]["CapabilitiesView"];
@@ -3328,6 +3342,15 @@ export interface components {
             /** Format: uuid */
             clusterId: string;
             nodes: components["schemas"]["LogicalNodeView"][];
+        };
+        VersionGateView: {
+            feature: string;
+            label: string;
+            requiredVersion: string;
+            status: string;
+            reason: string;
+            brokerXmlSnippet?: string | null;
+            nodes: components["schemas"]["NodeVersionView"][];
         };
         ClusterDetail: {
             /** Format: uuid */
@@ -3814,10 +3837,10 @@ export interface components {
             nodeId: string;
             nodeName: string;
             /**
-             * @description WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was already in the requested state; SKIPPED_NOT_LIVE when the node was not live and never received the command; FAILED when it refused.
+             * @description WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was already in the requested state; SKIPPED_NOT_LIVE when the node was not live and never received the command; UNSUPPORTED_VERSION when its Artemis release lacks the operation and it was not called; FAILED when it refused.
              * @enum {string}
              */
-            status: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "SKIPPED_NOT_LIVE" | "FAILED";
+            status: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "SKIPPED_NOT_LIVE" | "UNSUPPORTED_VERSION" | "FAILED";
             /**
              * Format: int64
              * @description Messages destroyed, or that would be destroyed, on this node.
@@ -4195,7 +4218,7 @@ export interface components {
             nodeId?: string;
             nodeName?: string;
             /** @enum {string} */
-            status?: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "SKIPPED_NOT_LIVE" | "FAILED";
+            status?: "WOULD_APPLY" | "APPLIED" | "ALREADY" | "SKIPPED_NOT_LIVE" | "UNSUPPORTED_VERSION" | "FAILED";
             /** Format: int64 */
             affected?: number;
             error?: string;

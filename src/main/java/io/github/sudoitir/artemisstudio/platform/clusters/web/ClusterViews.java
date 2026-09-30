@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -54,6 +55,10 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) boolean active,
             @Schema(nullable = true) Boolean replicaSync,
             @Schema(nullable = true) String version,
+
+            @Schema(requiredMode = REQUIRED, description = "Where version sits against the supported Artemis range")
+            BrokerVersion.Support versionSupport,
+
             @Schema(nullable = true) String lastError,
             @Schema(nullable = true) Instant lastSeenAt,
             @Schema(requiredMode = REQUIRED) boolean discovered,
@@ -84,7 +89,32 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) CapabilityView managementWrite,
             @Schema(requiredMode = REQUIRED) CapabilityView notifications,
             @Schema(requiredMode = REQUIRED) CapabilityView messageIo,
-            @Schema(requiredMode = REQUIRED) CapabilityView slowConsumerDetection) {}
+            @Schema(requiredMode = REQUIRED) CapabilityView slowConsumerDetection,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Operations that need a newer Artemis release than some node runs")
+            List<VersionGateView> versionGates) {}
+
+    /**
+     * One version-gated operation, shaped like a {@link CapabilityView} so a control
+     * gates on it the same way: unavailable when no node runs a release that has it.
+     */
+    public record VersionGateView(
+            @Schema(requiredMode = REQUIRED) String feature,
+            @Schema(requiredMode = REQUIRED) String label,
+            @Schema(requiredMode = REQUIRED) String requiredVersion,
+            @Schema(requiredMode = REQUIRED) String status,
+            @Schema(requiredMode = REQUIRED) String reason,
+            @Schema(nullable = true) String brokerXmlSnippet,
+            @Schema(requiredMode = REQUIRED) List<NodeVersionView> nodes) {}
+
+    /** Whether one node's release has a version-gated operation. */
+    public record NodeVersionView(
+            @Schema(requiredMode = REQUIRED) UUID nodeId,
+            @Schema(requiredMode = REQUIRED) String nodeName,
+            @Schema(nullable = true) String version,
+            @Schema(requiredMode = REQUIRED) boolean supported) {}
 
     /** {@code GET /clusters/{id}/health}. */
     public record HealthView(

@@ -115,6 +115,7 @@ class TriageMcpToolsTest {
                                         true,
                                         null,
                                         null,
+                                        io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion.Support.UNKNOWN,
                                         null,
                                         AT,
                                         true,

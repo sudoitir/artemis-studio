@@ -36,6 +36,12 @@ public record LifecycleOutcome(boolean dryRun, long cap, boolean overCap, List<N
          * it. Reported as skipped rather than failed, because nothing was attempted.
          */
         SKIPPED_NOT_LIVE,
+        /**
+         * The node runs an Artemis release without the operation (ADR-0142), so it was
+         * not called. A skip, not a failure: the other nodes of a mixed cluster still
+         * get the command, and the error names the release needed.
+         */
+        UNSUPPORTED_VERSION,
         /** The node received the command and refused or failed it. */
         FAILED
     }

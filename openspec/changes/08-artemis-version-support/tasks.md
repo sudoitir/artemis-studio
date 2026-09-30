@@ -30,7 +30,7 @@
 - [x] 6.1 Backend CI matrix over both ends of the range; `BrokerVersionTest` ties it to the constants
 - [x] 6.2 Dev and demo compose on `apache/artemis:2.57.0`
 - [x] 6.3 `site/src/guide/supported-versions.md` in the sidebar
-- [x] 6.4 ADR-0140
+- [x] 6.4 ADR-0142
 
 ## 7. Finish
 

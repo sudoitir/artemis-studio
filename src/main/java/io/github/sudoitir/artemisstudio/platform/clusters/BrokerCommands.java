@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
+import io.github.sudoitir.artemisstudio.platform.broker.VersionGate;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -117,6 +118,8 @@ public class BrokerCommands {
      *
      * @param estimate {@code null} for a command that destroys nothing
      * @param preflight {@code null} for a command with nothing to check first
+     * @param requires the operation's version gate (ADR-0142), or {@code null}; a node whose
+     *     recorded release is older is reported {@code UNSUPPORTED_VERSION} and never called
      * @param auditDetail shapes the per-node outcomes into the audit row's detail
      * @param signal the topic signal published after commit
      */
@@ -132,6 +135,7 @@ public class BrokerCommands {
             boolean override,
             NodeAction action,
             NodePreflight preflight,
+            VersionGate requires,
             Estimate estimate,
             Function<List<NodeOutcome>, Object> auditDetail,
             Runnable signal) {
@@ -238,6 +242,10 @@ public class BrokerCommands {
         if (!t.live()) {
             return NodeOutcome.skipped(id, t.node().getName());
         }
+        NodeOutcome unsupported = unsupported(c, t);
+        if (unsupported != null) {
+            return unsupported;
+        }
         Check check = preflight(c, t);
         if (check.refusal() != null) {
             return NodeOutcome.failed(id, t.node().getName(), check.refusal());
@@ -261,10 +269,23 @@ public class BrokerCommands {
      * the fan-out: the nodes that succeeded are not reverted, and the divergence is what
      * gets reported (D3).
      */
+    /** The node's outcome when its release is too old for the command, else null. */
+    private static NodeOutcome unsupported(Command c, Target t) {
+        String refusal =
+                c.requires() == null ? null : c.requires().refusal(t.node().getVersion());
+        return refusal == null
+                ? null
+                : new NodeOutcome(t.node().getId(), t.node().getName(), NodeStatus.UNSUPPORTED_VERSION, null, refusal);
+    }
+
     private NodeOutcome applyTo(Command c, Target t, Long estimated) {
         UUID clusterId = c.clusterId();
         UUID nodeId = t.node().getId();
         String nodeName = t.node().getName();
+        NodeOutcome unsupported = unsupported(c, t);
+        if (unsupported != null) {
+            return unsupported;
+        }
         Check check = preflight(c, t);
         if (check.refusal() != null) {
             return NodeOutcome.failed(nodeId, nodeName, check.refusal());

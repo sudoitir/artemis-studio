@@ -17,8 +17,6 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The live lookup against a real broker, with no snapshot to answer first. The pattern read's
@@ -33,14 +31,7 @@ class QueueLocatorBrokerTest extends ArtemisIntegrationTest {
         String address = "locator.it." + System.nanoTime();
         String queueName = address + ".sub";
 
-        RestClient rest = RestClient.builder()
-                .requestInterceptor((request, body, execution) -> {
-                    request.getHeaders().setBasicAuth(BROKER_USER, BROKER_PASSWORD);
-                    return execution.execute(request, body);
-                })
-                .build();
-        JolokiaBrokerClient client =
-                new JolokiaBrokerClient(rest, jolokiaUrl(), JsonMapper.builder().build());
+        JolokiaBrokerClient client = jolokiaClient();
         client.execOnBroker(
                 "createQueue(java.lang.String,boolean)",
                 "{\"name\":\"" + queueName + "\",\"address\":\"" + address

@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
@@ -226,7 +227,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     }
 
     private void scrapeHotQueues(UUID clusterId, ClusterNode node) {
-        QueuesPage page = listQueues(clusterId, node, "", 1, PAGE_SIZE);
+        QueuesPage page = listQueues(clusterId, node, BrokerListOps.ALL, 1, PAGE_SIZE);
         upsert.upsertBatch(page.rows());
         metrics.appendQueueSamples(page.rows());
         streamSignals.afterQueueScrape(clusterId, page.rows());
@@ -236,7 +237,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         int pageNo = sweepCursor.nextPage(node.getId());
         Instant sweepStart = sweepCursor.sweepStart(node.getId());
 
-        QueuesPage page = listQueues(clusterId, node, "", pageNo, PAGE_SIZE);
+        QueuesPage page = listQueues(clusterId, node, BrokerListOps.ALL, pageNo, PAGE_SIZE);
         upsert.upsertBatch(page.rows());
         metrics.appendQueueSamples(page.rows());
         streamSignals.afterQueueScrape(clusterId, page.rows());

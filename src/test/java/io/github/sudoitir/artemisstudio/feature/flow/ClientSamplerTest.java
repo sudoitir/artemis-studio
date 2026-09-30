@@ -584,7 +584,8 @@ class ClientSamplerTest {
         ArgumentCaptor<List<io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest>> requests =
                 ArgumentCaptor.forClass(List.class);
         verify(client).batch(requests.capture());
-        assertThat(requests.getValue().get(0).arguments()).containsExactly("", 1, 1);
+        assertThat(requests.getValue().get(0).arguments())
+                .containsExactly(io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps.ALL, 1, 1);
     }
 
     // ---- sweepObserved -------------------------------------------------

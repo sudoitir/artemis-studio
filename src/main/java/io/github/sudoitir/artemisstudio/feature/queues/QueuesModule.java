@@ -41,7 +41,8 @@ public final class QueuesModule {
                                     "kind.fanout",
                                     "A command targets the cluster and fans out to every live node. The result "
                                             + "is a per-node list: a node already in the requested state reports "
-                                            + "ALREADY, and one that was not live reports SKIPPED_NOT_LIVE rather "
+                                            + "ALREADY, one that was not live reports SKIPPED_NOT_LIVE, and one whose "
+                                            + "Artemis release lacks the operation reports UNSUPPORTED_VERSION, rather "
                                             + "than a failure. Re-running after a partial application converges."),
                             McpToolDef.Param.note(
                                     "disconnectConsumers",

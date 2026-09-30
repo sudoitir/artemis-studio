@@ -13,6 +13,7 @@ export type EnvironmentView = Schemas['EnvironmentView'];
 export type HealthView = Schemas['HealthView'];
 export type LogicalNodeView = Schemas['LogicalNodeView'];
 export type NodeEndpointView = Schemas['NodeEndpointView'];
+export type VersionGateView = Schemas['VersionGateView'];
 export type RegisterClusterRequest = Schemas['RegisterClusterRequest'];
 export type RegisterPreview = Schemas['RegisterPreview'];
 export type TopologyView = Schemas['TopologyView'];

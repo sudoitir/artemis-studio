@@ -58,6 +58,8 @@ export interface BrokerNodeData extends Record<string, unknown> {
   statusWord: string;
   shortId: string;
   version: string | null;
+  /** Why this node's release is outside what Studio supports or has tested, in words; null when it is neither. */
+  versionNote: string | null;
   address: string | null;
   lastError: string | null;
   offset: boolean;
@@ -169,6 +171,7 @@ function brokerNode(
   const kind = kindOf(endpoint, serving);
   const statusWord = statusWordOf(kind, endpoint);
   const version = endpoint.version ? `, Artemis ${endpoint.version}` : '';
+  const versionNote = versionNoteOf(endpoint);
   return {
     id: endpoint.id,
     type: kind === 'unmanaged' ? 'unmanaged' : 'broker',
@@ -183,14 +186,27 @@ function brokerNode(
       statusWord,
       shortId: (logicalId ?? '—').slice(0, 8),
       version: endpoint.version ?? null,
+      versionNote,
       address: host(endpoint.jolokiaUrl ?? null) ?? endpoint.coreUrl ?? null,
       lastError: endpoint.lastError ?? null,
       offset,
       unmanaged: kind === 'unmanaged',
       nodeIds: [endpoint.id],
-      srSentence: `${endpoint.name}: ${statusWord}${version}.`,
+      srSentence: `${endpoint.name}: ${statusWord}${version}${versionNote ? `, ${versionNote}` : ''}.`,
     },
   };
+}
+
+/** The supported-range verdict as words (ADR-0142); colour only repeats it. */
+export function versionNoteOf(endpoint: NodeEndpointView): string | null {
+  switch (endpoint.versionSupport) {
+    case 'BELOW_MINIMUM':
+      return 'unsupported release: older than Studio supports';
+    case 'NEWER_THAN_TESTED':
+      return 'newer release than Studio has tested';
+    default:
+      return null;
+  }
 }
 
 function axisStatusOf(logical: LogicalNodeView): AxisStatus {
@@ -340,6 +356,7 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
       statusWord,
       shortId,
       version: null,
+      versionNote: null,
       address: null,
       lastError: null,
       offset: false,

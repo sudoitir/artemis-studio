@@ -48,7 +48,7 @@ class BrokerProblemAdvice {
 
     private static HttpStatus statusFor(Kind kind) {
         return switch (kind) {
-            case UNAUTHORIZED, NOT_ARTEMIS, WRONG_PATH -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case UNAUTHORIZED, NOT_ARTEMIS, WRONG_PATH, UNSUPPORTED_VERSION -> HttpStatus.UNPROCESSABLE_ENTITY;
             case UNREACHABLE, TLS_FAILED, BAD_RESPONSE -> HttpStatus.BAD_GATEWAY;
         };
     }
@@ -61,6 +61,7 @@ class BrokerProblemAdvice {
             case WRONG_PATH -> "No Jolokia agent at this address";
             case TLS_FAILED -> "TLS handshake failed";
             case BAD_RESPONSE -> "Unexpected broker response";
+            case UNSUPPORTED_VERSION -> "Artemis version not supported";
         };
     }
 

@@ -174,7 +174,7 @@ public class PagedListService {
         if (winner.page() == mine) {
             try {
                 JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-                mine.complete(listOps.fetch(client, kind.op(), "", -1, -1));
+                mine.complete(listOps.fetch(client, kind.op(), BrokerListOps.ALL, -1, -1));
             } catch (RuntimeException e) {
                 recent.remove(key, winner);
                 mine.completeExceptionally(e);

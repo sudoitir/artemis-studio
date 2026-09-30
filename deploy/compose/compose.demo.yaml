@@ -16,7 +16,7 @@ name: artemis-studio-dev
 
 services:
   artemis-secondary:
-    image: apache/activemq-artemis:2.44.0
+    image: apache/artemis:2.57.0
     environment:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
@@ -36,7 +36,7 @@ services:
       retries: 12
 
   artemis-secondary-backup:
-    image: apache/activemq-artemis:2.44.0
+    image: apache/artemis:2.57.0
     environment:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
@@ -59,7 +59,7 @@ services:
       retries: 12
 
   artemis-tertiary:
-    image: apache/activemq-artemis:2.44.0
+    image: apache/artemis:2.57.0
     environment:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
@@ -79,7 +79,7 @@ services:
       retries: 12
 
   artemis-tertiary-backup:
-    image: apache/activemq-artemis:2.44.0
+    image: apache/artemis:2.57.0
     environment:
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis

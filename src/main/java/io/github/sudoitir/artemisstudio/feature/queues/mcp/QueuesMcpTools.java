@@ -184,7 +184,10 @@ public class QueuesMcpTools {
                 .toList();
         boolean partial = !dryRun
                 && nodes.stream().anyMatch(n -> "APPLIED".equals(n.status()) || "ALREADY".equals(n.status()))
-                && nodes.stream().anyMatch(n -> "FAILED".equals(n.status()) || "SKIPPED_NOT_LIVE".equals(n.status()));
+                && nodes.stream()
+                        .anyMatch(n -> "FAILED".equals(n.status())
+                                || "SKIPPED_NOT_LIVE".equals(n.status())
+                                || "UNSUPPORTED_VERSION".equals(n.status()));
         return new McpViews.LifecycleOutcomeSummary(
                 kind.name().toLowerCase(Locale.ROOT),
                 subject,

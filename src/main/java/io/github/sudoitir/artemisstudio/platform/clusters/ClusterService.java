@@ -14,13 +14,16 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSessions;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
 import io.github.sudoitir.artemisstudio.platform.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
+import io.github.sudoitir.artemisstudio.platform.broker.VersionGate;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
@@ -98,7 +101,7 @@ public class ClusterService {
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
 
-    private record Probe(String url, JolokiaBrokerClient client, BrokerConnectionException error) {
+    private record Probe(String url, JolokiaBrokerClient client, String version, BrokerConnectionException error) {
         boolean ok() {
             return error == null;
         }
@@ -128,6 +131,10 @@ public class ClusterService {
         if (reachable.isEmpty()) {
             return failed(event, probes.get(0).error());
         }
+        BrokerConnectionException tooOld = belowMinimum(reachable);
+        if (tooOld != null) {
+            return failed(event, tooOld);
+        }
 
         ClusterTopology preview =
                 topologyDiscovery.preview(reachable.stream().map(Probe::asSeed).toList());
@@ -155,7 +162,7 @@ public class ClusterService {
 
         audit.succeed(event, nodeCount);
         return new Attempt.Ok<>(new RegisterPreview(
-                viewMapper.capabilities(capabilities),
+                viewMapper.capabilities(capabilities, VersionGate.assessAll(endpoints(preview))),
                 reachable.size(),
                 nodeCount,
                 viewMapper.topology(preview),
@@ -188,6 +195,19 @@ public class ClusterService {
             AuditEvent event = audit.begin(
                     actorResolver.resolve(), REGISTER_CLUSTER, CLUSTER, request.name(), null, null, Map.of(), false);
             return failed(event, probes.get(0).error());
+        }
+        BrokerConnectionException tooOld = belowMinimum(reachable);
+        if (tooOld != null) {
+            AuditEvent event = audit.begin(
+                    actorResolver.resolve(),
+                    "REGISTER_CLUSTER",
+                    "CLUSTER",
+                    request.name(),
+                    null,
+                    null,
+                    Map.of("seedUrls", request.seedUrls()),
+                    false);
+            return failed(event, tooOld);
         }
 
         ClusterEntity cluster = clusters.save(new ClusterEntity(
@@ -247,7 +267,7 @@ public class ClusterService {
                 cluster.getName(),
                 cluster.getDescription(),
                 viewMapper.topology(topology),
-                viewMapper.capabilities(capabilities),
+                viewMapper.capabilities(capabilities, VersionGate.assessAll(endpoints(topology))),
                 viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
                 cluster.getEnvironmentId()));
     }
@@ -286,7 +306,7 @@ public class ClusterService {
                 cluster.getName(),
                 cluster.getDescription(),
                 viewMapper.topology(topology),
-                viewMapper.capabilities(assessCapabilities(clusterId)),
+                viewMapper.capabilities(assessCapabilities(clusterId), VersionGate.assessAll(endpoints(topology))),
                 viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
                 cluster.getEnvironmentId());
     }
@@ -313,7 +333,9 @@ public class ClusterService {
      */
     @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
-        return viewMapper.capabilities(assessCapabilities(clusterId));
+        return viewMapper.capabilities(
+                assessCapabilities(clusterId),
+                VersionGate.assessAll(endpoints(topologyDiscovery.currentTopology(clusterId))));
     }
 
     /** The same assessment as {@link #capabilities}, before it becomes a DTO. */
@@ -477,12 +499,36 @@ public class ClusterService {
             try {
                 JolokiaBrokerClient client = clientFactory.forNode(settings, url);
                 client.resolveBrokerObjectName();
-                probes.add(new Probe(url, client, null));
+                probes.add(new Probe(url, client, brokerVersion(client), null));
             } catch (BrokerConnectionException e) {
-                probes.add(new Probe(url, null, e));
+                probes.add(new Probe(url, null, null, e));
             }
         }
         return probes;
+    }
+
+    /** The broker's {@code Version} attribute, or null when the read is refused; the range check then has nothing to refuse on. */
+    private static String brokerVersion(JolokiaBrokerClient client) {
+        JolokiaResponse response = client.readBrokerAttributes("Version");
+        return response.ok() && response.attribute("Version") != null
+                ? response.attribute("Version").asString()
+                : null;
+    }
+
+    /** A refusal naming the minimum when any reachable seed runs an older release (ADR-0142), else null. */
+    private static BrokerConnectionException belowMinimum(List<Probe> reachable) {
+        return reachable.stream()
+                .filter(p -> BrokerVersion.support(p.version()) == BrokerVersion.Support.BELOW_MINIMUM)
+                .findFirst()
+                .map(p -> new BrokerConnectionException(
+                        BrokerConnectionException.Kind.UNSUPPORTED_VERSION,
+                        "The broker at " + p.url() + " runs Artemis " + p.version() + ". Studio supports Artemis "
+                                + BrokerVersion.MINIMUM + " and later; upgrade the broker to register it."))
+                .orElse(null);
+    }
+
+    private static List<NodeEndpoint> endpoints(ClusterTopology topology) {
+        return topology.nodes().stream().flatMap(n -> n.endpoints().stream()).toList();
     }
 
     private <T> Attempt<T> failed(AuditEvent event, BrokerConnectionException error) {

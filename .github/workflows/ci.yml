@@ -107,7 +107,9 @@ jobs:
 
   # Backend and frontend are coupled through the OpenAPI snapshot (web/openapi.json,
   # written by a backend test) and the schema generated from it, so a change on
-  # either side runs both. The suite runs as three shards on separate runners.
+  # either side runs both. The suite runs as three shards on separate runners, once against each
+  # end of the supported Artemis range (ADR-0142). BrokerVersionTest keeps this list and
+  # BrokerVersion.MINIMUM / LATEST_TESTED in step.
   backend:
     needs: changes
     if: >-
@@ -119,6 +121,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [0, 1, 2]
+        artemis: ["apache/activemq-artemis:2.33.0", "apache/artemis:2.57.0"]
+    name: backend (${{ matrix.artemis }}, shard ${{ matrix.shard }})
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -141,13 +145,13 @@ jobs:
             | awk -v n=3 -v i=${{ matrix.shard }} 'NR % n == i' > "$RUNNER_TEMP/shard.txt"
           echo "$(wc -l < "$RUNNER_TEMP/shard.txt") test classes in this shard"
       - name: Verify (Spotless check, Liquibase vs Testcontainers Postgres, tests)
-        run: ./mvnw -B verify -Dtest="$(paste -sd, "$RUNNER_TEMP/shard.txt")" -Dsurefire.failIfNoSpecifiedTests=false
+        run: ./mvnw -B verify -Dtest="$(paste -sd, "$RUNNER_TEMP/shard.txt")" -Dsurefire.failIfNoSpecifiedTests=false -Dartemis.image="${{ matrix.artemis }}"
       - name: Fail on unformatted sources or a stale OpenAPI snapshot
         run: git diff --exit-code
-      # This shard's coverage; the `coverage` job merges the three (ADR-0128).
+      # This shard's coverage; the `coverage` job merges them all (ADR-0128).
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jacoco-${{ matrix.shard }}
+          name: jacoco-${{ strategy.job-index }}
           path: target/jacoco.exec
           retention-days: 7
 

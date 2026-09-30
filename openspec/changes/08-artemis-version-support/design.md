@@ -30,7 +30,11 @@ appears in 2.38.0 (D4). The full integration suite run against 2.32.0 failed on 
 capture, plugin taps, configuration apply), on a test helper whose Jolokia client did not accept the
 `text/plain` content type older agents send (Studio's own clients already did), and, once those were fixed,
 on the thirteen-argument `addSecuritySettings` that carries the view and edit permissions. That form arrived
-in 2.33.0, and the eleven-argument one cannot carry those permissions, so the minimum is 2.33.0. The
+in 2.33.0, and the eleven-argument one cannot carry those permissions, so the minimum is 2.33.0. CI at
+2.33.0 then showed that every unfiltered `listX` call (queue scrape, resource views, Flow) sent an empty
+options string that 2.33 cannot parse: they all send `BrokerListOps.ALL` now, and `BrokerListOpsBrokerTest`
+lists each kind against both ends. Flow's filtered-queue read uses `NOT_EQUALS`, absent in 2.33, and falls
+back to an unfiltered read there. The
 latest tested is the newest release, 2.57.0, which is also the client version.
 `BrokerVersion.MINIMUM` / `LATEST_TESTED` hold both.
 
