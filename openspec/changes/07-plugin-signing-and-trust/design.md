@@ -101,7 +101,7 @@ Today nothing checks who built a jar, and the validator's allowlist refuses a si
    - With `-Dartemis-studio.plugin.certificate=<pem>`, `PluginVerifier` exits 1 unless the jar was
      signed by that key.
    - CI's `plugin-template` job signs with a throwaway key and verifies against its certificate.
-10. **ADR-0140** records decisions 1–7 and amends ADR-0099's validation list and ADR-0103's
+10. **ADR-0141** records decisions 1–7 and amends ADR-0099's validation list and ADR-0103's
     list of lifecycle actions. The `plugins` guide gains a "Signing and trust" section.
 
 ## Risks / Trade-offs

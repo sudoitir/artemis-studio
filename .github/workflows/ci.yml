@@ -244,7 +244,8 @@ jobs:
         run: |
           set -euo pipefail
           SDK=$(ls "$GITHUB_WORKSPACE"/web/packages/plugin-sdk/dist/*.tgz)
-          export PLUGIN_SIGNING_STOREPASS="$(openssl rand -hex 16)"
+          PLUGIN_SIGNING_STOREPASS="$(openssl rand -hex 16)"
+          export PLUGIN_SIGNING_STOREPASS
           keytool -genkeypair -alias ci -keyalg EC -groupname secp256r1 -sigalg SHA256withECDSA -validity 2 \
             -dname "CN=Template CI" -keystore "$RUNNER_TEMP/ci.p12" -storetype PKCS12 \
             -storepass "$PLUGIN_SIGNING_STOREPASS" -keypass "$PLUGIN_SIGNING_STOREPASS"
