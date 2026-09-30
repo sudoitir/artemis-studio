@@ -25,4 +25,17 @@ describe('requestAll', () => {
     await expect(requestAll<string>('/things?kind=x')).resolves.toEqual(['row-1', 'row-2', 'row-3']);
     expect(pages).toEqual(['1:500:x', '2:500:x', '3:500:x']);
   });
+
+  it('stops at an empty page even when it claims a successor', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/things', () => {
+        calls++;
+        return HttpResponse.json({ data: [], page: calls, pageSize: 500, count: null, hasNext: true });
+      }),
+    );
+
+    await expect(requestAll<string>('/things')).resolves.toEqual([]);
+    expect(calls).toBe(1);
+  });
 });

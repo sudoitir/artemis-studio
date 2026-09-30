@@ -25,7 +25,8 @@ export async function requestAll<T>(path: string): Promise<T[]> {
   for (let page = 1; ; page++) {
     const result = await request<PagedView<T>>(`${path}${joiner}size=${MAX_PAGE_SIZE}&page=${page}`);
     rows.push(...result.data);
-    if (!result.hasNext) return rows;
+    // An empty page that claims a successor would loop forever; it is the end.
+    if (!result.hasNext || result.data.length === 0) return rows;
   }
 }
 
