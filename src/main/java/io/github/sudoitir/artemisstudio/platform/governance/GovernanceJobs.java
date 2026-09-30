@@ -24,6 +24,10 @@ class GovernanceJobs {
     @Bean
     ScheduledJob governanceRemaskJob(GovernanceRemasking remasking) {
         return ScheduledJob.fixedDelay(
-                "governance-remask", FEATURE, ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(1), remasking::run);
+                "governance-remask",
+                FEATURE,
+                ScheduledJob.Scope.INSTALLATION,
+                () -> Duration.ofMinutes(1),
+                remasking::run);
     }
 }
