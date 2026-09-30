@@ -44,9 +44,8 @@ public record SettingDef(
     }
 
     /**
-     * How a value is parsed, validated and rendered. Three kinds on purpose: a fourth
-     * would mean a new input on the settings screen, which is a design decision and
-     * not a config one.
+     * How a value is parsed, validated and rendered. Each kind is an input on the settings
+     * screen, so a new one is a design decision, not a config one (ADR-0136).
      */
     public enum Kind {
         /** A Spring-style ({@code 5s}, {@code 72h}) or ISO-8601 duration. Must be positive, or {@link #FOREVER} where allowed. */
@@ -54,6 +53,8 @@ public record SettingDef(
         /** A whole number, at least {@code min} (1 when unset). */
         INT,
         /** A six-field Spring cron expression. Rejected if it would fire more than once a minute. */
-        CRON
+        CRON,
+        /** {@code true} or {@code false}, rendered as a switch. */
+        BOOLEAN
     }
 }

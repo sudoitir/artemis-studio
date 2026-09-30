@@ -214,6 +214,10 @@ public class SettingsService {
         return Integer.parseInt(value(key).trim());
     }
 
+    public boolean bool(String key) {
+        return Boolean.parseBoolean(value(key).trim());
+    }
+
     /** The effective raw value: the stored override, else the packaged default. */
     public String value(String key) {
         String override = overrides.get(key);
@@ -380,6 +384,11 @@ public class SettingsService {
                 }
             }
             case CRON -> validateCron(spec.key(), value.trim());
+            case BOOLEAN -> {
+                if (!value.trim().equals("true") && !value.trim().equals("false")) {
+                    throw new IllegalArgumentException(spec.key() + " must be true or false");
+                }
+            }
         }
     }
 
