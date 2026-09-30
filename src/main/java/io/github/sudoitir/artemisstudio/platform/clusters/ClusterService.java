@@ -209,18 +209,24 @@ public class ClusterService {
                 false);
 
         if (request.hasCredentials()) {
-            SecretVault.Sealed sealed = vault.encrypt(
-                    clusterId, JOLOKIA_BASIC, request.credentials().password());
             credentials.save(new BrokerCredentialEntity(
-                    clusterId, JOLOKIA_BASIC, request.credentials().username(), sealed.ciphertext(), sealed.nonce()));
+                    clusterId,
+                    JOLOKIA_BASIC,
+                    request.credentials().username(),
+                    vault.seal(
+                            SecretVault.aad(clusterId, JOLOKIA_BASIC),
+                            request.credentials().password())));
         }
         if (request.hasCoreCredentials()) {
             // A CORE row is a genuinely separate sealed secret — AAD is clusterId|CORE
             // (ADR-0026). When absent, coreSettingsFor falls back to the Jolokia credential.
-            SecretVault.Sealed sealed =
-                    vault.encrypt(clusterId, CORE, request.coreCredentials().password());
             credentials.save(new BrokerCredentialEntity(
-                    clusterId, CORE, request.coreCredentials().username(), sealed.ciphertext(), sealed.nonce()));
+                    clusterId,
+                    CORE,
+                    request.coreCredentials().username(),
+                    vault.seal(
+                            SecretVault.aad(clusterId, CORE),
+                            request.coreCredentials().password())));
         }
         if (request.tlsBundle() != null) {
             tlsRepository.save(new BrokerTlsEntity(clusterId, request.tlsBundle(), null, true));
@@ -427,13 +433,12 @@ public class ClusterService {
                 Map.of("username", username, "kind", kind),
                 false);
 
-        SecretVault.Sealed sealed = vault.encrypt(clusterId, kind, password);
+        byte[] sealed = vault.seal(SecretVault.aad(clusterId, kind), password);
         credentials
                 .findByClusterIdAndKind(clusterId, kind)
                 .ifPresentOrElse(
-                        existing -> existing.replaceSecret(username, sealed.ciphertext(), sealed.nonce()),
-                        () -> credentials.save(new BrokerCredentialEntity(
-                                clusterId, kind, username, sealed.ciphertext(), sealed.nonce())));
+                        existing -> existing.replaceSecret(username, sealed),
+                        () -> credentials.save(new BrokerCredentialEntity(clusterId, kind, username, sealed)));
 
         audit.succeed(event, 1);
     }

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
 import io.modelcontextprotocol.spec.McpError;
@@ -100,7 +101,7 @@ public final class McpErrors {
     /** A JSON-RPC {@code -32602}: the call itself was malformed. */
     public static McpError invalidParams(String message) {
         return McpError.builder(McpSchema.ErrorCodes.INVALID_PARAMS)
-                .message(message)
+                .message(SecretRedactor.redact(message))
                 .build();
     }
 
@@ -118,7 +119,7 @@ public final class McpErrors {
     public static McpSchema.CallToolResult error(String message) {
         return McpSchema.CallToolResult.builder()
                 .isError(true)
-                .addTextContent(message)
+                .addTextContent(SecretRedactor.redact(message))
                 .build();
     }
 

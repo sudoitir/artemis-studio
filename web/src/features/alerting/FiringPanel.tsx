@@ -1,6 +1,7 @@
-import { Badge, Stack, Table, Text } from '@mantine/core';
+import { Badge, Group, Stack, Table, Text } from '@mantine/core';
 
 import { useFiringAlerts } from './api.ts';
+import { InstallationBadge } from './InstallationBadge.tsx';
 import { severityTone } from './severity.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
@@ -51,7 +52,10 @@ export function FiringPanel({ clusterId }: Readonly<{ clusterId: string }>) {
           return (
             <Table.Tr key={f.seq}>
               <Table.Td>
-                <Text size="sm">{f.ruleName}</Text>
+                <Group gap="xs">
+                  <Text size="sm">{f.ruleName}</Text>
+                  <InstallationBadge clusterId={f.clusterId} />
+                </Group>
               </Table.Td>
               <Table.Td>
                 <Text size="sm" ff="monospace">

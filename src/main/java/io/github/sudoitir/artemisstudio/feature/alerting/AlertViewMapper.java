@@ -43,6 +43,7 @@ public class AlertViewMapper {
         return new AlertFiringView(
                 e.getSeq(),
                 e.getRuleId(),
+                e.getClusterId(),
                 ruleName,
                 e.getSubjectKey(),
                 e.getSeverity(),
@@ -58,7 +59,7 @@ public class AlertViewMapper {
                 e.getKind(),
                 e.getConfig(),
                 e.isEnabled(),
-                e.getSecretCt() != null,
+                e.getSealed() != null,
                 boundRuleCount,
                 health);
     }

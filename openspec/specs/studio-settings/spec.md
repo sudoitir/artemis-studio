@@ -242,3 +242,35 @@ The operational settings registry SHALL contain only settings declared by enable
 
 - **WHEN** a feature with an overridden setting is disabled and later re-enabled
 - **THEN** the previously stored value is in effect again
+
+### Requirement: Secret provider and rotation state are visible to administrators
+Studio SHALL show a user with the settings-read permission the active secret provider, the current key version, the key versions available, how many stored secrets each version protects, and the last rotation with its progress and result. It SHALL never show or return key material. A user with the settings-write permission SHALL be able to start a rotation there after re-authenticating.
+
+#### Scenario: Status view
+- **WHEN** an administrator opens the security settings
+- **THEN** provider, key versions and the last rotation are shown and no key is
+
+#### Scenario: No rotation yet
+- **WHEN** no rotation has ever run
+- **THEN** the view says so and offers a rotation only if a newer key version is available
+
+#### Scenario: Rotation started from the UI
+- **WHEN** an administrator starts a rotation and their authentication is not fresh
+- **THEN** the UI asks them to re-authenticate, then starts the rotation and shows its progress until it ends
+
+#### Scenario: Rotation failed
+- **WHEN** a rotation fails
+- **THEN** the view shows the failure and the store it stopped at, without any secret or key
+
+### Requirement: A setting can declare bounds
+A setting SHALL be able to declare a minimum and a maximum. A value outside them SHALL be rejected with
+the allowed range, leave no audit row, and change nothing. A duration setting SHALL accept `forever` only
+when its maximum is `forever`.
+
+#### Scenario: Below the minimum
+- **WHEN** a value below a setting's minimum is written
+- **THEN** the write is rejected with the allowed range and the stored value is unchanged
+
+#### Scenario: Forever
+- **WHEN** `forever` is written to a duration setting whose maximum is not `forever`
+- **THEN** it is rejected

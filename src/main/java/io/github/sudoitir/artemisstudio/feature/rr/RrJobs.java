@@ -27,14 +27,4 @@ class RrJobs {
                 () -> settings.duration(RrSettings.SAMPLE_INTERVAL),
                 sampler::tick);
     }
-
-    @Bean
-    ScheduledJob rrFlowReaperJob(RrFlowReaper reaper, SettingsService settings) {
-        return ScheduledJob.cron(
-                "rr-flow-reaper",
-                "rr",
-                ScheduledJob.Scope.INSTALLATION,
-                () -> settings.value(RrSettings.REAPER_CRON),
-                reaper::reap);
-    }
 }

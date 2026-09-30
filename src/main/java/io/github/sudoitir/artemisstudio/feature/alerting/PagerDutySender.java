@@ -92,7 +92,7 @@ public class PagerDutySender implements NotificationSender {
                     ? Result.permanent(reason + " — check the routing key and endpoint")
                     : Result.retryable(reason);
         } catch (RestClientException e) {
-            return Result.retryable(e.getMessage());
+            return Result.retryable("PagerDuty request failed: " + e.getClass().getSimpleName());
         }
     }
 

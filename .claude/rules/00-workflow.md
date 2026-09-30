@@ -76,7 +76,7 @@ and API signatures is stale; this project has already been bitten by it
 
 ## SonarQube Cloud before merge
 
-Every change resolves its SonarQube Cloud issues before its PR merges (ADR-0132). CI's `sonar`
+Every change resolves its SonarQube Cloud issues before its PR merges (ADR-0139). CI's `sonar`
 job fails `ci-ok` on a red quality gate, but the gate only looks at new code, so check the PR's
 issues too once CI has analysed it: `search_sonar_issues_in_projects` with the PR's `pullRequest`
 key (from `list_pull_requests`) and `issueStatuses` OPEN and CONFIRMED, and
@@ -85,5 +85,5 @@ key (from `list_pull_requests`) and `issueStatuses` OPEN and CONFIRMED, and
 - Fix an issue in code whenever the rule is right.
 - A genuine false positive is marked false positive in SonarQube Cloud with a comment saying why.
 - A rule that conflicts with a recorded convention is scoped out in `pom.xml`
-  (`sonar.issue.ignore.multicriteria`, rule and path) and its reason added to ADR-0132. Never a
+  (`sonar.issue.ignore.multicriteria`, rule and path) and its reason added to ADR-0139. Never a
   repo-wide exclusion without a reason, and never "accept" to make the list shorter.

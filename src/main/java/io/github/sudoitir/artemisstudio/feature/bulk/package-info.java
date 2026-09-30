@@ -12,6 +12,7 @@
             "kernel.audit",
             "kernel.core",
             "kernel.jobs",
+            "kernel.lifecycle",
             "kernel.plugin",
             "kernel.security",
             "kernel.settings",

@@ -58,7 +58,7 @@ public class MessageIndexWriter {
     private final JsonMapper json = JsonMapper.builder().build();
 
     /** A row's governed form and the sealed originals of its masked values (ADR-0075 D4). */
-    private record Stored(GovernedMessage governed, byte[] ciphertext, byte[] nonce) {}
+    private record Stored(GovernedMessage governed, byte[] sealed) {}
 
     private record Prepared(Captured captured, Stored stored) {}
 
@@ -73,11 +73,9 @@ public class MessageIndexWriter {
     /** The row as Studio may store it: masked for everyone, with its sealable originals sealed. */
     private Stored stored(UUID clusterId, Row row) {
         GovernedMessage governed = governance.forStorage(clusterId, row);
-        ContentSealer.SealedOriginals sealed =
-                sealer.seal(aad(clusterId, row.nodeId(), row.queueName(), row.messageId()), governed.sealable());
-        return sealed == null
-                ? new Stored(governed, null, null)
-                : new Stored(governed, sealed.ciphertext(), sealed.nonce());
+        return new Stored(
+                governed,
+                sealer.seal(aad(clusterId, row.nodeId(), row.queueName(), row.messageId()), governed.sealable()));
     }
 
     /** Record one observation. Returns true when it was a message the index had not held. */
@@ -98,8 +96,8 @@ public class MessageIndexWriter {
                     observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                     priority, message_type, queue_name, address, node_name, correlation_id, group_id,
                     user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
-                    policy_version, sealed, sealed_nonce)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
+                    policy_version, sealed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """,
                 Timestamp.from(at),
@@ -124,8 +122,7 @@ public class MessageIndexWriter {
                 row.nodeId(),
                 row.durable(),
                 governed.policyVersion(),
-                new SqlParameterValue(Types.BINARY, stored.ciphertext()),
-                new SqlParameterValue(Types.BINARY, stored.nonce()));
+                new SqlParameterValue(Types.BINARY, stored.sealed()));
         return true;
     }
 
@@ -197,8 +194,7 @@ public class MessageIndexWriter {
             statement.setBoolean(++i, row.durable());
             statement.setBoolean(++i, row.bodyTruncated());
             statement.setInt(++i, governed.policyVersion());
-            statement.setObject(++i, entry.stored().ciphertext(), Types.BINARY);
-            statement.setObject(++i, entry.stored().nonce(), Types.BINARY);
+            statement.setObject(++i, entry.stored().sealed(), Types.BINARY);
             statement.setObject(++i, captured.clusterId());
             statement.setString(++i, row.queueName());
             statement.setObject(++i, row.nodeId());
@@ -212,9 +208,9 @@ public class MessageIndexWriter {
                 observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                 source_message_id, priority, message_type, queue_name, address, node_name,
                 correlation_id, group_id, user_id, reply_to, jms_type, body, props, origin,
-                orig_address, cluster_id, node_id, durable, body_truncated, policy_version, sealed, sealed_nonce)
+                orig_address, cluster_id, node_id, durable, body_truncated, policy_version, sealed)
             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'CAPTURED',
-                   ?, ?, ?, ?, ?, ?, ?, ?
+                   ?, ?, ?, ?, ?, ?, ?
              WHERE NOT EXISTS (
                    SELECT 1 FROM message_index
                     WHERE cluster_id = ? AND queue_name = ? AND node_id = ? AND message_id = ?

@@ -90,7 +90,7 @@
              CI and the Docker image activate the `frontend` profile. -->
         <skip.frontend>true</skip.frontend>
 
-        <!-- SonarQube Cloud analysis (ADR-0132), run by CI's `sonar` job. -->
+        <!-- SonarQube Cloud analysis (ADR-0139), run by CI's `sonar` job. -->
         <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
         <sonar.organization>sudoitir</sonar.organization>
         <sonar.projectKey>sudoitir_artemis-studio</sonar.projectKey>
@@ -189,6 +189,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-session-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <!-- HashiCorp Vault key provider (KV v2); the version comes from the Spring Cloud BOM. -->
+            <groupId>org.springframework.vault</groupId>
+            <artifactId>spring-vault-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -312,6 +317,11 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-vault</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

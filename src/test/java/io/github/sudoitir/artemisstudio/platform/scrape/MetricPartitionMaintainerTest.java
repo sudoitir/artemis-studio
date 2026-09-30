@@ -15,8 +15,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 /**
  * {@link MetricPartitionMaintainer} against a real Postgres: create-ahead makes
- * today's and future partitions, and a partition that has fully aged past
- * retention is dropped without blocking a concurrent insert (design.md, Decision 4).
+ * today's and future partitions, moving the rows already waiting in the default partition.
+ * Dropping expired partitions is {@link MetricSampleStoreTest}.
  */
 class MetricPartitionMaintainerTest extends PostgresIntegrationTest {
 
@@ -24,9 +24,6 @@ class MetricPartitionMaintainerTest extends PostgresIntegrationTest {
 
     @Autowired
     MetricPartitionMaintainer maintainer;
-
-    @Autowired
-    MetricSampleReaper reaper;
 
     @Autowired
     NamedParameterJdbcTemplate jdbc;
@@ -79,28 +76,5 @@ class MetricPartitionMaintainerTest extends PostgresIntegrationTest {
         assertThat(partitionNames()).contains(name);
         Integer moved = jdbc.getJdbcTemplate().queryForObject("SELECT count(*) FROM %s".formatted(name), Integer.class);
         assertThat(moved).isEqualTo(1);
-    }
-
-    @Test
-    void dropsAnExpiredPartitionWithoutBlockingAConcurrentInsert() throws InterruptedException {
-        LocalDate old = LocalDate.now().minusDays(30);
-        String name = "metric_sample_" + old.format(SUFFIX);
-        jdbc.getJdbcTemplate()
-                .execute("CREATE TABLE %s PARTITION OF metric_sample FOR VALUES FROM ('%s') TO ('%s')"
-                        .formatted(name, old, old.plusDays(1)));
-
-        reaper.setRetentionDays(7);
-        maintainer.maintainNow();
-
-        assertThat(partitionNames()).doesNotContain(name);
-
-        // A fresh insert (routes into today's partition) must still succeed right after the drop.
-        jdbc.update("""
-                INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
-                VALUES (now(), 1.0, 'QUEUE', 'Q', 'messageCount', :c, :n)
-                """, Map.of("c", clusterId, "n", nodeId));
-        Integer count = jdbc.queryForObject(
-                "SELECT count(*) FROM metric_sample WHERE cluster_id = :c", Map.of("c", clusterId), Integer.class);
-        assertThat(count).isEqualTo(1);
     }
 }

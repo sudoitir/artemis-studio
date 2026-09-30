@@ -10,8 +10,15 @@ public final class ApiTokensModule {
             .id("apitokens")
             .title("API tokens")
             .kind(FeatureDescriptor.Kind.IDENTITY_PROVIDER)
-            .permission(new PermissionDef(TokenPermissions.TOKEN_ADMIN, "Manage API tokens"))
+            .permission(new PermissionDef(TokenPermissions.TOKEN_ADMIN, "See and revoke every user's API tokens", true))
             .apiPrefix("/api/v1/tokens")
+            .apiPrefix("/api/v1/admin/tokens")
+            .settingKey(ApiTokensSettings.MAX_LIFETIME)
+            .settingKey(ApiTokensSettings.ROTATION_OVERLAP)
+            .settingKey(ApiTokensSettings.STALE_AFTER)
+            .settingKey(ApiTokensSettings.TOKEN_REQUESTS_PER_MINUTE)
+            .settingKey(ApiTokensSettings.TOKEN_CONCURRENCY)
+            .settingKey(ApiTokensSettings.USER_REQUESTS_PER_MINUTE)
             .build();
 
     private ApiTokensModule() {}

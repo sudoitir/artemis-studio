@@ -1,6 +1,6 @@
 # ADR-0054: MCP discovery is a tool, and the surface is generated from one catalogue
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0137](0137-one-gate-on-the-mcp-transport.md))
 - **Date**: 2026-09-06
 - **Deciders**: Artemis Studio maintainers
 - **Extends**: [ADR-0045](0045-mcp-server-is-a-capability-surface.md)

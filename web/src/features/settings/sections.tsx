@@ -2,6 +2,7 @@ import { Text } from '@mantine/core';
 
 import { DisplayPreferences } from './DisplayPreferences.tsx';
 import { OperationalConfig } from './OperationalConfig.tsx';
+import { SecuritySettings } from './SecuritySettings.tsx';
 
 /** Settings section: the operator's own display preferences, first and separate from what is shared. */
 export function DisplaySection() {
@@ -25,6 +26,19 @@ export function OperationalSection() {
         clears the override and the packaged default takes over again.
       </Text>
       <OperationalConfig />
+    </>
+  );
+}
+
+/** Settings section: where Studio's key-encryption key comes from, and rotating it. */
+export function SecuritySection() {
+  return (
+    <>
+      <Text size="sm" c="dimmed" mb="sm">
+        Studio encrypts the secrets it stores (connection passwords, tokens) under a key that lives in your key
+        provider, never in Studio&rsquo;s database. Rotating re-wraps them under a newer key version.
+      </Text>
+      <SecuritySettings />
     </>
   );
 }

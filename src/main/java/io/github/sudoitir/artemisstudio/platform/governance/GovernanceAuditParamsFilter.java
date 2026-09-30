@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
  * ({@code props->>'email' = '...'}) and selector filters ({@code email = '...'}).
  */
 @Component
+@Order(0)
 @RequiredArgsConstructor
 class GovernanceAuditParamsFilter implements AuditParamsFilter {
 

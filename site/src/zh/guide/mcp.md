@@ -11,7 +11,13 @@ Studio 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此
 
 ## 获取密钥
 
-登录 → 头像菜单 → **Account** → **API keys** → **New key** → 选择它携带的范围与权限 → 复制。密钥只显示一次。
+登录 → 头像菜单 → **Account** → **API keys** → **New key** → 选择过期时间、它携带的范围与权限，以及（可选）它可以调用的 **MCP 工具** → 复制。密钥只显示一次。
+
+- **过期。** 每把密钥都会过期，最长为安装设定的最大寿命（默认 90 天，*Operational configuration → API token lifetime*）。调低最大寿命会立刻缩短已有密钥。
+- **工具。** 限定了工具的密钥只会看到这些工具以及 `studio_help`；其他工具既不会列出也不会被描述，调用它们得到的回答与调用不存在的工具完全相同。
+- **轮换。** **Rotate** 会签发新密钥，旧密钥在轮换重叠期内（默认 24 小时）继续可用，因此可以不中断地更新助手的配置。密钥保留原有权限和过期时间。
+- **限流。** 每把密钥每分钟最多 600 个请求、同时最多 8 个，每个用户所有密钥合计每分钟 1,200 个。每个响应都带有 `RateLimit-Limit`、`RateLimit-Remaining` 和 `RateLimit-Reset`，超出的请求得到 `429` 和 `Retry-After`。
+- **用量** 按天显示每把密钥的请求数，以及被拒绝、被限流和失败的数量。拥有 *See and revoke every user's API tokens* 权限的管理员可以在 **Admin → API keys** 中看到所有密钥，长期未用的会被标记，任何密钥都可以吊销（[ADR-0136](/reference/adr/0136-token-rotation-lifetime-cap-limits-and-usage)，英文）。
 
 ## 接入
 
@@ -68,7 +74,8 @@ curl -s https://studio.example.com/mcp \
 
 - **密钥永远不会超过它的所有者。** 每次调用都会与所有者*当下*的授权取交集，所以收紧一个人的权限会立刻收紧他的所有密钥（[ADR-0046](/reference/adr/0046-mcp-authenticates-with-existing-api-tokens)，英文）。
 - **变更默认 dry-run。** 真正的破坏性执行还额外要求 `confirm` 等于队列自身的名称——这与批量上限的 `override` 是两个不同的问题，`confirm` 永远无法满足 `override`。
-- **一切都会被审计**，记在所有者名下并附上密钥名称（`ada [token: laptop-agent]`），dry run 也不例外。
+- **每次调用都会被审计**，读取也不例外：以 `MCP_TOOL_CALL` 记在所有者名下并附上密钥名称（`ada [token: laptop-agent]`），写明工具、集群和结果。变更写下的审计行（包括 dry run）都挂在它下面（[ADR-0137](/reference/adr/0137-one-gate-on-the-mcp-transport)，英文）。
+- **整个安装可以设为只读。** *Operational configuration → Agent surface → Read-only* 会对所有密钥隐藏并拒绝一切变更类工具，无论 `confirm` 为何。单把只读密钥就是只被授予读权限的密钥。
 - **对于密钥没有授权的集群**，返回的是*"不存在这样的集群，或这把密钥对它没有授权"*——既不点名缺了哪项权限，也不确认这个 id 是否存在。
 
 ## 发现机制

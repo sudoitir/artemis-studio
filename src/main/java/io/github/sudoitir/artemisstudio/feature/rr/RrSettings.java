@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Request-reply tracing deadlines, capture, cadences and retention. */
+/** Request-reply tracing deadlines, capture, and cadences. Retention is the {@code rr-flows} and {@code captured-payloads} stores (ADR-0134). */
 @Component
 @RequiredArgsConstructor
 public class RrSettings implements SettingsContribution {
@@ -17,12 +17,9 @@ public class RrSettings implements SettingsContribution {
     public static final String PAYLOAD_CAPTURE_BYTES = "rr.payload-capture-bytes";
     public static final String SWEEP_INTERVAL = "rr.sweep-interval";
     public static final String SAMPLE_INTERVAL = "rr.sample-interval";
-    public static final String RETENTION_DAYS = "rr.retention-days";
-    public static final String REAPER_CRON = "rr.reaper-cron";
 
     private final RrProperties defaults;
     private final RrCorrelator correlator;
-    private final RrFlowReaper reaper;
 
     @Override
     public String featureId() {
@@ -32,22 +29,6 @@ public class RrSettings implements SettingsContribution {
     @Override
     public List<SettingDef> settings() {
         return List.of(
-                new SettingDef(
-                        RETENTION_DAYS,
-                        "Retention",
-                        "Request-reply retention (days)",
-                        "rr_flow and rr_event rows older than this are trimmed.",
-                        Kind.INT,
-                        () -> Long.toString(defaults.retention().toDays()),
-                        s -> reaper.setRetentionDays(s.intValue(RETENTION_DAYS))),
-                new SettingDef(
-                        REAPER_CRON,
-                        "Retention",
-                        "Request-reply reaper schedule",
-                        "When the rr_flow trim runs. Six-field cron.",
-                        Kind.CRON,
-                        defaults::reaperCron,
-                        null),
                 new SettingDef(
                         DEFAULT_DEADLINE_MS,
                         CATEGORY,

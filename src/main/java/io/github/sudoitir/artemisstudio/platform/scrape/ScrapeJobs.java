@@ -18,16 +18,6 @@ class ScrapeJobs {
     }
 
     @Bean
-    ScheduledJob metricReaperJob(MetricSampleReaper reaper, SettingsService settings) {
-        return ScheduledJob.cron(
-                "metric-reaper",
-                FEATURE,
-                ScheduledJob.Scope.INSTALLATION,
-                () -> settings.value(ScrapeSettings.METRIC_REAPER_CRON),
-                reaper::reap);
-    }
-
-    @Bean
     ScheduledJob metricPartitionJob(MetricPartitionMaintainer maintainer, SettingsService settings) {
         return ScheduledJob.cron(
                 "metric-partitions",

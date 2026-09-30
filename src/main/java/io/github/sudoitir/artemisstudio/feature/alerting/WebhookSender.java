@@ -59,7 +59,7 @@ public class WebhookSender implements NotificationSender {
         } catch (HttpStatusCodeException e) {
             return Result.retryable("Webhook responded " + e.getStatusCode());
         } catch (RestClientException e) {
-            return Result.retryable(e.getMessage());
+            return Result.retryable("Webhook request failed: " + e.getClass().getSimpleName());
         }
     }
 

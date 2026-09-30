@@ -1,6 +1,6 @@
 # ADR-0039: API tokens — SHA-256 hash, prefix lookup, grants intersected with the live owner
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0136](0136-token-rotation-lifetime-cap-limits-and-usage.md))
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 

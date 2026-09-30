@@ -32,8 +32,8 @@ spring:
 # encryption is simply unavailable and a {cipher} value stays an opaque string —
 # it does not mean it is silently used in the clear.
 #
-# This is NOT the broker-credential key. ARTEMIS_STUDIO_SECRET_KEY (ADR-0009) seals
-# per-cluster broker credentials in broker_credential and is the only thing that
+# This is NOT the stored-secret key. ARTEMIS_STUDIO_SECRET_KEY (ADR-0132) protects
+# broker credentials and the other stored secrets and is the only thing that
 # touches them. Two keys, two jobs; do not set them to the same value.
 encrypt:
   key: ${ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY:}

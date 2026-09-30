@@ -63,8 +63,25 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // and the record of seeded plugin alert rules (changeset feature-alerting 0003).
                     "CREATE TABLE metric_sample(_default)? ",
                     "alert_rule_seed",
+                    // Envelope encryption (ADR-0132): one sealed column in every secret store and the current key
+                    // version (changesets kernel-security 0003, 0004, platform-clusters 0002, feature-alerting 0004,
+                    // feature-sql 0004).
+                    "secret_key_state",
+                    // Online key-encryption-key rotation (ADR-0132 D5, changeset kernel-security 0005).
+                    "secret_rotation",
+                    "CREATE TABLE broker_credential ",
                     // Installation-wide job locks (ADR-0125, changeset kernel-jobs 0001).
-                    "shedlock")
+                    "shedlock",
+                    // The data lifecycle's purge record (ADR-0134, changeset kernel-lifecycle 0001).
+                    "lifecycle_purge",
+                    "storage_sample",
+                    // Installation-scoped alert rules (ADR-0135, changeset feature-alerting 0005).
+                    "CREATE TABLE alert_firing ",
+                    // Token rotation, the lifetime cap, MCP allow-lists and usage (ADR-0136, changeset
+                    // feature-apitokens 0002).
+                    "CREATE TABLE api_token ",
+                    "uq_api_token_previous_prefix",
+                    "api_token_usage")
             .map(Pattern::compile)
             .toList();
 

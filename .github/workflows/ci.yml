@@ -408,7 +408,7 @@ jobs:
           path: target/site/jacoco
           retention-days: 14
 
-  # SonarQube Cloud (ADR-0132): a PR is analysed with the coverage its own backend and frontend jobs
+  # SonarQube Cloud (ADR-0139): a PR is analysed with the coverage its own backend and frontend jobs
   # just measured, and its quality gate is required through `ci-ok`. Main does not re-test
   # (ADR-0126), so its analysis reuses the coverage of the PR run that the merge commit came from,
   # which keeps the main dashboard and the README badges current. Fork PRs get no token and skip.

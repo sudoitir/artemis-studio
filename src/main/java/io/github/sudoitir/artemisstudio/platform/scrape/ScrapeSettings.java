@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Scrape cadence and metric-sample retention (ADR-0015, ADR-0006, ADR-0048). */
+/** Scrape cadence and metric partition maintenance (ADR-0015, ADR-0006, ADR-0048). */
 @Component
 @RequiredArgsConstructor
 public class ScrapeSettings implements SettingsContribution {
@@ -16,8 +16,6 @@ public class ScrapeSettings implements SettingsContribution {
     public static final String TIER_B = "scrape.tier-b-interval";
     public static final String TIER_C = "scrape.tier-c-interval";
     public static final String DISCOVERY = "scrape.discovery-interval";
-    public static final String METRIC_RETENTION_DAYS = "metric.retention-days";
-    public static final String METRIC_REAPER_CRON = "metric.reaper-cron";
     public static final String METRIC_PARTITION_CRON = "metric.partition-maintainer-cron";
 
     private static final String GROUP_SCRAPE = "Scrape";
@@ -25,7 +23,6 @@ public class ScrapeSettings implements SettingsContribution {
 
     private final ScrapeProperties scrape;
     private final MetricProperties metric;
-    private final MetricSampleReaper reaper;
 
     @Override
     public String featureId() {
@@ -68,26 +65,10 @@ public class ScrapeSettings implements SettingsContribution {
                         () -> scrape.discoveryInterval().toString(),
                         null),
                 new SettingDef(
-                        METRIC_RETENTION_DAYS,
-                        GROUP_RETENTION,
-                        "Metric retention (days)",
-                        "Raw metric_sample rows older than this are trimmed.",
-                        Kind.INT,
-                        () -> Integer.toString(metric.retentionDays()),
-                        s -> reaper.setRetentionDays(s.intValue(METRIC_RETENTION_DAYS))),
-                new SettingDef(
-                        METRIC_REAPER_CRON,
-                        GROUP_RETENTION,
-                        "Metric reaper schedule",
-                        "When the metric trim runs. Six-field cron.",
-                        Kind.CRON,
-                        metric::reaperCron,
-                        null),
-                new SettingDef(
                         METRIC_PARTITION_CRON,
                         GROUP_RETENTION,
                         "Partition maintainer schedule",
-                        "When daily metric partitions are created ahead and expired ones dropped.",
+                        "When daily metric partitions are created ahead.",
                         Kind.CRON,
                         metric::partitionMaintainerCron,
                         null));

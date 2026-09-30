@@ -67,7 +67,7 @@ docker run -p 8080:8080 \
 |---|---|---|
 | `ARTEMIS_STUDIO_DB_URL` | yes | `jdbc:postgresql://host:5432/artemis_studio` |
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
-| `ARTEMIS_STUDIO_SECRET_KEY` | yes | Encrypts stored broker credentials. Base64 of **exactly 32 bytes** or the app will not start: `openssl rand -base64 32` |
+| `ARTEMIS_STUDIO_SECRET_KEY` | with the default `env` key provider | Protects every stored secret. Base64 of **exactly 32 bytes** or the app will not start (`openssl rand -base64 32`), or `1=<b64>,2=<b64>` to hold several versions for key rotation. Other key providers (file, Vault, Kubernetes) and rotation: [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration#secrets-and-key-rotation) |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
 | `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=50` |
 

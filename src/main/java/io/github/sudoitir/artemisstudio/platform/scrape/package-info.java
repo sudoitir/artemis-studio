@@ -6,6 +6,7 @@
         allowedDependencies = {
             "kernel.core",
             "kernel.jobs",
+            "kernel.lifecycle",
             "kernel.plugin",
             "kernel.plugin :: descriptor",
             "kernel.settings",

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Alert, Button, Group, Modal, Stack, Table, Text, TextInput } from '@mantine/core';
 
-import { needsReauthentication, useGrantInstaller, useInstallers, useRevokeInstaller, violationsOf } from './api.ts';
-import { StepUp } from './StepUp.tsx';
+import { useGrantInstaller, useInstallers, useRevokeInstaller, violationsOf } from './api.ts';
+import { needsReauthentication } from '../../kernel/auth/api.ts';
+import { StepUp } from '../../kernel/auth/StepUp.tsx';
 
 /**
  * Who can install plugins (ADR-0103). Deliberately not a role: only an installer changes this,

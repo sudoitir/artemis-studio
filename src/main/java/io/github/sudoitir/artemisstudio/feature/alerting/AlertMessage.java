@@ -54,9 +54,16 @@ public record AlertMessage(
                 orElse(text(root, "ruleName"), "Alert"),
                 orElse(text(root, "severity"), "INFO"),
                 uuid(text(root, "clusterId")),
-                text(root, "clusterName"),
+                clusterName(root),
                 text(root, "studioUrl"),
                 List.copyOf(lines));
+    }
+
+    /** A payload that names a null cluster is the installation's (ADR-0135); one that names none predates clusters. */
+    private static String clusterName(JsonNode root) {
+        String name = text(root, "clusterName");
+        JsonNode cluster = root.get("clusterId");
+        return name == null && cluster != null && cluster.isNull() ? "Installation" : name;
     }
 
     private static String text(JsonNode node, String field) {

@@ -51,9 +51,8 @@ class ClusterCredentialsRotationTest extends PostgresIntegrationTest {
         mvc = webAppContextSetup(webContext).build();
         clusterId = clusters.save(new ClusterEntity("c-" + UUID.randomUUID(), null, null))
                 .getId();
-        SecretVault.Sealed sealed = vault.encrypt(clusterId, JOLOKIA_BASIC, "old-secret");
-        credentials.save(
-                new BrokerCredentialEntity(clusterId, JOLOKIA_BASIC, "old-user", sealed.ciphertext(), sealed.nonce()));
+        byte[] sealed = vault.seal(SecretVault.aad(clusterId, JOLOKIA_BASIC), "old-secret");
+        credentials.save(new BrokerCredentialEntity(clusterId, JOLOKIA_BASIC, "old-user", sealed));
     }
 
     @Test
@@ -71,7 +70,7 @@ class ClusterCredentialsRotationTest extends PostgresIntegrationTest {
         BrokerCredentialEntity stored =
                 credentials.findByClusterIdAndKind(clusterId, JOLOKIA_BASIC).orElseThrow();
         assertThat(stored.getUsername()).isEqualTo("new-user");
-        assertThat(vault.decrypt(clusterId, JOLOKIA_BASIC, stored.getSecretCt(), stored.getSecretNonce()))
+        assertThat(vault.open(SecretVault.aad(clusterId, JOLOKIA_BASIC), stored.getSealed()))
                 .isEqualTo("new-secret");
 
         assertThat(audits.findAll()).anySatisfy(a -> {

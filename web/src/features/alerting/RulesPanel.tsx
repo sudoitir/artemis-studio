@@ -12,6 +12,7 @@ import {
   useUpdateAlertRule,
   type AlertRuleView,
 } from './api.ts';
+import { InstallationBadge } from './InstallationBadge.tsx';
 import { RuleForm } from './RuleForm.tsx';
 import { comparatorSymbol, severityTone, stateConditionLabel } from './severity.ts';
 
@@ -104,7 +105,10 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
               return (
                 <Table.Tr key={r.id}>
                   <Table.Td>
-                    <Text size="sm">{r.name}</Text>
+                    <Group gap="xs">
+                      <Text size="sm">{r.name}</Text>
+                      <InstallationBadge clusterId={r.clusterId} />
+                    </Group>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" ff="monospace">

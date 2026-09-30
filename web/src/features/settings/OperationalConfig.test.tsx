@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -55,12 +56,12 @@ describe('OperationalConfig', () => {
         HttpResponse.json({
           settings: {
             'scrape.tier-a-interval': setting(),
-            'metric.retention-days': setting({
+            'metric.partition-maintainer-cron': setting({
               group: 'Retention',
-              label: 'Metric retention (days)',
-              value: '7',
-              defaultValue: '7',
-              kind: 'INT',
+              label: 'Partition maintainer schedule',
+              value: '0 0 3 * * *',
+              defaultValue: '0 0 3 * * *',
+              kind: 'CRON',
             }),
             'scrape.tier-b-interval': setting({ label: 'Tier B interval', value: '15s' }),
           },
@@ -94,5 +95,35 @@ describe('OperationalConfig', () => {
 
     expect(await screen.findByText(/overridden — default is 5s/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument();
+  });
+
+  it('renders an on/off setting as a switch that saves when flipped', async () => {
+    let saved: unknown = null;
+    server.use(
+      http.get('*/api/v1/settings', () =>
+        HttpResponse.json({
+          settings: {
+            'mcp.read-only': setting({
+              label: 'Read-only',
+              hint: 'No key can run a mutating tool.',
+              group: 'Agent surface',
+              value: 'false',
+              defaultValue: 'false',
+              kind: 'BOOLEAN',
+            }),
+          },
+        }),
+      ),
+      http.put('*/api/v1/settings/mcp.read-only', async ({ request }) => {
+        saved = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<OperationalConfig />);
+
+    await user.click(await screen.findByRole('switch', { name: /Read-only/ }));
+
+    await expect.poll(() => saved).toEqual({ value: 'true' });
   });
 });

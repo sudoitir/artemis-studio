@@ -23,6 +23,9 @@ spring:
       # initializer (ADR-0011).
       initialize-schema: never
       table-name: spring_session
+      # The data lifecycle purges expired sessions once per installation (expired-sessions
+      # store, ADR-0134); "-" turns off Spring Session's own cleanup, which every instance ran.
+      cleanup-cron: "-"
 
   # OIDC/SSO (ADR-0040) is opt-in: with no `spring.security.oauth2.client.registration.*`
   # entry configured, Spring Boot's OAuth2 client auto-configuration backs off
@@ -80,8 +83,8 @@ spring:
           # Declaring a capability we do not implement is worse than not having it.
           # There is no @McpComplete anywhere in the surface.
           completion: false
-        # The instructions block is NOT written here. It is generated from
-        # McpToolCatalog by McpServerInstructions (ADR-0054) — the hand-written one
+        # The instructions block is NOT written here. McpGate generates it per caller
+        # from McpToolCatalog (ADR-0054, ADR-0137) — the hand-written one
         # that used to live here had already drifted, omitting two tools, which told
         # a tool-searching host that two capabilities did not exist.
 
@@ -141,8 +144,9 @@ management:
 # start, on purpose: an absent row means "use the packaged default", so an
 # upgrade ships a new default instead of being pinned by a row written once.
 artemis-studio:
-  # base64 of 32 bytes; encrypts stored broker credentials (ADR-0009).
-  # The app fails to start if this is missing or the wrong length.
+  # The env key provider (ADR-0132): base64 of 32 bytes (version 1), or `1=<b64>,2=<b64>`
+  # for key rotation. Protects every stored secret. The app fails to start if this is
+  # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
   secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
   scrape:
     # Tiered polling cadence (ADR-0015).
@@ -160,11 +164,8 @@ artemis-studio:
     read-timeout: 10s
     clock-skew-tolerance-ms: 2000  # a broker clock further off than this is called skew (ADR-0053)
   metric:
-    # Raw metric_sample retention in days (ADR-0006). MetricSampleReaper trims
-    # older rows nightly.
-    retention-days: 7
-    reaper-cron: "0 30 3 * * *"               # MetricSampleReaper
-    partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer, just before it
+    # Raw metric_sample retention is the "metrics" store's policy (ADR-0134).
+    partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer: creates the days ahead
   mcp:
     # Result caps for the MCP surface (ADR-0045); tighter than REST's on purpose.
     # A mutation ceiling is NOT set here — that inherits safety.bulk-cap below.
@@ -189,10 +190,8 @@ artemis-studio:
   events:
     # Broker-event history (ADR-0028). coalesce-window-millis is the only
     # compile-time value here — TopicCoalescer reads it once at construction.
-    retention: 72h            # BrokerEventReaper trims older rows hourly
     buffer-size: 10000        # bounded write buffer; overflow is dropped and counted
     flush: 1s                 # BrokerEventWriter batch-insert interval
-    reaper-cron: "0 15 * * * *"   # BrokerEventReaper
     coalesce-window-millis: 1000  # derived resource-view SSE signal coalescing (slice 3)
   rr:
     # Request-reply tracing (Phase 5). percentile-window is the only compile-time
@@ -203,8 +202,6 @@ artemis-studio:
     sample-interval: 5s            # RrSampler cadence
     percentile-window: 15m         # Micrometer Timer distributionStatisticExpiry
     payload-capture-bytes: 4096    # captured request/reply body cap when an expectation enables capture
-    retention: 7d                  # RrFlowReaper trims older rr_flow/rr_event rows
-    reaper-cron: "0 20 3 * * *"    # RrFlowReaper
   flow:
     # Client-activity sampling for the flow view (ADR-0081). Runs only while a cluster's
     # flow is observed; one listProducers + listConsumers POST per serving node per sweep.
@@ -243,5 +240,10 @@ artemis-studio:
     oidc-claim: groups            # the token/userinfo claim holding the user's groups; mappings are set per provider in Administration
 
 logging:
+  # %wEx is Boot's own word and cannot be overridden; this one is masked (RedactingLogging, ADR-0133).
+  exception-conversion-word: "%redactedEx"
+  structured:
+    json:
+      customizer: io.github.sudoitir.artemisstudio.kernel.core.internal.RedactingJsonMembers
   level:
     io.github.sudoitir.artemisstudio: INFO

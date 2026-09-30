@@ -69,7 +69,7 @@ public class TeamsSender implements NotificationSender {
                     ? Result.permanent(reason + " — check that the workflow still exists and the URL is complete")
                     : Result.retryable(reason);
         } catch (RestClientException e) {
-            return Result.retryable(e.getMessage());
+            return Result.retryable("Teams request failed: " + e.getClass().getSimpleName());
         }
     }
 

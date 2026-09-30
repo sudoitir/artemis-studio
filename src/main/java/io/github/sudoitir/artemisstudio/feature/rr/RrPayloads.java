@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,9 @@ class RrPayloads {
     private static final String TRUNCATED = "truncated";
     private static final String POLICY_VERSION = "policyVersion";
     private static final String SEALED = "sealed";
-    private static final String NONCE = "nonce";
+
+    /** Every {@code rr_event.detail} key that belongs to a captured payload; the data lifecycle strips them together. */
+    static final List<String> KEYS = List.of(BODY_PREVIEW, TRUNCATED, POLICY_VERSION, SEALED);
 
     private final ContentPolicy policy;
     private final ContentSealer sealer;
@@ -95,23 +98,19 @@ class RrPayloads {
             detail.put(TRUNCATED, true);
         }
         detail.put(POLICY_VERSION, governed.policyVersion());
-        ContentSealer.SealedOriginals sealed = sealer.seal(aad(flowId, kind, at), governed.sealable());
+        byte[] sealed = sealer.seal(aad(flowId, kind, at), governed.sealable());
         if (sealed != null) {
-            detail.put(SEALED, Base64.getEncoder().encodeToString(sealed.ciphertext()));
-            detail.put(NONCE, Base64.getEncoder().encodeToString(sealed.nonce()));
+            detail.put(SEALED, Base64.getEncoder().encodeToString(sealed));
         }
         return detail;
     }
 
     private Map<String, String> originals(UUID flowId, String kind, Instant at, Map<String, Object> stored) {
-        if (!(stored.get(SEALED) instanceof String sealed) || !(stored.get(NONCE) instanceof String nonce)) {
+        if (!(stored.get(SEALED) instanceof String sealed)) {
             return Map.of();
         }
         try {
-            return sealer.unseal(
-                    aad(flowId, kind, at),
-                    Base64.getDecoder().decode(sealed),
-                    Base64.getDecoder().decode(nonce));
+            return sealer.unseal(aad(flowId, kind, at), Base64.getDecoder().decode(sealed));
         } catch (IllegalArgumentException _) {
             return Map.of();
         }

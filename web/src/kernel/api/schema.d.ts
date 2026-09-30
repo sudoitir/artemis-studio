@@ -100,6 +100,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data/stores/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_3"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/rr/expectations/{expectationId}": {
         parameters: {
             query?: never;
@@ -204,7 +220,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_3"];
+        put: operations["update_4"];
         post?: never;
         delete: operations["delete_3"];
         options?: never;
@@ -270,6 +286,38 @@ export interface paths {
         get: operations["list_1"];
         put?: never;
         post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tokens/{tokenId}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/secrets/rotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rotate_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -372,6 +420,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data/stores/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters": {
         parameters: {
             query?: never;
@@ -461,7 +525,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview"];
+        post: operations["preview_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -877,7 +941,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview_1"];
+        post: operations["preview_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1233,7 +1297,7 @@ export interface paths {
         delete: operations["delete_4"];
         options?: never;
         head?: never;
-        patch: operations["update_4"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/clusters/{clusterId}/queues/{queueName}": {
@@ -1292,6 +1356,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["effectivePermissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tokens/{tokenId}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tokens/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["policy"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1364,6 +1460,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/permissions": {
         parameters: {
             query?: never;
@@ -1372,6 +1484,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1420,6 +1548,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1723,7 +1883,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["health"];
+        get: operations["health_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1755,7 +1915,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2091,7 +2251,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2228,6 +2388,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_12"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tokens/{tokenId}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["usage_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plugins": {
         parameters: {
             query?: never;
@@ -2235,7 +2427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2372,6 +2564,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tokens/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plugins/installers/{userId}": {
         parameters: {
             query?: never;
@@ -2484,6 +2692,13 @@ export interface components {
             colour?: string | null;
             /** Format: int32 */
             sortOrder: number;
+        };
+        UpdatePolicyRequest: {
+            retention: string;
+            /** Format: int32 */
+            quota: number;
+            /** Format: int32 */
+            quotaWarnPercent: number;
         };
         UpdateExpectationRequest: {
             replyAddresses?: string[];
@@ -2735,8 +2950,11 @@ export interface components {
         AlertRuleView: {
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
-            clusterId: string;
+            /**
+             * Format: uuid
+             * @description Null for an installation-scoped rule (ADR-0135)
+             */
+            clusterId?: string | null;
             name: string;
             kind: string;
             metric?: string | null;
@@ -2889,8 +3107,10 @@ export interface components {
         CreateTokenRequest: {
             name: string;
             /** Format: date-time */
-            expiresAt?: string | null;
+            expiresAt: string;
             grants: components["schemas"]["TokenGrantRequest"][];
+            /** @description MCP tools the token may call; empty or absent means every tool */
+            mcpTools?: string[] | null;
         };
         TokenGrantRequest: {
             action: string;
@@ -2902,19 +3122,50 @@ export interface components {
             token: components["schemas"]["TokenView"];
             value: string;
         };
+        TokenGrantView: {
+            action: string;
+            scopeType: string;
+            /** Format: uuid */
+            scopeId: string;
+        };
         TokenView: {
             /** Format: uuid */
             id: string;
             name: string;
+            owner: string;
             prefix: string;
             /** Format: date-time */
-            expiresAt?: string | null;
+            expiresAt: string;
             /** Format: date-time */
             lastUsedAt?: string | null;
             /** Format: date-time */
             revokedAt?: string | null;
             /** Format: date-time */
             createdAt: string;
+            /** Format: date-time */
+            previousValidUntil?: string | null;
+            grants: components["schemas"]["TokenGrantView"][];
+            mcpTools: string[];
+            stale: boolean;
+        };
+        RotationView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            fromVersion: number;
+            /** Format: int32 */
+            toVersion: number;
+            status: string;
+            startedBy: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: int64 */
+            rewrapped: number;
+            /** Format: int64 */
+            remaining: number;
+            error?: string;
         };
         GroupMappingRequest: {
             groupName: string;
@@ -2939,6 +3190,15 @@ export interface components {
             firstSeenAt: string;
             /** Format: date-time */
             lastSeenAt: string;
+        };
+        PreviewRequest: {
+            retention: string;
+        };
+        PreviewResponse: {
+            /** Format: int64 */
+            rows: number;
+            /** Format: int64 */
+            bytes: number;
         };
         Credentials: {
             username: string;
@@ -4018,6 +4278,39 @@ export interface components {
             effective: boolean;
             reason?: string | null;
         };
+        UsageDayView: {
+            /** Format: date */
+            day: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            denied: number;
+            /** Format: int64 */
+            limited: number;
+            /** Format: int64 */
+            errors: number;
+        };
+        UsageView: {
+            /** Format: int32 */
+            days: number;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            denied: number;
+            /** Format: int64 */
+            limited: number;
+            /** Format: int64 */
+            errors: number;
+            perDay: components["schemas"]["UsageDayView"][];
+        };
+        TokenPolicyView: {
+            /** @description ISO-8601 duration */
+            maxLifetime: string;
+            /** Format: date-time */
+            latestExpiry: string;
+            /** @description ISO-8601 duration */
+            rotationOverlap: string;
+        };
         TimeView: {
             /** Format: int64 */
             nowMs: number;
@@ -4072,12 +4365,29 @@ export interface components {
                 [key: string]: components["schemas"]["SettingValue"];
             };
         };
+        SecretsStatus: {
+            provider: string;
+            /** Format: int32 */
+            currentVersion: number;
+            availableVersions: number[];
+            missingVersions: number[];
+            countsByVersion: {
+                [key: string]: number;
+            };
+            lastRotation?: components["schemas"]["RotationView"];
+        };
         PermissionView: {
             action: string;
             label: string;
             featureId: string;
             featureTitle: string;
             globalOnly: boolean;
+        };
+        McpToolView: {
+            name: string;
+            /** @enum {string} */
+            posture: "READ" | "MUTATE";
+            summary: string;
         };
         ManifestFeatureView: {
             id: string;
@@ -4123,6 +4433,59 @@ export interface components {
             rowsUnderEarlierVersion: number;
             /** @description The count reached its cap; there are at least this many. */
             capped: boolean;
+        };
+        StoreView: {
+            id: string;
+            label: string;
+            source: string;
+            tables: string[];
+            retention: string;
+            defaultRetention: string;
+            minRetention: string;
+            maxRetention: string;
+            quotaUnit: string;
+            /** Format: int32 */
+            quota: number;
+            /** Format: int32 */
+            quotaWarnPercent: number;
+            /** Format: int64 */
+            rows?: number;
+            /** Format: int64 */
+            bytes?: number;
+            usageError?: string;
+            /** Format: int32 */
+            quotaUsedPercent?: number;
+            overWarning: boolean;
+            /** Format: date-time */
+            lastPurgeAt?: string;
+            /** Format: int64 */
+            lastPurged?: number;
+            lastPurgeError?: string;
+        };
+        StoresResponse: {
+            stores: components["schemas"]["StoreView"][];
+        };
+        HealthResponse: {
+            tables: components["schemas"]["TableView"][];
+        };
+        TableView: {
+            schema: string;
+            name: string;
+            /** Format: int64 */
+            rows: number;
+            /** Format: int64 */
+            deadRows: number;
+            /** Format: int32 */
+            deadPercent: number;
+            /** Format: date-time */
+            lastVacuum?: string;
+            /** Format: int64 */
+            bytes: number;
+            /** Format: int64 */
+            growthBytes?: number;
+            partitioned: boolean;
+            missingPartitions: string[];
+            problems: string[];
         };
         ClusterSummary: {
             /** Format: uuid */
@@ -5281,6 +5644,11 @@ export interface components {
             seq: number;
             /** Format: uuid */
             ruleId: string;
+            /**
+             * Format: uuid
+             * @description Null for an installation-scoped rule (ADR-0135)
+             */
+            clusterId?: string | null;
             ruleName: string;
             subjectKey: string;
             severity: string;
@@ -5323,8 +5691,11 @@ export interface components {
             startPath?: string | null;
         };
         ClusterFiringCountView: {
-            /** Format: uuid */
-            clusterId: string;
+            /**
+             * Format: uuid
+             * @description Null for the installation's own firings (ADR-0135)
+             */
+            clusterId?: string | null;
             /** Format: int64 */
             firing: number;
         };
@@ -5637,6 +6008,30 @@ export interface operations {
             };
         };
     };
+    update_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     updateExpectation: {
         parameters: {
             query?: never;
@@ -5875,7 +6270,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -6049,6 +6444,48 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CreatedTokenView"];
+                };
+            };
+        };
+    };
+    rotate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreatedTokenView"];
+                };
+            };
+        };
+    };
+    rotate_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RotationView"];
                 };
             };
         };
@@ -6277,6 +6714,32 @@ export interface operations {
             };
         };
     };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PreviewResponse"];
+                };
+            };
+        };
+    };
     list_5: {
         parameters: {
             query?: never;
@@ -6428,7 +6891,7 @@ export interface operations {
             };
         };
     };
-    preview: {
+    preview_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7277,7 +7740,7 @@ export interface operations {
             };
         };
     };
-    preview_1: {
+    preview_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -7889,7 +8352,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -8047,6 +8510,50 @@ export interface operations {
             };
         };
     };
+    usage: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UsageView"];
+                };
+            };
+        };
+    };
+    policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TokenPolicyView"];
+                };
+            };
+        };
+    };
     now: {
         parameters: {
             query?: never;
@@ -8132,6 +8639,26 @@ export interface operations {
             };
         };
     };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecretsStatus"];
+                };
+            };
+        };
+    };
     permissions: {
         parameters: {
             query?: never;
@@ -8148,6 +8675,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PermissionView"][];
+                };
+            };
+        };
+    };
+    list_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["McpToolView"][];
                 };
             };
         };
@@ -8210,6 +8757,46 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FindingView"][];
+                };
+            };
+        };
+    };
+    stores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StoresResponse"];
+                };
+            };
+        };
+    };
+    health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HealthResponse"];
                 };
             };
         };
@@ -8669,7 +9256,7 @@ export interface operations {
             };
         };
     };
-    health: {
+    health_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -8721,7 +9308,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: {
                 type?: string;
@@ -9214,7 +9801,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: {
                 user?: string;
@@ -9421,7 +10008,51 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TokenView"][];
+                };
+            };
+        };
+    };
+    usage_1: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UsageView"];
+                };
+            };
+        };
+    };
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -9639,6 +10270,26 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
+            };
+        };
+    };
+    revoke_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -164,20 +164,6 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void expiredPreviewsAreDeletedAndRunsKept() {
-        TransferRunEntity expired =
-                preview(TransferMode.MOVE, "a", NO_WARNINGS, Instant.now().minusSeconds(1));
-        TransferRunEntity ran =
-                preview(TransferMode.MOVE, "b", NO_WARNINGS, Instant.now().minusSeconds(1));
-        state(ran, TransferState.SUCCEEDED);
-
-        runs.deleteExpired(TransferState.PREVIEWED, Instant.now());
-
-        assertThat(runs.existsById(expired.getId())).isFalse();
-        assertThat(runs.existsById(ran.getId())).isTrue();
-    }
-
-    @Test
     void aRunCutOffByAStopIsInterruptedAndResumable() {
         TransferRunEntity run = preview(TransferMode.MOVE, "orders");
         state(run, TransferState.WAITING_FOR_CAPACITY);

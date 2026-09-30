@@ -85,6 +85,7 @@ services:
       ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
       ARTEMIS_STUDIO_DB_USER: ${DB_USER}
       ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
+      # Key for every stored secret (ADR-0132): base64 of 32 bytes, or `1=<b64>,2=<b64>` for rotation.
       ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
       # The broker role Studio's own broker user holds. Required for message capture only:
       # capture queues are restricted to it, and capture is refused until it is set.
