@@ -1,15 +1,5 @@
 import { useState } from 'react';
-import {
-  ActionIcon,
-  Alert,
-  CopyButton,
-  Group,
-  SegmentedControl,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { ActionIcon, Alert, CopyButton, Group, SegmentedControl, Stack, Table, Text, TextInput } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 
 import { useTokenUsage, type TokenView, type UsagePeriod } from './api.ts';
