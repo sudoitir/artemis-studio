@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * "Studio must never be the reason a broker falls over").
  *
  * <p>One {@link Semaphore} per broker node, sized to the configured requests-per-second and
- * keyed by the node's Jolokia URL. {@link #acquire} is called by the transports themselves
+ * keyed by the node's Jolokia URL; its meters are tagged with the node's {@code host:port} only ({@link NodeAddress}). {@link #acquire} is called by the transports themselves
  * before <em>every</em> request they send (ADR-0076) — never by a feature — so a new caller
  * cannot forget it and a caller that grows a second request is charged for it.
  * {@link #refill()} tops every bucket back up to the ceiling once a second. This is a coarse
@@ -63,12 +63,12 @@ public class NodeCallLimiter {
                     "Studio is shutting down; no new broker call is started.");
         }
         Semaphore sem = perNode.computeIfAbsent(node, k -> new Semaphore(permitsPerSecond, true));
+        String tag = NodeAddress.hostPort(node);
         long started = System.nanoTime();
         try {
             for (int i = 0; i < permits; i++) {
                 if (!sem.tryAcquire(MAX_WAIT.toNanos(), TimeUnit.NANOSECONDS)) {
-                    meters.counter("studio.broker.permit.timeouts", "node", node)
-                            .increment();
+                    meters.counter("studio.broker.permit.timeouts", "node", tag).increment();
                     throw new BrokerConnectionException(
                             BrokerConnectionException.Kind.UNREACHABLE,
                             "Timed out waiting for this node's management-call ceiling: Studio is already calling"
@@ -83,9 +83,9 @@ public class NodeCallLimiter {
         } finally {
             Duration waited = Duration.ofNanos(System.nanoTime() - started);
             lastWait.put(node, waited);
-            meters.timer("studio.broker.permit.wait", "node", node).record(waited);
+            meters.timer("studio.broker.permit.wait", "node", tag).record(waited);
         }
-        meters.counter("studio.broker.requests", "node", node).increment();
+        meters.counter("studio.broker.requests", "node", tag).increment();
     }
 
     /** Top every node's bucket back up to the current ceiling. Driven every second by {@code BrokerJobs}. */

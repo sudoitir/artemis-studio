@@ -124,10 +124,23 @@ class NodeCallLimiterTest {
         limiter.acquire(NODE, 2);
         limiter.acquire(OTHER, 1);
 
-        assertThat(meters.counter("studio.broker.requests", "node", NODE).count())
+        assertThat(meters.counter("studio.broker.requests", "node", "a:8161").count())
                 .isEqualTo(2.0);
-        assertThat(meters.counter("studio.broker.requests", "node", OTHER).count())
+        assertThat(meters.counter("studio.broker.requests", "node", "b:8161").count())
                 .isEqualTo(1.0);
+    }
+
+    @Test
+    void aNodeIsTaggedByHostAndPortNeverByItsCredentials() {
+        NodeCallLimiter limiter = limiter(10);
+
+        limiter.acquire("http://admin:hunter2@c:8161/console/jolokia", 1);
+
+        assertThat(meters.getMeters())
+                .flatExtracting(m -> m.getId().getTags())
+                .extracting(t -> t.getValue())
+                .contains("c:8161")
+                .noneMatch(v -> v.contains("hunter2"));
     }
 
     @Test
