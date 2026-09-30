@@ -37,7 +37,7 @@ public final class SqlViews {
             @Schema(description = "The queue-and-node pairs the query will read.")
             List<TargetView> targets,
 
-            @Schema(description = "The JMS selector the broker will evaluate, if any.")
+            @Schema(description = "The JMS selector the broker will evaluate, if any.", nullable = true)
             String selector,
 
             @Schema(description = "Whether any predicate forces messages to be read and examined.")

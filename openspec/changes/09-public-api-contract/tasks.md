@@ -21,7 +21,7 @@
 - [x] 4.1 Liquibase changeset for `idempotency_record`; `IdempotencyRecords` (JdbcClient) claim/complete/release/find
 - [x] 4.2 `IdempotencyFilter` after security: key validation, user-scoped claim, fingerprint, replay with `Idempotent-Replayed`, 422 reused, 409 in progress, 5xx releases, multipart 400, plugin gateway passthrough
 - [x] 4.3 `ManagedStore` with 24 h retention and scheduled purge
-- [ ] 4.4 Document the `Idempotency-Key` header parameter on every mutating operation
+- [x] 4.4 Document the `Idempotency-Key` header parameter on every mutating operation
 - [x] 4.5 Tests: replay applies once, different body 422, concurrent 409, other user's key independent, dryRun vs real, 5xx retry runs again, purge
 
 ## 5. Versioning and deprecation (D2)
