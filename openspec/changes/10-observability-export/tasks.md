@@ -33,5 +33,5 @@
 ## 4. Finish
 
 - [x] 4.1 `just verify` green
-- [ ] 4.2 Studio screenshots of the health view: light and dark, healthy, degraded, and error
+- [x] 4.2 Studio screenshots of the health view: light and dark, healthy, degraded, and error
 - [ ] 4.3 PR merged on green CI and SonarCloud; `/opsx:archive`

@@ -13,7 +13,7 @@ import {
 const numeric = { fontVariantNumeric: 'tabular-nums' } as const;
 
 const JOB_STATES: Record<JobHealth['status'], string> = {
-  OK: 'Running',
+  OK: 'Last run succeeded',
   FAILING: 'Last run failed',
   NEVER_RUN: 'Not run yet',
 };
@@ -21,7 +21,12 @@ const JOB_STATES: Record<JobHealth['status'], string> = {
 /** State goes in words; the colour only underlines a problem. */
 function Verdict({ degraded }: Readonly<{ degraded: boolean }>) {
   return (
-    <Badge variant="light" color={degraded ? 'red' : 'gray'}>
+    // No truncation: the word is the state, so it must always be readable in full.
+    <Badge
+      variant="light"
+      color={degraded ? 'red' : 'gray'}
+      styles={{ root: { flexShrink: 0, overflow: 'visible' }, label: { overflow: 'visible' } }}
+    >
       {degraded ? 'Degraded' : 'Healthy'}
     </Badge>
   );
@@ -88,7 +93,7 @@ function JobsTable({ jobs, now }: Readonly<{ jobs: JobHealth[]; now: number }>) 
           <Table.Th>Status</Table.Th>
           <Table.Th>Last completed</Table.Th>
           <Table.Th>Lag</Table.Th>
-          <Table.Th>Health</Table.Th>
+          <Table.Th w="1%">Health</Table.Th>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
@@ -131,7 +136,7 @@ function NodesTable({ nodes, now }: Readonly<{ nodes: NodeHealth[]; now: number 
           <Table.Th>Last failure</Table.Th>
           <Table.Th ta="end">Call latency (p95)</Table.Th>
           <Table.Th ta="end">Rate-limit wait</Table.Th>
-          <Table.Th>Health</Table.Th>
+          <Table.Th w="1%">Health</Table.Th>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
