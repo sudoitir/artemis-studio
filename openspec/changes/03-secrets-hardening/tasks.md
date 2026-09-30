@@ -19,8 +19,8 @@
 - [ ] 4.3 `GET /api/v1/settings/secrets` status and `POST /api/v1/settings/secrets/rotations`; tests for permission, step-up, progress, resume, failure
 
 ## 5. Redaction (D)
-- [ ] 5.1 `SecretRedactor` with pattern tests
-- [ ] 5.2 Logback conversion rule for message and throwable; `AuditService` applies every `AuditParamsFilter`; `CredentialAuditParamsFilter`; `Problems` masks detail and title; broker.xml export backstop
+- [x] 5.1 `SecretRedactor` with pattern tests
+- [x] 5.2 Logback conversion rule for message and throwable; `AuditService` applies every `AuditParamsFilter`; `CredentialAuditParamsFilter`; `Problems` masks detail and title; broker.xml export backstop
 
 ## 6. UI (E)
 - [ ] 6.1 Move `StepUp`, `isReauthRequired`, `useReauthenticate` into the kernel; plugins feature uses them

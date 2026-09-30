@@ -39,7 +39,7 @@ public class AuditService {
     private final AuditEventRepository events;
     private final ObjectMapper mapper;
     private final ScopeHierarchy clusters;
-    /** Resolved lazily: the content policy that implements it itself writes audit rows. */
+    /** Resolved lazily: the content policy that implements one itself writes audit rows. All apply, in order. */
     private final ObjectProvider<AuditParamsFilter> paramsFilter;
 
     public AuditEvent begin(
@@ -51,9 +51,12 @@ public class AuditService {
             UUID nodeId,
             Map<String, ?> params,
             boolean dryRun) {
-        AuditParamsFilter filter = paramsFilter.getIfAvailable();
-        Map<String, ?> written =
-                (params == null || params.isEmpty() || filter == null) ? params : filter.filter(params);
+        Map<String, ?> written = params;
+        if (params != null && !params.isEmpty()) {
+            for (AuditParamsFilter filter : paramsFilter.orderedStream().toList()) {
+                written = filter.filter(written);
+            }
+        }
         String paramsJson = (written == null || written.isEmpty()) ? null : mapper.writeValueAsString(written);
         Actor a = actor == null ? Actor.system() : actor;
         AuditEventEntity entity = new AuditEventEntity(

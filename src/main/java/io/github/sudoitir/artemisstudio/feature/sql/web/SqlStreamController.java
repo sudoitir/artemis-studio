@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.SqlGovernance;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlTailPoller;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.StreamFrameView;
+import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -213,7 +214,8 @@ public class SqlStreamController {
         }
         log.debug("SQL console query failed", e);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_GATEWAY, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                HttpStatus.BAD_GATEWAY,
+                SecretRedactor.redact(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
         problem.setTitle("The query could not be run");
         return problem;
     }
