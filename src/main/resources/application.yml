@@ -244,5 +244,10 @@ artemis-studio:
     oidc-claim: groups            # the token/userinfo claim holding the user's groups; mappings are set per provider in Administration
 
 logging:
+  # %wEx is Boot's own word and cannot be overridden; this one is masked (RedactingLogging, ADR-0133).
+  exception-conversion-word: "%redactedEx"
+  structured:
+    json:
+      customizer: io.github.sudoitir.artemisstudio.kernel.core.internal.RedactingJsonMembers
   level:
     io.github.sudoitir.artemisstudio: INFO

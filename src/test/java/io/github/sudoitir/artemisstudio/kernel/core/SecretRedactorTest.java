@@ -83,4 +83,15 @@ class SecretRedactorTest {
     void passesNullThrough() {
         assertThat(SecretRedactor.redact(null)).isNull();
     }
+
+    /** Adversarial 50 KB inputs; the unbounded patterns took seconds to minutes on these. */
+    @ParameterizedTest
+    @ValueSource(strings = {"A", "token", "a.", "Zm9vYmFy", "password=\"", "://", "-----BEGIN ", "Bearer  ", "Basic "})
+    void redactsAdversarialInputInLinearTime(String unit) {
+        String input = unit.repeat(50_000 / unit.length());
+
+        assertThat(org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
+                        java.time.Duration.ofMillis(500), () -> SecretRedactor.redact(input)))
+                .isNotNull();
+    }
 }

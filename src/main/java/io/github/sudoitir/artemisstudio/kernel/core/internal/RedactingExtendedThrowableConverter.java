@@ -1,11 +1,11 @@
 package io.github.sudoitir.artemisstudio.kernel.core.internal;
 
-import ch.qos.logback.classic.pattern.ThrowableProxyConverter;
+import ch.qos.logback.classic.pattern.ExtendedThrowableProxyConverter;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 
-/** Logback's stack trace with credential-like values masked. Registered for {@code %ex} by {@link RedactingLogging}. */
-public class RedactingThrowableConverter extends ThrowableProxyConverter {
+/** Logback's stack trace with packaging data, masked. Registered for {@code %xEx} by {@link RedactingLogging}. */
+public class RedactingExtendedThrowableConverter extends ExtendedThrowableProxyConverter {
 
     @Override
     protected String throwableProxyToString(IThrowableProxy tp) {

@@ -57,6 +57,7 @@ class SecretLeakTest extends PostgresIntegrationTest {
     private static final String BODY_SECRET = planted("body-leak");
     private static final String LOG_SECRET = planted("logline-leak");
     private static final String EXCEPTION_SECRET = planted("exception-leak");
+    private static final String WEBHOOK_PATH_SECRET = planted("webhook-leak");
 
     private static final List<String> ALL = List.of(
             CLUSTER_PASSWORD,
@@ -66,7 +67,8 @@ class SecretLeakTest extends PostgresIntegrationTest {
             URL_SECRET,
             BODY_SECRET,
             LOG_SECRET,
-            EXCEPTION_SECRET);
+            EXCEPTION_SECRET,
+            WEBHOOK_PATH_SECRET);
 
     @MockitoBean
     BrokerConnections connections;
@@ -163,6 +165,17 @@ class SecretLeakTest extends PostgresIntegrationTest {
                 .content("{\"seedUrls\":[\"http://admin:" + URL_SECRET + "@127.0.0.1:1/console/jolokia\"]}"));
 
         assertThat(output.getAll()).contains("password=[redacted]").doesNotContain(ALL);
+    }
+
+    @Test
+    void aFailedWebhookDeliveryDoesNotEchoTheSecretUrl(CapturedOutput output) throws Exception {
+        send(post("/api/v1/channels/test")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"kind\":\"SLACK\",\"secret\":\"http://127.0.0.1:1/services/T/B/" + WEBHOOK_PATH_SECRET
+                        + "\"}"));
+
+        assertThat(seen.getLast()).contains("Slack request failed");
+        assertThat(seen.getLast() + output.getAll()).doesNotContain(WEBHOOK_PATH_SECRET);
     }
 
     @Test

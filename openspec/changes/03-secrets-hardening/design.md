@@ -132,8 +132,10 @@ the cluster/kind overloads. The layout is:
   prefix).
 
 It is applied at four choke points:
-- **Logs:** a `logback-spring.xml` conversion rule replaces `%msg` and `%ex` in the console and
-  file patterns with masked versions.
+- **Logs:** `RedactingLogging` (an early `ApplicationListener`) replaces every Logback pattern word
+  for the message and the stack trace with masked versions before Boot configures logging, so
+  Boot's console, log file and custom patterns keep working. Boot owns `%wEx`, so the default
+  exception word is `%redactedEx`. `RedactingJsonMembers` masks structured JSON logs.
 - **Audit:** `CredentialAuditParamsFilter` masks values whose parameter name is credential-like,
   and strings that match. `AuditService` applies every `AuditParamsFilter` bean in order, not
   just one.

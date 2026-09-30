@@ -23,8 +23,12 @@ catches a credential that arrives by another route, such as:
   - PEM private keys;
   - Studio API tokens.
 - It is applied where every output passes through:
-  - **Logs:** a logback conversion rule for the message and the stack trace. Studio logs to the
-    console only and sets no log file, so the console appender is the one output.
+  - **Logs:** `RedactingLogging` replaces every Logback pattern word for the message (`%m`, `%msg`,
+    `%message`) and the stack trace (`%ex`, `%xEx` and their aliases) with masked versions, before
+    Boot configures logging, so Boot's console, log file and custom `logging.pattern.*` are all
+    covered. Boot owns `%wEx`, so Studio's default exception word is `%redactedEx`
+    (`logging.exception-conversion-word`); a custom pattern must not use `%wEx`. Boot's structured
+    formats bypass patterns, so `RedactingJsonMembers` masks their string members.
   - **Audit:** `AuditService` applies every `AuditParamsFilter` in order, and a credential filter
     is one of them.
   - **Errors:** the `Problems` factory, which every exception advice uses.

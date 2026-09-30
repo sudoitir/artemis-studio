@@ -63,7 +63,7 @@ public class SlackSender implements NotificationSender {
         } catch (HttpStatusCodeException e) {
             return Result.retryable("Slack responded " + e.getStatusCode());
         } catch (RestClientException e) {
-            return Result.retryable(e.getMessage());
+            return Result.retryable("Slack request failed: " + e.getClass().getSimpleName());
         }
     }
 
