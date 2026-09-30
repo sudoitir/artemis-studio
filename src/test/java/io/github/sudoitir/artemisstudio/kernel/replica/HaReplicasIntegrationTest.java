@@ -51,7 +51,11 @@ class HaReplicasIntegrationTest {
     /** Enough that one replica owning none of them by chance is a 1 in 500 draw. */
     private static final int CLUSTERS = 10;
 
-    private static final Duration WINDOW = Duration.ofSeconds(6);
+    private static final Duration WINDOW = Duration.ofSeconds(12);
+
+    /** The tier-B interval the replicas run with: one of them lets a hand-over's extra passes finish. */
+    private static final Duration SETTLE = Duration.ofSeconds(4);
+
     private static final String MANAGEMENT_CALLS = "studio.broker.management";
 
     /** Base64 of exactly 32 bytes. */
@@ -200,8 +204,10 @@ class HaReplicasIntegrationTest {
 
     @Test
     @Order(2)
-    void aSecondReplicaDoesNotAddManagementLoadOnTheBroker() {
+    void aSecondReplicaDoesNotAddManagementLoadOnTheBroker() throws InterruptedException {
         awaitScraped(Instant.now());
+        // A cluster changing hands gets an extra tier-A pass on its new owner; measure the steady state.
+        Thread.sleep(SETTLE);
 
         long twoReplicasCalls = managementCalls(a, WINDOW);
 
@@ -209,7 +215,7 @@ class HaReplicasIntegrationTest {
         // Duplicated scraping would double the count; the margin absorbs where a tier falls in the window.
         assertThat(twoReplicasCalls)
                 .as("calls of two replicas together, one alone made %d", oneReplicaCalls)
-                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.5));
+                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.3));
     }
 
     @Test
