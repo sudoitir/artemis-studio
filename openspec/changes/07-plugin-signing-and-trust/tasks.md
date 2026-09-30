@@ -61,7 +61,7 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
 - Produces: `ValidationReport.signer()`, which is `null` for an unsigned jar.
 - Produces: `PluginJarBuilder.unsigned()`, `PluginJarBuilder.signedBy("plugin-signing/other.p12")`, `TestSigningKeys.PUBLISHER.fingerprint()`.
 
-- [ ] 1.1 Write `JarSignatureTest`:
+- [x] 1.1 Write `JarSignatureTest`:
   - signed jar → `signer().fingerprint()` equals `TestSigningKeys.PUBLISHER.fingerprint()`;
   - unsigned → valid report, `signer()==null`;
   - one class byte flipped after signing → `jar-signature-invalid`;
@@ -70,8 +70,8 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
   - a jar re-signed on top by `other` (two `.SF` files) → `jar-signers-mixed`;
   - manifest main attribute changed after signing → `jar-signature-invalid`.
   To tamper, rewrite the signed jar with `ZipInputStream`/`ZipOutputStream`, copying entries and changing one.
-- [ ] 1.2 Run `./mvnw -q test -Dtest=JarSignatureTest`. Expect FAIL (no `Signer`).
-- [ ] 1.3 Implement. In `PluginValidator.validate`, open `new JarFile(file, true, ZipFile.OPEN_READ, Runtime.version())`, then run `JarSignature.check(jar, entryNames, violations)` before `checkManifest`. `JarSignature.check`:
+- [x] 1.2 Run `./mvnw -q test -Dtest=JarSignatureTest`. Expect FAIL (no `Signer`).
+- [x] 1.3 Implement. In `PluginValidator.validate`, open `new JarFile(file, true, ZipFile.OPEN_READ, Runtime.version())`, then run `JarSignature.check(jar, entryNames, violations)` before `checkManifest`. `JarSignature.check`:
   ```java
   // Reading each entry to its end is what makes JarFile verify its digest (JarVerifier).
   for (JarEntry e : list(jar.entries())) { try (InputStream in = jar.getInputStream(e)) { in.transferTo(OutputStream.nullOutputStream()); } }
@@ -83,8 +83,8 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
   - Every key of `jar.getManifest().getEntries()` must be an entry name, else `jar-entry-missing`.
   - Return `Signer.of((X509Certificate) signers[0].getSignerCertPath().getCertificates().get(0))`.
   - Allowlist: add `name.matches("META-INF/[^/]+\\.(SF|RSA|EC|DSA)")`. `PluginJarBuilder` signs with `jdk.security.jarsigner.JarSigner.Builder(privateKey, certPath).digestAlgorithm("SHA-256").signerName("PUBLISHER").build().sign(zipFile, out)`.
-- [ ] 1.4 Run `./mvnw -q test -Dtest='JarSignatureTest,PluginValidatorTest'`. Expect PASS. The existing validator tests must still pass with signed jars.
-- [ ] 1.5 Commit `feat(plugins): verify plugin jar signatures and report the signer`.
+- [x] 1.4 Run `./mvnw -q test -Dtest='JarSignatureTest,PluginValidatorTest'`. Expect PASS. The existing validator tests must still pass with signed jars.
+- [x] 1.5 Commit `feat(plugins): verify plugin jar signatures and report the signer`.
 
 ### Task 2: Trust store
 

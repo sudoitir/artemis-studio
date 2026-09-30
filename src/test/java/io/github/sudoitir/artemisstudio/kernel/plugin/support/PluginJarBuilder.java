@@ -6,6 +6,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,12 +16,14 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.zip.ZipFile;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
+import jdk.security.jarsigner.JarSigner;
 
 /**
  * Builds a plugin jar in-test: given Java source, {@code plugin.json}, a changelog and any raw
@@ -56,6 +60,7 @@ public final class PluginJarBuilder {
     private final Map<String, byte[]> rawEntries = new LinkedHashMap<>();
     private final Map<String, String> manifestAttributes = new LinkedHashMap<>();
     private boolean synthesizeConfiguration = true;
+    private String signingKeystore = TestSigningKeys.PUBLISHER_RESOURCE;
 
     public PluginJarBuilder(String id) {
         this.descriptor = new LinkedHashMap<>(defaultDescriptor(id));
@@ -64,6 +69,18 @@ public final class PluginJarBuilder {
     /** Opts out of the default {@code @Configuration @ComponentScan} class {@link #build()} otherwise synthesizes. */
     public PluginJarBuilder withoutDefaultConfiguration() {
         this.synthesizeConfiguration = false;
+        return this;
+    }
+
+    /** Leaves the jar unsigned; {@link #build()} signs with the test publisher key otherwise. */
+    public PluginJarBuilder unsigned() {
+        this.signingKeystore = null;
+        return this;
+    }
+
+    /** Signs with the key in {@code keystoreResource}, e.g. {@code plugin-signing/other.p12}. */
+    public PluginJarBuilder signedBy(String keystoreResource) {
+        this.signingKeystore = keystoreResource;
         return this;
     }
 
@@ -145,7 +162,25 @@ public final class PluginJarBuilder {
                 writeEntryWithDirs(jar, e.getKey(), e.getValue(), dirsWritten);
             }
         }
-        return jarFile;
+        return signingKeystore == null ? jarFile : sign(jarFile, TestSigningKeys.load(signingKeystore), "PUBLISH");
+    }
+
+    /** Signs like {@code jarsigner}: {@code <signerName>.SF} plus its block, SHA-256 digests. */
+    public static Path sign(Path jarToSign, TestSigningKeys.Key key, String signerName) throws IOException {
+        Path signedJar = Files.createTempFile(jarToSign.getParent(), "plugin-signed", ".jar");
+        try (ZipFile zip = new ZipFile(jarToSign.toFile());
+                var out = Files.newOutputStream(signedJar)) {
+            new JarSigner.Builder(
+                            key.privateKey(),
+                            CertificateFactory.getInstance("X.509").generateCertPath(List.of(key.certificate())))
+                    .digestAlgorithm("SHA-256")
+                    .signerName(signerName)
+                    .build()
+                    .sign(zip, out);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+        return signedJar;
     }
 
     /**
