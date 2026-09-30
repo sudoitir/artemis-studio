@@ -75,6 +75,11 @@ Replicas coordinate only through Postgres. No new infrastructure is added.
   tokens.
 - The per-node limit on management calls applies to each replica separately for user-driven calls.
   Scheduled load has one owner.
+- While a cluster changes owner, the old owner closes its broker notification subscriptions and the new
+  owner opens its own a moment later, so the notifications of those few seconds can be lost, and one the
+  old owner had received but not yet stored can be stored again. The Events history may therefore miss or
+  repeat a few entries per handover. Studio does not deduplicate: a fix would need the broker's
+  notifications to carry an identity, which they do not, and scraped state is not affected.
 - This supersedes the single-instance parts of [ADR-0018](0018-sse-hub.md) (the per-instance registry),
   [ADR-0093](0093-bulk-operations-are-persisted-runs-over-single-queue-commands.md) (in-process stops and startup recovery) and
   [ADR-0104](0104-studio-restarts-itself-for-plugins-when-supervised.md) (`studio_boot`).

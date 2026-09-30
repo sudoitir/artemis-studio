@@ -106,3 +106,6 @@ Any HTTP load balancer works if it:
   on every replica.
 - A plugin that needs a restart restarts the replica it was installed on; the others pick up the change
   without a restart when they can.
+- While a cluster changes owner, broker notifications, the entries of the Events history, may be missed or
+  recorded twice for the few seconds of the handover. Scraped state, such as queue depths and topology, is
+  not affected.
