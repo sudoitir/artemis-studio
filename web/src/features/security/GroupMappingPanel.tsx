@@ -42,7 +42,7 @@ export function GroupMappingPanel() {
   );
 }
 
-function ProviderMappings({ providerId }: { providerId: string }) {
+function ProviderMappings({ providerId }: Readonly<{ providerId: string }>) {
   const mappings = useGroupMappings(providerId);
   const roles = useRoles();
   const create = useCreateGroupMapping(providerId);

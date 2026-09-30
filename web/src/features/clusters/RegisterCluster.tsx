@@ -50,7 +50,7 @@ const EMPTY: Fields = {
 };
 
 /** The registration form. Rendered inline on the empty state, in a modal after. */
-export function RegisterClusterForm({ onRegistered }: { onRegistered?: () => void }) {
+export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: () => void }>) {
   const [f, setF] = useState<Fields>(EMPTY);
   const [touched, setTouched] = useState<Record<keyof Fields, boolean>>({
     seeds: false,
@@ -305,7 +305,7 @@ export function EmptyState() {
 }
 
 /** The post-empty affordance: a button that opens the form in a modal. */
-export function RegisterClusterButton({ collapsed }: { collapsed?: boolean }) {
+export function RegisterClusterButton({ collapsed }: Readonly<{ collapsed?: boolean }>) {
   const [open, setOpen] = useState(false);
   const clusters = useClusters();
   const existing = clusters.data?.length ?? 0;

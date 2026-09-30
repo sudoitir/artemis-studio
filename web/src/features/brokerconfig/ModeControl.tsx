@@ -9,7 +9,10 @@ import { applyModeWords } from './words.ts';
  * an inline control to change it (ADR-0067 D2). Both modes are always visible;
  * the mode decides which action is primary and which is disabled with a reason.
  */
-export function ModeControl({ declaration, canWrite }: { declaration: ConfigDeclarationView; canWrite: boolean }) {
+export function ModeControl({
+  declaration,
+  canWrite,
+}: Readonly<{ declaration: ConfigDeclarationView; canWrite: boolean }>) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ConfigDeclarationView['applyMode']>(declaration.applyMode);
   const [reportUndeclared, setReportUndeclared] = useState(declaration.reportUndeclared);

@@ -17,7 +17,7 @@ function markLabel(r: RedactionView): string {
 }
 
 /** One mark per distinct kind of redaction, with a count when a value holds several of the same. */
-export function RedactionMarks({ redactions }: { redactions: RedactionView[] }) {
+export function RedactionMarks({ redactions }: Readonly<{ redactions: RedactionView[] }>) {
   if (redactions.length === 0) return null;
   const counts = new Map<string, { label: string; clear: boolean; count: number }>();
   for (const r of redactions) {
@@ -45,7 +45,7 @@ export function RedactionMarks({ redactions }: { redactions: RedactionView[] }) 
 }
 
 /** A header or property value with the marks for its path. A masked value is shown as its marker text. */
-export function GovernedValue({ value, redactions }: { value: unknown; redactions: RedactionView[] }) {
+export function GovernedValue({ value, redactions }: Readonly<{ value: unknown; redactions: RedactionView[] }>) {
   return (
     <Stack gap={2}>
       <Text size="xs" ff="monospace" style={{ wordBreak: 'break-all' }}>
@@ -57,7 +57,7 @@ export function GovernedValue({ value, redactions }: { value: unknown; redaction
 }
 
 /** Content that was not shown, with the reason and — where one exists — the setting that changes it. */
-export function WithheldNotice({ withheld }: { withheld: WithheldView[] }) {
+export function WithheldNotice({ withheld }: Readonly<{ withheld: WithheldView[] }>) {
   if (withheld.length === 0) return null;
   return (
     <Stack gap="xs">

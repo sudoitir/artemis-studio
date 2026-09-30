@@ -6,7 +6,7 @@ import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 
 /** Currently firing alerts for this cluster, newest first (alerting spec). */
-export function FiringPanel({ clusterId }: { clusterId: string }) {
+export function FiringPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
   useDisplayZone();

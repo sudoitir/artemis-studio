@@ -21,7 +21,7 @@ import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { useMessageAction, type AffectedView, type PartialView } from './api.ts';
 
 /** "Browse messages" on a queue's row: the message browser for that queue. */
-export function BrowseQueueMessages({ clusterId, target }: ActionProps<QueueTarget>) {
+export function BrowseQueueMessages({ clusterId, target }: Readonly<ActionProps<QueueTarget>>) {
   const navigate = useNavigate();
   const { can, loading } = useCan();
   const gate = gateFor(can('message:read', clusterId), 'Browse messages', undefined, loading);
@@ -46,7 +46,7 @@ function messageSearch(target: MessageTarget) {
   return { message: String(target.messageId), node: target.node };
 }
 
-export function OpenMessage({ clusterId, target }: ActionProps<MessageTarget>) {
+export function OpenMessage({ clusterId, target }: Readonly<ActionProps<MessageTarget>>) {
   const navigate = useNavigate();
   return (
     <ActionMenuItem
@@ -63,7 +63,7 @@ export function OpenMessage({ clusterId, target }: ActionProps<MessageTarget>) {
   );
 }
 
-export function CopyMessage({ clusterId, target, host }: ActionProps<MessageTarget>) {
+export function CopyMessage({ clusterId, target, host }: Readonly<ActionProps<MessageTarget>>) {
   return (
     <>
       <ActionMenuItem

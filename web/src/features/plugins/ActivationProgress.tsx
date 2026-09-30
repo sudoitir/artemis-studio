@@ -29,11 +29,11 @@ export function ActivationProgress({
   plan,
   startedAt,
   onOutcome,
-}: {
+}: Readonly<{
   plan: PluginPlanView;
   startedAt: number;
   onOutcome?: (outcome: Outcome) => void;
-}) {
+}>) {
   const plugins = usePlugins();
   const plugin = plugins.data?.plugins.find((p) => p.id === plan.pluginId);
   const restart = plugins.data?.restart;

@@ -188,12 +188,12 @@ function StatusBar({
   applyGate,
   studioManaged,
   onReview,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   applyGate: GateVerdict;
   studioManaged: boolean;
   onReview: () => void;
-}) {
+}>) {
   const evaluate = useEvaluateBrokerConfigDrift(declaration.clusterId);
   const applied = appliedWords(declaration);
   const latest = declaration.nodes
@@ -269,12 +269,12 @@ function RecommendedTab({
   query,
   onReview,
   disabledReason,
-}: {
+}: Readonly<{
   clusterId: string;
   query: ReturnType<typeof useBrokerConfigRecommendations>;
   onReview: () => void;
   disabledReason?: string;
-}) {
+}>) {
   if (query.isError) {
     return (
       <Alert color="red" variant="light" title={query.error.title}>

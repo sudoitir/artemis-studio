@@ -26,12 +26,12 @@ export function TransformerFields({
   value,
   onChange,
   what,
-}: {
+}: Readonly<{
   value: TransformerValue;
   onChange: (next: TransformerValue) => void;
   /** "diverted" or "forwarded" — what happens to the messages this transformer sees. */
   what: 'diverted' | 'forwarded';
-}) {
+}>) {
   const [key, setKey] = useState('');
   const [val, setVal] = useState('');
   const entries = Object.entries(value.properties);

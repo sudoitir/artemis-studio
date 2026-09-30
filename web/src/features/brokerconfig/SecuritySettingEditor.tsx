@@ -65,13 +65,13 @@ export function SecuritySettingEditor({
   item,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   catalogue: ConfigCatalogueView;
   item: ConfigSecuritySettingView | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const initial = toGrid(item);
   const [match, setMatch] = useState(item?.match ?? '');
   const [roles, setRoles] = useState<string[]>(initial.roles);

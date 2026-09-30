@@ -31,13 +31,13 @@ function OpenIn({
   q,
   label,
   icon,
-}: {
+}: Readonly<{
   clusterId: string;
   view: View;
   q: string | null | undefined;
   label: string;
   icon: React.ReactNode;
-}) {
+}>) {
   const navigate = useNavigate();
   if (!q) {
     return (
@@ -63,11 +63,11 @@ function Copy({
   value,
   what,
   host,
-}: {
+}: Readonly<{
   value: string | null | undefined;
   what: string;
   host: ActionProps<unknown>['host'];
-}) {
+}>) {
   return (
     <ActionMenuItem
       label={`Copy ${what}`}
@@ -79,7 +79,7 @@ function Copy({
 }
 
 // ── Connections ──────────────────────────────────────────────────────────────
-export function ConnectionOpenSessions({ clusterId, target }: ActionProps<ConnectionTarget>) {
+export function ConnectionOpenSessions({ clusterId, target }: Readonly<ActionProps<ConnectionTarget>>) {
   return (
     <OpenIn
       clusterId={clusterId}
@@ -91,7 +91,7 @@ export function ConnectionOpenSessions({ clusterId, target }: ActionProps<Connec
   );
 }
 
-export function ConnectionCopy({ target, host }: ActionProps<ConnectionTarget>) {
+export function ConnectionCopy({ target, host }: Readonly<ActionProps<ConnectionTarget>>) {
   return (
     <>
       <Copy value={target.snapshot?.remoteAddress} what="remote address" host={host} />
@@ -101,7 +101,7 @@ export function ConnectionCopy({ target, host }: ActionProps<ConnectionTarget>) 
   );
 }
 
-export function ConnectionClose({ clusterId, target, host }: ActionProps<ConnectionTarget>) {
+export function ConnectionClose({ clusterId, target, host }: Readonly<ActionProps<ConnectionTarget>>) {
   const gate = useCloseGate(clusterId, 'connection', target.connectionId);
   return (
     <ActionMenuItem
@@ -125,7 +125,7 @@ export function ConnectionClose({ clusterId, target, host }: ActionProps<Connect
 }
 
 // ── Sessions ─────────────────────────────────────────────────────────────────
-export function SessionOpenRelated({ clusterId, target }: ActionProps<SessionTarget>) {
+export function SessionOpenRelated({ clusterId, target }: Readonly<ActionProps<SessionTarget>>) {
   return (
     <>
       <OpenIn
@@ -153,11 +153,11 @@ export function SessionOpenRelated({ clusterId, target }: ActionProps<SessionTar
   );
 }
 
-export function SessionCopy({ target, host }: ActionProps<SessionTarget>) {
+export function SessionCopy({ target, host }: Readonly<ActionProps<SessionTarget>>) {
   return <Copy value={target.sessionId} what="session id" host={host} />;
 }
 
-export function SessionClose({ clusterId, target, host }: ActionProps<SessionTarget>) {
+export function SessionClose({ clusterId, target, host }: Readonly<ActionProps<SessionTarget>>) {
   const gate = useCloseGate(clusterId, 'session', target.sessionId);
   return (
     <ActionMenuItem
@@ -181,7 +181,7 @@ export function SessionClose({ clusterId, target, host }: ActionProps<SessionTar
 }
 
 // ── Consumers ────────────────────────────────────────────────────────────────
-export function ConsumerOpenSession({ clusterId, target }: ActionProps<ConsumerTarget>) {
+export function ConsumerOpenSession({ clusterId, target }: Readonly<ActionProps<ConsumerTarget>>) {
   return (
     <OpenIn
       clusterId={clusterId}
@@ -193,11 +193,11 @@ export function ConsumerOpenSession({ clusterId, target }: ActionProps<ConsumerT
   );
 }
 
-export function ConsumerCopy({ target, host }: ActionProps<ConsumerTarget>) {
+export function ConsumerCopy({ target, host }: Readonly<ActionProps<ConsumerTarget>>) {
   return <Copy value={target.consumerId} what="consumer id" host={host} />;
 }
 
-export function ConsumerClose({ clusterId, target, host }: ActionProps<ConsumerTarget>) {
+export function ConsumerClose({ clusterId, target, host }: Readonly<ActionProps<ConsumerTarget>>) {
   const gate = useCloseGate(clusterId, 'consumer', target.consumerId);
   return (
     <ActionMenuItem
@@ -221,7 +221,7 @@ export function ConsumerClose({ clusterId, target, host }: ActionProps<ConsumerT
 }
 
 // ── Producers ────────────────────────────────────────────────────────────────
-export function ProducerOpenSession({ clusterId, target }: ActionProps<ProducerTarget>) {
+export function ProducerOpenSession({ clusterId, target }: Readonly<ActionProps<ProducerTarget>>) {
   return (
     <OpenIn
       clusterId={clusterId}
@@ -233,7 +233,7 @@ export function ProducerOpenSession({ clusterId, target }: ActionProps<ProducerT
   );
 }
 
-export function ProducerCopy({ target, host }: ActionProps<ProducerTarget>) {
+export function ProducerCopy({ target, host }: Readonly<ActionProps<ProducerTarget>>) {
   return (
     <>
       <Copy value={target.address} what="address" host={host} />
@@ -243,7 +243,7 @@ export function ProducerCopy({ target, host }: ActionProps<ProducerTarget>) {
 }
 
 // ── Addresses ────────────────────────────────────────────────────────────────
-export function AddressOpenConsumers({ clusterId, target }: ActionProps<AddressTarget>) {
+export function AddressOpenConsumers({ clusterId, target }: Readonly<ActionProps<AddressTarget>>) {
   // Consumers are listed by queue; on an address whose queues share its name — the common case —
   // this is its consumers, and otherwise the listing states what it matched.
   return (
@@ -257,11 +257,11 @@ export function AddressOpenConsumers({ clusterId, target }: ActionProps<AddressT
   );
 }
 
-export function AddressCopy({ target, host }: ActionProps<AddressTarget>) {
+export function AddressCopy({ target, host }: Readonly<ActionProps<AddressTarget>>) {
   return <Copy value={target.address} what="address name" host={host} />;
 }
 
-export function AddressCloseConsumers({ clusterId, target, host }: ActionProps<AddressTarget>) {
+export function AddressCloseConsumers({ clusterId, target, host }: Readonly<ActionProps<AddressTarget>>) {
   const gate = useCloseAddressGate(clusterId);
   return (
     <ActionMenuItem
@@ -281,12 +281,12 @@ function FilteredLink({
   view,
   q,
   children,
-}: {
+}: Readonly<{
   clusterId: string;
   view: View;
   q: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <Link to={`/clusters/${clusterId}/${view}`} search={{ q }} className={linkClasses.link}>
       {children}
@@ -314,7 +314,7 @@ export function SessionLink({ clusterId, target, children }: LinkProps<SessionTa
   );
 }
 
-export function AddressLink({ clusterId, target, children }: LinkProps<AddressTarget>) {
+export function AddressLink({ clusterId, target, children }: Readonly<LinkProps<AddressTarget>>) {
   return (
     <FilteredLink clusterId={clusterId} view="addresses" q={target.address}>
       {children}

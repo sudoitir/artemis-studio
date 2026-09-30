@@ -59,7 +59,7 @@ export function LiveTailBanner({
   onPause,
   onResume,
   onStop,
-}: {
+}: Readonly<{
   tail: SqlTailStatusView | null;
   shown: number;
   /** True once the view has begun dropping its oldest rows to stay bounded. */
@@ -71,7 +71,7 @@ export function LiveTailBanner({
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
-}) {
+}>) {
   return (
     <div className={classes.pinned}>
       <Alert

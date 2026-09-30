@@ -33,7 +33,7 @@ export function ReplyAddressesInput({
   onChange,
   label = 'Reply addresses',
   w,
-}: ReplyAddressesInputProps) {
+}: Readonly<ReplyAddressesInputProps>) {
   const { known } = useReplyAddressResolution(clusterId, value);
 
   return (
@@ -52,7 +52,7 @@ export function ReplyAddressesInput({
 }
 
 /** What an empty set means, what a glob covers, and what it resolves to right now. */
-export function ReplyAddressesHelp({ clusterId, value }: { clusterId: string; value: string[] }) {
+export function ReplyAddressesHelp({ clusterId, value }: Readonly<{ clusterId: string; value: string[] }>) {
   const { resolved, unmatched, isError, retry } = useReplyAddressResolution(clusterId, value);
 
   const preview = resolved.slice(0, PREVIEW_LIMIT).join(', ');

@@ -36,13 +36,13 @@ export function FlowTable({
   sort,
   onSortChange,
   onFocus,
-}: {
+}: Readonly<{
   clusterId: string;
   graph: FlowGraphView;
   sort: string | undefined;
   onSortChange: (sort: string | undefined) => void;
   onFocus: (focus: string) => void;
-}) {
+}>) {
   const now = useServerNow(5_000);
   const rows = useMemo(() => sortRows(toRows(graph), sort), [graph, sort]);
 
@@ -148,7 +148,7 @@ export function FlowTable({
   );
 }
 
-function NodeName({ node }: { node: FlowNodeView | undefined }) {
+function NodeName({ node }: Readonly<{ node: FlowNodeView | undefined }>) {
   if (!node) return null;
   return (
     <Text size="sm" truncate title={node.label}>

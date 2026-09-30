@@ -44,7 +44,7 @@ export function CloseConnectionAction({
   rowLabel,
   /** When the row on screen was fetched, in epoch ms — the action depends on it. */
   fetchedAt,
-}: {
+}: Readonly<{
   clusterId: string;
   kind: NodeKind;
   nodeId: string;
@@ -53,7 +53,7 @@ export function CloseConnectionAction({
   /** How the row names itself, for the trigger's accessible name. */
   rowLabel: string;
   fetchedAt: number | null;
-}) {
+}>) {
   const gate = useCloseGate(clusterId, kind, targetId);
   const host = useActionHost();
 
@@ -99,7 +99,7 @@ export function CloseDialog({
   fetchedAt,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   kind: NodeKind;
   nodeId: string;
@@ -108,7 +108,7 @@ export function CloseDialog({
   fetchedAt: number | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const close = useCloseNodeTarget(clusterId, kind, nodeId, targetId);
   const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
   const [result, setResult] = useState<ConnectionCloseView | null>(null);
@@ -214,7 +214,10 @@ export function CloseDialog({
 }
 
 /** Who is about to be disconnected, and what it costs the messages they hold. */
-function TargetSummary({ target, nodeName }: { target: NonNullable<ConnectionCloseView['target']>; nodeName: string }) {
+function TargetSummary({
+  target,
+  nodeName,
+}: Readonly<{ target: NonNullable<ConnectionCloseView['target']>; nodeName: string }>) {
   const rows: [string, string][] = [
     ['Client id', target.clientId || 'none reported'],
     ['Remote address', target.remoteAddress || 'not reported'],
@@ -259,7 +262,7 @@ function TargetSummary({ target, nodeName }: { target: NonNullable<ConnectionClo
 }
 
 /** The addresses view's row action: the trigger and its gate, around the dialog below. */
-export function CloseAddressConsumersAction({ clusterId, address }: { clusterId: string; address: string }) {
+export function CloseAddressConsumersAction({ clusterId, address }: Readonly<{ clusterId: string; address: string }>) {
   const gate = useCloseAddressGate(clusterId);
   const host = useActionHost();
 
@@ -296,12 +299,12 @@ export function CloseAddressConsumers({
   address,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   address: string;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const close = useCloseAddressConsumers(clusterId, address);
   const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
   const [result, setResult] = useState<ConnectionCloseView | null>(null);

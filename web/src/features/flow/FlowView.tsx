@@ -205,14 +205,14 @@ function FlowBody({
   search,
   rank,
   setSearch,
-}: {
+}: Readonly<{
   clusterId: string;
   data: FlowGraphView;
   breakdownPending: boolean;
   search: FlowSearch;
   rank: FlowRank;
   setSearch: (patch: Partial<Record<keyof FlowSearch, unknown>>) => void;
-}) {
+}>) {
   const now = useServerNow();
   const reducedMotion = useReducedMotion();
   // The selection is in the address (flow-visualization spec): a reload or a shared link restores it.

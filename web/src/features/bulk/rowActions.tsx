@@ -13,7 +13,7 @@ import { OPERATIONS } from './words.ts';
  * one queue (ADR-0093): the same preview, blast radius, cap and audit, confirmed by the queue's name.
  * Accepting it opens the run, so focus is not handed back to a row the operator has left.
  */
-export function PurgeQueue({ clusterId, target, host }: ActionProps<QueueTarget>) {
+export function PurgeQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const op = OPERATIONS.PURGE;

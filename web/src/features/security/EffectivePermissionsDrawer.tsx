@@ -14,10 +14,10 @@ function scopeLabel(v: EffectivePermissionView): string {
 export function EffectivePermissionsDrawer({
   user,
   onClose,
-}: {
+}: Readonly<{
   user: { id: string; username: string } | null;
   onClose: () => void;
-}) {
+}>) {
   const result = useEffectivePermissions(user?.id ?? null);
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();

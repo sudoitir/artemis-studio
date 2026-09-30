@@ -20,14 +20,14 @@ export function AnchoredMenu({
   label,
   onClose,
   children,
-}: {
+}: Readonly<{
   opened: boolean;
   anchor: MenuAnchor | null;
   /** The menu's accessible name, e.g. "Actions for orders". */
   label: string;
   onClose: () => void;
   children: ReactNode;
-}) {
+}>) {
   // A menu opened from the keyboard lands on its first item, as a menu button's does (APG), so the
   // arrow keys and type-ahead work at once.
   const dropdownRef = useRef<HTMLDivElement>(null);

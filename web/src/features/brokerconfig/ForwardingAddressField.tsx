@@ -42,7 +42,7 @@ export function ForwardingAddressField({
   error,
   inputRef,
   onCreatingChange,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   value: string;
   onChange: (value: string) => void;
@@ -51,7 +51,7 @@ export function ForwardingAddressField({
   inputRef: Ref<HTMLInputElement>;
   /** Whether the inline section is open, so the drawer can leave Escape to it. */
   onCreatingChange: (creating: boolean) => void;
-}) {
+}>) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const field = useRef<HTMLInputElement | null>(null);
   const queueInput = useRef<HTMLInputElement>(null);

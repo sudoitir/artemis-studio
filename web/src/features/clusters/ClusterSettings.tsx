@@ -41,7 +41,7 @@ const CREDENTIAL_KINDS: Record<CredentialKind, { label: string; hint: string }> 
   },
 };
 
-function CredentialRotation({ clusterId, clusterName }: { clusterId: string; clusterName: string }) {
+function CredentialRotation({ clusterId, clusterName }: Readonly<{ clusterId: string; clusterName: string }>) {
   const rotate = useRotateCredentials(clusterId);
   const [kind, setKind] = useState<CredentialKind>('JOLOKIA_BASIC');
   const [username, setUsername] = useState('');
@@ -110,7 +110,7 @@ function CredentialRotation({ clusterId, clusterName }: { clusterId: string; clu
 }
 
 /** Settings section: rotate the broker accounts Studio uses for this cluster. */
-export function CredentialsSection({ clusterId }: { clusterId: string }) {
+export function CredentialsSection({ clusterId }: Readonly<{ clusterId: string }>) {
   const cluster = useCluster(clusterId);
   return (
     <>
@@ -126,7 +126,7 @@ export function CredentialsSection({ clusterId }: { clusterId: string }) {
 }
 
 /** Settings section: what this connection can and cannot do. */
-export function CapabilitiesSection({ clusterId }: { clusterId: string }) {
+export function CapabilitiesSection({ clusterId }: Readonly<{ clusterId: string }>) {
   const cluster = useCluster(clusterId);
   return (
     <>

@@ -43,14 +43,14 @@ function Frame({
   inbound,
   outbound,
   children,
-}: {
+}: Readonly<{
   id: string;
   data: FlowNodeData;
   shape: 'pill' | 'tag' | 'box' | 'hex';
   inbound: boolean;
   outbound: boolean;
   children: ReactNode;
-}) {
+}>) {
   const { select, emphasize, openMenu } = useContext(FlowCanvasContext);
   // Shift+F10 and the menu key are followed by the browser's own contextmenu event, which would
   // reopen the menu at the pointer and close the one the keyboard opened.

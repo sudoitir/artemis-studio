@@ -22,7 +22,7 @@ export function RecommendedConfiguration({
   recommendations,
   onDeclared,
   disabledReason,
-}: {
+}: Readonly<{
   /** Absent before the cluster is registered: the panel then previews and cannot declare. */
   clusterId?: string;
   recommendations: ConfigRecommendationsView;
@@ -30,7 +30,7 @@ export function RecommendedConfiguration({
   onDeclared?: () => void;
   /** Why declaring is unavailable right now, stated rather than hidden. */
   disabledReason?: string;
-}) {
+}>) {
   const appliable = recommendations.recommendations.filter((r) => r.appliable);
   const manual = recommendations.recommendations.filter((r) => !r.appliable);
 
@@ -201,7 +201,7 @@ export function RecommendedConfiguration({
 }
 
 /** The whole entry that would be written, so a replace holds no surprises. */
-function ValuePreview({ recommendation, ml }: { recommendation: ConfigRecommendationView; ml?: boolean }) {
+function ValuePreview({ recommendation, ml }: Readonly<{ recommendation: ConfigRecommendationView; ml?: boolean }>) {
   // Changed keys first, then the rest alphabetically. The broker answers in its
   // own order, which puts the one key this recommendation is about somewhere in
   // the middle of seventeen it is not changing.

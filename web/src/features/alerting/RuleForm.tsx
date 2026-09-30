@@ -69,7 +69,7 @@ export function RuleForm({
   onSubmit,
   submitting,
   onCancel,
-}: {
+}: Readonly<{
   channels: NotificationChannelView[];
   /** The metrics running plugins publish. */
   pluginMetrics?: PluginMetricView[];
@@ -77,7 +77,7 @@ export function RuleForm({
   onSubmit: (body: AlertRuleRequest) => void;
   submitting: boolean;
   onCancel?: () => void;
-}) {
+}>) {
   const [kind, setKind] = useState<'METRIC_THRESHOLD' | 'STATE'>(
     (initial?.kind as 'METRIC_THRESHOLD' | 'STATE') ?? 'METRIC_THRESHOLD',
   );

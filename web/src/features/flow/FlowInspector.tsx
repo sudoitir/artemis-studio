@@ -38,13 +38,13 @@ export function FlowInspector({
   clusterId,
   onClose,
   onFocus,
-}: {
+}: Readonly<{
   graph: FlowGraphView;
   nodeId: string;
   clusterId: string;
   onClose: () => void;
   onFocus: (focus: string) => void;
-}) {
+}>) {
   const navigate = useNavigate();
   const now = useServerNow(5_000);
   const close = useRef<HTMLButtonElement>(null);

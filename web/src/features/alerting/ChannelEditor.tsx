@@ -61,12 +61,12 @@ export function ChannelEditor({
   channel,
   onClose,
   onSaved,
-}: {
+}: Readonly<{
   opened: boolean;
   channel: NotificationChannelView | null;
   onClose: () => void;
   onSaved: (message: string) => void;
-}) {
+}>) {
   return (
     <Modal
       opened={opened}
@@ -84,11 +84,11 @@ function ChannelForm({
   channel,
   onClose,
   onSaved,
-}: {
+}: Readonly<{
   channel: NotificationChannelView | null;
   onClose: () => void;
   onSaved: (message: string) => void;
-}) {
+}>) {
   const editing = channel !== null;
   const [kind, setKind] = useState<ChannelKind>((channel?.kind as ChannelKind) ?? 'SLACK');
   const [name, setName] = useState(channel?.name ?? '');
@@ -408,7 +408,7 @@ function ChannelForm({
 }
 
 /** A test outcome with its cause and what to do next — never just "failed". */
-export function TestOutcome({ result, kind }: { result: ChannelTestResultView; kind: string }) {
+export function TestOutcome({ result, kind }: Readonly<{ result: ChannelTestResultView; kind: string }>) {
   if (result.delivered) {
     return (
       <Alert color="gray" variant="light" title={`Test delivered in ${result.durationMs} ms`}>

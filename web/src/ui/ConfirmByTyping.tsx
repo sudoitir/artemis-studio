@@ -15,7 +15,7 @@ export function ConfirmByTyping({
   disabled,
   color = 'red',
   onConfirm,
-}: {
+}: Readonly<{
   token: string;
   label?: string;
   confirmLabel: string;
@@ -23,7 +23,7 @@ export function ConfirmByTyping({
   disabled?: boolean;
   color?: string;
   onConfirm: () => void;
-}) {
+}>) {
   const [typed, setTyped] = useState('');
   const armed = typed === token && !disabled;
 

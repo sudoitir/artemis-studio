@@ -68,7 +68,7 @@ const GROUPS: { kind: Finding['kind']; title: string; tone?: string }[] = [
   { kind: 'UNKNOWN', title: 'Could not be checked, so not counted as passing' },
 ];
 
-function Snippet({ snippet }: { snippet?: string | null }) {
+function Snippet({ snippet }: Readonly<{ snippet?: string | null }>) {
   if (!snippet) return null;
   return (
     <>
@@ -98,7 +98,7 @@ export function TransferDialog({
   opened,
   onClose,
   onStarted,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   node?: string;
@@ -108,7 +108,7 @@ export function TransferDialog({
   opened: boolean;
   onClose: () => void;
   onStarted: () => void;
-}) {
+}>) {
   const navigate = useNavigate();
   const { can, loading } = useCan();
   const clusters = useClusters();

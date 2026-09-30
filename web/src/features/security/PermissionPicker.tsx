@@ -77,11 +77,11 @@ export function PermissionPicker({
   catalogue,
   value,
   onChange,
-}: {
+}: Readonly<{
   catalogue: PermissionView[];
   value: string[];
   onChange: (next: string[]) => void;
-}) {
+}>) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');

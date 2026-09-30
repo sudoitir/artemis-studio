@@ -11,7 +11,10 @@ import { STUCK_STATES } from './rrState.ts';
  * the flow volume this screen deals with is small by construction (Phase 5
  * traces a handful of declared addresses, not a whole broker's traffic).
  */
-export function StuckPanel({ clusterId, onSelect }: { clusterId: string; onSelect: (flowId: string) => void }) {
+export function StuckPanel({
+  clusterId,
+  onSelect,
+}: Readonly<{ clusterId: string; onSelect: (flowId: string) => void }>) {
   const query = useRrFlows(clusterId, { size: 500 });
 
   if (query.isPending) {

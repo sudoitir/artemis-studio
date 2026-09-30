@@ -23,7 +23,7 @@ export function ConfirmAction({
   pending,
   error,
   onConfirm,
-}: {
+}: Readonly<{
   opened: boolean;
   onClose: () => void;
   title: string;
@@ -35,7 +35,7 @@ export function ConfirmAction({
   pending: boolean;
   error: ApiError | null;
   onConfirm: () => void;
-}) {
+}>) {
   const fresh = useFreshSignIn();
   const refusal =
     error && !needsReauthentication(error)

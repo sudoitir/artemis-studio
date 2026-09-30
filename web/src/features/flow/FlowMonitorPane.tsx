@@ -104,7 +104,7 @@ function nodeColumns(shape: Columns): GridColumn<NodeRow>[] {
   ];
 }
 
-function NodeTable({ label, rows, shape }: { label: string; rows: NodeRow[]; shape: Columns }) {
+function NodeTable({ label, rows, shape }: Readonly<{ label: string; rows: NodeRow[]; shape: Columns }>) {
   return (
     <VirtualTable
       label={label}
@@ -149,7 +149,7 @@ export function FlowMonitorPane({
   breakdownPending,
   onRangeChange,
   onClear,
-}: {
+}: Readonly<{
   clusterId: string;
   graph: FlowGraphView;
   nodeId: string | null;
@@ -158,7 +158,7 @@ export function FlowMonitorPane({
   breakdownPending: boolean;
   onRangeChange: (range: MetricRange) => void;
   onClear: () => void;
-}) {
+}>) {
   const panels = useSlot('flow.selection.panels');
   const node = nodeId ? (graph.nodes ?? []).find((n) => n.id === nodeId) : undefined;
 

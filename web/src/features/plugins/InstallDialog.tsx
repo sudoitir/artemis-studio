@@ -40,7 +40,7 @@ function sizeOf(file: File): string {
  * Progress — the activation as it runs. Nothing is installed before Confirm, and closing the
  * dialog at Progress does not stop anything.
  */
-export function InstallDialog({ source, onClose }: { source: Source | null; onClose: () => void }) {
+export function InstallDialog({ source, onClose }: Readonly<{ source: Source | null; onClose: () => void }>) {
   const [step, setStep] = useState(0);
   const [inspected, setInspected] = useState<PluginUploadView | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);

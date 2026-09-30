@@ -34,14 +34,14 @@ function LiveState({
   itemKey,
   queueKeys,
   catalogue,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   section: Section;
   itemKey: string;
   /** The queues declared on this address: their findings carry their own name, not this row's. */
   queueKeys?: string[];
   catalogue?: ConfigCatalogueView;
-}) {
+}>) {
   const { text, tone } = itemDriftWords(declaration, section, itemKey, queueKeys);
   const found = itemFindings(declaration, section, itemKey, queueKeys);
   return (
@@ -95,7 +95,7 @@ export function DeclaredTab({
   openSection,
   openItem,
   onEdit,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   catalogue: ConfigCatalogueView | undefined;
   canWrite: boolean;
@@ -106,7 +106,7 @@ export function DeclaredTab({
   openSection?: Section;
   openItem?: string;
   onEdit: (section?: Section, item?: string) => void;
-}) {
+}>) {
   const doc = declaration.document;
   const close = () => onEdit(undefined, undefined);
   /** The declared item the URL names, or null — which is the "new item" editor. */

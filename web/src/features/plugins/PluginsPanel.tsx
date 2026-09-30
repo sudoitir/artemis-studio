@@ -14,7 +14,7 @@ import { GUIDE_URL, STATUS, contributionSummary, needsAttention, tone } from './
 
 const TEMPLATE_URL = `${branding.projectUrl}/tree/main/examples/plugin-template`;
 
-function Mark({ plugin }: { plugin: PluginView }) {
+function Mark({ plugin }: Readonly<{ plugin: PluginView }>) {
   const [broken, setBroken] = useState(false);
   if (plugin.iconUrl && !broken) {
     // An <img>, never inline SVG: the server also sandboxes the icon (design.md §7).

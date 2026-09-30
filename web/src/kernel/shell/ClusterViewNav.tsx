@@ -14,7 +14,7 @@ import { NavItem } from './NavItem.tsx';
  * a missing entry would read as a product that cannot do it. Only rendered while a cluster is the
  * active route.
  */
-export function ClusterViewNav({ clusterId, collapsed }: { clusterId: string; collapsed: boolean }) {
+export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: string; collapsed: boolean }>) {
   const groups = navGroups(useFeatures());
   // While grants are still loading the entries are offered: refusing before the answer arrives
   // would claim something that has not been checked.

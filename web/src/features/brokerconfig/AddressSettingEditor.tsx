@@ -101,14 +101,14 @@ export function AddressSettingEditor({
   item,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   catalogue: ConfigCatalogueView;
   /** Null creates a new match. */
   item: ConfigAddressSettingView | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [match, setMatch] = useState(item?.match ?? '');
   const [values, setValues] = useState<Values>(toValues(item));
   const [touched, setTouched] = useState<Record<string, boolean>>({});

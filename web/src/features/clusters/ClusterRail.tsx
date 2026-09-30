@@ -20,7 +20,7 @@ import styles from './ClusterRail.module.css';
  * `--as-*` var (same exception `EnvironmentsPanel`'s `ColorSwatch` already
  * takes). Environment-less clusters render ungrouped, first.
  */
-export function ClusterRail({ collapsed }: { collapsed: boolean }) {
+export function ClusterRail({ collapsed }: Readonly<{ collapsed: boolean }>) {
   const clusters = useClusters();
   const environments = useEnvironments();
   // Choosing another cluster keeps the view (ADR-0109): comparing Queues on two clusters is two clicks.

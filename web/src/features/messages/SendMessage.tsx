@@ -14,13 +14,13 @@ export function SendMessage({
   node,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   node?: string;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const send = useSendMessage(clusterId, queueName);
   const [type, setType] = useState(3);
   const [durable, setDurable] = useState(true);

@@ -12,7 +12,7 @@ import styles from './ClusterHeader.module.css';
  * Above every view of a cluster (`cluster.header`): its identity, the health banner, and a notice
  * for a capability the connection lacks.
  */
-export function ClusterHeader({ clusterId }: { clusterId: string }) {
+export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   const { data, isPending, isError, error } = useCluster(clusterId);
   // The cluster's name, for the shell's title and breadcrumb (ADR-0109).
   useTitlePart('cluster', data?.name);

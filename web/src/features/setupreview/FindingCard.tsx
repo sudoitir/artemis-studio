@@ -20,13 +20,13 @@ export function FindingCard({
   canAccept,
   onAccept,
   announce,
-}: {
+}: Readonly<{
   finding: SetupFindingView;
   clusterId: string;
   canAccept: boolean;
   onAccept: () => void;
   announce: (message: string) => void;
-}) {
+}>) {
   const revoke = useRevokeRisk(clusterId);
   const accepted = f.acceptance?.active ? f.acceptance : null;
   const expired = f.acceptance && !f.acceptance.active ? f.acceptance : null;

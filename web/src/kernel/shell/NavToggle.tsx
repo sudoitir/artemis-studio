@@ -6,11 +6,11 @@ export function NavToggle({
   collapsed,
   onToggle,
   controls,
-}: {
+}: Readonly<{
   collapsed: boolean;
   onToggle: () => void;
   controls: string;
-}) {
+}>) {
   return (
     <Tooltip label={collapsed ? 'Expand sidebar (⌘B)' : 'Collapse sidebar (⌘B)'} position="right">
       <ActionIcon

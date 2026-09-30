@@ -14,11 +14,11 @@ import { formatCount, formatDuration, formatRate, trendPhrase, verdictCopy } fro
 export function QueueHealthPanel({
   clusterId,
   queueName,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   onClose: () => void;
-}) {
+}>) {
   const query = useQueueHealth(clusterId, queueName);
 
   if (query.isPending) {
@@ -89,7 +89,7 @@ export function QueueHealthPanel({
   );
 }
 
-function Figure({ label, value }: { label: string; value: string }) {
+function Figure({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <Stack gap={0}>
       <Text size="xs" c="dimmed">

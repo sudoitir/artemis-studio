@@ -206,7 +206,7 @@ export function VirtualTable<T>({
   rowMenu,
   compact,
   storageKey,
-}: VirtualTableProps<T>) {
+}: Readonly<VirtualTableProps<T>>) {
   const columnDefs: ColumnDef<Features, Row>[] = columns.map((c) => ({
     id: c.id,
     accessorFn: (row: Row) => c.accessor(row as T),

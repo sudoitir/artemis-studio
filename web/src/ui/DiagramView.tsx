@@ -392,7 +392,7 @@ export function DiagramView({
   onInsert,
   nodeActions,
   onNodeAction,
-}: DiagramViewProps) {
+}: Readonly<DiagramViewProps>) {
   const layout = useLayout(nodes, edges, direction);
   const vertical = direction === 'DOWN';
   const order = useMemo(

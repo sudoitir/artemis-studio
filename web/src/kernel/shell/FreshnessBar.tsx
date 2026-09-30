@@ -110,7 +110,7 @@ export function FreshnessBar() {
  * narrate over whatever the operator is actually doing. Only the state word goes
  * in, and only when it changes.
  */
-function StateAnnouncement({ state }: { state: FreshnessState }) {
+function StateAnnouncement({ state }: Readonly<{ state: FreshnessState }>) {
   const [message, setMessage] = useState('');
   const previous = useRef(state);
 

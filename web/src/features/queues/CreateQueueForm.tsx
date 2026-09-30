@@ -63,11 +63,11 @@ export function CreateQueueForm({
   clusterId,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);

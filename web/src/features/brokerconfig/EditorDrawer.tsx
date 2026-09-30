@@ -24,7 +24,7 @@ export function EditorDrawer({
   secondary,
   closeOnEscape = true,
   children,
-}: {
+}: Readonly<{
   opened: boolean;
   onClose: () => void;
   title: string;
@@ -42,7 +42,7 @@ export function EditorDrawer({
    */
   closeOnEscape?: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <Drawer
       opened={opened}

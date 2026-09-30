@@ -60,13 +60,13 @@ export function PluginDrawer({
   cannotInstall,
   onClose,
   onUpdate,
-}: {
+}: Readonly<{
   plugin: PluginView | undefined;
   canInstall: boolean;
   cannotInstall?: string;
   onClose: () => void;
   onUpdate: (id: string) => void;
-}) {
+}>) {
   const [tab, setTab] = useState<string | null>('overview');
   const [pending, setPending] = useState<Pending>(null);
   const [cascade, setCascade] = useState(false);

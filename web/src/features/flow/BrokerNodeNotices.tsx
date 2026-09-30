@@ -15,7 +15,7 @@ const TITLES: Record<string, string> = {
  * Per-node reasons data is missing, stated where the data would be (spec: unreachable is not empty).
  * A truncated sample says how much of the node was read, so a partial answer never reads as whole.
  */
-export function BrokerNodeNotices({ nodes }: { nodes: FlowBrokerNodeView[] }) {
+export function BrokerNodeNotices({ nodes }: Readonly<{ nodes: FlowBrokerNodeView[] }>) {
   const troubled = nodes.filter((n) => n.state !== 'OK');
   const truncated = nodes.filter((n) => n.state === 'OK' && n.truncated);
   if (troubled.length === 0 && truncated.length === 0) return null;

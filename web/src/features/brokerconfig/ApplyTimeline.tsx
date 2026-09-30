@@ -22,7 +22,7 @@ const PHASE: Record<ApplyProgress['phase'], { text: string; tone?: 'warning' | '
  * Advisory. The POST's response replaces this with the real per-node result, so
  * nothing here is ever the last word on what happened.
  */
-export function ApplyTimeline({ progress }: { progress: ApplyProgress[] }) {
+export function ApplyTimeline({ progress }: Readonly<{ progress: ApplyProgress[] }>) {
   if (progress.length === 0) {
     return (
       <Text size="sm" aria-live="polite">

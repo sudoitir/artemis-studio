@@ -13,7 +13,7 @@ import { FeatureDisabled } from './FeatureDisabled.tsx';
  * every request would fail as not found. If the manifest cannot be read the view renders: the
  * server still refuses a disabled feature's calls, so nothing is exposed by trying.
  */
-export function FeatureGate({ feature, children }: { feature: ModuleId; children: ReactNode }) {
+export function FeatureGate({ feature, children }: Readonly<{ feature: ModuleId; children: ReactNode }>) {
   const manifest = useManifest();
   const { clusterId } = useParams({ strict: false }) as { clusterId?: string };
 

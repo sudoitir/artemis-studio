@@ -133,7 +133,7 @@ export function QueryEditor({
   queues,
   label = 'Query',
   errorToken = null,
-}: {
+}: Readonly<{
   value: string;
   onChange: (next: string) => void;
   onRun: () => void;
@@ -142,7 +142,7 @@ export function QueryEditor({
   label?: string;
   /** The token a refusal is about, underlined in place. Null clears the mark. */
   errorToken?: string | null;
-}) {
+}>) {
   const labelId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);

@@ -26,7 +26,7 @@ import { ExpectationStatus } from './TracingDiagnostics.tsx';
  * actually being browsed this minute. A pattern matching nothing yet is normal — the
  * responder has not started — so it reads as a state, not an error.
  */
-function ReplyAddressesCell({ expectation: e }: { expectation: ExpectationView }) {
+function ReplyAddressesCell({ expectation: e }: Readonly<{ expectation: ExpectationView }>) {
   if (e.replyAddresses.length === 0) {
     return (
       <Text size="sm" c="dimmed">
@@ -57,7 +57,7 @@ function ReplyAddressesCell({ expectation: e }: { expectation: ExpectationView }
 }
 
 /** Which request addresses are traced, and how (request-reply-tracing spec). */
-export function ExpectationsView({ clusterId }: { clusterId: string }) {
+export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>) {
   const expectations = useRrExpectations(clusterId);
   // What the sampler actually did, so "tracing is on" and "tracing is working" stop
   // looking the same on this screen.

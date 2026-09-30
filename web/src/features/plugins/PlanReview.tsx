@@ -6,7 +6,7 @@ import type { PluginPlanView, PluginViolationView } from './api.ts';
 import styles from './Plugins.module.css';
 import { count, downtime } from './words.ts';
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
     <Stack gap={4}>
       <Title order={4} fz="sm">
@@ -21,7 +21,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * "What this plugin will be able to do" (design.md §8): every capability as a sentence, what an
  * update adds or takes away, and what confirming will interrupt — all before anything is armed.
  */
-export function PlanReview({ plan, warnings = [] }: { plan: PluginPlanView; warnings?: PluginViolationView[] }) {
+export function PlanReview({
+  plan,
+  warnings = [],
+}: Readonly<{ plan: PluginPlanView; warnings?: PluginViolationView[] }>) {
   const info = plan.info;
   const c = info.contributions;
   const d = plan.diff;

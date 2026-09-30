@@ -313,7 +313,7 @@ const CONFIG: {
 };
 
 /** The remaining five cross-node views, all from one column-spec-driven grid (ADR-0017). */
-export function ResourceView({ kind }: { kind: Kind }) {
+export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
   // `/` focuses this view's filter (ADR-0109).
   const filterRef = useRef<HTMLInputElement>(null);
   useFilterShortcut(filterRef);

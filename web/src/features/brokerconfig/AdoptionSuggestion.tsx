@@ -23,12 +23,12 @@ export function AdoptionSuggestion({
   onAdopt,
   canWrite,
   blockedReason,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   onAdopt: () => void;
   canWrite: boolean;
   blockedReason?: string;
-}) {
+}>) {
   const adopt = useAdoptBrokerConfig(declaration.clusterId);
   const live = declaration.nodes.filter((n) => n.live);
 

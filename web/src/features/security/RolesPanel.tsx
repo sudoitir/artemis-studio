@@ -177,7 +177,11 @@ export function RolesPanel() {
   );
 }
 
-function CompareRolesModal({ opened, onClose, roles }: { opened: boolean; onClose: () => void; roles: RoleView[] }) {
+function CompareRolesModal({
+  opened,
+  onClose,
+  roles,
+}: Readonly<{ opened: boolean; onClose: () => void; roles: RoleView[] }>) {
   const [a, setA] = useState<string | null>(null);
   const [b, setB] = useState<string | null>(null);
   const options = roles.map((r) => ({ value: r.id, label: r.name }));

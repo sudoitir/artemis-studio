@@ -591,7 +591,7 @@ export function SqlConsoleView() {
 }
 
 /** A failure states its cause and what to do next. "Something went wrong" is not shippable. */
-function QueryFailure({ error }: { error: ApiError }) {
+function QueryFailure({ error }: Readonly<{ error: ApiError }>) {
   const estimate = typeof error.problem.estimate === 'number' ? error.problem.estimate : undefined;
   const ceiling = typeof error.problem.ceiling === 'number' ? error.problem.ceiling : undefined;
   const hint = typeof error.problem.hint === 'string' ? error.problem.hint : undefined;
@@ -622,7 +622,7 @@ function QueryFailure({ error }: { error: ApiError }) {
  * and four of them are not "the queue is empty" — presenting an absence as a fact
  * is the failure this whole screen exists to avoid.
  */
-function EmptyResult({ result, tailing }: { result: SqlResultView; tailing: boolean }) {
+function EmptyResult({ result, tailing }: Readonly<{ result: SqlResultView; tailing: boolean }>) {
   const nodes = result.nodes ?? [];
   const unread = nodes.filter((n) => n.status !== 'ANSWERED');
   const noQueue = (result.plan?.targets ?? []).length === 0;

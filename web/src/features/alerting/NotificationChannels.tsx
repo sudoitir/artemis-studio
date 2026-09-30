@@ -223,11 +223,11 @@ function DeleteChannel({
   channel,
   onClose,
   announce,
-}: {
+}: Readonly<{
   channel: NotificationChannelView | null;
   onClose: () => void;
   announce: (message: string) => void;
-}) {
+}>) {
   const remove = useDeleteNotificationChannel();
   const [error, setError] = useState<string | null>(null);
   const bound = channel?.boundRuleCount ?? 0;

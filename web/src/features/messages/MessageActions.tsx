@@ -23,13 +23,13 @@ export function MessageActions({
   node,
   selected,
   onCleared,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   node?: string;
   selected: ReadonlySet<string>;
   onCleared: () => void;
-}) {
+}>) {
   const run = useMessageAction(clusterId, queueName);
   const [confirm, setConfirm] = useState<MessageActionKind | null>(null);
   const [target, setTarget] = useState('');

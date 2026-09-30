@@ -22,13 +22,13 @@ export function ResourceActions<K extends ActionKind>({
   target,
   mode = 'act',
   restoreFocus,
-}: {
+}: Readonly<{
   kind: K;
   clusterId: string;
   target: ActionTargets[K];
   mode?: ActionMode;
   restoreFocus?: () => void;
-}) {
+}>) {
   const contributions = useSlot(`${kind}.actions` as ActionSlot<K>);
   const base = useActionHost();
   const host = useMemo<ActionHost>(

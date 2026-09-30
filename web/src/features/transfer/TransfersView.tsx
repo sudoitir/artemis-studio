@@ -19,7 +19,7 @@ import { MODE, plural, stateWords, toneColor } from './words.ts';
  * It is never cleaned up behind the operator's back — each one is listed with its depth and a
  * return action that names the queue the messages go back to.
  */
-function Orphans({ clusterId }: { clusterId: string }) {
+function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   const query = useOrphans(clusterId);
   const returnOrphan = useReturnOrphan(clusterId);
   const { can, loading } = useCan();

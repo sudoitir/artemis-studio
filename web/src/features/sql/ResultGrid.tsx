@@ -140,7 +140,7 @@ export function ResultGrid({
   freshKeys,
   columnIds,
   onAtTopChange,
-}: {
+}: Readonly<{
   clusterId: string;
   rows: SqlRowView[];
   onOpen: (row: SqlRowView) => void;
@@ -150,7 +150,7 @@ export function ResultGrid({
   /** The columns to show, in the order to show them. Defaults to all of them. */
   columnIds?: readonly string[];
   onAtTopChange?: (atTop: boolean) => void;
-}) {
+}>) {
   const columns = useMemo(() => {
     const all = columnsFor(clusterId);
     if (!columnIds) return all;

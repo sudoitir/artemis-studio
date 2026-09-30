@@ -23,7 +23,7 @@ function ruleCondition(rule: AlertRuleView): string {
 }
 
 /** Rule CRUD — thresholds and cluster-state conditions share one form and table (alerting spec). */
-export function RulesPanel({ clusterId }: { clusterId: string }) {
+export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   const rules = useAlertRules(clusterId);
   const channels = useNotificationChannels();
   const pluginMetrics = usePluginMetrics(clusterId);

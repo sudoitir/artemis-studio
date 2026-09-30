@@ -27,14 +27,14 @@ export function AddressEditor({
   prefill,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   item: ConfigAddressView | null;
   /** What a new address opens with — the routing builder's "Add queue" opens one with a queue to name. */
   prefill?: Partial<ConfigAddressView>;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [name, setName] = useState(item?.name ?? '');
   const [routingTypes, setRoutingTypes] = useState<RoutingType[]>(item?.routingTypes ?? ['ANYCAST']);
   const [queues, setQueues] = useState<ConfigQueueView[]>(item?.queues ?? []);

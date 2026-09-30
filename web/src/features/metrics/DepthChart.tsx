@@ -33,14 +33,14 @@ export function DepthChart({
   to,
   syncId,
   total = false,
-}: {
+}: Readonly<{
   series: MetricSeries | undefined;
   range: MetricRange;
   from: number;
   to: number;
   syncId: string;
   total?: boolean;
-}) {
+}>) {
   // Axis ticks and tooltips are formatted in the display zone (`app/timezone.ts`).
   useDisplayZone();
   const data = mergeByTimestamp([

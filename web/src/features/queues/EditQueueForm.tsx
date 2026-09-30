@@ -54,12 +54,12 @@ export function EditQueueForm({
   queue,
   opened,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queue: QueueView;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [filter, setFilter] = useState('');
   const [maxConsumers, setMaxConsumers] = useState<number | ''>('');
   const [purgeOnNoConsumers, setPurge] = useState(false);

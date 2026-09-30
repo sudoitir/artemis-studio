@@ -13,7 +13,7 @@ type WithheldView = components['schemas']['WithheldView'];
  * One timeline event's detail. A captured payload is shown as the governed preview with its marks, or as the
  * reason it was omitted; any other detail is shown as it came.
  */
-function EventDetail({ detail }: { detail: Record<string, unknown> }) {
+function EventDetail({ detail }: Readonly<{ detail: Record<string, unknown> }>) {
   if (typeof detail.payloadOmitted === 'string') {
     return (
       <Text size="xs" c="dimmed">
@@ -48,11 +48,11 @@ export function FlowDetail({
   clusterId,
   flowId,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   flowId: string | null;
   onClose: () => void;
-}) {
+}>) {
   const detail = useRrFlow(clusterId, flowId ?? undefined);
   const f = detail.data;
 

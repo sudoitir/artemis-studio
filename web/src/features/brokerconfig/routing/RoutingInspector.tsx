@@ -46,12 +46,12 @@ export function RoutingInspector({
   node,
   writeGate,
   onEdit,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   node: RoutingNodeView | null;
   writeGate: GateVerdict;
   onEdit: (section: string, item: string) => void;
-}) {
+}>) {
   const { save, isPending } = useSaveDocument(declaration, () => {});
 
   if (!node) {

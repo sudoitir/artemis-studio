@@ -21,11 +21,11 @@ export function ResultMetaBar({
   result,
   rowCount,
   verdict,
-}: {
+}: Readonly<{
   result: SqlResultView;
   rowCount: number;
   verdict: { text: string; tone?: 'warning' | 'danger' };
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const bounds = result.boundsReached ?? [];
   const notices = result.notices ?? [];

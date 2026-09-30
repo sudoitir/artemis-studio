@@ -70,10 +70,10 @@ function diffDocuments(a: ConfigDocumentView, b: ConfigDocumentView, catalogue?:
 export function HistoryTab({
   declaration,
   catalogue,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   catalogue?: ConfigCatalogueView;
-}) {
+}>) {
   useDisplayZone();
   const revisions = useBrokerConfigRevisions(declaration.clusterId);
   const applies = useBrokerConfigApplies(declaration.clusterId);

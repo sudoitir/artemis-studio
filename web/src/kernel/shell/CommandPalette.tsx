@@ -22,14 +22,14 @@ function Source({
   query,
   opened,
   onReport,
-}: {
+}: Readonly<{
   feature: ModuleId;
   Palette: PaletteSource;
   clusterId?: string;
   query: string;
   opened: boolean;
   onReport: Report;
-}) {
+}>) {
   const report = useCallback((groups: SpotlightActionGroupData[]) => onReport(feature, groups), [feature, onReport]);
   return <Palette clusterId={clusterId} query={query} opened={opened} report={report} />;
 }

@@ -68,7 +68,7 @@ export function CodeEditor({
   minHeight = 240,
   maxHeight,
   lineWrapping = false,
-}: CodeEditorProps) {
+}: Readonly<CodeEditorProps>) {
   const labelId = useId();
   const hintId = useId();
   const host = useRef<HTMLDivElement>(null);

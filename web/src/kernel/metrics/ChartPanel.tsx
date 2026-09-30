@@ -27,7 +27,7 @@ export function ChartPanel({
   emptyLabel,
   note,
   children,
-}: {
+}: Readonly<{
   title: string;
   unit: string;
   isPending: boolean;
@@ -38,7 +38,7 @@ export function ChartPanel({
   /** A coverage caveat that belongs beside the title, not inside a tooltip. */
   note?: React.ReactNode;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <Card withBorder padding="md" radius="md">
       <Stack gap="xs">

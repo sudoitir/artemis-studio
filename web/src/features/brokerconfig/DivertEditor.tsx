@@ -34,13 +34,13 @@ export function DivertEditor({
   prefill,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   item: ConfigDivertView | null;
   prefill?: DivertPrefill;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [name, setName] = useState(item?.name ?? '');
   const [address, setAddress] = useState(item?.address ?? '');
   const [forwardingAddress, setForwardingAddress] = useState(item?.forwardingAddress ?? '');

@@ -38,7 +38,7 @@ export const DRIFT_SENTENCE =
   'add it there. Nothing removes it for you — deleting it here is what takes it away.';
 
 /** The broker.xml that closes the gap, copyable in one action. */
-export function BrokerXmlRemedy({ xml }: { xml: string }) {
+export function BrokerXmlRemedy({ xml }: Readonly<{ xml: string }>) {
   return (
     <Stack gap={4}>
       <Group justify="space-between" align="center">
@@ -98,7 +98,7 @@ function serverFieldFor(field: string): DivertField | null {
  * While a preview is shown the form is read-only: what is created is exactly what
  * was previewed, and changing it means going back to edit and previewing again.
  */
-export function CreateDivertAction({ clusterId }: { clusterId: string }) {
+export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }>) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const write = cluster.data?.capabilities.managementWrite;
@@ -303,7 +303,7 @@ export function CreateDivertAction({ clusterId }: { clusterId: string }) {
  * its next pass, so the deletion would appear to succeed and then silently undo
  * itself; the operator is sent to the capture subscription that owns it instead.
  */
-export function DeleteDivertAction({ clusterId, divert }: { clusterId: string; divert: DivertView }) {
+export function DeleteDivertAction({ clusterId, divert }: Readonly<{ clusterId: string; divert: DivertView }>) {
   const gate = useDivertWriteGate(clusterId);
   const host = useActionHost();
 

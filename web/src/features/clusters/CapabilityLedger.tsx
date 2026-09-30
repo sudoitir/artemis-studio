@@ -44,11 +44,11 @@ const ORDER: Key[] = ['managementRead', 'managementWrite', 'notifications', 'mes
 export function CapabilityLedger({
   capabilities,
   clusterId,
-}: {
+}: Readonly<{
   capabilities: CapabilitiesView;
   /** When the cluster is registered, snippets that are declarable link into its configuration. */
   clusterId?: string;
-}) {
+}>) {
   const [open, setOpen] = useState<Key | null>(null);
 
   return (

@@ -51,7 +51,7 @@ function Explanation({
  * for its exit transition, then removed, and focus goes back to what opened it — unless the dialog
  * navigated away, where moving focus would be a jump the operator did not ask for.
  */
-export function ActionHostProvider({ children }: { children: ReactNode }) {
+export function ActionHostProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const nextId = useRef(1);
   const entriesRef = useRef(entries);

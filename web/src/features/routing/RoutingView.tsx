@@ -21,7 +21,7 @@ type Tab = 'diverts' | 'bridges';
  * A Studio-created divert's ownership, as a control rather than a hover title: it opens the
  * broker.xml that would make the deployed configuration carry it, reachable from the keyboard.
  */
-function StudioOwned({ divert }: { divert: DivertView }) {
+function StudioOwned({ divert }: Readonly<{ divert: DivertView }>) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -46,7 +46,7 @@ function StudioOwned({ divert }: { divert: DivertView }) {
  * work the routing spec says an operator should not have to do. The accessible
  * name spells the relationship out, because the arrow is a glyph.
  */
-function Direction({ from, to }: { from: string; to: string }) {
+function Direction({ from, to }: Readonly<{ from: string; to: string }>) {
   return (
     <div className={classes.direction} aria-label={`from ${from} to ${to}`}>
       <Text size="xs" className={classes.endpoint} title={from}>
@@ -242,7 +242,11 @@ export function RoutingView() {
 }
 
 /** The Diverts or the Bridges tab: one live, filtered, paged listing. */
-function RoutingListing({ clusterId, tab, hasBuilder }: { clusterId: string; tab: Tab; hasBuilder: boolean }) {
+function RoutingListing({
+  clusterId,
+  tab,
+  hasBuilder,
+}: Readonly<{ clusterId: string; tab: Tab; hasBuilder: boolean }>) {
   // `/` focuses this view's filter (ADR-0109).
   const filterRef = useRef<HTMLInputElement>(null);
   useFilterShortcut(filterRef);

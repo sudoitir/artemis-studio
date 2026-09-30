@@ -54,7 +54,7 @@ export function AddressPicker({
   inputRef,
   error,
   onBlur,
-}: AddressPickerProps) {
+}: Readonly<AddressPickerProps>) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const [types, setTypes] = useState<RoutingType[]>([]);
   const [debounced] = useDebouncedValue(value, 200);

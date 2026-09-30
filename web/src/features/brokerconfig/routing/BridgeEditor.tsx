@@ -76,13 +76,13 @@ export function BridgeEditor({
   prefill,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   item: ConfigBridgeView | null;
   prefill?: BridgePrefill;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [name, setName] = useState('');
   const [queueName, setQueueName] = useState('');
   const [forwardingAddress, setForwardingAddress] = useState('');

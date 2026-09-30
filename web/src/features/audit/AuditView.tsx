@@ -103,7 +103,7 @@ const columns: GridColumn<AuditEventView>[] = [
   },
 ];
 
-function CopyAuditLink({ clusterId, id }: { clusterId: string; id: number }) {
+function CopyAuditLink({ clusterId, id }: Readonly<{ clusterId: string; id: number }>) {
   const host = useActionHost();
   return (
     <ActionMenuItem

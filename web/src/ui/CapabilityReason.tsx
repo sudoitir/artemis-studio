@@ -9,12 +9,12 @@ export function CapabilityReason({
   reason,
   snippet,
   size = 'xs',
-}: {
+}: Readonly<{
   reason: string;
   snippet?: string | null;
   /** `xs` in a popover; `sm` where the explanation is the whole dialog. */
   size?: 'xs' | 'sm';
-}) {
+}>) {
   return (
     <Stack gap="xs">
       <Text size={size}>{reason}</Text>

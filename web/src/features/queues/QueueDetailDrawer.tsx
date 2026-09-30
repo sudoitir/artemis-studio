@@ -9,7 +9,7 @@ import { QueueLifecycleActions } from './QueueLifecycleActions.tsx';
  * Per-node breakdown for one queue row, its lifecycle actions, a jump into the message browser,
  * and whatever the enabled features add below (`queue.detail.panels`), such as its recent history.
  */
-export function QueueDetailDrawer({ queue, onClose }: { queue: QueueView | null; onClose: () => void }) {
+export function QueueDetailDrawer({ queue, onClose }: Readonly<{ queue: QueueView | null; onClose: () => void }>) {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const panels = useSlot('queue.detail.panels');
 

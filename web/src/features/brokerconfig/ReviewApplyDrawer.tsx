@@ -63,12 +63,12 @@ export function ReviewApplyDrawer({
   scope,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   scope: ApplyScope | null;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const clusterId = declaration.clusterId;
   const cluster = useCluster(clusterId);
   const { can, loading } = useCan();

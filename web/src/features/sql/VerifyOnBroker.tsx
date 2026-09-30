@@ -17,7 +17,7 @@ import { useVerifyOnBroker, type SqlRowView } from './api.ts';
  * given, never hidden: a missing button would teach the operator that the product
  * cannot verify captured rows at all.
  */
-export function VerifyOnBroker({ clusterId, row }: { clusterId: string; row: SqlRowView }) {
+export function VerifyOnBroker({ clusterId, row }: Readonly<{ clusterId: string; row: SqlRowView }>) {
   const verify = useVerifyOnBroker(clusterId);
   const verdict = verify.data;
   const unverifiable = row.origin === 'CAPTURED' && row.sourceMessageId == null;

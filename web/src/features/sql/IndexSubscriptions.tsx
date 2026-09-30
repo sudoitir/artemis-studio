@@ -55,7 +55,7 @@ function when(iso?: string | null): string {
  * before agreeing to it. Not documentation: this is the last screen before Studio
  * starts mutating broker routing on a schedule, so the whole blast radius is here.
  */
-function CaptureBlastRadius({ pattern, retentionDays }: { pattern: string; retentionDays: number }) {
+function CaptureBlastRadius({ pattern, retentionDays }: Readonly<{ pattern: string; retentionDays: number }>) {
   const target = pattern.trim() || 'these queues';
   return (
     <Alert color="yellow" variant="light" title="This changes routing on every live node">
@@ -89,7 +89,7 @@ function CaptureBlastRadius({ pattern, retentionDays }: { pattern: string; reten
 }
 
 /** Capture state on one node, in words. Colour is redundant emphasis, never the carrier. */
-function CaptureNodes({ subscription }: { subscription: SqlIndexSubscriptionView }) {
+function CaptureNodes({ subscription }: Readonly<{ subscription: SqlIndexSubscriptionView }>) {
   const nodes = subscription.nodes ?? [];
   if (subscription.mode !== 'CAPTURE') return null;
   if (nodes.length === 0) {
@@ -169,7 +169,7 @@ function rangeError(limit: Limit, value: number | string): string | null {
 }
 
 /** What capture would do, from the server's dry run — the same objects it will create. */
-function CapturePreview({ preview }: { preview: SqlCapturePreviewView }) {
+function CapturePreview({ preview }: Readonly<{ preview: SqlCapturePreviewView }>) {
   if (preview.refusal) {
     return (
       <Alert color="red" variant="light" role="alert" title="Capture would be refused">
@@ -226,11 +226,11 @@ function CreateSubscription({
   clusterId,
   canWrite,
   canCapture,
-}: {
+}: Readonly<{
   clusterId: string;
   canWrite: boolean;
   canCapture: boolean;
-}) {
+}>) {
   const create = useCreateIndexSubscription(clusterId);
   const previewCapture = usePreviewIndexSubscription(clusterId);
   const [pattern, setPattern] = useState('');
@@ -461,11 +461,11 @@ function SubscriptionRow({
   clusterId,
   subscription,
   canWrite,
-}: {
+}: Readonly<{
   clusterId: string;
   subscription: SqlIndexSubscriptionView;
   canWrite: boolean;
-}) {
+}>) {
   const update = useUpdateIndexSubscription(clusterId);
   const remove = useDeleteIndexSubscription(clusterId);
   const [confirming, setConfirming] = useState(false);

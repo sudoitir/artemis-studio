@@ -11,7 +11,7 @@ import { useFreshSignIn } from './freshSignIn.ts';
  * signing in again at its identity provider, which brings the operator back to `returnTo`.
  * Renders nothing once the session is fresh.
  */
-export function StepUp({ returnTo }: { returnTo: string }) {
+export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   const me = useMe();
   const fresh = useFreshSignIn();
   const reauthenticate = useReauthenticate();

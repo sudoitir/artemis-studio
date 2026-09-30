@@ -40,11 +40,11 @@ function PropertyTable({
   title,
   entries,
   redactions,
-}: {
+}: Readonly<{
   title: string;
   entries: [string, unknown][];
   redactions: Redactions;
-}) {
+}>) {
   if (entries.length === 0) return null;
   return (
     <Stack gap={4}>
@@ -85,7 +85,7 @@ function MessageBody({
   messageId,
   redactions,
   withheld,
-}: {
+}: Readonly<{
   body: string | null;
   bodyEncoding: string;
   contentType?: string | null;
@@ -94,7 +94,7 @@ function MessageBody({
   messageId: number;
   redactions: Redactions;
   withheld: MessageDetailView['withheld'];
-}) {
+}>) {
   const bodyRedactions = redactionsAt(redactions, 'BODY');
   const masked = bodyRedactions.some((r) => !r.clear);
   const [view, setView] = useState<'formatted' | 'raw'>('formatted');
@@ -197,14 +197,14 @@ export function MessageDetailPanel({
   node,
   filter,
   onClose,
-}: {
+}: Readonly<{
   clusterId: string;
   queueName: string;
   messageId: string | null;
   node?: string;
   filter?: string;
   onClose: () => void;
-}) {
+}>) {
   const detail = useMessageDetail(clusterId, queueName, messageId, node, filter);
   const m = detail.data;
   // Absolute timestamps here read the display zone from module state, so this

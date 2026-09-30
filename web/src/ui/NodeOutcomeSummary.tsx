@@ -25,7 +25,7 @@ export function NodeOutcomeSummary({
   countNoun = 'message',
   verbFuture = 'would destroy',
   verbPast = 'destroyed',
-}: {
+}: Readonly<{
   outcome: LifecycleOutcomeView;
   /** A destroy shows the message counts; a pause has none worth a column. */
   destructive?: boolean;
@@ -43,7 +43,7 @@ export function NodeOutcomeSummary({
   countNoun?: string;
   verbFuture?: string;
   verbPast?: string;
-}) {
+}>) {
   const verdict = verdictFor(outcome);
 
   return (
@@ -97,12 +97,12 @@ export function OutcomeSummary({
   verdictTone,
   total,
   rows,
-}: {
+}: Readonly<{
   verdict: string;
   verdictTone?: 'warning' | 'danger';
   total?: string;
   rows: OutcomeRow[];
-}) {
+}>) {
   return (
     // A live region, so a screen reader hears what a destructive command did without hunting for it.
     <div className={classes.summary} role="status" aria-live="polite">

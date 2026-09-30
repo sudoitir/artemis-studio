@@ -9,7 +9,7 @@ import type { KeyHelp } from './keyHelp.ts';
  * hover-only, because a disabled or focused input cannot host a tooltip and an
  * operator on a keyboard must be able to reach the explanation (operator-ui).
  */
-export function KeyHint({ name, help }: { name: string; help: KeyHelp }) {
+export function KeyHint({ name, help }: Readonly<{ name: string; help: KeyHelp }>) {
   return (
     <Popover width={360} position="bottom-start" withArrow shadow="md">
       <Popover.Target>

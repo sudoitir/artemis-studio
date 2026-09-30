@@ -14,12 +14,12 @@ export function DeliveryLog({
   onClose,
   canWrite,
   announce,
-}: {
+}: Readonly<{
   channel: NotificationChannelView | null;
   onClose: () => void;
   canWrite: boolean;
   announce: (message: string) => void;
-}) {
+}>) {
   const deliveries = useChannelDeliveries(channel?.id ?? null);
   const retry = useRetryDelivery(channel?.id ?? '');
 

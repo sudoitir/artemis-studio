@@ -28,7 +28,7 @@ export function TransferActions({
   selection,
   total,
   clear,
-}: SlotProps['messages.selection']) {
+}: Readonly<SlotProps['messages.selection']>) {
   const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const [opened, setOpened] = useState<'transfer' | 'redistribute' | null>(null);

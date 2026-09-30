@@ -12,7 +12,7 @@ interface Tile {
 }
 
 /** The cluster's current totals, leading the view (metrics spec: a view leads with the current values). */
-export function FlowKpis({ kpis }: { kpis: Kpis }) {
+export function FlowKpis({ kpis }: Readonly<{ kpis: Kpis }>) {
   const faults = kpis.faults ?? 0;
   const tiles: Tile[] = [
     { label: 'Messages in', value: totalRateLabel(kpis.inRate) },

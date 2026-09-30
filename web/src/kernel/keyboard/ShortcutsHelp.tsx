@@ -12,7 +12,7 @@ interface Row {
   what: string;
 }
 
-function Keys({ keys }: { keys: string[][] }) {
+function Keys({ keys }: Readonly<{ keys: string[][] }>) {
   return (
     <Group gap={6} wrap="nowrap">
       {keys.map((combo, i) => (
@@ -35,7 +35,7 @@ function Keys({ keys }: { keys: string[][] }) {
   );
 }
 
-function Section({ title, rows }: { title: string; rows: Row[] }) {
+function Section({ title, rows }: Readonly<{ title: string; rows: Row[] }>) {
   if (rows.length === 0) return null;
   return (
     <Stack gap={4}>

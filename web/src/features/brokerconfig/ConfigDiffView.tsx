@@ -33,7 +33,7 @@ function classificationBadge(entry: ConfigEntryView) {
   ) : null;
 }
 
-function SectionTable({ entries }: { entries: ConfigEntryView[] }) {
+function SectionTable({ entries }: Readonly<{ entries: ConfigEntryView[] }>) {
   if (entries.length === 0) {
     return (
       <Text size="sm" c="dimmed">

@@ -15,7 +15,10 @@ function ago(iso: string | null | undefined, now: number): string {
  * The interesting states are all "Studio looked and found nothing" versus "Studio
  * never looked", which the flows list alone cannot distinguish.
  */
-export function ExpectationStatus({ status, now }: { status: ExpectationDiagnosticsView | undefined; now: number }) {
+export function ExpectationStatus({
+  status,
+  now,
+}: Readonly<{ status: ExpectationDiagnosticsView | undefined; now: number }>) {
   if (!status) {
     return (
       <Text size="xs" c="dimmed">
@@ -58,7 +61,7 @@ export function ExpectationStatus({ status, now }: { status: ExpectationDiagnost
  * situations with three different answers. This shows what the sampler actually
  * did and the reasons ranked most-likely-first, each with its remedy.
  */
-export function TracingDiagnostics({ clusterId }: { clusterId: string }) {
+export function TracingDiagnostics({ clusterId }: Readonly<{ clusterId: string }>) {
   const diagnostics = useRrDiagnostics(clusterId);
   const now = useServerNow();
 

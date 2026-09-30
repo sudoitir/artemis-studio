@@ -12,14 +12,14 @@ export function FeatureDisabled({
   title,
   property,
   clusterId,
-}: {
+}: Readonly<{
   /** The feature's title, as the manifest names it. */
   title: string;
   /** The startup property that enables it, as the manifest names it. */
   property: string;
   /** The cluster the address belongs to, when it is a cluster view. */
   clusterId?: string;
-}) {
+}>) {
   return (
     <Stack gap="sm" maw={560}>
       <Title order={2} fz="h3">

@@ -103,7 +103,7 @@ const columns: GridColumn<BrokerEventView>[] = [
   { id: 'remote', header: 'Remote', accessor: (e) => e.remoteAddress ?? '—', width: 180 },
 ];
 
-function CopyEventLink({ clusterId, seq }: { clusterId: string; seq: number }) {
+function CopyEventLink({ clusterId, seq }: Readonly<{ clusterId: string; seq: number }>) {
   const host = useActionHost();
   return (
     <ActionMenuItem

@@ -14,11 +14,11 @@ export function RestartControl({
   restart,
   reasons,
   canAct,
-}: {
+}: Readonly<{
   restart: StudioRestartView;
   reasons: string[];
   canAct: boolean;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const request = useRestartStudio();
   const fresh = useFreshSignIn();

@@ -170,13 +170,13 @@ export function FlowCanvas({
   selectedId,
   onSelect,
   paused,
-}: {
+}: Readonly<{
   clusterId: string;
   graph: FlowGraphView;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   paused: boolean;
-}) {
+}>) {
   const layout = useFlowLayout(graph);
   const wrapper = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();

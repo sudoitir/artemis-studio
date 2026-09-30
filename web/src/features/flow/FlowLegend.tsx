@@ -14,7 +14,7 @@ const REFERENCE_RATES = [
 ];
 
 /** Every mark and line the canvas can draw, docked under it rather than floating over nodes. */
-export function FlowLegend({ motion }: { motion: 'running' | 'paused' | 'off' }) {
+export function FlowLegend({ motion }: Readonly<{ motion: 'running' | 'paused' | 'off' }>) {
   return (
     <div className={classes.legend} aria-label="Legend">
       <span className={classes.legendItem}>

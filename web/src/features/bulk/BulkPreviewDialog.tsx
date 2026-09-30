@@ -71,14 +71,14 @@ export function BulkPreviewDialog({
   opened,
   onClose,
   onStarted,
-}: {
+}: Readonly<{
   clusterId: string;
   operation: BulkOperation;
   selection: QueueSelection;
   opened: boolean;
   onClose: () => void;
   onStarted: () => void;
-}) {
+}>) {
   const op = OPERATIONS[operation];
   const navigate = useNavigate();
   const preview = useBulkPreview(clusterId);

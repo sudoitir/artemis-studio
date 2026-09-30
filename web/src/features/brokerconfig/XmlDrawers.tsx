@@ -53,7 +53,7 @@ function sectionCounts(current: ConfigDocumentView, next: ConfigDocumentView) {
   ];
 }
 
-export function CountsList({ current, next }: { current: ConfigDocumentView; next: ConfigDocumentView }) {
+export function CountsList({ current, next }: Readonly<{ current: ConfigDocumentView; next: ConfigDocumentView }>) {
   return (
     <List size="xs" spacing={2}>
       {sectionCounts(current, next).map((c) => (
@@ -79,7 +79,7 @@ export function ImportXmlDrawer({
   onClose,
   initialXml,
   initialNote,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   opened: boolean;
   onClose: () => void;
@@ -87,7 +87,7 @@ export function ImportXmlDrawer({
   initialXml?: string;
   /** What the prefilled text is, for the revision note and the drawer's lead. */
   initialNote?: string;
-}) {
+}>) {
   const [xml, setXml] = useState('');
   const [combine, setCombine] = useState<'merge' | 'replace'>('merge');
   const [result, setResult] = useState<ConfigImportResultView | null>(null);
@@ -275,11 +275,11 @@ export function ExportXmlDrawer({
   declaration,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const xml = useQuery<string, ApiError>({
     queryKey: ['clusters', declaration.clusterId, 'config', 'xml', declaration.revision],
     queryFn: () => fetchBrokerConfigXml(declaration.clusterId),
@@ -330,11 +330,11 @@ export function AdoptDrawer({
   declaration,
   opened,
   onClose,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   opened: boolean;
   onClose: () => void;
-}) {
+}>) {
   const adopt = useAdoptBrokerConfig(declaration.clusterId);
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
 

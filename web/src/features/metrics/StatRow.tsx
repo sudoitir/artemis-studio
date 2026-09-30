@@ -21,7 +21,7 @@ export interface Stat {
   format: (value: number) => string;
 }
 
-export function StatRow({ stats }: { stats: Stat[] }) {
+export function StatRow({ stats }: Readonly<{ stats: Stat[] }>) {
   return (
     <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
       {stats.map((stat) => (
@@ -31,7 +31,7 @@ export function StatRow({ stats }: { stats: Stat[] }) {
   );
 }
 
-function StatTile({ stat }: { stat: Stat }) {
+function StatTile({ stat }: Readonly<{ stat: Stat }>) {
   const { label, unit, value, since, format } = stat;
   const delta = value !== null && since !== null ? value - since : null;
 
@@ -64,7 +64,7 @@ function StatTile({ stat }: { stat: Stat }) {
  * colour alone — and it carries no colour at all, because a rising queue depth is
  * not by itself something wrong.
  */
-function Delta({ delta, format }: { delta: number | null; format: (value: number) => string }) {
+function Delta({ delta, format }: Readonly<{ delta: number | null; format: (value: number) => string }>) {
   if (delta === null) {
     return (
       <Text size="xs" c="dimmed" mt={2}>

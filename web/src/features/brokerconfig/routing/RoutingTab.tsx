@@ -51,7 +51,7 @@ export function RoutingTab({
   anchor,
   selected,
   onSearch,
-}: {
+}: Readonly<{
   declaration: ConfigDeclarationView;
   writeGate: GateVerdict;
   applyGate: GateVerdict;
@@ -64,7 +64,7 @@ export function RoutingTab({
   /** The selected element's id, from the URL. */
   selected?: string;
   onSearch: (patch: { section?: Section; item?: string; anchor?: string; selected?: string }) => void;
-}) {
+}>) {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const canWrite = writeGate.kind !== 'blocked';
 

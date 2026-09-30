@@ -5,7 +5,7 @@ import type { SqlPlanView } from './api.ts';
 import { noticeWords } from './notices.ts';
 import classes from './ExplainStrip.module.css';
 
-function Fact({ label, value, tone }: { label: string; value: string; tone?: 'warning' }) {
+function Fact({ label, value, tone }: Readonly<{ label: string; value: string; tone?: 'warning' }>) {
   return (
     <div className={classes.fact}>
       <span className={classes.label}>{label}</span>
@@ -39,11 +39,11 @@ export function ExplainStrip({
   plan,
   error,
   pending,
-}: {
+}: Readonly<{
   plan?: SqlPlanView;
   error: ApiError | null;
   pending: boolean;
-}) {
+}>) {
   if (error) {
     const { offending, suggestion } = syntaxDetail(error);
     return (

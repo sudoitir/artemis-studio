@@ -9,7 +9,11 @@ import type { Row } from './pretty.ts';
  * rows behind a button that says how many more there are — the cell stays
  * scannable and nothing is hidden without a count.
  */
-export function KeyValueList({ rows, limit = 6, empty = '—' }: { rows: Row[]; limit?: number; empty?: string }) {
+export function KeyValueList({
+  rows,
+  limit = 6,
+  empty = '—',
+}: Readonly<{ rows: Row[]; limit?: number; empty?: string }>) {
   const [open, setOpen] = useState(false);
   if (rows.length === 0) {
     return (

@@ -15,12 +15,12 @@ export function SyntaxHelp({
   opened,
   onClose,
   onLoadExample,
-}: {
+}: Readonly<{
   opened: boolean;
   onClose: () => void;
   /** Loads an example into the editor and closes — one action, per the spec. */
   onLoadExample: (sql: string) => void;
-}) {
+}>) {
   return (
     <Modal opened={opened} onClose={onClose} title="The console's dialect" size="xl">
       <Stack gap="lg">

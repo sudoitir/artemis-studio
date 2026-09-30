@@ -106,12 +106,12 @@ export function ApplyResult({
   outcome,
   clusterId,
   focus,
-}: {
+}: Readonly<{
   outcome: ConfigApplyOutcomeView;
   clusterId?: string;
   /** Narrow the step tables to one key on arrival — what drift's "Plan a fix" hands over. */
   focus?: string;
-}) {
+}>) {
   const verdict = verdictFor(outcome);
 
   // A plan over a whole cluster is a long list, and the operator is usually
@@ -296,7 +296,7 @@ function one(value: unknown): string {
  * whole entry (notes §15 M2): they are not context, they are part of what is
  * being written.
  */
-function Diff({ before, after }: { before: Record<string, unknown>; after: Record<string, unknown> }) {
+function Diff({ before, after }: Readonly<{ before: Record<string, unknown>; after: Record<string, unknown> }>) {
   const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
   if (keys.length === 0) return <>—</>;
   // Nothing is there yet, so every key would read `— → value`. The step's own

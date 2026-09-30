@@ -33,14 +33,14 @@ export function MetricChart({
   title,
   range = '1h',
   emptyLabel = 'No samples in this window yet. Metrics are sampled on every queue scrape, about every 15 seconds.',
-}: {
+}: Readonly<{
   clusterId: string;
   metric: string;
   subject: string;
   title: string;
   range?: MetricRange;
   emptyLabel?: string;
-}) {
+}>) {
   useDisplayZone();
   const result = usePluginSeries(clusterId, metric, subject, range);
   const series = result.data?.series[0];

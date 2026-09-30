@@ -20,13 +20,13 @@ export function ConsumersChart({
   from,
   to,
   syncId,
-}: {
+}: Readonly<{
   series: MetricSeries | undefined;
   range: MetricRange;
   from: number;
   to: number;
   syncId: string;
-}) {
+}>) {
   // Axis ticks and tooltips are formatted in the display zone (`app/timezone.ts`).
   useDisplayZone();
   const data = mergeByTimestamp([{ name: 'consumers', series }]);
