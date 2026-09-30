@@ -31,7 +31,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -39,11 +39,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  * {@link PluginMessaging}. Every method takes the plugin id from that bound object, never from the
  * plugin.
  */
-@Component
+@Service
 @RequiredArgsConstructor
 public class PluginMessagingService implements PluginScopedBeans {
 
     static final String BEAN_NAME = "pluginMessaging";
+    private static final String PLUGIN = "plugin";
 
     private static final Pattern KEY = Pattern.compile("[A-Za-z0-9._:-]{1,200}");
     private static final int MAX_NAME = 1000;
@@ -82,7 +83,7 @@ public class PluginMessagingService implements PluginScopedBeans {
                 spec.clusterId(),
                 null,
                 Map.of(
-                        "plugin",
+                        PLUGIN,
                         pluginId,
                         "queue",
                         spec.queue(),
@@ -148,7 +149,7 @@ public class PluginMessagingService implements PluginScopedBeans {
                 reg.getClusterId(),
                 null,
                 Map.of(
-                        "plugin",
+                        PLUGIN,
                         pluginId,
                         "queue",
                         reg.getQueue(),
@@ -211,7 +212,7 @@ public class PluginMessagingService implements PluginScopedBeans {
                 message.address(),
                 message.clusterId(),
                 node.getId(),
-                Map.of("plugin", pluginId, "bytes", body.length),
+                Map.of(PLUGIN, pluginId, "bytes", body.length),
                 false);
         try {
             transport.send(

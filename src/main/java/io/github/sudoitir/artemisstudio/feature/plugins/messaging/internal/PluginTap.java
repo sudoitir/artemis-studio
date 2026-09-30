@@ -37,6 +37,8 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 class PluginTap {
 
+    private static final String ANYCAST = "ANYCAST";
+    private static final String FILTER = "Filter";
     private static final String ADD_ADDRESS_SETTINGS = "addAddressSettings(java.lang.String,java.lang.String)";
 
     /** The 13-string arm the broker accepts; its order is documented and measured in capture's {@code CaptureTap}. */
@@ -80,24 +82,21 @@ class PluginTap {
     /** The tapped queue on this node, or {@code null} when the node does not have it. */
     Source source(JolokiaBrokerClient client, String queue) {
         JolokiaResponse read = client.single(JolokiaRequest.read(
-                BrokerMBeans.queuePattern(client.resolveBrokerObjectName(), queue),
-                "Address",
-                "RoutingType",
-                "Filter"));
+                BrokerMBeans.queuePattern(client.resolveBrokerObjectName(), queue), "Address", "RoutingType", FILTER));
         if (!read.ok() || read.value() == null || !read.value().isObject()) {
             return null;
         }
-        for (var entry : read.value().properties()) {
-            JsonNode attrs = entry.getValue();
-            String filter =
-                    attrs.path("Filter").isNull() ? null : attrs.path("Filter").asString(null);
-            return new Source(
-                    queue,
-                    attrs.path("Address").asString(queue),
-                    attrs.path("RoutingType").asString("ANYCAST"),
-                    filter == null || filter.isBlank() ? null : filter);
+        var entries = read.value().properties().iterator();
+        if (!entries.hasNext()) {
+            return null;
         }
-        return null;
+        JsonNode attrs = entries.next().getValue();
+        String filter = attrs.path(FILTER).isNull() ? null : attrs.path(FILTER).asString(null);
+        return new Source(
+                queue,
+                attrs.path("Address").asString(queue),
+                attrs.path("RoutingType").asString(ANYCAST),
+                filter == null || filter.isBlank() ? null : filter);
     }
 
     /** Refuse, or install (idempotently) and verify. Returns the tap's name. */
@@ -115,7 +114,7 @@ class PluginTap {
         applyAddressSettings(client, broker, instanceId, ringSize);
         applySecuritySettings(client, broker, instanceId, role);
         String queue = TapNames.queueOf(name);
-        tolerateAlready(() -> queueOps().createAddress(client, broker, queue, "ANYCAST"));
+        tolerateAlready(() -> queueOps().createAddress(client, broker, queue, ANYCAST));
         tolerateAlready(() -> queueOps().createQueue(client, broker, queueConfig(queue, ringSize)));
         tolerateAlready(() -> divertOps()
                 .createDivert(
@@ -128,7 +127,7 @@ class PluginTap {
                                 queue,
                                 false,
                                 source.filter(),
-                                "ANYCAST")));
+                                ANYCAST)));
         // Artemis answers 200 and only logs when it declines to deploy a divert (see CaptureTap).
         if (!installedNames(client, instanceId).contains(name)) {
             throw new TapRefusedException("The broker accepted the tap but did not deploy its divert on "
@@ -180,16 +179,17 @@ class PluginTap {
         if (!read.ok() || read.value() == null || !read.value().isObject()) {
             return null;
         }
-        for (var entry : read.value().properties()) {
-            JsonNode a = entry.getValue();
-            long added = a.path("MessagesAdded").asLong(0);
-            long acked = a.path("MessagesAcknowledged").asLong(0);
-            long held = a.path("MessageCount").asLong(0);
-            // Everything added that was neither acknowledged by the drain nor is still waiting was
-            // dropped: ring overflow, the DROP policy at the byte bound, or expiry.
-            return Math.max(0, added - acked - held);
+        var entries = read.value().properties().iterator();
+        if (!entries.hasNext()) {
+            return null;
         }
-        return null;
+        JsonNode a = entries.next().getValue();
+        long added = a.path("MessagesAdded").asLong(0);
+        long acked = a.path("MessagesAcknowledged").asLong(0);
+        long held = a.path("MessageCount").asLong(0);
+        // Everything added that was neither acknowledged by the drain nor is still waiting was
+        // dropped: ring overflow, the DROP policy at the byte bound, or expiry.
+        return Math.max(0, added - acked - held);
     }
 
     /** An exclusive divert runs before every other one, so a tap behind it would copy nothing. */
@@ -257,7 +257,7 @@ class PluginTap {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("name", name);
         config.put("address", name);
-        config.put("routing-type", "ANYCAST");
+        config.put("routing-type", ANYCAST);
         config.put("durable", false);
         config.put("ring-size", ringSize);
         config.put("max-consumers", 1);

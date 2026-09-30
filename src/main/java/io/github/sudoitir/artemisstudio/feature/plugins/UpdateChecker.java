@@ -75,6 +75,9 @@ public class UpdateChecker {
                     newer ? offer.version() : null,
                     newer ? offer.changeNotes() : null,
                     null);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new Available(plugin.id(), plugin.version(), null, null, e.getMessage());
         } catch (Exception e) {
             return new Available(plugin.id(), plugin.version(), null, null, e.getMessage());
         }
@@ -119,7 +122,7 @@ public class UpdateChecker {
         } catch (IOException | NoSuchAlgorithmException e) {
             throw refused(
                     "update-unavailable", "The update could not be downloaded: " + e.getMessage(), "Try again later.");
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw refused("update-unavailable", "The download was interrupted.", "Try again.");
         }
@@ -157,7 +160,7 @@ public class UpdateChecker {
         URI uri;
         try {
             uri = URI.create(url);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new IOException("not a URL: " + url);
         }
         if (!"https".equals(uri.getScheme() == null ? null : uri.getScheme().toLowerCase(Locale.ROOT))

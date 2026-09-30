@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +74,7 @@ public class PluginAdministration {
     // ---- upload and update -----------------------------------------------------------------------
 
     /** Validates and stores an uploaded jar as a pending upload; installs nothing. */
-    public PluginHost.Inspection upload(Path jar, long bytes) throws IOException {
+    public PluginHost.Inspection upload(Path jar, long bytes) {
         requireInstaller();
         requireUploadEnabled();
         if (!uploads.tryAcquire(actor().userId())) {
@@ -98,7 +99,7 @@ public class PluginAdministration {
     }
 
     /** Downloads the update {@code id}'s update URL offers and inspects it like an upload. */
-    public PluginHost.Inspection downloadUpdate(String id) throws IOException {
+    public PluginHost.Inspection downloadUpdate(String id) {
         requireInstaller();
         requireUploadEnabled();
         var summary = host.status(id).orElseThrow(() -> notFound(id));
@@ -109,9 +110,18 @@ public class PluginAdministration {
             } catch (IOException e) {
                 throw new IllegalStateException("The download could not be read: " + e.getMessage(), e);
             } finally {
-                jar.toFile().delete();
+                deleteQuietly(jar);
             }
         });
+    }
+
+    /** The downloaded jar is a private temp file: failing to remove it must not fail the inspection. */
+    private static void deleteQuietly(Path jar) {
+        try {
+            Files.deleteIfExists(jar);
+        } catch (IOException _) {
+            // Best effort: a failed delete must not turn a finished inspection into a failure.
+        }
     }
 
     public ActivationPlan planUpload(String sha256) {
