@@ -63,6 +63,8 @@ public class ClusterOwnership implements SmartLifecycle {
     private final StudioBus bus;
     private final HaProperties ha;
     private final ApplicationEventPublisher events;
+    private static final Duration NOT_READY_POLL = Duration.ofMillis(250);
+
     private final BlockingQueue<Boolean> wake = new ArrayBlockingQueue<>(1);
 
     private volatile Set<UUID> owned = Set.of();
@@ -244,10 +246,15 @@ public class ClusterOwnership implements SmartLifecycle {
     /** A new cluster has no owner yet: every replica ticks, and the one that should own it takes it. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     void onRegistered(ClusterRegistered registered) {
+        announce();
+    }
+
+    /** Wakes every replica's tick, this one's included. */
+    private void announce() {
         try {
             bus.publish(LEASES);
         } catch (RuntimeException e) {
-            log.warn("Could not announce cluster {}: {}", registered.clusterId(), e.toString());
+            log.warn("Could not ask the replicas to rebalance: {}", e.toString());
         }
     }
 
@@ -290,10 +297,18 @@ public class ClusterOwnership implements SmartLifecycle {
     }
 
     private void run() {
+        boolean ready = false;
         while (thread == Thread.currentThread()) {
+            if (!ready && replicas.state() == ReplicaRegistry.State.READY) {
+                ready = true;
+                // Just joined: the others hand over this replica's share now rather than on their next tick.
+                announce();
+            }
             tick();
             try {
-                if (wake.poll(ha.heartbeat().toMillis(), TimeUnit.MILLISECONDS) != null) {
+                // Until ready, look often, so a replica takes up its duties as soon as it can serve.
+                long wait = ready ? ha.heartbeat().toMillis() : NOT_READY_POLL.toMillis();
+                if (wake.poll(wait, TimeUnit.MILLISECONDS) != null) {
                     Thread.sleep(DEBOUNCE);
                     wake.clear();
                 }

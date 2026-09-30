@@ -17,9 +17,9 @@
 - [x] 4.3 Client: send last id, handle `reconnect` and `resync`, refetch after a failed reconnect; SQL tail reopens on `reconnect`
 
 ## 5. Cluster ownership (D2)
-- [ ] 5.1 `cluster_lease` changelog, `ClusterOwnership` (HRW, renew, release, acquire, orphans, self-fence), duty events
-- [ ] 5.2 Gate scrape tiers, discovery, alert rules, drift, setup review, rr-sampler, capture/index reconcile, flow sample, plugin messaging, clock offset
-- [ ] 5.3 Release drops subscriptions, consumers, `ScrapeCycle`, `StreamSignals`; acquire kicks tier A
+- [x] 5.1 `cluster_lease` changelog, `ClusterOwnership` (HRW, renew, release, acquire, orphans, self-fence), duty events
+- [x] 5.2 Gate scrape tiers, discovery, alert rules, drift, setup review, rr-sampler, capture/index reconcile, flow sample, plugin messaging, clock offset
+- [x] 5.3 Release drops subscriptions, consumers, `ScrapeCycle`, `StreamSignals`; acquire kicks tier A
 
 ## 6. Cache coherence (D5)
 - [ ] 6.1 Signals for settings, cluster-deleted, env-index, policy (delete the probe job), session-ended, leases
@@ -27,7 +27,7 @@
 - [ ] 6.3 Sweep remaining component-local caches and classify each
 
 ## 7. Shared small stores (D6, D7)
-- [ ] 7.1 `cluster_node.split_brain`; delete `SplitBrainRegistry`; readers use rows
+- [x] 7.1 `cluster_node.split_brain`; delete `SplitBrainRegistry`; readers use rows
 - [ ] 7.2 `sql_query_ticket` table; `api_request_window` table
 
 ## 8. Runs across replicas (D9)
