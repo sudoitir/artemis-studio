@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class LogRingBuffer extends UnsynchronizedAppenderBase<ILoggingEvent> {
 
-    static final String NAME = "studio-diagnostics";
+    static final String APPENDER_NAME = "studio-diagnostics";
     static final int CAPACITY = 5_000;
     static final int MAX_LINE = 8_192;
     private static final String PATTERN = "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p [%t] %logger{40} : %m%n%ex";
@@ -27,7 +27,7 @@ public final class LogRingBuffer extends UnsynchronizedAppenderBase<ILoggingEven
     private final PatternLayout layout = new PatternLayout();
 
     private LogRingBuffer(LoggerContext context) {
-        setName(NAME);
+        setName(APPENDER_NAME);
         setContext(context);
         layout.setContext(context);
         layout.setPattern(PATTERN);
@@ -42,7 +42,7 @@ public final class LogRingBuffer extends UnsynchronizedAppenderBase<ILoggingEven
     public static LogRingBuffer attached() {
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger root = context.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        if (root.getAppender(NAME) instanceof LogRingBuffer buffer) {
+        if (root.getAppender(APPENDER_NAME) instanceof LogRingBuffer buffer) {
             return buffer;
         }
         LogRingBuffer buffer = new LogRingBuffer(context);

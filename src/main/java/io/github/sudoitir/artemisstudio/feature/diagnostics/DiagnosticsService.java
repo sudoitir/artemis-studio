@@ -51,6 +51,8 @@ public class DiagnosticsService {
 
     static final Duration SNAPSHOT_TTL = Duration.ofMinutes(10);
     private static final int MAX_SNAPSHOTS = 32;
+    private static final String VERSION = "version";
+    private static final String STATUS = "status";
     private static final Pattern MASKS = Pattern.compile(Pattern.quote(SecretRedactor.MASK));
 
     private final ObjectProvider<BuildProperties> build;
@@ -205,15 +207,21 @@ public class DiagnosticsService {
         about.put(
                 "java",
                 Map.of(
-                        "version", Runtime.version().toString(),
-                        "vendor", System.getProperty("java.vendor"),
-                        "vm", jvm.getVmName()));
+                        VERSION,
+                        Runtime.version().toString(),
+                        "vendor",
+                        System.getProperty("java.vendor"),
+                        "vm",
+                        jvm.getVmName()));
         about.put(
                 "os",
                 Map.of(
-                        "name", System.getProperty("os.name"),
-                        "version", System.getProperty("os.version"),
-                        "arch", System.getProperty("os.arch")));
+                        "name",
+                        System.getProperty("os.name"),
+                        VERSION,
+                        System.getProperty("os.version"),
+                        "arch",
+                        System.getProperty("os.arch")));
         about.put("processors", runtime.availableProcessors());
         about.put(
                 "memory",
@@ -258,9 +266,9 @@ public class DiagnosticsService {
             if (entry.contributor() instanceof HealthIndicator indicator) {
                 try {
                     var h = indicator.health(true);
-                    out.put(entry.name(), Map.of("status", h.getStatus().getCode(), "details", h.getDetails()));
+                    out.put(entry.name(), Map.of(STATUS, h.getStatus().getCode(), "details", h.getDetails()));
                 } catch (RuntimeException e) {
-                    out.put(entry.name(), Map.of("status", "ERROR", "error", e.toString()));
+                    out.put(entry.name(), Map.of(STATUS, "ERROR", "error", e.toString()));
                 }
             }
         });
@@ -276,9 +284,9 @@ public class DiagnosticsService {
         for (var p : plugins.list()) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", p.id());
-            row.put("version", p.version());
+            row.put(VERSION, p.version());
             row.put("vendor", p.vendor());
-            row.put("status", p.status().name());
+            row.put(STATUS, p.status().name());
             row.put("verified", p.verified());
             row.put("signer", p.signerFingerprint());
             row.put("failure", p.failure());
@@ -304,7 +312,7 @@ public class DiagnosticsService {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData meta = connection.getMetaData();
             return meta.getDatabaseProductName() + " " + meta.getDatabaseProductVersion();
-        } catch (SQLException e) {
+        } catch (SQLException _) {
             return "unknown";
         }
     }

@@ -19,9 +19,11 @@ export interface BugDescription {
 /** The environment block of a report, as a Markdown table. Unknown values say so rather than vanish. */
 export function environmentMarkdown(env: BugEnvironment): string {
   const s = env.summary;
-  const plugins = env.plugins.length
-    ? env.plugins.map((p) => `${p.id} ${p.version ?? '?'}${p.status ? ` (${p.status.toLowerCase()})` : ''}`).join(', ')
-    : 'none';
+  const plugin = (p: BugEnvironment['plugins'][number]) => {
+    const status = p.status ? ' (' + p.status.toLowerCase() + ')' : '';
+    return `${p.id} ${p.version ?? '?'}${status}`;
+  };
+  const plugins = env.plugins.length ? env.plugins.map(plugin).join(', ') : 'none';
   const rows: [string, string][] = [
     ['Studio', s ? `${s.studioVersion} (plugin contract ${s.contractVersion})` : 'unknown'],
     ['Java', s?.java ?? 'unknown'],
@@ -31,7 +33,7 @@ export function environmentMarkdown(env: BugEnvironment): string {
     ['Plugins', plugins],
     ['Browser', env.browser],
   ];
-  const cell = (v: string) => v.replaceAll('|', '\\|').replaceAll('\n', ' ');
+  const cell = (v: string) => v.replaceAll('|', String.raw`\|`).replaceAll('\n', ' ');
   return ['| | |', '| --- | --- |', ...rows.map(([k, v]) => `| ${k} | ${cell(v)} |`)].join('\n');
 }
 

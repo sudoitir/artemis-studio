@@ -2,7 +2,6 @@ package io.github.sudoitir.artemisstudio.feature.diagnostics.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -131,7 +130,7 @@ class DiagnosticsControllerTest extends PostgresIntegrationTest {
         LoggerFactory.getLogger(DiagnosticsControllerTest.class)
                 .warn("broker login failed password={} for tcp://bob:{}@broker:61616", loggedPassword, loggedPassword);
         secrets.store(clusterId, "diag", "bob", storedPassword);
-        when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, fixture("send-message.json")));
+        when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, fixture("send-message.json")));
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":3,\"durable\":true,\"body\":\"%s\",\"properties\":{\"k\":\"%s\"}}"
@@ -208,8 +207,9 @@ class DiagnosticsControllerTest extends PostgresIntegrationTest {
         signIn("viewer", Set.of(Permissions.CLUSTER_READ));
 
         assertThatThrownBy(diagnostics::prepare).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> diagnostics.take(UUID.randomUUID(), List.of("about")))
-                .isInstanceOf(AccessDeniedException.class);
+        UUID anyBundle = UUID.randomUUID();
+        List<String> about = List.of("about");
+        assertThatThrownBy(() -> diagnostics.take(anyBundle, about)).isInstanceOf(AccessDeniedException.class);
         mvc.perform(get("/api/v1/diagnostics/summary"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.studioVersion").isNotEmpty())

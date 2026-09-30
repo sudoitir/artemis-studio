@@ -8,6 +8,9 @@
 }
 
 .sections {
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
   overflow: hidden;

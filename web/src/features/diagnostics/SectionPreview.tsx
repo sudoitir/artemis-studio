@@ -9,17 +9,19 @@ const MASK = '[redacted]';
 
 /** Splits `text` into plain runs and highlighted `[redacted]` markers, so the admin sees what was removed. */
 function withMasks(text: string): ReactNode[] {
-  const parts = text.split(MASK);
-  return parts.flatMap((part, i) =>
-    i === 0
-      ? [part]
-      : [
-          <mark key={i} className={classes.mask}>
-            {MASK}
-          </mark>,
-          part,
-        ],
-  );
+  const out: ReactNode[] = [];
+  let from = 0;
+  for (let at = text.indexOf(MASK); at !== -1; at = text.indexOf(MASK, from)) {
+    out.push(
+      text.slice(from, at),
+      <mark key={`mask-${at}`} className={classes.mask}>
+        {MASK}
+      </mark>,
+    );
+    from = at + MASK.length;
+  }
+  out.push(text.slice(from));
+  return out;
 }
 
 /** One section exactly as it goes into the bundle, searchable by line. */
@@ -28,6 +30,30 @@ export function SectionPreview({ section, included }: Readonly<{ section: Sectio
   const query = useDeferredValue(find.trim().toLowerCase());
   const lines = useMemo(() => section.content.split('\n'), [section.content]);
   const shown = useMemo(() => (query ? lines.filter((l) => l.toLowerCase().includes(query)) : lines), [lines, query]);
+
+  let body: ReactNode;
+  if (section.content.trim() === '') {
+    body = (
+      <Text size="sm" c="dimmed" p="md">
+        This section is empty.
+      </Text>
+    );
+  } else if (shown.length === 0) {
+    body = (
+      <Text size="sm" c="dimmed" p="md">
+        No line contains &ldquo;{find.trim()}&rdquo;.{' '}
+        <Button variant="subtle" size="compact-xs" onClick={() => setFind('')}>
+          Clear the search
+        </Button>
+      </Text>
+    );
+  } else {
+    body = (
+      <pre className={classes.text} aria-label={`${section.title} contents`}>
+        {withMasks(shown.join('\n'))}
+      </pre>
+    );
+  }
 
   return (
     <Stack gap="sm" className={classes.preview}>
@@ -65,22 +91,7 @@ export function SectionPreview({ section, included }: Readonly<{ section: Sectio
         }
       />
       <ScrollArea h={520} className={classes.content} type="auto" offsetScrollbars>
-        {section.content.trim() === '' ? (
-          <Text size="sm" c="dimmed" p="md">
-            This section is empty.
-          </Text>
-        ) : shown.length === 0 ? (
-          <Text size="sm" c="dimmed" p="md">
-            No line contains &ldquo;{find.trim()}&rdquo;.{' '}
-            <Button variant="subtle" size="compact-xs" onClick={() => setFind('')}>
-              Clear the search
-            </Button>
-          </Text>
-        ) : (
-          <pre className={classes.text} aria-label={`${section.title} contents`}>
-            {withMasks(shown.join('\n'))}
-          </pre>
-        )}
+        {body}
       </ScrollArea>
     </Stack>
   );

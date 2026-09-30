@@ -12,6 +12,7 @@ import {
   Text,
   ThemeIcon,
   Title,
+  VisuallyHidden,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -216,7 +217,8 @@ function Review({ bundle, onPrepareAgain }: Readonly<{ bundle: BundleView; onPre
       )}
 
       <div className={classes.layout}>
-        <div className={classes.sections} role="group" aria-label="Sections">
+        <fieldset className={classes.sections}>
+          <VisuallyHidden component="legend">Sections</VisuallyHidden>
           {bundle.sections.map((section) => (
             <SectionRow
               key={section.key}
@@ -227,7 +229,7 @@ function Review({ bundle, onPrepareAgain }: Readonly<{ bundle: BundleView; onPre
               onToggle={() => toggle(section.key)}
             />
           ))}
-        </div>
+        </fieldset>
         {current && <SectionPreview key={current.key} section={current} included={!excluded.has(current.key)} />}
       </div>
 
