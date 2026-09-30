@@ -40,7 +40,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 | D7 | Bearer and MCP calls are not challenged for MFA. A token records whether it was minted from an MFA-verified session, and one minted without MFA stops working once its owner's roles require MFA. | review |
 | D8 | First-sign-in enrolment is trust-on-first-use (TOFU), the industry norm. ADR-0142 accepts it; the mitigation is an audited `MFA_ENROL` with the address. Recovery is by break-glass (D10). | review |
 | D9 | The idle timeout measures **user activity**, not polling: the UI sets a header on requests the user caused. | review |
-| D10 | **Break-glass**: the deploy-time property `artemis-studio.identity-local.recover=<username>` runs at startup. It clears the account's lock, factors and trusted devices, sets must-change-password, and logs and audits the action. This covers a sole admin who lost both device and recovery codes. | review |
+| D10 | **Break-glass**: the deploy-time property `artemis-studio.identity-local.recover=<username>` runs at startup. It clears the account's lock, factors and trusted devices, revokes its API tokens, ends its sessions, sets must-change-password, and logs and audits the action. This covers a sole admin who lost both device and recovery codes. | review |
 | D11 | Implementation runs **sequentially** (A→B→C→D→E) with `implementer` subagents, not as parallel worktrees, because A–D all touch `LoginService`, `SessionAuthentication` and `LocalIdentity`. One `reviewer` pass before the PR. | review |
 
 **Defaults.** Runtime-configurable ones are Settings entries.

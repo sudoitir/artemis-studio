@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.identitylocal;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.PersonalTokens;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
@@ -17,7 +18,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Break-glass (ADR-0142, D10): the operator names one local account in
  * {@code artemis-studio.identity-local.recover} and restarts Studio, and that account is unlocked,
- * loses its second factors, recovery codes and trusted devices, must change its password at the next
+ * loses its second factors, recovery codes and trusted devices, has its API tokens revoked, must change its password at the next
  * sign-in and has its sessions ended. It is for the sole administrator who lost both a device and the
  * recovery codes, and it needs access to the deployment, which is what makes it safe. It logs a
  * warning to remove the property, because the next restart would recover the account again, and
@@ -33,6 +34,7 @@ class AccountRecovery {
     private final AccountLockout lockout;
     private final SessionAuthentication sessions;
     private final Optional<SecondFactors> factors;
+    private final Optional<PersonalTokens> personalTokens;
     private final AuditService audit;
     private final ActorResolver actors;
     private final TransactionTemplate transaction;
@@ -61,6 +63,7 @@ class AccountRecovery {
         transaction.executeWithoutResult(status -> {
             lockout.unlock(user.id(), user.username());
             factors.ifPresent(f -> f.reset(user.id()));
+            personalTokens.ifPresent(t -> t.revokeAllOf(user.id()));
             accounts.requirePasswordChange(user.id());
             sessions.endSessionsOf(user.username());
             audit.succeed(
@@ -69,7 +72,7 @@ class AccountRecovery {
         });
         log.warn(
                 "Account '{}' was recovered at startup: unlocked, its second factors, recovery codes and trusted"
-                        + " devices removed, its sessions ended, and a password change required at its next sign-in."
+                        + " devices removed, its API tokens revoked, its sessions ended, and a password change required at its next sign-in."
                         + " Now remove artemis-studio.identity-local.recover (ARTEMIS_STUDIO_IDENTITY_LOCAL_RECOVER),"
                         + " or the next restart recovers it again.",
                 user.username());

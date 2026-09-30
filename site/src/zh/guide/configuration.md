@@ -14,7 +14,7 @@ description: Artemis Studio 读取的环境变量、哪些是必需的，以及�
 | `ARTEMIS_STUDIO_SECRET_KEY` | 使用 `env` 提供者时 | 保护所有已存储机密的密钥。必须是**恰好 32 字节**的 Base64，否则应用不会启动：`openssl rand -base64 32`。要保存多个版本，参见[机密与密钥轮换](#机密与密钥轮换) |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | 否 | 用于解密 `studio_config_property` 中存放的 `{cipher}` 值。这是与 `ARTEMIS_STUDIO_SECRET_KEY` **不同**的一把密钥——不要复用 |
 | `ARTEMIS_STUDIO_PUBLIC_URL` | 使用通行密钥时 | 用户访问 Studio 的地址，例如 `https://studio.example.com`（属性 `artemis-studio.public-url`，原为 `artemis-studio.alerting.public-url`）。设置后，告警通知会链接回对应集群的告警页。**通行密钥**也绑定到它：未设置时，用户仍可使用验证器应用，但不能使用通行密钥，账户页会提示这一点。通行密钥归属于它的主机，因此更改主机（而不只是端口或路径）会使按旧主机注册的所有通行密钥失效；恢复码与验证器应用不受影响。若它不是 `http` 或 `https` 地址，启动会失败 |
-| `ARTEMIS_STUDIO_IDENTITY_LOCAL_RECOVER` | 否 | **应急恢复。** 填一个本地用户名。启动时 Studio 会解锁该账户，移除其验证器应用、通行密钥、恢复码与受信任设备，要求下次登录时修改密码，终止其所有会话，并把操作写入审计记录、把警告写入日志。适用于唯一的管理员同时丢失了设备和恢复码的情况。**重启后请删除它**，否则下次重启会再次恢复该账户；用户名不存在时只会记录一条错误，不做任何更改。管理员用当前密码登录、设置新密码并重新注册验证方式 |
+| `ARTEMIS_STUDIO_IDENTITY_LOCAL_RECOVER` | 否 | **应急恢复。** 填一个本地用户名。启动时 Studio 会解锁该账户，移除其验证器应用、通行密钥、恢复码与受信任设备，吊销其 API 令牌，要求下次登录时修改密码，终止其所有会话，并把操作写入审计记录、把警告写入日志。适用于唯一的管理员同时丢失了设备和恢复码的情况。**重启后请删除它**，否则下次重启会再次恢复该账户；用户名不存在时只会记录一条错误，不做任何更改。管理员用当前密码登录、设置新密码并重新注册验证方式 |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | 反向代理位于私有网段之外时 | 匹配你的反向代理地址的正则表达式。只有这些地址可以通过 `X-Forwarded-For` 设定客户端地址；登录限制与审计链路都使用该地址。默认信任回环地址、`10/8`、`172.16/12`、`192.168/16` 与 `fc00::/7`。切勿留空：那会信任所有客户端 |
 | `JAVA_OPTS` | 否 | 默认为 `-XX:MaxRAMPercentage=50` |
 

@@ -230,7 +230,7 @@ An administrator with the right permission and fresh authentication SHALL be abl
 
 ### Requirement: An operator can recover a local account at startup
 
-Studio SHALL let an operator with access to the deployment name one local account to recover at startup; it SHALL clear that account's lock, factors and trusted devices, require a password change, and log and audit the recovery.
+Studio SHALL let an operator with access to the deployment name one local account to recover at startup; it SHALL clear that account's lock, factors and trusted devices, revoke its API tokens, require a password change, and log and audit the recovery.
 
 #### Scenario: Sole administrator lost device and codes
 

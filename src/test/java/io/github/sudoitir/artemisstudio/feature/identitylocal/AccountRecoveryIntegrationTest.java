@@ -65,6 +65,31 @@ class AccountRecoveryIntegrationTest extends AccountIntegrationTest {
     }
 
     @Test
+    void recoveringAnAccountRevokesItsApiTokens() throws Exception {
+        newAdministrator("ar-tokens");
+        var minted = signedIn("ar-tokens").post("/api/v1/tokens", mintBody("recovered"));
+        assertThat(minted.statusCode()).isEqualTo(201);
+        String token = JsonPath.read(minted.body(), "$.value");
+        assertThat(browser()
+                        .send("GET", ME, null, "Authorization", "Bearer " + token)
+                        .statusCode())
+                .isEqualTo(200);
+
+        recovery.recover("ar-tokens");
+
+        assertThat(browser()
+                        .send("GET", ME, null, "Authorization", "Bearer " + token)
+                        .statusCode())
+                .as("the token stopped working")
+                .isEqualTo(401);
+        assertThat(jdbc.sql("SELECT count(*) FROM api_token WHERE user_id = ? AND revoked_at IS NULL")
+                        .param(users.findByUsername("ar-tokens").orElseThrow().getId())
+                        .query(Long.class)
+                        .single())
+                .isZero();
+    }
+
+    @Test
     void aNameThatIsNotAnAccountIsReportedAndNothingCrashes(CapturedOutput output) {
         recovery.recover("ar-nobody");
 

@@ -59,7 +59,8 @@ already own their users' authentication, including MFA.
   last one. An administrator can reset another user's factors, which ends sessions and
   revokes trusted devices and tokens, but not their own.
 - **Break-glass**: `artemis-studio.identity-local.recover=<username>` at startup clears that
-  account's lock, factors and trusted devices and forces a password change.
+  account's lock, factors and trusted devices, revokes its API tokens, ends its sessions and
+  forces a password change.
 
 ## Consequences
 
