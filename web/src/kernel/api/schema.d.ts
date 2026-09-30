@@ -4993,6 +4993,11 @@ export interface components {
             /** @description The latest management call to the node failed. */
             degraded: boolean;
         };
+        OwnedCluster: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         PoolHealth: {
             /** Format: int32 */
             active?: number | null;
@@ -5003,16 +5008,44 @@ export interface components {
             /** Format: int32 */
             pending?: number | null;
         };
+        ReplicaHealth: {
+            /** Format: uuid */
+            id: string;
+            host: string;
+            version: string;
+            /** @enum {string} */
+            state: "STARTING" | "READY" | "DRAINING" | "STOPPED" | "GONE";
+            /** Format: date-time */
+            startedAt: string;
+            /**
+             * Format: int64
+             * @description How long ago it last checked in, by database time.
+             */
+            heartbeatAgeMillis: number;
+            /** @description The clusters it runs broker duties for. */
+            ownedClusters: components["schemas"]["OwnedCluster"][];
+            /** @description The replica answering this request. */
+            self: boolean;
+            /** @description The replica is gone or draining. */
+            degraded: boolean;
+        };
         StudioHealth: {
             jobs: components["schemas"]["JobHealth"][];
             nodes: components["schemas"]["NodeHealth"][];
+            /** @description Every replica seen in the last ten minutes, including stopped and gone ones. */
+            replicas: components["schemas"]["ReplicaHealth"][];
+            /**
+             * Format: uuid
+             * @description The replica that answered; node figures are its view.
+             */
+            answeringReplica: string;
             dbPool: components["schemas"]["PoolHealth"];
             /**
              * Format: int32
              * @description Event stream clients connected to this instance.
              */
             streamClients?: number | null;
-            /** @description Any job or node is degraded. */
+            /** @description Any job, node or replica is degraded. */
             degraded: boolean;
         };
         SseEmitter: {
@@ -15168,6 +15201,7 @@ export interface operations {
             query: {
                 clusterId: string;
                 topics?: string;
+                lastEventId?: number;
             };
             header?: {
                 "Last-Event-ID"?: number;
@@ -15236,7 +15270,6 @@ export interface operations {
             200: {
                 headers: {
                     [name: string]: unknown;
-                lastEventId?: number;
                 };
                 content: {
                     "*/*": components["schemas"]["SettingsResponse"];

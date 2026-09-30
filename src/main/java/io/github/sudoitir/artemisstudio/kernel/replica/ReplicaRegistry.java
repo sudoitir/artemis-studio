@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.kernel.replica;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import java.net.InetAddress;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -44,6 +46,12 @@ public class ReplicaRegistry implements SmartLifecycle {
 
     /** One row of the registry. */
     public record Replica(UUID id, String host, String version, State state, Instant startedAt, Instant heartbeatAt) {}
+
+    /**
+     * A replica as the health view shows it: how long ago it last checked in, by database time, and
+     * whether it is gone (it never recorded a stop, and its heartbeat is older than the ttl).
+     */
+    public record Seen(Replica replica, long heartbeatAgeMillis, boolean gone) {}
 
     private final UUID id = UUID.randomUUID();
     private final JdbcTemplate jdbc;
@@ -93,21 +101,38 @@ public class ReplicaRegistry implements SmartLifecycle {
 
     /** The replicas that are starting or ready and whose heartbeat is younger than the ttl. */
     public List<Replica> live() {
-        return jdbc.query(
-                """
+        return jdbc.query("""
                 SELECT id, host, version, state, started_at, heartbeat_at FROM studio_replica
                 WHERE stopped_at IS NULL AND state IN ('starting', 'ready')
                   AND heartbeat_at > now() - make_interval(secs => ?)
                 ORDER BY started_at, id
+                """, (rs, i) -> replica(rs), seconds(ha.ttl()));
+    }
+
+    /** Every replica whose last heartbeat is within {@code window}, including stopped and gone ones, oldest first. */
+    public List<Seen> seen(Duration window) {
+        return jdbc.query(
+                """
+                SELECT id, host, version, state, started_at, heartbeat_at,
+                       (extract(epoch FROM now() - heartbeat_at) * 1000)::bigint AS age_millis,
+                       (stopped_at IS NULL AND heartbeat_at <= now() - make_interval(secs => ?)) AS gone
+                FROM studio_replica
+                WHERE heartbeat_at > now() - make_interval(secs => ?)
+                ORDER BY started_at, id
                 """,
-                (rs, i) -> new Replica(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("host"),
-                        rs.getString("version"),
-                        State.valueOf(rs.getString("state").toUpperCase(Locale.ROOT)),
-                        rs.getTimestamp("started_at").toInstant(),
-                        rs.getTimestamp("heartbeat_at").toInstant()),
-                seconds(ha.ttl()));
+                (rs, i) -> new Seen(replica(rs), rs.getLong("age_millis"), rs.getBoolean("gone")),
+                seconds(ha.ttl()),
+                seconds(window));
+    }
+
+    private static Replica replica(ResultSet rs) throws SQLException {
+        return new Replica(
+                rs.getObject("id", UUID.class),
+                rs.getString("host"),
+                rs.getString("version"),
+                State.valueOf(rs.getString("state").toUpperCase(Locale.ROOT)),
+                rs.getTimestamp("started_at").toInstant(),
+                rs.getTimestamp("heartbeat_at").toInstant());
     }
 
     /**
