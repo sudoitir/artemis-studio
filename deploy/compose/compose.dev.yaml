@@ -135,7 +135,7 @@ services:
       # is what starts it again. Remove both together, never one (ADR-0104).
       ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
       # A fixed heap, so Studio, the brokers and Postgres fit in a laptop's Docker VM together.
-      JAVA_OPTS: -Xmx1g -XX:MaxMetaspaceSize=256m
+      JAVA_OPTS: -Xmx1536m -XX:MaxMetaspaceSize=384m
     ports:
       # Loopback only: the API is unauthenticated until Phase 8 (ADR-0002 area).
       - "127.0.0.1:8080:8080"
