@@ -84,7 +84,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/second-factor/options",
                                 "/api/v1/auth/providers",
                                 "/actuator/health",
-                                "/actuator/health/**")
+                                "/actuator/health/**",
+                                "/livez",
+                                "/readyz")
                         .permitAll()
                         // POST /actuator/refresh re-reads the Environment, so it is a
                         // configuration change and is gated like one. Without this rule it
