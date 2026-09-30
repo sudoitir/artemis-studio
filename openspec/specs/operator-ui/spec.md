@@ -1,7 +1,7 @@
 # operator-ui Specification
 
 ## Purpose
-TBD - created by archiving change 01-queue-and-address-lifecycle. Update Purpose after archive.
+How Studio's operations console behaves for an operator about to act: blast radius before destructive actions, the four outcomes of a mutation, per-node results, honest capability gating, forms and empty states.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # plugin-metrics Specification
 
 ## Purpose
-TBD - created by archiving change plugin-metrics. Update Purpose after archive.
+The metrics a runtime plugin publishes: how it declares them, how Studio samples them into its time series and Prometheus, and how alert rules and permissions apply to them.
 
 ## Requirements
 

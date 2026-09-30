@@ -1,7 +1,7 @@
 # queue-lifecycle Specification
 
 ## Purpose
-TBD - created by archiving change 01-queue-and-address-lifecycle. Update Purpose after archive.
+Creating, destroying, pausing, resuming and reconfiguring queues and addresses across a cluster, with a dry run, per-node results, the bulk safety cap, permissions and audit.
 
 ## Requirements
 

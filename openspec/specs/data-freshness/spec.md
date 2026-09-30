@@ -1,7 +1,7 @@
 # data-freshness Specification
 
 ## Purpose
-TBD - created by archiving change 07-data-freshness-and-liveness. Update Purpose after archive.
+How every screen tells the operator whether its data is live and when it last updated, keeps stream health apart from data health, and lets the operator pause automatic refreshing.
 
 ## Requirements
 
