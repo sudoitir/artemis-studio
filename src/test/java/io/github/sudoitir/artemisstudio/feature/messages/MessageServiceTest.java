@@ -29,6 +29,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
@@ -170,6 +171,7 @@ class MessageServiceTest {
                 "user-1",
                 body,
                 encoding,
+                Compression.NONE,
                 "application/json",
                 false,
                 null,

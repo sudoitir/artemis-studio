@@ -1,9 +1,10 @@
 ## 1. Decode at the read boundary
 
-- [ ] 1.1 `BodyDecoderTest` (red first): UTF-8 JSON, BOM round trip, invalid/overlong UTF-8, lone surrogate, NUL, other C0, gzip JSON, deflate JSON, gzip of binary, corrupt/truncated gzip, 1 GB-of-zeros gzip stops at the ceiling, nested gzip stays gzip text-free, empty
-- [ ] 1.2 `platform/broker/BodyDecoder` + `Compression` enum (D1–D4)
-- [ ] 1.3 `BrowsedMessage.bodyCompression`; `CoreMessageTransport.toBrowsed` uses the decoder; `size` from raw length; fix every `new BrowsedMessage(` site
-- [ ] 1.4 `CoreMessageTransportTest`: a bytes-JSON message browses as TEXT, a gzip-JSON one as TEXT + GZIP, a binary one stays BASE64; a moved bytes message keeps its bytes (existing transfer test or one assertion)
+- [x] 1.1 `BodyDecoderTest` (red first): UTF-8 JSON, BOM round trip, invalid/overlong UTF-8, lone surrogate, NUL, other C0, gzip JSON, deflate JSON, gzip of binary, corrupt/truncated gzip, 1 GB-of-zeros gzip stops at the ceiling, nested gzip stays gzip text-free, empty
+- [x] 1.2 `platform/broker/BodyDecoder` + `Compression` enum (D1–D4)
+- [x] 1.3 `BrowsedMessage.bodyCompression`; `CoreMessageTransport.toBrowsed` uses the decoder; `size` from raw length; fix every `new BrowsedMessage(` site
+- [x] 1.5 Jolokia browse reads a bytes message's `BodyPreview` through the decoder, flags a preview cut at the address's `management-message-attribute-size-limit` as truncated (the same batched POST reads the address settings); unit test with fixtures
+- [x] 1.4 `CoreMessageTransportTest`: a bytes-JSON message browses as TEXT, a gzip-JSON one as TEXT + GZIP, a binary one stays BASE64; a moved bytes message keeps its bytes (existing transfer test or one assertion)
 
 ## 2. Messages API and governance
 
@@ -34,4 +35,5 @@
 - [ ] 6.1 ADR 0147 "Bytes bodies are decoded once, at the read boundary"
 - [ ] 6.2 `just fmt`, then `just verify` once
 - [ ] 6.3 Run Studio on its own compose project: send bytes-JSON, gzip-JSON and binary over Core; check queue → Messages (body column, drawer Formatted/Tree/Raw), SQL console search, Settings → Remove cluster; light and dark screenshots; stop the stack and delete its volumes
+- [ ] 6.5 Security review of the branch diff with the `security-review` skill; fix every finding before the PR
 - [ ] 6.4 Browse timing for 200 × 64 KiB bytes-JSON messages before and after, noted in the PR

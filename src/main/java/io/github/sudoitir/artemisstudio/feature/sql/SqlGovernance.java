@@ -139,6 +139,7 @@ public class SqlGovernance {
                 g.headers().get(HEADER_USER_ID),
                 g.body(),
                 m.bodyEncoding(),
+                m.bodyCompression(),
                 m.contentType(),
                 m.bodyTruncated(),
                 m.observedLimitBytes(),

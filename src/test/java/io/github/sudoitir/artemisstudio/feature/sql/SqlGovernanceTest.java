@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Literal;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Operator;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Term;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
@@ -113,6 +114,7 @@ class SqlGovernanceTest {
                 null,
                 "{\"email\":\"jane@example.com\"}",
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 "application/json",
                 false,
                 null,
@@ -330,6 +332,7 @@ class SqlGovernanceTest {
                 "usr",
                 "b",
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 null,
                 false,
                 null,

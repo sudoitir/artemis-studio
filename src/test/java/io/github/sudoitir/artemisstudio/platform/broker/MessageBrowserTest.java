@@ -90,4 +90,75 @@ class MessageBrowserTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid message filter");
     }
+
+    /** A browse whose rows are bytes messages, answered with the address's size limit (or no settings). */
+    private BrowsePage browseBytes(Integer sizeLimit, int[]... previews) {
+        StringBuilder rows = new StringBuilder();
+        for (int i = 0; i < previews.length; i++) {
+            rows.append(i == 0 ? "" : ",")
+                    .append("{\"messageID\":")
+                    .append(i + 1)
+                    .append(",\"type\":4,\"durable\":true,\"BodyPreview\":")
+                    .append(java.util.Arrays.toString(previews[i]))
+                    .append('}');
+        }
+        String settings = sizeLimit == null
+                ? "{\"status\":404,\"error\":\"no\"}"
+                : "{\"status\":200,\"value\":\"{\\\"managementMessageAttributeSizeLimit\\\":" + sizeLimit + "}\"}";
+        String batch = "[{\"status\":200,\"value\":[" + rows + "]},{\"status\":200,\"value\":" + previews.length + "},"
+                + settings + "]";
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL)).andRespond(withSuccess(batch, MediaType.APPLICATION_JSON));
+        return browser.browse(new JolokiaBrokerClient(builder.build(), URL, mapper), MBEAN, 1, 50, "");
+    }
+
+    private static int[] ints(byte[] bytes) {
+        int[] out = new int[bytes.length];
+        for (int i = 0; i < bytes.length; i++) {
+            out[i] = bytes[i];
+        }
+        return out;
+    }
+
+    @Test
+    void aBytesMessageCarryingTextIsReadAsText() {
+        String json = "{\"status\":\"FAILED\",\"note\":\"caf\u00e9\"}";
+        BrowsedMessage m = browseBytes(-1, ints(json.getBytes(StandardCharsets.UTF_8)))
+                .messages()
+                .get(0);
+
+        assertThat(m.body()).isEqualTo(json);
+        assertThat(m.bodyEncoding()).isEqualTo(MessageBrowser.BodyEncoding.TEXT);
+        assertThat(m.type()).isEqualTo(4);
+        assertThat(m.bodyTruncated()).isFalse();
+    }
+
+    @Test
+    void aBinaryBytesMessageStaysBase64() {
+        BrowsedMessage m = browseBytes(-1, new int[] {1, 0, -1}).messages().get(0);
+
+        assertThat(m.bodyEncoding()).isEqualTo(MessageBrowser.BodyEncoding.BASE64);
+        assertThat(java.util.Base64.getDecoder().decode(m.body())).containsExactly(1, 0, -1);
+    }
+
+    @Test
+    void aPreviewAtTheLimitIsTruncatedAndASplitCharacterIsDropped() {
+        // "ab\u00e9" is 4 bytes; a limit of 3 cuts the two-byte character in half.
+        byte[] cut = java.util.Arrays.copyOf("ab\u00e9".getBytes(StandardCharsets.UTF_8), 3);
+        BrowsedMessage m = browseBytes(3, ints(cut)).messages().get(0);
+
+        assertThat(m.body()).isEqualTo("ab");
+        assertThat(m.bodyTruncated()).isTrue();
+        assertThat(m.observedLimitBytes()).isEqualTo(3);
+    }
+
+    @Test
+    void unreadableSettingsAssumeTheBrokerDefaultLimit() {
+        byte[] full = "x".repeat(MessageBrowser.DEFAULT_ATTRIBUTE_SIZE_LIMIT).getBytes(StandardCharsets.UTF_8);
+        BrowsePage page = browseBytes(null, ints(full), ints("short".getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(page.messages().get(0).bodyTruncated()).isTrue();
+        assertThat(page.messages().get(1).bodyTruncated()).isFalse();
+    }
 }

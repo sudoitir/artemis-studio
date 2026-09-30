@@ -43,10 +43,18 @@ contain control bytes.
 ### D3. Compression, bounded
 If the bytes start with gzip magic `1f 8b`, inflate with `GZIPInputStream`; if they start with a valid
 zlib header (CMF `0x78`, `(CMF*256+FLG) % 31 == 0`), with `InflaterInputStream`. Read through a fixed
-buffer with a hard output ceiling of **16 MiB** (the largest `body_cap_bytes` capture allows). Reaching
+buffer with a hard output ceiling of **2 MiB** (a browse page holds 200 messages, so a page of bombs is bounded at 400 MiB; it is also where the message view stops formatting). Reaching
 the ceiling, a corrupt stream, or non-text output → binary (the gzip label and hex dump the UI already
 has). One level only: the decompressed text is not inspected for further compression. The ceiling is a
 constant, not a setting.
+
+### D3b. Jolokia reads bytes too
+Jolokia's `browse()` returns no `text` for a bytes message, only `BodyPreview`: its leading bytes, cut
+at the address's `management-message-attribute-size-limit` with no marker. The browse POST also reads
+`getAddressSettingsAsJSON(address)` on the broker MBean, still one batched call per node. When the preview
+is at the limit it is truncated: `decodePrefix` drops up to three trailing bytes of a split UTF-8
+sequence, and the row reports `bodyTruncated` with the limit, which the existing truncation notice
+explains. When the settings cannot be read, the broker default of 256 bytes is assumed.
 
 ### D4. Never fail a read
 `decode` catches everything (`IOException`, `RuntimeException`) and returns binary. A browse or a

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerTime;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
@@ -59,6 +60,7 @@ class RrSamplerTest {
                 null,
                 null,
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 null,
                 false,
                 null,

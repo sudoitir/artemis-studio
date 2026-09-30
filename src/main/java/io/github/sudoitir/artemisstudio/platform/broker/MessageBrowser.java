@@ -1,9 +1,12 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -32,6 +35,14 @@ public class MessageBrowser {
 
     private static final String OP_BROWSE = "browse(int,int,java.lang.String)";
     private static final String ATTR_MESSAGE_COUNT = "MessageCount";
+    private static final String OP_ADDRESS_SETTINGS = "getAddressSettingsAsJSON(java.lang.String)";
+
+    /**
+     * Artemis' default {@code management-message-attribute-size-limit}, assumed when the address settings
+     * could not be read. A bytes body arrives as a {@code BodyPreview} cut at that limit with no marker, so
+     * the limit is the only way to know a preview is the whole body.
+     */
+    static final int DEFAULT_ATTRIBUTE_SIZE_LIMIT = 256;
 
     /** How to read {@link BrowsedMessage#body()}: as UTF-8 text, or as base64-encoded bytes. */
     public enum BodyEncoding {
@@ -54,6 +65,7 @@ public class MessageBrowser {
             String userId,
             String body,
             BodyEncoding bodyEncoding,
+            BodyDecoder.Compression bodyCompression,
             String contentType,
             boolean bodyTruncated,
             Integer observedLimitBytes,
@@ -105,15 +117,17 @@ public class MessageBrowser {
         String selector = filter == null ? "" : filter;
         List<JolokiaResponse> responses = client.batch(List.of(
                 JolokiaRequest.exec(queueMbean, OP_BROWSE, page, size, selector),
-                JolokiaRequest.read(queueMbean, ATTR_MESSAGE_COUNT)));
+                JolokiaRequest.read(queueMbean, ATTR_MESSAGE_COUNT),
+                addressSettings(queueMbean)));
 
         JolokiaResponse browse = responses.get(0);
         requireBrowsed(browse);
+        int sizeLimit = attributeSizeLimit(client, responses.size() > 2 ? responses.get(2) : null);
 
         java.util.ArrayList<BrowsedMessage> messages = new java.util.ArrayList<>();
         JsonNode array = browse.value();
         if (array != null && array.isArray()) {
-            array.forEach(row -> messages.add(decodeRow(row)));
+            array.forEach(row -> messages.add(decodeRow(row, sizeLimit)));
         }
 
         JolokiaResponse count = responses.size() > 1 ? responses.get(1) : null;
@@ -139,12 +153,61 @@ public class MessageBrowser {
                 "browse() failed: " + (error.isEmpty() ? "status " + browse.status() : error));
     }
 
-    private static BrowsedMessage decodeRow(JsonNode row) {
+    /** The address's effective settings, read on the broker MBean named in the queue's object name. */
+    private static JolokiaRequest addressSettings(String queueMbean) {
+        try {
+            ObjectName queue = ObjectName.getInstance(queueMbean);
+            String broker = queue.getDomain() + ":broker=" + queue.getKeyProperty("broker");
+            return JolokiaRequest.exec(
+                    broker, OP_ADDRESS_SETTINGS, ObjectName.unquote(queue.getKeyProperty("address")));
+        } catch (MalformedObjectNameException | RuntimeException e) {
+            throw new IllegalArgumentException("Not a queue MBean: " + queueMbean, e);
+        }
+    }
+
+    /** The limit a bytes preview was cut at; -1 means uncut. The default when the settings did not answer. */
+    private static int attributeSizeLimit(JolokiaBrokerClient client, JolokiaResponse settings) {
+        if (settings == null || !settings.ok()) {
+            return DEFAULT_ATTRIBUTE_SIZE_LIMIT;
+        }
+        try {
+            JsonNode limit = client.parsed(settings).get("managementMessageAttributeSizeLimit");
+            return limit != null && limit.isNumber() ? limit.asInt() : DEFAULT_ATTRIBUTE_SIZE_LIMIT;
+        } catch (RuntimeException _) {
+            return DEFAULT_ATTRIBUTE_SIZE_LIMIT;
+        }
+    }
+
+    private static BrowsedMessage decodeRow(JsonNode row, int sizeLimit) {
         String body = text(row, "text");
+        BodyEncoding encoding = BodyEncoding.TEXT;
+        BodyDecoder.Compression compression = BodyDecoder.Compression.NONE;
         Map<String, String> strings = stringMap(row, "StringProperties");
 
         boolean truncated = isTruncated(body);
         Integer observedLimit = truncated ? observedLimit(body) : null;
+
+        // A bytes message has no text, only its leading bytes: read them as text when they are (ADR-0147).
+        JsonNode preview = row.get("BodyPreview");
+        if (body == null && preview != null && preview.isArray()) {
+            byte[] raw = new byte[preview.size()];
+            for (int i = 0; i < raw.length; i++) {
+                raw[i] = (byte) preview.get(i).asInt();
+            }
+            boolean cut = sizeLimit >= 0 && raw.length >= sizeLimit;
+            BodyDecoder.Decoded decoded = cut ? BodyDecoder.decodePrefix(raw) : BodyDecoder.decode(raw);
+            if (decoded.isBinary()) {
+                body = Base64.getEncoder().encodeToString(raw);
+                encoding = BodyEncoding.BASE64;
+            } else {
+                body = decoded.text();
+                compression = decoded.compression();
+            }
+            if (cut) {
+                truncated = true;
+                observedLimit = sizeLimit;
+            }
+        }
         if (!truncated) {
             for (String v : strings.values()) {
                 if (isTruncated(v)) {
@@ -168,7 +231,8 @@ public class MessageBrowser {
                 null, // Jolokia's browse() row carries no reply-to field (§11.2) — Core-only (ADR-0029)
                 blankToNull(text(row, "userID")),
                 body,
-                BodyEncoding.TEXT, // Jolokia browse() always stringifies
+                encoding,
+                compression,
                 null,
                 truncated,
                 observedLimit,

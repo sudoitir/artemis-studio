@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Notice;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Bound;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
@@ -174,6 +175,7 @@ class BrokerQueryExecutorTest {
                 null,
                 "body-" + i + "-needle",
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 null,
                 truncated,
                 truncated ? 256 : null,
@@ -264,6 +266,7 @@ class BrokerQueryExecutorTest {
                     m.userId(),
                     "[redacted personal data]",
                     m.bodyEncoding(),
+                    m.bodyCompression(),
                     m.contentType(),
                     m.bodyTruncated(),
                     m.observedLimitBytes(),
