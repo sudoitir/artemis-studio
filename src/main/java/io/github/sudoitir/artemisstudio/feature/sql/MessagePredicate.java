@@ -254,7 +254,8 @@ public class MessagePredicate {
                 Double value = asNumber(left);
                 yield value == null
                         ? null
-                        : Double.compare(value, context.now().minus(before).toEpochMilli());
+                        : Double.compare(
+                                value, (double) context.now().minus(before).toEpochMilli());
             }
         };
     }
