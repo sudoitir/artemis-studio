@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionLifetimes;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -59,6 +60,7 @@ public class SecurityConfig {
             HandlerExceptionResolver handlerExceptionResolver,
             CsrfTokenRepository csrfTokenRepository,
             SessionAuthentication sessions,
+            SessionLifetimes lifetimes,
             PermissionResolver perm)
             throws Exception {
         http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
@@ -104,7 +106,7 @@ public class SecurityConfig {
                         .anyRequest()
                         .permitAll())
                 // A session that should no longer count ends first, so nothing after it sees it signed in.
-                .addFilterAfter(new SessionLifetimeFilter(sessions), SecurityContextHolderFilter.class)
+                .addFilterAfter(new SessionLifetimeFilter(sessions, lifetimes), SecurityContextHolderFilter.class)
                 // SecurityContextHolderFilter loads (empty, session-less) context from the
                 // repository and would overwrite a bearer authentication set before it runs —
                 // this filter must come after, not before.

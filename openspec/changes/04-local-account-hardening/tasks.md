@@ -17,7 +17,7 @@
 - [x] 4.4 Admin unlock endpoint + `ACCOUNT_UNLOCK`
 
 ## 5. Sessions (C)
-- [ ] 5.1 Idle and absolute settings; `SessionLifetimeFilter` with activity header; `maxInactiveInterval` backstop
+- [x] 5.1 Idle and absolute settings; `SessionLifetimeFilter` with activity header; `maxInactiveInterval` backstop
 - [ ] 5.2 Own and admin session list/end endpoints with hashed handles; `SESSION_END`
 
 ## 6. Second factors (D)

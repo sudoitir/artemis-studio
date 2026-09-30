@@ -35,6 +35,13 @@ public class SessionAuthentication {
     public static final String FACTS = SessionAuthentication.class.getName() + ".facts";
 
     /**
+     * The session attribute holding when the user last did something (an {@link Instant}). It is
+     * apart from the immutable {@link SessionFacts} so that moving it rewrites one small value, not
+     * the whole record (ADR-0144).
+     */
+    public static final String LAST_ACTIVITY_AT = SessionAuthentication.class.getName() + ".lastActivityAt";
+
+    /**
      * Prefix of every session attribute that holds a half-finished sign-in or step-up. A new login
      * clears them all, so a stale one can never complete a different attempt.
      */
@@ -44,6 +51,7 @@ public class SessionAuthentication {
     private final CsrfTokenRepository csrfTokenRepository;
     private final InitialInstallers initialInstallers;
     private final SessionTerminator terminator;
+    private final SessionLifetimes lifetimes;
 
     /**
      * Start of a password login: forget any earlier signed-in context, its facts and every pending
@@ -55,6 +63,7 @@ public class SessionAuthentication {
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.removeAttribute(FACTS);
+            session.removeAttribute(LAST_ACTIVITY_AT);
             Collections.list(session.getAttributeNames()).stream()
                     .filter(name -> name.startsWith(PENDING_PREFIX))
                     .forEach(session::removeAttribute);
@@ -80,7 +89,10 @@ public class SessionAuthentication {
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, request, response);
-        request.getSession().setAttribute(FACTS, facts);
+        HttpSession session = request.getSession();
+        session.setAttribute(FACTS, facts);
+        session.setAttribute(LAST_ACTIVITY_AT, facts.signedInAt());
+        session.setMaxInactiveInterval(maxInactiveSeconds());
         reissueCsrfToken(request, response);
         initialInstallers.grantIfNoneYet(principal.userId());
     }
@@ -115,6 +127,39 @@ public class SessionAuthentication {
     public Optional<SessionFacts> facts(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         return session == null ? Optional.empty() : Optional.ofNullable((SessionFacts) session.getAttribute(FACTS));
+    }
+
+    /** When the user last did something in this session; its sign-in time until they do. */
+    public Optional<Instant> lastActivityAt(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return Optional.empty();
+        }
+        Instant last = (Instant) session.getAttribute(LAST_ACTIVITY_AT);
+        return last != null ? Optional.of(last) : facts(request).map(SessionFacts::signedInAt);
+    }
+
+    /** Record that the user did something now. */
+    public void recordActivity(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.setAttribute(LAST_ACTIVITY_AT, Instant.now());
+        }
+    }
+
+    /**
+     * Spring Session's own inactivity timeout, set to the idle timeout as a backstop: it counts any
+     * request, so it only ever ends a session sooner than the server would have looked, never later.
+     */
+    public void syncMaxInactiveInterval(HttpSession session) {
+        int seconds = maxInactiveSeconds();
+        if (session.getMaxInactiveInterval() != seconds) {
+            session.setMaxInactiveInterval(seconds);
+        }
+    }
+
+    private int maxInactiveSeconds() {
+        return (int) Math.min(lifetimes.idleTimeout().toSeconds(), Integer.MAX_VALUE);
     }
 
     /** When this session last signed in or stepped up in full; empty when it is not fresh. */

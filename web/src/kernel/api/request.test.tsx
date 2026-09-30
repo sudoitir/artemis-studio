@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { server } from '../../test/setup.ts';
 import { useMe } from '../auth/api.ts';
-import { lifecycleQuery, request } from './request.ts';
+import { ACTIVITY_HEADER, ACTIVITY_WINDOW_MS, lifecycleQuery, request } from './request.ts';
 
 /**
  * `request<T>()`'s 401 handling (identity-and-sessions spec, task 6.7) — the
@@ -52,6 +52,19 @@ describe('request() 401 handling', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(window.location.assign).not.toHaveBeenCalled();
   });
+
+  // Last in this block: once a page has seen a sign-in confirmed, a later 401 always says the session ended.
+  it('says the session ended when the page had been signed in', async () => {
+    server.use(
+      http.get('*/api/v1/auth/me', () => HttpResponse.json({ id: 'u1' }), { once: true }),
+      http.get('*/api/v1/probe', () => HttpResponse.json({}, { status: 401 })),
+    );
+    await request('/auth/me');
+
+    await expect(request('/probe')).rejects.toThrow();
+
+    expect(window.location.assign).toHaveBeenCalledWith('/login?reason=ended');
+  });
 });
 
 /**
@@ -92,5 +105,60 @@ describe('request() headers', () => {
 
     expect(seen?.get('x-xsrf-token')).toBe('tok-123');
     expect(seen?.get('content-type')).toBe('application/xml');
+  });
+});
+
+/**
+ * Only what a person caused counts towards the idle timeout (ADR-0144): a request carries the
+ * activity header while the pointer or keyboard was used in the last minute, and never otherwise,
+ * so a tab that polls on its own goes idle.
+ */
+describe('request() activity header', () => {
+  let now = 1_000_000;
+
+  beforeEach(() => {
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  async function sentHeader(method = 'GET'): Promise<string | null | undefined> {
+    let seen: Headers | undefined;
+    server.use(
+      http.all('*/api/v1/probe', ({ request: req }) => {
+        seen = req.headers;
+        return HttpResponse.json({});
+      }),
+    );
+    await request('/probe', { method });
+    return seen?.get(ACTIVITY_HEADER);
+  }
+
+  it('sends nothing before the person has done anything', async () => {
+    expect(await sentHeader()).toBeNull();
+  });
+
+  it('sends it within a minute of a key press, and stops after', async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+
+    now += ACTIVITY_WINDOW_MS - 1;
+    expect(await sentHeader()).toBe('1');
+
+    now += 2;
+    expect(await sentHeader()).toBeNull();
+  });
+
+  it.each(['pointerdown', 'pointermove', 'wheel'])('counts a %s as the person being there', async (type) => {
+    now += 10 * ACTIVITY_WINDOW_MS;
+    expect(await sentHeader()).toBeNull();
+
+    window.dispatchEvent(new Event(type));
+
+    expect(await sentHeader()).toBe('1');
+  });
+
+  it('adds it to a change as well as to a read', async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+
+    expect(await sentHeader('POST')).toBe('1');
   });
 });

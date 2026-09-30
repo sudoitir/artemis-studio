@@ -35,6 +35,42 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The header that tells the server a person, not a background refresh, made this request, so it
+ * counts towards the session's idle timeout (ADR-0144). Polling sends it only while the person is
+ * around; the event stream cannot send headers at all, so it never counts.
+ */
+export const ACTIVITY_HEADER = 'X-Studio-Activity';
+
+/** How long after the last pointer or key press a request still counts as the person's. */
+export const ACTIVITY_WINDOW_MS = 60_000;
+
+/** When the person last used the pointer or keyboard on this page; null until they do. Monotonic, not wall time. */
+let lastInteractionAt: number | null = null;
+
+const INTERACTIONS = ['pointerdown', 'pointermove', 'wheel', 'keydown'] as const;
+
+// One passive listener per kind for the page's whole life; recording is a single assignment.
+if (typeof window !== 'undefined') {
+  for (const type of INTERACTIONS) {
+    window.addEventListener(type, () => (lastInteractionAt = performance.now()), { capture: true, passive: true });
+  }
+}
+
+/** Whether the person used the pointer or keyboard within {@link ACTIVITY_WINDOW_MS}. */
+export function personIsActive(): boolean {
+  return lastInteractionAt !== null && performance.now() - lastInteractionAt <= ACTIVITY_WINDOW_MS;
+}
+
+/**
+ * Whether this page has seen the server confirm a sign-in (`/auth/me` or `/auth/login` succeeded).
+ * A later 401 then means the session ended, as opposed to the page having started signed out.
+ */
+let confirmedSignedIn = false;
+
+/** The `reason` a 401 hands the sign-in screen when this page had been signed in, so it can say the session ended. */
+export const SESSION_ENDED_REASON = 'ended';
+
 /** Reads the `XSRF-TOKEN` cookie Spring Security's `CookieCsrfTokenRepository` sets (identity-and-sessions spec). */
 function csrfToken(): string | undefined {
   return document.cookie
@@ -52,6 +88,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const token = csrfToken();
     if (token) headers['X-XSRF-TOKEN'] = token;
   }
+  if (personIsActive()) headers[ACTIVITY_HEADER] = '1';
   // The caller's headers add to these, never replace them: replacing dropped the CSRF token.
   const merged = new Headers(headers);
   new Headers(init?.headers).forEach((value, key) => merged.set(key, value));
@@ -63,8 +100,10 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 401 && !globalThis.location.pathname.startsWith('/login')) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
-    globalThis.location.assign('/login');
+    globalThis.location.assign(confirmedSignedIn ? `/login?reason=${SESSION_ENDED_REASON}` : '/login');
   }
+  if (res.ok && (path === '/auth/me' || path === '/auth/login')) confirmedSignedIn = true;
+  if (path === '/auth/logout') confirmedSignedIn = false;
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};

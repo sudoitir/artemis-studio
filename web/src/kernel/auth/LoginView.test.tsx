@@ -141,4 +141,20 @@ describe('LoginView', () => {
 
     await vi.waitFor(() => expect(body).toEqual({ provider: 'local', username: 'alice', password: 'secret123' }));
   });
+
+  it('says the session ended when sent back from a signed-in page, and says nothing on a plain visit', async () => {
+    vi.stubGlobal('location', { ...window.location, search: '?reason=ended', pathname: '/login' });
+    const { unmount } = renderWithProviders(<LoginView />);
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/You were signed out/);
+    expect(screen.getByRole('status')).toHaveTextContent(/inactivity/);
+    unmount();
+
+    vi.stubGlobal('location', { ...window.location, search: '', pathname: '/login' });
+    renderWithProviders(<LoginView />);
+
+    await screen.findByLabelText(/Username/);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
 });

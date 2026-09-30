@@ -15,7 +15,7 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
-import { ApiError } from '../api/request.ts';
+import { ApiError, SESSION_ENDED_REASON } from '../api/request.ts';
 import { useAuthProviders, useLogin } from './api.ts';
 import { bootState } from '../plugins/boot.ts';
 
@@ -39,6 +39,7 @@ export function LoginView() {
   const listed = providers.data !== undefined;
   const showForm = !listed || credential.length > 0;
   const chosen = provider ?? credential[0]?.id ?? null;
+  const sessionEnded = new URLSearchParams(window.location.search).get('reason') === SESSION_ENDED_REASON;
 
   function onSubmit(e: React.SubmitEvent) {
     e.preventDefault();
@@ -69,6 +70,13 @@ export function LoginView() {
               Sign in to continue
             </Text>
           </Stack>
+
+          {sessionEnded ? (
+            <Alert color="gray" title="You were signed out" role="status">
+              Your session ended after a period of inactivity, reached its maximum length, or was ended from another
+              device or by an administrator. Sign in again to continue.
+            </Alert>
+          ) : null}
 
           {showForm ? (
             <form onSubmit={onSubmit}>
