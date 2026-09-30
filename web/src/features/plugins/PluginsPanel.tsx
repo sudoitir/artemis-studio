@@ -12,6 +12,10 @@ import styles from './Plugins.module.css';
 import { RestartControl } from './RestartControl.tsx';
 import { GUIDE_URL, STATUS, contributionSummary, needsAttention, tone } from './words.ts';
 
+const FIX_LABEL: Record<string, string> = { failed: 'See why', incompatible: 'Update…' };
+
+type PluginsInventory = NonNullable<ReturnType<typeof usePlugins>['data']>;
+
 const TEMPLATE_URL = `${branding.projectUrl}/tree/main/examples/plugin-template`;
 
 function Mark({ plugin }: Readonly<{ plugin: PluginView }>) {
@@ -27,76 +31,15 @@ function Mark({ plugin }: Readonly<{ plugin: PluginView }>) {
   );
 }
 
-/**
- * Administration → Plugins (design.md §8). Near-monochrome while everything is well; a plugin that
- * needs someone sorts to the top with its state in words and its fix in its row. The whole panel
- * takes a dropped jar; nothing is installed until the operator has reviewed and confirmed it.
- */
-export function PluginsPanel() {
-  const plugins = usePlugins();
-  const checkUpdates = useCheckUpdates();
-  const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { plugin?: string; upload?: string };
-  const [source, setSource] = useState<Source | null>(() =>
-    search.upload ? { kind: 'resume', sha: search.upload } : null,
-  );
-  const [installersOpen, setInstallersOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const view = plugins.data;
-
-  const setSearch = (next: { plugin?: string; upload?: string }) =>
-    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...next }), replace: true });
-
-  const updates = useMemo(
-    () => new Map((checkUpdates.data ?? []).map((u: PluginUpdateView) => [u.id, u])),
-    [checkUpdates.data],
-  );
-  const rows = useMemo(
-    () =>
-      [...(view?.plugins ?? [])].sort(
-        (a, b) => Number(needsAttention(b)) - Number(needsAttention(a)) || a.info.title.localeCompare(b.info.title),
-      ),
-    [view],
-  );
-
-  if (plugins.isPending) return <Loader size="sm" />;
-  if (plugins.isError && !view) {
-    return (
-      <Alert color="red" variant="light" title="Plugins could not be listed">
-        {plugins.error.status === 403
-          ? 'Listing plugins needs the user:admin permission.'
-          : `${plugins.error.message}. The list retries by itself.`}
-      </Alert>
-    );
-  }
-  if (!view) return null;
-
-  const canInstall = view.canInstall && view.uploadEnabled;
-  const cannotInstall = !view.uploadEnabled
-    ? 'Installing and updating plugins is switched off on this installation (artemis-studio.plugins.upload.enabled=false).'
-    : view.cannotInstall?.message;
-  const attention = rows.filter(needsAttention);
-  const open = rows.find((p) => p.id === search.plugin);
-
-  const choose = (file: File | null) => {
-    if (!file) return;
-    setSource({ kind: 'file', file });
-  };
-  const onDrop = (event: DragEvent) => {
-    event.preventDefault();
-    setDragging(false);
-    if (!canInstall) return;
-    const file = [...event.dataTransfer.files].find((f) => f.name.endsWith('.jar'));
-    choose(file ?? null);
-  };
-
+/** Why a restart is wanted: plugins waiting for one, ones that did not stop, and versions still in memory. */
+function restartReasonsOf(rows: PluginView[], unreleasedLabels: string[]): string[] {
   // "acme-notes 1.0.0" labels, grouped per plugin: "acme-notes (1.0.0, 1.0.1)".
   const unreleased = new Map<string, Set<string>>();
-  for (const label of view.restart.unreleased) {
+  for (const label of unreleasedLabels) {
     const [id, version] = label.split(' ');
     unreleased.set(id, (unreleased.get(id) ?? new Set()).add(version ?? ''));
   }
-  const restartReasons = [
+  return [
     ...rows.filter((p) => p.status === 'needs_restart').map((p) => `${p.info.title} starts after a restart.`),
     ...rows.filter((p) => p.stuck).map((p) => `${p.info.title} did not stop cleanly.`),
     ...[...unreleased].map(
@@ -104,8 +47,21 @@ export function PluginsPanel() {
         `Stopped versions of ${rows.find((p) => p.id === id)?.info.title ?? id} (${[...versions].join(', ')}) are still in memory; a restart frees it.`,
     ),
   ];
+}
 
-  const columns: GridColumn<PluginView>[] = [
+/** The outcome of the update check, in one sentence. */
+function updatesSummary(checked: PluginUpdateView[]): string {
+  if (checked.length === 0) return 'No installed plugin names an update URL to check.';
+  const available = checked.filter((u) => u.availableVersion).length;
+  return available === 0 ? 'Every plugin with an update URL is up to date.' : `${available} update(s) available.`;
+}
+
+function pluginColumns(
+  updates: Map<string, PluginUpdateView>,
+  setSource: (source: Source) => void,
+  setSearch: (next: { plugin?: string; upload?: string }) => unknown,
+): GridColumn<PluginView>[] {
+  return [
     {
       id: 'plugin',
       header: 'Plugin',
@@ -165,11 +121,63 @@ export function PluginsPanel() {
       cell: (p) =>
         needsAttention(p) ? (
           <Button size="compact-xs" variant="default" onClick={() => setSearch({ plugin: p.id })}>
-            {p.status === 'failed' ? 'See why' : p.status === 'incompatible' ? 'Update…' : 'Details'}
+            {FIX_LABEL[p.status] ?? 'Details'}
           </Button>
         ) : null,
     },
   ];
+}
+
+/**
+ * The plugins inventory (design.md §8). Near-monochrome while everything is well; a plugin that
+ * needs someone sorts to the top with its state in words and its fix in its row. The whole panel
+ * takes a dropped jar; nothing is installed until the operator has reviewed and confirmed it.
+ */
+function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
+  const checkUpdates = useCheckUpdates();
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { plugin?: string; upload?: string };
+  const [source, setSource] = useState<Source | null>(() =>
+    search.upload ? { kind: 'resume', sha: search.upload } : null,
+  );
+  const [installersOpen, setInstallersOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const setSearch = (next: { plugin?: string; upload?: string }) =>
+    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...next }), replace: true });
+
+  const updates = useMemo(
+    () => new Map((checkUpdates.data ?? []).map((u: PluginUpdateView) => [u.id, u])),
+    [checkUpdates.data],
+  );
+  const rows = useMemo(
+    () =>
+      [...(view?.plugins ?? [])].sort(
+        (a, b) => Number(needsAttention(b)) - Number(needsAttention(a)) || a.info.title.localeCompare(b.info.title),
+      ),
+    [view],
+  );
+
+  const canInstall = view.canInstall && view.uploadEnabled;
+  const cannotInstall = !view.uploadEnabled
+    ? 'Installing and updating plugins is switched off on this installation (artemis-studio.plugins.upload.enabled=false).'
+    : view.cannotInstall?.message;
+  const attention = rows.filter(needsAttention);
+  const open = rows.find((p) => p.id === search.plugin);
+
+  const choose = (file: File | null) => {
+    if (!file) return;
+    setSource({ kind: 'file', file });
+  };
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    if (!canInstall) return;
+    const file = [...event.dataTransfer.files].find((f) => f.name.endsWith('.jar'));
+    choose(file ?? null);
+  };
+
+  const restartReasons = restartReasonsOf(rows, view.restart.unreleased);
 
   return (
     <Stack
@@ -249,11 +257,7 @@ export function PluginsPanel() {
 
       {checkUpdates.data ? (
         <Text size="sm" role="status">
-          {checkUpdates.data.length === 0
-            ? 'No installed plugin names an update URL to check.'
-            : checkUpdates.data.filter((u) => u.availableVersion).length === 0
-              ? 'Every plugin with an update URL is up to date.'
-              : `${checkUpdates.data.filter((u) => u.availableVersion).length} update(s) available.`}
+          {updatesSummary(checkUpdates.data)}
           {checkUpdates.data
             .filter((u) => u.error)
             .map((u) => ` ${u.id}: could not check (${u.error}).`)
@@ -281,7 +285,7 @@ export function PluginsPanel() {
         <VirtualTable
           label="Plugins"
           storageKey="plugins"
-          columns={columns}
+          columns={pluginColumns(updates, setSource, setSearch)}
           data={rows}
           rowKey={(p) => p.id}
           onRowClick={(p) => setSearch({ plugin: p.id })}
@@ -310,4 +314,21 @@ export function PluginsPanel() {
       />
     </Stack>
   );
+}
+
+/** Administration → Plugins (design.md §8). */
+export function PluginsPanel() {
+  const plugins = usePlugins();
+  const view = plugins.data;
+  if (plugins.isPending) return <Loader size="sm" />;
+  if (plugins.isError && !view) {
+    return (
+      <Alert color="red" variant="light" title="Plugins could not be listed">
+        {plugins.error.status === 403
+          ? 'Listing plugins needs the user:admin permission.'
+          : `${plugins.error.message}. The list retries by itself.`}
+      </Alert>
+    );
+  }
+  return view ? <PluginsBody view={view} /> : null;
 }

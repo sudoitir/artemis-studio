@@ -187,11 +187,17 @@ export function CopyQueueLink({ clusterId, target, host }: Readonly<ActionProps<
   );
 }
 
+/** The menu entry: which of pause or resume applies, or both while it is not known. */
+function pauseLabel(paused: boolean | undefined): string {
+  if (paused === undefined) return 'Pause or resume…';
+  return paused ? 'Resume…' : 'Pause…';
+}
+
 export function PauseResumeQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
   const gate = useWriteGate(clusterId, 'queue:pause', 'Pause and resume queues');
   const { queue } = useQueue(clusterId, target.queueName, target.snapshot);
   const paused = queue ? queue.perNode.some((n) => n.paused) : undefined;
-  const label = paused === undefined ? 'Pause or resume…' : paused ? 'Resume…' : 'Pause…';
+  const label = pauseLabel(paused);
   return (
     <ActionMenuItem
       label={label}

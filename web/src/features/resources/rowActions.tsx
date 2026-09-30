@@ -181,7 +181,8 @@ export function SessionClose({ clusterId, target, host }: Readonly<ActionProps<S
 }
 
 // ── Consumers ────────────────────────────────────────────────────────────────
-export function ConsumerOpenSession({ clusterId, target }: Readonly<ActionProps<ConsumerTarget>>) {
+/** Open the session a consumer or producer belongs to, in the sessions view filtered to it. */
+function OpenItsSession({ clusterId, target }: Readonly<{ clusterId: string; target: { sessionId?: string | null } }>) {
   return (
     <OpenIn
       clusterId={clusterId}
@@ -192,6 +193,8 @@ export function ConsumerOpenSession({ clusterId, target }: Readonly<ActionProps<
     />
   );
 }
+
+export const ConsumerOpenSession = OpenItsSession;
 
 export function ConsumerCopy({ target, host }: Readonly<ActionProps<ConsumerTarget>>) {
   return <Copy value={target.consumerId} what="consumer id" host={host} />;
@@ -221,17 +224,7 @@ export function ConsumerClose({ clusterId, target, host }: Readonly<ActionProps<
 }
 
 // ── Producers ────────────────────────────────────────────────────────────────
-export function ProducerOpenSession({ clusterId, target }: Readonly<ActionProps<ProducerTarget>>) {
-  return (
-    <OpenIn
-      clusterId={clusterId}
-      view="sessions"
-      q={target.sessionId}
-      label="Open its session"
-      icon={<IconPlugConnected size={16} aria-hidden />}
-    />
-  );
-}
+export const ProducerOpenSession = OpenItsSession;
 
 export function ProducerCopy({ target, host }: Readonly<ActionProps<ProducerTarget>>) {
   return (

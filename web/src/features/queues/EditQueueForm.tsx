@@ -23,7 +23,10 @@ function currentValues(config: QueueConfiguration | undefined): Record<string, u
 
 /** A configuration value as the text input wants it. */
 function str(value: unknown): string {
-  return value === null || value === undefined ? '' : String(value);
+  if (value === null || value === undefined) return '';
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : JSON.stringify(value);
 }
 
 /** A configuration value as the number input wants it. */

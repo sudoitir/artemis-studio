@@ -138,7 +138,8 @@ export function useDeleteQueue(clusterId: string, queueName: string) {
     clusterId,
     ({ dryRun, override, disconnectConsumers }) => {
       const query = lifecycleQuery(dryRun, override);
-      const flag = disconnectConsumers ? `${query ? '&' : '?'}disconnectConsumers=true` : '';
+      const separator = query ? '&' : '?';
+      const flag = disconnectConsumers ? `${separator}disconnectConsumers=true` : '';
       return request(`${lifecycleBase(clusterId)}/queues/${encodeURIComponent(queueName)}${query}${flag}`, {
         method: 'DELETE',
       });

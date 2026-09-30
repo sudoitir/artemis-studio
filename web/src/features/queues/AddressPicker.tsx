@@ -28,6 +28,26 @@ export interface AddressPickerProps {
   onBlur?: () => void;
 }
 
+/** What stands in for the options while queues fail to load or load, or when nothing matches. */
+function pickerNotice(queues: ReturnType<typeof useQueues>, optionCount: number, typeCount: number): React.ReactNode {
+  if (queues.isError) {
+    return (
+      <Combobox.Empty>
+        Could not read this cluster&rsquo;s queues: {queues.error.message} You can still type an address by hand.
+      </Combobox.Empty>
+    );
+  }
+  if (queues.isPending) return <Combobox.Empty>Loading addresses…</Combobox.Empty>;
+  if (optionCount > 0) return null;
+  return (
+    <Combobox.Empty>
+      {typeCount > 0
+        ? 'No address here matches that name and routing type. Clear the type filter, or type the name in full to use it anyway.'
+        : 'No address on this cluster matches that name. Type it in full to use it anyway — Studio will start tracing once it appears.'}
+    </Combobox.Empty>
+  );
+}
+
 /**
  * Pick an address by name, with the broker's own list to choose from.
  *
@@ -142,20 +162,7 @@ export function AddressPicker({
 
           <Combobox.Options>
             <div className={styles.options}>
-              {queues.isError ? (
-                <Combobox.Empty>
-                  Could not read this cluster&rsquo;s queues: {queues.error.message} You can still type an address by
-                  hand.
-                </Combobox.Empty>
-              ) : queues.isPending ? (
-                <Combobox.Empty>Loading addresses…</Combobox.Empty>
-              ) : options.length === 0 ? (
-                <Combobox.Empty>
-                  {types.length > 0
-                    ? 'No address here matches that name and routing type. Clear the type filter, or type the name in full to use it anyway.'
-                    : 'No address on this cluster matches that name. Type it in full to use it anyway — Studio will start tracing once it appears.'}
-                </Combobox.Empty>
-              ) : (
+              {pickerNotice(queues, options.length, types.length) ??
                 options.map((o) => (
                   <Combobox.Option
                     value={o.address}
@@ -181,8 +188,7 @@ export function AddressPicker({
                       </span>
                     </div>
                   </Combobox.Option>
-                ))
-              )}
+                ))}
             </div>
           </Combobox.Options>
         </Combobox.Dropdown>

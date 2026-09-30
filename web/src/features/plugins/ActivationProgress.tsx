@@ -19,6 +19,88 @@ function useElapsed(from: string | null | undefined): number | null {
 
 export type Outcome = 'pending' | 'succeeded' | 'failed' | 'restart';
 
+/** How the activation stands: active since it began, failed, waiting on a restart, or still going. */
+function outcomeOf(status: string | undefined, activatedSince: boolean, restarting: boolean): Outcome {
+  if (status === 'active' && activatedSince) return 'succeeded';
+  if (status === 'failed') return 'failed';
+  return status === 'needs_restart' || restarting ? 'restart' : 'pending';
+}
+
+/** What each outcome says, and the next action it leaves the operator. */
+function OutcomeNote({
+  outcome,
+  plan,
+  failure,
+  restart,
+  serverDown,
+}: Readonly<{
+  outcome: Outcome;
+  plan: PluginPlanView;
+  failure: string | null | undefined;
+  restart: { supervised?: boolean; command?: string | null } | undefined;
+  serverDown: boolean;
+}>) {
+  const title = plan.info.title;
+  if (outcome === 'pending') {
+    return (
+      <Text size="sm">
+        <Loader size="xs" mr={6} />
+        Activating {title} {plan.toVersion}. You can close this; it carries on.
+      </Text>
+    );
+  }
+  if (outcome === 'succeeded') {
+    return (
+      <Alert variant="light" title={`${title} ${plan.toVersion} is active`}>
+        <Stack gap="xs">
+          {plan.info.contributions.ui ? (
+            <>
+              <Text size="sm">Reload Studio to load its screens.</Text>
+              <Button w="fit-content" onClick={() => window.location.reload()}>
+                Reload Studio
+              </Button>
+            </>
+          ) : (
+            <Text size="sm">It is running; it has no screens of its own.</Text>
+          )}
+        </Stack>
+      </Alert>
+    );
+  }
+  if (outcome === 'failed') {
+    return (
+      <Alert variant="light" color="red" title={`${title} ${plan.toVersion} did not start`}>
+        <Stack gap="xs">
+          <Text size="sm">{failure ?? 'The server gave no reason.'}</Text>
+          {plan.fromVersion && plan.activationClass === 'INSTANT' ? (
+            <Text size="sm">{plan.fromVersion} is still running; nothing changed for its users.</Text>
+          ) : null}
+          <Text size="sm">Upload a fixed version, or open the plugin's details to retry or remove it.</Text>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (restart?.supervised || serverDown) {
+    return (
+      <Alert variant="light" title="Studio is restarting">
+        <Text size="sm">
+          <Loader size="xs" mr={6} />
+          {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is back, usually
+          under a minute.
+        </Text>
+      </Alert>
+    );
+  }
+  return (
+    <Alert variant="light" title={`${title} starts when Studio restarts`}>
+      <Stack gap="xs">
+        <Text size="sm">Studio cannot restart itself where it runs. Restart it with:</Text>
+        <Code block>{restart?.command ?? 'docker compose restart studio'}</Code>
+      </Stack>
+    </Alert>
+  );
+}
+
 /**
  * Where an activation has got to, and how it ended (design.md §8), from the plugin's own
  * status — polled every second while it runs. Closing the dialog never stops it; this is only a
@@ -44,20 +126,12 @@ export function ActivationProgress({
     plugin?.activatedAt !== undefined && plugin?.activatedAt !== null
       ? new Date(plugin.activatedAt).getTime() >= startedAt - 5_000
       : false;
-  const outcome: Outcome =
-    plugin?.status === 'active' && activatedSince
-      ? 'succeeded'
-      : plugin?.status === 'failed'
-        ? 'failed'
-        : plugin?.status === 'needs_restart' || restart?.restarting || serverDown
-          ? 'restart'
-          : 'pending';
+  const outcome = outcomeOf(plugin?.status, activatedSince, Boolean(restart?.restarting) || serverDown);
 
   useEffect(() => onOutcome?.(outcome), [outcome, onOutcome]);
 
   const steps = STEPS.filter((s) => s.key !== 'draining' || plan.activationClass === 'BRIEF_MAINTENANCE');
   const current = steps.findIndex((s) => s.key === plugin?.progress);
-  const title = plan.info.title;
 
   return (
     <Stack gap="md">
@@ -78,57 +152,13 @@ export function ActivationProgress({
       </Timeline>
 
       <div aria-live="polite">
-        {outcome === 'pending' ? (
-          <Text size="sm">
-            <Loader size="xs" mr={6} />
-            Activating {title} {plan.toVersion}. You can close this; it carries on.
-          </Text>
-        ) : null}
-        {outcome === 'succeeded' ? (
-          <Alert variant="light" title={`${title} ${plan.toVersion} is active`}>
-            <Stack gap="xs">
-              {plan.info.contributions.ui ? (
-                <>
-                  <Text size="sm">Reload Studio to load its screens.</Text>
-                  <Button w="fit-content" onClick={() => window.location.reload()}>
-                    Reload Studio
-                  </Button>
-                </>
-              ) : (
-                <Text size="sm">It is running; it has no screens of its own.</Text>
-              )}
-            </Stack>
-          </Alert>
-        ) : null}
-        {outcome === 'failed' ? (
-          <Alert variant="light" color="red" title={`${title} ${plan.toVersion} did not start`}>
-            <Stack gap="xs">
-              <Text size="sm">{plugin?.failure ?? 'The server gave no reason.'}</Text>
-              {plan.fromVersion && plan.activationClass === 'INSTANT' ? (
-                <Text size="sm">{plan.fromVersion} is still running; nothing changed for its users.</Text>
-              ) : null}
-              <Text size="sm">Upload a fixed version, or open the plugin's details to retry or remove it.</Text>
-            </Stack>
-          </Alert>
-        ) : null}
-        {outcome === 'restart' ? (
-          restart?.supervised || serverDown ? (
-            <Alert variant="light" title="Studio is restarting">
-              <Text size="sm">
-                <Loader size="xs" mr={6} />
-                {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is back,
-                usually under a minute.
-              </Text>
-            </Alert>
-          ) : (
-            <Alert variant="light" title={`${title} starts when Studio restarts`}>
-              <Stack gap="xs">
-                <Text size="sm">Studio cannot restart itself where it runs. Restart it with:</Text>
-                <Code block>{restart?.command ?? 'docker compose restart studio'}</Code>
-              </Stack>
-            </Alert>
-          )
-        ) : null}
+        <OutcomeNote
+          outcome={outcome}
+          plan={plan}
+          failure={plugin?.failure}
+          restart={restart}
+          serverDown={serverDown}
+        />
       </div>
     </Stack>
   );

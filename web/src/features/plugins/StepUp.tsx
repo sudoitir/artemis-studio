@@ -65,7 +65,7 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
               setPassword(e.currentTarget.value);
               setEmpty(false);
             }}
-            error={empty ? 'Enter your password.' : failed ? failed.message : undefined}
+            error={empty ? 'Enter your password.' : failed?.message}
             w={260}
           />
           <Button type="submit" loading={reauthenticate.isPending}>

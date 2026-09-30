@@ -37,6 +37,13 @@ interface RowContext {
   fetchedAt: number | null;
 }
 
+const LINK_TARGET = {
+  queue: (value: string) => ({ queueName: value }),
+  address: (value: string) => ({ address: value }),
+  connection: (value: string) => ({ connectionId: value, nodeId: '', nodeName: '' }),
+  session: (value: string) => ({ sessionId: value, nodeId: '', nodeName: '' }),
+};
+
 /**
  * A value that names another resource, as a link to it (ADR-0107) — or as plain text when the
  * feature presenting it is disabled, or when the broker gave no value.
@@ -46,15 +53,7 @@ function linked(
   value: string | null | undefined,
 ): React.ReactNode {
   if (!value) return '';
-  const target = (
-    kind === 'queue'
-      ? { queueName: value }
-      : kind === 'address'
-        ? { address: value }
-        : kind === 'connection'
-          ? { connectionId: value, nodeId: '', nodeName: '' }
-          : { sessionId: value, nodeId: '', nodeName: '' }
-  ) as never;
+  const target = LINK_TARGET[kind](value) as never;
   return (
     <ResourceLink kind={kind} target={target}>
       {value}
