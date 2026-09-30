@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Badge, Button, Divider, Group, Loader, Modal, Stack, Text } from '@mantine/core';
+import { Alert, Badge, Button, Group, Loader, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { useMe, needsReauthentication } from '../../kernel/auth/api.ts';
 import { describeClient } from '../../kernel/auth/clientLabel.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
 import { passkeysSupported, PASSKEYS_UNSUPPORTED } from '../../kernel/auth/webauthn.ts';
-import { absoluteLabel, elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
+import { Ago } from '../../kernel/time/Ago.tsx';
+import { useServerNow } from '../../kernel/time/time.ts';
+import { Row, Rows } from '../../ui/ListRows.tsx';
 import {
   useMfaStatus,
   useRegenerateRecoveryCodes,
@@ -316,8 +318,7 @@ function TwoStep({ status }: { status: MfaStatusView }) {
                 facts={
                   <>
                     Trusted <Ago at={d.created} now={now} /> · last used <Ago at={d.lastUsed} now={now} /> · expires{' '}
-                    <time dateTime={d.expires}>{absoluteLabel(d.expires)}</time> (
-                    <Ago at={d.expires} now={now} future />)
+                    <Ago at={d.expires} now={now} future />
                   </>
                 }
                 action={
@@ -449,38 +450,6 @@ function TwoStep({ status }: { status: MfaStatusView }) {
 
       <RecoveryCodesDialog codes={codes} onContinue={() => setCodes(null)} />
     </Stack>
-  );
-}
-
-/** A moment as words, in a `<time>` so the exact instant is machine-readable; `future` counts down to it. */
-function Ago({ at, now, future = false }: { at: string; now: number; future?: boolean }) {
-  const ms = future ? Date.parse(at) - now : now - Date.parse(at);
-  return <time dateTime={at}>{future ? `in ${elapsedLabel(ms)}` : `${elapsedLabel(ms)} ago`}</time>;
-}
-
-function Rows({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack component="ul" gap={0} m={0} p={0} aria-label={label} style={{ listStyle: 'none' }}>
-      {children}
-    </Stack>
-  );
-}
-
-/** One thing the account holds: what it is, the facts about it beneath, and the action for it. */
-function Row({ title, facts, action }: { title: ReactNode; facts: ReactNode; action: ReactNode }) {
-  return (
-    <li>
-      <Divider />
-      <Group justify="space-between" align="center" wrap="nowrap" py="xs" gap="md">
-        <Stack gap={2}>
-          {title}
-          <Text size="xs" c="dimmed">
-            {facts}
-          </Text>
-        </Stack>
-        {action}
-      </Group>
-    </li>
   );
 }
 

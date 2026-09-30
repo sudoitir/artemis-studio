@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Group, Loader, Stack, Table, Text, VisuallyHidden } from '@mantine/core';
+import { Alert, Badge, Button, Group, Loader, Stack, Text } from '@mantine/core';
 
 import { useLogout } from '../../kernel/auth/api.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
-import { When } from '../../kernel/time/When.tsx';
+import { Ago } from '../../kernel/time/Ago.tsx';
 import { useEndOtherSessions, useEndSession, useSessions, type AccountSessionView } from './api.ts';
 import { describeClient } from '../../kernel/auth/clientLabel.ts';
+import { Row, Rows } from '../../ui/ListRows.tsx';
 
 interface Outcome {
   text: string;
@@ -95,59 +96,45 @@ export function SessionsManager({ userId }: { userId?: string }) {
             : 'No sessions are listed.'}
         </Text>
       ) : (
-        <Table verticalSpacing="xs">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Client</Table.Th>
-              <Table.Th>Signed in</Table.Th>
-              <Table.Th>Last active</Table.Th>
-              <Table.Th>
-                <VisuallyHidden>Action</VisuallyHidden>
-              </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {list.map((s) => (
-              <Table.Tr key={s.handle}>
-                <Table.Td>
-                  <Group gap="xs" wrap="wrap">
-                    <Text size="sm" fw={500} title={s.userAgent ?? undefined}>
-                      {describeClient(s.userAgent)}
-                    </Text>
-                    {s.current ? (
-                      <Badge size="xs" variant="default">
-                        This session
-                      </Badge>
-                    ) : null}
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    {s.clientAddress ?? 'Address unknown'}
+        <Rows label={admin ? 'Sessions of this user' : 'Your sessions'}>
+          {list.map((s) => (
+            <Row
+              key={s.handle}
+              title={
+                <Group gap="xs" wrap="wrap">
+                  <Text size="sm" fw={500} title={s.userAgent ?? undefined}>
+                    {describeClient(s.userAgent)}
                   </Text>
-                </Table.Td>
-                <Table.Td>
-                  <When at={s.signedInAt} now={now} />
-                </Table.Td>
-                <Table.Td>
-                  <When at={s.lastActivityAt} now={now} />
-                </Table.Td>
-                <Table.Td>
-                  <Button
-                    size="xs"
-                    variant="default"
-                    aria-label={
-                      s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
-                    }
-                    loading={(end.isPending && end.variables === s.handle) || (s.current && logout.isPending)}
-                    disabled={busy}
-                    onClick={() => endOne(s)}
-                  >
-                    {admin && !s.current ? 'End' : 'Sign out'}
-                  </Button>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+                  {s.current ? (
+                    <Badge size="xs" variant="default">
+                      This session
+                    </Badge>
+                  ) : null}
+                </Group>
+              }
+              facts={
+                <>
+                  {s.clientAddress ?? 'Address unknown'} · signed in <Ago at={s.signedInAt} now={now} /> · last active{' '}
+                  <Ago at={s.lastActivityAt} now={now} />
+                </>
+              }
+              action={
+                <Button
+                  size="xs"
+                  variant="default"
+                  aria-label={
+                    s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
+                  }
+                  loading={(end.isPending && end.variables === s.handle) || (s.current && logout.isPending)}
+                  disabled={busy}
+                  onClick={() => endOne(s)}
+                >
+                  {admin && !s.current ? 'End' : 'Sign out'}
+                </Button>
+              }
+            />
+          ))}
+        </Rows>
       )}
 
       <Group gap="sm">

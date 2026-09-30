@@ -163,7 +163,7 @@ describe('TwoStepSection', () => {
     expect(within(here).getByText('Firefox on Linux')).toBeInTheDocument();
     expect(within(here).getByText('203.0.113.7')).toBeInTheDocument();
     expect(within(here).getByText('in 11d')).toBeInTheDocument();
-    expect(within(here).getByText(/^\d{4}-\d{2}-\d{2} /)).toBeInTheDocument();
+    expect(within(here).getAllByText(/^\(\d{4}-\d{2}-\d{2} /)).toHaveLength(3);
 
     await user.click(screen.getByRole('button', { name: 'Revoke curl/8.5.0 at an unknown address' }));
 

@@ -50,14 +50,14 @@ describe('SessionsManager, own sessions', () => {
 
     renderWithProviders(<SessionsManager />);
 
-    const rows = await screen.findAllByRole('row');
+    const rows = await screen.findAllByRole('listitem');
     const here = rows.find((r) => within(r).queryByText('This session'))!;
     expect(within(here).getByText('Firefox on Linux')).toBeInTheDocument();
-    expect(within(here).getByText('203.0.113.7')).toBeInTheDocument();
+    expect(here).toHaveTextContent('203.0.113.7 · signed in 3h ago');
     expect(within(here).getByText('5m ago')).toBeInTheDocument();
     expect(within(here).getByText('3h ago')).toBeInTheDocument();
-    // The exact time is on the page, not behind a hover.
-    expect(within(here).getAllByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)).toHaveLength(2);
+    // The exact time is text for assistive technology, not only behind a hover.
+    expect(within(here).getAllByText(/^\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)).toHaveLength(2);
     const phone = rows.find((r) => within(r).queryByText('Chrome on Windows'))!;
     expect(within(phone).queryByText('This session')).not.toBeInTheDocument();
     expect(within(phone).getByText('1h ago')).toBeInTheDocument();
