@@ -5,6 +5,7 @@ node_modules/
 packages/client/dist/
 packages/plugin-sdk/dist/
 src/kernel/api/schema.d.ts
+packages/client/src/schema.d.ts
 openapi.json
 manifest.snapshot.json
 package-lock.json
